@@ -129,6 +129,7 @@ function ProjectEvaluatorTracesTable({
                 rootSpansOnly: $rootSpansOnly
                 projectEvaluatorId: $projectEvaluatorId
               )
+            ...useSpanAnnotationNames_project @defer
           }
         }
       }

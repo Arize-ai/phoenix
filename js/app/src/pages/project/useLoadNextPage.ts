@@ -3,8 +3,8 @@ import { useCallback } from "react";
 type LoadNextOptions = { onComplete?: (error: Error | null) => void };
 
 /**
- * Relay's `loadNext` for the spans and traces tables: skips annotation names,
- * and marks the new rows failed if the page's request fails.
+ * Relay's `loadNext` for the spans and traces tables: marks the new rows
+ * failed if the page's request fails.
  *
  * @param params - the table's pagination and failure hooks
  * @param params.loadNext - the table's `usePaginationFragment` loader
@@ -18,10 +18,7 @@ export function useLoadNextPage({
 }: {
   loadNext: (
     count: number,
-    options: {
-      onComplete: (error: Error | null) => void;
-      UNSTABLE_extraVariables: { includeAnnotationNames: boolean };
-    }
+    options: { onComplete: (error: Error | null) => void }
   ) => unknown;
   rowCount: number;
   trackNextPage: (firstRow: number) => (error: Error | null) => void;
@@ -30,7 +27,6 @@ export function useLoadNextPage({
     (count: number, options?: LoadNextOptions) => {
       const onPageComplete = trackNextPage(rowCount);
       return loadNext(count, {
-        UNSTABLE_extraVariables: { includeAnnotationNames: false },
         onComplete: (error) => {
           onPageComplete(error);
           options?.onComplete?.(error);

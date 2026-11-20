@@ -94,6 +94,7 @@ import type {
   TracesTable_spans$key,
 } from "./__generated__/TracesTable_spans.graphql";
 import type { TracesTableQuery } from "./__generated__/TracesTableQuery.graphql";
+import type { useSpanAnnotationNames_project$key } from "./__generated__/useSpanAnnotationNames_project.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
 import { withFilterConditionParam } from "./filterConditionParam";
 import {
@@ -131,7 +132,7 @@ type TracesTableProps = {
    * for in-progress edits.
    */
   onFilterConditionApplied?: (condition: string) => void;
-  project: TracesTable_spans$key;
+  project: TracesTable_spans$key & useSpanAnnotationNames_project$key;
   /**
    * The settled condition `project` was loaded with; the rows on hand already
    * match it.
@@ -429,15 +430,11 @@ export function TracesTable(props: TracesTableProps) {
           }
           traceFilterCondition: { type: "String", defaultValue: null }
           numDescendants: { type: "Int", defaultValue: 50 }
-          includeAnnotationNames: { type: "Boolean", defaultValue: true }
           deferChildSpans: { type: "Boolean", defaultValue: true }
         ) {
           id
           name
           ...ProjectAnnotationConfigsByNameFragment
-          ...useSpanAnnotationNames_project
-            @defer
-            @include(if: $includeAnnotationNames)
           rootSpans: spans(
             first: $first
             after: $after
@@ -504,7 +501,6 @@ export function TracesTable(props: TracesTableProps) {
       props.project
     );
   const {
-    hasFailed,
     isPending: isOwnerRequestPending,
     isRowFailed,
     onRefetchStart,
@@ -518,7 +514,10 @@ export function TracesTable(props: TracesTableProps) {
   });
   const annotationConfigsByName = useProjectAnnotationConfigsByName(data);
   const { spanAnnotationNames, traceAnnotationNames, hasAnnotationNamesError } =
-    useSpanAnnotationNames({ project: data, hasFailed });
+    useSpanAnnotationNames({
+      project: props.project,
+      initialRequest: props.initialRequest,
+    });
 
   const annotationColumnVisibility = useTracingContext(
     (state) => state.annotationColumnVisibility

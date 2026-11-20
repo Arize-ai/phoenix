@@ -92,6 +92,7 @@ import type {
   SpanStatusCode,
 } from "./__generated__/SpansTable_spans.graphql";
 import type { SpansTableSpansQuery } from "./__generated__/SpansTableSpansQuery.graphql";
+import type { useSpanAnnotationNames_project$key } from "./__generated__/useSpanAnnotationNames_project.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
 import {
   SpanInputValueTooltipCell,
@@ -128,7 +129,7 @@ import { useSpanAnnotationNames } from "./useSpanAnnotationNames";
 
 type SpansTableProps = {
   selectedRowId?: string;
-  project: SpansTable_spans$key;
+  project: SpansTable_spans$key & useSpanAnnotationNames_project$key;
   /**
    * The condition the preload carried; always settled, so the rows on hand
    * match both its text and its root scope from the first render.
@@ -381,12 +382,8 @@ export function SpansTable(props: SpansTableProps) {
           }
           filterCondition: { type: "String", defaultValue: null }
           projectEvaluatorId: { type: "ID", defaultValue: null }
-          includeAnnotationNames: { type: "Boolean", defaultValue: true }
         ) {
           name
-          ...useSpanAnnotationNames_project
-            @defer
-            @include(if: $includeAnnotationNames)
           ...ProjectAnnotationConfigsByNameFragment
           spans(
             first: $first
@@ -459,7 +456,6 @@ export function SpansTable(props: SpansTableProps) {
       props.project
     );
   const {
-    hasFailed,
     isPending: isOwnerRequestPending,
     onRefetchStart,
     onRefetchComplete,
@@ -472,7 +468,10 @@ export function SpansTable(props: SpansTableProps) {
   });
   const annotationConfigsByName = useProjectAnnotationConfigsByName(data);
   const { spanAnnotationNames, traceAnnotationNames, hasAnnotationNamesError } =
-    useSpanAnnotationNames({ project: data, hasFailed });
+    useSpanAnnotationNames({
+      project: props.project,
+      initialRequest: props.initialRequest,
+    });
 
   const pagination = useTracePagination();
   const setTraceSequence = pagination?.setTraceSequence;

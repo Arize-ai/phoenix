@@ -154,6 +154,7 @@ vi.mock("../TableMetricsChartSelector", () => ({
 }));
 
 import type { SpansTable_spans$key } from "../__generated__/SpansTable_spans.graphql";
+import type { useSpanAnnotationNames_project$key } from "../__generated__/useSpanAnnotationNames_project.graphql";
 import type { SettledSpanFilterSeed } from "../spanFilterSeed";
 import { SpansTable } from "../SpansTable";
 
@@ -202,7 +203,9 @@ describe("SpansTable seed loading integration", () => {
             initialEntries={["/projects/project-integration/spans"]}
           >
             <SpansTable
-              project={{} as SpansTable_spans$key}
+              project={
+                {} as SpansTable_spans$key & useSpanAnnotationNames_project$key
+              }
               seed={settledSeed}
               initialRequest={null}
             />
