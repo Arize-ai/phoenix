@@ -139,19 +139,6 @@ export function getEvaluatorTimeSeriesRows({
   });
 }
 
-/** The project's evaluations in queue at the end of each bin. */
-export function getQueueSizeRows(
-  bins: ReadonlyArray<{
-    readonly timestamp: string;
-    readonly queueSize: number;
-  }>
-): { timestamp: number; queueSize: number }[] {
-  return bins.map(({ timestamp, queueSize }) => ({
-    timestamp: new Date(timestamp).getTime(),
-    queueSize,
-  }));
-}
-
 export type EvaluatorCostRank = {
   dataKey: string;
   name: string;

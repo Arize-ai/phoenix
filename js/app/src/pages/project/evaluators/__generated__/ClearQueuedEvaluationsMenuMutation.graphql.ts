@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b3dbab643ae55d95714461bf216411bd>>
+ * @generated SignedSource<<c8aee54875e5a51470be69849c9aabdd>>
  * @lightSyntaxTransform
  */
 
@@ -11,17 +11,17 @@ import { ConcreteRequest } from 'relay-runtime';
 export type ClearProjectQueuedEvaluationsInput = {
   projectId: string;
 };
-export type ClearQueuedEvaluationsButtonMutation$variables = {
+export type ClearQueuedEvaluationsMenuMutation$variables = {
   input: ClearProjectQueuedEvaluationsInput;
 };
-export type ClearQueuedEvaluationsButtonMutation$data = {
+export type ClearQueuedEvaluationsMenuMutation$data = {
   readonly clearProjectQueuedEvaluations: {
     readonly clearedCount: number;
   };
 };
-export type ClearQueuedEvaluationsButtonMutation = {
-  response: ClearQueuedEvaluationsButtonMutation$data;
-  variables: ClearQueuedEvaluationsButtonMutation$variables;
+export type ClearQueuedEvaluationsMenuMutation = {
+  response: ClearQueuedEvaluationsMenuMutation$data;
+  variables: ClearQueuedEvaluationsMenuMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -63,7 +63,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "ClearQueuedEvaluationsButtonMutation",
+    "name": "ClearQueuedEvaluationsMenuMutation",
     "selections": (v1/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -72,20 +72,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "ClearQueuedEvaluationsButtonMutation",
+    "name": "ClearQueuedEvaluationsMenuMutation",
     "selections": (v1/*:: as any*/)
   },
   "params": {
-    "cacheID": "b9c33f05edf19fd5f4939985119fa102",
+    "cacheID": "7d054331bd2bf37d9eee3878beef6992",
     "id": null,
     "metadata": {},
-    "name": "ClearQueuedEvaluationsButtonMutation",
+    "name": "ClearQueuedEvaluationsMenuMutation",
     "operationKind": "mutation",
-    "text": "mutation ClearQueuedEvaluationsButtonMutation(\n  $input: ClearProjectQueuedEvaluationsInput!\n) {\n  clearProjectQueuedEvaluations(input: $input) {\n    clearedCount\n  }\n}\n"
+    "text": "mutation ClearQueuedEvaluationsMenuMutation(\n  $input: ClearProjectQueuedEvaluationsInput!\n) {\n  clearProjectQueuedEvaluations(input: $input) {\n    clearedCount\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "dfb3476ee21d9fbd3cffac47710b119a";
+(node as any).hash = "09d9068ecb7327e568ae34b4b6b3c260";
 
 export default node;

@@ -9,7 +9,6 @@ import {
   getEvaluatorCostRanking,
   getEvaluatorSeries,
   getEvaluatorTimeSeriesRows,
-  getQueueSizeRows,
   OTHER_EVALUATORS_DATA_KEY,
 } from "../evaluatorActivity";
 
@@ -135,16 +134,6 @@ describe("getEvaluatorTimeSeriesRows", () => {
         evaluator0: null,
         [OTHER_EVALUATORS_DATA_KEY]: null,
       },
-    ]);
-  });
-});
-
-describe("getQueueSizeRows", () => {
-  it("reads each bin's queue size, keyed by the bin's start", () => {
-    expect(
-      getQueueSizeRows([{ timestamp: "2026-10-28T10:00:00Z", queueSize: 7 }])
-    ).toEqual([
-      { timestamp: Date.parse("2026-10-28T10:00:00Z"), queueSize: 7 },
     ]);
   });
 });

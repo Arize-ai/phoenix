@@ -101,8 +101,7 @@ const projectPageSkeletonCSS = css`
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding: var(--global-dimension-size-100) var(--global-dimension-size-200)
-    var(--global-dimension-size-200);
+  padding: var(--global-dimension-size-200);
   .project-page-skeleton__strip {
     flex: none;
     box-sizing: border-box;
