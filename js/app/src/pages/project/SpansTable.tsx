@@ -122,7 +122,7 @@ import {
   TRACE_ANNOTATIONS_COLUMN_ID,
 } from "./tableUtils";
 import { TraceNotesTableCell } from "./TraceNotesTableCell";
-import { useDeferredPartsFailure } from "./useDeferredPartsFailure";
+import { useDeferredPayloadStatus } from "./useDeferredPayloadStatus";
 import { useLoadNextPage } from "./useLoadNextPage";
 import { useSpanAnnotationNames } from "./useSpanAnnotationNames";
 
@@ -459,20 +459,20 @@ export function SpansTable(props: SpansTableProps) {
       props.project
     );
   const {
-    hasRequestFailed,
-    isRequestPending,
+    hasFailed,
+    isPending,
     onRefetchStart,
     onRefetchComplete,
-    startNextPage,
-  } = useDeferredPartsFailure({ initialRequest: props.initialRequest });
+    trackNextPage,
+  } = useDeferredPayloadStatus({ initialRequest: props.initialRequest });
   const loadNextPage = useLoadNextPage({
     loadNext,
     rowCount: data.spans.edges.length,
-    startNextPage,
+    trackNextPage,
   });
   const annotationConfigsByName = useProjectAnnotationConfigsByName(data);
   const { spanAnnotationNames, traceAnnotationNames, hasAnnotationNamesError } =
-    useSpanAnnotationNames({ project: data, hasRequestFailed });
+    useSpanAnnotationNames({ project: data, hasFailed });
 
   const pagination = useTracePagination();
   const setTraceSequence = pagination?.setTraceSequence;
@@ -934,7 +934,7 @@ export function SpansTable(props: SpansTableProps) {
     hasNext,
     isLoadingNext,
     loadNext: loadNextPage,
-    isParentRequestPending: isRequestPending,
+    isParentRequestPending: isPending,
     pageSize: PAGE_SIZE,
     rows: data.spans.edges,
   });

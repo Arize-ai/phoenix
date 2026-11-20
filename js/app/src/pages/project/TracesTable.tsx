@@ -118,7 +118,7 @@ import {
 import type { TraceFilterValidConditionArgs } from "./TraceFilterConditionField";
 import { TraceFilterConditionFieldWithVocabulary } from "./TraceFilterConditionField";
 import { useTraceFilters } from "./TraceFiltersContext";
-import { useDeferredPartsFailure } from "./useDeferredPartsFailure";
+import { useDeferredPayloadStatus } from "./useDeferredPayloadStatus";
 import { useLoadNextPage } from "./useLoadNextPage";
 import { useSpanAnnotationNames } from "./useSpanAnnotationNames";
 
@@ -504,21 +504,21 @@ export function TracesTable(props: TracesTableProps) {
       props.project
     );
   const {
-    hasRequestFailed,
-    isRequestPending,
+    hasFailed,
+    isPending,
     isRowFailed,
     onRefetchStart,
     onRefetchComplete,
-    startNextPage,
-  } = useDeferredPartsFailure({ initialRequest: props.initialRequest });
+    trackNextPage,
+  } = useDeferredPayloadStatus({ initialRequest: props.initialRequest });
   const loadNextPage = useLoadNextPage({
     loadNext,
     rowCount: data.rootSpans.edges.length,
-    startNextPage,
+    trackNextPage,
   });
   const annotationConfigsByName = useProjectAnnotationConfigsByName(data);
   const { spanAnnotationNames, traceAnnotationNames, hasAnnotationNamesError } =
-    useSpanAnnotationNames({ project: data, hasRequestFailed });
+    useSpanAnnotationNames({ project: data, hasFailed });
 
   const annotationColumnVisibility = useTracingContext(
     (state) => state.annotationColumnVisibility
@@ -1067,7 +1067,7 @@ export function TracesTable(props: TracesTableProps) {
     hasNext,
     isLoadingNext,
     loadNext: loadNextPage,
-    isParentRequestPending: isRequestPending,
+    isParentRequestPending: isPending,
     pageSize: PAGE_SIZE,
     rows: data.rootSpans.edges,
   });

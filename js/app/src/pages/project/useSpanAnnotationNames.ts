@@ -12,15 +12,15 @@ const NO_ANNOTATION_NAMES: ReadonlyArray<string> = [];
  *
  * @param params - the table's project and its requests' outcome
  * @param params.project - the table's project
- * @param params.hasRequestFailed - whether a request that was to deliver the
- * names failed, from `useDeferredPartsFailure`
+ * @param params.hasFailed - whether the request that was to deliver the names
+ * failed, from `useDeferredPayloadStatus`
  */
 export function useSpanAnnotationNames({
   project,
-  hasRequestFailed,
+  hasFailed,
 }: {
   project: useSpanAnnotationNames_project$key;
-  hasRequestFailed: boolean;
+  hasFailed: boolean;
 }) {
   // Relay types the fields as present, but a deferred inline fragment reads
   // as undefined until its payload arrives.
@@ -42,7 +42,6 @@ export function useSpanAnnotationNames({
   return {
     spanAnnotationNames: spanAnnotationNames ?? NO_ANNOTATION_NAMES,
     traceAnnotationNames: traceAnnotationNames ?? NO_ANNOTATION_NAMES,
-    hasAnnotationNamesError:
-      spanAnnotationNames === undefined && hasRequestFailed,
+    hasAnnotationNamesError: spanAnnotationNames === undefined && hasFailed,
   };
 }
