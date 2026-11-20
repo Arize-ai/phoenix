@@ -410,7 +410,7 @@ const FILTER_FIELDS_BY_TARGET: Record<
   SESSION: {
     language: "session",
     label: "Session filter",
-    placeholder: "No filter (e.g. num_traces >= 5)",
+    placeholder: "Filter sessions (e.g. num_traces >= 5)",
     emptyHint: "Leave empty to evaluate every session.",
   },
 };
