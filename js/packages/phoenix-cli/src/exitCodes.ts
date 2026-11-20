@@ -39,6 +39,20 @@ export const ExitCode = {
 
 export type ExitCode = (typeof ExitCode)[keyof typeof ExitCode];
 
+/** The constant name of an {@link ExitCode}, e.g. "NETWORK_ERROR". */
+export type ExitCodeName = keyof typeof ExitCode;
+
+/**
+ * Reverse lookup from a numeric exit code to its constant name, for the
+ * `code` field of a `StructuredError`.
+ */
+export function getExitCodeName(exitCode: ExitCode): ExitCodeName {
+  const entry = Object.entries(ExitCode).find(
+    ([, value]) => value === exitCode
+  );
+  return (entry?.[0] as ExitCodeName | undefined) ?? "FAILURE";
+}
+
 export class InvalidArgumentError extends Error {
   constructor(message: string) {
     super(message);
