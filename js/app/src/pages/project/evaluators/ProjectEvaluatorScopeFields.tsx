@@ -398,7 +398,7 @@ const FILTER_FIELDS_BY_TARGET: Record<
   SPAN: {
     language: "span",
     label: "Span filter",
-    placeholder: "No filter (e.g. span_kind == 'LLM')",
+    placeholder: "Filter spans (e.g. span_kind == 'LLM')",
     emptyHint: "Leave empty to evaluate every span.",
   },
   TRACE: {
