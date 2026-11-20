@@ -1,9 +1,9 @@
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Union
 
 from ....exceptions import PhoenixDecisionRefusal
 from ....llm.prompts import MessageRole, PromptLike, normalize_role
 from ...registries import register_provider
-from ...types import BaseDecisionAdapter, ClassificationCriterion
+from ...types import BaseDecisionAdapter, ClassificationAnswer, ClassificationCriterion, Name
 from .factories import create_openai_client, get_openai_rate_limit_errors
 
 _QUESTION_NAME = "label"
@@ -116,15 +116,21 @@ class OpenAIDecisionAdapter(BaseDecisionAdapter):
     @classmethod
     def _to_results(cls, response: Any, names: List[str]) -> Dict[str, Any]:
         by_name = {getattr(answer, "name", None): answer for answer in response.answers}
-        results: List[Dict[str, Any]] = []
+        results: List[ClassificationAnswer] = []
         for name in names:
             if name not in by_name:
                 raise ValueError(
                     f"The model returned no answer for criterion '{name}'. "
                     f"It returned answers for: {sorted(n for n in by_name if n is not None)}."
                 )
-            answer = by_name[name]
-            results.append({"name": name, **cls._answer_to_label_metadata(answer, response.model)})
+            label_metadata = cls._answer_to_label_metadata(by_name[name], response.model)
+            results.append(
+                ClassificationAnswer(
+                    name=name,
+                    label=label_metadata["label"],
+                    metadata=label_metadata["metadata"],
+                )
+            )
         return {"results": results, "usage": cls._usage_dict(response)}
 
     def generate_classification(
@@ -158,29 +164,29 @@ class OpenAIDecisionAdapter(BaseDecisionAdapter):
     def generate_classifications(
         self,
         prompt: PromptLike,
-        criteria: Sequence[ClassificationCriterion],
+        criteria: Dict[Name, ClassificationCriterion],
         **kwargs: Any,
     ) -> Dict[str, Any]:
         questions = [
             self._build_choice_question(c["name"], c["labels"], c.get("instructions"))
-            for c in criteria
+            for c in criteria.values()
         ]
         response = self.client.decisions.create(
             model=self.model, input=self._to_input(prompt), questions=questions, **kwargs
         )
-        return self._to_results(response, [c["name"] for c in criteria])
+        return self._to_results(response, list(criteria))
 
     async def async_generate_classifications(
         self,
         prompt: PromptLike,
-        criteria: Sequence[ClassificationCriterion],
+        criteria: Dict[Name, ClassificationCriterion],
         **kwargs: Any,
     ) -> Dict[str, Any]:
         questions = [
             self._build_choice_question(c["name"], c["labels"], c.get("instructions"))
-            for c in criteria
+            for c in criteria.values()
         ]
         response = await self.client.decisions.create(
             model=self.model, input=self._to_input(prompt), questions=questions, **kwargs
         )
-        return self._to_results(response, [c["name"] for c in criteria])
+        return self._to_results(response, list(criteria))

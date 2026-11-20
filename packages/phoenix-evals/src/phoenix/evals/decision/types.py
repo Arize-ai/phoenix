@@ -1,13 +1,15 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Sequence, Type, Union
+from typing import Any, Callable, Dict, List, Optional, Type, Union
 
-from .._criteria import ClassificationCriterion
+from .._criteria import ClassificationAnswer, ClassificationCriterion, Name
 from ..llm.prompts import PromptLike
 
 __all__ = [
     "BaseDecisionAdapter",
+    "ClassificationAnswer",
     "ClassificationCriterion",
+    "Name",
     "ProviderRegistration",
 ]
 
@@ -66,7 +68,7 @@ class BaseDecisionAdapter(ABC):
 
     @staticmethod
     def _assemble_fanout(
-        criteria: Sequence[ClassificationCriterion], raw_results: List[Dict[str, Any]]
+        criteria: Dict[Name, ClassificationCriterion], raw_results: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
         """Combine the per-criterion single-classification results into the multi result.
 
@@ -74,12 +76,12 @@ class BaseDecisionAdapter(ABC):
         on this fan-out path); ``usage`` is ``None`` only when no call reported any.
         """
         results = [
-            {
-                "name": criterion["name"],
-                "label": result["label"],
-                "metadata": result.get("metadata", {}),
-            }
-            for criterion, result in zip(criteria, raw_results)
+            ClassificationAnswer(
+                name=criterion["name"],
+                label=result["label"],
+                metadata=result.get("metadata", {}),
+            )
+            for criterion, result in zip(criteria.values(), raw_results)
         ]
         usages: List[Dict[str, Any]] = []
         for result in raw_results:
@@ -97,7 +99,7 @@ class BaseDecisionAdapter(ABC):
     def generate_classifications(
         self,
         prompt: PromptLike,
-        criteria: Sequence[ClassificationCriterion],
+        criteria: Dict[Name, ClassificationCriterion],
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """Answer several named classification questions about one prompt.
@@ -116,19 +118,19 @@ class BaseDecisionAdapter(ABC):
         """
         raw_results = [
             self.generate_classification(prompt, criterion["labels"], **kwargs)
-            for criterion in criteria
+            for criterion in criteria.values()
         ]
         return self._assemble_fanout(criteria, raw_results)
 
     async def async_generate_classifications(
         self,
         prompt: PromptLike,
-        criteria: Sequence[ClassificationCriterion],
+        criteria: Dict[Name, ClassificationCriterion],
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """Async version of :meth:`generate_classifications`."""
         raw_results: List[Dict[str, Any]] = []
-        for criterion in criteria:
+        for criterion in criteria.values():
             raw_results.append(
                 await self.async_generate_classification(prompt, criterion["labels"], **kwargs)
             )

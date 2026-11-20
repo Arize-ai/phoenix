@@ -4,12 +4,18 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from phoenix.evals._criteria import ClassificationAnswer
 from phoenix.evals.llm.llm import (
     LLM,
     _parse_classifications,
     generate_classification_schema,
     generate_classifications_schema,
 )
+
+
+def _by_name(criteria):
+    """Key a list of backend criteria by name, the shape generate_classifications expects."""
+    return {c["name"]: c for c in criteria}
 
 
 class TestGenerateClassificationSchema:
@@ -325,7 +331,7 @@ class TestGenerateClassificationsSchema:
             {"name": "helpfulness", "labels": ["poor", "good"], "instructions": "how helpful"},
             {"name": "accuracy", "labels": {"right": "ok", "wrong": "nope"}},
         ]
-        schema = generate_classifications_schema(criteria, include_explanation=True)
+        schema = generate_classifications_schema(_by_name(criteria), include_explanation=True)
 
         assert schema["type"] == "object"
         assert list(schema["properties"].keys()) == ["helpfulness", "accuracy"]
@@ -333,7 +339,7 @@ class TestGenerateClassificationsSchema:
 
     def test_each_property_is_a_single_criterion_schema(self):
         criteria = [{"name": "accuracy", "labels": {"right": "ok", "wrong": "nope"}}]
-        schema = generate_classifications_schema(criteria, include_explanation=True)
+        schema = generate_classifications_schema(_by_name(criteria), include_explanation=True)
 
         inner = schema["properties"]["accuracy"]
         expected = generate_classification_schema(
@@ -346,17 +352,17 @@ class TestGenerateClassificationsSchema:
         criteria = [
             {"name": "helpfulness", "labels": ["poor", "good"], "instructions": "how helpful"}
         ]
-        schema = generate_classifications_schema(criteria, include_explanation=True)
+        schema = generate_classifications_schema(_by_name(criteria), include_explanation=True)
         assert schema["properties"]["helpfulness"]["description"] == "how helpful"
 
     def test_missing_instructions_adds_no_description(self):
         criteria = [{"name": "helpfulness", "labels": ["poor", "good"]}]
-        schema = generate_classifications_schema(criteria, include_explanation=True)
+        schema = generate_classifications_schema(_by_name(criteria), include_explanation=True)
         assert "description" not in schema["properties"]["helpfulness"]
 
     def test_include_explanation_false_omits_explanation(self):
         criteria = [{"name": "a", "labels": ["x", "y"]}]
-        schema = generate_classifications_schema(criteria, include_explanation=False)
+        schema = generate_classifications_schema(_by_name(criteria), include_explanation=False)
         props = schema["properties"]["a"]["properties"]
         assert "explanation" not in props
         assert schema["properties"]["a"]["required"] == ["label"]
@@ -371,32 +377,32 @@ class TestParseClassifications:
             "b": {"label": "y", "explanation": "because b"},
             "a": {"label": "x", "explanation": "because a"},
         }
-        results = _parse_classifications(raw, criteria)
-        assert results == [
-            {"name": "a", "label": "x", "explanation": "because a"},
-            {"name": "b", "label": "y", "explanation": "because b"},
-        ]
+        results = _parse_classifications(raw, _by_name(criteria))
+        assert results == {
+            "a": ClassificationAnswer(name="a", label="x", explanation="because a"),
+            "b": ClassificationAnswer(name="b", label="y", explanation="because b"),
+        }
 
     def test_explanation_omitted_when_absent(self):
         criteria = [{"name": "a", "labels": ["x", "y"]}]
-        results = _parse_classifications({"a": {"label": "x"}}, criteria)
-        assert results == [{"name": "a", "label": "x"}]
+        results = _parse_classifications({"a": {"label": "x"}}, _by_name(criteria))
+        assert results == {"a": ClassificationAnswer(name="a", label="x", explanation=None)}
 
     def test_missing_criterion_raises(self):
         criteria = [{"name": "a", "labels": ["x", "y"]}]
         with pytest.raises(ValueError, match="malformed or missing answer for criterion 'a'"):
-            _parse_classifications({}, criteria)
+            _parse_classifications({}, _by_name(criteria))
 
     def test_non_dict_answer_raises(self):
         """A model returning a bare string for a criterion errors clearly, not an AttributeError."""
         criteria = [{"name": "a", "labels": ["x", "y"]}]
         with pytest.raises(ValueError, match="malformed or missing answer for criterion 'a'"):
-            _parse_classifications({"a": "x"}, criteria)
+            _parse_classifications({"a": "x"}, _by_name(criteria))
 
     def test_dict_answer_without_label_raises(self):
         criteria = [{"name": "a", "labels": ["x", "y"]}]
         with pytest.raises(ValueError, match="malformed or missing answer for criterion 'a'"):
-            _parse_classifications({"a": {"explanation": "no label here"}}, criteria)
+            _parse_classifications({"a": {"explanation": "no label here"}}, _by_name(criteria))
 
 
 class TestLLMGenerateClassifications:
@@ -414,12 +420,14 @@ class TestLLMGenerateClassifications:
             {"name": "helpfulness", "labels": ["poor", "good"], "instructions": "how helpful"},
             {"name": "accuracy", "labels": {"right": "ok", "wrong": "nope"}},
         ]
-        results = llm.generate_classifications("some text", criteria)
+        results = llm.generate_classifications("some text", _by_name(criteria))
 
-        assert results == [
-            {"name": "helpfulness", "label": "good", "explanation": "clear"},
-            {"name": "accuracy", "label": "wrong", "explanation": "off"},
-        ]
+        assert results == {
+            "helpfulness": ClassificationAnswer(
+                name="helpfulness", label="good", explanation="clear"
+            ),
+            "accuracy": ClassificationAnswer(name="accuracy", label="wrong", explanation="off"),
+        }
 
         llm._sync_adapter.generate_object.assert_called_once()
         args, _ = llm._sync_adapter.generate_object.call_args
@@ -434,8 +442,8 @@ class TestLLMGenerateClassifications:
         )
 
         criteria = [{"name": "a", "labels": ["x", "y"]}, {"name": "b", "labels": ["x", "y"]}]
-        results = await llm.async_generate_classifications("text", criteria)
+        results = await llm.async_generate_classifications("text", _by_name(criteria))
 
-        assert [r["name"] for r in results] == ["a", "b"]
-        assert [r["label"] for r in results] == ["x", "y"]
+        assert list(results.keys()) == ["a", "b"]
+        assert [a.label for a in results.values()] == ["x", "y"]
         llm._async_adapter.async_generate_object.assert_awaited_once()

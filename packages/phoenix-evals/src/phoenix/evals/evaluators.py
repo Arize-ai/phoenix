@@ -29,7 +29,7 @@ from typing_extensions import Annotated, Mapping, TypeVar
 
 from phoenix.evals.executors import AsyncExecutor, ExecutionDetails, SyncExecutor
 
-from ._criteria import ClassificationCriterion
+from ._criteria import ClassificationAnswer, ClassificationCriterion, Name
 from .decision import DecisionModel
 from .llm import LLM, PromptLike
 from .llm.prompts import PromptTemplate, Template
@@ -896,9 +896,10 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
             return {key: value[1] for key, value in choices.items()}  # type: ignore[index]
         return list(choices.keys())
 
-    def _criteria_payload(self) -> List[ClassificationCriterion]:
-        """The criteria as the backend-level questions sent to ``generate_classifications``."""
-        payload: List[ClassificationCriterion] = []
+    def _criteria_payload(self) -> Dict[Name, ClassificationCriterion]:
+        """The criteria as the backend-level questions sent to ``generate_classifications``,
+        keyed by criterion name."""
+        payload: Dict[Name, ClassificationCriterion] = {}
         for criterion in self._criteria:
             item: ClassificationCriterion = {
                 "name": criterion.name,
@@ -907,20 +908,19 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
             # An empty question-level description is omitted so the backend uses its default.
             if criterion.description:
                 item["instructions"] = criterion.description
-            payload.append(item)
+            payload[criterion.name] = item
         return payload
 
     def _resolve_method(self) -> ObjectGenerationMethod:
         any_dict = any(isinstance(c.backend_labels, dict) for c in self._criteria)
         return ObjectGenerationMethod.TOOL_CALLING if any_dict else ObjectGenerationMethod.AUTO
 
-    def _scores_from_results(self, results: List[Dict[str, Any]]) -> List[Score]:
-        """Turn one backend result per criterion into one Score per criterion."""
-        by_name = {result["name"]: result for result in results}
+    def _scores_from_results(self, answers: Dict[Name, ClassificationAnswer]) -> List[Score]:
+        """Turn one backend answer per criterion into one Score per criterion."""
         scores: List[Score] = []
         for criterion in self._criteria:
-            result = by_name[criterion.name]
-            label = result["label"]
+            answer = answers[criterion.name]
+            label = answer.label
             if label not in criterion.labels:
                 raise ValueError(
                     f"ClassificationEvaluator '{criterion.name}' received invalid label "
@@ -932,8 +932,8 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
                     score=score,
                     name=criterion.name,
                     label=label,
-                    explanation=result.get("explanation", None),
-                    metadata={"model": self.llm.model, **result.get("metadata", {})},
+                    explanation=answer.explanation,
+                    metadata={"model": self.llm.model, **answer.metadata},
                     kind=self.kind,
                     direction=criterion.direction,
                 )

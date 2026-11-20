@@ -5,6 +5,12 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from phoenix.evals import ClassificationEvaluator, Criterion, DecisionModel
+from phoenix.evals._criteria import ClassificationAnswer
+
+
+def _by_name(criteria):
+    """Key a list of backend criteria by name, the shape generate_classifications expects."""
+    return {c["name"]: c for c in criteria}
 
 
 def _response(
@@ -178,32 +184,34 @@ def test_generate_classifications_sends_one_request_with_n_questions(monkeypatch
     decision = DecisionModel(provider="typesafe", model="jev-latest")
     results = decision.generate_classifications(
         "some text",
-        [
-            {"name": "helpfulness", "labels": ["good", "bad"], "instructions": "how helpful"},
-            {"name": "accuracy", "labels": {"right": "ok", "wrong": "nope"}},
-        ],
+        _by_name(
+            [
+                {"name": "helpfulness", "labels": ["good", "bad"], "instructions": "how helpful"},
+                {"name": "accuracy", "labels": {"right": "ok", "wrong": "nope"}},
+            ]
+        ),
     )
 
-    assert results == [
-        {
-            "name": "helpfulness",
-            "label": "good",
-            "metadata": {
+    assert results == {
+        "helpfulness": ClassificationAnswer(
+            name="helpfulness",
+            label="good",
+            metadata={
                 "probabilities": {"good": 0.7, "bad": 0.3},
                 "model_id": "mock-evaluation-model",
                 "confidence": 0.9,
             },
-        },
-        {
-            "name": "accuracy",
-            "label": "wrong",
-            "metadata": {
+        ),
+        "accuracy": ClassificationAnswer(
+            name="accuracy",
+            label="wrong",
+            metadata={
                 "probabilities": {"right": 0.2, "wrong": 0.8},
                 "model_id": "mock-evaluation-model",
                 "confidence": 0.9,
             },
-        },
-    ]
+        ),
+    }
 
     # One request, N questions keyed by name, per-criterion instructions and criteria.
     client.system_one.assert_called_once()
@@ -228,11 +236,11 @@ async def test_async_generate_classifications(monkeypatch):
     decision = DecisionModel(provider="typesafe", model="jev-latest")
     results = await decision.async_generate_classifications(
         "text",
-        [{"name": "a", "labels": ["x", "y"]}, {"name": "b", "labels": ["x", "y"]}],
+        _by_name([{"name": "a", "labels": ["x", "y"]}, {"name": "b", "labels": ["x", "y"]}]),
     )
 
-    assert [r["name"] for r in results] == ["a", "b"]
-    assert [r["label"] for r in results] == ["x", "y"]
+    assert list(results.keys()) == ["a", "b"]
+    assert [a.label for a in results.values()] == ["x", "y"]
     async_client.system_one.assert_awaited_once()
 
 

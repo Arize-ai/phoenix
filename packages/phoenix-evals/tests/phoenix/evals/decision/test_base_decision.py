@@ -1,4 +1,4 @@
-from phoenix.evals.decision.types import BaseDecisionAdapter
+from phoenix.evals.decision.types import BaseDecisionAdapter, ClassificationAnswer
 
 
 def test_base_adapter_fans_out_to_single_calls_by_default():
@@ -19,13 +19,16 @@ def test_base_adapter_fans_out_to_single_calls_by_default():
     adapter = DummyAdapter(client=object(), model="dummy")
     raw = adapter.generate_classifications(
         "p",
-        [{"name": "q1", "labels": ["a", "b"]}, {"name": "q2", "labels": ["c", "d"]}],
+        {
+            "q1": {"name": "q1", "labels": ["a", "b"]},
+            "q2": {"name": "q2", "labels": ["c", "d"]},
+        },
     )
 
     assert raw == {
         "results": [
-            {"name": "q1", "label": "a", "metadata": {"model_id": "dummy"}},
-            {"name": "q2", "label": "c", "metadata": {"model_id": "dummy"}},
+            ClassificationAnswer(name="q1", label="a", metadata={"model_id": "dummy"}),
+            ClassificationAnswer(name="q2", label="c", metadata={"model_id": "dummy"}),
         ],
         "usage": None,
     }
@@ -52,13 +55,17 @@ def test_base_adapter_fanout_sums_usage_across_calls():
     adapter = DummyAdapter(client=object(), model="dummy")
     raw = adapter.generate_classifications(
         "p",
-        [{"name": "q1", "labels": ["a", "b"]}, {"name": "q2", "labels": ["c", "d"]}],
+        {
+            "q1": {"name": "q1", "labels": ["a", "b"]},
+            "q2": {"name": "q2", "labels": ["c", "d"]},
+        },
     )
 
     # Two calls at 10/2 tokens each -> summed.
     assert raw["usage"] == {"input_tokens": 20, "output_tokens": 4}
-    # Per-call usage is not leaked into each result.
-    assert all("usage" not in r for r in raw["results"])
+    # Per-call usage is not leaked into each result (ClassificationAnswer carries no usage).
+    assert all(isinstance(r, ClassificationAnswer) for r in raw["results"])
+    assert all(not hasattr(r, "usage") for r in raw["results"])
 
 
 def test_to_state_passes_a_string_prompt_through_unchanged():

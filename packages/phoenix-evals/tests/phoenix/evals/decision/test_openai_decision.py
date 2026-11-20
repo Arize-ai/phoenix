@@ -4,7 +4,13 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from phoenix.evals import ClassificationEvaluator, DecisionModel
+from phoenix.evals._criteria import ClassificationAnswer
 from phoenix.evals.exceptions import PhoenixDecisionRefusal
+
+
+def _by_name(criteria):
+    """Key a list of backend criteria by name, the shape generate_classifications expects."""
+    return {c["name"]: c for c in criteria}
 
 
 def _response(
@@ -79,16 +85,18 @@ def test_generate_classifications_sends_one_request_with_n_questions(monkeypatch
     decision = DecisionModel(provider="openai", model="gpt-6-luna")
     results = decision.generate_classifications(
         "some text",
-        [
-            {"name": "helpfulness", "labels": ["good", "bad"], "instructions": "how helpful"},
-            {"name": "accuracy", "labels": {"right": "ok", "wrong": "nope"}},
-        ],
+        _by_name(
+            [
+                {"name": "helpfulness", "labels": ["good", "bad"], "instructions": "how helpful"},
+                {"name": "accuracy", "labels": {"right": "ok", "wrong": "nope"}},
+            ]
+        ),
     )
 
-    assert [r["name"] for r in results] == ["helpfulness", "accuracy"]
-    assert results[0]["label"] == "good"
-    assert results[0]["metadata"]["probabilities"] == {"good": 0.7, "bad": 0.3}
-    assert results[1]["label"] == "wrong"
+    assert list(results.keys()) == ["helpfulness", "accuracy"]
+    assert results["helpfulness"].label == "good"
+    assert results["helpfulness"].metadata["probabilities"] == {"good": 0.7, "bad": 0.3}
+    assert results["accuracy"].label == "wrong"
 
     client.decisions.create.assert_called_once()
     _, kwargs = client.decisions.create.call_args
@@ -118,15 +126,17 @@ def test_generate_classifications_matches_answers_by_name_not_order(monkeypatch)
     decision = DecisionModel(provider="openai", model="gpt-6-luna")
     results = decision.generate_classifications(
         "t",
-        [
-            {"name": "helpfulness", "labels": ["good", "bad"]},
-            {"name": "accuracy", "labels": ["right", "wrong"]},
-        ],
+        _by_name(
+            [
+                {"name": "helpfulness", "labels": ["good", "bad"]},
+                {"name": "accuracy", "labels": ["right", "wrong"]},
+            ]
+        ),
     )
 
-    assert [r["name"] for r in results] == ["helpfulness", "accuracy"]
-    assert results[0]["label"] == "good"
-    assert results[1]["label"] == "wrong"
+    assert list(results.keys()) == ["helpfulness", "accuracy"]
+    assert results["helpfulness"].label == "good"
+    assert results["accuracy"].label == "wrong"
 
 
 def test_generate_classifications_missing_answer_raises_descriptive_error(monkeypatch):
@@ -140,10 +150,12 @@ def test_generate_classifications_missing_answer_raises_descriptive_error(monkey
     with pytest.raises(ValueError, match="no answer for criterion 'accuracy'.*'helpfulness'"):
         decision.generate_classifications(
             "t",
-            [
-                {"name": "helpfulness", "labels": ["good", "bad"]},
-                {"name": "accuracy", "labels": ["right", "wrong"]},
-            ],
+            _by_name(
+                [
+                    {"name": "helpfulness", "labels": ["good", "bad"]},
+                    {"name": "accuracy", "labels": ["right", "wrong"]},
+                ]
+            ),
         )
 
 
@@ -156,20 +168,20 @@ async def test_async_generate_classifications(monkeypatch):
 
     decision = DecisionModel(provider="openai", model="gpt-6-luna")
     results = await decision.async_generate_classifications(
-        "text", [{"name": "a", "labels": ["x", "y"]}]
+        "text", _by_name([{"name": "a", "labels": ["x", "y"]}])
     )
 
-    assert results == [
-        {
-            "name": "a",
-            "label": "x",
-            "metadata": {
+    assert results == {
+        "a": ClassificationAnswer(
+            name="a",
+            label="x",
+            metadata={
                 "probabilities": {"x": 0.6, "y": 0.4},
                 "model_id": "mock-evaluation-model",
                 "confidence": 0.9,
             },
-        }
-    ]
+        )
+    }
     async_client.decisions.create.assert_awaited_once()
 
 

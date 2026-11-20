@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
+from phoenix.evals._criteria import ClassificationAnswer
 from phoenix.evals.evaluators import (
     ClassificationEvaluator,
     Criterion,
@@ -46,14 +47,14 @@ class MockLLM(LLM):
         return labels[0] if isinstance(labels, list) else next(iter(labels))
 
     def generate_classifications(self, prompt, criteria, include_explanation=True, method=None):
-        return [
-            {
-                "name": c["name"],
-                "label": self._first_label(c["labels"]),
-                "explanation": "This is a good result",
-            }
-            for c in criteria
-        ]
+        return {
+            name: ClassificationAnswer(
+                name=name,
+                label=self._first_label(c["labels"]),
+                explanation="This is a good result",
+            )
+            for name, c in criteria.items()
+        }
 
     async def async_generate_classifications(
         self, prompt, criteria, include_explanation=True, method=None
@@ -710,10 +711,10 @@ class TestClassificationEvaluator:
         """An off-list label for any one criterion raises (Answered/Unanswered is later work)."""
         llm = MockLLM()
         llm.generate_classifications = MagicMock(
-            return_value=[
-                {"name": "a", "label": "x"},
-                {"name": "b", "label": "nope"},  # not a valid label for criterion b
-            ]
+            return_value={
+                "a": ClassificationAnswer(name="a", label="x"),
+                "b": ClassificationAnswer(name="b", label="nope"),  # invalid for criterion b
+            }
         )
         evaluator = ClassificationEvaluator(
             name="review",

@@ -1,7 +1,8 @@
 import functools
 import json
+from dataclasses import asdict, is_dataclass
 from inspect import BoundArguments
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Union
 
 import opentelemetry.trace as trace_api
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
@@ -13,7 +14,7 @@ from phoenix.evals.tracing import trace
 from ..llm.prompts import PromptLike
 from .adapters import register_adapters
 from .registries import DECISION_PROVIDER_REGISTRY, adapter_availability_table
-from .types import ClassificationCriterion
+from .types import ClassificationAnswer, ClassificationCriterion, Name
 
 register_adapters()
 
@@ -47,7 +48,13 @@ def _get_decision_input(bound: BoundArguments) -> str:
 
 def _jsonify_output(result: Any) -> str:
     """Convert the classification result to a JSON string for the span output."""
-    return json.dumps(result, default=str)
+
+    def _default(obj: Any) -> Any:
+        if is_dataclass(obj) and not isinstance(obj, type):
+            return asdict(obj)
+        return str(obj)
+
+    return json.dumps(result, default=_default)
 
 
 class DecisionModel:
@@ -196,10 +203,12 @@ class DecisionModel:
         cls._record_usage_values(usage, result.get("metadata", {}).get("model_id"))
 
     @classmethod
-    def _record_multiple_classifications_usage(cls, raw: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _record_multiple_classifications_usage(
+        cls, raw: Dict[str, Any]
+    ) -> List[ClassificationAnswer]:
         """Record usage from a multi-classification adapter result and return its ``results``."""
-        results: List[Dict[str, Any]] = raw.get("results", [])
-        model_id = results[0].get("metadata", {}).get("model_id") if results else None
+        results: List[ClassificationAnswer] = raw.get("results", [])
+        model_id = results[0].metadata.get("model_id") if results else None
         cls._record_usage_values(raw.get("usage"), model_id)
         return results
 
@@ -306,17 +315,17 @@ class DecisionModel:
     def generate_classifications(
         self,
         prompt: PromptLike,
-        criteria: Sequence[ClassificationCriterion],
+        criteria: Dict[Name, ClassificationCriterion],
         include_explanation: bool = True,
         method: Any = None,
         tracer: Optional[Tracer] = None,
         **kwargs: Any,
-    ) -> List[Dict[str, Any]]:
+    ) -> Dict[Name, ClassificationAnswer]:
         """Answer several named classification questions about one prompt in a single request.
 
         Args:
             prompt (Union[str, List[Dict[str, Any]]]): The prompt to classify.
-            criteria (Sequence[ClassificationCriterion]): The questions to answer; each has a
+            criteria (Dict[Name, ClassificationCriterion]): The questions to answer; each has a
                 ``name``, its ``labels`` (a list or a label->description dict), and optional
                 ``instructions``.
             include_explanation (bool): Sent by ``ClassificationEvaluator`` but not used by
@@ -327,15 +336,16 @@ class DecisionModel:
             **kwargs: Additional keyword arguments forwarded to the decision SDK call.
 
         Returns:
-            List[Dict[str, Any]]: One ``{"name", "label", "metadata"}`` dict per criterion, in the
-            order given.
+            Dict[Name, ClassificationAnswer]: One :class:`ClassificationAnswer` per criterion,
+            keyed by criterion name.
         """
         fn = self._sync_adapter.generate_classifications
         rate_limited = functools.reduce(
             lambda fn, limiter: limiter.limit(fn), self._rate_limiters, fn
         )
         raw: Dict[str, Any] = rate_limited(prompt, criteria, **kwargs)
-        return self._record_multiple_classifications_usage(raw)
+        answers = self._record_multiple_classifications_usage(raw)
+        return {answer.name: answer for answer in answers}
 
     @trace(
         span_kind=OpenInferenceSpanKindValues.DECISION,
@@ -350,12 +360,12 @@ class DecisionModel:
     async def async_generate_classifications(
         self,
         prompt: PromptLike,
-        criteria: Sequence[ClassificationCriterion],
+        criteria: Dict[Name, ClassificationCriterion],
         include_explanation: bool = True,
         method: Any = None,
         tracer: Optional[Tracer] = None,
         **kwargs: Any,
-    ) -> List[Dict[str, Any]]:
+    ) -> Dict[Name, ClassificationAnswer]:
         """Asynchronously answer several named classification questions in a single request.
 
         See :meth:`generate_classifications`.
@@ -365,7 +375,8 @@ class DecisionModel:
             lambda fn, limiter: limiter.alimit(fn), self._rate_limiters, fn
         )
         raw: Dict[str, Any] = await rate_limited(prompt, criteria, **kwargs)
-        return self._record_multiple_classifications_usage(raw)
+        answers = self._record_multiple_classifications_usage(raw)
+        return {answer.name: answer for answer in answers}
 
 
 def show_decision_provider_availability() -> None:
