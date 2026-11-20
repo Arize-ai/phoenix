@@ -96,6 +96,7 @@ from phoenix.db.facilitator import Facilitator
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.types import AnnotationPrecursor
 from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
+from phoenix.server.api import request_connections
 from phoenix.server.api.auth_messages import AUTH_ERROR_MESSAGES, AuthErrorCode
 from phoenix.server.api.context import Context, build_context
 from phoenix.server.api.dataloaders import CacheForDataLoaders
@@ -1001,7 +1002,7 @@ def create_graphql_router(
 
     def get_context() -> Context:
         return build_context(
-            db=db,
+            db=request_connections.for_request(db),
             settings=system_settings,
             span_cost_calculator=span_cost_calculator,
             experiment_runner=experiment_runner,
@@ -1179,6 +1180,7 @@ def create_app(
     if tracer_provider is not None:
         middlewares.append(Middleware(ServerSpanContextMiddleware, tracer_provider=tracer_provider))
     middlewares.extend([Middleware(HeadersMiddleware), Middleware(RedactorMiddleware)])
+    middlewares.append(Middleware(request_connections.RequestConnectionsMiddleware))
     middlewares.extend(user_fastapi_middlewares())
     if origins := get_env_csrf_trusted_origins():
         trusted_hostnames = [h for o in origins if o and (h := urlparse(o).hostname)]
