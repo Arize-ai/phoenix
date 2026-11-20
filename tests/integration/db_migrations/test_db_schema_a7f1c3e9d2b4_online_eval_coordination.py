@@ -22,7 +22,7 @@ from . import (
     _verify_clean_state,
 )
 
-_DOWN = "7c2bc8452d60"
+_DOWN = "5d472ea4b4be"
 _UP = "a7f1c3e9d2b4"
 
 
