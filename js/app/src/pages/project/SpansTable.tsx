@@ -92,6 +92,7 @@ import type {
   SpanStatusCode,
 } from "./__generated__/SpansTable_spans.graphql";
 import type { SpansTableSpansQuery } from "./__generated__/SpansTableSpansQuery.graphql";
+import type { useSpanAnnotationNames_project$key } from "./__generated__/useSpanAnnotationNames_project.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
 import {
   SpanInputValueTooltipCell,
@@ -122,13 +123,13 @@ import {
   TRACE_ANNOTATIONS_COLUMN_ID,
 } from "./tableUtils";
 import { TraceNotesTableCell } from "./TraceNotesTableCell";
-import { useDeferredPartsFailure } from "./useDeferredPartsFailure";
+import { useDeferredPayloadStatus } from "./useDeferredPayloadStatus";
 import { useLoadNextPage } from "./useLoadNextPage";
 import { useSpanAnnotationNames } from "./useSpanAnnotationNames";
 
 type SpansTableProps = {
   selectedRowId?: string;
-  project: SpansTable_spans$key;
+  project: SpansTable_spans$key & useSpanAnnotationNames_project$key;
   /**
    * The condition the preload carried; always settled, so the rows on hand
    * match both its text and its root scope from the first render.
@@ -381,12 +382,8 @@ export function SpansTable(props: SpansTableProps) {
           }
           filterCondition: { type: "String", defaultValue: null }
           projectEvaluatorId: { type: "ID", defaultValue: null }
-          includeAnnotationNames: { type: "Boolean", defaultValue: true }
         ) {
           name
-          ...useSpanAnnotationNames_project
-            @defer
-            @include(if: $includeAnnotationNames)
           ...ProjectAnnotationConfigsByNameFragment
           spans(
             first: $first
@@ -459,20 +456,22 @@ export function SpansTable(props: SpansTableProps) {
       props.project
     );
   const {
-    hasRequestFailed,
-    isRequestPending,
+    isPending: isOwnerRequestPending,
     onRefetchStart,
     onRefetchComplete,
-    startNextPage,
-  } = useDeferredPartsFailure({ initialRequest: props.initialRequest });
+    trackNextPage,
+  } = useDeferredPayloadStatus({ initialRequest: props.initialRequest });
   const loadNextPage = useLoadNextPage({
     loadNext,
     rowCount: data.spans.edges.length,
-    startNextPage,
+    trackNextPage,
   });
   const annotationConfigsByName = useProjectAnnotationConfigsByName(data);
   const { spanAnnotationNames, traceAnnotationNames, hasAnnotationNamesError } =
-    useSpanAnnotationNames({ project: data, hasRequestFailed });
+    useSpanAnnotationNames({
+      project: props.project,
+      initialRequest: props.initialRequest,
+    });
 
   const pagination = useTracePagination();
   const setTraceSequence = pagination?.setTraceSequence;
@@ -934,7 +933,7 @@ export function SpansTable(props: SpansTableProps) {
     hasNext,
     isLoadingNext,
     loadNext: loadNextPage,
-    isParentRequestPending: isRequestPending,
+    isOwnerRequestPending,
     pageSize: PAGE_SIZE,
     rows: data.spans.edges,
   });

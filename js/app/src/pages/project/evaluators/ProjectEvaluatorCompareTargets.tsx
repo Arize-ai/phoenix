@@ -488,6 +488,7 @@ function CompareSpanTargetsTable(
                 filterCondition: $condition
                 rootSpansOnly: $rootSpansOnly
               )
+            ...useSpanAnnotationNames_project @defer
           }
         }
       }
@@ -532,6 +533,7 @@ function CompareTraceTargetsTable(props: TargetsTableProps) {
                 traceFilterCondition: $condition
                 deferChildSpans: false
               )
+            ...useSpanAnnotationNames_project @defer
           }
         }
       }

@@ -4,21 +4,21 @@ import type { GraphQLResponse } from "relay-runtime";
 import { Observable } from "relay-runtime";
 import { describe, expect, it } from "vitest";
 
-import { useDeferredPartsFailure } from "../useDeferredPartsFailure";
+import { useDeferredPayloadStatus } from "../useDeferredPayloadStatus";
 
-describe("useDeferredPartsFailure", () => {
+describe("useDeferredPayloadStatus", () => {
   it("ignores the page request's failure once a refetch has completed", () => {
     const pageRequest: { fail: (error: Error) => void } = { fail: () => {} };
     const initialRequest = Observable.create<GraphQLResponse>((sink) => {
       pageRequest.fail = (error) => sink.error(error);
     });
     function Probe() {
-      const { hasRequestFailed, onRefetchComplete } = useDeferredPartsFailure({
+      const { hasFailed, onRefetchComplete } = useDeferredPayloadStatus({
         initialRequest,
       });
       return (
         <button onClick={() => onRefetchComplete(null)}>
-          {hasRequestFailed ? "failed" : "not failed"}
+          {hasFailed ? "failed" : "not failed"}
         </button>
       );
     }

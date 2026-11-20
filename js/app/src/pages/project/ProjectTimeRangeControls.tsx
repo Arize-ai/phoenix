@@ -118,6 +118,7 @@ export function ProjectTimeRangeControls(props: {
       isLive={isLiveStreaming}
       onIsLiveChange={isStreamingTab ? setIsStreaming : undefined}
       isLiveToggleDisabled={isDetailOpen}
+      liveTooltip="Rows update as data arrives; charts and totals once a minute"
     />
   );
 }

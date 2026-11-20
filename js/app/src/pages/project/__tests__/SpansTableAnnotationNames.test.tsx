@@ -245,16 +245,18 @@ afterEach(() => {
   container.remove();
 });
 
-async function renderTable() {
-  const environment = new Environment({
+async function renderTable({
+  projectId = PROJECT_ID,
+  environment = new Environment({
     network: Network.create(fetchRelay),
     store: new Store(new RecordSource()),
-  });
+  }),
+}: { projectId?: string; environment?: Environment } = {}) {
   const queryRef = loadQuery<ProjectPageSpansQueryType>(
     environment,
     ProjectPageQueriesSpansQuery,
     {
-      id: PROJECT_ID,
+      id: projectId,
       timeRange: TIME_RANGE,
       filterCondition: null,
       rootSpansOnly: SEED.rootSpansOnly,
@@ -317,6 +319,34 @@ async function readColumnSelectorFailures() {
 }
 
 describe("SpansTable span annotation names", () => {
+  it("shows the next project's names, not the last one's", async () => {
+    const environment = new Environment({
+      network: Network.create(fetchRelay),
+      store: new Store(new RecordSource()),
+    });
+    const first = createStreamingMultipartResponse();
+    authFetchMock.mockResolvedValueOnce(first.response);
+    await renderTable({ environment });
+    first.sendPart(ROWS_PART);
+    first.sendPart(NAMES_PART);
+    first.end();
+    await settle();
+    act(() => root.unmount());
+    root = createRoot(container);
+
+    const nextProjectId = "UHJvamVjdDoy";
+    const next = createStreamingMultipartResponse();
+    authFetchMock.mockResolvedValueOnce(next.response);
+    await renderTable({ projectId: nextProjectId, environment });
+    next.sendPart({
+      ...ROWS_PART,
+      data: { project: { ...ROWS_PART.data.project, id: nextProjectId } },
+    });
+    await settle();
+
+    expect(readColumnHeaders()).not.toContain("correctness");
+  });
+
   it("renders the rows before the names arrive", async () => {
     const stream = createStreamingMultipartResponse();
     authFetchMock.mockResolvedValueOnce(stream.response);
@@ -385,7 +415,7 @@ describe("SpansTable next page", () => {
     vi.unstubAllGlobals();
   });
 
-  it("loads the next page without asking for the annotation names again", async () => {
+  it("loads the next page without the annotation names, which stay on screen", async () => {
     const load = createStreamingMultipartResponse();
     authFetchMock.mockResolvedValueOnce(load.response).mockResolvedValueOnce(
       new Response(
@@ -427,11 +457,11 @@ describe("SpansTable next page", () => {
     await settle();
 
     expect(authFetchMock).toHaveBeenCalledTimes(2);
-    const { variables } = JSON.parse(authFetchMock.mock.calls[1][1].body);
-    expect(variables).toMatchObject({
-      after: "cursor-2",
-      includeAnnotationNames: false,
-    });
+    const { query, variables } = JSON.parse(
+      authFetchMock.mock.calls[1][1].body
+    );
+    expect(variables).toMatchObject({ after: "cursor-2" });
+    expect(query).not.toContain("spanAnnotationNames");
     expect(readRowNames()).toEqual(["span-1", "span-2", "span-3"]);
     expect(readColumnHeaders()).toContain("correctness");
   });

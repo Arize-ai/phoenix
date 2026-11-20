@@ -25,7 +25,7 @@ import { projectEvaluatorsLoaderGQL } from "@phoenix/pages/project/evaluators/pr
 import { ProjectEvaluatorsTable } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsTable";
 import { ProjectEvaluatorsToolbar } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsToolbar";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
-import { useQueueStatsRefreshKey } from "@phoenix/pages/project/evaluators/useQueueStatsRefreshKey";
+import { useQueueStatsFetchKeys } from "@phoenix/pages/project/evaluators/useQueueStatsFetchKeys";
 import { TableMetricsChartsPanelGroup } from "@phoenix/pages/project/TableMetricsCharts";
 
 /** The content scrolls inside its panel rather than growing the panel. */
@@ -129,10 +129,14 @@ function ProjectEvaluatorsPageContent({
   invariant(data.project, "project is required");
   const isEmptyState =
     (data.project.evaluatorCount ?? 0) === 0 && filter.trim().length === 0;
-  const { refreshKey: queueRefreshKey, refresh: refreshQueueStats } =
-    useQueueStatsRefreshKey();
-  // One poll keeps the queue strip and the charts in step.
-  const { fetchKey } = useQueueStatsPoll({ refreshKey: queueRefreshKey });
+  const {
+    fetchKey: queueFetchKey,
+    throttledFetchKey: chartsFetchKey,
+    refresh: refreshQueueStats,
+  } = useQueueStatsFetchKeys();
+  // The queue strip also polls; the charts refetch on the throttled key only,
+  // at most once a minute.
+  const { fetchKey } = useQueueStatsPoll({ refreshKey: queueFetchKey });
   const content = (
     <div css={panelContentCSS}>
       {isEmptyState ? (
@@ -203,7 +207,10 @@ function ProjectEvaluatorsPageContent({
               />
             )}
           />
-          <TableMetricsChartsPanelGroup view="evaluators" fetchKey={fetchKey}>
+          <TableMetricsChartsPanelGroup
+            view="evaluators"
+            fetchKey={chartsFetchKey}
+          >
             {content}
           </TableMetricsChartsPanelGroup>
         </>

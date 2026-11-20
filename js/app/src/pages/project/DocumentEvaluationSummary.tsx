@@ -57,7 +57,7 @@ function EvaluationSummaryValue(props: {
   project: DocumentEvaluationSummaryValueFragment$key;
 }) {
   const { project } = props;
-  const { fetchKey } = useStreamState();
+  const { throttledFetchKey } = useStreamState();
   const [data, refetch] = useRefetchableFragment<
     DocumentEvaluationSummaryQuery,
     DocumentEvaluationSummaryValueFragment$key
@@ -83,12 +83,12 @@ function EvaluationSummaryValue(props: {
     project
   );
 
-  // Refetch the evaluation summary if the fetchKey changes
+  // Refetch the evaluation summary when the throttled fetch key changes
   useEffect(() => {
     startTransition(() => {
       refetch({}, { fetchPolicy: "store-and-network" });
     });
-  }, [fetchKey, refetch]);
+  }, [throttledFetchKey, refetch]);
 
   const averageNdcg = data?.documentEvaluationSummary?.averageNdcg;
   const averagePrecision = data?.documentEvaluationSummary?.averagePrecision;
