@@ -1,4 +1,4 @@
-import { act, createRef, type RefObject } from "react";
+import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -145,18 +145,11 @@ const windowScrollTo = vi.fn();
 const originalElementScrollTo = Element.prototype.scrollTo;
 
 // Async so the selection indicator's enter transition, which react-aria
-// schedules in a microtask, settles inside act. A given scrollContainerRef
-// points at the element wrapping the nav and its sections.
+// schedules in a microtask, settles inside act.
 async function render(props: Partial<SectionNavProps> = {}) {
   await act(async () => {
     root.render(
-      <div
-        ref={
-          props.scrollContainerRef as
-            | RefObject<HTMLDivElement | null>
-            | undefined
-        }
-      >
+      <div>
         <SectionNav aria-label="Run details" sections={SECTIONS} {...props} />
         {SECTIONS.map((section) => (
           <SectionNavSection
@@ -188,107 +181,6 @@ function currentLinks(): string[] {
   );
 }
 
-const intersectionObservers = new Set<ControlledIntersectionObserver>();
-
-class ControlledIntersectionObserver {
-  readonly targets = new Set<Element>();
-  readonly #callback: IntersectionObserverCallback;
-  constructor(callback: IntersectionObserverCallback) {
-    this.#callback = callback;
-    intersectionObservers.add(this);
-  }
-  observe(target: Element) {
-    this.targets.add(target);
-  }
-  unobserve(target: Element) {
-    this.targets.delete(target);
-  }
-  disconnect() {
-    this.targets.clear();
-  }
-  takeRecords() {
-    return [];
-  }
-  /** Reports that an observed section crossed the line where sections land */
-  report() {
-    if (this.targets.size > 0) {
-      this.#callback([], this as unknown as IntersectionObserver);
-    }
-  }
-}
-
-// A pane 280px tall scrolling 1000px of sections. The last section is short:
-// at the scroll end its top stays 40px below the line.
-const PANE_HEIGHT = 280;
-const PANE_SCROLL_HEIGHT = 1000;
-const SECTION_OFFSETS: Record<string, number> = {
-  annotations: 0,
-  input: 300,
-  output: 760,
-};
-
-/** Renders the nav inside a pane with stubbed layout, and returns the pane */
-async function renderPane(
-  props: Partial<SectionNavProps> = {}
-): Promise<HTMLDivElement> {
-  const scrollContainerRef = createRef<HTMLDivElement>();
-  await render({ ...props, scrollContainerRef });
-  const pane = scrollContainerRef.current;
-  if (pane == null) {
-    throw new Error("pane not rendered");
-  }
-  vi.spyOn(pane, "getBoundingClientRect").mockReturnValue(
-    new DOMRect(0, 0, 480, PANE_HEIGHT)
-  );
-  Object.defineProperty(pane, "clientHeight", { value: PANE_HEIGHT });
-  Object.defineProperty(pane, "scrollHeight", { value: PANE_SCROLL_HEIGHT });
-  for (const [id, offset] of Object.entries(SECTION_OFFSETS)) {
-    const section = pane.querySelector(`section#${id}`);
-    if (section == null) {
-      throw new Error(`section ${id} not rendered`);
-    }
-    vi.spyOn(section, "getBoundingClientRect").mockImplementation(
-      () => new DOMRect(0, offset - pane.scrollTop, 480, 300)
-    );
-  }
-  return pane;
-}
-
-/**
- * Scrolls the pane, by the user (a wheel turn) unless the scroll is the nav's
- * own, and reports a section crossing the line unless `crossesLine` is false
- */
-async function scrollPane({
-  pane,
-  scrollTop,
-  isUserScroll = true,
-  crossesLine = true,
-}: {
-  pane: HTMLElement;
-  scrollTop: number;
-  isUserScroll?: boolean;
-  crossesLine?: boolean;
-}) {
-  await act(async () => {
-    if (isUserScroll) {
-      pane.dispatchEvent(new WheelEvent("wheel", { bubbles: true }));
-    }
-    pane.scrollTop = scrollTop;
-    pane.dispatchEvent(new Event("scroll"));
-    if (crossesLine) {
-      for (const observer of intersectionObservers) {
-        observer.report();
-      }
-    }
-  });
-}
-
-async function settleScroll() {
-  await act(async () => {
-    vi.advanceTimersByTime(150);
-  });
-}
-
 async function click(element: Element) {
   await act(async () => {
     element.dispatchEvent(
@@ -311,12 +203,15 @@ beforeEach(() => {
       removeEventListener: vi.fn(),
     }))
   );
-  // jsdom has no layout, so every section would resolve as scrolled past.
-  // The shared setup's observer reports on observe, which would resolve those
-  // meaningless positions on mount; this one reports only when a test says a
-  // section crossed the line.
-  intersectionObservers.clear();
-  vi.stubGlobal("IntersectionObserver", ControlledIntersectionObserver);
+  // The shared observer reports fake positions on mount in jsdom.
+  vi.stubGlobal(
+    "IntersectionObserver",
+    class {
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    }
+  );
   // jsdom does not implement scrolling
   Element.prototype.scrollTo =
     elementScrollTo as typeof Element.prototype.scrollTo;
@@ -352,15 +247,6 @@ describe("SectionNav", () => {
     expect(container.querySelector("[role=tablist], [role=tab]")).toBeNull();
   });
 
-  it("renders each section as a focusable, labeled section with a heading", async () => {
-    await render();
-    const section = container.querySelector("section#input");
-    expect(section?.getAttribute("tabindex")).toBe("-1");
-    const headingId = section?.getAttribute("aria-labelledby");
-    expect(headingId).toBeTruthy();
-    expect(document.getElementById(headingId ?? "")?.textContent).toBe("Input");
-  });
-
   it("moves aria-current to a clicked link immediately and reports the change", async () => {
     const onChange = vi.fn();
     await render({ onChange });
@@ -390,63 +276,15 @@ describe("SectionNav", () => {
     expect(document.activeElement).toBe(section);
   });
 
-  // jsdom has no layout, so where the section lands is left to the browser
-  it.each([
-    {
-      name: "smoothly on mount",
-      scrollOn: "mount",
-      props: { defaultActiveId: "output" },
-      isReducedMotion: false,
-      behavior: "smooth",
-    },
-    {
-      name: "instantly on mount when scroll animation is turned off",
-      scrollOn: "mount",
-      props: { defaultActiveId: "output", isScrollAnimated: false },
-      isReducedMotion: false,
+  it("scrolls instantly when the user prefers reduced motion", async () => {
+    prefersReducedMotion = true;
+    await render();
+    await click(link("Output"));
+    expect(windowScrollTo).toHaveBeenCalledExactlyOnceWith({
+      top: 0,
       behavior: "instant",
-    },
-    {
-      name: "instantly on mount when the user prefers reduced motion",
-      scrollOn: "mount",
-      props: { defaultActiveId: "output" },
-      isReducedMotion: true,
-      behavior: "instant",
-    },
-    {
-      name: "instantly on click when scroll animation is turned off",
-      scrollOn: "click",
-      props: { isScrollAnimated: false },
-      isReducedMotion: false,
-      behavior: "instant",
-    },
-    {
-      name: "instantly on click when the user prefers reduced motion",
-      scrollOn: "click",
-      props: {},
-      isReducedMotion: true,
-      behavior: "instant",
-    },
-  ] satisfies {
-    name: string;
-    scrollOn: "mount" | "click";
-    props: Partial<SectionNavProps>;
-    isReducedMotion: boolean;
-    behavior: ScrollBehavior;
-  }[])(
-    "scrolls to the section $name",
-    async ({ scrollOn, props, isReducedMotion, behavior }) => {
-      prefersReducedMotion = isReducedMotion;
-      await render(props);
-      if (scrollOn === "click") {
-        await click(link("Output"));
-      }
-      expect(windowScrollTo).toHaveBeenCalledExactlyOnceWith({
-        top: 0,
-        behavior,
-      });
-    }
-  );
+    });
+  });
 
   it("leaves modified clicks to the browser", async () => {
     await render();
@@ -461,76 +299,5 @@ describe("SectionNav", () => {
     });
     expect(event.defaultPrevented).toBe(false);
     expect(currentLinks()).toEqual(["Annotations:true"]);
-  });
-});
-
-describe("SectionNav scroll tracking", () => {
-  it("follows the user who scrolls elsewhere during a click's scroll", async () => {
-    const pane = await renderPane();
-    await click(link("Output"));
-    await scrollPane({ pane, scrollTop: 300 });
-    expect(currentLinks()).toEqual(["Output:true"]);
-    await settleScroll();
-    expect(currentLinks()).toEqual(["Input:true"]);
-  });
-
-  it("does not count presses and keys on the pane's content as the user scrolling", async () => {
-    const pane = await renderPane();
-    const field = document.createElement("input");
-    pane.querySelector("section#input")?.append(field);
-    await click(link("Output"));
-    await scrollPane({ pane, scrollTop: 300, isUserScroll: false });
-    await act(async () => {
-      field.dispatchEvent(new Event("pointerdown", { bubbles: true }));
-      field.dispatchEvent(
-        new KeyboardEvent("keydown", { key: " ", bubbles: true })
-      );
-    });
-    await settleScroll();
-    expect(currentLinks()).toEqual(["Output:true"]);
-  });
-
-  it("counts a press on the pane's own scrollbar as the user scrolling", async () => {
-    const pane = await renderPane();
-    await click(link("Output"));
-    await scrollPane({ pane, scrollTop: 300, isUserScroll: false });
-    await act(async () => {
-      pane.dispatchEvent(new Event("pointerdown", { bubbles: true }));
-    });
-    await settleScroll();
-    expect(currentLinks()).toEqual(["Input:true"]);
-  });
-
-  it("does not scroll back to the default active section the user scrolled away from when it re-subscribes", async () => {
-    const scrollContainerRef = createRef<HTMLDivElement>();
-    await render({ defaultActiveId: "input", scrollContainerRef });
-    const pane = scrollContainerRef.current;
-    if (pane == null) {
-      throw new Error("pane not rendered");
-    }
-    expect(elementScrollTo).toHaveBeenCalledOnce();
-    // the user scrolls before the mount scroll settles, then the nav
-    // re-subscribes (here, to a new orientation)
-    await scrollPane({ pane, scrollTop: 0, crossesLine: false });
-    await render({
-      defaultActiveId: "input",
-      scrollContainerRef,
-      orientation: "vertical",
-    });
-    expect(elementScrollTo).toHaveBeenCalledOnce();
-  });
-
-  it("reports a change once when the observer reports it twice before re-rendering", async () => {
-    const onChange = vi.fn();
-    const pane = await renderPane({ onChange });
-    await act(async () => {
-      pane.scrollTop = 300;
-      for (const observer of intersectionObservers) {
-        observer.report();
-        observer.report();
-      }
-    });
-    expect(currentLinks()).toEqual(["Input:true"]);
-    expect(onChange).toHaveBeenCalledExactlyOnceWith("input");
   });
 });

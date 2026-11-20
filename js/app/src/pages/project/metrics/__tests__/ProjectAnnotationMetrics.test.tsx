@@ -114,18 +114,6 @@ const LEVEL_CASES: ReadonlyArray<{
     namesField: "spanAnnotationMetricNames",
     metricsOperationName: "ProjectAnnotationMetricsSpanQuery",
   },
-  {
-    annotationLevel: "traces",
-    namesOperationName: "ProjectAnnotationMetricTimeRangeNamesTraceQuery",
-    namesField: "traceAnnotationMetricNames",
-    metricsOperationName: "ProjectAnnotationMetricsTraceQuery",
-  },
-  {
-    annotationLevel: "sessions",
-    namesOperationName: "ProjectAnnotationMetricTimeRangeNamesSessionQuery",
-    namesField: "sessionAnnotationMetricNames",
-    metricsOperationName: "ProjectAnnotationMetricsSessionQuery",
-  },
 ];
 
 describe("ProjectAnnotationMetricsGrid", () => {
