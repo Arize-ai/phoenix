@@ -670,30 +670,34 @@ describe("ProjectEvaluatorsTable results column", () => {
     expect(countLoadingChanges()).toBe(0);
   });
 
-  it("shows no change, not a loading one, when the previous window has no scores", async () => {
-    const stream = createStreamingMultipartResponse();
-    authFetchMock.mockResolvedValueOnce(stream.response);
-    await renderTable();
-    stream.sendPart(makeInitialPart({ root: "project", indexes: [1] }));
-    stream.sendPart(makeCurrentScoresPart({ indexes: [1], meanScore: 0.75 }));
-    stream.sendPart({
-      hasNext: false,
-      incremental: [
-        {
-          id: "previous-1",
-          data: { previousSummary: { meanScore: null, labelFractions: [] } },
-        },
-      ],
-      completed: [{ id: "previous-1" }],
-    });
-    stream.end();
-    await settle();
+  it.each([
+    { previousWindow: "no results", previousSummary: null },
+    {
+      previousWindow: "results without a score",
+      previousSummary: { meanScore: null, labelFractions: [] },
+    },
+  ])(
+    "shows no change, not a loading one, when the previous window has $previousWindow",
+    async ({ previousSummary }) => {
+      const stream = createStreamingMultipartResponse();
+      authFetchMock.mockResolvedValueOnce(stream.response);
+      await renderTable();
+      stream.sendPart(makeInitialPart({ root: "project", indexes: [1] }));
+      stream.sendPart(makeCurrentScoresPart({ indexes: [1], meanScore: 0.75 }));
+      stream.sendPart({
+        hasNext: false,
+        incremental: [{ id: "previous-1", data: { previousSummary } }],
+        completed: [{ id: "previous-1" }],
+      });
+      stream.end();
+      await settle();
 
-    expect(readResultsCells()).toEqual({
-      "evaluator-1": expect.stringMatching(/0\.75$/),
-    });
-    expect(countLoadingChanges()).toBe(0);
-  });
+      expect(readResultsCells()).toEqual({
+        "evaluator-1": expect.stringMatching(/0\.75$/),
+      });
+      expect(countLoadingChanges()).toBe(0);
+    }
+  );
 
   it.each([
     {
