@@ -70,6 +70,32 @@ async def test_memory_sqlite_init_failure_propagates_to_caller() -> None:
             aio_sqlite_engine(get_async_db_url("sqlite:///:memory:"), migrate=True)
 
 
+async def test_memory_sqlite_survives_connection_invalidation() -> None:
+    engine = aio_sqlite_engine(get_async_db_url("sqlite:///:memory:"), migrate=True)
+    try:
+        async with engine.connect() as conn:
+            assert await conn.scalar(text("select name from projects")) == "default"
+            # Simulate SQLAlchemy closing the sole pooled connection after a
+            # cancelled or timed-out statement.
+            await conn.invalidate()
+        async with engine.connect() as conn:
+            assert await conn.scalar(text("select name from projects")) == "default"
+    finally:
+        await engine.dispose()
+
+    # Disposing the engine must release the keepalive connection so a fresh
+    # :memory: engine starts with an empty database rather than stale tables.
+    fresh = aio_sqlite_engine(get_async_db_url("sqlite:///:memory:"), migrate=False)
+    try:
+        async with fresh.connect() as conn:
+            tables = (
+                await conn.scalars(text("select name from sqlite_master where type = 'table'"))
+            ).all()
+        assert tables == []
+    finally:
+        await fresh.dispose()
+
+
 def test_migration_pragma_leaves_foreign_keys_off() -> None:
     # Alembic rewrites a table by dropping the original, which cascades to child
     # rows while enforcement is on. Completing the pragma set here would delete
