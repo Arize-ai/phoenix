@@ -120,6 +120,48 @@ console.log(decisionResult);
 
 See the complete example in [`examples/classifier_example.ts`](examples/classifier_example.ts).
 
+### Classifying Multiple Criteria
+
+To answer several classification questions about the same input in one request,
+pass `choices` a list of criteria instead of a single label-to-score map. Each
+criterion has its own `name`, `instruction`, and `choices`, and produces its own
+result. Call `evaluateCriteria` to get one result per criterion.
+
+```typescript
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals/llm";
+import { openai } from "@ai-sdk/openai";
+
+const evaluator = createClassificationEvaluator({
+  name: "response-quality",
+  model: openai("gpt-6-luna"),
+  promptTemplate:
+    "Assess the response to the query:\n\n{{input}}\n\n{{output}}",
+  choices: [
+    {
+      name: "helpfulness",
+      instruction: "Is the response helpful to the user?",
+      choices: { helpful: 1, not_helpful: 0 },
+    },
+    {
+      name: "tone",
+      instruction: "Is the response's tone appropriate?",
+      choices: { appropriate: 1, inappropriate: 0 },
+    },
+  ],
+});
+
+const results = await evaluator.evaluateCriteria({
+  input: "How do I reset my password?",
+  output: "Go to settings > reset.",
+});
+// results: [{ name: "helpfulness", label, score, ... }, { name: "tone", ... }]
+```
+
+A language model answers every criterion in one `generateObject` call and
+includes an explanation per criterion; a decision model answers them in one
+`experimental_decide` call and returns label probabilities instead of an
+explanation.
+
 ### Pre-Built Evaluators
 
 The library includes several pre-built evaluators for common evaluation tasks. These evaluators come with optimized prompts and can be used directly with any AI SDK model.
