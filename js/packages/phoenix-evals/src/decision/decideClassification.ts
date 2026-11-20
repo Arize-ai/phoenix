@@ -11,6 +11,7 @@ import type { TelemetryConfig } from "../types/otel";
 import type { WithPrompt } from "../types/prompts";
 import type { DecisionModel } from "../utils/isDecisionModel";
 import { promptToDecisionState } from "./decisionPrompt";
+import { getDecisionConfidence } from "./getDecisionConfidence";
 
 /**
  * The ID of the single choice question asked per classification.
@@ -55,7 +56,10 @@ export async function decideClassification(args: {
     }),
   });
   const answer = result.answers[QUESTION_ID];
-  const confidence = getConfidence(result.providerMetadata);
+  const confidence = getDecisionConfidence({
+    providerMetadata: result.providerMetadata,
+    questionId: QUESTION_ID,
+  });
   return {
     label: answer.choice,
     metadata: {
@@ -64,21 +68,4 @@ export async function decideClassification(args: {
       modelId: result.response.modelId,
     },
   };
-}
-
-/**
- * The decision model spec has no confidence field, but providers that
- * report one (OpenAI, TypeSafe) put it in their provider metadata as
- * `confidence[questionId]`.
- */
-function getConfidence(providerMetadata: unknown): number | undefined {
-  if (typeof providerMetadata !== "object" || providerMetadata === null) {
-    return undefined;
-  }
-  for (const metadata of Object.values(providerMetadata)) {
-    const confidence = (metadata as { confidence?: Record<string, unknown> })
-      ?.confidence?.[QUESTION_ID];
-    if (typeof confidence === "number") return confidence;
-  }
-  return undefined;
 }
