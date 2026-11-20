@@ -2,7 +2,7 @@ import { runCommand } from "./command";
 import { migrateDatabase } from "./migrate";
 import { withTemporaryPostgres } from "./temporary-postgres";
 
-await withTemporaryPostgres(async (databaseUrl) => {
+await withTemporaryPostgres(async (databaseUrl): Promise<void> => {
   migrateDatabase(databaseUrl);
   runCommand({
     command: "kysely-codegen",

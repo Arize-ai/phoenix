@@ -18,7 +18,7 @@ export async function readSlackThread({
 }: {
   channelId: string;
   threadTimestamp: string;
-  latestTimestamp: string;
+  latestTimestamp?: string;
 }): Promise<
   { user_id: string | undefined; text: string; message_timestamp: string }[]
 > {

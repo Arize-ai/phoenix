@@ -8,6 +8,26 @@ import { POST as receiveSlackEvent } from "../src/app/api/slack/events/route";
 
 const scheduling = vi.hoisted(() => ({ after: vi.fn() }));
 vi.mock("next/server", () => ({ after: scheduling.after }));
+const routing = vi.hoisted(() => ({
+  findThread: vi.fn<() => Promise<{ session_id: string } | undefined>>(),
+  foreman: vi.fn(async () => undefined),
+  worker: vi.fn(async () => undefined),
+}));
+vi.mock("../src/db/client", () => ({
+  getDatabase: () => ({
+    selectFrom: () => ({
+      select: () => ({
+        where: () => ({ executeTakeFirst: routing.findThread }),
+      }),
+    }),
+  }),
+}));
+vi.mock("../src/messages/foreman", () => ({
+  relayForemanReply: routing.foreman,
+}));
+vi.mock("../src/workers/requests", () => ({
+  relayWorkerReply: routing.worker,
+}));
 
 const signingSecret = "test-slack-signing-secret";
 const webhookKey = `whsec_${Buffer.from("test-anthropic-webhook-signing-key").toString("base64")}`;
@@ -28,6 +48,7 @@ function createSlackRequest(payload: unknown): Request {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  routing.findThread.mockResolvedValue(undefined);
   for (const [key, value] of Object.entries({
     SLACK_SIGNING_SECRET: signingSecret,
     SLACK_BOT_TOKEN: "test",
@@ -152,3 +173,114 @@ describe("Anthropic HTTP endpoint", () => {
 it("exposes process health without credentials", async () => {
   expect(await checkHealth().json()).toEqual({ status: "ok" });
 });
+
+describe("shared session webhook", () => {
+  it("rejects unsigned worker callbacks", async () => {
+    expect(
+      (
+        await receiveAnthropicWebhook(
+          new Request("https://factory.example.com/api/anthropic/webhooks", {
+            method: "POST",
+            body: "{}",
+          })
+        )
+      ).status
+    ).toBe(401);
+    expect(scheduling.after).not.toHaveBeenCalled();
+  });
+
+  it.each(["session.status_idled", "session.status_terminated"])(
+    "accepts signed %s callbacks only from the configured workspace",
+    async (type) => {
+      vi.stubEnv("ANTHROPIC_WORKSPACE_ID", "worker-workspace");
+      for (const workspace of ["wrong-workspace", "worker-workspace"]) {
+        const body = JSON.stringify({
+          id: `event-${workspace}-${type}`,
+          type: "event",
+          created_at: new Date().toISOString(),
+          data: {
+            type,
+            id: "worker-session",
+            organization_id: "org",
+            workspace_id: workspace,
+          },
+        });
+        const timestamp = new Date();
+        const response = await receiveAnthropicWebhook(
+          new Request("https://factory.example.com/api/anthropic/webhooks", {
+            method: "POST",
+            body,
+            headers: {
+              "webhook-id": "worker-delivery",
+              "webhook-timestamp": Math.floor(
+                timestamp.getTime() / 1000
+              ).toString(),
+              "webhook-signature": new Webhook(webhookKey).sign(
+                "worker-delivery",
+                timestamp,
+                body
+              ),
+            },
+          })
+        );
+        expect(response.status).toBe(
+          workspace === "worker-workspace" ? 200 : 403
+        );
+      }
+      expect(scheduling.after).toHaveBeenCalledTimes(1);
+    }
+  );
+});
+
+it.each([true, false])(
+  "routes a verified callback using the existing Foreman mapping (mapped=%s)",
+  async (isForeman) => {
+    routing.findThread.mockResolvedValue(
+      isForeman ? { session_id: "session" } : undefined
+    );
+    const timestamp = new Date();
+    const body = JSON.stringify({
+      id: `routing-${isForeman}`,
+      type: "event",
+      created_at: timestamp.toISOString(),
+      data: {
+        type: "session.status_idled",
+        id: "session",
+        workspace_id: "workspace",
+        organization_id: "org",
+      },
+    });
+    const result = await receiveAnthropicWebhook(
+      new Request("https://factory.example.com/api/anthropic/webhooks", {
+        method: "POST",
+        body,
+        headers: {
+          "webhook-id": "routing",
+          "webhook-timestamp": Math.floor(
+            timestamp.getTime() / 1000
+          ).toString(),
+          "webhook-signature": new Webhook(webhookKey).sign(
+            "routing",
+            timestamp,
+            body
+          ),
+        },
+      })
+    );
+    expect(result.status).toBe(200);
+    await scheduling.after.mock.calls[0][0]();
+    if (isForeman) {
+      expect(routing.foreman).toHaveBeenCalledWith({
+        sessionId: "session",
+        completedAt: timestamp.toISOString(),
+      });
+      expect(routing.worker).not.toHaveBeenCalled();
+    } else {
+      expect(routing.worker).toHaveBeenCalledWith({
+        workerId: "session",
+        completedAt: timestamp.toISOString(),
+      });
+      expect(routing.foreman).not.toHaveBeenCalled();
+    }
+  }
+);

@@ -1,9 +1,18 @@
 import { readFileSync } from "node:fs";
 import { Pool } from "pg";
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import type { ServiceConfig } from "../src/config";
 import { getDatabase } from "../src/db/client";
+import { createMcpToken } from "../src/mcp/auth";
 import {
   deliverThreadMessage,
   relayForemanReply,
@@ -29,10 +38,16 @@ const upstream = vi.hoisted(() => ({
     ],
   })),
   post: vi.fn(async () => undefined),
+  vault: vi.fn(async () => ({ id: "foreman-vault" })),
+  credential: vi.fn(async () => ({})),
 }));
 vi.mock("../src/anthropic/client", () => ({
   getAnthropicClient: () => ({
     beta: {
+      vaults: {
+        create: upstream.vault,
+        credentials: { create: upstream.credential },
+      },
       sessions: {
         create: upstream.create,
         events: { send: upstream.send, list: upstream.list },
@@ -57,6 +72,7 @@ afterAll(async () => {
   await pool.end();
   await getDatabase().destroy();
 });
+afterEach(() => vi.unstubAllEnvs());
 
 function createNodeId({ type, id }: { type: string; id: number }): string {
   return Buffer.from(`010:${type}${id}`).toString("base64");
@@ -300,6 +316,58 @@ describe("persistent thread routing", () => {
     expect(result.rows).toEqual([{ session_id: "foreman-test" }]);
   });
 
+  it("attaches a signed Foreman credential before sending the first message without adding routing state to Postgres", async () => {
+    vi.stubEnv("FACTORY_MCP_URL", "https://factory.example.com/api/mcp");
+    vi.stubEnv("FACTORY_MCP_BEARER_SECRET", "a".repeat(32));
+    await deliverThreadMessage({ message, config: createConfig() });
+    expect(upstream.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        vault_ids: ["foreman-vault"],
+        agent: {
+          type: "agent_with_overrides",
+          id: "agent",
+          mcp_servers: [
+            {
+              type: "url",
+              name: "factory",
+              url: "https://factory.example.com/api/mcp",
+            },
+          ],
+        },
+      })
+    );
+    expect(upstream.credential).toHaveBeenCalledWith(
+      "foreman-vault",
+      expect.objectContaining({
+        auth: {
+          type: "static_bearer",
+          mcp_server_url: "https://factory.example.com/api/mcp",
+          token: createMcpToken({
+            workspace_id: "workspace",
+            channel_id: "channel",
+            thread_timestamp: "100.000100",
+          }),
+        },
+      })
+    );
+    expect(upstream.vault.mock.invocationCallOrder[0]).toBeLessThan(
+      upstream.credential.mock.invocationCallOrder[0]
+    );
+    expect(upstream.credential.mock.invocationCallOrder[0]).toBeLessThan(
+      upstream.create.mock.invocationCallOrder[0]
+    );
+    expect(upstream.create.mock.invocationCallOrder[0]).toBeLessThan(
+      upstream.send.mock.invocationCallOrder[0]
+    );
+    expect(
+      (
+        await pool.query(
+          "SELECT column_name FROM information_schema.columns WHERE table_name='slack_threads' AND column_name IN ('mcp_token_hash','participants')"
+        )
+      ).rows
+    ).toEqual([]);
+  });
+
   it("ignores ordinary messages in untracked threads", async () => {
     await deliverThreadMessage({
       message: { ...message, isMention: false },
@@ -311,8 +379,14 @@ describe("persistent thread routing", () => {
 
   it("posts the latest agent reply to its mapped thread once", async () => {
     await deliverThreadMessage({ message, config: createConfig() });
-    await relayForemanReply("foreman-test");
-    await relayForemanReply("foreman-test");
+    await relayForemanReply({
+      sessionId: "foreman-test",
+      completedAt: "2026-11-20T02:00:00Z",
+    });
+    await relayForemanReply({
+      sessionId: "foreman-test",
+      completedAt: "2026-11-20T02:00:00Z",
+    });
     expect(upstream.post).toHaveBeenCalledTimes(1);
     expect(upstream.post).toHaveBeenCalledWith({
       channelId: "channel",
@@ -321,8 +395,60 @@ describe("persistent thread routing", () => {
     });
   });
 
+  it("posts both Foreman replies when callbacks overlap with later messages", async () => {
+    await deliverThreadMessage({ message, config: createConfig() });
+    const replies = {
+      data: [
+        {
+          id: "reply-b",
+          type: "agent.message",
+          content: [{ type: "text", text: "Answer B" }],
+        },
+        {
+          id: "reply-a",
+          type: "agent.message",
+          content: [{ type: "text", text: "Answer A" }],
+        },
+      ],
+    };
+    upstream.list.mockResolvedValueOnce(replies).mockResolvedValueOnce(replies);
+    await relayForemanReply({
+      sessionId: "foreman-test",
+      completedAt: "2026-11-20T02:00:00Z",
+    });
+    await relayForemanReply({
+      sessionId: "foreman-test",
+      completedAt: "2026-11-20T02:00:00Z",
+    });
+    expect(upstream.post.mock.calls).toEqual([
+      [
+        {
+          channelId: "channel",
+          threadTimestamp: "100.000100",
+          text: "Answer A",
+        },
+      ],
+      [
+        {
+          channelId: "channel",
+          threadTimestamp: "100.000100",
+          text: "Answer B",
+        },
+      ],
+    ]);
+    expect(upstream.list).toHaveBeenCalledWith("foreman-test", {
+      types: ["agent.message"],
+      order: "desc",
+      limit: 100,
+      "created_at[lte]": "2026-11-20T02:00:00Z",
+    });
+  });
+
   it("does not relay messages from sessions outside the service", async () => {
-    await relayForemanReply("untracked-session");
+    await relayForemanReply({
+      sessionId: "untracked-session",
+      completedAt: "2026-11-20T02:00:00Z",
+    });
     expect(upstream.list).not.toHaveBeenCalled();
     expect(upstream.post).not.toHaveBeenCalled();
   });

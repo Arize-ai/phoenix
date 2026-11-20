@@ -1,8 +1,10 @@
 import { getAnthropicClient } from "@/anthropic/client";
 import type { ServiceConfig } from "@/config";
 import { getDatabase } from "@/db/client";
+import { createMcpToken } from "@/mcp/auth";
 import { postThreadReply, readSlackThread } from "@/slack/client";
 import type { ThreadMessage } from "@/slack/events";
+import { getMcpConfig } from "@/workers/config";
 import { sql } from "kysely";
 
 import { messageDispatcher } from "./runtime";
@@ -40,8 +42,35 @@ export async function deliverThreadMessage({
       threadTimestamp: message.threadTimestamp,
       latestTimestamp: message.messageTimestamp,
     });
+    const mcp = process.env.FACTORY_MCP_URL ? getMcpConfig() : undefined;
+    const vault = mcp
+      ? await client.beta.vaults.create({ display_name: "Foreman MCP" })
+      : undefined;
+    if (mcp && vault) {
+      await client.beta.vaults.credentials.create(vault.id, {
+        display_name: "Foreman MCP",
+        auth: {
+          type: "static_bearer",
+          mcp_server_url: mcp.FACTORY_MCP_URL,
+          token: createMcpToken({
+            workspace_id: message.workspaceId,
+            channel_id: message.channelId,
+            thread_timestamp: message.threadTimestamp,
+          }),
+        },
+      });
+    }
     const session = await client.beta.sessions.create({
-      agent: config.FACTORY_FOREMAN_AGENT_ID,
+      agent: mcp
+        ? {
+            type: "agent_with_overrides",
+            id: config.FACTORY_FOREMAN_AGENT_ID,
+            mcp_servers: [
+              { type: "url", name: "factory", url: mcp.FACTORY_MCP_URL },
+            ],
+          }
+        : config.FACTORY_FOREMAN_AGENT_ID,
+      vault_ids: vault ? [vault.id] : undefined,
       environment_id: config.FACTORY_FOREMAN_ENVIRONMENT_ID,
       metadata: {
         slack_workspace: message.workspaceId,
@@ -49,6 +78,7 @@ export async function deliverThreadMessage({
         slack_thread_timestamp: message.threadTimestamp,
       },
     });
+
     await transaction
       .insertInto("sessions")
       .values({ id: session.id, kind: "foreman" })
@@ -86,8 +116,14 @@ export async function deliverThreadMessage({
   });
 }
 
-/** Post the latest foreman reply to its linked Slack thread. */
-export async function relayForemanReply(sessionId: string): Promise<void> {
+/** Post replies through the callback timestamp without losing earlier concurrent replies. */
+export async function relayForemanReply({
+  sessionId,
+  completedAt,
+}: {
+  sessionId: string;
+  completedAt: string;
+}): Promise<void> {
   const thread = await getDatabase()
     .selectFrom("slack_threads")
     .select(["channel_id", "thread_timestamp"])
@@ -97,26 +133,28 @@ export async function relayForemanReply(sessionId: string): Promise<void> {
   const events = await getAnthropicClient().beta.sessions.events.list(
     sessionId,
     {
-      types: ["agent.message", "user.message"],
+      types: ["agent.message"],
       order: "desc",
-      limit: 1,
+      limit: 100,
+      "created_at[lte]": completedAt,
     }
   );
-  const latest = events.data[0];
-  if (latest?.type !== "agent.message") return;
-  const text = latest.content
-    .filter((block) => block.type === "text")
-    .map((block) => block.text)
-    .join("\n");
-  if (!text.trim()) return;
-  await messageDispatcher.dispatch({
-    threadKey: `slack-reply:${sessionId}`,
-    messageKey: `agent-message:${sessionId}:${latest.id}`,
-    deliver: () =>
-      postThreadReply({
-        channelId: thread.channel_id,
-        threadTimestamp: thread.thread_timestamp,
-        text,
-      }),
-  });
+  for (const event of [...events.data].reverse()) {
+    if (event.type !== "agent.message") continue;
+    const text = event.content
+      .filter((block) => block.type === "text")
+      .map((block) => block.text)
+      .join("\n");
+    if (!text.trim()) continue;
+    await messageDispatcher.dispatch({
+      threadKey: `slack-reply:${sessionId}`,
+      messageKey: `agent-message:${sessionId}:${event.id}`,
+      deliver: () =>
+        postThreadReply({
+          channelId: thread.channel_id,
+          threadTimestamp: thread.thread_timestamp,
+          text,
+        }),
+    });
+  }
 }

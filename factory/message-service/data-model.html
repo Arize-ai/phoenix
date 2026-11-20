@@ -225,7 +225,7 @@
           "columns": [
             {
               "name": "id",
-              "type": "int8",
+              "type": "bigint",
               "nullable": false,
               "default": null
             },
@@ -237,19 +237,19 @@
             },
             {
               "name": "repo_id",
-              "type": "int8",
+              "type": "bigint",
               "nullable": false,
               "default": null
             },
             {
               "name": "author_id",
-              "type": "int8",
+              "type": "bigint",
               "nullable": true,
               "default": null
             },
             {
               "name": "number",
-              "type": "int4",
+              "type": "integer",
               "nullable": false,
               "default": null
             },
@@ -261,86 +261,84 @@
             },
             {
               "name": "github_created_at",
-              "type": "timestamptz",
+              "type": "timestamp with time zone",
               "nullable": false,
               "default": null
             },
             {
               "name": "github_updated_at",
-              "type": "timestamptz",
+              "type": "timestamp with time zone",
               "nullable": true,
               "default": null
             }
           ],
           "constraints": [
             {
-              "type": "u",
-              "definition": "UNIQUE (node_id)",
-              "columns": ["node_id"],
+              "type": "f",
+              "target": "users",
+              "columns": ["author_id"],
+              "definition": "FOREIGN KEY (author_id) REFERENCES users(id)",
+              "targetColumns": ["id"]
+            },
+            {
+              "type": "c",
               "target": null,
+              "columns": ["id", "node_id"],
+              "definition": "CHECK ((id = github_database_id(node_id)))",
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "target": null,
+              "columns": ["github_updated_at", "github_created_at"],
+              "definition": "CHECK (((github_updated_at IS NULL) OR (github_updated_at >= github_created_at)))",
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "target": null,
+              "columns": ["id"],
+              "definition": "CHECK ((id > 0))",
               "targetColumns": []
             },
             {
               "type": "u",
-              "definition": "UNIQUE (repo_id, number)",
-              "columns": ["repo_id", "number"],
               "target": null,
+              "columns": ["node_id"],
+              "definition": "UNIQUE (node_id)",
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "target": null,
+              "columns": ["number"],
+              "definition": "CHECK ((number > 0))",
               "targetColumns": []
             },
             {
               "type": "p",
+              "target": null,
+              "columns": ["id"],
               "definition": "PRIMARY KEY (id)",
-              "columns": ["id"],
-              "target": null,
               "targetColumns": []
             },
             {
               "type": "f",
-              "definition": "FOREIGN KEY (author_id) REFERENCES users(id)",
-              "columns": ["author_id"],
-              "target": "users",
-              "targetColumns": ["id"]
-            },
-            {
-              "type": "f",
-              "definition": "FOREIGN KEY (repo_id) REFERENCES repositories(id)",
-              "columns": ["repo_id"],
               "target": "repositories",
+              "columns": ["repo_id"],
+              "definition": "FOREIGN KEY (repo_id) REFERENCES repositories(id)",
               "targetColumns": ["id"]
             },
             {
-              "type": "c",
-              "definition": "CHECK ((id = github_database_id(node_id)))",
-              "columns": ["id", "node_id"],
+              "type": "u",
               "target": null,
-              "targetColumns": []
-            },
-            {
-              "type": "c",
-              "definition": "CHECK (((github_updated_at IS NULL) OR (github_updated_at >= github_created_at)))",
-              "columns": ["github_updated_at", "github_created_at"],
-              "target": null,
-              "targetColumns": []
-            },
-            {
-              "type": "c",
-              "definition": "CHECK ((id > 0))",
-              "columns": ["id"],
-              "target": null,
-              "targetColumns": []
-            },
-            {
-              "type": "c",
-              "definition": "CHECK ((number > 0))",
-              "columns": ["number"],
-              "target": null,
+              "columns": ["repo_id", "number"],
+              "definition": "UNIQUE (repo_id, number)",
               "targetColumns": []
             }
           ],
           "triggers": [
-            {
-              "definition": "CREATE TRIGGER fill_github_id BEFORE INSERT OR UPDATE ON public.issues FOR EACH ROW WHEN ((new.id IS NULL)) EXECUTE FUNCTION fill_github_database_id()"
-            }
+            "CREATE TRIGGER fill_github_id BEFORE INSERT OR UPDATE ON public.issues FOR EACH ROW WHEN ((new.id IS NULL)) EXECUTE FUNCTION fill_github_database_id()"
           ]
         },
         {
@@ -348,7 +346,7 @@
           "columns": [
             {
               "name": "issue_id",
-              "type": "int8",
+              "type": "bigint",
               "nullable": false,
               "default": null
             },
@@ -367,31 +365,38 @@
           ],
           "constraints": [
             {
+              "type": "f",
+              "target": "issues",
+              "columns": ["issue_id"],
+              "definition": "FOREIGN KEY (issue_id) REFERENCES issues(id)",
+              "targetColumns": ["id"]
+            },
+            {
               "type": "p",
-              "definition": "PRIMARY KEY (issue_id, session_id)",
-              "columns": ["issue_id", "session_id"],
               "target": null,
+              "columns": ["issue_id", "session_id"],
+              "definition": "PRIMARY KEY (issue_id, session_id)",
               "targetColumns": []
             },
             {
               "type": "f",
-              "definition": "FOREIGN KEY (issue_id) REFERENCES issues(id)",
-              "columns": ["issue_id"],
-              "target": "issues",
-              "targetColumns": ["id"]
-            },
-            {
-              "type": "f",
-              "definition": "FOREIGN KEY (session_id, session_kind) REFERENCES sessions(id, kind)",
-              "columns": ["session_id", "session_kind"],
               "target": "sessions",
+              "columns": ["session_id", "session_kind"],
+              "definition": "FOREIGN KEY (session_id, session_kind) REFERENCES sessions(id, kind)",
               "targetColumns": ["id", "kind"]
             },
             {
               "type": "c",
-              "definition": "CHECK ((session_kind = 'worker'::text))",
-              "columns": ["session_kind"],
               "target": null,
+              "columns": ["session_kind"],
+              "definition": "CHECK ((session_kind = 'worker'::text))",
+              "targetColumns": []
+            },
+            {
+              "type": "i",
+              "target": null,
+              "columns": [],
+              "definition": "CREATE INDEX issues_sessions_session ON public.issues_sessions USING btree (session_id)",
               "targetColumns": []
             }
           ],
@@ -402,7 +407,7 @@
           "columns": [
             {
               "name": "id",
-              "type": "int8",
+              "type": "bigint",
               "nullable": false,
               "default": null
             },
@@ -414,19 +419,19 @@
             },
             {
               "name": "repo_id",
-              "type": "int8",
+              "type": "bigint",
               "nullable": false,
               "default": null
             },
             {
               "name": "author_id",
-              "type": "int8",
+              "type": "bigint",
               "nullable": true,
               "default": null
             },
             {
               "name": "number",
-              "type": "int4",
+              "type": "integer",
               "nullable": false,
               "default": null
             },
@@ -444,86 +449,84 @@
             },
             {
               "name": "github_created_at",
-              "type": "timestamptz",
+              "type": "timestamp with time zone",
               "nullable": false,
               "default": null
             },
             {
               "name": "github_updated_at",
-              "type": "timestamptz",
+              "type": "timestamp with time zone",
               "nullable": true,
               "default": null
             }
           ],
           "constraints": [
             {
-              "type": "u",
-              "definition": "UNIQUE (node_id)",
-              "columns": ["node_id"],
+              "type": "f",
+              "target": "users",
+              "columns": ["author_id"],
+              "definition": "FOREIGN KEY (author_id) REFERENCES users(id)",
+              "targetColumns": ["id"]
+            },
+            {
+              "type": "c",
               "target": null,
+              "columns": ["id", "node_id"],
+              "definition": "CHECK ((id = github_database_id(node_id)))",
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "target": null,
+              "columns": ["github_updated_at", "github_created_at"],
+              "definition": "CHECK (((github_updated_at IS NULL) OR (github_updated_at >= github_created_at)))",
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "target": null,
+              "columns": ["id"],
+              "definition": "CHECK ((id > 0))",
               "targetColumns": []
             },
             {
               "type": "u",
-              "definition": "UNIQUE (repo_id, number)",
-              "columns": ["repo_id", "number"],
               "target": null,
+              "columns": ["node_id"],
+              "definition": "UNIQUE (node_id)",
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "target": null,
+              "columns": ["number"],
+              "definition": "CHECK ((number > 0))",
               "targetColumns": []
             },
             {
               "type": "p",
+              "target": null,
+              "columns": ["id"],
               "definition": "PRIMARY KEY (id)",
-              "columns": ["id"],
-              "target": null,
               "targetColumns": []
             },
             {
               "type": "f",
-              "definition": "FOREIGN KEY (author_id) REFERENCES users(id)",
-              "columns": ["author_id"],
-              "target": "users",
-              "targetColumns": ["id"]
-            },
-            {
-              "type": "f",
-              "definition": "FOREIGN KEY (repo_id) REFERENCES repositories(id)",
-              "columns": ["repo_id"],
               "target": "repositories",
+              "columns": ["repo_id"],
+              "definition": "FOREIGN KEY (repo_id) REFERENCES repositories(id)",
               "targetColumns": ["id"]
             },
             {
-              "type": "c",
-              "definition": "CHECK ((id = github_database_id(node_id)))",
-              "columns": ["id", "node_id"],
+              "type": "u",
               "target": null,
-              "targetColumns": []
-            },
-            {
-              "type": "c",
-              "definition": "CHECK (((github_updated_at IS NULL) OR (github_updated_at >= github_created_at)))",
-              "columns": ["github_updated_at", "github_created_at"],
-              "target": null,
-              "targetColumns": []
-            },
-            {
-              "type": "c",
-              "definition": "CHECK ((id > 0))",
-              "columns": ["id"],
-              "target": null,
-              "targetColumns": []
-            },
-            {
-              "type": "c",
-              "definition": "CHECK ((number > 0))",
-              "columns": ["number"],
-              "target": null,
+              "columns": ["repo_id", "number"],
+              "definition": "UNIQUE (repo_id, number)",
               "targetColumns": []
             }
           ],
           "triggers": [
-            {
-              "definition": "CREATE TRIGGER fill_github_id BEFORE INSERT OR UPDATE ON public.pull_requests FOR EACH ROW WHEN ((new.id IS NULL)) EXECUTE FUNCTION fill_github_database_id()"
-            }
+            "CREATE TRIGGER fill_github_id BEFORE INSERT OR UPDATE ON public.pull_requests FOR EACH ROW WHEN ((new.id IS NULL)) EXECUTE FUNCTION fill_github_database_id()"
           ]
         },
         {
@@ -531,7 +534,7 @@
           "columns": [
             {
               "name": "pull_request_id",
-              "type": "int8",
+              "type": "bigint",
               "nullable": false,
               "default": null
             },
@@ -551,30 +554,37 @@
           "constraints": [
             {
               "type": "p",
-              "definition": "PRIMARY KEY (pull_request_id, session_id)",
-              "columns": ["pull_request_id", "session_id"],
               "target": null,
+              "columns": ["pull_request_id", "session_id"],
+              "definition": "PRIMARY KEY (pull_request_id, session_id)",
               "targetColumns": []
             },
             {
               "type": "f",
-              "definition": "FOREIGN KEY (pull_request_id) REFERENCES pull_requests(id)",
-              "columns": ["pull_request_id"],
               "target": "pull_requests",
+              "columns": ["pull_request_id"],
+              "definition": "FOREIGN KEY (pull_request_id) REFERENCES pull_requests(id)",
               "targetColumns": ["id"]
             },
             {
               "type": "f",
-              "definition": "FOREIGN KEY (session_id, session_kind) REFERENCES sessions(id, kind)",
-              "columns": ["session_id", "session_kind"],
               "target": "sessions",
+              "columns": ["session_id", "session_kind"],
+              "definition": "FOREIGN KEY (session_id, session_kind) REFERENCES sessions(id, kind)",
               "targetColumns": ["id", "kind"]
             },
             {
               "type": "c",
-              "definition": "CHECK ((session_kind = 'worker'::text))",
-              "columns": ["session_kind"],
               "target": null,
+              "columns": ["session_kind"],
+              "definition": "CHECK ((session_kind = 'worker'::text))",
+              "targetColumns": []
+            },
+            {
+              "type": "i",
+              "target": null,
+              "columns": [],
+              "definition": "CREATE INDEX pull_requests_sessions_session ON public.pull_requests_sessions USING btree (session_id)",
               "targetColumns": []
             }
           ],
@@ -585,7 +595,7 @@
           "columns": [
             {
               "name": "id",
-              "type": "int8",
+              "type": "bigint",
               "nullable": false,
               "default": null
             },
@@ -610,59 +620,57 @@
           ],
           "constraints": [
             {
-              "type": "u",
-              "definition": "UNIQUE (node_id)",
-              "columns": ["node_id"],
+              "type": "c",
               "target": null,
+              "columns": ["id", "node_id"],
+              "definition": "CHECK ((id = github_database_id(node_id)))",
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "target": null,
+              "columns": ["id"],
+              "definition": "CHECK ((id > 0))",
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "target": null,
+              "columns": ["name"],
+              "definition": "CHECK ((btrim(name) \u003c> ''::text))",
               "targetColumns": []
             },
             {
               "type": "u",
-              "definition": "UNIQUE (owner, name)",
-              "columns": ["owner", "name"],
               "target": null,
+              "columns": ["node_id"],
+              "definition": "UNIQUE (node_id)",
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "target": null,
+              "columns": ["owner"],
+              "definition": "CHECK ((btrim(owner) \u003c> ''::text))",
+              "targetColumns": []
+            },
+            {
+              "type": "u",
+              "target": null,
+              "columns": ["owner", "name"],
+              "definition": "UNIQUE (owner, name)",
               "targetColumns": []
             },
             {
               "type": "p",
+              "target": null,
+              "columns": ["id"],
               "definition": "PRIMARY KEY (id)",
-              "columns": ["id"],
-              "target": null,
-              "targetColumns": []
-            },
-            {
-              "type": "c",
-              "definition": "CHECK ((id = github_database_id(node_id)))",
-              "columns": ["id", "node_id"],
-              "target": null,
-              "targetColumns": []
-            },
-            {
-              "type": "c",
-              "definition": "CHECK ((id > 0))",
-              "columns": ["id"],
-              "target": null,
-              "targetColumns": []
-            },
-            {
-              "type": "c",
-              "definition": "CHECK ((btrim(name) \u003c> ''::text))",
-              "columns": ["name"],
-              "target": null,
-              "targetColumns": []
-            },
-            {
-              "type": "c",
-              "definition": "CHECK ((btrim(owner) \u003c> ''::text))",
-              "columns": ["owner"],
-              "target": null,
               "targetColumns": []
             }
           ],
           "triggers": [
-            {
-              "definition": "CREATE TRIGGER fill_github_id BEFORE INSERT OR UPDATE ON public.repositories FOR EACH ROW WHEN ((new.id IS NULL)) EXECUTE FUNCTION fill_github_database_id()"
-            }
+            "CREATE TRIGGER fill_github_id BEFORE INSERT OR UPDATE ON public.repositories FOR EACH ROW WHEN ((new.id IS NULL)) EXECUTE FUNCTION fill_github_database_id()"
           ]
         },
         {
@@ -683,31 +691,31 @@
           ],
           "constraints": [
             {
-              "type": "u",
-              "definition": "UNIQUE (id, kind)",
-              "columns": ["id", "kind"],
+              "type": "c",
               "target": null,
+              "columns": ["id"],
+              "definition": "CHECK ((btrim(id) \u003c> ''::text))",
+              "targetColumns": []
+            },
+            {
+              "type": "u",
+              "target": null,
+              "columns": ["id", "kind"],
+              "definition": "UNIQUE (id, kind)",
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "target": null,
+              "columns": ["kind"],
+              "definition": "CHECK ((kind = ANY (ARRAY['foreman'::text, 'worker'::text])))",
               "targetColumns": []
             },
             {
               "type": "p",
+              "target": null,
+              "columns": ["id"],
               "definition": "PRIMARY KEY (id)",
-              "columns": ["id"],
-              "target": null,
-              "targetColumns": []
-            },
-            {
-              "type": "c",
-              "definition": "CHECK ((btrim(id) \u003c> ''::text))",
-              "columns": ["id"],
-              "target": null,
-              "targetColumns": []
-            },
-            {
-              "type": "c",
-              "definition": "CHECK ((kind = ANY (ARRAY['foreman'::text, 'worker'::text])))",
-              "columns": ["kind"],
-              "target": null,
               "targetColumns": []
             }
           ],
@@ -749,45 +757,45 @@
           ],
           "constraints": [
             {
-              "type": "u",
-              "definition": "UNIQUE (session_id)",
-              "columns": ["session_id"],
+              "type": "c",
               "target": null,
+              "columns": ["channel_id"],
+              "definition": "CHECK ((btrim(channel_id) \u003c> ''::text))",
               "targetColumns": []
             },
             {
               "type": "p",
-              "definition": "PRIMARY KEY (workspace_id, channel_id, thread_timestamp)",
-              "columns": ["workspace_id", "channel_id", "thread_timestamp"],
               "target": null,
+              "columns": ["workspace_id", "channel_id", "thread_timestamp"],
+              "definition": "PRIMARY KEY (workspace_id, channel_id, thread_timestamp)",
+              "targetColumns": []
+            },
+            {
+              "type": "u",
+              "target": null,
+              "columns": ["session_id"],
+              "definition": "UNIQUE (session_id)",
               "targetColumns": []
             },
             {
               "type": "f",
-              "definition": "FOREIGN KEY (session_id, session_kind) REFERENCES sessions(id, kind)",
-              "columns": ["session_id", "session_kind"],
               "target": "sessions",
+              "columns": ["session_id", "session_kind"],
+              "definition": "FOREIGN KEY (session_id, session_kind) REFERENCES sessions(id, kind)",
               "targetColumns": ["id", "kind"]
             },
             {
               "type": "c",
-              "definition": "CHECK ((btrim(channel_id) \u003c> ''::text))",
-              "columns": ["channel_id"],
               "target": null,
-              "targetColumns": []
-            },
-            {
-              "type": "c",
-              "definition": "CHECK ((session_kind = 'foreman'::text))",
               "columns": ["session_kind"],
-              "target": null,
+              "definition": "CHECK ((session_kind = 'foreman'::text))",
               "targetColumns": []
             },
             {
               "type": "c",
-              "definition": "CHECK ((btrim(workspace_id) \u003c> ''::text))",
-              "columns": ["workspace_id"],
               "target": null,
+              "columns": ["workspace_id"],
+              "definition": "CHECK ((btrim(workspace_id) \u003c> ''::text))",
               "targetColumns": []
             }
           ],
@@ -798,7 +806,7 @@
           "columns": [
             {
               "name": "id",
-              "type": "int8",
+              "type": "bigint",
               "nullable": false,
               "default": null
             },
@@ -823,45 +831,43 @@
           ],
           "constraints": [
             {
-              "type": "u",
-              "definition": "UNIQUE (node_id)",
-              "columns": ["node_id"],
+              "type": "c",
               "target": null,
+              "columns": ["id", "node_id"],
+              "definition": "CHECK ((id = github_database_id(node_id)))",
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "target": null,
+              "columns": ["id"],
+              "definition": "CHECK ((id > 0))",
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "target": null,
+              "columns": ["kind"],
+              "definition": "CHECK ((kind = ANY (ARRAY['human'::text, 'factory'::text, 'other_bot'::text])))",
+              "targetColumns": []
+            },
+            {
+              "type": "u",
+              "target": null,
+              "columns": ["node_id"],
+              "definition": "UNIQUE (node_id)",
               "targetColumns": []
             },
             {
               "type": "p",
+              "target": null,
+              "columns": ["id"],
               "definition": "PRIMARY KEY (id)",
-              "columns": ["id"],
-              "target": null,
-              "targetColumns": []
-            },
-            {
-              "type": "c",
-              "definition": "CHECK ((id = github_database_id(node_id)))",
-              "columns": ["id", "node_id"],
-              "target": null,
-              "targetColumns": []
-            },
-            {
-              "type": "c",
-              "definition": "CHECK ((id > 0))",
-              "columns": ["id"],
-              "target": null,
-              "targetColumns": []
-            },
-            {
-              "type": "c",
-              "definition": "CHECK ((kind = ANY (ARRAY['human'::text, 'factory'::text, 'other_bot'::text])))",
-              "columns": ["kind"],
-              "target": null,
               "targetColumns": []
             }
           ],
           "triggers": [
-            {
-              "definition": "CREATE TRIGGER fill_github_id BEFORE INSERT OR UPDATE ON public.users FOR EACH ROW WHEN ((new.id IS NULL)) EXECUTE FUNCTION fill_github_database_id()"
-            }
+            "CREATE TRIGGER fill_github_id BEFORE INSERT OR UPDATE ON public.users FOR EACH ROW WHEN ((new.id IS NULL)) EXECUTE FUNCTION fill_github_database_id()"
           ]
         }
       ]

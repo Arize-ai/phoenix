@@ -76,6 +76,7 @@ help: ## Show this help message
 	@echo -e "  dev-factory-message-service - Factory Slack service on localhost:3109"
 	@echo -e "  test-factory-message-service - Unit tests and temporary Postgres integration tests"
 	@echo -e "  db-migrate-factory-message-service - Apply dbmate migrations"
+	@echo -e "  db-model-factory-message-service - Update the data model using temporary Postgres"
 	@echo -e "  db-types-factory-message-service - Generate Kysely types using temporary Postgres"
 	@echo -e "  dev-docker             - Docker devops environment (use ARGS= for arguments)"
 	@echo -e "  dev-mock-llm           - Start the mock LLM server"
@@ -349,7 +350,7 @@ typecheck: typecheck-python typecheck-ts ## Type check all code (Python + TypeSc
 # Code Quality
 #=============================================================================
 
-.PHONY: dev-factory-message-service start-factory-message-service build-factory-message-service typecheck-factory-message-service lint-factory-message-service format-factory-message-service test-factory-message-service db-migrate-factory-message-service db-types-factory-message-service
+.PHONY: dev-factory-message-service start-factory-message-service build-factory-message-service typecheck-factory-message-service lint-factory-message-service format-factory-message-service test-factory-message-service db-migrate-factory-message-service db-types-factory-message-service db-model-factory-message-service
 
 dev-factory-message-service start-factory-message-service build-factory-message-service typecheck-factory-message-service lint-factory-message-service:
 	@cd $(JS_DIR) && $(PNPM) --filter phoenix-factory-message-service run $(patsubst %-factory-message-service,%,$@)
@@ -360,9 +361,13 @@ format-factory-message-service:
 test-factory-message-service:
 	@cd $(JS_DIR) && $(PNPM) --filter phoenix-factory-message-service run test
 	@cd $(JS_DIR) && $(PNPM) --filter phoenix-factory-message-service run test:integration
+	@$(UV) run --script factory/message-service/scripts/test_worker_bridge.py
 
 db-migrate-factory-message-service:
 	@cd $(JS_DIR) && $(PNPM) --filter phoenix-factory-message-service run db:migrate
+
+db-model-factory-message-service:
+	@cd $(JS_DIR) && $(PNPM) --filter phoenix-factory-message-service run db:model
 
 db-types-factory-message-service:
 	@cd $(JS_DIR) && $(PNPM) --filter phoenix-factory-message-service run db:types

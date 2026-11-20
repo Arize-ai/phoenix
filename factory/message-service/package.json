@@ -6,6 +6,7 @@
   "scripts": {
     "build": "next build",
     "db:migrate": "tsx scripts/migrate.ts",
+    "db:model": "tsx scripts/generate-data-model.ts",
     "db:types": "tsx scripts/generate-types.ts",
     "dev": "next dev --port 3109",
     "fmt": "oxfmt --config ../../.oxfmtrc.jsonc .",
@@ -18,6 +19,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.10.0",
+    "@modelcontextprotocol/server": "^2.4.0",
     "@slack/web-api": "^8.4.0",
     "kysely": "^0.29.9",
     "next": "^16.4.6",

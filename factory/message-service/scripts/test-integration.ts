@@ -6,7 +6,7 @@ await withTemporaryPostgres(async (databaseUrl) => {
   migrateDatabase(databaseUrl);
   runCommand({
     command: "vitest",
-    args: ["run", "tests/database.integration.test.ts"],
+    args: ["run", ".integration.test.ts", "--no-file-parallelism"],
     env: {
       ...process.env,
       TEST_DATABASE_URL: databaseUrl,
