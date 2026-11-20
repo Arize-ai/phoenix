@@ -241,10 +241,10 @@ px setup mcp --agent claude --header 'Authorization: Bearer ${PHOENIX_API_KEY}'
 Diagnose why `px` cannot work with your Phoenix server. Four checks run in
 order, each reporting pass, fail, or skip with a fix hint: **config** (the
 settings file parses, the `--profile` exists, the endpoint is a valid URL),
-**connectivity** (the server answers as Phoenix), **version** (the server
-reports its version), and **auth** (credentials are accepted, or the server
-allows anonymous access). Once config or connectivity fails, the later checks
-are skipped, so the first failure is the one to fix.
+**connectivity** (the server responds), **version** (the server answers as
+Phoenix and reports its version), and **auth** (credentials are accepted, or the
+server allows anonymous access). Once config, connectivity, or version fails,
+the later checks are skipped, so the first failure is the one to fix.
 
 ```bash
 px setup doctor

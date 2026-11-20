@@ -112,18 +112,42 @@ describe("px setup doctor", () => {
   });
 
   it("runs against the generated handlers alone", async () => {
-    mockProcessExit();
+    const exitSpy = mockProcessExit();
 
     const output = await runDoctorRaw();
 
-    expect(output.checks.map((check) => check.name)).toEqual([
-      "config",
-      "connectivity",
-      "version",
-      "auth",
+    expect(summarizeChecks(output)).toEqual([
+      "config:pass",
+      "connectivity:pass",
+      "version:fail",
+      "auth:skip",
     ]);
-    expect(output.checks[0]?.status).toBe("pass");
-    expect(output.checks[1]?.status).toBe("pass");
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.NETWORK_ERROR);
+  });
+
+  it("sends the configured headers, so a header-gated proxy passes", async () => {
+    const exitSpy = mockProcessExit();
+    vi.stubEnv("PHOENIX_CLIENT_HEADERS", JSON.stringify({ "x-gate": "open" }));
+    mock.server.use(
+      http.get("/arize_phoenix_version", ({ request, response }) =>
+        response.untyped(
+          request.headers.get("x-gate") === "open"
+            ? new Response("13.5.0", { status: 200 })
+            : new Response("<html>login</html>", { status: 200 })
+        )
+      ),
+      viewerHandler(VIEWER)
+    );
+
+    const output = await runDoctorRaw(["--api-key", "phx-key"]);
+
+    expect(summarizeChecks(output)).toEqual([
+      "config:pass",
+      "connectivity:pass",
+      "version:pass",
+      "auth:pass",
+    ]);
+    expect(exitSpy).not.toHaveBeenCalled();
   });
 
   it("fails the config check on a malformed settings file and skips the rest", async () => {
@@ -165,7 +189,9 @@ describe("px setup doctor", () => {
 
   it("fails connectivity and skips version and auth when the server is unreachable", async () => {
     const exitSpy = mockProcessExit();
-    mock.server.use(http.get("/v1/projects", () => HttpResponse.error()));
+    mock.server.use(
+      http.get("/arize_phoenix_version", () => HttpResponse.error())
+    );
 
     const output = await runDoctorRaw();
 
@@ -179,31 +205,50 @@ describe("px setup doctor", () => {
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.NETWORK_ERROR);
   });
 
-  it("fails connectivity when the endpoint answers but is not Phoenix", async () => {
+  it("fails the version check when a non-Phoenix server rejects every request", async () => {
     const exitSpy = mockProcessExit();
     mock.server.use(
-      http.get("/v1/projects", ({ response }) =>
-        response.untyped(new Response(null, { status: 404 }))
+      http.get("/arize_phoenix_version", ({ response }) =>
+        response.untyped(new Response(null, { status: 401 }))
       )
     );
 
     const output = await runDoctorRaw();
 
-    expect(output.checks[1]?.status).toBe("fail");
-    expect(output.checks[1]?.message).toContain("not as a Phoenix server");
-    expect(output.checks[2]?.message).toBe(
-      "Skipped: connectivity check failed"
-    );
+    expect(summarizeChecks(output)).toEqual([
+      "config:pass",
+      "connectivity:pass",
+      "version:fail",
+      "auth:skip",
+    ]);
+    expect(output.checks[2]?.message).toContain("did not answer as Phoenix");
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.NETWORK_ERROR);
+  });
+
+  it("reports a server error, not a wrong endpoint, when the server returns 5xx", async () => {
+    const exitSpy = mockProcessExit();
+    mock.server.use(
+      http.get("/arize_phoenix_version", ({ response }) =>
+        response.untyped(new Response(null, { status: 503 }))
+      )
+    );
+
+    const output = await runDoctorRaw();
+
+    expect(summarizeChecks(output)).toEqual([
+      "config:pass",
+      "connectivity:pass",
+      "version:fail",
+      "auth:skip",
+    ]);
+    expect(output.checks[2]?.message).toContain("HTTP 503");
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
   });
 
   it("fails the auth check when the server rejects the credentials", async () => {
     const exitSpy = mockProcessExit();
     mock.server.use(
       serverVersionHandler("13.5.0"),
-      http.get("/v1/projects", ({ response }) =>
-        response.untyped(new Response(null, { status: 401 }))
-      ),
       http.get("/v1/user", ({ response }) =>
         response.untyped(new Response(null, { status: 401 }))
       )
@@ -226,9 +271,6 @@ describe("px setup doctor", () => {
     const exitSpy = mockProcessExit();
     mock.server.use(
       serverVersionHandler("13.5.0"),
-      http.get("/v1/projects", ({ response }) =>
-        response.untyped(new Response(null, { status: 401 }))
-      ),
       http.get("/v1/user", ({ response }) =>
         response.untyped(new Response(null, { status: 401 }))
       )
@@ -274,7 +316,9 @@ describe("px setup doctor", () => {
 
   it("prints a checklist with fix hints in pretty format", async () => {
     mockProcessExit();
-    mock.server.use(http.get("/v1/projects", () => HttpResponse.error()));
+    mock.server.use(
+      http.get("/arize_phoenix_version", () => HttpResponse.error())
+    );
     const io = captureCliOutput();
 
     await runDoctor(["--endpoint", DEFAULT_MOCK_BASE_URL]);

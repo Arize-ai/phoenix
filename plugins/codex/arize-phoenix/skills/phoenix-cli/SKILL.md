@@ -176,8 +176,8 @@ raw` prints `{"endpoint","url","serverName","agent","scope","auth","file?"}`.
 
 Run this first when `px` commands fail and the cause is unclear. It checks, in
 order, config (settings file, `--profile`, endpoint URL), connectivity, server
-version, and auth; checks after a failed config or connectivity check are
-skipped.
+version, and auth; checks after a failed config, connectivity, or version
+check are skipped.
 
 ```bash
 px setup doctor --format raw

@@ -2,11 +2,16 @@
  * `px setup doctor` — diagnose why `px` cannot work with a Phoenix server.
  *
  * The checks run in dependency order — config, connectivity, version, auth —
- * and the ones that need a reachable server are skipped once it isn't, so the
- * first failed check is the one to fix.
+ * and each failure skips the checks after it, so the first failed check is the
+ * one to fix.
  */
 
-import { formatVersion } from "@arizeai/phoenix-client";
+import {
+  HttpError,
+  type SemanticVersion,
+  formatVersion,
+  parseSemanticVersion,
+} from "@arizeai/phoenix-client";
 import { assertUnreachable } from "@arizeai/phoenix-client/utils/assertUnreachable";
 import { Command } from "commander";
 
@@ -24,8 +29,7 @@ import {
   getSettingsPath,
   loadSettings,
 } from "../settings";
-import { createPhoenixClientFactory } from "../setup/deps/phoenixClient";
-import { probeEndpoint } from "../setup/steps/chooseEndpoint";
+import { redactForDisplay } from "../setup/util/redact";
 import { ENDPOINT_REQUIREMENT, isEndpointUrl } from "../validation/endpoint";
 import {
   type FetchViewerResult,
@@ -158,81 +162,116 @@ function checkConfig({
   };
 }
 
-async function checkConnectivity({
-  endpoint,
+const PROBE_TIMEOUT_MS = 10_000;
+
+type ServerProbe =
+  | { kind: "unreachable"; detail: string }
+  | { kind: "httpError"; status: number }
+  | { kind: "unexpectedBody" }
+  | { kind: "phoenix"; version: SemanticVersion };
+
+/**
+ * Fetch the server version without credentials: Phoenix serves this route to
+ * anonymous callers, so only a failing or non-Phoenix server rejects it. The
+ * configured headers are still sent, since a proxy in front of Phoenix may
+ * require them.
+ */
+async function probeServer({
+  config,
 }: {
-  endpoint: string;
-}): Promise<DoctorCheckOutcome> {
-  const outcome = await probeEndpoint(
-    { createClient: createPhoenixClientFactory() },
-    endpoint
-  );
-  switch (outcome.kind) {
-    case "authOff":
-    case "authOn":
-      return {
-        check: {
-          name: "connectivity",
-          status: "pass",
-          message: `Reached ${endpoint}`,
-        },
-        exitCode: ExitCode.SUCCESS,
-      };
-    case "unreachable":
-      return {
-        check: {
-          name: "connectivity",
-          status: "fail",
-          message: `Could not reach ${endpoint}: ${outcome.detail}`,
-          fix: "Start the Phoenix server, or point px at it with --endpoint or PHOENIX_ENDPOINT",
-        },
-        exitCode: ExitCode.NETWORK_ERROR,
-      };
-    case "notPhoenix":
-      return {
-        check: {
-          name: "connectivity",
-          status: "fail",
-          message: `${endpoint} responded, but not as a Phoenix server (${outcome.detail})`,
-          fix: "Use the Phoenix server's base URL as the endpoint",
-        },
-        exitCode: ExitCode.NETWORK_ERROR,
-      };
-    default:
-      return assertUnreachable(outcome);
+  config: PhoenixConfig & { endpoint: string };
+}): Promise<ServerProbe> {
+  const client = createPhoenixClient({
+    config: { endpoint: config.endpoint, headers: config.headers },
+  });
+  try {
+    const { data } = await client.GET("/arize_phoenix_version", {
+      parseAs: "text",
+      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+    });
+    const version = parseSemanticVersion(data ?? "");
+    return version ? { kind: "phoenix", version } : { kind: "unexpectedBody" };
+  } catch (error) {
+    if (error instanceof HttpError) {
+      return { kind: "httpError", status: error.status };
+    }
+    return { kind: "unreachable", detail: redactForDisplay(String(error)) };
   }
 }
 
-async function checkVersion({
-  config,
+function checkConnectivity({
+  probe,
+  endpoint,
 }: {
-  config: PhoenixConfig;
-}): Promise<DoctorCheckOutcome> {
-  try {
-    const version = await createPhoenixClient({ config }).getServerVersion();
+  probe: ServerProbe;
+  endpoint: string;
+}): DoctorCheckOutcome {
+  if (probe.kind === "unreachable") {
     return {
       check: {
-        name: "version",
-        status: "pass",
-        message: `Phoenix server ${formatVersion(version)}`,
-      },
-      exitCode: ExitCode.SUCCESS,
-    };
-  } catch (error) {
-    // getServerVersion documents a plain Error as its only failure.
-    if (!(error instanceof Error)) {
-      throw error;
-    }
-    return {
-      check: {
-        name: "version",
+        name: "connectivity",
         status: "fail",
-        message: "The server did not report a Phoenix version",
-        fix: "Use the Phoenix server's base URL as the endpoint",
+        message: `Could not reach ${endpoint}: ${probe.detail}`,
+        fix: "Start the Phoenix server, or point px at it with --endpoint or PHOENIX_ENDPOINT",
       },
-      exitCode: ExitCode.FAILURE,
+      exitCode: ExitCode.NETWORK_ERROR,
     };
   }
+  return {
+    check: {
+      name: "connectivity",
+      status: "pass",
+      message: `Reached ${endpoint}`,
+    },
+    exitCode: ExitCode.SUCCESS,
+  };
+}
+
+function checkVersion({
+  probe,
+}: {
+  probe: Exclude<ServerProbe, { kind: "unreachable" }>;
+}): DoctorCheckOutcome {
+  switch (probe.kind) {
+    case "phoenix":
+      return {
+        check: {
+          name: "version",
+          status: "pass",
+          message: `Phoenix server ${formatVersion(probe.version)}`,
+        },
+        exitCode: ExitCode.SUCCESS,
+      };
+    case "httpError":
+      if (probe.status === 429 || probe.status >= 500) {
+        return {
+          check: {
+            name: "version",
+            status: "fail",
+            message: `The server returned HTTP ${probe.status}`,
+            fix: "Check the Phoenix server's logs and health, then retry",
+          },
+          exitCode: ExitCode.FAILURE,
+        };
+      }
+      return failNotPhoenix({ detail: `HTTP ${probe.status}` });
+    case "unexpectedBody":
+      return failNotPhoenix({ detail: "unexpected response body" });
+    default:
+      return assertUnreachable(probe);
+  }
+}
+
+function failNotPhoenix({ detail }: { detail: string }): DoctorCheckOutcome {
+  return {
+    check: {
+      name: "version",
+      status: "fail",
+      message: `The server did not answer as Phoenix (${detail})`,
+      fix: "Use the Phoenix server's base URL as the endpoint, and set any headers a proxy needs with PHOENIX_CLIENT_HEADERS",
+    },
+    exitCode: ExitCode.NETWORK_ERROR,
+  };
 }
 
 function describeAuthResult({
@@ -308,10 +347,12 @@ async function runDoctorChecks({
     ];
   }
 
-  const connectivityOutcome = await checkConnectivity({
+  const probe = await probeServer({ config });
+  const connectivityOutcome = checkConnectivity({
+    probe,
     endpoint: config.endpoint,
   });
-  if (connectivityOutcome.check.status === "fail") {
+  if (probe.kind === "unreachable") {
     return [
       configOutcome,
       connectivityOutcome,
@@ -320,10 +361,20 @@ async function runDoctorChecks({
     ];
   }
 
+  const versionOutcome = checkVersion({ probe });
+  if (probe.kind !== "phoenix") {
+    return [
+      configOutcome,
+      connectivityOutcome,
+      versionOutcome,
+      skipCheck({ name: "auth", reason: "version check failed" }),
+    ];
+  }
+
   return [
     configOutcome,
     connectivityOutcome,
-    await checkVersion({ config }),
+    versionOutcome,
     await checkAuth({ config }),
   ];
 }
@@ -375,10 +426,10 @@ Examples:
 
 Exit codes (from the first failed check):
   0  Every check passed or was skipped
-  1  No Phoenix version reported, or a server error while verifying credentials
+  1  A server error (HTTP 5xx or 429), including while verifying credentials
   3  Invalid settings file, unknown --profile, or invalid endpoint
   4  Credentials are missing or were rejected
-  5  The server could not be reached, or is not Phoenix
+  5  The server could not be reached, or did not answer as Phoenix
 `
     );
 }
