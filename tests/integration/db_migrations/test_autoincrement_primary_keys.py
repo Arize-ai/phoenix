@@ -318,7 +318,7 @@ def _insert_agent_session(connection: sa.Connection) -> int:
         ("ac59da3e4035", "52e79887a7e3", "access_tokens"),
         ("ac59da3e4035", "52e79887a7e3", "refresh_tokens"),
         ("ac59da3e4035", "52e79887a7e3", "password_reset_tokens"),
-        ("f125a3233286", "00eb0d0a5db9", "agent_sessions"),
+        ("f125a3233286", "e724eb2ee5cf", "agent_sessions"),
     ],
 )
 @pytest.mark.parametrize("direction", ["upgrade", "downgrade"])
