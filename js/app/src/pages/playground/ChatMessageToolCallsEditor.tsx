@@ -101,6 +101,7 @@ export function ChatMessageToolCallsEditor({
       case "MINIMAX":
       case "PERPLEXITY":
       case "TOGETHER":
+      case "MISTRAL":
       case "ZAI":
       case "META":
         return openAIToolCallsJSONSchema as JSONSchema7;

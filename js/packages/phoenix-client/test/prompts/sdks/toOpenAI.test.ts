@@ -301,6 +301,7 @@ describe("toOpenAI type compatibility", () => {
     ["moonshot", "moonshot"],
     ["perplexity", "perplexity"],
     ["together", "together"],
+    ["mistral", "mistral"],
     ["zai", "zai"],
     ["meta", "meta"],
   ])(

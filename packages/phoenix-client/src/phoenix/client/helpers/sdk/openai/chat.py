@@ -209,6 +209,7 @@ class _InvocationParametersConversion:
             v1.PromptMoonshotInvocationParameters,
             v1.PromptPerplexityInvocationParameters,
             v1.PromptTogetherInvocationParameters,
+            v1.PromptMistralInvocationParameters,
             v1.PromptZAIInvocationParameters,
             v1.PromptMetaInvocationParameters,
         ],
@@ -507,6 +508,29 @@ class _InvocationParametersConversion:
                 ans["stop"] = list(together_params["stop"])
             if "extra_body" in together_params:
                 ans["extra_body"] = dict(together_params["extra_body"])
+        elif obj["type"] == "mistral":
+            mistral_params: v1.PromptMistralInvocationParametersContent
+            mistral_params = obj["mistral"]
+            if "max_completion_tokens" in mistral_params:
+                ans["max_completion_tokens"] = mistral_params["max_completion_tokens"]
+            if "max_tokens" in mistral_params:
+                ans["max_tokens"] = mistral_params["max_tokens"]
+            if "temperature" in mistral_params:
+                ans["temperature"] = mistral_params["temperature"]
+            if "top_p" in mistral_params:
+                ans["top_p"] = mistral_params["top_p"]
+            if "presence_penalty" in mistral_params:
+                ans["presence_penalty"] = mistral_params["presence_penalty"]
+            if "frequency_penalty" in mistral_params:
+                ans["frequency_penalty"] = mistral_params["frequency_penalty"]
+            if "seed" in mistral_params:
+                ans["seed"] = mistral_params["seed"]
+            if "reasoning_effort" in mistral_params:
+                ans["reasoning_effort"] = mistral_params["reasoning_effort"]
+            if "stop" in mistral_params:
+                ans["stop"] = list(mistral_params["stop"])
+            if "extra_body" in mistral_params:
+                ans["extra_body"] = dict(mistral_params["extra_body"])
         elif obj["type"] == "zai":
             zai_params: v1.PromptZAIInvocationParametersContent
             zai_params = obj["zai"]

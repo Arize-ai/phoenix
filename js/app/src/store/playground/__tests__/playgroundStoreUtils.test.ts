@@ -251,6 +251,14 @@ describe("convertMessageToolCallsToProvider", () => {
         [{ test: "test" }],
       ],
     ],
+    MISTRAL: [
+      [
+        "return tools as they are for mistral",
+        "MISTRAL",
+        [{ test: "test" }],
+        [{ test: "test" }],
+      ],
+    ],
     ZAI: [
       [
         "return tools as they are for zai",

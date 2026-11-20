@@ -86,6 +86,11 @@ const PROVIDER_OPTIONS: { key: ModelProvider; value: string; label: string }[] =
       label: getProviderName("XAI"),
     },
     {
+      key: "MISTRAL",
+      value: getSemConvProvider("MISTRAL"),
+      label: getProviderName("MISTRAL"),
+    },
+    {
       key: "ZAI",
       value: getSemConvProvider("ZAI"),
       label: getProviderName("ZAI"),

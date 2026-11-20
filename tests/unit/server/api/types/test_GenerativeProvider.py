@@ -19,6 +19,12 @@ class TestGenerativeProvider:
             provider = GenerativeProvider._infer_model_provider_from_model_name(model_name)
             assert provider == GenerativeProviderKey.MINIMAX
 
+        provider = GenerativeProvider._infer_model_provider_from_model_name("mistral-large-latest")
+        assert provider == GenerativeProviderKey.MISTRAL
+
+        provider = GenerativeProvider._infer_model_provider_from_model_name("codestral-latest")
+        assert provider == GenerativeProviderKey.MISTRAL
+
         provider = GenerativeProvider._infer_model_provider_from_model_name("unknown-model")
         assert provider is None
 
@@ -31,9 +37,50 @@ class TestGenerativeProvider:
         provider = GenerativeProvider.get_model_provider_from_attributes(attributes)
         assert provider == GenerativeProviderKey.ANTHROPIC
 
+        attributes = {"llm": {"provider": OpenInferenceLLMProviderValues.MISTRALAI.value}}
+        provider = GenerativeProvider.get_model_provider_from_attributes(attributes)
+        assert provider == GenerativeProviderKey.MISTRAL
+
         attributes = {"llm": {"provider": "UnknownProvider"}}
         provider = GenerativeProvider.get_model_provider_from_attributes(attributes)
         assert provider is None
+
+    @pytest.mark.parametrize(
+        ("model_name", "expected_provider"),
+        [
+            ("mistral", GenerativeProviderKey.OLLAMA),
+            ("mistral:latest", GenerativeProviderKey.OLLAMA),
+            ("Mistral:7b", GenerativeProviderKey.OLLAMA),
+            ("mistral-large-latest", GenerativeProviderKey.MISTRAL),
+            ("mistral-nemo:latest", GenerativeProviderKey.MISTRAL),
+            ("codestral-latest", GenerativeProviderKey.MISTRAL),
+            ("unknown-model", None),
+        ],
+    )
+    def test_mistral_name_inference(
+        self, model_name: str, expected_provider: GenerativeProviderKey | None
+    ) -> None:
+        assert (
+            GenerativeProvider._infer_model_provider_from_model_name(model_name)
+            == expected_provider
+        )
+
+    @pytest.mark.parametrize(
+        ("provider", "model_name", "expected_provider"),
+        [
+            ("mistralai", "unfamiliar-model", GenerativeProviderKey.MISTRAL),
+            ("ollama", "mistral-large-latest", GenerativeProviderKey.OLLAMA),
+        ],
+    )
+    def test_explicit_provider_precedes_model_name(
+        self, provider: str, model_name: str, expected_provider: GenerativeProviderKey
+    ) -> None:
+        assert (
+            GenerativeProvider.get_model_provider_from_attributes(
+                {"llm": {"provider": provider, "model_name": model_name}}
+            )
+            == expected_provider
+        )
 
     async def test_credential_requirements_for_ollama(self) -> None:
         """Test that OLLAMA provider returns empty credential requirements"""

@@ -138,6 +138,7 @@ class ModelProvider(Enum):
     MINIMAX = "MINIMAX"
     PERPLEXITY = "PERPLEXITY"
     TOGETHER = "TOGETHER"
+    MISTRAL = "MISTRAL"
     ZAI = "ZAI"
     META = "META"
 
@@ -167,6 +168,7 @@ def is_sdk_compatible_with_model_provider(
             ModelProvider.MINIMAX,
             ModelProvider.PERPLEXITY,
             ModelProvider.TOGETHER,
+            ModelProvider.MISTRAL,
             ModelProvider.ZAI,
             ModelProvider.META,
         )

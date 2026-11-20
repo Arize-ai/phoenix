@@ -240,6 +240,7 @@ type ProviderToToolCallMap = {
   MINIMAX: OpenAIToolCall;
   PERPLEXITY: OpenAIToolCall;
   TOGETHER: OpenAIToolCall;
+  MISTRAL: OpenAIToolCall;
   ZAI: OpenAIToolCall;
   META: OpenAIToolCall;
   AWS: AwsToolCall;
@@ -298,6 +299,7 @@ export const fromOpenAIToolCall = <T extends ModelProvider>({
     case "MINIMAX":
     case "PERPLEXITY":
     case "TOGETHER":
+    case "MISTRAL":
     case "ZAI":
     case "META":
       return toolCall as ProviderToToolCallMap[T];
