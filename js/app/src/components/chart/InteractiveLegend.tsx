@@ -10,7 +10,7 @@ import type {
 } from "recharts";
 import { Legend, Surface, Symbols } from "recharts";
 
-import { Truncate } from "@phoenix/components/core";
+import { OverflowRow, Truncate } from "@phoenix/components/core";
 
 /**
  * InteractiveLegend is intentionally larger than a thin `<Legend />` wrapper.
@@ -44,6 +44,9 @@ type RechartsSymbolType = SymbolsProps["type"];
  */
 type RechartsLegendContentProps = DefaultLegendContentProps & {
   content?: LegendProps["content"];
+  // Recharts passes every Legend prop through to its content, not only the
+  // ones DefaultLegendContentProps declares.
+  wrapperStyle?: LegendProps["wrapperStyle"];
 };
 
 type InteractiveLegendContentProps = RechartsLegendContentProps & {
@@ -82,6 +85,22 @@ const legendCSS = css`
 const verticalLegendCSS = css`
   flex-direction: column;
   align-items: flex-start;
+`;
+
+/**
+ * Horizontal legends never wrap: a second line of legend items would take its
+ * height from the plot, so a chart with many series would shrink. Items that
+ * don't fit on the one line go behind OverflowRow's "+N" badge instead, whose
+ * popover keeps them toggleable.
+ */
+const horizontalLegendCSS = css`
+  display: flex;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  > .overflow-row {
+    gap: 0 var(--global-dimension-size-150);
+  }
 `;
 
 const leftAlignedLegendCSS = css`
@@ -363,108 +382,125 @@ function DefaultInteractiveLegendContent({
   onMouseEnter,
   onMouseLeave,
   payload,
+  wrapperStyle,
 }: RechartsLegendContentProps) {
   if (payload == null || payload.length === 0) {
     return null;
   }
 
+  const isHorizontal = layout !== "vertical";
+  // Horizontal items sit inside OverflowRow's div, where an <li> is invalid.
+  const ItemElement = isHorizontal ? "div" : "li";
+  // Items that don't fit render again in the "+N" popover, which mounts in a
+  // portal outside the legend wrapper, so they carry its font size themselves.
+  const itemStyle = { fontSize: wrapperStyle?.fontSize };
+  const items = payload.map((entry, index) => {
+    if (entry.type === "none") {
+      return null;
+    }
+
+    const dataKey = getInteractiveDataKey(entry.dataKey);
+    const isHidden = entry.inactive === true;
+    const finalFormatter = entry.formatter ?? formatter;
+    const label = getLegendItemText(entry);
+    const renderedLabel =
+      finalFormatter == null
+        ? label
+        : finalFormatter(entry.value, entry, index);
+    const mergedLabelStyle = {
+      ...(typeof labelStyle === "object" ? labelStyle : {}),
+    };
+    mergedLabelStyle.color = isHidden
+      ? inactiveColor
+      : (mergedLabelStyle.color ?? entry.color);
+    const itemClassName = `recharts-legend-item legend-item-${index}${isHidden ? " inactive" : ""}`;
+
+    return (
+      <ItemElement
+        className={itemClassName}
+        css={legendItemCSS}
+        key={`${label}-${index}`}
+        style={itemStyle}
+      >
+        {dataKey == null ? (
+          <span
+            css={legendStaticItemCSS}
+            onMouseEnter={(event) => {
+              onMouseEnter?.(entry, index, event);
+            }}
+            onMouseLeave={(event) => {
+              onMouseLeave?.(entry, index, event);
+            }}
+            style={mergedLabelStyle}
+          >
+            <LegendIcon
+              entry={entry}
+              iconSize={iconSize}
+              iconType={iconType}
+              inactiveColor={inactiveColor}
+            />
+            <span className="recharts-legend-item-text" css={legendTextCSS}>
+              <Truncate maxWidth="100%" title={label}>
+                {renderedLabel}
+              </Truncate>
+            </span>
+          </span>
+        ) : (
+          <button
+            aria-label={getLegendItemAriaLabel({
+              isHidden,
+              label,
+            })}
+            aria-pressed={!isHidden}
+            css={legendButtonCSS}
+            data-inactive={isHidden ? true : undefined}
+            onClick={(event) => {
+              onClick?.(entry, index, event);
+            }}
+            onMouseEnter={(event) => {
+              onMouseEnter?.(entry, index, event);
+            }}
+            onMouseLeave={(event) => {
+              onMouseLeave?.(entry, index, event);
+            }}
+            style={mergedLabelStyle}
+            title={label}
+            type="button"
+          >
+            <LegendIcon
+              entry={entry}
+              iconSize={iconSize}
+              iconType={iconType}
+              inactiveColor={inactiveColor}
+            />
+            <span className="recharts-legend-item-text" css={legendTextCSS}>
+              <Truncate maxWidth="100%" title={label}>
+                {renderedLabel}
+              </Truncate>
+            </span>
+          </button>
+        )}
+      </ItemElement>
+    );
+  });
+
+  if (isHorizontal) {
+    return (
+      <div
+        css={[horizontalLegendCSS, getLegendAlignmentCSS(align)]}
+        className="recharts-default-legend"
+      >
+        <OverflowRow size="S">{items}</OverflowRow>
+      </div>
+    );
+  }
+
   return (
     <ul
-      css={[
-        legendCSS,
-        layout === "vertical" && verticalLegendCSS,
-        getLegendAlignmentCSS(align),
-      ]}
+      css={[legendCSS, verticalLegendCSS]}
       className="recharts-default-legend"
     >
-      {payload.map((entry, index) => {
-        if (entry.type === "none") {
-          return null;
-        }
-
-        const dataKey = getInteractiveDataKey(entry.dataKey);
-        const isHidden = entry.inactive === true;
-        const finalFormatter = entry.formatter ?? formatter;
-        const label = getLegendItemText(entry);
-        const renderedLabel =
-          finalFormatter == null
-            ? label
-            : finalFormatter(entry.value, entry, index);
-        const mergedLabelStyle = {
-          ...(typeof labelStyle === "object" ? labelStyle : {}),
-        };
-        mergedLabelStyle.color = isHidden
-          ? inactiveColor
-          : (mergedLabelStyle.color ?? entry.color);
-        const itemClassName = `recharts-legend-item legend-item-${index}${isHidden ? " inactive" : ""}`;
-
-        return (
-          <li
-            className={itemClassName}
-            css={legendItemCSS}
-            key={`${label}-${index}`}
-          >
-            {dataKey == null ? (
-              <span
-                css={legendStaticItemCSS}
-                onMouseEnter={(event) => {
-                  onMouseEnter?.(entry, index, event);
-                }}
-                onMouseLeave={(event) => {
-                  onMouseLeave?.(entry, index, event);
-                }}
-                style={mergedLabelStyle}
-              >
-                <LegendIcon
-                  entry={entry}
-                  iconSize={iconSize}
-                  iconType={iconType}
-                  inactiveColor={inactiveColor}
-                />
-                <span className="recharts-legend-item-text" css={legendTextCSS}>
-                  <Truncate maxWidth="100%" title={label}>
-                    {renderedLabel}
-                  </Truncate>
-                </span>
-              </span>
-            ) : (
-              <button
-                aria-label={getLegendItemAriaLabel({
-                  isHidden,
-                  label,
-                })}
-                aria-pressed={!isHidden}
-                css={legendButtonCSS}
-                data-inactive={isHidden ? true : undefined}
-                onClick={(event) => {
-                  onClick?.(entry, index, event);
-                }}
-                onMouseEnter={(event) => {
-                  onMouseEnter?.(entry, index, event);
-                }}
-                onMouseLeave={(event) => {
-                  onMouseLeave?.(entry, index, event);
-                }}
-                style={mergedLabelStyle}
-                title={label}
-                type="button"
-              >
-                <LegendIcon
-                  entry={entry}
-                  iconSize={iconSize}
-                  iconType={iconType}
-                  inactiveColor={inactiveColor}
-                />
-                <span className="recharts-legend-item-text" css={legendTextCSS}>
-                  <Truncate maxWidth="100%" title={label}>
-                    {renderedLabel}
-                  </Truncate>
-                </span>
-              </button>
-            )}
-          </li>
-        );
-      })}
+      {items}
     </ul>
   );
 }
