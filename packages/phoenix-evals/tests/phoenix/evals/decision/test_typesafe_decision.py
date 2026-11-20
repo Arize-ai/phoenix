@@ -1,4 +1,3 @@
-from collections import defaultdict
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -20,16 +19,16 @@ def _response(
     confidence=0.95,
     input_tokens=11,
     output_tokens=3,
+    name="label",
 ):
     """Build a fake SystemOneResponse exposing `.choices[name]`, `.model`, and `.usage`.
 
-    ``choices`` answers any question name with the same single answer, so this fixture works
-    both for the direct single-question path (keyed ``"label"``) and the ClassificationEvaluator
-    path (keyed by the criterion/evaluator name).
+    The answer is keyed ``"label"`` for the direct single-question path; evaluator-driven
+    tests pass the criterion name the plural path asks under.
     """
     answer = SimpleNamespace(choice=choice, probabilities=probabilities, confidence=confidence)
     usage = SimpleNamespace(input_tokens=input_tokens, output_tokens=output_tokens)
-    return SimpleNamespace(model=model, choices=defaultdict(lambda: answer), usage=usage)
+    return SimpleNamespace(model=model, choices={name: answer}, usage=usage)
 
 
 def _patch_clients(monkeypatch, sync_client=None, async_client=None):
@@ -86,7 +85,9 @@ async def test_async_routes_a_text_prompt_through_a_single_choice_question(monke
 
 def test_evaluator_maps_the_chosen_label_to_a_score_without_an_explanation(monkeypatch):
     client = MagicMock()
-    client.system_one.return_value = _response("invalid", {"valid": 0.1, "invalid": 0.9})
+    client.system_one.return_value = _response(
+        "invalid", {"valid": 0.1, "invalid": 0.9}, name="isValid"
+    )
     _patch_clients(monkeypatch, sync_client=client)
 
     evaluator = ClassificationEvaluator(
@@ -107,7 +108,9 @@ def test_evaluator_maps_the_chosen_label_to_a_score_without_an_explanation(monke
 
 def test_tuple_style_choices_pass_descriptions_as_criteria(monkeypatch):
     client = MagicMock()
-    client.system_one.return_value = _response("valid", {"valid": 0.8, "invalid": 0.2})
+    client.system_one.return_value = _response(
+        "valid", {"valid": 0.8, "invalid": 0.2}, name="isValid"
+    )
     _patch_clients(monkeypatch, sync_client=client)
 
     evaluator = ClassificationEvaluator(
@@ -125,7 +128,7 @@ def test_tuple_style_choices_pass_descriptions_as_criteria(monkeypatch):
     assert score.score == 1
 
     _, kwargs = client.system_one.call_args
-    question = kwargs["questions"]["label"]
+    question = kwargs["questions"]["isValid"]
     assert question.criteria == {
         "valid": "the question is well formed",
         "invalid": "the question is malformed",
@@ -134,7 +137,9 @@ def test_tuple_style_choices_pass_descriptions_as_criteria(monkeypatch):
 
 def test_invocation_kwargs_reach_system_one_but_evaluator_params_do_not(monkeypatch):
     client = MagicMock()
-    client.system_one.return_value = _response("correct", {"correct": 0.9, "incorrect": 0.1})
+    client.system_one.return_value = _response(
+        "correct", {"correct": 0.9, "incorrect": 0.1}, name="correctness"
+    )
     _patch_clients(monkeypatch, sync_client=client)
 
     evaluator = ClassificationEvaluator(
@@ -370,7 +375,9 @@ def test_decision_span_records_attributes_and_usage(monkeypatch):
 
 def test_usage_is_not_copied_onto_the_score(monkeypatch):
     client = MagicMock()
-    client.system_one.return_value = _response("valid", {"valid": 0.8, "invalid": 0.2})
+    client.system_one.return_value = _response(
+        "valid", {"valid": 0.8, "invalid": 0.2}, name="isValid"
+    )
     _patch_clients(monkeypatch, sync_client=client)
 
     evaluator = ClassificationEvaluator(
@@ -388,7 +395,9 @@ def test_builtin_evaluator_sends_a_flattened_string_state(monkeypatch):
     from phoenix.evals.metrics.hallucination import HallucinationEvaluator
 
     client = MagicMock()
-    client.system_one.return_value = _response("grounded", {"grounded": 0.8, "hallucinated": 0.2})
+    client.system_one.return_value = _response(
+        "grounded", {"grounded": 0.8, "hallucinated": 0.2}, name="hallucination"
+    )
     _patch_clients(monkeypatch, sync_client=client)
 
     evaluator = HallucinationEvaluator(llm=DecisionModel(provider="typesafe", model="jev-latest"))
@@ -413,7 +422,7 @@ def test_builtin_evaluator_sends_a_flattened_string_state(monkeypatch):
 async def test_async_evaluate_through_classification_evaluator(monkeypatch):
     async_client = MagicMock()
     async_client.system_one = AsyncMock(
-        return_value=_response("valid", {"valid": 0.7, "invalid": 0.3})
+        return_value=_response("valid", {"valid": 0.7, "invalid": 0.3}, name="isValid")
     )
     _patch_clients(monkeypatch, async_client=async_client)
 
