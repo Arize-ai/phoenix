@@ -406,8 +406,10 @@ function AnnotationMeanScoreView({
   const summary = metrics?.summary;
   const previousSummary = readPreviousSummary(metrics);
   const deferredError = useEvaluatorDeferredError();
-  const hasPreviousWindowFailed =
-    previousSummary === undefined && deferredError != null;
+  const previousWindowStatus = getPreviousWindowStatus({
+    previousSummary,
+    deferredError,
+  });
   const previousMeanScore = previousSummary?.meanScore;
   const meanScore = summary?.meanScore;
   const hasScore = typeof meanScore === "number";
@@ -422,7 +424,7 @@ function AnnotationMeanScoreView({
         windowKey={windowKey}
         summary={summary}
         previousLabelFractions={previousSummary?.labelFractions}
-        hasPreviousWindowFailed={hasPreviousWindowFailed}
+        previousWindowStatus={previousWindowStatus}
         series={series}
         formatBinTime={binTimeFormatter}
       />
@@ -479,7 +481,7 @@ function AnnotationMeanScoreView({
               <PreviousWindowChange
                 deltaText={deltaText}
                 isImprovement={isImprovement}
-                hasPreviousWindowFailed={hasPreviousWindowFailed}
+                previousWindowStatus={previousWindowStatus}
               />
             </Flex>
           </TriggerWrap>
@@ -494,7 +496,7 @@ function AnnotationMeanScoreView({
                 scoreCount={summary?.scoreCount}
                 labelCount={summary?.labelCount}
               />
-              {hasPreviousWindowFailed ? (
+              {previousWindowStatus === "failed" ? (
                 <PreviousWindowFailedNote windowKey={windowKey} />
               ) : deltaText != null ? (
                 <Text size="S" color="text-700">
@@ -550,19 +552,50 @@ function AnnotationMeanScoreView({
 }
 
 /**
+ * Where the previous window's aggregates stand. They load after the current
+ * window's and read as undefined until then, and still after they fail.
+ */
+type PreviousWindowStatus = "loading" | "failed" | "loaded";
+
+function getPreviousWindowStatus({
+  previousSummary,
+  deferredError,
+}: {
+  previousSummary: ReturnType<typeof readPreviousSummary>;
+  deferredError: string | null;
+}): PreviousWindowStatus {
+  if (previousSummary !== undefined) {
+    return "loaded";
+  }
+  return deferredError != null ? "failed" : "loading";
+}
+
+/**
  * The change since the previous window, beside the score or leading label:
- * its arrow and magnitude, or a note when the previous window failed to load.
+ * its arrow and magnitude, a placeholder while the previous window loads, or
+ * a note when it failed to load.
  */
 function PreviousWindowChange({
   deltaText,
   isImprovement,
-  hasPreviousWindowFailed,
+  previousWindowStatus,
 }: {
   deltaText: string | null;
   isImprovement: boolean | null;
-  hasPreviousWindowFailed: boolean;
+  previousWindowStatus: PreviousWindowStatus;
 }) {
-  if (hasPreviousWindowFailed) {
+  if (previousWindowStatus === "loading") {
+    return (
+      <span
+        css={previousWindowChangeSkeletonCSS}
+        aria-busy="true"
+        aria-label="Loading change"
+      >
+        <Skeleton width={44} height={12} />
+      </span>
+    );
+  }
+  if (previousWindowStatus === "failed") {
     return (
       <Text size="XS" color="text-500" flex="none">
         change failed to load
@@ -589,6 +622,11 @@ function PreviousWindowChange({
     </Text>
   );
 }
+
+const previousWindowChangeSkeletonCSS = css`
+  display: inline-flex;
+  flex: none;
+`;
 
 function PreviousWindowFailedNote({ windowKey }: { windowKey: string }) {
   return (
@@ -659,7 +697,7 @@ function AnnotationLabelDistributionView({
   windowKey,
   summary,
   previousLabelFractions,
-  hasPreviousWindowFailed,
+  previousWindowStatus,
   series,
   formatBinTime,
 }: {
@@ -667,7 +705,7 @@ function AnnotationLabelDistributionView({
   windowKey: string;
   summary: NonNullable<EvaluatorAnnotationScoreMetricsData["summary"]>;
   previousLabelFractions: ReadonlyArray<LabelFraction> | null | undefined;
-  hasPreviousWindowFailed: boolean;
+  previousWindowStatus: PreviousWindowStatus;
   /** The window's time bins, up to now. */
   series: EvaluatorAnnotationScoreMetricsData["series"];
   formatBinTime: (date: Date) => string;
@@ -751,7 +789,7 @@ function AnnotationLabelDistributionView({
               <PreviousWindowChange
                 deltaText={deltaText}
                 isImprovement={isImprovement}
-                hasPreviousWindowFailed={hasPreviousWindowFailed}
+                previousWindowStatus={previousWindowStatus}
               />
             </Flex>
           </TriggerWrap>
@@ -766,7 +804,7 @@ function AnnotationLabelDistributionView({
                 scoreCount={summary.scoreCount}
                 labelCount={labelCount}
               />
-              {hasPreviousWindowFailed ? (
+              {previousWindowStatus === "failed" ? (
                 <PreviousWindowFailedNote windowKey={windowKey} />
               ) : deltaText != null ? (
                 <Text size="S" color="text-700">
