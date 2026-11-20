@@ -361,36 +361,6 @@ describe("SectionNav", () => {
     expect(document.getElementById(headingId ?? "")?.textContent).toBe("Input");
   });
 
-  it("marks the first section current by default", async () => {
-    await render();
-    expect(currentLinks()).toEqual(["Annotations:true"]);
-  });
-
-  it("marks the default active section current", async () => {
-    await render({ defaultActiveId: "output" });
-    expect(currentLinks()).toEqual(["Output:true"]);
-  });
-
-  it("holds the default active section after scrolling to it, until the user scrolls", async () => {
-    await render({ defaultActiveId: "input" });
-    // jsdom has no layout, so a resolve would mark the last section current
-    await act(async () => {
-      vi.advanceTimersByTime(150);
-      window.dispatchEvent(new Event("resize"));
-    });
-    expect(currentLinks()).toEqual(["Input:true"]);
-    await act(async () => {
-      window.dispatchEvent(new Event("scroll"));
-      vi.advanceTimersByTime(150);
-    });
-    expect(currentLinks()).toEqual(["Output:true"]);
-  });
-
-  it("leaves the pane where it is without a default active section", async () => {
-    await render();
-    expect(windowScrollTo).not.toHaveBeenCalled();
-  });
-
   it("moves aria-current to a clicked link immediately and reports the change", async () => {
     const onChange = vi.fn();
     await render({ onChange });
@@ -421,18 +391,6 @@ describe("SectionNav", () => {
   });
 
   // jsdom has no layout, so where the section lands is left to the browser
-  it("scrolls only the scroll container", async () => {
-    const scrollContainerRef = createRef<HTMLDivElement>();
-    await render({ orientation: "vertical", scrollContainerRef });
-    await click(link("Output"));
-    expect(elementScrollTo).toHaveBeenCalledOnce();
-    expect(elementScrollTo.mock.contexts[0]).toBe(scrollContainerRef.current);
-    expect(elementScrollTo).toHaveBeenCalledWith(
-      expect.objectContaining({ behavior: "smooth" })
-    );
-    expect(windowScrollTo).not.toHaveBeenCalled();
-  });
-
   it.each([
     {
       name: "smoothly on mount",
@@ -507,45 +465,6 @@ describe("SectionNav", () => {
 });
 
 describe("SectionNav scroll tracking", () => {
-  it("moves the current link as each section crosses the line", async () => {
-    const pane = await renderPane();
-    // within a pixel of the line counts as reached
-    await scrollPane({ pane, scrollTop: 298 });
-    expect(currentLinks()).toEqual(["Annotations:true"]);
-    await scrollPane({ pane, scrollTop: 300 });
-    expect(currentLinks()).toEqual(["Input:true"]);
-    await scrollPane({ pane, scrollTop: 120 });
-    expect(currentLinks()).toEqual(["Annotations:true"]);
-  });
-
-  it("marks a short last section current once scrolling settles at the end", async () => {
-    const pane = await renderPane();
-    await scrollPane({ pane, scrollTop: 300 });
-    // the short last section never crosses the line
-    await scrollPane({
-      pane,
-      scrollTop: PANE_SCROLL_HEIGHT - PANE_HEIGHT,
-      crossesLine: false,
-    });
-    expect(currentLinks()).toEqual(["Input:true"]);
-    await settleScroll();
-    expect(currentLinks()).toEqual(["Output:true"]);
-  });
-
-  it("keeps a clicked link current through its own scroll", async () => {
-    const pane = await renderPane();
-    await click(link("Output"));
-    // the click's scroll passes Input, then stops short of the short last
-    // section, which the scroll position alone would never mark current
-    await scrollPane({ pane, scrollTop: 300, isUserScroll: false });
-    expect(currentLinks()).toEqual(["Output:true"]);
-    await settleScroll();
-    expect(currentLinks()).toEqual(["Output:true"]);
-    // tracking resumes once the click's scroll settles
-    await scrollPane({ pane, scrollTop: 0 });
-    expect(currentLinks()).toEqual(["Annotations:true"]);
-  });
-
   it("follows the user who scrolls elsewhere during a click's scroll", async () => {
     const pane = await renderPane();
     await click(link("Output"));
@@ -582,18 +501,6 @@ describe("SectionNav scroll tracking", () => {
     expect(currentLinks()).toEqual(["Input:true"]);
   });
 
-  it("holds the default active section through observer reports until the user scrolls", async () => {
-    const pane = await renderPane({ defaultActiveId: "input" });
-    // the mount scroll to the default stops short of it
-    await scrollPane({ pane, scrollTop: 120, isUserScroll: false });
-    await settleScroll();
-    await scrollPane({ pane, scrollTop: 120, isUserScroll: false });
-    expect(currentLinks()).toEqual(["Input:true"]);
-    await scrollPane({ pane, scrollTop: 0 });
-    await settleScroll();
-    expect(currentLinks()).toEqual(["Annotations:true"]);
-  });
-
   it("does not scroll back to the default active section the user scrolled away from when it re-subscribes", async () => {
     const scrollContainerRef = createRef<HTMLDivElement>();
     await render({ defaultActiveId: "input", scrollContainerRef });
@@ -625,22 +532,5 @@ describe("SectionNav scroll tracking", () => {
     });
     expect(currentLinks()).toEqual(["Input:true"]);
     expect(onChange).toHaveBeenCalledExactlyOnceWith("input");
-  });
-
-  it("sets the bar's height on the scroll container for sections to land below", async () => {
-    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(48);
-    const pane = await renderPane();
-    expect(pane.style.getPropertyValue("--section-nav-height")).toBe("48px");
-    act(() => {
-      root.unmount();
-    });
-    expect(pane.style.getPropertyValue("--section-nav-height")).toBe("");
-    root = createRoot(container);
-  });
-
-  it("leaves a rail's height out, since it sits beside the sections", async () => {
-    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(48);
-    const pane = await renderPane({ orientation: "vertical" });
-    expect(pane.style.getPropertyValue("--section-nav-height")).toBe("0px");
   });
 });

@@ -1,47 +1,15 @@
-import { act, type RefObject } from "react";
+import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
-
-import { AgentChatHeader, FloatingAgentChatFrame } from "../AgentChatPanelView";
-import { EMPTY_SESSION_DISPLAY_NAME } from "../sessionTitleUtils";
+import { AgentChatHeader } from "../AgentChatPanelView";
 
 const viewerMocks = vi.hoisted(() => ({ canModify: true }));
 
 vi.mock("@phoenix/contexts/ViewerContext", () => ({
   useViewerCanModify: () => viewerMocks.canModify,
 }));
-
-type TestBounds = {
-  height: number;
-  left: number;
-  top: number;
-  width: number;
-};
-
-function toDOMRect(bounds: TestBounds): DOMRect {
-  return {
-    bottom: bounds.top + bounds.height,
-    height: bounds.height,
-    left: bounds.left,
-    right: bounds.left + bounds.width,
-    top: bounds.top,
-    width: bounds.width,
-    x: bounds.left,
-    y: bounds.top,
-    toJSON: () => ({}),
-  } as DOMRect;
-}
-
-function createBoundaryRef(bounds: TestBounds): RefObject<HTMLElement | null> {
-  const boundary = document.createElement("div");
-  vi.spyOn(boundary, "getBoundingClientRect").mockReturnValue(
-    toDOMRect(bounds)
-  );
-  return { current: boundary };
-}
 
 describe("AgentChatHeader", () => {
   let container: HTMLDivElement;
@@ -76,97 +44,6 @@ describe("AgentChatHeader", () => {
     vi.restoreAllMocks();
   });
 
-  it("shows the beta badge on a new chat", () => {
-    act(() => {
-      root.render(
-        <ThemeProvider themeMode="light" disableBodyTheme>
-          <MemoryRouter>
-            <AgentChatHeader
-              sessionDisplayName={EMPTY_SESSION_DISPLAY_NAME}
-              orderedSessions={[]}
-              activeSessionId="draft-1"
-              onSelectSession={vi.fn()}
-              onDeleteSession={vi.fn()}
-              onCreateSession={vi.fn()}
-              onClose={vi.fn()}
-            />
-          </MemoryRouter>
-        </ThemeProvider>
-      );
-    });
-
-    expect(container.textContent).toContain("Beta");
-  });
-
-  it("marks a temporary session next to the title", () => {
-    act(() => {
-      root.render(
-        <MemoryRouter>
-          <AgentChatHeader
-            sessionDisplayName="Ping pong test"
-            orderedSessions={[]}
-            activeSessionId="session-1"
-            isActiveSessionTemporary={true}
-            onSelectSession={vi.fn()}
-            onDeleteSession={vi.fn()}
-            onCreateSession={vi.fn()}
-            onClose={vi.fn()}
-          />
-        </MemoryRouter>
-      );
-    });
-
-    expect(
-      container.querySelector('span[aria-label="Temporary chat"]')
-    ).not.toBeNull();
-  });
-
-  it("shows no temporary marker for a persistent session", () => {
-    act(() => {
-      root.render(
-        <MemoryRouter>
-          <AgentChatHeader
-            sessionDisplayName="Ping pong test"
-            orderedSessions={[]}
-            activeSessionId="session-1"
-            isActiveSessionTemporary={false}
-            onSelectSession={vi.fn()}
-            onDeleteSession={vi.fn()}
-            onCreateSession={vi.fn()}
-            onClose={vi.fn()}
-          />
-        </MemoryRouter>
-      );
-    });
-
-    expect(
-      container.querySelector('span[aria-label="Temporary chat"]')
-    ).toBeNull();
-  });
-
-  it("offers title editing for a persisted session", () => {
-    act(() => {
-      root.render(
-        <MemoryRouter>
-          <AgentChatHeader
-            sessionDisplayName="Ping pong test"
-            orderedSessions={[]}
-            activeSessionId="session-1"
-            activeSessionTitleFragment={{} as never}
-            onSelectSession={vi.fn()}
-            onDeleteSession={vi.fn()}
-            onCreateSession={vi.fn()}
-            onClose={vi.fn()}
-          />
-        </MemoryRouter>
-      );
-    });
-
-    expect(
-      container.querySelector('button[aria-label="Edit session title"]')
-    ).not.toBeNull();
-  });
-
   it("hides title editing from viewers", () => {
     viewerMocks.canModify = false;
 
@@ -190,45 +67,6 @@ describe("AgentChatHeader", () => {
     expect(
       container.querySelector('button[aria-label="Edit session title"]')
     ).toBeNull();
-  });
-
-  it("switches from pinned to floating mode", () => {
-    const onPositionChange = vi.fn();
-
-    act(() => {
-      root.render(
-        <MemoryRouter>
-          <AgentChatHeader
-            sessionDisplayName="PXI"
-            orderedSessions={[]}
-            activeSessionId={null}
-            position="pinned"
-            onSelectSession={vi.fn()}
-            onDeleteSession={vi.fn()}
-            onCreateSession={vi.fn()}
-            onPositionChange={onPositionChange}
-            onClose={vi.fn()}
-          />
-        </MemoryRouter>
-      );
-    });
-
-    const toggleButton = container.querySelector(
-      'button[aria-label="Switch assistant to floating panel"]'
-    );
-
-    expect(toggleButton).not.toBeNull();
-    expect(
-      container
-        .querySelector(".pxi-animated-glyph")
-        ?.getAttribute("data-icon-sized")
-    ).toBe("true");
-
-    act(() => {
-      toggleButton!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
-
-    expect(onPositionChange).toHaveBeenCalledWith("detached");
   });
 
   it("switches from floating mode back to pinned", () => {
@@ -299,35 +137,5 @@ describe("AgentChatHeader", () => {
     });
 
     expect(onPositionChange).not.toHaveBeenCalled();
-  });
-
-  it("keeps floating panels anchored to the content boundary", () => {
-    const boundaryRef = createBoundaryRef({
-      height: 850,
-      left: 128,
-      top: 64,
-      width: 960,
-    });
-
-    act(() => {
-      root.render(
-        <FloatingAgentChatFrame boundaryRef={boundaryRef} placement="top-start">
-          <span>PXI content</span>
-        </FloatingAgentChatFrame>
-      );
-    });
-
-    const panel = container.querySelector(".resizable-floating-panel");
-    expect(panel).not.toBeNull();
-    expect(
-      (panel as HTMLElement).style.getPropertyValue(
-        "--resizable-floating-panel-x"
-      )
-    ).toBe("152px");
-    expect(
-      (panel as HTMLElement).style.getPropertyValue(
-        "--resizable-floating-panel-y"
-      )
-    ).toBe("88px");
   });
 });

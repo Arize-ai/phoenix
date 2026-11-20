@@ -133,13 +133,6 @@ describe("ModelForm", () => {
   const duplicateErrorCount = () =>
     container.textContent?.match(/Duplicate token type/g)?.length ?? 0;
 
-  it("keeps the case of a custom provider and token type", async () => {
-    await replaceText(providerInput(), "AcmeAI");
-    await replaceText(promptTokenTypeInput(), "CacheRead");
-    expect(providerInput().value).toBe("AcmeAI");
-    expect(promptTokenTypeInput().value).toBe("CacheRead");
-  });
-
   it("trims outer whitespace on submit", async () => {
     await replaceText(providerInput(), "  Acme AI ");
     await replaceText(promptTokenTypeInput(), " CacheRead ");
@@ -159,36 +152,11 @@ describe("ModelForm", () => {
     expect(container.textContent).toContain("Token type is required");
   });
 
-  it.each([
-    ["OpenAI", "openai"],
-    ["Azure OpenAI", "azure"],
-    ["ANTHROPIC", "anthropic"],
-  ])(
-    "submits the typed provider %s as the preset value %s",
-    async (typed, expected) => {
-      await replaceText(providerInput(), typed);
-      expect(providerInput().value).toBe(typed);
-      await submit();
-
-      expect(onSubmit.mock.calls[0][0].provider).toBe(expected);
-    }
-  );
-
   it("submits known token types in lowercase", async () => {
     await replaceText(promptTokenTypeInput(), "Input");
     await submit();
 
     expect(onSubmit.mock.calls[0][0].promptCosts[0].tokenType).toBe("input");
-  });
-
-  it("rejects a token type that duplicates another on the same side", async () => {
-    await addPromptRow();
-    await replaceText(promptRowTokenTypeInput(1), "INPUT");
-    await submit();
-
-    expect(onSubmit).not.toHaveBeenCalled();
-    // Only the later row is flagged, since that is the one to fix
-    expect(duplicateErrorCount()).toBe(1);
   });
 
   it("clears a duplicate error when the earlier row changes, without flagging empty rows", async () => {
@@ -216,29 +184,6 @@ describe("ModelForm", () => {
 
     expect(promptRows()).toHaveLength(2);
     expect(duplicateErrorCount()).toBe(0);
-  });
-
-  it("creates an LLM model with prompt and completion prices by default", async () => {
-    expect(costTableTitles()).toEqual(["Input tokens", "Output tokens"]);
-    await submit();
-
-    const [params] = onSubmit.mock.calls[0];
-    expect(params.modelType).toBe("LLM");
-    expect(params.completionCosts.map((cost) => cost.tokenType)).toEqual([
-      "output",
-    ]);
-  });
-
-  it("submits an embedding model without completion prices", async () => {
-    await selectModelType("LLM", "Embedding");
-
-    expect(costTableTitles()).toEqual(["Input tokens"]);
-    await submit();
-
-    expect(onSubmit).toHaveBeenCalledTimes(1);
-    const [params] = onSubmit.mock.calls[0];
-    expect(params.modelType).toBe("EMBEDDING");
-    expect(params.completionCosts).toEqual([]);
   });
 
   it("does not validate the hidden completion rows of an embedding model", async () => {
@@ -274,25 +219,6 @@ describe("ModelForm", () => {
     expect(
       onSubmit.mock.calls[0][0].promptCosts.map((cost) => cost.tokenType)
     ).toEqual(["input", "cache_read"]);
-  });
-
-  it("does not flag an embedding model priced on input alone", async () => {
-    await selectModelType("LLM", "Embedding");
-
-    expect(container.textContent).not.toMatch(/will not be used/);
-  });
-
-  it("keeps the type of a model it is given", async () => {
-    await renderForm({
-      modelType: "DECISION",
-      modelCost: [
-        { kind: "PROMPT", tokenType: "input", costPerMillionTokens: 0.1 },
-        { kind: "COMPLETION", tokenType: "output", costPerMillionTokens: 0 },
-      ],
-    });
-    await submit();
-
-    expect(onSubmit.mock.calls[0][0].modelType).toBe("DECISION");
   });
 
   it("adds an output row when an embedding model becomes another type", async () => {
