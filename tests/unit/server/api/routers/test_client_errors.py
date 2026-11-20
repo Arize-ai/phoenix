@@ -92,6 +92,86 @@ class TestReportClientError:
             "    at /assets/vendor-9f.js:1:2"
         )
 
+    async def test_error_from_a_browser_extension_is_not_logged_at_error_level(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        report = {
+            **REPORT,
+            "message": "Cannot read properties of undefined (reading 'x')",
+            "stack": (
+                "TypeError: Cannot read properties of undefined (reading 'x')\n"
+                "    at handle (chrome-extension://abcdefghijklmnop/content.js:1:761)\n"
+                "    at XMLHttpRequest.onreadystatechange"
+                " (chrome-extension://abcdefghijklmnop/content.js:1:2598)"
+            ),
+        }
+        with caplog.at_level(logging.DEBUG, logger="phoenix.client_errors"):
+            response = await httpx_client.post("client_errors", json=report)
+        assert response.status_code == 204, response.text
+        assert not [r for r in _error_records(caplog) if r.levelno >= logging.ERROR]
+
+    @pytest.mark.parametrize(
+        "stack,expected_level",
+        [
+            pytest.param(
+                "TypeError: boom\n"
+                "    at handle (chrome-extension://abcdefghijklmnop/content.js:1:761)\n"
+                "    at async load (chrome-extension://abcdefghijklmnop/content.js:2:10)",
+                logging.INFO,
+                id="chrome-extension-frames",
+            ),
+            pytest.param(
+                "handle@moz-extension://0a1b2c3d-4e5f-6789/content.js:1:761\n"
+                "f@safari-web-extension://0A1B2C3D-4E5F-6789/content.js:2:3",
+                logging.INFO,
+                id="firefox-and-safari-extension-frames",
+            ),
+            pytest.param(
+                "TypeError: boom\n"
+                "    at chrome-extension://abcdefghijklmnop/content.js:1:761\n"
+                "    at new Promise (<anonymous>)",
+                logging.INFO,
+                id="frames-without-location-ignored",
+            ),
+            pytest.param(
+                "TypeError: boom\n"
+                "    at handle (chrome-extension://abcdefghijklmnop/content.js:1:761)\n"
+                "    at loadDatasets (https://phoenix.example.com/assets/index-Bx1.js:12:3456)",
+                logging.ERROR,
+                id="phoenix-frame",
+            ),
+            pytest.param(
+                "loadDatasets@https://phoenix.example.com/assets/index-Bx1.js:12:3456\n"
+                "handle@moz-extension://0a1b2c3d-4e5f-6789/content.js:1:761",
+                logging.ERROR,
+                id="firefox-phoenix-frame",
+            ),
+            pytest.param(
+                "Error: boom\n"
+                "    at eval (eval at <anonymous> (https://phoenix.example.com/assets/a.js:1:2),"
+                " <anonymous>:1:1)\n"
+                "    at handle (chrome-extension://abcdefghijklmnop/content.js:1:761)",
+                logging.ERROR,
+                id="eval-frame",
+            ),
+            pytest.param("TypeError: boom", logging.ERROR, id="no-frames"),
+        ],
+    )
+    async def test_log_level_depends_on_whether_every_frame_is_a_browser_extension(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        caplog: pytest.LogCaptureFixture,
+        stack: str,
+        expected_level: int,
+    ) -> None:
+        with caplog.at_level(logging.DEBUG, logger="phoenix.client_errors"):
+            response = await httpx_client.post("client_errors", json={**REPORT, "stack": stack})
+        assert response.status_code == 204, response.text
+        (record,) = _error_records(caplog)
+        assert record.levelno == expected_level
+
     async def test_message_alone_is_enough(self, httpx_client: httpx2.AsyncClient) -> None:
         response = await httpx_client.post("client_errors", json={"message": "boom"})
         assert response.status_code == 204, response.text

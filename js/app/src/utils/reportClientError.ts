@@ -48,6 +48,38 @@ function describeThrownValue(error: unknown): {
   }
 }
 
+const BROWSER_EXTENSION_URL = /^(?:chrome|moz|safari-web)-extension:\/\//;
+
+// A stack line with a `:line:column` location is a frame. Its script URL is
+// read from Chrome's `at fn (url:1:2)` / `at url:1:2` form and from Firefox's
+// and Safari's `fn@url:1:2` form; other frames, such as eval frames, give none.
+const STACK_FRAME_LOCATION = /:\d+:\d+/;
+const STACK_FRAME_URL = /(?:\(|@|\bat )([^\s()]+):\d+:\d+\)?\s*$/;
+
+/**
+ * Whether an error was thrown by a browser extension's script rather than by
+ * Phoenix: every frame of its stack, or, when it has no stack, the script that
+ * raised it, comes from an extension.
+ */
+function isFromBrowserExtension({
+  stack,
+  filename,
+}: {
+  stack?: string;
+  filename?: string;
+}): boolean {
+  const frames = (stack ?? "")
+    .split("\n")
+    .filter((line) => STACK_FRAME_LOCATION.test(line));
+  if (frames.length > 0) {
+    return frames.every((frame) => {
+      const url = frame.match(STACK_FRAME_URL)?.[1];
+      return url != null && BROWSER_EXTENSION_URL.test(url);
+    });
+  }
+  return filename != null && BROWSER_EXTENSION_URL.test(filename);
+}
+
 /**
  * Build the payload for the error endpoint from a thrown value.
  * @param params.error - whatever was thrown or rejected with
@@ -109,6 +141,9 @@ export function createClientErrorReporter({
         return;
       }
       const report = buildErrorReport({ error, componentStack });
+      if (isFromBrowserExtension({ stack: report.stack })) {
+        return;
+      }
       const errorKey = `${report.message}\n${report.stack ?? ""}`;
       if (reportedErrorKeys.has(errorKey)) {
         return;
@@ -140,6 +175,16 @@ export function registerGlobalClientErrorReporting(): void {
     if (
       event.error == null &&
       event.message.startsWith("ResizeObserver loop")
+    ) {
+      return;
+    }
+    // Extensions that run in the page's main world raise their own uncaught
+    // errors on the page's window.
+    if (
+      isFromBrowserExtension({
+        stack: event.error instanceof Error ? event.error.stack : undefined,
+        filename: event.filename,
+      })
     ) {
       return;
     }
