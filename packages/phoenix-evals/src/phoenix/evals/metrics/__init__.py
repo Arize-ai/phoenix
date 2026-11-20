@@ -1,5 +1,12 @@
 from .completeness import CompletenessEvaluator
 from .conciseness import ConcisenessEvaluator
+from .consistency import (
+    AnswerConsistencyEvaluator,
+    RetrievalConsistencyEvaluator,
+    chunk_id_jaccard,
+    ngram_jaccard,
+    sample_run_pairs,
+)
 from .correctness import CorrectnessEvaluator
 from .document_relevance import DocumentRelevanceEvaluator
 from .exact_match import exact_match
@@ -17,6 +24,8 @@ from .toxicity import ToxicityEvaluator
 from .user_friction import UserFrictionEvaluator
 
 __all__ = [
+    "AnswerConsistencyEvaluator",
+    "chunk_id_jaccard",
     "CompletenessEvaluator",
     "ConcisenessEvaluator",
     "CorrectnessEvaluator",
@@ -25,10 +34,13 @@ __all__ = [
     "FaithfulnessEvaluator",
     "HallucinationEvaluator",
     "MatchesRegex",
+    "ngram_jaccard",
     "PiiDetectionEvaluator",
     "PrecisionRecallFScore",
     "RefusalEvaluator",
+    "RetrievalConsistencyEvaluator",
     "RetrievalRelevanceEvaluator",
+    "sample_run_pairs",
     "ToolInvocationEvaluator",
     "ToolResponseHandlingEvaluator",
     "ToolSelectionEvaluator",
