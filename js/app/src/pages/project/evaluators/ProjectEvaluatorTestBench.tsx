@@ -86,6 +86,10 @@ import type {
   ProjectEvaluatorRecordKind,
   ProjectEvaluatorTarget,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import {
+  ProjectEvaluatorWorkspacePortal,
+  useProjectEvaluatorWorkspaceSlot,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorWorkspace";
 import type { EvaluatorStore } from "@phoenix/store/evaluatorStore";
 import type {
   CodeEvaluatorLanguage,
@@ -212,6 +216,9 @@ export function ProjectEvaluatorTestBench({
   // `undefined` is no explicit choice yet (the newest row is focused); a key
   // that has since left the list falls back the same way.
   const [focusedKey, setFocusedKey] = useState<string | undefined>(undefined);
+  // Inside the evaluator workspace the inspector is a tab of its own, so the
+  // bench renders it there rather than under the table.
+  const inspectorSlot = useProjectEvaluatorWorkspaceSlot("inspector");
   const focusedRow =
     rows.find(({ key }) => key === focusedKey) ?? rows[0] ?? null;
   const inputMapping = useEvaluatorStore(
@@ -299,49 +306,83 @@ export function ProjectEvaluatorTestBench({
           })}
         </Button>
       </TestBenchHeader>
-      <Group
-        orientation="vertical"
-        className="test-bench__split"
-        resizeTargetMinimumSize={GRIP_RESIZE_TARGET_MINIMUM_SIZE}
-      >
-        <Panel
-          id="project-evaluator-records"
-          defaultSize="55%"
-          minSize={RECORDS_PANEL_MIN_SIZE}
-          className="test-bench__panel"
+      {inspectorSlot === undefined ? (
+        <Group
+          orientation="vertical"
+          className="test-bench__split"
+          resizeTargetMinimumSize={GRIP_RESIZE_TARGET_MINIMUM_SIZE}
         >
-          <ProjectEvaluatorRecordTable
-            entries={entries}
-            recordKind={recordKind}
-            focusedRowKey={focusedRow?.key ?? null}
-            onFocusRow={setFocusedKey}
-            isRunnable={isRunnable}
-            runBlocker={runBlocker}
-            onRunRow={(row) => runOnRows([row])}
-            hasMore={hasMore}
-            isLoadingMore={isLoadingMore}
-            onLoadMore={onLoadMore}
-          />
-        </Panel>
-        <GripResizeHandle />
-        <Panel
-          id="project-evaluator-inspector"
-          minSize={INSPECTOR_PANEL_MIN_SIZE}
-          className="test-bench__panel"
-        >
-          {focusedEntry ? (
-            <ProjectEvaluatorRecordInspector
-              entry={focusedEntry}
+          <Panel
+            id="project-evaluator-records"
+            defaultSize="55%"
+            minSize={RECORDS_PANEL_MIN_SIZE}
+            className="test-bench__panel"
+          >
+            <ProjectEvaluatorRecordTable
+              entries={entries}
               recordKind={recordKind}
-              inputMapping={inputMapping}
-              requiredVariables={requiredVariables}
+              focusedRowKey={focusedRow?.key ?? null}
+              onFocusRow={setFocusedKey}
               isRunnable={isRunnable}
               runBlocker={runBlocker}
-              onRun={() => runOnRows([focusedEntry.row])}
+              onRunRow={(row) => runOnRows([row])}
+              hasMore={hasMore}
+              isLoadingMore={isLoadingMore}
+              onLoadMore={onLoadMore}
             />
-          ) : null}
-        </Panel>
-      </Group>
+          </Panel>
+          <GripResizeHandle />
+          <Panel
+            id="project-evaluator-inspector"
+            minSize={INSPECTOR_PANEL_MIN_SIZE}
+            className="test-bench__panel"
+          >
+            {focusedEntry ? (
+              <ProjectEvaluatorRecordInspector
+                entry={focusedEntry}
+                recordKind={recordKind}
+                inputMapping={inputMapping}
+                requiredVariables={requiredVariables}
+                isRunnable={isRunnable}
+                runBlocker={runBlocker}
+                onRun={() => runOnRows([focusedEntry.row])}
+              />
+            ) : null}
+          </Panel>
+        </Group>
+      ) : (
+        <>
+          <div className="test-bench__split test-bench__panel">
+            <ProjectEvaluatorRecordTable
+              entries={entries}
+              recordKind={recordKind}
+              focusedRowKey={focusedRow?.key ?? null}
+              onFocusRow={setFocusedKey}
+              isRunnable={isRunnable}
+              runBlocker={runBlocker}
+              onRunRow={(row) => runOnRows([row])}
+              hasMore={hasMore}
+              isLoadingMore={isLoadingMore}
+              onLoadMore={onLoadMore}
+            />
+          </div>
+          <ProjectEvaluatorWorkspacePortal panel="inspector">
+            <div className="test-bench__panel test-bench__inspector-slot">
+              {focusedEntry ? (
+                <ProjectEvaluatorRecordInspector
+                  entry={focusedEntry}
+                  recordKind={recordKind}
+                  inputMapping={inputMapping}
+                  requiredVariables={requiredVariables}
+                  isRunnable={isRunnable}
+                  runBlocker={runBlocker}
+                  onRun={() => runOnRows([focusedEntry.row])}
+                />
+              ) : null}
+            </div>
+          </ProjectEvaluatorWorkspacePortal>
+        </>
+      )}
     </div>
   );
   return (
@@ -559,6 +600,7 @@ const benchCSS = css`
     border-top: 1px solid var(--global-border-color-default);
   }
   .test-bench__panel {
+    flex: 1 1 auto;
     display: flex;
     flex-direction: column;
     min-height: 0;

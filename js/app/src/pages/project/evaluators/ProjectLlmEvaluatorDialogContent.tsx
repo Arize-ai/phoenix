@@ -7,6 +7,10 @@ import {
   useUnboundRequiredVariables,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSubmitHint";
 import type { ProjectEvaluatorTarget } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import {
+  ProjectEvaluatorWorkspaceLayoutMenu,
+  ProjectEvaluatorWorkspaceProvider,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorWorkspace";
 
 /**
  * The LLM evaluator dialog for a project, which will not save while a prompt
@@ -18,7 +22,7 @@ export const ProjectLlmEvaluatorDialogContent = ({
   ...props
 }: Omit<
   ComponentProps<typeof EditLLMEvaluatorDialogContent>,
-  "isSubmitDisabled" | "submitHint"
+  "isSubmitDisabled" | "submitHint" | "formHeaderExtra"
 > & {
   targetType: ProjectEvaluatorTarget;
   isFilterValid: boolean;
@@ -33,10 +37,17 @@ export const ProjectLlmEvaluatorDialogContent = ({
     submitLabel: props.mode === "create" ? "create" : "update",
   });
   return (
-    <EditLLMEvaluatorDialogContent
-      {...props}
-      isSubmitDisabled={!isFilterValid || unboundVariables.length > 0}
-      submitHint={submitHint}
-    />
+    <ProjectEvaluatorWorkspaceProvider>
+      <EditLLMEvaluatorDialogContent
+        {...props}
+        formHeaderExtra={
+          props.formWorkspace != null ? (
+            <ProjectEvaluatorWorkspaceLayoutMenu />
+          ) : null
+        }
+        isSubmitDisabled={!isFilterValid || unboundVariables.length > 0}
+        submitHint={submitHint}
+      />
+    </ProjectEvaluatorWorkspaceProvider>
   );
 };

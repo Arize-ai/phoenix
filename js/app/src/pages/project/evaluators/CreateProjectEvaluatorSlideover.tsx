@@ -34,10 +34,8 @@ import {
   CreateProjectDecisionEvaluatorDialogContent,
 } from "@phoenix/pages/project/evaluators/ProjectDecisionEvaluatorDialogContent";
 import {
-  ProjectEvaluatorInputMappingDock,
-  ProjectLlmEvaluatorFormSections,
+  ProjectLlmEvaluatorWorkspace,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
-import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideover";
 import {
   DEFAULT_EVALUATION_DELAY_SECONDS,
@@ -695,22 +693,14 @@ const ScratchLlmDialogContent = ({
       isSubmitting={isSubmitting}
       mode="create"
       error={error}
-      formLeftPanel={
-        <ProjectLlmEvaluatorFormSections
+      formWorkspace={
+        <ProjectLlmEvaluatorWorkspace
           projectId={projectId}
           scope={scope}
           onScopeChange={onScopeChange}
           onFilterValidityChange={onFilterValidityChange}
+          isFilterValid={isFilterValid}
         />
-      }
-      formLeftDock={
-        <ProjectEvaluatorInputMappingDock
-          recordKind={toEvaluatorRecordKind(scope.targetType)}
-          evaluatorKind="prompt"
-        />
-      }
-      formRightPanel={
-        <ProjectEvaluatorScopePanel projectId={projectId} scope={scope} />
       }
     />
   );

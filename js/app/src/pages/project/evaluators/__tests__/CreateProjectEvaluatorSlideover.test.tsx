@@ -49,6 +49,7 @@ vi.mock(
   async (importOriginal) => ({
     ...(await importOriginal<object>()),
     ProjectLlmEvaluatorFormSections: () => null,
+    ProjectLlmEvaluatorWorkspace: () => null,
     ProjectCodeEvaluatorFormSections: () => null,
     ProjectEvaluatorInputMappingDock: () => null,
   })

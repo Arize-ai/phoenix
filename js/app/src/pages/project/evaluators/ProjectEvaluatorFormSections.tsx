@@ -29,11 +29,14 @@ import { LLMEvaluatorForm } from "@phoenix/components/evaluators/LLMEvaluatorFor
 import { formatEvaluationTargetPlural } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import { ProjectEvaluatorInputMapping } from "@phoenix/pages/project/evaluators/ProjectEvaluatorInputMapping";
 import { ProjectEvaluatorScopeFieldGroup } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeFields";
+import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import { useUnboundRequiredVariables } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSubmitHint";
 import type {
   ProjectEvaluatorRecordKind,
   ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { toEvaluatorRecordKind } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { ProjectEvaluatorWorkspace } from "@phoenix/pages/project/evaluators/ProjectEvaluatorWorkspace";
 
 /** Scope-editing props shared by every left definition panel. */
 type ProjectEvaluatorScopeProps = {
@@ -145,6 +148,97 @@ export const ProjectLlmEvaluatorFormSections = (
       <LLMEvaluatorForm showInputMapping={false} />
       <ProjectEvaluatorAdvancedSection {...scopeProps} />
     </>
+  );
+};
+
+/**
+ * The LLM project evaluator form as a workspace of tabs: the prompt, its
+ * annotation, the scope, and the name and settings on the left; the
+ * variable mapping docked under them; the records in scope and the focused
+ * record's inspector on the right.
+ */
+export const ProjectLlmEvaluatorWorkspace = ({
+  isFilterValid,
+  ...scopeProps
+}: ProjectEvaluatorScopeProps & { isFilterValid: boolean }) => {
+  const { projectId, scope } = scopeProps;
+  const recordKind = toEvaluatorRecordKind(scope.targetType);
+  const variables = useEvaluatorInputVariables();
+  const unboundVariables = useUnboundRequiredVariables({ variables });
+  return (
+    <ProjectEvaluatorWorkspace
+      badges={{
+        variables:
+          unboundVariables.length > 0 ? (
+            <Counter variant="danger" count={unboundVariables.length} />
+          ) : variables.length > 0 ? (
+            <Counter count={variables.length} />
+          ) : null,
+        scope: isFilterValid ? null : <Counter variant="danger" count={1} />,
+      }}
+      panels={{
+        prompt: (
+          <LLMEvaluatorForm
+            showInputMapping={false}
+            showAnnotationConfig={false}
+          />
+        ),
+        annotation: (
+          <LLMEvaluatorForm showInputMapping={false} showPrompt={false} />
+        ),
+        scope: <ProjectEvaluatorScopeSection {...scopeProps} />,
+        details: (
+          <>
+            <EvaluatorNameAndDescriptionFields />
+            <ProjectEvaluatorAdvancedSection {...scopeProps} />
+          </>
+        ),
+        variables: (
+          <ProjectEvaluatorInputMappingPanel
+            key={recordKind}
+            recordKind={recordKind}
+            evaluatorKind="prompt"
+          />
+        ),
+        records: (
+          <ProjectEvaluatorScopePanel projectId={projectId} scope={scope} />
+        ),
+        inspector: null,
+      }}
+    />
+  );
+};
+
+/** The mapping rows on their own, for a workspace tab. */
+const ProjectEvaluatorInputMappingPanel = ({
+  recordKind,
+  evaluatorKind,
+}: {
+  recordKind: ProjectEvaluatorRecordKind;
+  evaluatorKind: "prompt" | "code" | "decision";
+}) => {
+  const variables = useEvaluatorInputVariables();
+  return (
+    <Flex direction="column" gap="size-200">
+      {variables.length > 0 ? (
+        <Text size="S" color="text-500">
+          {`Map evaluator variables to paths on the ${recordKind}. Unmapped input, output, and metadata read the ${recordKind} fields of the same name.`}
+        </Text>
+      ) : null}
+      <ProjectEvaluatorInputMapping
+        recordKind={recordKind}
+        emptyState={
+          <CompactEmptyState
+            icon={<Icon svg={<Icons.Plus />} />}
+            description={
+              evaluatorKind === "prompt"
+                ? `Variables in the prompt appear here, each mapped to the ${recordKind} data it reads.`
+                : `Inputs appear here, each mapped to the ${recordKind} data it reads.`
+            }
+          />
+        }
+      />
+    </Flex>
   );
 };
 

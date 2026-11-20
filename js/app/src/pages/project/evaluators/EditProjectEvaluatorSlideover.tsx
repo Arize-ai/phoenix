@@ -35,11 +35,9 @@ import type { EditProjectEvaluatorSlideoverUpdateLlmMutation } from "@phoenix/pa
 import { ProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectCodeEvaluatorDialogContent";
 import { EditProjectDecisionEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectDecisionEvaluatorDialogContent";
 import {
-  ProjectEvaluatorInputMappingDock,
-  ProjectLlmEvaluatorFormSections,
+  ProjectLlmEvaluatorWorkspace,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import { convertProjectEvaluatorOutputConfigs } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
-import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideover";
 import {
   isSameInputMapping,
@@ -564,25 +562,14 @@ function EditLlmProjectEvaluatorContent({
             mode="update"
             error={error}
             llmEvaluatorNodeId={evaluator.evaluator.id}
-            formLeftPanel={
-              <ProjectLlmEvaluatorFormSections
+            formWorkspace={
+              <ProjectLlmEvaluatorWorkspace
                 projectId={evaluator.project.id}
                 scope={scope}
                 onScopeChange={setScope}
                 onFilterValidityChange={setIsFilterValid}
+                isFilterValid={isFilterValid}
                 isTargetDisabled
-              />
-            }
-            formLeftDock={
-              <ProjectEvaluatorInputMappingDock
-                recordKind={toEvaluatorRecordKind(scope.targetType)}
-                evaluatorKind="prompt"
-              />
-            }
-            formRightPanel={
-              <ProjectEvaluatorScopePanel
-                projectId={evaluator.project.id}
-                scope={scope}
               />
             }
           />

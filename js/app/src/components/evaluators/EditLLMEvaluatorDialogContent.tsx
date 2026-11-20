@@ -24,6 +24,8 @@ export const EditLLMEvaluatorDialogContent = ({
   formLeftPanel,
   formLeftDock,
   formRightPanel,
+  formWorkspace,
+  formHeaderExtra,
 }: {
   onClose: () => void;
   onSubmit: () => Promise<EvaluatorSubmitResult>;
@@ -43,6 +45,9 @@ export const EditLLMEvaluatorDialogContent = ({
    * Replaces the form's right (test) panel.
    */
   formRightPanel?: ReactNode;
+  /** Replaces the two-panel form; see {@link EvaluatorFormDialogContent}. */
+  formWorkspace?: ReactNode;
+  formHeaderExtra?: ReactNode;
 }) => {
   const store = useEvaluatorStoreInstance();
 
@@ -115,6 +120,8 @@ export const EditLLMEvaluatorDialogContent = ({
         )
       }
       leftDock={formLeftDock}
+      workspace={formWorkspace}
+      headerExtra={formHeaderExtra}
       right={formRightPanel ?? <EvaluatorDatasetTestPanel />}
     />
   );

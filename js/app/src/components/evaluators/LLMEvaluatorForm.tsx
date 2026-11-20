@@ -13,10 +13,12 @@ import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 
 export const LLMEvaluatorForm = ({
   showInputMapping = true,
+  showPrompt = true,
   showAnnotationConfig = true,
   inputMappingSection,
 }: {
   showInputMapping?: boolean;
+  showPrompt?: boolean;
   showAnnotationConfig?: boolean;
   /**
    * Replaces the dataset mapping section with one that resolves variables
@@ -41,31 +43,35 @@ export const LLMEvaluatorForm = ({
   }, [outputConfig]);
   return (
     <>
-      <View marginBottom="size-200" flex="none">
-        <EvaluatorSectionHeader
-          title="Evaluator Prompt"
-          description="Write the prompt your evaluator sends to the LLM."
-          extra={
-            <Flex direction="row" alignItems="center" gap="size-100">
-              <Switch
-                isSelected={showPromptPreview}
-                onChange={setShowPromptPreview}
-                labelPlacement="start"
-              >
-                <Label>Preview</Label>
-              </Switch>
-              <TemplateFormatRadioGroup size="S" showNoneOption={false} />
-            </Flex>
-          }
-        />
-      </View>
-      <Flex direction="column" gap="size-100">
-        {showPromptPreview ? (
-          <EvaluatorPromptPreview />
-        ) : (
-          <EvaluatorChatTemplate />
-        )}
-      </Flex>
+      {showPrompt ? (
+        <>
+          <View marginBottom="size-200" flex="none">
+            <EvaluatorSectionHeader
+              title="Evaluator Prompt"
+              description="Write the prompt your evaluator sends to the LLM."
+              extra={
+                <Flex direction="row" alignItems="center" gap="size-100">
+                  <Switch
+                    isSelected={showPromptPreview}
+                    onChange={setShowPromptPreview}
+                    labelPlacement="start"
+                  >
+                    <Label>Preview</Label>
+                  </Switch>
+                  <TemplateFormatRadioGroup size="S" showNoneOption={false} />
+                </Flex>
+              }
+            />
+          </View>
+          <Flex direction="column" gap="size-100">
+            {showPromptPreview ? (
+              <EvaluatorPromptPreview />
+            ) : (
+              <EvaluatorChatTemplate />
+            )}
+          </Flex>
+        </>
+      ) : null}
       {showAnnotationConfig ? (
         <View marginBottom="size-200" flex="none">
           <Flex direction="column" gap="size-100">
