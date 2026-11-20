@@ -307,7 +307,7 @@ class Evaluator(ABC):
     Core abstraction for evaluators.
 
     Supports single-record synchronous (`evaluate`) and asynchronous (`async_evaluate`) modes with
-    optional per-call field_mapping.
+    optional per-call input_mapping.
 
     Note: Subclasses must implement either the `_evaluate` or `_async_evaluate` method.
     Implementing both methods is recommended.

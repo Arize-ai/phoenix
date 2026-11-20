@@ -16,22 +16,22 @@ def exact_match(output: str, expected: str) -> Score:
 
     Examples:
 
-        1. No field_mapping needed::
+        1. No input_mapping needed::
 
             eval_input_direct = {"output": "no", "expected": "yes"}
-            scores_direct = exact_match(eval_input_direct)
-            print("Without field_mapping:", scores_direct)
-            [Score(score=0.0, name='exact_match', label=False, explanation=None,
-             direction='maximize', kind='code', metadata={})]
+            scores_direct = exact_match.evaluate(eval_input_direct)
+            print("Without input_mapping:", scores_direct)
+            [Score(name='exact_match', score=0.0, label=None, explanation=None,
+             metadata={}, kind='code', direction='maximize')]
 
-        2. Field mapping needed to map input keys to those expected by the evaluator::
+        2. Input mapping needed to map input keys to those expected by the evaluator::
 
             eval_input = {"prediction": "yes", "gold": "yes"}
-            field_mapping = {"output": "prediction", "expected": "gold"}
-            scores = exact_match(eval_input, field_mapping=field_mapping)
-            print("With field_mapping:", scores)
-            [Score(score=1.0, name='exact_match',label=True, explanation=None, direction='maximize',
-             kind='code', metadata={})]
+            input_mapping = {"output": "prediction", "expected": "gold"}
+            scores = exact_match.evaluate(eval_input, input_mapping=input_mapping)
+            print("With input_mapping:", scores)
+            [Score(name='exact_match', score=1.0, label=None, explanation=None,
+             metadata={}, kind='code', direction='maximize')]
     """
     correct = output == expected
     return Score(score=float(correct))
