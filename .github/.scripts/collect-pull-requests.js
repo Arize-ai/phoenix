@@ -7,6 +7,9 @@
 //    stalest first, each with the person the PR is waiting on.
 // 3. Community PRs that have no reviewer or assignee yet.
 
+const fs = require("fs");
+const path = require("path");
+
 const PULL_REQUESTS_QUERY = `
   query($owner: String!, $repo: String!, $cursor: String) {
     repository(owner: $owner, name: $repo) {
@@ -289,13 +292,13 @@ function createGithubLink(login) {
   return `<https://github.com/${login}|${login}>`;
 }
 
-// Maps GitHub logins to Slack user IDs, so that review requests can notify the
-// reviewer. Logins without an entry fall back to a plain GitHub link.
-function parseSlackUserIds(rawJson) {
-  if (!rawJson) return {};
+// Maps GitHub logins to Slack user IDs (.github/slack-user-ids.json), so that
+// review requests can notify the reviewer. Logins without an entry fall back to
+// a plain GitHub link.
+function loadSlackUserIds() {
+  const filePath = path.join(__dirname, "..", "slack-user-ids.json");
   try {
-    const parsed = JSON.parse(rawJson);
-    return parsed !== null && typeof parsed === "object" ? parsed : {};
+    return JSON.parse(fs.readFileSync(filePath, "utf8"));
   } catch {
     return {};
   }
@@ -495,9 +498,7 @@ module.exports = async ({ github, context, core }) => {
     maxStale: parseIntegerEnv("MAX_STALE_PRS", 15),
     maxUnowned: parseIntegerEnv("MAX_UNOWNED_PRS", 10),
     maxReviewListings: parseIntegerEnv("MAX_REVIEW_LISTINGS_PER_PERSON", 5),
-    slackUserIds: parseSlackUserIds(
-      process.env.SLACK_USER_IDS_BY_GITHUB_LOGIN,
-    ),
+    slackUserIds: loadSlackUserIds(),
   };
 
   const pullRequests = await fetchOpenPullRequests(github, owner, repo);

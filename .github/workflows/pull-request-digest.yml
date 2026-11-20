@@ -24,8 +24,6 @@ jobs:
       MAX_STALE_PRS: 15
       MAX_UNOWNED_PRS: 10
       IGNORED_PR_LABELS: "autorelease: pending"
-      # JSON object mapping GitHub logins to Slack user IDs, e.g. {"octocat": "U012ABCDEF"}
-      SLACK_USER_IDS_BY_GITHUB_LOGIN: ${{ vars.SLACK_USER_IDS_BY_GITHUB_LOGIN }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
