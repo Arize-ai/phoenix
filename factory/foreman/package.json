@@ -10,6 +10,7 @@
     "db:types": "tsx scripts/generate-types.ts",
     "dev": "next dev --port 3109",
     "fmt": "oxfmt --config ../../.oxfmtrc.jsonc .",
+    "fmt:check": "oxfmt --check --config ../../.oxfmtrc.jsonc .",
     "lint": "oxlint --config ../../.oxlintrc.json .",
     "lint:fix": "oxlint --fix --config ../../.oxlintrc.json .",
     "start": "next start --port 3109",
