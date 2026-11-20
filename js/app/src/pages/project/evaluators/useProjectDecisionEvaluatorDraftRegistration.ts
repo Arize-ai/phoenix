@@ -64,8 +64,14 @@ export function useProjectDecisionEvaluatorDraftRegistration({
   const latestRef = useRef({ draft, submit });
   // eslint-disable-next-line react/refs
   latestRef.current = { draft, submit };
+  // An edit form fills its draft from the saved version after it mounts.
+  // Until that lands (or fails), the store holds a default draft, so the
+  // operations stay unregistered and a call right after navigation waits
+  // for the form instead of reading defaults as the saved evaluator.
+  const isDraftLoaded =
+    (!draft.isLoading && draft.isVersionReady) || draft.loadError != null;
   useEffect(() => {
-    if (!agentStore) {
+    if (!agentStore || !isDraftLoaded) {
       return undefined;
     }
     const readPrompt = () =>
@@ -281,5 +287,13 @@ export function useProjectDecisionEvaluatorDraftRegistration({
       host = null;
       unregister();
     };
-  }, [agentStore, store, playgroundStore, environment, mode, evaluatorNodeId]);
+  }, [
+    agentStore,
+    store,
+    playgroundStore,
+    environment,
+    mode,
+    evaluatorNodeId,
+    isDraftLoaded,
+  ]);
 }
