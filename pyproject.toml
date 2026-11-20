@@ -45,7 +45,7 @@ dependencies = [
   "opentelemetry-sdk>=1.45.0",
   "opentelemetry-proto>=1.45.0",
   "opentelemetry-exporter-otlp>=1.45.0",
-  "openinference-semantic-conventions>=0.1.41",
+  "openinference-semantic-conventions>=0.1.46",
   "openinference-instrumentation>=0.1.60",
   "openinference-instrumentation-openai>=0.1.41",
   "sqlglot==30.21.0",
@@ -120,7 +120,7 @@ dev = [
   "numpy",
   "scikit-learn",  # reference implementation for retrieval metric tests
   "openai>=3.1.0,<4",
-  "openinference-semantic-conventions>=0.1.41",
+  "openinference-semantic-conventions>=0.1.46",
   "openinference-instrumentation>=0.1.60",
   "opentelemetry-exporter-otlp",
   "opentelemetry-instrumentation-aiohttp-client",
