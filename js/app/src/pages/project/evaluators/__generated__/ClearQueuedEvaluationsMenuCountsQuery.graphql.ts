@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a3c971b7b58678e88bcc37026e724d0c>>
+ * @generated SignedSource<<4a6bf1e755974d827abd859b4cbfa01f>>
  * @lightSyntaxTransform
  */
 
@@ -8,10 +8,10 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type ClearQueuedEvaluationsButtonCountsQuery$variables = {
+export type ClearQueuedEvaluationsMenuCountsQuery$variables = {
   projectId: string;
 };
-export type ClearQueuedEvaluationsButtonCountsQuery$data = {
+export type ClearQueuedEvaluationsMenuCountsQuery$data = {
   readonly project: {
     readonly evaluationQueue?: {
       readonly queuedCount: number;
@@ -19,9 +19,9 @@ export type ClearQueuedEvaluationsButtonCountsQuery$data = {
     };
   };
 };
-export type ClearQueuedEvaluationsButtonCountsQuery = {
-  response: ClearQueuedEvaluationsButtonCountsQuery$data;
-  variables: ClearQueuedEvaluationsButtonCountsQuery$variables;
+export type ClearQueuedEvaluationsMenuCountsQuery = {
+  response: ClearQueuedEvaluationsMenuCountsQuery$data;
+  variables: ClearQueuedEvaluationsMenuCountsQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -76,7 +76,7 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "ClearQueuedEvaluationsButtonCountsQuery",
+    "name": "ClearQueuedEvaluationsMenuCountsQuery",
     "selections": [
       {
         "alias": "project",
@@ -98,7 +98,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
-    "name": "ClearQueuedEvaluationsButtonCountsQuery",
+    "name": "ClearQueuedEvaluationsMenuCountsQuery",
     "selections": [
       {
         "alias": "project",
@@ -129,16 +129,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "39c6205ffd9797296489bf24ae37501c",
+    "cacheID": "28c88ac70429a652e87e49a8b0479b29",
     "id": null,
     "metadata": {},
-    "name": "ClearQueuedEvaluationsButtonCountsQuery",
+    "name": "ClearQueuedEvaluationsMenuCountsQuery",
     "operationKind": "query",
-    "text": "query ClearQueuedEvaluationsButtonCountsQuery(\n  $projectId: ID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluationQueue {\n        queuedCount\n        runningCount\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ClearQueuedEvaluationsMenuCountsQuery(\n  $projectId: ID!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluationQueue {\n        queuedCount\n        runningCount\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f90fc4b0ab0d8abb9554c33ba3c6bdee";
+(node as any).hash = "16ee069865c2222352799bb1decc70a5";
 
 export default node;

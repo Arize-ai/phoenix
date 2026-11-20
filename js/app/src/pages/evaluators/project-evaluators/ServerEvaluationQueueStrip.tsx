@@ -1,9 +1,7 @@
-import { css } from "@emotion/react";
 import { Suspense, useEffect, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { Alert, Flex, Text, View } from "@phoenix/components";
-import { Skeleton } from "@phoenix/components/core/loading";
+import { Flex, Text } from "@phoenix/components";
 import { useTimeRange } from "@phoenix/components/datetime";
 import {
   ErrorBoundary,
@@ -11,13 +9,12 @@ import {
 } from "@phoenix/components/exception";
 import type { ServerEvaluationQueueStripQuery } from "@phoenix/pages/evaluators/project-evaluators/__generated__/ServerEvaluationQueueStripQuery.graphql";
 import { useServerEvaluationActivity } from "@phoenix/pages/evaluators/project-evaluators/ServerEvaluationCharts";
-import { ClearAllQueuedEvaluationsMenu } from "@phoenix/pages/project/evaluators/ClearQueuedEvaluationsButton";
+import { ClearQueuedEvaluationsMenu } from "@phoenix/pages/project/evaluators/ClearQueuedEvaluationsMenu";
 import {
   formatQueueCount,
   getClearableCount,
 } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
 import {
-  DEGRADED_WAIT_MS,
   formatAddedPerHour,
   formatCompletedPerHour,
   getNetPerHour,
@@ -28,39 +25,14 @@ import {
   QueueStatusBadge,
   StatValue,
 } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
+import {
+  EvaluationQueueStatsRow,
+  EvaluationQueueStrip,
+  QUEUE_STATUS_LEGEND,
+} from "@phoenix/pages/project/evaluators/EvaluationQueueStrip";
 import { formatEvaluationTarget } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import { StatItem } from "@phoenix/pages/project/TableAside";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
-
-const DEGRADED_WAIT_MINUTES = DEGRADED_WAIT_MS / 60_000;
-
-const statusLegendCSS = css`
-  display: grid;
-  grid-template-columns: auto auto;
-  align-items: center;
-  column-gap: var(--global-dimension-size-100);
-  row-gap: var(--global-dimension-size-50);
-  white-space: nowrap;
-`;
-
-/** What each queue status means, beside its badge. */
-const STATUS_LEGEND = (
-  <div css={statusLegendCSS}>
-    <QueueStatusBadge status="HEALTHY" />
-    <Text size="S">{`Evaluations start within ${DEGRADED_WAIT_MINUTES} min`}</Text>
-    <QueueStatusBadge status="DEGRADED" />
-    <Text size="S">{`Some have waited over ${DEGRADED_WAIT_MINUTES} min`}</Text>
-  </div>
-);
-
-const stripCSS = css`
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  column-gap: var(--global-dimension-size-400);
-  row-gap: var(--global-dimension-size-150);
-`;
 
 /**
  * The server-wide queue strip: the one queue every project's evaluators share,
@@ -76,45 +48,23 @@ export function ServerEvaluationQueueStrip({
   fetchKey: string;
   onQueueCleared: () => void;
 }) {
-  // Read by the queue actions menu, which stays outside the stats' error boundary
-  // so a failed poll can't take the only clear-all control with it.
   const [clearableCount, setClearableCount] = useState<number | null>(null);
   return (
-    <View
-      paddingX="size-200"
-      paddingY="size-150"
-      borderBottomWidth="thin"
-      borderBottomColor="default"
-      flex="none"
-    >
-      <Flex
-        direction="row"
-        justifyContent="space-between"
-        alignItems="start"
-        gap="size-200"
-      >
-        <ErrorBoundary
-          resetKey={fetchKey}
-          fallback={() => (
-            <Flex direction="column" gap="size-100">
-              <StripPlaceholder />
-              <Alert variant="danger">Couldn't load the queue stats</Alert>
-            </Flex>
-          )}
-        >
-          <Suspense fallback={<StripPlaceholder />}>
-            <ServerEvaluationQueueStripContent
-              fetchKey={fetchKey}
-              onClearableCount={setClearableCount}
-            />
-          </Suspense>
-        </ErrorBoundary>
-        <ClearAllQueuedEvaluationsMenu
+    <EvaluationQueueStrip
+      fetchKey={fetchKey}
+      actions={
+        <ClearQueuedEvaluationsMenu
+          scope={{ type: "ALL" }}
           isQueueEmpty={clearableCount === 0}
           onCleared={onQueueCleared}
         />
-      </Flex>
-    </View>
+      }
+    >
+      <ServerEvaluationQueueStripContent
+        fetchKey={fetchKey}
+        onClearableCount={setClearableCount}
+      />
+    </EvaluationQueueStrip>
   );
 }
 
@@ -164,86 +114,84 @@ function ServerEvaluationQueueStripContent({
     onClearableCount(clearableCount);
   }, [clearableCount, onClearableCount]);
   return (
-    <>
-      <div css={stripCSS}>
-        <StatItem label="Status" help={STATUS_LEGEND}>
-          <HoverDetail
-            detail={
-              statusDetail != null ? <Text size="S">{statusDetail}</Text> : null
-            }
-          >
-            <QueueStatusBadge status={queue.status} />
-          </HoverDetail>
-        </StatItem>
-        <StatItem label="In queue" help={QUEUE_STAT_HELP.inQueue}>
-          <HoverDetail
-            detail={
-              queuedTargets.length > 0 || queue.projects.length > 0 ? (
-                <Flex direction="column" gap="size-100">
-                  {queuedTargets.length > 0 ? (
-                    <Flex direction="column" gap="size-25">
-                      <Text size="S" color="text-700">
-                        By kind
-                      </Text>
-                      {queuedTargets.map((target) => (
-                        <Text key={target.evaluationTarget} size="S">
-                          {`${formatEvaluationTarget(target.evaluationTarget)}: ${formatQueueCount(target.queuedCount)}`}
-                        </Text>
-                      ))}
-                    </Flex>
-                  ) : null}
-                  {queue.projects.length > 0 ? (
-                    <Flex direction="column" gap="size-25">
-                      <Text size="S" color="text-700">
-                        Most queued
-                      </Text>
-                      {queue.projects.map(({ project, queuedCount }) => (
-                        <Text key={project.id} size="S">
-                          {`${project.name}: ${formatQueueCount(queuedCount)}`}
-                        </Text>
-                      ))}
-                    </Flex>
-                  ) : null}
-                </Flex>
-              ) : null
-            }
-          >
-            <StatValue>{formatQueueCount(queue.queuedCount)}</StatValue>
-          </HoverDetail>
-        </StatItem>
-        <StatItem label="Added per hour" help={QUEUE_STAT_HELP.addedPerHour}>
-          <StatValue>{formatAddedPerHour(queue.addedPerMinute)}</StatValue>
-        </StatItem>
-        <StatItem
-          label="Completed per hour"
-          help={QUEUE_STAT_HELP.completedPerHour}
+    <EvaluationQueueStatsRow>
+      <StatItem label="Status" help={QUEUE_STATUS_LEGEND}>
+        <HoverDetail
+          detail={
+            statusDetail != null ? <Text size="S">{statusDetail}</Text> : null
+          }
         >
-          <StatValue>
-            {formatCompletedPerHour(queue.completedPerMinute)}
-          </StatValue>
-        </StatItem>
-        <StatItem label="Net per hour" help={QUEUE_STAT_HELP.netPerHour}>
-          <StatValue color={net.netPerHour > 0 ? "warning" : null}>
-            {net.formatted}
-          </StatValue>
-        </StatItem>
-        <OldestWaitStat
-          oldestWaitingAt={queue.oldestWaitingAt}
-          help={QUEUE_STAT_HELP.oldestWait}
-        />
-        <StatItem label="Evaluation cost" help={QUEUE_STAT_HELP.evaluationCost}>
-          {/* Cost reads the heavier activity request; its errors stay here. */}
-          <ErrorBoundary
-            resetKey={`${fetchKey} ${timeRangeISOStrings.start} ${timeRangeISOStrings.end}`}
-            fallback={TextErrorBoundaryFallback}
-          >
-            <Suspense fallback={<StatValue>--</StatValue>}>
-              <EvaluationCostValue fetchKey={fetchKey} />
-            </Suspense>
-          </ErrorBoundary>
-        </StatItem>
-      </div>
-    </>
+          <QueueStatusBadge status={queue.status} />
+        </HoverDetail>
+      </StatItem>
+      <StatItem label="In queue" help={QUEUE_STAT_HELP.inQueue}>
+        <HoverDetail
+          detail={
+            queuedTargets.length > 0 || queue.projects.length > 0 ? (
+              <Flex direction="column" gap="size-100">
+                {queuedTargets.length > 0 ? (
+                  <Flex direction="column" gap="size-25">
+                    <Text size="S" color="text-700">
+                      By kind
+                    </Text>
+                    {queuedTargets.map((target) => (
+                      <Text key={target.evaluationTarget} size="S">
+                        {`${formatEvaluationTarget(target.evaluationTarget)}: ${formatQueueCount(target.queuedCount)}`}
+                      </Text>
+                    ))}
+                  </Flex>
+                ) : null}
+                {queue.projects.length > 0 ? (
+                  <Flex direction="column" gap="size-25">
+                    <Text size="S" color="text-700">
+                      Most queued
+                    </Text>
+                    {queue.projects.map(({ project, queuedCount }) => (
+                      <Text key={project.id} size="S">
+                        {`${project.name}: ${formatQueueCount(queuedCount)}`}
+                      </Text>
+                    ))}
+                  </Flex>
+                ) : null}
+              </Flex>
+            ) : null
+          }
+        >
+          <StatValue>{formatQueueCount(queue.queuedCount)}</StatValue>
+        </HoverDetail>
+      </StatItem>
+      <StatItem label="Added per hour" help={QUEUE_STAT_HELP.addedPerHour}>
+        <StatValue>{formatAddedPerHour(queue.addedPerMinute)}</StatValue>
+      </StatItem>
+      <StatItem
+        label="Completed per hour"
+        help={QUEUE_STAT_HELP.completedPerHour}
+      >
+        <StatValue>
+          {formatCompletedPerHour(queue.completedPerMinute)}
+        </StatValue>
+      </StatItem>
+      <StatItem label="Net per hour" help={QUEUE_STAT_HELP.netPerHour}>
+        <StatValue color={net.netPerHour > 0 ? "warning" : null}>
+          {net.formatted}
+        </StatValue>
+      </StatItem>
+      <OldestWaitStat
+        oldestWaitingAt={queue.oldestWaitingAt}
+        help={QUEUE_STAT_HELP.oldestWait}
+      />
+      <StatItem label="Evaluation cost" help={QUEUE_STAT_HELP.evaluationCost}>
+        {/* Cost reads the heavier activity request; its errors stay here. */}
+        <ErrorBoundary
+          resetKey={`${fetchKey} ${timeRangeISOStrings.start} ${timeRangeISOStrings.end}`}
+          fallback={TextErrorBoundaryFallback}
+        >
+          <Suspense fallback={<StatValue>--</StatValue>}>
+            <EvaluationCostValue fetchKey={fetchKey} />
+          </Suspense>
+        </ErrorBoundary>
+      </StatItem>
+    </EvaluationQueueStatsRow>
   );
 }
 
@@ -268,105 +216,3 @@ function EvaluationCostValue({ fetchKey }: { fetchKey: string }) {
     </HoverDetail>
   );
 }
-
-const statSkeletonCSS = css`
-  display: flex;
-  flex-direction: column;
-  flex: none;
-  .stat-skeleton__label,
-  .stat-skeleton__value {
-    display: flex;
-    align-items: center;
-  }
-  /* A loaded label is one line of small text, a value one of large text */
-  .stat-skeleton__label {
-    height: var(--global-line-height-s);
-  }
-  .stat-skeleton__value {
-    height: var(--global-line-height-l);
-  }
-`;
-
-/**
- * A stat while it loads: a bar where its label goes over one where its value
- * goes. Labels are the width their text and info icon take, so each stat
- * keeps its loaded width and place.
- */
-function StatSkeleton({
-  labelWidth,
-  valueWidth,
-}: {
-  labelWidth: number;
-  valueWidth: number | string;
-}) {
-  return (
-    <div css={statSkeletonCSS}>
-      <span className="stat-skeleton__label">
-        <Skeleton
-          width={labelWidth}
-          height="var(--global-dimension-size-150)"
-        />
-      </span>
-      <span className="stat-skeleton__value">
-        <Skeleton
-          width={valueWidth}
-          height="var(--global-dimension-size-200)"
-        />
-      </span>
-    </div>
-  );
-}
-
-/**
- * The strip's shape while it loads, laid out as the loaded stats are, with
- * the label widths of the loaded text so nothing shifts when it arrives.
- */
-function StripPlaceholder() {
-  return (
-    <div css={stripCSS} aria-hidden>
-      <StatSkeleton
-        labelWidth={64}
-        valueWidth="var(--global-dimension-size-650)"
-      />
-      <StatSkeleton
-        labelWidth={80}
-        valueWidth="var(--global-dimension-size-600)"
-      />
-      <StatSkeleton labelWidth={123} valueWidth={40} />
-      <StatSkeleton labelWidth={152} valueWidth={40} />
-      <StatSkeleton labelWidth={105} valueWidth={24} />
-      <StatSkeleton labelWidth={97} valueWidth={24} />
-      <StatSkeleton labelWidth={121} valueWidth={24} />
-    </div>
-  );
-}
-
-/**
- * The whole strip while the page loads, before its queue actions menu can
- * be shown, laid out as the loaded strip is. The strip's divider is left
- * undrawn, but its space is kept.
- */
-export function ServerEvaluationQueueStripSkeleton() {
-  return (
-    <div css={stripSkeletonCSS}>
-      <StripPlaceholder />
-      <Skeleton
-        width="var(--global-button-height-s)"
-        height="var(--global-button-height-s)"
-      />
-    </div>
-  );
-}
-
-const stripSkeletonCSS = css`
-  flex: none;
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: var(--global-dimension-size-200);
-  padding: var(--global-dimension-size-150) var(--global-dimension-size-200);
-  padding-bottom: calc(
-    var(--global-dimension-size-150) + var(--global-border-size-thin)
-  );
-`;

@@ -1,7 +1,7 @@
+import { useState } from "react";
 import { graphql } from "react-relay";
 import type { TooltipContentProps } from "recharts";
 import {
-  Area,
   Bar,
   BarChart,
   CartesianGrid,
@@ -9,7 +9,6 @@ import {
   ComposedChart,
   LabelList,
   Line,
-  ReferenceLine,
   Tooltip,
   XAxis,
   YAxis,
@@ -41,8 +40,6 @@ import {
   useCategoryChartColors,
   useGrayscaleCategoricalColors,
   useInteractiveLegend,
-  useSemanticChartColors,
-  useSequentialChartColors,
 } from "@phoenix/components/chart";
 import {
   getTimeRangeFromLastNTimeRangeKey,
@@ -52,8 +49,16 @@ import { useRefreshingLazyLoadQuery } from "@phoenix/hooks/useRefreshingLazyLoad
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
-import { LAG_WARNING_SECONDS } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
 import { formatLag } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
+import type { QueueChartTimeAxis } from "@phoenix/pages/project/metrics/EvaluationQueueCharts";
+import {
+  QueueSizeChart,
+  QueueThroughputChart,
+} from "@phoenix/pages/project/metrics/EvaluationQueueCharts";
+import {
+  getQueueSizeRows,
+  getQueueThroughputRows,
+} from "@phoenix/pages/project/metrics/queueThroughput";
 import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
 import {
   PROJECT_METRICS_CHART_SYNC_ID,
@@ -81,22 +86,7 @@ import {
   getEvaluatorCostRanking,
   getEvaluatorSeries,
   getEvaluatorTimeSeriesRows,
-  getQueueSizeRows,
 } from "./evaluatorActivity";
-
-/**
- * At most two rows of evaluators, scrolling past that, so a project with many
- * evaluators keeps room in the strip to draw them.
- */
-const evaluatorLegendProps = {
-  ...compactLegendProps,
-  wrapperStyle: {
-    ...compactLegendProps.wrapperStyle,
-    maxHeight:
-      "calc(var(--global-dimension-size-50) + 2 * var(--global-line-height-xs) + var(--global-dimension-size-100))",
-    overflowY: "auto",
-  },
-} satisfies typeof compactLegendProps;
 
 /**
  * What a chart's time range is, apart from where "now" falls: a live range
@@ -212,6 +202,7 @@ function useEvaluatorActivity({
                     }
                     evaluatedCount
                     failedCount
+                    addedCount
                     lagP95Seconds
                     cost
                   }
@@ -333,6 +324,15 @@ function EvaluatorTimeSeriesChart({
     metric,
   });
   const isLag = metric === "lagP95Seconds";
+  // A line needs two points, so a series with one gets a dot there instead.
+  const singlePointDataKeys = new Set(
+    series
+      .filter(
+        ({ dataKey }) =>
+          chartData.filter((row) => row[dataKey] != null).length === 1
+      )
+      .map(({ dataKey }) => dataKey)
+  );
   const hasData = chartData.some((row) =>
     series.some(({ dataKey }) => {
       const value = row[dataKey];
@@ -342,7 +342,7 @@ function EvaluatorTimeSeriesChart({
   const lagTicks = isLag
     ? getDurationTicks(
         Math.max(
-          LAG_WARNING_SECONDS,
+          0,
           ...chartData.flatMap((row) =>
             series.map(({ dataKey }) => row[dataKey] ?? 0)
           )
@@ -351,9 +351,10 @@ function EvaluatorTimeSeriesChart({
     : undefined;
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
   const getColor = useEvaluatorSeriesColor();
-  const semanticColors = useSemanticChartColors();
   const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
     useInteractiveLegend();
+  // Hovering an evaluator in the legend brings its series forward.
+  const [highlightedKey, setHighlightedKey] = useState<string | null>(null);
   const shape = mark === "bar" ? "circle" : "line";
   if (isOtherRangeLoading) {
     return <ChartSkeleton />;
@@ -403,51 +404,53 @@ function EvaluatorTimeSeriesChart({
                 }
                 {...defaultTooltipProps}
               />
-              {series.map((evaluatorSeries) =>
-                mark === "bar" ? (
+              {series.map((evaluatorSeries) => {
+                const { dataKey } = evaluatorSeries;
+                const isDimmed =
+                  highlightedKey != null && highlightedKey !== dataKey;
+                return mark === "bar" ? (
                   <Bar
-                    key={evaluatorSeries.dataKey}
-                    dataKey={evaluatorSeries.dataKey}
+                    key={dataKey}
+                    dataKey={dataKey}
                     name={evaluatorSeries.name}
                     stackId="evaluators"
                     {...stackedBarSeparatorProps}
                     fill={getColor(evaluatorSeries)}
-                    hide={isDataKeyHidden(evaluatorSeries.dataKey)}
+                    fillOpacity={isDimmed ? 0.2 : 1}
+                    hide={isDataKeyHidden(dataKey)}
+                    isAnimationActive={false}
                   />
                 ) : (
                   <Line
-                    key={evaluatorSeries.dataKey}
-                    type={isLag ? "stepAfter" : "monotone"}
-                    dataKey={evaluatorSeries.dataKey}
+                    key={dataKey}
+                    type="monotone"
+                    dataKey={dataKey}
                     name={evaluatorSeries.name}
                     stroke={getColor(evaluatorSeries)}
-                    strokeWidth={2}
-                    dot={{ r: 2 }}
+                    strokeWidth={highlightedKey === dataKey ? 2.5 : 1.5}
+                    strokeOpacity={isDimmed ? 0.2 : 1}
+                    // A bin where nothing finished has no lag; bridge it so
+                    // each evaluator reads as one line.
+                    connectNulls={isLag}
+                    dot={singlePointDataKeys.has(dataKey) ? { r: 2 } : false}
                     activeDot={{ r: 4 }}
-                    hide={isDataKeyHidden(evaluatorSeries.dataKey)}
+                    hide={isDataKeyHidden(dataKey)}
+                    isAnimationActive={false}
                   />
-                )
-              )}
-              {isLag && (
-                <ReferenceLine
-                  y={LAG_WARNING_SECONDS}
-                  stroke={semanticColors.warning}
-                  strokeDasharray="4 4"
-                  ifOverflow="extendDomain"
-                  label={{
-                    value: formatLag(LAG_WARNING_SECONDS),
-                    position: "insideTopRight",
-                    fill: semanticColors.warning,
-                    fontSize: 12,
-                  }}
-                />
-              )}
+                );
+              })}
               <InteractiveLegend
-                {...evaluatorLegendProps}
+                {...compactLegendProps}
                 hiddenDataKeys={hiddenDataKeys}
                 iconType={shape}
                 iconSize={8}
                 onToggleDataKey={toggleDataKey}
+                onMouseEnter={(entry) =>
+                  setHighlightedKey(
+                    typeof entry.dataKey === "string" ? entry.dataKey : null
+                  )
+                }
+                onMouseLeave={() => setHighlightedKey(null)}
               />
             </ComposedChart>
           </ChartResponsiveContainer>
@@ -528,12 +531,8 @@ export function CostByEvaluator({
   if (isOtherRangeLoading) {
     return <ChartSkeleton />;
   }
-  const ranking = getEvaluatorCostRanking({ groups, series, getDataKey });
+  const chartData = getEvaluatorCostRanking({ groups, series, getDataKey });
   const seriesByDataKey = new Map(series.map((s) => [s.dataKey, s]));
-  const chartData = ranking.map((rank) => ({
-    ...rank,
-    label: `${costFormatter(rank.cost)} · ${formatPercentShort(rank.share)}`,
-  }));
   return (
     <ChartEmptyStateOverlay
       isEmpty={chartData.length === 0}
@@ -544,7 +543,7 @@ export function CostByEvaluator({
         <BarChart
           data={chartData}
           layout="vertical"
-          margin={{ ...compactChartMargin, right: 96 }}
+          margin={{ ...compactChartMargin, right: 56 }}
           barSize={10}
         >
           <XAxis {...defaultXAxisProps} type="number" hide />
@@ -575,16 +574,19 @@ export function CostByEvaluator({
                         ? getColor(evaluatorSeries)
                         : "transparent"
                     }
-                    shape="square"
+                    shape="circle"
                     name={rank.name}
-                    value={rank.label}
+                    value={costFormatter(rank.cost)}
                   />
+                  <Text size="S" color="text-700">
+                    {`${formatPercentShort(rank.share)} of the total`}
+                  </Text>
                 </ChartTooltip>
               );
             }}
             {...defaultTooltipProps}
           />
-          <Bar dataKey="cost" radius={[0, 2, 2, 0]}>
+          <Bar dataKey="cost" radius={2} isAnimationActive={false}>
             {chartData.map((rank) => {
               const evaluatorSeries = seriesByDataKey.get(rank.dataKey);
               return (
@@ -595,12 +597,11 @@ export function CostByEvaluator({
               );
             })}
             <LabelList
-              dataKey="label"
+              dataKey="cost"
               position="right"
-              style={{
-                fill: "var(--chart-axis-text-color)",
-                fontSize: 12,
-              }}
+              formatter={(value) => costFormatter(Number(value))}
+              fill="var(--chart-axis-text-color)"
+              fontSize={12}
             />
           </Bar>
         </BarChart>
@@ -610,14 +611,15 @@ export function CostByEvaluator({
 }
 
 /**
- * The project's evaluations in queue at each bin's end. Its own request, made
- * only while the chart is shown: it counts every evaluation in queue.
+ * The project's evaluations in queue at each bin's end, keyed by the bin's
+ * start. Its own request, made only while a queue chart is shown: it counts
+ * every evaluation in queue. Both queue charts send the same variables, so
+ * they share it.
  */
-export function EvaluationQueueSizeTimeSeries({
+function useQueueSizeByTimestamp({
   projectId,
   timeRange,
-  onTimeRangeSelected,
-}: ProjectMetricViewProps) {
+}: Pick<ProjectMetricViewProps, "projectId" | "timeRange">) {
   const requestedScale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
   const requestedVariables = {
@@ -628,7 +630,7 @@ export function EvaluationQueueSizeTimeSeries({
     },
     timeBinConfig: { scale: requestedScale, utcOffsetMinutes },
   };
-  const { data, variables, isOtherSubjectLoading } =
+  const { data, isOtherSubjectLoading } =
     useRefreshingLazyLoadQuery<EvaluatorQueueSizeChartQuery>({
       query: graphql`
         query EvaluatorQueueSizeChartQuery(
@@ -658,70 +660,84 @@ export function EvaluationQueueSizeTimeSeries({
         timeRange,
       }),
     });
-  const { scale, timeRange: loadedTimeRange } = getLoadedChartRange({
-    variables,
-    timeRange,
-    scale: requestedScale,
-  });
-  const chartData = getQueueSizeRows(
-    data.project.evaluationActivity?.series ?? []
+  const queueSizeByTimestamp = new Map<number, number>(
+    (data.project.evaluationActivity?.series ?? []).map((bin) => [
+      new Date(bin.timestamp).getTime(),
+      bin.queueSize,
+    ])
   );
-  const hasData = chartData.some(({ queueSize }) => queueSize > 0);
-  const timeTickFormatter = useBinTimeTickFormatter({ scale });
-  const colors = useSequentialChartColors();
-  if (isOtherSubjectLoading) {
+  return { queueSizeByTimestamp, isOtherRangeLoading: isOtherSubjectLoading };
+}
+
+/**
+ * What a queue chart draws: the activity's bins and the queue size at each,
+ * on the range they were loaded for. `isOtherRangeLoading` is set while
+ * either request loads another range.
+ */
+function useQueueChartData({
+  projectId,
+  timeRange,
+}: Pick<ProjectMetricViewProps, "projectId" | "timeRange">) {
+  const activity = useEvaluatorActivity({ projectId, timeRange });
+  const queueSize = useQueueSizeByTimestamp({ projectId, timeRange });
+  const timeTickFormatter = useBinTimeTickFormatter({ scale: activity.scale });
+  const xAxis: QueueChartTimeAxis = {
+    domain: [
+      activity.timeRange.start.getTime(),
+      activity.timeRange.end.getTime(),
+    ],
+    tickFormatter: (x) => timeTickFormatter(new Date(x)),
+  };
+  return {
+    scale: activity.scale,
+    bins: activity.bins,
+    queueSizeByTimestamp: queueSize.queueSizeByTimestamp,
+    xAxis,
+    isOtherRangeLoading:
+      activity.isOtherRangeLoading || queueSize.isOtherRangeLoading,
+  };
+}
+
+/** The project's evaluations added and completed per bin, mirrored. */
+export function EvaluationQueueThroughputTimeSeries({
+  projectId,
+  timeRange,
+  onTimeRangeSelected,
+}: ProjectMetricViewProps) {
+  const { scale, bins, queueSizeByTimestamp, xAxis, isOtherRangeLoading } =
+    useQueueChartData({ projectId, timeRange });
+  if (isOtherRangeLoading) {
     return <ChartSkeleton />;
   }
   return (
-    <TimeRangeChartBrush
+    <QueueThroughputChart
+      rows={getQueueThroughputRows({ bins, queueSizeByTimestamp })}
+      xAxis={xAxis}
       onTimeRangeSelected={onTimeRangeSelected}
       scale={scale}
-    >
-      {({ chartProps }) => (
-        <ChartEmptyStateOverlay
-          isEmpty={!hasData}
-          message="Nothing in queue in this time range"
-          chartType="line"
-        >
-          <ChartResponsiveContainer>
-            <ComposedChart
-              data={chartData}
-              margin={compactChartMargin}
-              syncId={PROJECT_METRICS_CHART_SYNC_ID}
-              {...chartProps}
-            >
-              <CartesianGrid {...defaultCartesianGridProps} />
-              <XAxis
-                {...compactTimeXAxisProps}
-                domain={[
-                  loadedTimeRange.start.getTime(),
-                  loadedTimeRange.end.getTime(),
-                ]}
-                tickFormatter={(x) => timeTickFormatter(new Date(x))}
-              />
-              <YAxis {...compactYAxisProps} tickFormatter={intShortFormatter} />
-              <Tooltip
-                content={
-                  <EvaluatorTimeSeriesTooltipContent
-                    formatValue={intFormatter}
-                    shape="square"
-                  />
-                }
-                {...defaultTooltipProps}
-              />
-              <Area
-                type="stepAfter"
-                dataKey="queueSize"
-                name="In queue"
-                stroke={colors.blue500}
-                fill={colors.blue500}
-                fillOpacity={0.2}
-                strokeWidth={2}
-              />
-            </ComposedChart>
-          </ChartResponsiveContainer>
-        </ChartEmptyStateOverlay>
-      )}
-    </TimeRangeChartBrush>
+      syncId={PROJECT_METRICS_CHART_SYNC_ID}
+    />
+  );
+}
+
+/** The project's evaluations in queue at each bin's end, and those processed. */
+export function EvaluationQueueSizeTimeSeries({
+  projectId,
+  timeRange,
+  onTimeRangeSelected,
+}: ProjectMetricViewProps) {
+  const { scale, bins, queueSizeByTimestamp, xAxis, isOtherRangeLoading } =
+    useQueueChartData({ projectId, timeRange });
+  if (isOtherRangeLoading) {
+    return <ChartSkeleton />;
+  }
+  return (
+    <QueueSizeChart
+      rows={getQueueSizeRows({ bins, queueSizeByTimestamp })}
+      xAxis={xAxis}
+      onTimeRangeSelected={onTimeRangeSelected}
+      scale={scale}
+      syncId={PROJECT_METRICS_CHART_SYNC_ID}
+    />
   );
 }

@@ -48,12 +48,13 @@ export const PROJECT_METRIC_CHART_KEYS = [
  * tables don't offer them.
  */
 export const EVALUATOR_METRIC_CHART_KEYS = [
+  "evaluation_queue_throughput",
+  "evaluation_queue_size",
   "evaluations_by_evaluator",
   "evaluation_lag_by_evaluator",
   "cost_by_evaluator",
   "failures_by_evaluator",
   "cost_over_time_by_evaluator",
-  "evaluation_queue_size",
 ] as const;
 
 export type BuiltInProjectMetricChartKey =
@@ -137,8 +138,8 @@ export const DEFAULT_METRIC_CHART_KEYS: Record<
   traces: ["traces", "latency", "trace_annotations"],
   sessions: ["traces", "session_annotations"],
   evaluators: [
-    "evaluations_by_evaluator",
+    "evaluation_queue_throughput",
+    "evaluation_queue_size",
     "evaluation_lag_by_evaluator",
-    "cost_by_evaluator",
   ],
 };

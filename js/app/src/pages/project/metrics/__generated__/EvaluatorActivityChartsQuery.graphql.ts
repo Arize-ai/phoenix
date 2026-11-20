@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<94ced6426fe6bea690c37d9d5b26b5e5>>
+ * @generated SignedSource<<80e90bdb58606637c2acad28f723e52a>>
  * @lightSyntaxTransform
  */
 
@@ -37,6 +37,7 @@ export type EvaluatorActivityChartsQuery$data = {
       }>;
       readonly series: ReadonlyArray<{
         readonly groups: ReadonlyArray<{
+          readonly addedCount: number;
           readonly cost: number | null;
           readonly evaluatedCount: number;
           readonly failedCount: number;
@@ -202,6 +203,13 @@ v8 = {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
+                  "name": "addedCount",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
                   "name": "lagP95Seconds",
                   "storageKey": null
                 },
@@ -279,16 +287,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f2e03b2ca452d008c8af7fb6a764d563",
+    "cacheID": "cfa77bfeef67141edf97a22acb9c465b",
     "id": null,
     "metadata": {},
     "name": "EvaluatorActivityChartsQuery",
     "operationKind": "query",
-    "text": "query EvaluatorActivityChartsQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluationActivity(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        groups {\n          projectEvaluator {\n            id\n            name\n          }\n          evaluatedCount\n          failedCount\n          cost\n        }\n        series {\n          timestamp\n          groups {\n            projectEvaluator {\n              id\n            }\n            evaluatedCount\n            failedCount\n            lagP95Seconds\n            cost\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query EvaluatorActivityChartsQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluationActivity(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        groups {\n          projectEvaluator {\n            id\n            name\n          }\n          evaluatedCount\n          failedCount\n          cost\n        }\n        series {\n          timestamp\n          groups {\n            projectEvaluator {\n              id\n            }\n            evaluatedCount\n            failedCount\n            addedCount\n            lagP95Seconds\n            cost\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "9a1171a452c581786c8b527cd689ab51";
+(node as any).hash = "386ad20356c7135c5e261496eb00eaa4";
 
 export default node;

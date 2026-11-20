@@ -328,6 +328,13 @@ export const dslFilterCodeMirrorCSS = css`
   .cm-content {
     padding: var(--global-dimension-size-100) 0;
   }
+  /* The placeholder must never pass for an applied condition: drop the
+     monospace a real expression is set in and mute it like other inputs'
+     placeholders */
+  .cm-placeholder {
+    color: var(--global-text-color-500);
+    font-family: var(--global-font-family-sans);
+  }
   .cm-editor {
     background-color: transparent !important;
   }
