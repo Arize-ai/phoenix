@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { ComponentType } from "react";
-import { Suspense, useState, useTransition } from "react";
+import { Suspense, useTransition } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
@@ -32,6 +32,7 @@ import {
 import { getSampleSessionEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSessionEvaluationContext";
 import { getSampleSpanEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
 import { getSampleTraceEvaluationContext } from "@phoenix/pages/project/evaluators/sampleTraceEvaluationContext";
+import { useRecordListing } from "@phoenix/pages/project/evaluators/useRecordListing";
 import {
   getSessionDetailsPath,
   getTraceDetailsPath,
@@ -321,32 +322,8 @@ function MatchedTraceCountLine({
   );
 }
 
-/** Rows arrive in pages of this many; the first page fits the table without scrolling. */
-const RECORD_PAGE_SIZE = 10;
-
 /** No search params to carry over: the bench's own URL has nothing the viewer should inherit. */
 const NO_SEARCH_PARAMS = new URLSearchParams();
-
-/**
- * Appends newly loaded rows below already-listed rows. When the listing is the
- * newest N records and that window keeps filling, a wider re-read starting from
- * the top returns records that arrived since the first page above the rows
- * already shown. This fn keeps the listed rows and appends only what the wider
- * page adds at the end, so "Load more" adds rows at the bottom.
- */
-function appendLoadedRows<T extends { key: string }>(
-  currentRows: T[],
-  loadedRows: T[]
-): T[] {
-  if (currentRows.length === 0) {
-    return loadedRows;
-  }
-
-  const currentKeys = new Set(currentRows.map((row) => row.key));
-  const newRows = loadedRows.filter((row) => !currentKeys.has(row.key));
-
-  return [...currentRows, ...newRows];
-}
 
 function formatTraceMetric(numSpans: number, totalTokens: number): string {
   const spans = `${numSpans.toLocaleString()} span${numSpans === 1 ? "" : "s"}`;
@@ -358,9 +335,9 @@ function TraceRecordSource({
   filterCondition,
   ...benchProps
 }: RecordSourceProps) {
-  const [limit, setLimit] = useState(RECORD_PAGE_SIZE);
-  const [displayedRows, setDisplayedRows] = useState<RecordedRunRow[]>([]);
-  const [isShowingMore, startShowMoreTransition] = useTransition();
+  const { limit, isShowingMore, appendLoadedRows, showMore } = useRecordListing(
+    { filterCondition, startIso: benchProps.timeWindow.startIso }
+  );
   const data = useLazyLoadQuery<ProjectEvaluatorScopePanelTracesQuery>(
     graphql`
       query ProjectEvaluatorScopePanelTracesQuery(
@@ -451,19 +428,7 @@ function TraceRecordSource({
           },
         ]
       : [];
-
-  // Reset displayed rows when the limit resets (new filter/window) or append
-  // newly loaded rows below already-listed rows when loading more.
-  const rows =
-    limit === RECORD_PAGE_SIZE
-      ? loadedRows
-      : appendLoadedRows(displayedRows, loadedRows);
-
-  // Track the displayed rows for the next append
-  if (rows !== displayedRows) {
-    setDisplayedRows(rows);
-  }
-
+  const rows = appendLoadedRows(loadedRows);
   return (
     <ProjectEvaluatorTestBench
       {...benchProps}
@@ -471,11 +436,7 @@ function TraceRecordSource({
       recordKind="trace"
       hasMore={data.project?.rootSpans?.pageInfo.hasNextPage ?? false}
       isLoadingMore={isShowingMore}
-      onLoadMore={() =>
-        startShowMoreTransition(() => {
-          setLimit((current) => current + RECORD_PAGE_SIZE);
-        })
-      }
+      onLoadMore={() => showMore(rows)}
     />
   );
 }
@@ -496,9 +457,9 @@ function SessionRecordSource({
   filterCondition,
   ...benchProps
 }: RecordSourceProps) {
-  const [limit, setLimit] = useState(RECORD_PAGE_SIZE);
-  const [displayedRows, setDisplayedRows] = useState<RecordedRunRow[]>([]);
-  const [isShowingMore, startShowMoreTransition] = useTransition();
+  const { limit, isShowingMore, appendLoadedRows, showMore } = useRecordListing(
+    { filterCondition, startIso: benchProps.timeWindow.startIso }
+  );
   const data = useLazyLoadQuery<ProjectEvaluatorScopePanelSessionsQuery>(
     graphql`
       query ProjectEvaluatorScopePanelSessionsQuery(
@@ -580,19 +541,7 @@ function SessionRecordSource({
           },
         ]
       : [];
-
-  // Reset displayed rows when the limit resets (new filter/window) or append
-  // newly loaded rows below already-listed rows when loading more.
-  const rows =
-    limit === RECORD_PAGE_SIZE
-      ? loadedRows
-      : appendLoadedRows(displayedRows, loadedRows);
-
-  // Track the displayed rows for the next append
-  if (rows !== displayedRows) {
-    setDisplayedRows(rows);
-  }
-
+  const rows = appendLoadedRows(loadedRows);
   return (
     <ProjectEvaluatorTestBench
       {...benchProps}
@@ -600,11 +549,7 @@ function SessionRecordSource({
       recordKind="session"
       hasMore={data.project?.sessions?.pageInfo.hasNextPage ?? false}
       isLoadingMore={isShowingMore}
-      onLoadMore={() =>
-        startShowMoreTransition(() => {
-          setLimit((current) => current + RECORD_PAGE_SIZE);
-        })
-      }
+      onLoadMore={() => showMore(rows)}
     />
   );
 }
@@ -614,9 +559,9 @@ function SpanRecordSource({
   filterCondition,
   ...benchProps
 }: RecordSourceProps) {
-  const [limit, setLimit] = useState(RECORD_PAGE_SIZE);
-  const [displayedRows, setDisplayedRows] = useState<RecordedRunRow[]>([]);
-  const [isShowingMore, startShowMoreTransition] = useTransition();
+  const { limit, isShowingMore, appendLoadedRows, showMore } = useRecordListing(
+    { filterCondition, startIso: benchProps.timeWindow.startIso }
+  );
   const data = useLazyLoadQuery<ProjectEvaluatorScopePanelSpansQuery>(
     graphql`
       query ProjectEvaluatorScopePanelSpansQuery(
@@ -696,19 +641,7 @@ function SpanRecordSource({
           },
         ]
       : [];
-
-  // Reset displayed rows when the limit resets (new filter/window) or append
-  // newly loaded rows below already-listed rows when loading more.
-  const rows =
-    limit === RECORD_PAGE_SIZE
-      ? loadedRows
-      : appendLoadedRows(displayedRows, loadedRows);
-
-  // Track the displayed rows for the next append
-  if (rows !== displayedRows) {
-    setDisplayedRows(rows);
-  }
-
+  const rows = appendLoadedRows(loadedRows);
   return (
     <ProjectEvaluatorTestBench
       {...benchProps}
@@ -716,11 +649,7 @@ function SpanRecordSource({
       recordKind="span"
       hasMore={data.project?.spans?.pageInfo.hasNextPage ?? false}
       isLoadingMore={isShowingMore}
-      onLoadMore={() =>
-        startShowMoreTransition(() => {
-          setLimit((current) => current + RECORD_PAGE_SIZE);
-        })
-      }
+      onLoadMore={() => showMore(rows)}
     />
   );
 }
