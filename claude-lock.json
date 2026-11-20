@@ -15,9 +15,9 @@
     "./agents/bug-fixer.md": {
       "kind": "agent",
       "id": "agent_01Raz9DgBPzzgzcPDfhDu92g",
-      "version": "12",
-      "hash": "3b45edbdbd20de8dd0fbd2766287bd5b",
-      "remote_hash": "ed11b76812f8c0c887c5a2fa6396ceca"
+      "version": "13",
+      "hash": "58c196efc91bf77ad04b9e566222a97a",
+      "remote_hash": "94d5ebf9a96eebaeb7c512516834e63b"
     },
     "./agents/bug-reproducer.md": {
       "kind": "agent",
@@ -29,9 +29,9 @@
     "./agents/cloud-triage.md": {
       "kind": "agent",
       "id": "agent_01SwmZqQSMvhhK3RtapnJ7Ck",
-      "version": "2",
-      "hash": "6805a2acc9918cba024e58a26913d558",
-      "remote_hash": "e099921bbab6ba952974bfda411455f2"
+      "version": "3",
+      "hash": "6be2a4cbe0d6934a2ba1fcc9b5ac6890",
+      "remote_hash": "8ca3934cf6b6993163143891958b0c50"
     },
     "./agents/docs-reviewer.md": {
       "kind": "agent",
@@ -43,9 +43,9 @@
     "./agents/docs-writer.md": {
       "kind": "agent",
       "id": "agent_017gUzHtyPT7QVNMRuVCDwGK",
-      "version": "7",
-      "hash": "fa9edad5afde456a256416472438014d",
-      "remote_hash": "aee2d4098a7e5c788f7301d87ba14aa7"
+      "version": "8",
+      "hash": "1cf0b208f2325b9f9b1fa7bd7b95e67d",
+      "remote_hash": "e2141d4a11c6bc0740044d9fd7371be0"
     },
     "./agents/feature-analyst.md": {
       "kind": "agent",
@@ -57,9 +57,9 @@
     "./agents/feature-builder.md": {
       "kind": "agent",
       "id": "agent_01Ck8S1uMop4qWTTwZXo5FUq",
-      "version": "10",
-      "hash": "a57c2334ab6aa94bcd0a8b189f0bafde",
-      "remote_hash": "d764a8da066e271748cba2614a6e2e8c"
+      "version": "11",
+      "hash": "10fd245d97e19f7aed02ea7134210d34",
+      "remote_hash": "1baf696bc312a8621f1bd64b99553099"
     },
     "./agents/frontend-reviewer.md": {
       "kind": "agent",
@@ -78,23 +78,23 @@
     "./agents/pr-finisher.md": {
       "kind": "agent",
       "id": "agent_016wWcHQdD25th5D8v7gGH83",
-      "version": "5",
-      "hash": "4a9856844e4f1aac96b0015415291be1",
-      "remote_hash": "e9e9426077de2ae15c0f53db85ee468b"
+      "version": "6",
+      "hash": "047cd8260503248b53fc25266962afc5",
+      "remote_hash": "f51c5f69a09e68e6a4b725d7f2905e10"
     },
     "./agents/pr-reviewer.md": {
       "kind": "agent",
       "id": "agent_01PjZ8vnrD9MoDyngXbvp2Si",
-      "version": "12",
-      "hash": "b0f196c4e9f2c35746126c2cd3c11850",
-      "remote_hash": "1fb22b895cb17580cd276e07eb356556"
+      "version": "13",
+      "hash": "f86f5f5a5d94d73df7d8b52c3264b871",
+      "remote_hash": "ede2a7adc6e10bab61dae625679780bb"
     },
     "./agents/railway-triage.md": {
       "kind": "agent",
       "id": "agent_013UyMYC4Xu5W2SRWMPjC49f",
-      "version": "3",
-      "hash": "40a2a59997733b623ba56f5ed79206e2",
-      "remote_hash": "b31b5adfa440917ac4739082f271d353"
+      "version": "4",
+      "hash": "bc2cb69173f1abeaef8861a9cbfc9b1e",
+      "remote_hash": "17c318176dd104350c9a015fc2bcc4f5"
     },
     "./agents/security-reviewer.md": {
       "kind": "agent",
