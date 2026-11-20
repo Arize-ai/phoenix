@@ -455,7 +455,19 @@ def format_deploy_comment(
 
 
 def run_deploy(args: argparse.Namespace) -> int:
-    visibility = image_visibility(image=args.image)
+    try:
+        visibility = image_visibility(image=args.image)
+    except (urllib.error.URLError, TimeoutError) as error:
+        upsert_comment(
+            pr_number=args.pr,
+            body=(
+                f"### Preview of {args.head_sha[:7]}\n\n"
+                "Docker Hub could not be reached to check the image, so the deploy did not"
+                f" start. See the [run]({args.run_url}) and re-add the preview label to retry."
+            ),
+        )
+        print(f"::error::Docker Hub visibility check failed: {error}", file=sys.stderr)
+        return 1
     if visibility != "public":
         upsert_comment(
             pr_number=args.pr,
@@ -543,7 +555,7 @@ def preview_numbers(*, services: dict[str, str], tags: list[str]) -> set[int]:
 
 
 def sweep_preview(
-    *, pr_number: int, image: str, services: dict[str, str], tags: list[str], token: str
+    *, pr_number: int, image: str, services: dict[str, str], tags: list[str], token: Optional[str]
 ) -> None:
     if (service_id := services.get(f"pr-{pr_number}")) is not None:
         delete_service(service_id)
@@ -551,7 +563,7 @@ def sweep_preview(
     num_deleted = 0
     for tag in tags:
         match = PR_TAG_PATTERN.fullmatch(tag)
-        if match and int(match.group(1)) == pr_number:
+        if match and int(match.group(1)) == pr_number and token is not None:
             delete_image_tag(image=image, tag=tag, token=token)
             num_deleted += 1
     print(f"deleted {num_deleted} image tags of PR #{pr_number}")
@@ -564,9 +576,16 @@ def sweep_preview(
 def run_sweep(args: argparse.Namespace) -> int:
     project_id, _ = read_token_scope()
     services = list_services(project_id=project_id)
-    tags = list_image_tags(image=args.image)
-    token = get_dockerhub_token()
+    tags: list[str] = []
+    token: Optional[str] = None
     failures = 0
+    try:
+        tags = list_image_tags(image=args.image)
+        if tags:
+            token = get_dockerhub_token()
+    except (urllib.error.URLError, TimeoutError) as error:
+        print(f"::error::Docker Hub cleanup unavailable: {error}", file=sys.stderr)
+        failures += 1
     for pr_number in sorted(preview_numbers(services=services, tags=tags)):
         try:
             if preview_wanted(pr_number):
