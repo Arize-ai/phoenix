@@ -116,6 +116,14 @@ DATASET_UPLOAD_SPLIT_KEY = ParameterRequirement(
     min_server_version=Version(15, 0, 0),
 )
 
+DATASET_UPLOAD_VERSION_DESCRIPTION = ParameterRequirement(
+    parameter_name="version_description",
+    parameter_location="body",
+    route="POST /v1/datasets/upload",
+    min_server_version=Version(21, 1, 0),
+    description="Dataset version description on POST /v1/datasets/upload",
+)
+
 CREATE_PROMPT_VERSION_METADATA = ParameterRequirement(
     parameter_name="metadata",
     parameter_location="body",

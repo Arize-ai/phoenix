@@ -86,9 +86,39 @@ The choice between diff-and-replace and append is determined by which method you
 | `add_examples_to_dataset` with `example_id_key` | Adds new rows and updates rows whose IDs match. Examples absent from the upload are preserved. |
 | `add_examples_to_dataset` without `example_id_key` | Appends all rows; Phoenix generates IDs. Existing examples are preserved. |
 
+## Describe the New Dataset Version
+
+Each call to `add_examples_to_dataset` that changes the dataset creates a new dataset version. Pass `version_description` to record why you made the change. The description goes on the new dataset version only. The dataset's own description does not change.
+
+This feature requires Phoenix `>= 21.1.0`. See [Compatibility With Older Servers](#compatibility-with-older-servers).
+
+```python
+from phoenix.client import Client
+
+client = Client()
+
+dataset = client.datasets.add_examples_to_dataset(
+    dataset="my-eval-dataset",
+    examples=[
+        {"input": {"question": "What color is the sky?"}, "output": {"answer": "Blue"}},
+    ],
+    version_description="Add edge cases from support tickets",
+)
+
+for version in client.datasets.get_dataset_versions(dataset="my-eval-dataset"):
+    print(version["version_id"], version["description"])
+```
+
+`version_description` works with `examples`, `inputs`/`outputs`/`metadata`, `dataframe`, and `csv_file_path`. `AsyncClient` accepts the same argument.
+
+- Phoenix removes whitespace at the start and end of the value. If the value is empty or only whitespace, the dataset version has no description.
+- If the dataset already has a dataset version and the upload changes no examples, Phoenix creates no new dataset version. Phoenix ignores `version_description`.
+
 ## Compatibility With Older Servers
 
 Diffing requires Phoenix `>= 15.0.0`. Against older servers the client falls back to a plain create and emits a `UserWarning`. The fallback succeeds when the dataset does not yet exist, but if a dataset with that name is already on the server, the create is rejected with a name conflict. For the diff-and-update workflow you must be running Phoenix `>= 15.0.0`.
+
+`version_description` requires Phoenix `>= 21.1.0`. If the server is older than 21.1.0, the client raises a `PhoenixException` before it uploads anything.
 
 ## Return Value
 

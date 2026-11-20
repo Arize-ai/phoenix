@@ -2,6 +2,7 @@
 import httpx
 import pytest
 
+from phoenix.client.constants.server_requirements import DATASET_UPLOAD_VERSION_DESCRIPTION
 from phoenix.client.exceptions import PhoenixException
 from phoenix.client.utils.server_requirements import (
     ParameterRequirement,
@@ -69,6 +70,11 @@ class TestCheckVersion:
         req = RouteRequirement("GET", "/x", Version(1, 0, 0), description="Custom cap")
         with pytest.raises(PhoenixException, match="Custom cap requires"):
             _check_version(Version(0, 0, 0), req)
+
+    def test_dataset_upload_version_description_requires_21_1_0(self) -> None:
+        _check_version(Version(21, 1, 0), DATASET_UPLOAD_VERSION_DESCRIPTION)
+        with pytest.raises(PhoenixException, match="requires Phoenix >= 21.1.0"):
+            _check_version(Version(21, 0, 0), DATASET_UPLOAD_VERSION_DESCRIPTION)
 
 
 class TestServerVersionGuard:

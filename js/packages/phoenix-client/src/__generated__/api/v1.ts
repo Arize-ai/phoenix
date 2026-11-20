@@ -8916,6 +8916,8 @@ export interface operations {
                     action?: "create" | "append" | "update";
                     name: string;
                     description?: string;
+                    /** @description Optional description for the dataset version that this upload creates. Surrounding whitespace is stripped and a blank value means no description. The dataset's own description is not changed. If the dataset already has a version and the upload changes no examples, no new version is created and this is ignored. */
+                    version_description?: string;
                     inputs: Record<string, unknown>[];
                     outputs?: Record<string, unknown>[];
                     metadata?: Record<string, unknown>[];
@@ -8931,6 +8933,8 @@ export interface operations {
                     action?: "create" | "append" | "update";
                     name: string;
                     description?: string;
+                    /** @description Optional description for the dataset version that this upload creates. Surrounding whitespace is stripped and a blank value means no description. The dataset's own description is not changed. If the dataset already has a version and the upload changes no examples, no new version is created and this is ignored. */
+                    version_description?: string;
                     "input_keys[]": string[];
                     "output_keys[]": string[];
                     "metadata_keys[]"?: string[];

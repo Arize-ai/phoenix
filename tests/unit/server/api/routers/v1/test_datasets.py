@@ -836,6 +836,212 @@ async def test_post_dataset_upload_deleted_example_with_split_does_not_count_as_
     assert second_data["num_deleted_examples"] == 1
 
 
+async def _get_version_description(db: DbSessionFactory, version_id: str) -> Optional[str]:
+    async with db() as session:
+        version = await session.get(
+            models.DatasetVersion, int(GlobalID.from_id(version_id).node_id)
+        )
+    assert version is not None
+    return version.description
+
+
+async def _get_dataset_description(db: DbSessionFactory, dataset_id: str) -> Optional[str]:
+    async with db() as session:
+        dataset = await session.get(models.Dataset, int(GlobalID.from_id(dataset_id).node_id))
+    assert dataset is not None
+    return dataset.description
+
+
+async def test_post_dataset_upload_json_append_stores_version_description(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    name = inspect.stack()[0][3]
+    create_response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name,
+            "description": "dataset description",
+            "inputs": [{"a": 1}],
+        },
+    )
+    assert create_response.status_code == 200
+    create_data = create_response.json()["data"]
+    # The dataset's description is not copied onto its first version.
+    assert await _get_version_description(db, create_data["version_id"]) is None
+
+    append_response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "append",
+            "name": name,
+            "inputs": [{"a": 2}],
+            "version_description": "  added edge cases  ",
+        },
+    )
+    assert append_response.status_code == 200
+    append_data = append_response.json()["data"]
+    assert append_data["version_id"] != create_data["version_id"]
+    assert await _get_version_description(db, append_data["version_id"]) == "added edge cases"
+    assert await _get_dataset_description(db, append_data["dataset_id"]) == "dataset description"
+
+
+async def test_post_dataset_upload_csv_append_stores_version_description(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    name = inspect.stack()[0][3]
+    create_response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": ("examples.csv", b"a,b\n1,2\n", "text/csv")},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["a"],
+            "output_keys[]": ["b"],
+        },
+    )
+    assert create_response.status_code == 200
+    create_data = create_response.json()["data"]
+    # The filename fallback for the dataset description is not put on the version.
+    assert await _get_dataset_description(db, create_data["dataset_id"]) == "examples.csv"
+    assert await _get_version_description(db, create_data["version_id"]) is None
+
+    append_response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": ("more.csv", b"a,b\n3,4\n", "text/csv")},
+        data={
+            "action": "append",
+            "name": name,
+            "description": "",
+            "version_description": " rows from more.csv\n",
+            "input_keys[]": ["a"],
+            "output_keys[]": ["b"],
+        },
+    )
+    assert append_response.status_code == 200
+    append_data = append_response.json()["data"]
+    assert append_data["version_id"] != create_data["version_id"]
+    assert await _get_version_description(db, append_data["version_id"]) == "rows from more.csv"
+    assert await _get_dataset_description(db, append_data["dataset_id"]) == "examples.csv"
+
+
+@pytest.mark.parametrize("version_description", ["", "   "])
+async def test_post_dataset_upload_blank_version_description_is_stored_as_none(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+    version_description: str,
+) -> None:
+    name = inspect.stack()[0][3]
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "append",
+            "name": name,
+            "inputs": [{"a": 1}],
+            "version_description": version_description,
+        },
+    )
+    assert response.status_code == 200
+    assert await _get_version_description(db, response.json()["data"]["version_id"]) is None
+
+
+@pytest.mark.parametrize("version_description", [123, ["notes"], {"text": "notes"}])
+async def test_post_dataset_upload_rejects_non_string_version_description(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+    version_description: Any,
+) -> None:
+    name = inspect.stack()[0][3]
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "append",
+            "name": name,
+            "inputs": [{"a": 1}],
+            "version_description": version_description,
+        },
+    )
+    assert response.status_code == 422
+    assert "version_description must be a string" in response.text
+    async with db() as session:
+        assert await session.scalar(select(models.Dataset).filter_by(name=name)) is None
+
+
+async def test_post_dataset_upload_rejects_version_description_sent_as_file(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    name = inspect.stack()[0][3]
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={
+            "file": ("examples.csv", b"a,b\n1,2\n", "text/csv"),
+            "version_description": ("notes.txt", b"notes", "text/plain"),
+        },
+        data={
+            "action": "append",
+            "name": name,
+            "input_keys[]": ["a"],
+            "output_keys[]": ["b"],
+        },
+    )
+    assert response.status_code == 422
+    assert "version_description must be a string" in response.text
+    async with db() as session:
+        assert await session.scalar(select(models.Dataset).filter_by(name=name)) is None
+
+
+async def test_post_dataset_upload_append_to_new_name_keeps_version_description_off_dataset(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    name = inspect.stack()[0][3]
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "append",
+            "name": name,
+            "inputs": [{"a": 1}],
+            "version_description": "first batch",
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert await _get_version_description(db, data["version_id"]) == "first batch"
+    assert await _get_dataset_description(db, data["dataset_id"]) != "first batch"
+
+
+async def test_post_dataset_upload_noop_append_keeps_latest_version_description(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    name = inspect.stack()[0][3]
+    body = {
+        "action": "append",
+        "name": name,
+        "inputs": [{"a": 1}],
+        "example_ids": ["x"],
+    }
+    first_response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={**body, "version_description": "original"},
+    )
+    assert first_response.status_code == 200
+    first_version_id = first_response.json()["data"]["version_id"]
+
+    noop_response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={**body, "version_description": "should be ignored"},
+    )
+    assert noop_response.status_code == 200
+    noop_data = noop_response.json()["data"]
+    assert noop_data["num_created_examples"] == 0
+    assert noop_data["version_id"] == first_version_id
+    assert await _get_version_description(db, first_version_id) == "original"
+
+
 async def test_post_dataset_upload_csv_create_then_append(
     httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,

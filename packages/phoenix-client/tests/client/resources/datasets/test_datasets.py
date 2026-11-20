@@ -1,4 +1,5 @@
 import gzip
+import json
 import warnings
 from datetime import datetime
 from io import StringIO
@@ -11,7 +12,10 @@ import pandas as pd
 import pytest
 
 from phoenix.client.__generated__ import v1
+from phoenix.client.constants.server_requirements import DATASET_UPLOAD_VERSION_DESCRIPTION
+from phoenix.client.exceptions import PhoenixException
 from phoenix.client.resources.datasets import (
+    AsyncDatasets,
     Dataset,
     DatasetKeys,
     Datasets,
@@ -625,3 +629,150 @@ class TestUpdateActionFallback:
                 action="append",
             )
         assert mock_client.post.call_count == 1
+
+
+class _RejectVersionDescriptionGuard:
+    """Rejects the version description requirement, as an older server would."""
+
+    def __init__(self) -> None:
+        self.requirements: list[object] = []
+
+    def require(self, requirement: object) -> None:
+        self.requirements.append(requirement)
+        if requirement is DATASET_UPLOAD_VERSION_DESCRIPTION:
+            raise PhoenixException("server too old")
+
+
+class _AsyncRejectVersionDescriptionGuard(_RejectVersionDescriptionGuard):
+    async def require(self, requirement: object) -> None:  # type: ignore[override]
+        super().require(requirement)
+
+
+class _AllowAllGuard:
+    def require(self, requirement: object) -> None:
+        pass
+
+
+class _AsyncAllowAllGuard:
+    async def require(self, requirement: object) -> None:
+        pass
+
+
+_DATASET_NODE_ID = "RGF0YXNldDox"  # GlobalID for Dataset:1
+
+
+def _recording_transport(sent: list[httpx.Request]) -> httpx.MockTransport:
+    """Records each request and answers 418 so the upload stops right after it is sent."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        sent.append(request)
+        return httpx.Response(418, text="stop")
+
+    return httpx.MockTransport(handler)
+
+
+class TestAddExamplesVersionDescription:
+    def test_json_append_sends_version_description(self) -> None:
+        sent: list[httpx.Request] = []
+        client = httpx.Client(transport=_recording_transport(sent), base_url="http://test")
+        with pytest.raises(DatasetUploadError):
+            Datasets(client, _guard=_AllowAllGuard()).add_examples_to_dataset(  # type: ignore[arg-type]
+                dataset="demo",
+                examples=[{"input": {"q": "a"}, "output": {"a": "1"}}],
+                version_description="added edge cases",
+            )
+        (request,) = sent
+        body = json.loads(request.content)
+        assert body["action"] == "append"
+        assert body["version_description"] == "added edge cases"
+        assert "description" not in body
+
+    def test_tabular_append_sends_version_description(self) -> None:
+        sent: list[httpx.Request] = []
+        client = httpx.Client(transport=_recording_transport(sent), base_url="http://test")
+        with pytest.raises(DatasetUploadError):
+            Datasets(client, _guard=_AllowAllGuard()).add_examples_to_dataset(  # type: ignore[arg-type]
+                dataset="demo",
+                dataframe=pd.DataFrame({"q": ["a"], "a": ["1"]}),
+                input_keys=["q"],
+                output_keys=["a"],
+                version_description="added edge cases",
+            )
+        (request,) = sent
+        assert request.headers["content-type"].startswith("multipart/form-data")
+        assert b'name="version_description"\r\n\r\nadded edge cases\r\n' in request.content
+
+    def test_append_without_version_description_omits_field_and_skips_guard(self) -> None:
+        sent: list[httpx.Request] = []
+        client = httpx.Client(transport=_recording_transport(sent), base_url="http://test")
+        guard = _RejectVersionDescriptionGuard()
+        with pytest.raises(DatasetUploadError):
+            Datasets(client, _guard=guard).add_examples_to_dataset(  # type: ignore[arg-type]
+                dataset="demo",
+                examples=[{"input": {"q": "a"}, "output": {"a": "1"}}],
+            )
+        (request,) = sent
+        assert "version_description" not in json.loads(request.content)
+        assert DATASET_UPLOAD_VERSION_DESCRIPTION not in guard.requirements
+
+    @pytest.mark.parametrize("tabular", [False, True])
+    def test_old_server_raises_before_upload(self, tabular: bool) -> None:
+        sent: list[httpx.Request] = []
+        client = httpx.Client(transport=_recording_transport(sent), base_url="http://test")
+        data: dict[str, Any] = (
+            {"dataframe": pd.DataFrame({"q": ["a"]}), "input_keys": ["q"]}
+            if tabular
+            else {"examples": [{"input": {"q": "a"}, "output": {}}]}
+        )
+        with pytest.raises(PhoenixException):
+            Datasets(client, _guard=_RejectVersionDescriptionGuard()).add_examples_to_dataset(  # type: ignore[arg-type]
+                # A dataset ID would otherwise trigger a name lookup request first.
+                dataset=_DATASET_NODE_ID,
+                version_description="added edge cases",
+                **data,
+            )
+        assert sent == []
+
+
+class TestAsyncAddExamplesVersionDescription:
+    async def test_json_append_sends_version_description(self) -> None:
+        sent: list[httpx.Request] = []
+        client = httpx.AsyncClient(transport=_recording_transport(sent), base_url="http://test")
+        with pytest.raises(DatasetUploadError):
+            await AsyncDatasets(client, _guard=_AsyncAllowAllGuard()).add_examples_to_dataset(  # type: ignore[arg-type]
+                dataset="demo",
+                examples=[{"input": {"q": "a"}, "output": {"a": "1"}}],
+                version_description="added edge cases",
+            )
+        (request,) = sent
+        body = json.loads(request.content)
+        assert body["action"] == "append"
+        assert body["version_description"] == "added edge cases"
+
+    async def test_tabular_append_sends_version_description(self) -> None:
+        sent: list[httpx.Request] = []
+        client = httpx.AsyncClient(transport=_recording_transport(sent), base_url="http://test")
+        with pytest.raises(DatasetUploadError):
+            await AsyncDatasets(client, _guard=_AsyncAllowAllGuard()).add_examples_to_dataset(  # type: ignore[arg-type]
+                dataset="demo",
+                dataframe=pd.DataFrame({"q": ["a"], "a": ["1"]}),
+                input_keys=["q"],
+                output_keys=["a"],
+                version_description="added edge cases",
+            )
+        (request,) = sent
+        assert b'name="version_description"\r\n\r\nadded edge cases\r\n' in request.content
+
+    async def test_old_server_raises_before_upload(self) -> None:
+        sent: list[httpx.Request] = []
+        client = httpx.AsyncClient(transport=_recording_transport(sent), base_url="http://test")
+        with pytest.raises(PhoenixException):
+            await AsyncDatasets(
+                client,
+                _guard=_AsyncRejectVersionDescriptionGuard(),  # type: ignore[arg-type]
+            ).add_examples_to_dataset(
+                dataset=_DATASET_NODE_ID,
+                examples=[{"input": {"q": "a"}, "output": {}}],
+                version_description="added edge cases",
+            )
+        assert sent == []

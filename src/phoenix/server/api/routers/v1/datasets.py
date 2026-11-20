@@ -376,6 +376,17 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
                             },
                             "name": {"type": "string"},
                             "description": {"type": "string"},
+                            "version_description": {
+                                "type": "string",
+                                "description": (
+                                    "Optional description for the dataset version that this "
+                                    "upload creates. Surrounding whitespace is stripped and a "
+                                    "blank value means no description. The dataset's own "
+                                    "description is not changed. If the dataset already has a "
+                                    "version and the upload changes no examples, no new "
+                                    "version is created and this is ignored."
+                                ),
+                            },
                             "inputs": {"type": "array", "items": {"type": "object"}},
                             "outputs": {"type": "array", "items": {"type": "object"}},
                             "metadata": {"type": "array", "items": {"type": "object"}},
@@ -427,6 +438,17 @@ class UploadDatasetResponseBody(ResponseBody[UploadDatasetData]):
                             },
                             "name": {"type": "string"},
                             "description": {"type": "string"},
+                            "version_description": {
+                                "type": "string",
+                                "description": (
+                                    "Optional description for the dataset version that this "
+                                    "upload creates. Surrounding whitespace is stripped and a "
+                                    "blank value means no description. The dataset's own "
+                                    "description is not changed. If the dataset already has a "
+                                    "version and the upload changes no examples, no new "
+                                    "version is created and this is ignored."
+                                ),
+                            },
                             "input_keys[]": {
                                 "type": "array",
                                 "items": {"type": "string"},
@@ -500,9 +522,14 @@ async def upload_dataset(
     splits_provided = True
     if request_content_type.startswith("application/json"):
         try:
-            examples, action, name, description, splits_provided = await run_in_threadpool(
-                _process_json, await request.json()
-            )
+            (
+                examples,
+                action,
+                name,
+                description,
+                version_description,
+                splits_provided,
+            ) = await run_in_threadpool(_process_json, await request.json())
         except ValueError as e:
             raise HTTPException(
                 detail=str(e),
@@ -515,6 +542,7 @@ async def upload_dataset(
                     action,
                     name,
                     description,
+                    version_description,
                     input_keys,
                     output_keys,
                     metadata_keys,
@@ -618,6 +646,7 @@ async def upload_dataset(
             description=description,
             user_id=user_id,
             splits_provided=splits_provided,
+            version_description=version_description,
         ),
     )
     if sync:
@@ -675,6 +704,7 @@ class FileContentEncoding(Enum):
 
 Name: TypeAlias = str
 Description: TypeAlias = Optional[str]
+VersionDescription: TypeAlias = Optional[str]
 InputKeys: TypeAlias = frozenset[str]
 OutputKeys: TypeAlias = frozenset[str]
 MetadataKeys: TypeAlias = frozenset[str]
@@ -842,13 +872,23 @@ def _build_flatten_plans(
     )
 
 
+def _parse_version_description(value: object) -> VersionDescription:
+    """A missing, empty, or whitespace-only value means no version description."""
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError("version_description must be a string")
+    return value.strip() or None
+
+
 def _process_json(
     data: Mapping[str, Any],
-) -> tuple[Examples, DatasetAction, Name, Description, SplitsProvided]:
+) -> tuple[Examples, DatasetAction, Name, Description, VersionDescription, SplitsProvided]:
     name = data.get("name")
     if not name:
         raise ValueError("Dataset name is required")
     description = data.get("description") or ""
+    version_description = _parse_version_description(data.get("version_description"))
     inputs = data.get("inputs")
     if inputs is None:
         raise ValueError("input is required")
@@ -958,7 +998,7 @@ def _process_json(
         )
         examples.append(example)
     action = DatasetAction(cast(Optional[str], data.get("action")) or "create")
-    return iter(examples), action, name, description, splits is not None
+    return iter(examples), action, name, description, version_description, splits is not None
 
 
 async def _process_csv(
@@ -1260,6 +1300,7 @@ async def _parse_form_data(
     DatasetAction,
     Name,
     Description,
+    VersionDescription,
     InputKeys,
     OutputKeys,
     MetadataKeys,
@@ -1278,6 +1319,7 @@ async def _parse_form_data(
     if not isinstance(file, UploadFile):
         raise ValueError("Malformed file in form data.")
     description = cast(Optional[str], form.get("description")) or file.filename
+    version_description = _parse_version_description(form.get("version_description"))
     input_keys = frozenset(filter(bool, cast(list[str], form.getlist("input_keys[]"))))
     output_keys = frozenset(filter(bool, cast(list[str], form.getlist("output_keys[]"))))
     metadata_keys = frozenset(filter(bool, cast(list[str], form.getlist("metadata_keys[]"))))
@@ -1295,6 +1337,7 @@ async def _parse_form_data(
         action,
         name,
         description,
+        version_description,
         input_keys,
         output_keys,
         metadata_keys,
