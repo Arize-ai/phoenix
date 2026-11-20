@@ -367,7 +367,7 @@ export function ProjectEvaluatorTestBench({
             />
           </div>
           <ProjectEvaluatorWorkspacePortal panel="inspector">
-            <div className="test-bench__panel test-bench__inspector-slot">
+            <div css={inspectorSlotCSS}>
               {focusedEntry ? (
                 <ProjectEvaluatorRecordInspector
                   entry={focusedEntry}
@@ -570,6 +570,18 @@ const inlineSelectCSS = css`
     text-decoration: underline dotted;
     text-underline-offset: 3px;
   }
+`;
+
+/**
+ * The inspector's own frame in the workspace tab. It is portaled outside the
+ * bench, so the bench's panel styles do not reach it.
+ */
+const inspectorSlotCSS = css`
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overscroll-behavior: none;
 `;
 
 const benchCSS = css`

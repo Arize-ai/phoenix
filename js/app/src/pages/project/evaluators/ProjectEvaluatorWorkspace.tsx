@@ -643,7 +643,11 @@ const workspaceCSS = css`
   min-height: 0;
   background-color: var(--global-background-color-default);
 
+  // A tabset fills the panel the split gives it; without a height it grows
+  // with its content, and the panel clips it instead of the tab scrolling.
   [data-tabset] {
+    box-sizing: border-box;
+    height: 100%;
     display: flex;
     flex-direction: column;
     min-width: 0;

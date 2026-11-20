@@ -28,9 +28,12 @@ import type { EvaluatorFormDirtyCheck } from "@phoenix/pages/project/evaluators/
 export function ProjectEvaluatorSlideover({
   title,
   children,
+  size = "fullscreen",
   ...props
 }: {
   title: string;
+  /** `viewport` for forms laid out as a workspace, which fill the viewport. */
+  size?: "fullscreen" | "viewport";
   /** Receives the dialog's own close, which the form calls when it is done. */
   children: (
     close: () => void,
@@ -58,7 +61,7 @@ export function ProjectEvaluatorSlideover({
           return true;
         }}
       >
-        <ViewportModal size="fullscreen">
+        <ViewportModal size={size}>
           <Dialog aria-label={title}>
             {({ close }) => (
               <ProjectEvaluatorTimeWindowProvider>

@@ -120,6 +120,12 @@ const drawerPlaneCellCSS = css`
 const viewportModalPlaneCellCSS = css`
   grid-column: 1 / 3;
   grid-row: 1 / 3;
+  // The plane shares the viewport's tracks, so a dialog can cover the
+  // content row and leave the top navigation (and its assistant control)
+  // in view. Dialogs that do not place themselves still fill the plane.
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-template-rows: subgrid;
 `;
 
 const bottomLinksCSS = css`

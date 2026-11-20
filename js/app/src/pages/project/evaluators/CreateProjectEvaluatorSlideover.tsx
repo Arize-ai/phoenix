@@ -33,9 +33,7 @@ import {
   AttachProjectDecisionEvaluatorDialogContent,
   CreateProjectDecisionEvaluatorDialogContent,
 } from "@phoenix/pages/project/evaluators/ProjectDecisionEvaluatorDialogContent";
-import {
-  ProjectLlmEvaluatorWorkspace,
-} from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
+import { ProjectLlmEvaluatorWorkspace } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideover";
 import {
   DEFAULT_EVALUATION_DELAY_SECONDS,
@@ -161,6 +159,20 @@ function getProjectEvaluatorCreationTitle(
   return `Attach code evaluator “${creationMode.name}”`;
 }
 
+/** The creation modes that build a new LLM evaluator. */
+function isLlmCreationMode(
+  creationMode: ProjectEvaluatorCreationMode
+): creationMode is Extract<
+  ProjectEvaluatorCreationMode,
+  { kind: "scratch" | "copyLlm" | "template" }
+> {
+  return (
+    creationMode.kind === "scratch" ||
+    creationMode.kind === "copyLlm" ||
+    creationMode.kind === "template"
+  );
+}
+
 export const CreateProjectEvaluatorSlideover = ({
   projectId,
   creationMode,
@@ -175,6 +187,8 @@ export const CreateProjectEvaluatorSlideover = ({
   <ProjectEvaluatorSlideover
     {...props}
     title={getProjectEvaluatorCreationTitle(creationMode)}
+    // The LLM form is laid out as a workspace, which fills the viewport.
+    size={isLlmCreationMode(creationMode) ? "viewport" : "fullscreen"}
   >
     {(close, registerDirtyCheck) => (
       <CreateProjectEvaluatorDialogForMode
@@ -192,11 +206,7 @@ function CreateProjectEvaluatorDialogForMode(
   props: Parameters<typeof CreateProjectEvaluatorDialog>[0]
 ) {
   const { creationMode } = props;
-  if (
-    creationMode.kind === "scratch" ||
-    creationMode.kind === "copyLlm" ||
-    creationMode.kind === "template"
-  ) {
+  if (isLlmCreationMode(creationMode)) {
     const defaultMessages =
       creationMode.kind === "scratch"
         ? getSpanEvaluatorDefaultMessages()

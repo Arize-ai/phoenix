@@ -34,9 +34,7 @@ import type { EditProjectEvaluatorSlideoverUpdateCodeMutation } from "@phoenix/p
 import type { EditProjectEvaluatorSlideoverUpdateLlmMutation } from "@phoenix/pages/project/evaluators/__generated__/EditProjectEvaluatorSlideoverUpdateLlmMutation.graphql";
 import { ProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectCodeEvaluatorDialogContent";
 import { EditProjectDecisionEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectDecisionEvaluatorDialogContent";
-import {
-  ProjectLlmEvaluatorWorkspace,
-} from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
+import { ProjectLlmEvaluatorWorkspace } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import { convertProjectEvaluatorOutputConfigs } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
 import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideover";
 import {
@@ -97,7 +95,12 @@ export function EditProjectEvaluatorSlideover({
 } & Omit<ModalOverlayProps, "children">) {
   const title = getEditProjectEvaluatorTitle({ kind, name });
   return (
-    <ProjectEvaluatorSlideover {...props} title={title}>
+    <ProjectEvaluatorSlideover
+      {...props}
+      title={title}
+      // The LLM form is laid out as a workspace, which fills the viewport.
+      size={kind === "LLM" ? "viewport" : "fullscreen"}
+    >
       {(close, registerDirtyCheck) => (
         <EditProjectEvaluatorForm
           projectEvaluatorId={projectEvaluatorId}
