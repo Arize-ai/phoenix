@@ -1,4 +1,4 @@
-name: Factory Message Foreman
+name: Factory Foreman
 description: Slack Foreman with access to the Factory MCP tools.
 config:
   type: cloud

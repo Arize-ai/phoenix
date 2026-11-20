@@ -45,7 +45,7 @@ async function handleRequest(request: Request): Promise<Response> {
       throw new Error("Missing authenticated MCP context.");
     const authenticatedForeman = context.authInfo.clientId;
     const server = new McpServer({
-      name: "factory-message-service",
+      name: "factory-foreman",
       version: "0.1.0",
     });
     server.registerTool(

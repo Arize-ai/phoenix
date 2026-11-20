@@ -21,7 +21,7 @@ export async function withTemporaryPostgres<Result>(
   await new Promise<void>((resolve, reject) => {
     server.close((error) => (error ? reject(error) : resolve()));
   });
-  const directory = mkdtempSync(join(tmpdir(), "factory-message-service-"));
+  const directory = mkdtempSync(join(tmpdir(), "factory-foreman-"));
   const getBinary = (name: string): string =>
     process.env.POSTGRES_BIN ? join(process.env.POSTGRES_BIN, name) : name;
   let hasStarted = false;

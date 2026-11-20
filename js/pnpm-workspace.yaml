@@ -3,7 +3,7 @@ packages:
   - packages/*
   - examples/apps/*
   - benchmarks/*
-  - ../factory/message-service
+  - ../factory/foreman
 
 minimumReleaseAge: 2880
 minimumReleaseAgeExclude:

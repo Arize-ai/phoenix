@@ -15,7 +15,7 @@ on:
         description: Pull request number to review
         required: true
       message_request:
-        description: Factory message-service request context
+        description: Factory Foreman request context
         required: false
         type: string
 

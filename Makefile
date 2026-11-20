@@ -73,11 +73,11 @@ help: ## Show this help message
 	@echo -e "  $(YELLOW)dev$(NC)                   - Full dev environment (backend + frontend)"
 	@echo -e "  dev-backend            - Backend only (FastAPI server)"
 	@echo -e "  dev-frontend           - Frontend only (React dev server)"
-	@echo -e "  dev-factory-message-service - Factory Slack service on localhost:3109"
-	@echo -e "  test-factory-message-service - Unit tests and temporary Postgres integration tests"
-	@echo -e "  db-migrate-factory-message-service - Apply dbmate migrations"
-	@echo -e "  db-model-factory-message-service - Update the data model using temporary Postgres"
-	@echo -e "  db-types-factory-message-service - Generate Kysely types using temporary Postgres"
+	@echo -e "  dev-factory-foreman - Factory Foreman on localhost:3109"
+	@echo -e "  test-factory-foreman - Unit tests and temporary Postgres integration tests"
+	@echo -e "  db-migrate-factory-foreman - Apply dbmate migrations"
+	@echo -e "  db-model-factory-foreman - Update the data model using temporary Postgres"
+	@echo -e "  db-types-factory-foreman - Generate Kysely types using temporary Postgres"
 	@echo -e "  dev-docker             - Docker devops environment (use ARGS= for arguments)"
 	@echo -e "  dev-mock-llm           - Start the mock LLM server"
 	@echo -e ""
@@ -350,27 +350,27 @@ typecheck: typecheck-python typecheck-ts ## Type check all code (Python + TypeSc
 # Code Quality
 #=============================================================================
 
-.PHONY: dev-factory-message-service start-factory-message-service build-factory-message-service typecheck-factory-message-service lint-factory-message-service format-factory-message-service test-factory-message-service db-migrate-factory-message-service db-types-factory-message-service db-model-factory-message-service
+.PHONY: dev-factory-foreman start-factory-foreman build-factory-foreman typecheck-factory-foreman lint-factory-foreman format-factory-foreman test-factory-foreman db-migrate-factory-foreman db-types-factory-foreman db-model-factory-foreman
 
-dev-factory-message-service start-factory-message-service build-factory-message-service typecheck-factory-message-service lint-factory-message-service:
-	@cd $(JS_DIR) && $(PNPM) --filter phoenix-factory-message-service run $(patsubst %-factory-message-service,%,$@)
+dev-factory-foreman start-factory-foreman build-factory-foreman typecheck-factory-foreman lint-factory-foreman:
+	@cd $(JS_DIR) && $(PNPM) --filter phoenix-factory-foreman run $(patsubst %-factory-foreman,%,$@)
 
-format-factory-message-service:
-	@cd $(JS_DIR) && $(PNPM) --filter phoenix-factory-message-service run fmt
+format-factory-foreman:
+	@cd $(JS_DIR) && $(PNPM) --filter phoenix-factory-foreman run fmt
 
-test-factory-message-service:
-	@cd $(JS_DIR) && $(PNPM) --filter phoenix-factory-message-service run test
-	@cd $(JS_DIR) && $(PNPM) --filter phoenix-factory-message-service run test:integration
+test-factory-foreman:
+	@cd $(JS_DIR) && $(PNPM) --filter phoenix-factory-foreman run test
+	@cd $(JS_DIR) && $(PNPM) --filter phoenix-factory-foreman run test:integration
 	@$(UV) run --script factory/test_message_request.py
 
-db-migrate-factory-message-service:
-	@cd $(JS_DIR) && $(PNPM) --filter phoenix-factory-message-service run db:migrate
+db-migrate-factory-foreman:
+	@cd $(JS_DIR) && $(PNPM) --filter phoenix-factory-foreman run db:migrate
 
-db-model-factory-message-service:
-	@cd $(JS_DIR) && $(PNPM) --filter phoenix-factory-message-service run db:model
+db-model-factory-foreman:
+	@cd $(JS_DIR) && $(PNPM) --filter phoenix-factory-foreman run db:model
 
-db-types-factory-message-service:
-	@cd $(JS_DIR) && $(PNPM) --filter phoenix-factory-message-service run db:types
+db-types-factory-foreman:
+	@cd $(JS_DIR) && $(PNPM) --filter phoenix-factory-foreman run db:types
 
 format-python: ## Format Python code with ruff
 	@echo -e "$(CYAN)Formatting Python code...$(NC)"

@@ -1,4 +1,4 @@
-# Factory message service
+# Factory Foreman
 
 Talk to `@Foreman` in Slack.
 
@@ -29,13 +29,13 @@ From the repository root:
 
 ```sh
 make install-node
-make db-migrate-factory-message-service
-make dev-factory-message-service
+make db-migrate-factory-foreman
+make dev-factory-foreman
 ```
 
 Local development runs at `http://localhost:3109`; use HTTPS tunnels for external
 access. For deployment, replace the dev command with
-`make build-factory-message-service` and `make start-factory-message-service`.
+`make build-factory-foreman` and `make start-factory-foreman`.
 Restart after environment changes; unset inherited Anthropic credentials if they
 override `.env.local`.
 
@@ -50,10 +50,10 @@ reuse revokes the grant, including concurrent duplicate refreshes.
 ## Commands
 
 ```sh
-make format-factory-message-service
-make lint-factory-message-service
-make typecheck-factory-message-service
-make test-factory-message-service
-make db-types-factory-message-service
-make db-model-factory-message-service
+make format-factory-foreman
+make lint-factory-foreman
+make typecheck-factory-foreman
+make test-factory-foreman
+make db-types-factory-foreman
+make db-model-factory-foreman
 ```
