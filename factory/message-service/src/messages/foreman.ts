@@ -1,7 +1,7 @@
 import { getAnthropicClient } from "@/anthropic/client";
 import type { ServiceConfig } from "@/config";
 import { getDatabase } from "@/db/client";
-import { createMcpToken } from "@/mcp/auth";
+import { prepareMcpGrant } from "@/mcp/oauth";
 import { postThreadReply, readSlackThread } from "@/slack/client";
 import type { ThreadMessage } from "@/slack/events";
 import { getMcpConfig } from "@/workers/config";
@@ -46,17 +46,10 @@ export async function deliverThreadMessage({
     const vault = await client.beta.vaults.create({
       display_name: "Foreman MCP",
     });
+    const grant = await prepareMcpGrant();
     await client.beta.vaults.credentials.create(vault.id, {
       display_name: "Foreman MCP",
-      auth: {
-        type: "static_bearer",
-        mcp_server_url: mcp.FACTORY_MCP_URL,
-        token: createMcpToken({
-          workspace_id: message.workspaceId,
-          channel_id: message.channelId,
-          thread_timestamp: message.threadTimestamp,
-        }),
-      },
+      auth: grant.auth,
     });
     const session = await client.beta.sessions.create({
       agent: {
@@ -87,6 +80,10 @@ export async function deliverThreadMessage({
         thread_timestamp: message.threadTimestamp,
         session_id: session.id,
       })
+      .execute();
+    await transaction
+      .insertInto("mcp_oauth_grants")
+      .values({ ...grant.record, session_id: session.id })
       .execute();
     return { sessionId: session.id, context };
   });

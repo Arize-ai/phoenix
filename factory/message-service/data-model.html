@@ -403,6 +403,131 @@
           "triggers": []
         },
         {
+          "name": "mcp_oauth_grants",
+          "columns": [
+            {
+              "name": "id",
+              "type": "uuid",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "session_id",
+              "type": "text",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "session_kind",
+              "type": "text",
+              "nullable": false,
+              "default": "'foreman'::text"
+            },
+            {
+              "name": "resource",
+              "type": "text",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "client_secret_hash",
+              "type": "text",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "refresh_token_hash",
+              "type": "text",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "created_at",
+              "type": "timestamp with time zone",
+              "nullable": false,
+              "default": "now()"
+            },
+            {
+              "name": "expires_at",
+              "type": "timestamp with time zone",
+              "nullable": false,
+              "default": null
+            },
+            {
+              "name": "revoked_at",
+              "type": "timestamp with time zone",
+              "nullable": true,
+              "default": null
+            }
+          ],
+          "constraints": [
+            {
+              "type": "c",
+              "target": null,
+              "columns": ["expires_at", "created_at"],
+              "definition": "CHECK ((expires_at > created_at))",
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "target": null,
+              "columns": ["revoked_at", "created_at"],
+              "definition": "CHECK (((revoked_at IS NULL) OR (revoked_at >= created_at)))",
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "target": null,
+              "columns": ["client_secret_hash"],
+              "definition": "CHECK ((client_secret_hash ~ '^[0-9a-f]{64}$'::text))",
+              "targetColumns": []
+            },
+            {
+              "type": "p",
+              "target": null,
+              "columns": ["id"],
+              "definition": "PRIMARY KEY (id)",
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "target": null,
+              "columns": ["refresh_token_hash"],
+              "definition": "CHECK ((refresh_token_hash ~ '^[0-9a-f]{64}$'::text))",
+              "targetColumns": []
+            },
+            {
+              "type": "c",
+              "target": null,
+              "columns": ["resource"],
+              "definition": "CHECK ((btrim(resource) \u003c> ''::text))",
+              "targetColumns": []
+            },
+            {
+              "type": "u",
+              "target": null,
+              "columns": ["session_id"],
+              "definition": "UNIQUE (session_id)",
+              "targetColumns": []
+            },
+            {
+              "type": "f",
+              "target": "sessions",
+              "columns": ["session_id", "session_kind"],
+              "definition": "FOREIGN KEY (session_id, session_kind) REFERENCES sessions(id, kind) ON DELETE CASCADE",
+              "targetColumns": ["id", "kind"]
+            },
+            {
+              "type": "c",
+              "target": null,
+              "columns": ["session_kind"],
+              "definition": "CHECK ((session_kind = 'foreman'::text))",
+              "targetColumns": []
+            }
+          ],
+          "triggers": []
+        },
+        {
           "name": "pull_requests",
           "columns": [
             {
@@ -972,7 +1097,12 @@
       const issueLinkEnd = place("issues_sessions", 1040, 24);
       place("pull_requests_sessions", 1040, issueEnd + 92);
       const sessionEnd = place("sessions", 1550, 190);
-      place("slack_threads", 1550, Math.max(sessionEnd + 110, issueEnd + 92));
+      const threadEnd = place(
+        "slack_threads",
+        1550,
+        Math.max(sessionEnd + 110, issueEnd + 92)
+      );
+      place("mcp_oauth_grants", 1550, threadEnd + 110);
       const height =
         Math.max(
           ...[...positions.values()].map(

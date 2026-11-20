@@ -20,6 +20,7 @@ monitoring and completion.
 3. Configure public HTTPS endpoints: Slack events at `/api/slack/events`, MCP at
    `/api/mcp`, and the Anthropic webhook at `/api/anthropic/webhooks` for
    `session.status_idled` and `session.status_terminated`. Save its signing key.
+   Expose the MCP URL's `/oauth/token` and `/oauth/revoke` subpaths too.
 
 ## Run
 
@@ -41,6 +42,9 @@ Mention Foreman in a **new Slack thread**. Verify session discovery, reading, a
 worker follow-up and returned reply, then a start on a test issue/PR. Starts return
 a queued workflow link; admission failures are reported on GitHub. Start new
 threads after changing the MCP URL or signing secret.
+After this auth upgrade, use a new thread. Anthropic refreshes five-minute access
+tokens automatically; each revocable grant expires after 90 days. Refresh-token
+reuse revokes the grant, including concurrent duplicate refreshes.
 
 ## Commands
 

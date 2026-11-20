@@ -162,6 +162,9 @@ importers:
       '@slack/web-api':
         specifier: ^8.4.0
         version: 8.4.0
+      jose:
+        specifier: ^6.2.17
+        version: 6.2.17
       kysely:
         specifier: ^0.29.9
         version: 0.29.9

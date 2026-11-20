@@ -1,4 +1,5 @@
-import { authenticateForeman } from "@/mcp/auth";
+import { foremanTokenVerifier } from "@/mcp/auth";
+import { getMcpConfig } from "@/workers/config";
 import { WorkerError } from "@/workers/config";
 import { sendSessionMessage } from "@/workers/requests";
 import {
@@ -9,15 +10,19 @@ import {
 } from "@/workers/sessions";
 import { startSession, startSessionSchema } from "@/workers/start";
 import Anthropic from "@anthropic-ai/sdk";
-import { createMcpHandler, McpServer } from "@modelcontextprotocol/server";
+import {
+  createMcpHandler,
+  McpServer,
+  requireBearerAuth,
+} from "@modelcontextprotocol/server";
 import { z } from "zod";
 
 export const runtime = "nodejs";
 
 async function handleRequest(request: Request): Promise<Response> {
-  let foremanId: string | undefined;
+  let config;
   try {
-    foremanId = await authenticateForeman(request);
+    config = getMcpConfig();
   } catch (error) {
     if (!(error instanceof z.ZodError)) throw error;
     return Response.json(
@@ -25,10 +30,20 @@ async function handleRequest(request: Request): Promise<Response> {
       { status: 503 }
     );
   }
-  if (!foremanId)
-    return Response.json({ error: "Unauthorized." }, { status: 401 });
-  const authenticatedForeman = foremanId;
-  const handler = createMcpHandler(() => {
+  const origin = request.headers.get("origin");
+  if (origin && origin !== new URL(config.FACTORY_MCP_URL).origin)
+    return Response.json({ error: "Untrusted origin." }, { status: 403 });
+  const authenticate = requireBearerAuth({
+    verifier: foremanTokenVerifier,
+    requiredScopes: ["mcp"],
+    expectedResource: new URL(config.FACTORY_MCP_URL),
+  });
+  const authInfo = await authenticate(request);
+  if (authInfo instanceof Response) return authInfo;
+  const handler = createMcpHandler((context) => {
+    if (!context.authInfo)
+      throw new Error("Missing authenticated MCP context.");
+    const authenticatedForeman = context.authInfo.clientId;
     const server = new McpServer({
       name: "factory-message-service",
       version: "0.1.0",
@@ -101,7 +116,7 @@ async function handleRequest(request: Request): Promise<Response> {
     );
     return server;
   });
-  return handler.fetch(request);
+  return handler.fetch(request, { authInfo });
 }
 
 async function executeTool(

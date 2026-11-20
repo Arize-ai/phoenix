@@ -3,7 +3,7 @@ import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { POST as receiveMcpRequest } from "../src/app/api/mcp/route";
 import { getDatabase } from "../src/db/client";
-import { createMcpToken } from "../src/mcp/auth";
+import { prepareMcpGrant } from "../src/mcp/oauth";
 import { readSignedToken } from "../src/mcp/tokens";
 import type * as WorkerClient from "../src/workers/client";
 import {
@@ -89,17 +89,18 @@ beforeEach(async () => {
   }))
     vi.stubEnv(key, value);
   await pool.query("TRUNCATE slack_threads, sessions CASCADE");
-  token = createMcpToken({
-    workspace_id: "team",
-    channel_id: "channel",
-    thread_timestamp: "1",
-  });
   await pool.query(
     "INSERT INTO sessions(id,kind) VALUES ('foreman-a','foreman'),('foreman-b','foreman')"
   );
   await pool.query(
     "INSERT INTO slack_threads(workspace_id,channel_id,thread_timestamp,session_id) VALUES ('team','channel','1','foreman-a'),('team','channel','2','foreman-b')"
   );
+  const grant = await prepareMcpGrant();
+  await getDatabase()
+    .insertInto("mcp_oauth_grants")
+    .values({ ...grant.record, session_id: "foreman-a" })
+    .execute();
+  token = grant.auth.access_token;
   upstream.readThread.mockResolvedValue([
     { user_id: "alex", text: "Start a worker", message_timestamp: "1" },
   ]);
@@ -173,6 +174,14 @@ async function readRpc(response: Response): Promise<{
   return JSON.parse(data ?? "null");
 }
 
+function forgeCallerToken(token: string): string {
+  const [header, payload, signature] = token.split(".");
+  const claims: object = JSON.parse(
+    Buffer.from(payload, "base64url").toString()
+  );
+  return `${header}.${Buffer.from(JSON.stringify({ ...claims, sub: "forged" })).toString("base64url")}.${signature}`;
+}
+
 function forgeToken(token: string): string {
   const [payload, signature] = token.split(".");
   const claims: object = JSON.parse(
@@ -185,11 +194,11 @@ it("requires a signed Foreman token, rejecting shared secrets, altered claims, r
   for (const bearer of [
     "",
     "a".repeat(32),
-    forgeToken(token),
+    forgeCallerToken(token),
     replyLine().slice("REPLYING_TO: ".length),
   ])
     expect((await callMcp({ bearer })).status).toBe(401);
-  expect((await callMcp({ origin: "https://evil.example" })).status).toBe(401);
+  expect((await callMcp({ origin: "https://evil.example" })).status).toBe(403);
   const response = await callMcp();
   expect(response.status).toBe(200);
   expect(

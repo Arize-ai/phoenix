@@ -12,7 +12,7 @@ import {
 
 import type { ServiceConfig } from "../src/config";
 import { getDatabase } from "../src/db/client";
-import { createMcpToken } from "../src/mcp/auth";
+import { foremanTokenVerifier } from "../src/mcp/auth";
 import {
   deliverThreadMessage,
   relayForemanReply,
@@ -39,7 +39,9 @@ const upstream = vi.hoisted(() => ({
   })),
   post: vi.fn(async () => undefined),
   vault: vi.fn(async () => ({ id: "foreman-vault" })),
-  credential: vi.fn(async () => ({})),
+  credential: vi.fn(
+    async (_vaultId: string, _input: { auth: { access_token: string } }) => ({})
+  ),
 }));
 vi.mock("../src/anthropic/client", () => ({
   getAnthropicClient: () => ({
@@ -330,7 +332,7 @@ describe("persistent thread routing", () => {
     expect(upstream.send).not.toHaveBeenCalled();
   });
 
-  it("attaches a signed Foreman credential before sending the first message without adding routing state to Postgres", async () => {
+  it("provisions a refreshable OAuth credential before session creation and binds its durable grant to Foreman", async () => {
     await deliverThreadMessage({ message, config: createConfig() });
     expect(upstream.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -352,16 +354,31 @@ describe("persistent thread routing", () => {
       "foreman-vault",
       expect.objectContaining({
         auth: {
-          type: "static_bearer",
+          type: "mcp_oauth",
           mcp_server_url: "https://factory.example.com/api/mcp",
-          token: createMcpToken({
-            workspace_id: "workspace",
-            channel_id: "channel",
-            thread_timestamp: "100.000100",
-          }),
+          access_token: expect.any(String),
+          expires_at: expect.any(String),
+          refresh: {
+            client_id: expect.any(String),
+            refresh_token: expect.any(String),
+            token_endpoint: "https://factory.example.com/api/mcp/oauth/token",
+            token_endpoint_auth: {
+              type: "client_secret_basic",
+              client_secret: expect.any(String),
+            },
+            resource: "https://factory.example.com/api/mcp",
+            scope: "mcp",
+          },
         },
       })
     );
+    const accessToken = upstream.credential.mock.calls[0][1].auth.access_token;
+    expect(
+      await foremanTokenVerifier.verifyAccessToken(accessToken)
+    ).toMatchObject({ clientId: "foreman-test", scopes: ["mcp"] });
+    expect(
+      (await pool.query("SELECT session_id FROM mcp_oauth_grants")).rows
+    ).toEqual([{ session_id: "foreman-test" }]);
     expect(upstream.vault.mock.invocationCallOrder[0]).toBeLessThan(
       upstream.credential.mock.invocationCallOrder[0]
     );
@@ -378,6 +395,20 @@ describe("persistent thread routing", () => {
         )
       ).rows
     ).toEqual([]);
+  });
+
+  it("rolls back the OAuth grant and mapping if native session creation fails", async () => {
+    upstream.create.mockRejectedValueOnce(new Error("Native session failed"));
+    await expect(
+      deliverThreadMessage({ message, config: createConfig() })
+    ).rejects.toThrow("Native session failed");
+    expect((await pool.query("SELECT id FROM mcp_oauth_grants")).rows).toEqual(
+      []
+    );
+    expect(
+      (await pool.query("SELECT session_id FROM slack_threads")).rows
+    ).toEqual([]);
+    expect(upstream.send).not.toHaveBeenCalled();
   });
 
   it("ignores ordinary messages in untracked threads", async () => {

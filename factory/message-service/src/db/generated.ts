@@ -35,6 +35,18 @@ export interface IssuesSessions {
   session_kind: Generated<string>;
 }
 
+export interface McpOauthGrants {
+  client_secret_hash: string;
+  created_at: Generated<Timestamp>;
+  expires_at: Timestamp;
+  id: string;
+  refresh_token_hash: string;
+  resource: string;
+  revoked_at: Timestamp | null;
+  session_id: string;
+  session_kind: Generated<string>;
+}
+
 export interface PullRequests {
   author_id: Int8 | null;
   github_created_at: Timestamp;
@@ -83,6 +95,7 @@ export interface Users {
 export interface DB {
   issues: Issues;
   issues_sessions: IssuesSessions;
+  mcp_oauth_grants: McpOauthGrants;
   pull_requests: PullRequests;
   pull_requests_sessions: PullRequestsSessions;
   repositories: Repositories;
