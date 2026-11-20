@@ -70,6 +70,37 @@ async def test_get_empty_dataset(
     assert all(item in dataset_json.items() for item in fixture_values.items())
 
 
+async def test_get_dataset_without_versions(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        dataset = models.Dataset(
+            id=10,
+            name="new empty dataset",
+            description="has no versions",
+            metadata_={},
+        )
+        session.add(dataset)
+        await session.flush()
+
+    global_id = GlobalID("Dataset", str(10))
+    response = await httpx_client.get(f"/v1/datasets/{global_id}")
+    assert response.status_code == 200
+    dataset_json = response.json()["data"]
+
+    assert "created_at" in dataset_json
+    assert "updated_at" in dataset_json
+    fixture_values = {
+        "id": str(global_id),
+        "name": "new empty dataset",
+        "description": "has no versions",
+        "metadata": {},
+        "example_count": 0,
+    }
+    assert all(item in dataset_json.items() for item in fixture_values.items())
+
+
 async def test_get_dataset_with_revisions(
     httpx_client: httpx2.AsyncClient,
     dataset_with_revisions: Any,
