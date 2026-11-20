@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8af73d7a3c6aff37429c432ce6020150>>
+ * @generated SignedSource<<c04cbc44c52652099026324a0f657501>>
  * @lightSyntaxTransform
  */
 
@@ -148,6 +148,13 @@ return {
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
+                    "name": "isClearingTraces",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
                     "name": "gradientEndColor",
                     "storageKey": null
                   },
@@ -240,12 +247,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ca0df034be070fca2025c4f8922b9932",
+    "cacheID": "0f945539858e203c24a3368108e1613e",
     "id": null,
     "metadata": {},
     "name": "ProjectsPageQuery",
     "operationKind": "query",
-    "text": "query ProjectsPageQuery(\n  $first: Int\n  $sort: ProjectSort\n  $filter: ProjectFilter\n) {\n  ...ProjectsPageProjectsFragment_1bvy9D\n}\n\nfragment ProjectsPageProjectsFragment_1bvy9D on Query {\n  projects(first: $first, sort: $sort, filter: $filter) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n        endTime\n        startTime\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ProjectsPageQuery(\n  $first: Int\n  $sort: ProjectSort\n  $filter: ProjectFilter\n) {\n  ...ProjectsPageProjectsFragment_1bvy9D\n}\n\nfragment ProjectsPageProjectsFragment_1bvy9D on Query {\n  projects(first: $first, sort: $sort, filter: $filter) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        isClearingTraces\n        gradientEndColor\n        endTime\n        startTime\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

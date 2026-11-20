@@ -27,6 +27,7 @@ from phoenix.server.api.routers.agents import (
     _persist_db_traces_and_emit_event,
     _refresh_agent_session,
     _refresh_and_load_agent_session,
+    _resolve_agent_session_trace_project_id,
     _set_session_title_if_untitled,
     _SubagentMessageChunksClosed,
 )
@@ -626,3 +627,115 @@ class TestLoadPhoenixUserEmail:
             )
 
         assert email is None
+
+
+class TestResolveAgentSessionTraceProject:
+    async def test_session_binds_only_when_its_project_was_not_deleted_after_creation(
+        self, db: DbSessionFactory
+    ) -> None:
+        deleted_at = datetime(2024, 1, 10, tzinfo=timezone.utc)
+        name = "assistant_agent_reuse"
+        async with db() as session:
+            tombstone = models.Project(
+                name=name,
+                created_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                deleted_at=deleted_at,
+            )
+            before = models.AgentSession(
+                **_agent_session_model_kwargs(),
+                user_id=None,
+                title="before",
+                project_name=name,
+                created_at=deleted_at - timedelta(days=1),
+            )
+            after = models.AgentSession(
+                **_agent_session_model_kwargs(),
+                user_id=None,
+                title="after",
+                project_name=name,
+                created_at=deleted_at + timedelta(days=1),
+            )
+            session.add_all([tombstone, before, after])
+            await session.flush()
+            before_id, after_id = before.id, after.id
+
+        assert (
+            await _resolve_agent_session_trace_project_id(
+                db, agent_session_rowid=before_id, project_name=name
+            )
+            is None
+        )
+        bound = await _resolve_agent_session_trace_project_id(
+            db, agent_session_rowid=after_id, project_name=name
+        )
+        assert bound is not None
+        async with db() as session:
+            project = await session.get(models.Project, bound)
+            assert project is not None and project.deleted_at is None
+
+    async def test_session_does_not_recreate_or_rebind_after_bound_project_is_physically_purged(
+        self, db: DbSessionFactory
+    ) -> None:
+        from secrets import token_hex
+
+        from phoenix.db.helpers import SupportedSQLDialect
+        from phoenix.server.cleanup.coordinator import CleanupCoordinator
+        from phoenix.server.cleanup.lifecycle import admit_project_delete
+
+        dialect = SupportedSQLDialect(db.dialect.value)
+        name = f"assistant_purged_{token_hex(4)}"
+        async with db() as session:
+            agent_session = models.AgentSession(
+                **_agent_session_model_kwargs(),
+                user_id=None,
+                title="bound-then-purged",
+                project_name=name,
+            )
+            session.add(agent_session)
+            await session.flush()
+            session_id = agent_session.id
+
+        bound_project_id = await _resolve_agent_session_trace_project_id(
+            db, agent_session_rowid=session_id, project_name=name
+        )
+        assert bound_project_id is not None
+
+        async with db() as session:
+            await admit_project_delete(session, dialect=dialect, project_id=bound_project_id)
+
+        coordinator = CleanupCoordinator(db, batch_limit=10)
+        while await coordinator.run_one_step():
+            pass
+
+        async with db() as session:
+            assert await session.get(models.Project, bound_project_id) is None
+
+        assert (
+            await _resolve_agent_session_trace_project_id(
+                db, agent_session_rowid=session_id, project_name=name
+            )
+            is None
+        )
+        async with db() as session:
+            assert (
+                await session.scalar(select(models.Project.id).where(models.Project.name == name))
+                is None
+            )
+            recreated = models.Project(name=name, kind="STANDARD")
+            session.add(recreated)
+            await session.flush()
+            recreated_id = recreated.id
+
+        assert (
+            await _resolve_agent_session_trace_project_id(
+                db, agent_session_rowid=session_id, project_name=name
+            )
+            is None
+        )
+        async with db() as session:
+            refreshed = await session.get(models.AgentSession, session_id)
+            assert refreshed is not None
+            assert refreshed.project_id is None
+            refreshed_recreated = await session.get(models.Project, recreated_id)
+            assert refreshed_recreated is not None
+            assert refreshed_recreated.deleted_at is None

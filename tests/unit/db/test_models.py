@@ -1185,6 +1185,11 @@ class TestEvaluatorPolymorphism:
 
         # ===== DELETE: Remove an evaluator =====
         async with db() as session:
+            await session.execute(
+                sa.delete(models.DatasetEvaluators).where(
+                    models.DatasetEvaluators.evaluator_id == new_eval_id
+                )
+            )
             # Delete the newly created evaluator
             evaluator_to_delete = await session.get(models.LLMEvaluator, new_eval_id)
             assert evaluator_to_delete is not None

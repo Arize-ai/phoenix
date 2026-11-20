@@ -249,8 +249,7 @@ class TestChatCompletionSubscription:
             llm_client=cast(Any, Client()),
             repetition_number=1,
             db=db,
-            project_id=1,
-            on_span_insertion=lambda: None,
+            on_span_insertion=lambda _: None,
             span_cost_calculator=cast(Any, object()),
             otel_context=OtelContext(),
         )

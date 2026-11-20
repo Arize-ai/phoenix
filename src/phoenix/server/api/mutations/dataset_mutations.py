@@ -1,4 +1,3 @@
-import asyncio
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -8,17 +7,16 @@ import strawberry
 from openinference.semconv.trace import (
     SpanAttributes,
 )
-from sqlalchemy import delete, func, insert, select, update
+from sqlalchemy import func, insert, select, update
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import contains_eager, joinedload
+from sqlalchemy.orm import contains_eager
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
 from strawberry.relay.types import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
-from phoenix.db.helpers import get_eval_trace_ids_for_datasets, get_project_names_for_datasets
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
@@ -49,8 +47,8 @@ from phoenix.server.api.types.DatasetExampleRevision import DatasetExampleRevisi
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
-from phoenix.server.api.utils import delete_projects, delete_traces
-from phoenix.server.dml_event import DatasetDeleteEvent, DatasetInsertEvent
+from phoenix.server.cleanup.lifecycle import execute_dataset_delete
+from phoenix.server.dml_event import DatasetInsertEvent
 
 _MAX_REPORTED_EXTERNAL_ID_CONFLICTS = 10
 _MAX_REPORTED_EXAMPLE_IDS = 10
@@ -272,6 +270,8 @@ class DatasetMutationMixin:
                 (
                     await session.scalars(
                         select(models.Span)
+                        .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+                        .join(models.Project, models.Trace.project_rowid == models.Project.id)
                         .outerjoin(
                             models.SpanAnnotation,
                             models.Span.id == models.SpanAnnotation.span_rowid,
@@ -282,9 +282,12 @@ class DatasetMutationMixin:
                             models.SpanAnnotation.name,
                             models.User.username,
                         )
-                        .where(models.Span.id.in_(span_rowids))
+                        .where(
+                            models.Span.id.in_(span_rowids),
+                            models.Project.deleted_at.is_(None),
+                        )
                         .options(
-                            joinedload(models.Span.trace),
+                            contains_eager(models.Span.trace),
                             contains_eager(models.Span.span_annotations).contains_eager(
                                 models.SpanAnnotation.user
                             ),
@@ -372,13 +375,21 @@ class DatasetMutationMixin:
             )
 
             # Fetch spans and span annotations
-            spans = (
-                await session.execute(
-                    select(models.Span.id)
-                    .select_from(models.Span)
-                    .where(models.Span.id.in_(span_rowids))
-                )
-            ).all()
+            live_span_rowids = set(
+                (
+                    await session.scalars(
+                        select(models.Span.id)
+                        .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+                        .join(models.Project, models.Trace.project_rowid == models.Project.id)
+                        .where(
+                            models.Span.id.in_(span_rowids),
+                            models.Project.deleted_at.is_(None),
+                        )
+                    )
+                ).all()
+            )
+            if span_rowids - live_span_rowids:
+                raise NotFound("Some spans could not be found")
 
             span_annotations = (
                 await session.execute(
@@ -392,11 +403,13 @@ class DatasetMutationMixin:
                         models.SpanAnnotation.annotator_kind,
                     )
                     .select_from(models.SpanAnnotation)
-                    .where(models.SpanAnnotation.span_rowid.in_(span_rowids))
+                    .where(models.SpanAnnotation.span_rowid.in_(live_span_rowids))
                 )
             ).all()
 
-            span_annotations_by_span: dict[int, dict[Any, Any]] = {span.id: {} for span in spans}
+            span_annotations_by_span: dict[int, dict[Any, Any]] = {
+                span_rowid: {} for span_rowid in live_span_rowids
+            }
             for annotation in span_annotations:
                 span_id = annotation.span_rowid
                 if span_id not in span_annotations_by_span:
@@ -482,23 +495,19 @@ class DatasetMutationMixin:
             )
         except ValueError:
             raise NotFound(f"Unknown dataset: {input.dataset_id}")
-        project_names_stmt = get_project_names_for_datasets(dataset_id)
-        eval_trace_ids_stmt = get_eval_trace_ids_for_datasets(dataset_id)
-        stmt = (
-            delete(models.Dataset).where(models.Dataset.id == dataset_id).returning(models.Dataset)
+        try:
+            deleted = await execute_dataset_delete(
+                db=info.context.db,
+                dataset_id=dataset_id,
+                experiment_runner=getattr(info.context, "experiment_runner", None),
+                event_queue=info.context.event_queue,
+                wake_cleanup_worker=info.context.wake_cleanup_worker,
+            )
+        except NotFound as error:
+            raise NotFound(f"Unknown dataset: {input.dataset_id}") from error
+        return DatasetMutationPayload(
+            dataset=Dataset(id=deleted.dataset.id, db_record=deleted.dataset)
         )
-        async with info.context.db() as session:
-            project_names = await session.scalars(project_names_stmt)
-            eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
-            if not (dataset := await session.scalar(stmt)):
-                raise NotFound(f"Unknown dataset: {input.dataset_id}")
-        await asyncio.gather(
-            delete_projects(info.context.db, *project_names),
-            delete_traces(info.context.db, *eval_trace_ids),
-            return_exceptions=True,
-        )
-        info.context.event_queue.put(DatasetDeleteEvent((dataset.id,)))
-        return DatasetMutationPayload(dataset=Dataset(id=dataset.id, db_record=dataset))
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def patch_dataset_examples(

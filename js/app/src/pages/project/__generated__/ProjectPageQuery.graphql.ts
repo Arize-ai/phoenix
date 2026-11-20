@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4f484273652b577bbeb134b69c29e6bc>>
+ * @generated SignedSource<<cafdaf17baf883780c325307f6d7be8b>>
  * @lightSyntaxTransform
  */
 
@@ -15,6 +15,7 @@ export type ProjectPageQuery$variables = {
 export type ProjectPageQuery$data = {
   readonly project: {
     readonly evaluatorCount?: number;
+    readonly isClearingTraces?: boolean;
     readonly " $fragmentSpreads": FragmentRefs<"ProjectOnboardingOverlay_project" | "ProjectTimeRangeControls_data">;
   };
 };
@@ -44,6 +45,13 @@ v2 = {
   "kind": "ScalarField",
   "name": "evaluatorCount",
   "storageKey": null
+},
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "isClearingTraces",
+  "storageKey": null
 };
 return {
   "fragment": {
@@ -64,6 +72,7 @@ return {
             "kind": "InlineFragment",
             "selections": [
               (v2/*:: as any*/),
+              (v3/*:: as any*/),
               {
                 "args": null,
                 "kind": "FragmentSpread",
@@ -117,6 +126,7 @@ return {
             "kind": "InlineFragment",
             "selections": [
               (v2/*:: as any*/),
+              (v3/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -148,16 +158,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0bad4c2aa346f310f21f0550e38d793a",
+    "cacheID": "6ebd21c7f0937ed1411885208fb4ec24",
     "id": null,
     "metadata": {},
     "name": "ProjectPageQuery",
     "operationKind": "query",
-    "text": "query ProjectPageQuery(\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      evaluatorCount\n      ...ProjectTimeRangeControls_data\n      ...ProjectOnboardingOverlay_project\n    }\n    id\n  }\n}\n\nfragment ProjectOnboardingOverlay_project on Project {\n  name\n  hasTraces\n  id\n}\n\nfragment ProjectTimeRangeControls_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n"
+    "text": "query ProjectPageQuery(\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      evaluatorCount\n      isClearingTraces\n      ...ProjectTimeRangeControls_data\n      ...ProjectOnboardingOverlay_project\n    }\n    id\n  }\n}\n\nfragment ProjectOnboardingOverlay_project on Project {\n  name\n  hasTraces\n  id\n}\n\nfragment ProjectTimeRangeControls_data on Project {\n  streamingLastUpdatedAt\n  isClearingTraces\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ba25e5fb00e9fd1caf324b162168fc5d";
+(node as any).hash = "94063a809350fd0b6b980c4e386a7302";
 
 export default node;

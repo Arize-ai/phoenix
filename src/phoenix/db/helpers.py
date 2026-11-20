@@ -6,7 +6,6 @@ from typing import Any, Literal, Optional, Sequence, TypeVar, TypeVarTuple, Unio
 
 import sqlalchemy as sa
 from sqlalchemy import (
-    ColumnElement,
     Insert,
     Select,
     SQLColumnExpression,
@@ -15,7 +14,6 @@ from sqlalchemy import (
     and_,
     case,
     column,
-    distinct,
     exists,
     func,
     insert,
@@ -30,10 +28,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import QueryableAttribute, aliased
 from sqlalchemy.sql.roles import InElementRole
 from sqlalchemy.sql.selectable import CTE, Subquery
-from typing_extensions import TypeAlias, assert_never
+from typing_extensions import assert_never
 
 from phoenix.config import (
-    PLAYGROUND_PROJECT_NAME,
     get_env_database_schema,
 )
 from phoenix.datetime_utils import TimeBinUnit, multi_unit_time_bin_params
@@ -156,36 +153,40 @@ def _latest_code_evaluator_versions_sqlite_stmt(keys: list[int]) -> Select[*tupl
 
 def get_eval_trace_ids_for_datasets(*dataset_ids: int) -> Select[Optional[str]]:
     return (
-        select(distinct(models.ExperimentRunAnnotation.trace_id))
+        select(models.ExperimentRunAnnotation.trace_id)
+        .distinct()
         .join(models.ExperimentRun)
         .join_from(models.ExperimentRun, models.Experiment)
-        .where(models.Experiment.dataset_id.in_(set(dataset_ids)))
-        .where(models.ExperimentRunAnnotation.trace_id.isnot(None))
-    )
-
-
-def get_project_names_for_datasets(*dataset_ids: int) -> Select[Optional[str]]:
-    return (
-        select(distinct(models.Experiment.project_name))
-        .where(models.Experiment.dataset_id.in_(set(dataset_ids)))
-        .where(models.Experiment.project_name.isnot(None))
+        .join(
+            models.Trace,
+            models.Trace.trace_id == models.ExperimentRunAnnotation.trace_id,
+        )
+        .join(models.Project, models.Project.id == models.Trace.project_rowid)
+        .where(
+            models.Experiment.dataset_id.in_(set(dataset_ids)),
+            models.ExperimentRunAnnotation.trace_id.isnot(None),
+            models.Project.deleted_at.is_(None),
+            models.Project.kind != "EVALUATOR",
+        )
     )
 
 
 def get_eval_trace_ids_for_experiments(*experiment_ids: int) -> Select[Optional[str]]:
     return (
-        select(distinct(models.ExperimentRunAnnotation.trace_id))
+        select(models.ExperimentRunAnnotation.trace_id)
+        .distinct()
         .join(models.ExperimentRun)
-        .where(models.ExperimentRun.experiment_id.in_(set(experiment_ids)))
-        .where(models.ExperimentRunAnnotation.trace_id.isnot(None))
-    )
-
-
-def get_project_names_for_experiments(*experiment_ids: int) -> Select[Optional[str]]:
-    return (
-        select(distinct(models.Experiment.project_name))
-        .where(models.Experiment.id.in_(set(experiment_ids)))
-        .where(models.Experiment.project_name.isnot(None))
+        .join(
+            models.Trace,
+            models.Trace.trace_id == models.ExperimentRunAnnotation.trace_id,
+        )
+        .join(models.Project, models.Project.id == models.Trace.project_rowid)
+        .where(
+            models.ExperimentRun.experiment_id.in_(set(experiment_ids)),
+            models.ExperimentRunAnnotation.trace_id.isnot(None),
+            models.Project.deleted_at.is_(None),
+            models.Project.kind != "EVALUATOR",
+        )
     )
 
 
@@ -426,84 +427,33 @@ _Ts = TypeVarTuple("_Ts")
 def exclude_experiment_projects(
     stmt: Select[*_Ts],
 ) -> Select[*_Ts]:
-    return stmt.outerjoin(
-        models.Experiment,
-        and_(
-            models.Project.name == models.Experiment.project_name,
-            models.Experiment.project_name != PLAYGROUND_PROJECT_NAME,
-        ),
-    ).where(models.Experiment.project_name.is_(None))
+    return stmt.where(models.Project.kind != "EXPERIMENT")
 
 
 def exclude_dataset_evaluator_projects(
     stmt: Select[*_Ts],
 ) -> Select[*_Ts]:
-    return stmt.outerjoin(
-        models.DatasetEvaluators,
-        models.Project.id == models.DatasetEvaluators.project_id,
-    ).where(models.DatasetEvaluators.project_id.is_(None))
+    return stmt.where(
+        or_(
+            models.Project.kind != "EVALUATOR",
+            select(models.ProjectEvaluator.id)
+            .where(models.ProjectEvaluator.trace_project_id == models.Project.id)
+            .exists(),
+        )
+    )
 
 
 def exclude_project_evaluator_trace_projects(
     stmt: Select[*_Ts],
 ) -> Select[*_Ts]:
-    return stmt.outerjoin(
-        models.ProjectEvaluator,
-        models.Project.id == models.ProjectEvaluator.trace_project_id,
-    ).where(models.ProjectEvaluator.trace_project_id.is_(None))
-
-
-ProjectKind: TypeAlias = Literal["STANDARD", "PLAYGROUND", "EXPERIMENT", "EVALUATOR"]
-
-
-def project_kind_expression() -> ColumnElement[ProjectKind]:
-    """
-    A correlated expression that classifies each project by what writes its traces.
-
-    A project is PLAYGROUND when it is the prompt playground project, EVALUATOR when it holds
-    the traces of a dataset evaluator or a project evaluator, EXPERIMENT when an experiment
-    records its runs in it, and STANDARD otherwise. The first matching kind wins.
-    """
-    is_evaluator_project = or_(
-        select(models.DatasetEvaluators.id)
-        .where(models.DatasetEvaluators.project_id == models.Project.id)
-        .exists(),
-        select(models.ProjectEvaluator.id)
-        .where(models.ProjectEvaluator.trace_project_id == models.Project.id)
-        .exists(),
-    )
-    is_experiment_project = (
-        select(models.Experiment.id)
-        .where(models.Experiment.project_name == models.Project.name)
-        .exists()
-    )
-    return case(
-        (models.Project.name == PLAYGROUND_PROJECT_NAME, literal("PLAYGROUND")),
-        (is_evaluator_project, literal("EVALUATOR")),
-        (is_experiment_project, literal("EXPERIMENT")),
-        else_=literal("STANDARD"),
-    )
-
-
-async def delete_projects_and_evaluator_trace_projects(
-    session: AsyncSession,
-    project_ids: Iterable[int],
-) -> None:
-    ids = set(project_ids)
-    if not ids:
-        return
-    trace_project_ids = (
-        await session.scalars(
-            select(models.ProjectEvaluator.trace_project_id).where(
-                models.ProjectEvaluator.project_id.in_(ids)
-            )
+    return stmt.where(
+        or_(
+            models.Project.kind != "EVALUATOR",
+            select(models.DatasetEvaluators.id)
+            .where(models.DatasetEvaluators.project_id == models.Project.id)
+            .exists(),
         )
-    ).all()
-    await session.execute(sa.delete(models.Project).where(models.Project.id.in_(ids)))
-    if trace_project_ids:
-        await session.execute(
-            sa.delete(models.Project).where(models.Project.id.in_(trace_project_ids))
-        )
+    )
 
 
 def date_trunc(

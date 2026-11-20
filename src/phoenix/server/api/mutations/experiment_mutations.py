@@ -1,4 +1,3 @@
-import asyncio
 from datetime import datetime, timezone
 
 import strawberry
@@ -12,7 +11,7 @@ from strawberry.types import Info
 
 from phoenix.config import EXPERIMENT_TOGGLE_COOLDOWN
 from phoenix.db import models
-from phoenix.db.helpers import get_eval_trace_ids_for_experiments, get_project_names_for_experiments
+from phoenix.db.helpers import SupportedSQLDialect, get_eval_trace_ids_for_experiments
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, CustomGraphQLError
@@ -28,8 +27,9 @@ from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
 from phoenix.server.api.types.ExperimentJob import ExperimentJob
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.utils import delete_projects, delete_traces
-from phoenix.server.dml_event import ExperimentDeleteEvent
+from phoenix.server.api.utils import delete_traces
+from phoenix.server.cleanup.lifecycle import admit_exclusive_experiment_projects_delete
+from phoenix.server.dml_event import ExperimentDeleteEvent, ProjectDeleteEvent, SpanDeleteEvent
 
 
 @strawberry.type
@@ -349,11 +349,15 @@ class ExperimentMutationMixin:
         # harmless since the experiment is being deleted anyway.
         for exp_id in experiment_ids:
             await info.context.experiment_runner.stop_experiment(exp_id)
-        project_names_stmt = get_project_names_for_experiments(*experiment_ids)
+        dialect = SupportedSQLDialect(info.context.db.dialect.value)
         eval_trace_ids_stmt = get_eval_trace_ids_for_experiments(*experiment_ids)
+        enqueued_projects: list[int] = []
         async with info.context.db() as session:
-            project_names = await session.scalars(project_names_stmt)
-            eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
+            eval_trace_ids = [
+                trace_id
+                for trace_id in (await session.scalars(eval_trace_ids_stmt)).all()
+                if trace_id
+            ]
             savepoint = await session.begin_nested()
             experiments = {
                 experiment.id: experiment
@@ -377,11 +381,26 @@ class ExperimentMutationMixin:
                         ]
                     )
                 )
-        await asyncio.gather(
-            delete_projects(info.context.db, *project_names),
-            delete_traces(info.context.db, *eval_trace_ids),
-            return_exceptions=True,
-        )
+            candidate_project_ids = {
+                exp.project_id for exp in experiments.values() if exp.project_id is not None
+            }
+            if candidate_project_ids:
+                enqueued_projects = await admit_exclusive_experiment_projects_delete(
+                    session,
+                    dialect=dialect,
+                    candidate_project_ids=candidate_project_ids,
+                )
+        if enqueued_projects:
+            tombstoned_ids = tuple(enqueued_projects)
+            info.context.event_queue.put(SpanDeleteEvent(tombstoned_ids))
+            info.context.event_queue.put(ProjectDeleteEvent(tombstoned_ids))
+            info.context.wake_cleanup_worker()
+        if eval_trace_ids:
+            await delete_traces(
+                info.context.db,
+                *eval_trace_ids,
+                event_queue=info.context.event_queue,
+            )
         info.context.event_queue.put(ExperimentDeleteEvent(tuple(experiments.keys())))
         return ExperimentMutationPayload(
             experiments=[

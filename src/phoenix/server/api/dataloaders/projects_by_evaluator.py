@@ -29,12 +29,17 @@ class ProjectsByEvaluatorDataLoader(DataLoader[Key, Result]):
                     models.Project,
                     models.ProjectEvaluator.project_id == models.Project.id,
                 )
-                .where(models.ProjectEvaluator.evaluator_id.in_(keys))
+                .where(
+                    models.ProjectEvaluator.evaluator_id.in_(keys),
+                    models.ProjectEvaluator.deleted_at.is_(None),
+                    models.Project.deleted_at.is_(None),
+                )
                 .distinct()
                 .order_by(models.Project.name.asc())
             )
             for row in await session.execute(stmt):
                 evaluator_id, project = row
-                projects_by_evaluator[evaluator_id].append(project)
+                if evaluator_id is not None:
+                    projects_by_evaluator[evaluator_id].append(project)
 
         return [projects_by_evaluator.get(key, []) for key in keys]

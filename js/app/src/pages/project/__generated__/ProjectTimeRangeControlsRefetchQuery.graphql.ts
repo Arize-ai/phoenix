@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<282ab308504933eaaf5b7ef65bf21ded>>
+ * @generated SignedSource<<314335bec43904b3875a0260a8261baa>>
  * @lightSyntaxTransform
  */
 
@@ -101,6 +101,13 @@ return {
                 "kind": "ScalarField",
                 "name": "streamingLastUpdatedAt",
                 "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "isClearingTraces",
+                "storageKey": null
               }
             ],
             "type": "Project",
@@ -112,16 +119,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0b8a37799ef4da27d1fd19012ab0bd24",
+    "cacheID": "f2f9adf1e83304fa66b7928657ee0775",
     "id": null,
     "metadata": {},
     "name": "ProjectTimeRangeControlsRefetchQuery",
     "operationKind": "query",
-    "text": "query ProjectTimeRangeControlsRefetchQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectTimeRangeControls_data\n    id\n  }\n}\n\nfragment ProjectTimeRangeControls_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n"
+    "text": "query ProjectTimeRangeControlsRefetchQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectTimeRangeControls_data\n    id\n  }\n}\n\nfragment ProjectTimeRangeControls_data on Project {\n  streamingLastUpdatedAt\n  isClearingTraces\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "401b5dd6a1381f66c736661d739d069e";
+(node as any).hash = "82ed3c1fea90c3757e5c182c122f42f4";
 
 export default node;

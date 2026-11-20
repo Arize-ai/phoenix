@@ -205,7 +205,7 @@ class ProjectSessionAnnotationMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
     async def delete_project_session_notes(
         self, info: Info[Context, None], input: DeleteAnnotationsInput
     ) -> ProjectSessionAnnotationsMutationPayload:

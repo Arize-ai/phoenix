@@ -2434,9 +2434,14 @@ input DeleteDatasetEvaluatorsInput {
   datasetEvaluatorIds: [ID!]!
 
   """
-  Also delete each LLM evaluator's prompt when no other evaluator references it. Off by default so that a prompt adopted from the prompt hub survives the binding.
+  Delete each binding's underlying evaluator definition when no live binding still references it. Set to false to detach the bindings while keeping shared definitions.
   """
-  deleteAssociatedPrompt: Boolean! = false
+  deleteUnusedEvaluator: Boolean! = true
+
+  """
+  Also delete each LLM evaluator's prompt or decision evaluator's decision when no other evaluator references it. A prompt or decision still used by another evaluator is always kept. Set to false to keep unused ones too.
+  """
+  deleteUnusedPromptOrDecision: Boolean! = true
 }
 
 type DeleteDatasetEvaluatorsPayload {
@@ -2546,9 +2551,14 @@ input DeleteProjectEvaluatorsInput {
   projectEvaluatorIds: [ID!]!
 
   """
-  Also delete each LLM evaluator's prompt when no other evaluator references it. Off by default so that a prompt adopted from the prompt hub survives the binding.
+  Delete each binding's underlying evaluator definition when no live binding still references it. Set to false to detach the bindings while keeping shared definitions.
   """
-  deleteAssociatedPrompt: Boolean! = false
+  deleteUnusedEvaluator: Boolean! = true
+
+  """
+  Also delete each LLM evaluator's prompt or decision evaluator's decision when no other evaluator references it. A prompt or decision still used by another evaluator is always kept. Set to false to keep unused ones too.
+  """
+  deleteUnusedPromptOrDecision: Boolean! = true
 }
 
 type DeleteProjectEvaluatorsPayload {
@@ -4801,6 +4811,9 @@ type Project implements Node {
 
   """Whether the project has any trace data."""
   hasTraces: Boolean!
+
+  """Whether a background clear of the project's traces is in progress."""
+  isClearingTraces: Boolean!
 
   """
   Number of spans in the project. sessionFilterCondition restricts the result to the sessions matching a session filter expression (see sessionFilterVocabulary). It is an expression, not a substring of the session's input/output.

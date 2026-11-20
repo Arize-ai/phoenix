@@ -1500,7 +1500,7 @@ async def create_spans(
     except Exception:
         project_name = project_identifier
     else:
-        stmt = select(models.Project).filter_by(id=id_)
+        stmt = select(models.Project).filter_by(id=id_).where(models.Project.deleted_at.is_(None))
         async with request.app.state.db() as session:
             project = await session.scalar(stmt)
         if project is None:
@@ -1574,7 +1574,6 @@ async def create_spans(
 
 @router.delete(
     "/spans/{span_identifier}",
-    dependencies=[Depends(is_not_locked)],
     operation_id="deleteSpan",
     summary="Delete a span by span_identifier",
     description=(
@@ -1639,7 +1638,12 @@ async def delete_span(
             predicate = models.Span.span_id == span_identifier
             error_detail = f"Span with span_id '{span_identifier}' not found"
 
-        target_span = await session.scalar(select(models.Span).where(predicate))
+        target_span = await session.scalar(
+            select(models.Span)
+            .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+            .join(models.Project, models.Trace.project_rowid == models.Project.id)
+            .where(predicate, models.Project.deleted_at.is_(None))
+        )
 
         if target_span is None:
             raise HTTPException(
@@ -1647,7 +1651,17 @@ async def delete_span(
                 detail=error_detail,
             )
 
-        await delete_spans(session, models.Span.id == target_span.id)
+        await delete_spans(
+            session,
+            sa.and_(
+                models.Span.id == target_span.id,
+                exists().where(
+                    models.Trace.id == models.Span.trace_rowid,
+                    models.Project.id == models.Trace.project_rowid,
+                    models.Project.deleted_at.is_(None),
+                ),
+            ),
+        )
 
         # Store values needed for later operations
         trace_rowid = target_span.trace_rowid

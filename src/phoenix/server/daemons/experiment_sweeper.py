@@ -4,12 +4,25 @@ import logging
 import random
 from asyncio import sleep
 from datetime import datetime, timedelta, timezone
+from typing import Callable, Optional
 
 import sqlalchemy as sa
 
 from phoenix.config import EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS
 from phoenix.db import models
-from phoenix.server.types import DaemonTask, DbSessionFactory
+from phoenix.db.helpers import SupportedSQLDialect, get_eval_trace_ids_for_experiments
+from phoenix.server.cleanup.lifecycle import (
+    admit_exclusive_experiment_projects_delete,
+    delete_standalone_traces_by_trace_id,
+)
+from phoenix.server.cleanup.primitives import CLEANUP_BATCH_ROWS
+from phoenix.server.dml_event import (
+    DmlEvent,
+    ExperimentDeleteEvent,
+    ProjectDeleteEvent,
+    SpanDeleteEvent,
+)
+from phoenix.server.types import CanPutItem, DaemonTask, DbSessionFactory
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +37,17 @@ class ExperimentSweeper(DaemonTask):
     projects and traces.
     """
 
-    def __init__(self, db: DbSessionFactory) -> None:
+    def __init__(
+        self,
+        db: DbSessionFactory,
+        *,
+        event_queue: Optional[CanPutItem[DmlEvent]] = None,
+        wake_cleanup_worker: Callable[[], None] = lambda: None,
+    ) -> None:
         super().__init__()
         self._db = db
+        self._event_queue = event_queue
+        self._wake_cleanup_worker = wake_cleanup_worker
 
     async def _run(self) -> None:
         while self._running:
@@ -40,30 +61,70 @@ class ExperimentSweeper(DaemonTask):
         cutoff = datetime.now(timezone.utc) - timedelta(
             hours=EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS
         )
-        stmt = (
-            sa.delete(models.Experiment)
-            .where(models.Experiment.is_ephemeral.is_(True))
-            .where(models.Experiment.updated_at < cutoff)
-            .returning(models.Experiment.project_name)
-        )
+        dialect = SupportedSQLDialect(self._db.dialect.value)
+        deleted_experiment_ids: list[int] = []
+        eval_trace_ids: list[str] = []
+        enqueued_projects: list[int] = []
         async with self._db() as session:
-            project_names = (await session.scalars(stmt)).all()
-            num_deleted = len(project_names)
-            non_null_project_names = {
-                project_name for project_name in project_names if project_name
-            }
-            if non_null_project_names:
-                # Only delete projects that have no remaining experiments (ephemeral or
-                # non-ephemeral) referencing them.
-                no_experiment_refs = ~sa.exists(
-                    sa.select(1)
-                    .select_from(models.Experiment)
-                    .where(models.Experiment.project_name == models.Project.name)
+            candidate_stmt = (
+                sa.select(models.Experiment.id)
+                .where(
+                    models.Experiment.is_ephemeral.is_(True),
+                    models.Experiment.updated_at < cutoff,
                 )
-                await session.execute(
-                    sa.delete(models.Project)
-                    .where(models.Project.name.in_(non_null_project_names))
-                    .where(no_experiment_refs)
+                .order_by(models.Experiment.id.asc())
+            )
+            if dialect is SupportedSQLDialect.POSTGRESQL:
+                candidate_stmt = candidate_stmt.with_for_update(skip_locked=True)
+            candidate_experiment_ids = [
+                int(experiment_id)
+                for experiment_id in (await session.scalars(candidate_stmt)).all()
+            ]
+            if not candidate_experiment_ids:
+                return
+
+            candidate_project_ids: set[int] = set()
+            for chunk_start in range(0, len(candidate_experiment_ids), CLEANUP_BATCH_ROWS):
+                chunk_ids = candidate_experiment_ids[chunk_start : chunk_start + CLEANUP_BATCH_ROWS]
+                chunk_eval_trace_ids = (
+                    await session.scalars(get_eval_trace_ids_for_experiments(*chunk_ids))
+                ).all()
+                eval_trace_ids.extend(trace_id for trace_id in chunk_eval_trace_ids if trace_id)
+                deleted_rows = (
+                    await session.execute(
+                        sa.delete(models.Experiment)
+                        .where(
+                            models.Experiment.id.in_(chunk_ids),
+                            models.Experiment.is_ephemeral.is_(True),
+                            models.Experiment.updated_at < cutoff,
+                        )
+                        .returning(models.Experiment.id, models.Experiment.project_id)
+                    )
+                ).all()
+                for row in deleted_rows:
+                    deleted_experiment_ids.append(int(row.id))
+                    if row.project_id is not None:
+                        candidate_project_ids.add(int(row.project_id))
+
+            if candidate_project_ids:
+                enqueued_projects = await admit_exclusive_experiment_projects_delete(
+                    session,
+                    dialect=dialect,
+                    candidate_project_ids=candidate_project_ids,
                 )
-        if num_deleted:
-            logger.info(f"Deleted {num_deleted} ephemeral experiment(s).")
+        if enqueued_projects:
+            if self._event_queue is not None:
+                tombstoned_ids = tuple(enqueued_projects)
+                self._event_queue.put(SpanDeleteEvent(tombstoned_ids))
+                self._event_queue.put(ProjectDeleteEvent(tombstoned_ids))
+            self._wake_cleanup_worker()
+        if eval_trace_ids:
+            await delete_standalone_traces_by_trace_id(
+                self._db,
+                eval_trace_ids,
+                event_queue=self._event_queue,
+            )
+        if deleted_experiment_ids:
+            if self._event_queue is not None:
+                self._event_queue.put(ExperimentDeleteEvent(tuple(deleted_experiment_ids)))
+            logger.info(f"Deleted {len(deleted_experiment_ids)} ephemeral experiment(s).")

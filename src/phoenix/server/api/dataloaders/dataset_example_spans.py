@@ -1,7 +1,7 @@
 from typing import Optional
 
 from sqlalchemy import select
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import contains_eager
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
@@ -27,12 +27,13 @@ class DatasetExampleSpansDataLoader(DataLoader[Key, Result]):
                     select(models.DatasetExample.id, models.Span)
                     .select_from(models.DatasetExample)
                     .join(models.Span, models.DatasetExample.span_rowid == models.Span.id)
-                    .where(models.DatasetExample.id.in_(example_ids))
-                    .options(
-                        joinedload(models.Span.trace, innerjoin=True).load_only(
-                            models.Trace.trace_id
-                        )
+                    .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+                    .join(models.Project, models.Trace.project_rowid == models.Project.id)
+                    .where(
+                        models.DatasetExample.id.in_(example_ids),
+                        models.Project.deleted_at.is_(None),
                     )
+                    .options(contains_eager(models.Span.trace).load_only(models.Trace.trace_id))
                 )
             }
         return [spans.get(example_id) for example_id in keys]

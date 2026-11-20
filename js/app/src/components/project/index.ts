@@ -1,3 +1,5 @@
+export { ClearingTracesIndicator } from "./ClearingTracesIndicator";
+
 export { GradientCircle } from "./GradientCircle";
 export type { GradientCircleProps } from "./GradientCircle";
 

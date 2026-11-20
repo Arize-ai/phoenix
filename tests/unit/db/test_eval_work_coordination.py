@@ -214,6 +214,7 @@ async def test_project_evaluator_defaults_and_relationships(
         assert fetched.evaluation_delay_seconds == 0
         assert fetched.input_mapping is None
         assert fetched.sampling_rate == 1.0
+        assert fetched.evaluator is not None
         assert fetched.evaluator.id == evaluator_id
         assert fetched.project is not None
 

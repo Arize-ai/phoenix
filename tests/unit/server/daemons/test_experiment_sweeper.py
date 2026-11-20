@@ -8,6 +8,7 @@ import sqlalchemy as sa
 
 from phoenix.config import EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS
 from phoenix.db import models
+from phoenix.server.cleanup.coordinator import CleanupCoordinator
 from phoenix.server.daemons.experiment_sweeper import ExperimentSweeper
 from phoenix.server.types import DbSessionFactory
 
@@ -64,6 +65,15 @@ class TestExperimentSweeper:
             session.add(version)
             await session.flush()
 
+            project_id: Optional[int] = None
+            if project_name is not None:
+                project_id = await session.scalar(
+                    sa.select(models.Project.id).where(
+                        models.Project.name == project_name,
+                        models.Project.deleted_at.is_(None),
+                    )
+                )
+
             experiment_kwargs: dict[str, Any] = dict(
                 dataset_id=dataset.id,
                 dataset_version_id=version.id,
@@ -72,6 +82,7 @@ class TestExperimentSweeper:
                 repetitions=1,
                 metadata_={},
                 project_name=project_name,
+                project_id=project_id,
                 created_at=created_at,
             )
             if updated_at is not None:
@@ -126,7 +137,7 @@ class TestExperimentSweeper:
         # Case 1: expired ephemeral experiment with its own project → experiment and project deleted
         expired_project_name = "expired_ephemeral_project"
         async with db() as session:
-            session.add(models.Project(name=expired_project_name))
+            session.add(models.Project(name=expired_project_name, kind="EXPERIMENT"))
         expired_temp_id = await self._insert_experiment(
             db,
             name="eval run",
@@ -154,7 +165,7 @@ class TestExperimentSweeper:
         # Case 4: expired ephemeral + non-ephemeral share a project → ephemeral deleted, project kept
         shared_project_name = "shared_project"
         async with db() as session:
-            session.add(models.Project(name=shared_project_name))
+            session.add(models.Project(name=shared_project_name, kind="EXPERIMENT"))
         await self._insert_experiment(
             db,
             name="expired ephemeral",
@@ -179,6 +190,10 @@ class TestExperimentSweeper:
         # from `done.wait()` the sweeper is parked and holds no open DB sessions.
         await rendezvous.done.wait()
         rendezvous.done.clear()
+
+        coordinator = CleanupCoordinator(db)
+        while await coordinator.run_one_step():
+            pass
 
         assert not await self._experiment_exists(db, expired_temp_id), (
             "Expired ephemeral experiment should have been deleted"
@@ -212,3 +227,159 @@ class TestExperimentSweeper:
         )
 
         await sweeper.stop()
+
+    async def test_sweeper_deletes_sdk_eval_traces_and_preserves_evaluator_and_live_traces(
+        self,
+        db: DbSessionFactory,
+        rendezvous: Rendezvous,
+    ) -> None:
+        from secrets import token_hex
+
+        from phoenix.server.dml_event import DmlEvent, ExperimentDeleteEvent, SpanDeleteEvent
+
+        expired_time = datetime.now(timezone.utc) - timedelta(
+            hours=EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS + 1
+        )
+        recent_time = datetime.now(timezone.utc)
+
+        async with db() as session:
+            sdk_evaluators_project = models.Project(name="evaluators", kind="STANDARD")
+            evaluator_sink_project = models.Project(
+                name=f"sweeper-eval-sink-{token_hex(4)}", kind="EVALUATOR"
+            )
+            dataset = models.Dataset(name=f"sweeper-ds-{token_hex(4)}", metadata_={})
+            session.add_all([sdk_evaluators_project, evaluator_sink_project, dataset])
+            await session.flush()
+
+            dataset_version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+            dataset_example = models.DatasetExample(dataset_id=dataset.id)
+            expired_sdk_trace = models.Trace(
+                project_rowid=sdk_evaluators_project.id,
+                trace_id=f"sweeper-expired-sdk-{token_hex(8)}",
+                start_time=expired_time,
+                end_time=expired_time,
+            )
+            recent_sdk_trace = models.Trace(
+                project_rowid=sdk_evaluators_project.id,
+                trace_id=f"sweeper-recent-sdk-{token_hex(8)}",
+                start_time=recent_time,
+                end_time=recent_time,
+            )
+            sink_trace = models.Trace(
+                project_rowid=evaluator_sink_project.id,
+                trace_id=f"sweeper-sink-{token_hex(8)}",
+                start_time=expired_time,
+                end_time=expired_time,
+            )
+            session.add_all(
+                [
+                    dataset_version,
+                    dataset_example,
+                    expired_sdk_trace,
+                    recent_sdk_trace,
+                    sink_trace,
+                ]
+            )
+            await session.flush()
+
+            expired_experiment = models.Experiment(
+                dataset_id=dataset.id,
+                dataset_version_id=dataset_version.id,
+                name="expired-ephemeral",
+                is_ephemeral=True,
+                repetitions=1,
+                metadata_={},
+                created_at=expired_time,
+                updated_at=expired_time,
+            )
+            recent_experiment = models.Experiment(
+                dataset_id=dataset.id,
+                dataset_version_id=dataset_version.id,
+                name="recent-ephemeral",
+                is_ephemeral=True,
+                repetitions=1,
+                metadata_={},
+                created_at=recent_time,
+                updated_at=recent_time,
+            )
+            session.add_all([expired_experiment, recent_experiment])
+            await session.flush()
+
+            expired_run = models.ExperimentRun(
+                experiment_id=expired_experiment.id,
+                dataset_example_id=dataset_example.id,
+                repetition_number=1,
+                output={"output": "expired"},
+                start_time=expired_time,
+                end_time=expired_time,
+            )
+            recent_run = models.ExperimentRun(
+                experiment_id=recent_experiment.id,
+                dataset_example_id=dataset_example.id,
+                repetition_number=1,
+                output={"output": "recent"},
+                start_time=recent_time,
+                end_time=recent_time,
+            )
+            session.add_all([expired_run, recent_run])
+            await session.flush()
+            session.add_all(
+                [
+                    models.ExperimentRunAnnotation(
+                        experiment_run_id=expired_run.id,
+                        name="sdk-eval",
+                        annotator_kind="CODE",
+                        score=1.0,
+                        trace_id=expired_sdk_trace.trace_id,
+                        metadata_={},
+                        start_time=expired_time,
+                        end_time=expired_time,
+                    ),
+                    models.ExperimentRunAnnotation(
+                        experiment_run_id=expired_run.id,
+                        name="server-eval",
+                        annotator_kind="LLM",
+                        score=1.0,
+                        trace_id=sink_trace.trace_id,
+                        metadata_={},
+                        start_time=expired_time,
+                        end_time=expired_time,
+                    ),
+                    models.ExperimentRunAnnotation(
+                        experiment_run_id=recent_run.id,
+                        name="sdk-eval",
+                        annotator_kind="CODE",
+                        score=1.0,
+                        trace_id=recent_sdk_trace.trace_id,
+                        metadata_={},
+                        start_time=recent_time,
+                        end_time=recent_time,
+                    ),
+                ]
+            )
+            await session.flush()
+            expired_experiment_id = expired_experiment.id
+            sdk_evaluators_project_id = sdk_evaluators_project.id
+            expired_sdk_trace_rowid = expired_sdk_trace.id
+            recent_sdk_trace_rowid = recent_sdk_trace.id
+            sink_trace_rowid = sink_trace.id
+
+        recorded_events: list[DmlEvent] = []
+
+        class _RecordingQueue:
+            def put(self, item: DmlEvent) -> None:
+                recorded_events.append(item)
+
+        sweeper = ExperimentSweeper(db=db, event_queue=_RecordingQueue())
+        await sweeper.start()
+        await rendezvous.done.wait()
+        rendezvous.done.clear()
+        await sweeper.stop()
+
+        async with db() as session:
+            assert await session.get(models.Trace, expired_sdk_trace_rowid) is None
+            assert await session.get(models.Trace, recent_sdk_trace_rowid) is not None
+            assert await session.get(models.Trace, sink_trace_rowid) is not None
+
+        assert ExperimentDeleteEvent((expired_experiment_id,)) in recorded_events
+        assert SpanDeleteEvent((sdk_evaluators_project_id,)) in recorded_events

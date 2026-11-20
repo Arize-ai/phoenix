@@ -391,6 +391,43 @@ async def test_trace_resolution_does_not_repeat_the_missing_lookup(db: DbSession
         assert (await session.scalars(select(models.Trace))).one().id == first.trace_rowid
 
 
+async def test_existing_project_resolution_queries_projects_once(db: DbSessionFactory) -> None:
+    project_reads = 0
+
+    def record_project_statement(
+        _connection: Connection,
+        _cursor: Any,
+        _statement: str,
+        _parameters: Any,
+        context: ExecutionContext,
+        _executemany: bool,
+    ) -> None:
+        nonlocal project_reads
+        if context.compiled is None:
+            return
+        statement = context.compiled.statement
+        if isinstance(statement, Select) and any(
+            getattr(table, "name", None) == models.Project.__tablename__
+            for table in statement.get_final_froms()
+        ):
+            project_reads += 1
+
+    async with db() as session:
+        existing_project = models.Project(name="existing-project")
+        session.add(existing_project)
+        await session.flush()
+        bind = session.get_bind()
+        event.listen(bind, "before_cursor_execute", record_project_statement)
+        try:
+            inserted = await insert_span(
+                session, _span("root", "new-trace", "root"), "existing-project"
+            )
+            assert inserted is not None and inserted.project_rowid == existing_project.id
+            assert project_reads == 1
+        finally:
+            event.remove(bind, "before_cursor_execute", record_project_statement)
+
+
 async def test_late_span_preserves_transferred_project_and_established_session(
     db: DbSessionFactory,
 ) -> None:

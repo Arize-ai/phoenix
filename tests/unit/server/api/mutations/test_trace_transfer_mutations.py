@@ -1,10 +1,13 @@
 from datetime import datetime
+from typing import Literal
 
 import pytest
-from sqlalchemy import insert, select
+from sqlalchemy import insert, select, update
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.server.cleanup.lifecycle import admit_or_reuse_project_clear
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -17,6 +20,29 @@ class TestTraceTransferMutationMixin:
         }
       }
     """
+
+    async def test_transfer_from_deleted_source_project_is_rejected(
+        self,
+        gql_client: AsyncGraphQLClient,
+        trace_transfer_fixture: dict[str, int],
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            await session.execute(
+                update(models.Project)
+                .where(models.Project.id == trace_transfer_fixture["source_project_id"])
+                .values(deleted_at=datetime.fromisoformat("2021-01-02T00:00:00.000+00:00"))
+            )
+        result = await gql_client.execute(
+            self.TRANSFER_TRACES_MUTATION,
+            variables={
+                "traceIds": [str(GlobalID("Trace", str(trace_transfer_fixture["trace1_id"])))],
+                "projectId": str(
+                    GlobalID("Project", str(trace_transfer_fixture["dest_project_id"]))
+                ),
+            },
+        )
+        assert result.errors
 
     async def test_transfer_traces_to_project_success(
         self,
@@ -248,6 +274,79 @@ class TestTraceTransferMutationMixin:
             },
         )
         assert result.errors
+
+    @pytest.mark.parametrize("clear_target", ["source", "destination"])
+    async def test_transfer_traces_rejected_when_project_clear_active(
+        self,
+        gql_client: AsyncGraphQLClient,
+        trace_transfer_fixture: dict[str, int],
+        db: DbSessionFactory,
+        clear_target: Literal["source", "destination"],
+    ) -> None:
+        source_project_id = trace_transfer_fixture["source_project_id"]
+        dest_project_id = trace_transfer_fixture["dest_project_id"]
+        trace1_id = trace_transfer_fixture["trace1_id"]
+        target_project_id = source_project_id if clear_target == "source" else dest_project_id
+        dialect = SupportedSQLDialect(db.dialect.value)
+        async with db() as session:
+            await admit_or_reuse_project_clear(
+                session,
+                dialect=dialect,
+                project_id=target_project_id,
+            )
+
+        result = await gql_client.execute(
+            self.TRANSFER_TRACES_MUTATION,
+            variables={
+                "traceIds": [str(GlobalID("Trace", str(trace1_id)))],
+                "projectId": str(GlobalID("Project", str(dest_project_id))),
+            },
+        )
+        assert result.errors
+        assert "Cannot transfer traces while a project clear is in progress" in (
+            result.errors[0].message
+        )
+        async with db() as session:
+            trace = await session.get(models.Trace, trace1_id)
+            assert trace is not None
+            assert trace.project_rowid == source_project_id
+
+    @pytest.mark.parametrize("destination_kind", ["EVALUATOR", "EXPERIMENT"])
+    async def test_transfer_traces_rejected_for_non_standard_destination_project_kind(
+        self,
+        gql_client: AsyncGraphQLClient,
+        trace_transfer_fixture: dict[str, int],
+        db: DbSessionFactory,
+        destination_kind: Literal["EVALUATOR", "EXPERIMENT"],
+    ) -> None:
+        source_project_id = trace_transfer_fixture["source_project_id"]
+        trace1_id = trace_transfer_fixture["trace1_id"]
+        async with db() as session:
+            destination_project_id = await session.scalar(
+                insert(models.Project)
+                .values(
+                    name=f"dest-{destination_kind.lower()}-project",
+                    kind=destination_kind,
+                )
+                .returning(models.Project.id)
+            )
+            assert destination_project_id is not None
+
+        result = await gql_client.execute(
+            self.TRANSFER_TRACES_MUTATION,
+            variables={
+                "traceIds": [str(GlobalID("Trace", str(trace1_id)))],
+                "projectId": str(GlobalID("Project", str(destination_project_id))),
+            },
+        )
+        assert result.errors
+        assert "Cannot transfer traces into an evaluator or experiment trace project" in (
+            result.errors[0].message
+        )
+        async with db() as session:
+            trace = await session.get(models.Trace, trace1_id)
+            assert trace is not None
+            assert trace.project_rowid == source_project_id
 
 
 @pytest.fixture

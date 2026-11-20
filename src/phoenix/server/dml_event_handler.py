@@ -25,6 +25,7 @@ from phoenix.server.api.dataloaders import CacheForDataLoaders
 from phoenix.server.dml_event import (
     DmlEvent,
     DocumentAnnotationDmlEvent,
+    ProjectDeleteEvent,
     ProjectSessionAnnotationDeleteEvent,
     ProjectSessionAnnotationDmlEvent,
     SpanAnnotationDeleteEvent,
@@ -273,10 +274,12 @@ class DmlEventHandler:
             sleep_seconds=sleep_seconds,
         )
         annotation_delete_handler = _AnnotationDeleteEventHandler(**kwargs)
+        span_delete_handler = _SpanDeleteEventHandler(**kwargs)
         self._handlers: Mapping[type[DmlEvent], Iterable[_DmlEventHandler[Any]]] = {
             DmlEvent: [_GenericDmlEventHandler(**kwargs)],
             SpanDmlEvent: [_SpanDmlEventHandler(**kwargs)],
-            SpanDeleteEvent: [_SpanDeleteEventHandler(**kwargs)],
+            SpanDeleteEvent: [span_delete_handler],
+            ProjectDeleteEvent: [span_delete_handler],
             SpanAnnotationDmlEvent: [_SpanAnnotationDmlEventHandler(**kwargs)],
             TraceAnnotationDmlEvent: [_TraceAnnotationDmlEventHandler(**kwargs)],
             DocumentAnnotationDmlEvent: [_DocumentAnnotationDmlEventHandler(**kwargs)],

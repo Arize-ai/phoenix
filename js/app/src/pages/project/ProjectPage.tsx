@@ -33,6 +33,7 @@ import {
   useTimeRange,
 } from "@phoenix/components/datetime";
 import { TopNavActions } from "@phoenix/components/nav";
+import { ClearingTracesIndicator } from "@phoenix/components/project/ClearingTracesIndicator";
 import {
   SESSION_FILTER_CONDITION_PARAM,
   SPAN_FILTER_CONDITION_PARAM,
@@ -56,6 +57,7 @@ import {
   readFilterConditionParam,
   withFilterConditionParam,
 } from "./filterConditionParam";
+import { MetricFetchKeyProvider } from "./metrics/types";
 import { ProjectOnboardingOverlay } from "./ProjectOnboardingOverlay";
 import {
   ProjectPageQueriesProjectConfigQuery,
@@ -609,12 +611,14 @@ function ProjectPageTabs({ projectId }: { projectId: string }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { rootPath, tab } = useProjectRootPath();
+  const { fetchKey } = useStreamState();
   const data = useLazyLoadQuery<ProjectPageQueryType>(
     graphql`
       query ProjectPageQuery($id: ID!) {
         project: node(id: $id) {
           ... on Project {
             evaluatorCount
+            isClearingTraces
             ...ProjectTimeRangeControls_data
             ...ProjectOnboardingOverlay_project
           }
@@ -624,6 +628,7 @@ function ProjectPageTabs({ projectId }: { projectId: string }) {
     { id: projectId },
     { fetchPolicy: "store-and-network" }
   );
+  const isClearingTraces = data.project.isClearingTraces ?? false;
 
   const onTabChange = (index: number) => {
     startTransition(() => {
@@ -641,6 +646,7 @@ function ProjectPageTabs({ projectId }: { projectId: string }) {
     <main css={mainCSS}>
       <LegacyTraceFilterParamNotice isActive={tab === "traces"} />
       <TopNavActions order={1}>
+        {isClearingTraces ? <ClearingTracesIndicator /> : null}
         <ProjectTimeRangeControls project={data.project} />
       </TopNavActions>
       <Tabs
@@ -666,7 +672,9 @@ function ProjectPageTabs({ projectId }: { projectId: string }) {
         <StreamingTabPanel id="traces" project={data.project} />
         <StreamingTabPanel id="sessions" project={data.project} />
         <LazyTabPanel padded={false} id="metrics">
-          <Outlet />
+          <MetricFetchKeyProvider value={fetchKey}>
+            <Outlet />
+          </MetricFetchKeyProvider>
         </LazyTabPanel>
         <LazyTabPanel padded={false} id="config">
           <Outlet />

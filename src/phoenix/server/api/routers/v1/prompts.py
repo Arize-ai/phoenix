@@ -30,6 +30,7 @@ from phoenix.server.api.helpers.prompts.validation import validate_custom_provid
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.problem_details import (
     ProblemDetailsRoute,
+    ProblemException,
     invalid_field,
     problem_responses,
 )
@@ -870,12 +871,14 @@ async def patch_prompt(
 
 @router.delete(
     "/prompts/{prompt_identifier}",
-    dependencies=[Depends(is_not_locked)],
     operation_id="deletePrompt",
     summary="Delete a prompt",
-    description="Delete a prompt and all its versions, tags, and labels by identifier.",
+    description=(
+        "Delete a prompt and all its versions, tags, and labels by identifier. "
+        "A prompt referenced by an LLM evaluator is refused with 409; delete the evaluator first."
+    ),
     status_code=204,
-    responses=_errors([404, 422]),
+    responses=_errors([404, 409, 422]),
 )
 async def delete_prompt(
     request: Request,
@@ -890,10 +893,36 @@ async def delete_prompt(
         assert_never(identifier)
     async with request.app.state.db() as session:
         prompt_id = await session.scalar(
-            delete(models.Prompt).where(where_clause).returning(models.Prompt.id)
+            select(models.Prompt.id).where(where_clause).with_for_update()
         )
-    if prompt_id is None:
-        raise HTTPException(status_code=404, detail="Prompt not found")
+        if prompt_id is None:
+            raise HTTPException(status_code=404, detail="Prompt not found")
+        evaluator_names = (
+            await session.scalars(
+                select(models.LLMEvaluator.name)
+                .where(models.LLMEvaluator.prompt_id == prompt_id)
+                .order_by(models.LLMEvaluator.name)
+            )
+        ).all()
+        if evaluator_names:
+            noun, pronoun = (
+                ("an evaluator", "it") if len(evaluator_names) == 1 else ("evaluators", "them")
+            )
+            detail = (
+                f"This prompt is referenced by {noun} "
+                f"({', '.join(name.root for name in evaluator_names)}); delete {pronoun} first"
+            )
+            raise ProblemException(409, "conflict", detail, reason="referenced_by_evaluator")
+        try:
+            async with session.begin_nested():
+                await session.execute(delete(models.Prompt).where(models.Prompt.id == prompt_id))
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+            raise ProblemException(
+                409,
+                "conflict",
+                "This prompt is referenced by an evaluator; delete it first",
+                reason="referenced_by_evaluator",
+            ) from error
 
 
 class _PromptId(int): ...

@@ -1,6 +1,6 @@
 from asyncio import sleep
-from datetime import datetime
-from typing import Any
+from datetime import datetime, timezone
+from typing import Any, Literal
 from uuid import UUID
 
 import httpx2
@@ -15,10 +15,12 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
 from opentelemetry.proto.resource.v1.resource_pb2 import Resource
 from opentelemetry.proto.trace.v1.trace_pb2 import ResourceSpans, ScopeSpans
-from sqlalchemy import insert, select
+from sqlalchemy import insert, select, update
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.server.cleanup.lifecycle import admit_or_reuse_project_clear
 from phoenix.server.types import DbSessionFactory
 from tests.unit._helpers import (
     _add_live_session_work_unit,
@@ -709,6 +711,29 @@ async def test_transfer_traces_moves_traces_to_destination(
     assert source_rowid not in set(moved)
 
 
+async def test_transfer_traces_rejects_deleted_source_project(
+    db: DbSessionFactory,
+    httpx_client: httpx2.AsyncClient,
+) -> None:
+    source_rowid, trace_rowids = await _project_with_traces(db, "dead-src-proj", 1, "cccc")
+    await _project_with_traces(db, "live-dst-proj", 1, "dddd")
+    async with db() as session:
+        await session.execute(
+            update(models.Project)
+            .where(models.Project.id == source_rowid)
+            .values(deleted_at=datetime.fromisoformat("2021-01-02T00:00:00.000+00:00"))
+        )
+
+    response = await httpx_client.post(
+        "v1/traces/transfer",
+        json={
+            "trace_identifiers": [str(GlobalID("Trace", str(rowid))) for rowid in trace_rowids],
+            "destination_project_identifier": "live-dst-proj",
+        },
+    )
+    assert response.status_code == 404
+
+
 async def test_transfer_traces_accepts_project_global_id(
     db: DbSessionFactory,
     httpx_client: httpx2.AsyncClient,
@@ -851,3 +876,194 @@ async def test_transfer_traces_unparseable_identifier(
         },
     )
     assert response.status_code == 404
+
+
+@pytest.mark.parametrize("clear_target", ["source", "destination"])
+async def test_transfer_traces_rejects_active_project_clear(
+    db: DbSessionFactory,
+    httpx_client: httpx2.AsyncClient,
+    clear_target: Literal["source", "destination"],
+) -> None:
+    source_rowid, trace_rowids = await _project_with_traces(
+        db, f"clear-src-{clear_target}", 1, "8801"
+    )
+    destination_rowid, _ = await _project_with_traces(db, f"clear-dst-{clear_target}", 1, "8802")
+    dialect = SupportedSQLDialect(db.dialect.value)
+    target_project_rowid = source_rowid if clear_target == "source" else destination_rowid
+    async with db() as session:
+        await admit_or_reuse_project_clear(
+            session,
+            dialect=dialect,
+            project_id=target_project_rowid,
+        )
+
+    response = await httpx_client.post(
+        "v1/traces/transfer",
+        json={
+            "trace_identifiers": [str(GlobalID("Trace", str(trace_rowids[0])))],
+            "destination_project_identifier": str(GlobalID("Project", str(destination_rowid))),
+        },
+    )
+    assert response.status_code == 409
+    assert "project clear is in progress" in response.text.lower()
+
+    async with db() as session:
+        trace = await session.get(models.Trace, trace_rowids[0])
+        assert trace is not None
+        assert trace.project_rowid == source_rowid
+
+
+@pytest.mark.parametrize("destination_kind", ["EVALUATOR", "EXPERIMENT"])
+async def test_transfer_traces_rejects_evaluator_and_experiment_destinations(
+    db: DbSessionFactory,
+    httpx_client: httpx2.AsyncClient,
+    destination_kind: Literal["EVALUATOR", "EXPERIMENT"],
+) -> None:
+    source_rowid, trace_rowids = await _project_with_traces(
+        db, f"kind-src-{destination_kind.lower()}", 1, "8901"
+    )
+    async with db() as session:
+        destination_rowid = await session.scalar(
+            insert(models.Project)
+            .values(name=f"kind-dst-{destination_kind.lower()}", kind=destination_kind)
+            .returning(models.Project.id)
+        )
+        assert destination_rowid is not None
+
+    response = await httpx_client.post(
+        "v1/traces/transfer",
+        json={
+            "trace_identifiers": [str(GlobalID("Trace", str(trace_rowids[0])))],
+            "destination_project_identifier": str(GlobalID("Project", str(destination_rowid))),
+        },
+    )
+    assert response.status_code == 422
+    assert "evaluator or experiment" in response.text.lower()
+
+    async with db() as session:
+        trace = await session.get(models.Trace, trace_rowids[0])
+        assert trace is not None
+        assert trace.project_rowid == source_rowid
+
+
+# ---------------------------------------------------------------------------
+# DELETE /v1/projects/{project_identifier}/traces guards
+# ---------------------------------------------------------------------------
+
+
+async def test_delete_project_traces_conflict_does_not_leak_internal_ids(
+    db: DbSessionFactory,
+    httpx_client: httpx2.AsyncClient,
+) -> None:
+    await _project_with_traces(db, "clear-conflict-bystander", 1, "9000")
+    project_rowid, trace_rowids = await _project_with_traces(db, "clear-conflict-proj", 1, "9001")
+    dialect = SupportedSQLDialect(db.dialect.value)
+    async with db() as session:
+        active_task_id = await admit_or_reuse_project_clear(
+            session,
+            dialect=dialect,
+            project_id=project_rowid,
+            start_time=datetime(2021, 1, 1, tzinfo=timezone.utc),
+            end_time=datetime(2021, 1, 2, tzinfo=timezone.utc),
+        )
+
+    project_global_id = str(GlobalID("Project", str(project_rowid)))
+    response = await httpx_client.delete(
+        f"v1/projects/{project_global_id}/traces",
+        params={
+            "start_time": "2021-01-01T00:00:00Z",
+            "end_time": "2021-01-03T00:00:00Z",
+        },
+    )
+    assert response.status_code == 409
+    assert str(project_rowid) not in response.text
+    assert str(active_task_id) not in response.text
+    assert response.text == "Another trace clear is already in progress for this project"
+
+    async with db() as session:
+        assert await session.get(models.Trace, trace_rowids[0]) is not None
+        assert await session.get(models.CleanupTask, active_task_id) is not None
+
+
+async def test_delete_project_traces_rejects_evaluator_trace_project(
+    db: DbSessionFactory,
+    httpx_client: httpx2.AsyncClient,
+) -> None:
+    async with db() as session:
+        project_rowid = await session.scalar(
+            insert(models.Project)
+            .values(name="eval-trace-proj", kind="EVALUATOR")
+            .returning(models.Project.id)
+        )
+        assert project_rowid is not None
+        trace_rowid = await session.scalar(
+            insert(models.Trace)
+            .values(
+                trace_id="91010000",
+                project_rowid=project_rowid,
+                start_time=datetime(2021, 1, 1, tzinfo=timezone.utc),
+                end_time=datetime(2021, 1, 1, 0, 1, tzinfo=timezone.utc),
+            )
+            .returning(models.Trace.id)
+        )
+        assert trace_rowid is not None
+
+    project_global_id = str(GlobalID("Project", str(project_rowid)))
+    response = await httpx_client.delete(
+        f"v1/projects/{project_global_id}/traces",
+        params={
+            "start_time": "2021-01-01T00:00:00Z",
+            "end_time": "2021-01-02T00:00:00Z",
+        },
+    )
+    assert response.status_code == 409
+    assert "evaluator" in response.text.lower()
+
+    async with db() as session:
+        assert await session.get(models.Trace, trace_rowid) is not None
+
+
+async def test_delete_project_traces_reuses_identical_active_clear_range(
+    db: DbSessionFactory,
+    httpx_client: httpx2.AsyncClient,
+) -> None:
+    start_bound = datetime(2021, 1, 1, tzinfo=timezone.utc)
+    end_bound = datetime(2021, 1, 2, tzinfo=timezone.utc)
+    project_rowid, pre_watermark_trace_rowids = await _project_with_traces(
+        db, "clear-reuse-proj", 1, "9201"
+    )
+    dialect = SupportedSQLDialect(db.dialect.value)
+    async with db() as session:
+        active_task_id = await admit_or_reuse_project_clear(
+            session,
+            dialect=dialect,
+            project_id=project_rowid,
+            start_time=start_bound,
+            end_time=end_bound,
+        )
+        post_watermark_trace_rowid = await session.scalar(
+            insert(models.Trace)
+            .values(
+                trace_id="92020000",
+                project_rowid=project_rowid,
+                start_time=datetime(2021, 1, 1, 0, 30, tzinfo=timezone.utc),
+                end_time=datetime(2021, 1, 1, 0, 31, tzinfo=timezone.utc),
+            )
+            .returning(models.Trace.id)
+        )
+        assert post_watermark_trace_rowid is not None
+
+    project_global_id = str(GlobalID("Project", str(project_rowid)))
+    response = await httpx_client.delete(
+        f"v1/projects/{project_global_id}/traces",
+        params={
+            "start_time": "2021-01-01T00:00:00Z",
+            "end_time": "2021-01-02T00:00:00Z",
+        },
+    )
+    assert response.status_code == 204
+
+    async with db() as session:
+        assert await session.get(models.CleanupTask, active_task_id) is None
+        assert await session.get(models.Trace, pre_watermark_trace_rowids[0]) is None
+        assert await session.get(models.Trace, post_watermark_trace_rowid) is not None

@@ -663,7 +663,8 @@ class Project(Node):
         info: Info[Context, None],
     ) -> int:
         stmt = select(func.count(models.ProjectEvaluator.id)).where(
-            models.ProjectEvaluator.project_id == self.id
+            models.ProjectEvaluator.project_id == self.id,
+            models.ProjectEvaluator.deleted_at.is_(None),
         )
         async with info.context.db.read() as session:
             return (await session.scalar(stmt)) or 0
@@ -712,7 +713,10 @@ class Project(Node):
         )
         stmt = (
             select(models.ProjectEvaluator)
-            .where(models.ProjectEvaluator.project_id == self.id)
+            .where(
+                models.ProjectEvaluator.project_id == self.id,
+                models.ProjectEvaluator.deleted_at.is_(None),
+            )
             .order_by(
                 models.ProjectEvaluator.name,
                 models.ProjectEvaluator.id,
@@ -776,6 +780,15 @@ class Project(Node):
         info: Info[Context, None],
     ) -> bool:
         return await info.context.data_loaders.project_has_traces.load(self.id)
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description="Whether a background clear of the project's traces is in progress.",
+    )
+    async def is_clearing_traces(
+        self,
+        info: Info[Context, None],
+    ) -> bool:
+        return await info.context.data_loaders.project_is_clearing_traces.load(self.id)
 
     @strawberry.field(
         description=f"Number of spans in the project. {_SESSION_FILTER_CONDITION_NOTE}"
@@ -2773,9 +2786,9 @@ class Project(Node):
         record_a, record_b = await info.context.data_loaders.project_evaluator_by_id.load_many(
             [rowid_a, rowid_b]
         )
-        if record_a is None or record_a.project_id != self.id:
+        if record_a is None or record_a.project_id != self.id or record_a.evaluator_id is None:
             raise NotFound(f"ProjectEvaluator not found: {evaluator_a_id}")
-        if record_b is None or record_b.project_id != self.id:
+        if record_b is None or record_b.project_id != self.id or record_b.evaluator_id is None:
             raise NotFound(f"ProjectEvaluator not found: {evaluator_b_id}")
         if record_a.evaluation_target != record_b.evaluation_target:
             raise BadRequest(
@@ -3307,6 +3320,7 @@ async def project_evaluator_connection(
     filter: Optional[ProjectEvaluatorFilter],
     args: ConnectionArgs,
 ) -> Connection[ProjectEvaluator]:
+    stmt = stmt.where(models.ProjectEvaluator.deleted_at.is_(None))
     if filter and filter.col and filter.value and (value := filter.value.strip()):
         column = getattr(models.ProjectEvaluator, filter.col.value)
         # `name` is an Identifier-typed column; compare it as text so LIKE applies.
@@ -3321,8 +3335,9 @@ async def project_evaluator_connection(
     async with info.context.db.read() as session:
         records = list(await session.scalars(stmt))
     if annotation_names:
+        records = [record for record in records if record.evaluator_id is not None]
         evaluators = await info.context.data_loaders.evaluator_by_id.load_many(
-            [record.evaluator_id for record in records]
+            [record.evaluator_id for record in records if record.evaluator_id is not None]
         )
         requested_names = set(annotation_names)
         records = [

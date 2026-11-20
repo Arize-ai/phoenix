@@ -3,6 +3,7 @@ import {
   useEffect,
   useEffectEvent,
   useRef,
+  useState,
   useTransition,
 } from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
@@ -20,6 +21,8 @@ import { EVALUATORS_LIVE_REFRESH_INTERVAL_MS } from "@phoenix/pages/project/cons
 import { useSelectedTraceSlots } from "@phoenix/pages/project/useSelectedTraceSlots";
 
 import type { ProjectTimeRangeControls_data$key } from "./__generated__/ProjectTimeRangeControls_data.graphql";
+
+const CLEARING_POLL_INTERVAL_MS = 3_000;
 
 /**
  * How often each streamable project tab checks for new data. The span, trace
@@ -63,23 +66,68 @@ export function ProjectTimeRangeControls(props: {
   const isLiveStreaming = isStreamingTab && !isDetailOpen && isStreamingState;
   const [isRefreshing, startRefreshTransition] = useTransition();
 
-  const [lastUpdatedAt, refetchLastUpdatedAt] = useRefetchableFragment(
+  const [projectStatus, refetchProjectStatus] = useRefetchableFragment(
     graphql`
       fragment ProjectTimeRangeControls_data on Project
       @refetchable(queryName: "ProjectTimeRangeControlsRefetchQuery") {
         streamingLastUpdatedAt
+        isClearingTraces
       }
     `,
     props.project
   );
+  const isClearingTraces = projectStatus.isClearingTraces ?? false;
+  const isPollInFlightRef = useRef(false);
+  useEffect(() => {
+    return () => {
+      isPollInFlightRef.current = false;
+    };
+  }, []);
+
+  const liveIntervalMs = isLiveStreaming ? refreshIntervalMs : null;
+  const clearingIntervalMs = isClearingTraces
+    ? CLEARING_POLL_INTERVAL_MS
+    : null;
+  const pollIntervalMs =
+    liveIntervalMs != null && clearingIntervalMs != null
+      ? Math.min(liveIntervalMs, clearingIntervalMs)
+      : (liveIntervalMs ?? clearingIntervalMs);
+
   useInterval(
     () => {
+      if (isPollInFlightRef.current) {
+        return;
+      }
       startTransition(() => {
-        refetchLastUpdatedAt({}, { fetchPolicy: "store-and-network" });
+        let isSettled = false;
+        const disposable = refetchProjectStatus(
+          {},
+          {
+            fetchPolicy: "store-and-network",
+            onComplete: (error) => {
+              isSettled = true;
+              isPollInFlightRef.current = false;
+              if (error != null) {
+                disposable?.dispose();
+              }
+            },
+          }
+        );
+        if (disposable != null && !isSettled) {
+          isPollInFlightRef.current = true;
+        }
       });
     },
-    isLiveStreaming && !isRefreshing ? refreshIntervalMs : null
+    !isRefreshing ? pollIntervalMs : null
   );
+
+  const streamingLastUpdatedAt = projectStatus.streamingLastUpdatedAt ?? null;
+  const [liveLastUpdatedAt, setLiveLastUpdatedAt] = useState(
+    streamingLastUpdatedAt
+  );
+  if (isLiveStreaming && liveLastUpdatedAt !== streamingLastUpdatedAt) {
+    setLiveLastUpdatedAt(streamingLastUpdatedAt);
+  }
 
   // New data landed: slide a live time range forward and refetch the tables
   // below, keeping the current rows up while they load
@@ -90,16 +138,13 @@ export function ProjectTimeRangeControls(props: {
     });
   }
   const heldLastUpdatedAtRef = useRef<string | null>(null);
-  useOnTimestampAdvance(
-    lastUpdatedAt.streamingLastUpdatedAt,
-    (currentLastUpdatedAt) => {
-      if (document.visibilityState === "hidden") {
-        heldLastUpdatedAtRef.current = currentLastUpdatedAt;
-      } else {
-        refreshForNewData(currentLastUpdatedAt);
-      }
+  useOnTimestampAdvance(liveLastUpdatedAt, (currentLastUpdatedAt) => {
+    if (document.visibilityState === "hidden") {
+      heldLastUpdatedAtRef.current = currentLastUpdatedAt;
+    } else {
+      refreshForNewData(currentLastUpdatedAt);
     }
-  );
+  });
   const refreshForHeldData = useEffectEvent(() => {
     const heldLastUpdatedAt = heldLastUpdatedAtRef.current;
     if (heldLastUpdatedAt != null && document.visibilityState !== "hidden") {
@@ -112,6 +157,26 @@ export function ProjectTimeRangeControls(props: {
     return () =>
       document.removeEventListener("visibilitychange", refreshForHeldData);
   }, []);
+
+  const wasClearingRef = useRef(isClearingTraces);
+  const clearCompletionCountRef = useRef(0);
+  const handleClearingCompleted = useEffectEvent(() => {
+    clearCompletionCountRef.current += 1;
+    const completionCount = clearCompletionCountRef.current;
+    startRefreshTransition(() => {
+      if (isLiveStreaming) {
+        refreshLiveTimeRange();
+      }
+      setFetchKey(`clear-completed-${completionCount}`);
+    });
+  });
+  useEffect(() => {
+    const didFinishClearing = wasClearingRef.current && !isClearingTraces;
+    wasClearingRef.current = isClearingTraces;
+    if (didFinishClearing) {
+      handleClearingCompleted();
+    }
+  }, [isClearingTraces]);
 
   return (
     <ConnectedTimeRangeControls

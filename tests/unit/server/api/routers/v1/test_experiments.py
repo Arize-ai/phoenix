@@ -2030,3 +2030,203 @@ class TestPatchExperiment:
             json={"name": "x"},
         )
         assert response.status_code == 404
+
+
+async def test_create_experiment_preserves_existing_live_project_on_name_collision(
+    httpx_client: httpx2.AsyncClient,
+    simple_dataset: Any,
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    colliding_project_name = f"Experiment-{token_hex(12)}"
+    existing_description = "Existing live standard project"
+    existing_start_color = "#112233"
+    existing_end_color = "#445566"
+
+    async with db() as session:
+        existing_project = models.Project(
+            name=colliding_project_name,
+            kind="STANDARD",
+            description=existing_description,
+            gradient_start_color=existing_start_color,
+            gradient_end_color=existing_end_color,
+        )
+        session.add(existing_project)
+        await session.flush()
+        existing_project_id = existing_project.id
+
+    monkeypatch.setattr(
+        "phoenix.server.api.routers.v1.experiments.generate_experiment_project_name",
+        lambda: colliding_project_name,
+    )
+
+    dataset_gid = GlobalID("Dataset", "0")
+    response = await httpx_client.post(
+        f"v1/datasets/{dataset_gid}/experiments",
+        json={"version_id": None, "repetitions": 1},
+    )
+    assert response.status_code == 200
+    created_experiment = response.json()["data"]
+    assert created_experiment["project_name"] == colliding_project_name
+    experiment_rowid = from_global_id_with_expected_type(
+        GlobalID.from_id(created_experiment["id"]), "Experiment"
+    )
+
+    async with db() as session:
+        experiment_row = await session.get(models.Experiment, experiment_rowid)
+        assert experiment_row is not None
+        assert experiment_row.project_id == existing_project_id
+
+        project_row = await session.get(models.Project, existing_project_id)
+        assert project_row is not None
+        assert project_row.kind == "STANDARD"
+        assert project_row.description == existing_description
+        assert project_row.gradient_start_color == existing_start_color
+        assert project_row.gradient_end_color == existing_end_color
+
+
+async def test_delete_experiment_deletes_sdk_eval_traces_while_preserving_evaluator_project_traces(
+    httpx_client: httpx2.AsyncClient,
+    simple_dataset: Any,
+    db: DbSessionFactory,
+) -> None:
+    now_time = datetime.now(timezone.utc)
+    dataset_gid = GlobalID("Dataset", "0")
+    created = (
+        await httpx_client.post(
+            f"v1/datasets/{dataset_gid}/experiments",
+            json={"version_id": None, "repetitions": 1},
+        )
+    ).json()["data"]
+    experiment_gid = GlobalID.from_id(created["id"])
+    experiment_rowid = from_global_id_with_expected_type(experiment_gid, "Experiment")
+
+    async with db() as session:
+        sdk_evaluators_project = models.Project(name="evaluators", kind="STANDARD")
+        evaluator_sink_project = models.Project(
+            name=f"rest-exp-eval-sink-{token_hex(4)}", kind="EVALUATOR"
+        )
+        session.add_all([sdk_evaluators_project, evaluator_sink_project])
+        await session.flush()
+
+        sdk_trace = models.Trace(
+            project_rowid=sdk_evaluators_project.id,
+            trace_id=f"rest-exp-sdk-{token_hex(8)}",
+            start_time=now_time,
+            end_time=now_time,
+        )
+        sink_trace = models.Trace(
+            project_rowid=evaluator_sink_project.id,
+            trace_id=f"rest-exp-sink-{token_hex(8)}",
+            start_time=now_time,
+            end_time=now_time,
+        )
+        experiment_run = models.ExperimentRun(
+            experiment_id=experiment_rowid,
+            dataset_example_id=0,
+            repetition_number=1,
+            output={"output": "first"},
+            start_time=now_time,
+            end_time=now_time,
+        )
+        session.add_all([sdk_trace, sink_trace, experiment_run])
+        await session.flush()
+        session.add_all(
+            [
+                models.ExperimentRunAnnotation(
+                    experiment_run_id=experiment_run.id,
+                    name="sdk-eval",
+                    annotator_kind="CODE",
+                    score=1.0,
+                    trace_id=sdk_trace.trace_id,
+                    metadata_={},
+                    start_time=now_time,
+                    end_time=now_time,
+                ),
+                models.ExperimentRunAnnotation(
+                    experiment_run_id=experiment_run.id,
+                    name="server-eval",
+                    annotator_kind="LLM",
+                    score=1.0,
+                    trace_id=sink_trace.trace_id,
+                    metadata_={},
+                    start_time=now_time,
+                    end_time=now_time,
+                ),
+            ]
+        )
+        await session.flush()
+        sdk_trace_rowid = sdk_trace.id
+        sink_trace_rowid = sink_trace.id
+
+    response = await httpx_client.delete(
+        f"v1/experiments/{experiment_gid}",
+        params={"delete_project": "false"},
+    )
+    assert response.status_code == 204
+
+    async with db() as session:
+        assert await session.get(models.Trace, sdk_trace_rowid) is None
+        assert await session.get(models.Trace, sink_trace_rowid) is not None
+
+
+async def test_delete_experiment_without_delete_project_promotes_unreferenced_project_to_standard(
+    httpx_client: httpx2.AsyncClient,
+    simple_dataset: Any,
+    db: DbSessionFactory,
+) -> None:
+    dataset_gid = GlobalID("Dataset", "0")
+    first_created = (
+        await httpx_client.post(
+            f"v1/datasets/{dataset_gid}/experiments",
+            json={"version_id": None, "repetitions": 1},
+        )
+    ).json()["data"]
+    first_experiment_gid = GlobalID.from_id(first_created["id"])
+    first_experiment_rowid = from_global_id_with_expected_type(first_experiment_gid, "Experiment")
+
+    async with db() as session:
+        first_experiment = await session.get(models.Experiment, first_experiment_rowid)
+        assert first_experiment is not None
+        assert first_experiment.project_id is not None
+        shared_project_id = first_experiment.project_id
+        shared_project = await session.get(models.Project, shared_project_id)
+        assert shared_project is not None
+        assert shared_project.kind == "EXPERIMENT"
+
+        second_experiment = models.Experiment(
+            dataset_id=first_experiment.dataset_id,
+            dataset_version_id=first_experiment.dataset_version_id,
+            name="second-sharing-project",
+            repetitions=1,
+            metadata_={},
+            project_name=first_experiment.project_name,
+            project_id=shared_project_id,
+        )
+        session.add(second_experiment)
+        await session.flush()
+        second_experiment_gid = GlobalID("Experiment", str(second_experiment.id))
+
+    first_delete = await httpx_client.delete(
+        f"v1/experiments/{first_experiment_gid}",
+        params={"delete_project": "false"},
+    )
+    assert first_delete.status_code == 204
+
+    async with db() as session:
+        retained_shared_project = await session.get(models.Project, shared_project_id)
+        assert retained_shared_project is not None
+        assert retained_shared_project.deleted_at is None
+        assert retained_shared_project.kind == "EXPERIMENT"
+
+    second_delete = await httpx_client.delete(
+        f"v1/experiments/{second_experiment_gid}",
+        params={"delete_project": "false"},
+    )
+    assert second_delete.status_code == 204
+
+    async with db() as session:
+        promoted_project = await session.get(models.Project, shared_project_id)
+        assert promoted_project is not None
+        assert promoted_project.deleted_at is None
+        assert promoted_project.kind == "STANDARD"

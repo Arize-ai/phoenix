@@ -14,27 +14,32 @@ import { ProjectTimeRangeControls } from "../ProjectTimeRangeControls";
 const relayMocks = vi.hoisted(() => ({
   refetch: vi.fn(),
   streamingLastUpdatedAt: null as string | null,
+  isClearingTraces: false,
+}));
+
+const streamStateMocks = vi.hoisted(() => ({
+  isStreaming: true,
+  setIsStreaming: vi.fn(),
+  setFetchKey: vi.fn(),
 }));
 
 const refreshMocks = vi.hoisted(() => ({
   refreshLiveTimeRange: () => {},
-  setFetchKey: vi.fn(),
 }));
 
 vi.mock("react-relay", async (importOriginal) => ({
   ...(await importOriginal<typeof ReactRelayModule>()),
   useRefetchableFragment: () => [
-    { streamingLastUpdatedAt: relayMocks.streamingLastUpdatedAt },
+    {
+      streamingLastUpdatedAt: relayMocks.streamingLastUpdatedAt,
+      isClearingTraces: relayMocks.isClearingTraces,
+    },
     relayMocks.refetch,
   ],
 }));
 
 vi.mock("@phoenix/contexts/StreamStateContext", () => ({
-  useStreamState: () => ({
-    isStreaming: true,
-    setIsStreaming: vi.fn(),
-    setFetchKey: refreshMocks.setFetchKey,
-  }),
+  useStreamState: () => streamStateMocks,
 }));
 
 vi.mock("@phoenix/components/datetime", () => ({
@@ -53,6 +58,7 @@ vi.mock("@phoenix/components/datetime", () => ({
 }));
 
 const REFRESH_INTERVAL_MS = 2000;
+const CLEARING_POLL_INTERVAL_MS = 3000;
 
 let container: HTMLDivElement;
 let root: Root;
@@ -62,9 +68,12 @@ beforeEach(() => {
   vi.useFakeTimers();
   relayMocks.refetch.mockClear();
   relayMocks.streamingLastUpdatedAt = null;
+  relayMocks.isClearingTraces = false;
+  streamStateMocks.isStreaming = true;
+  streamStateMocks.setIsStreaming.mockClear();
+  streamStateMocks.setFetchKey.mockClear();
   refreshMocks.refreshLiveTimeRange = () => {};
-  refreshMocks.setFetchKey.mockClear();
-  container = document.createElement("div");
+    container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
 });
@@ -243,12 +252,12 @@ describe("ProjectTimeRangeControls", () => {
     await act(async () => renderProjectRoute("/projects/p/spans"));
 
     expect(relayMocks.refetch).not.toHaveBeenCalled();
-    expect(refreshMocks.setFetchKey).not.toHaveBeenCalled();
+    expect(streamStateMocks.setFetchKey).not.toHaveBeenCalled();
 
     act(() => setPageVisibility("visible"));
 
-    expect(refreshMocks.setFetchKey).toHaveBeenCalledTimes(1);
-    expect(refreshMocks.setFetchKey).toHaveBeenCalledWith(
+    expect(streamStateMocks.setFetchKey).toHaveBeenCalledTimes(1);
+    expect(streamStateMocks.setFetchKey).toHaveBeenCalledWith(
       "fetch-traces-2026-11-10T20:12:55.000Z"
     );
   });
@@ -264,5 +273,50 @@ describe("ProjectTimeRangeControls", () => {
       isLive: "false",
       hasToggle: "false",
     });
+  });
+
+  it("polls clearing status every 3s even off streamable tabs or while a drawer is open", () => {
+    relayMocks.isClearingTraces = true;
+    renderProjectRoute("/projects/p/config");
+
+    act(() => {
+      vi.advanceTimersByTime(CLEARING_POLL_INTERVAL_MS - 1);
+    });
+    expect(relayMocks.refetch).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(relayMocks.refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("respects an open drawer and paused streaming on intermediate clear polls", () => {
+    const refreshSpy = vi.fn();
+    refreshMocks.refreshLiveTimeRange = refreshSpy;
+    relayMocks.isClearingTraces = true;
+    relayMocks.streamingLastUpdatedAt = "2026-11-10T20:00:00.000Z";
+
+    renderProjectRoute("/projects/p/traces/t1");
+
+    relayMocks.streamingLastUpdatedAt = "2026-11-10T20:00:03.000Z";
+    renderProjectRoute("/projects/p/traces/t1");
+
+    expect(refreshSpy).not.toHaveBeenCalled();
+    expect(streamStateMocks.setFetchKey).not.toHaveBeenCalled();
+  });
+
+  it("bumps fetchKey once when isClearingTraces transitions from true to false even without a timestamp advance", () => {
+    relayMocks.isClearingTraces = true;
+    relayMocks.streamingLastUpdatedAt = "2026-11-10T20:00:00.000Z";
+    renderProjectRoute("/projects/p/spans");
+    expect(streamStateMocks.setFetchKey).not.toHaveBeenCalled();
+
+    relayMocks.isClearingTraces = false;
+    renderProjectRoute("/projects/p/spans");
+
+    expect(streamStateMocks.setFetchKey).toHaveBeenCalledTimes(1);
+    expect(streamStateMocks.setFetchKey).toHaveBeenCalledWith(
+      "clear-completed-1"
+    );
   });
 });

@@ -140,7 +140,10 @@ class ProjectTraceRetentionPolicyMutationMixin:
             if add_project_ids:
                 stmt = (
                     sa.update(models.Project)
-                    .where(models.Project.id.in_(set(add_project_ids)))
+                    .where(
+                        models.Project.id.in_(set(add_project_ids)),
+                        models.Project.deleted_at.is_(None),
+                    )
                     .values(trace_retention_policy_id=policy.id)
                 )
                 await session.execute(stmt)
@@ -192,7 +195,10 @@ class ProjectTraceRetentionPolicyMutationMixin:
             if add_project_ids:
                 stmt = (
                     sa.update(models.Project)
-                    .where(models.Project.id.in_(set(add_project_ids)))
+                    .where(
+                        models.Project.id.in_(set(add_project_ids)),
+                        models.Project.deleted_at.is_(None),
+                    )
                     .values(trace_retention_policy_id=policy.id)
                 )
                 await session.execute(stmt)

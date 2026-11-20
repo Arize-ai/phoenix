@@ -27,10 +27,14 @@ class DatasetEvaluatorsByEvaluatorDataLoader(DataLoader[Key, Result]):
         async with self._db.read() as session:
             stmt = (
                 select(models.DatasetEvaluators)
-                .where(models.DatasetEvaluators.evaluator_id.in_(keys))
+                .where(
+                    models.DatasetEvaluators.evaluator_id.in_(keys),
+                    models.DatasetEvaluators.deleted_at.is_(None),
+                )
                 .order_by(models.DatasetEvaluators.name.asc())
             )
             for row in await session.scalars(stmt):
-                dataset_evaluators_by_evaluator[row.evaluator_id].append(row)
+                if row.evaluator_id is not None:
+                    dataset_evaluators_by_evaluator[row.evaluator_id].append(row)
 
         return [dataset_evaluators_by_evaluator.get(key, []) for key in keys]

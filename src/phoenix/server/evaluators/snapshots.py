@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
 from phoenix.db.helpers import latest_code_evaluator_versions_by_evaluator_id
+from phoenix.db.types.annotation_configs import as_output_configs
 from phoenix.db.types.decision_evaluators import adapt_scoring_policy
 from phoenix.db.types.evaluator_definition import (
     BuiltInEvaluatorDefinition,
@@ -19,13 +20,16 @@ from phoenix.db.types.evaluator_definition import (
 )
 from phoenix.db.types.prompts import PromptChatTemplate
 from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.evaluators.services.management import lock_evaluators
 
 
 async def get_decision_evaluator(
     session: AsyncSession, row_id: int, *, lock: bool = False
 ) -> models.DecisionEvaluator:
     """Load a saved judge and its pinned version, optionally locking its definition."""
-    evaluator = await session.get(models.DecisionEvaluator, row_id, with_for_update=lock)
+    if lock:
+        await lock_evaluators(session, [row_id])
+    evaluator = await session.get(models.DecisionEvaluator, row_id, populate_existing=lock)
     if evaluator is None:
         raise NotFound(f"Decision evaluator not found: {row_id}")
     return evaluator
@@ -165,24 +169,48 @@ async def pin_evaluator_definition(
         definition.code_evaluator_version_id is not None
         and definition.sandbox_config_id is not None
         and definition.language is not None
+        and definition.name is not None
+        and definition.source_code is not None
+        and definition.output_configs is not None
     ):
         return definition
     record = await session.get(models.CodeEvaluator, definition.code_evaluator_id)
     if record is None:
         raise BadRequest(f"Code evaluator with id {definition.code_evaluator_id} not found")
-    version_id = definition.code_evaluator_version_id
-    if version_id is None:
+    if definition.code_evaluator_version_id is not None:
+        version = await session.get(
+            models.CodeEvaluatorVersion, definition.code_evaluator_version_id
+        )
+        if version is None or version.code_evaluator_id != record.id:
+            raise BadRequest(
+                f"Code evaluator version with id {definition.code_evaluator_version_id} "
+                f"not found for code evaluator {record.id}"
+            )
+    else:
         latest_versions = await latest_code_evaluator_versions_by_evaluator_id([record.id], session)
         version = latest_versions.get(record.id)
         if version is None:
             raise BadRequest(
                 f"Code evaluator with id {definition.code_evaluator_id} has no current version"
             )
-        version_id = version.id
     return definition.model_copy(
         update={
-            "code_evaluator_version_id": version_id,
+            "code_evaluator_version_id": version.id,
             "sandbox_config_id": definition.sandbox_config_id or record.sandbox_config_id,
             "language": definition.language or record.language,
+            "name": definition.name if definition.name is not None else record.name.root,
+            "description": (
+                definition.description if definition.description is not None else record.description
+            ),
+            "source_code": (
+                definition.source_code
+                if definition.source_code is not None
+                else version.source_code
+            ),
+            "output_configs": (
+                definition.output_configs
+                if definition.output_configs is not None
+                else list(as_output_configs(record.output_configs))
+            ),
         }
     )

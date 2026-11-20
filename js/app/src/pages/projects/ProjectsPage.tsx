@@ -45,6 +45,7 @@ import {
   useTimeRangeSearch,
 } from "@phoenix/components/datetime";
 import { TopNavActions } from "@phoenix/components/nav";
+import { ClearingTracesIndicator } from "@phoenix/components/project/ClearingTracesIndicator";
 import { GradientCircle } from "@phoenix/components/project/GradientCircle";
 import { TableSkeleton } from "@phoenix/components/table";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
@@ -68,6 +69,7 @@ import { ProjectViewModeToggle } from "@phoenix/pages/projects/ProjectViewModeTo
 import type { ProjectSortOrder } from "@phoenix/store/preferencesStore";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
+import type { ProjectsPageProjectClearingStatusQuery } from "./__generated__/ProjectsPageProjectClearingStatusQuery.graphql";
 import type {
   ProjectsPageProjectsFragment$data,
   ProjectsPageProjectsFragment$key,
@@ -85,6 +87,20 @@ import { ProjectActionMenu } from "./ProjectActionMenu";
 
 const PAGE_SIZE = 10;
 const PROJECTS_POLL_INTERVAL_MS = 60_000;
+const CLEARING_POLL_INTERVAL_MS = 3_000;
+
+const PROJECT_CLEARING_STATUS_QUERY = graphql`
+  query ProjectsPageProjectClearingStatusQuery($id: ID!) {
+    project: node(id: $id) {
+      ... on Project {
+        id
+        isClearingTraces
+        startTime
+        endTime
+      }
+    }
+  }
+`;
 
 const PROJECT_KIND_LABELS = {
   STANDARD: "Projects",
@@ -258,6 +274,7 @@ export function ProjectsPageContent({
               id
               name
               gradientStartColor
+              isClearingTraces
               gradientEndColor
               endTime
               startTime
@@ -307,9 +324,66 @@ export function ProjectsPageContent({
     [_refetch, queryArgs]
   );
 
-  useInterval(() => refetch({}), PROJECTS_POLL_INTERVAL_MS);
+  const environment = useRelayEnvironment();
+  const inFlightClearingPollsRef = useRef<Map<string, Subscription>>(new Map());
+  useEffect(() => {
+    const inFlightPolls = inFlightClearingPollsRef.current;
+    return () => {
+      for (const subscription of inFlightPolls.values()) {
+        subscription.unsubscribe();
+      }
+      inFlightPolls.clear();
+    };
+  }, []);
 
-  const projects = projectsData?.projects?.edges?.map((p) => p.project);
+  const projects = useMemo(
+    () => projectsData?.projects?.edges?.map((edge) => edge.project) ?? [],
+    [projectsData]
+  );
+  const clearingProjectIds = useMemo(
+    () =>
+      projects
+        .filter((project) => project.isClearingTraces)
+        .map((project) => project.id),
+    [projects]
+  );
+  const isAnyClearing = clearingProjectIds.length > 0;
+
+  const pollClearingProjects = useCallback(() => {
+    for (const projectId of clearingProjectIds) {
+      if (inFlightClearingPollsRef.current.has(projectId)) {
+        continue;
+      }
+      let isSettled = false;
+      const subscription = fetchQuery<ProjectsPageProjectClearingStatusQuery>(
+        environment,
+        PROJECT_CLEARING_STATUS_QUERY,
+        { id: projectId },
+        { fetchPolicy: "network-only" }
+      ).subscribe({
+        complete: () => {
+          isSettled = true;
+          inFlightClearingPollsRef.current.delete(projectId);
+        },
+        error: () => {
+          isSettled = true;
+          inFlightClearingPollsRef.current.delete(projectId);
+        },
+      });
+      if (!isSettled) {
+        inFlightClearingPollsRef.current.set(projectId, subscription);
+      }
+    }
+  }, [clearingProjectIds, environment]);
+
+  useInterval(
+    pollClearingProjects,
+    isAnyClearing ? CLEARING_POLL_INTERVAL_MS : null
+  );
+  useInterval(
+    () => refetch({}),
+    isAnyClearing ? null : PROJECTS_POLL_INTERVAL_MS
+  );
 
   const projectsContainerRef = useRef<HTMLDivElement>(null);
   const fetchMoreOnBottomReached = useCallback(
@@ -358,34 +432,22 @@ export function ProjectsPageContent({
 
   const onClear = useCallback(
     (projectName: string) => {
-      startTransition(() => {
-        refetch({
-          onComplete: () => {
-            notifySuccess({
-              title: "Project Cleared",
-              message: `Project ${projectName} has been cleared of traces.`,
-            });
-          },
-        });
+      notifySuccess({
+        title: "Clearing Traces",
+        message: `Traces in project ${projectName} will disappear as the cleanup runs.`,
       });
     },
-    [notifySuccess, refetch]
+    [notifySuccess]
   );
 
   const onRemove = useCallback(
     (projectName: string) => {
-      startTransition(() => {
-        refetch({
-          onComplete: () => {
-            notifySuccess({
-              title: "Project Data Removed",
-              message: `Old data from project ${projectName} have been removed.`,
-            });
-          },
-        });
+      notifySuccess({
+        title: "Removing Project Data",
+        message: `Old data in project ${projectName} will disappear as the cleanup runs.`,
       });
     },
-    [notifySuccess, refetch]
+    [notifySuccess]
   );
 
   const loadNextWithArgs = useCallback(() => {
@@ -669,9 +731,13 @@ function ProjectItem({
             >
               {project.name}
             </Heading>
-            <Text color="text-700" size="XS" fontStyle="italic">
-              {lastUpdatedText}
-            </Text>
+            {project.isClearingTraces ? (
+              <ClearingTracesIndicator />
+            ) : (
+              <Text color="text-700" size="XS" fontStyle="italic">
+                {lastUpdatedText}
+              </Text>
+            )}
           </Flex>
         </Flex>
         <CanModify>
@@ -684,7 +750,11 @@ function ProjectItem({
           />
         </CanModify>
       </Flex>
-      <ProjectMetrics projectId={project.id} timeRange={timeRange} />
+      <ProjectMetrics
+        projectId={project.id}
+        timeRange={timeRange}
+        isClearingTraces={project.isClearingTraces}
+      />
     </div>
   );
 }
@@ -729,6 +799,7 @@ function ProjectMetricsLoadingSkeleton() {
 const ProjectMetrics = memo(function ProjectMetrics({
   projectId,
   timeRange,
+  isClearingTraces,
   flexProps,
 }: {
   projectId: string;
@@ -736,49 +807,84 @@ const ProjectMetrics = memo(function ProjectMetrics({
     start: string | undefined;
     end: string | undefined;
   };
+  isClearingTraces: boolean;
   flexProps?: Partial<FlexProps>;
 }) {
   const environment = useRelayEnvironment();
-  // ref to the current running "subscription", a.k.a. the current running query request
   const subscriptionRef = useRef<Subscription | null>(null);
-  // state to hold the result of the project metrics query
+  const isFetchInFlightRef = useRef(false);
+  const wasClearingRef = useRef(isClearingTraces);
   const [projectMetrics, setProjectMetrics] =
     useState<ProjectsPageProjectMetricsQuery$data | null>(null);
-  /**
-   * fetchProject is a function that fetches the project metrics for the given project id and time range
-   * it returns a "subscription" object that can be used to unsubscribe from the query
-   * It is NOT websockets, polling, or streaming, it is a normal fetch wrapped in a relay subscription provided by the relay environment
-   * this works because the relay environment is configured to abort the underlying fetch if the subscription is unsubscribed from
-   */
-  const fetchProject = useCallback(() => {
-    const observable = fetchQuery<ProjectsPageProjectMetricsQuery>(
-      environment,
-      PROJECT_METRICS_QUERY,
-      { id: projectId, timeRange }
-    );
-    const subscription = observable.subscribe({
-      next: (data) => {
-        setProjectMetrics(data);
-      },
-      error: () => {
-        setProjectMetrics(null);
-      },
-    });
-    return subscription;
-  }, [projectId, timeRange, environment]);
-  // when the component mounts, or the time range changes, we fetch the project metrics
-  useEffect(() => {
-    subscriptionRef.current = fetchProject();
-    return () => {
+
+  const fetchProject = useCallback(
+    ({ resetOnError }: { resetOnError: boolean }) => {
       subscriptionRef.current?.unsubscribe();
+      let isSettled = false;
+      isFetchInFlightRef.current = true;
+      const observable = fetchQuery<ProjectsPageProjectMetricsQuery>(
+        environment,
+        PROJECT_METRICS_QUERY,
+        { id: projectId, timeRange },
+        { fetchPolicy: "network-only" }
+      );
+      const subscription = observable.subscribe({
+        next: (data) => {
+          setProjectMetrics(data);
+        },
+        complete: () => {
+          isSettled = true;
+          isFetchInFlightRef.current = false;
+          if (subscriptionRef.current === subscription) {
+            subscriptionRef.current = null;
+          }
+        },
+        error: () => {
+          isSettled = true;
+          isFetchInFlightRef.current = false;
+          if (subscriptionRef.current === subscription) {
+            subscriptionRef.current = null;
+          }
+          if (resetOnError) {
+            setProjectMetrics(null);
+          }
+        },
+      });
+      subscriptionRef.current = isSettled ? null : subscription;
+      return subscription;
+    },
+    [projectId, timeRange, environment]
+  );
+
+  useEffect(() => {
+    const subscription = fetchProject({ resetOnError: true });
+    return () => {
+      subscription.unsubscribe();
+      isFetchInFlightRef.current = false;
       subscriptionRef.current = null;
     };
   }, [fetchProject]);
-  // if the project metrics are not loaded yet, we show a loading indicator
+
+  useInterval(
+    () => {
+      if (!isFetchInFlightRef.current) {
+        fetchProject({ resetOnError: false });
+      }
+    },
+    isClearingTraces ? CLEARING_POLL_INTERVAL_MS : null
+  );
+
+  useEffect(() => {
+    const didFinishClearing = wasClearingRef.current && !isClearingTraces;
+    wasClearingRef.current = isClearingTraces;
+    if (didFinishClearing) {
+      fetchProject({ resetOnError: false });
+    }
+  }, [isClearingTraces, fetchProject]);
+
   if (projectMetrics == null) {
     return <ProjectMetricsLoadingSkeleton />;
   }
-  // if the project metrics are loaded, we show the project metrics
   return <ProjectMetricsRow project={projectMetrics} flexProps={flexProps} />;
 });
 
@@ -862,9 +968,14 @@ function ProjectsTable({
                 gradientStartColor={row.original.gradientStartColor}
                 gradientEndColor={row.original.gradientEndColor}
               />
-              <Link to={`/projects/${row.original.id}${timeRangeSearch}`}>
-                <Truncate maxWidth="300px">{row.original.name}</Truncate>
-              </Link>
+              <Flex direction="column" minWidth={0}>
+                <Link to={`/projects/${row.original.id}${timeRangeSearch}`}>
+                  <Truncate maxWidth="300px">{row.original.name}</Truncate>
+                </Link>
+                {row.original.isClearingTraces ? (
+                  <ClearingTracesIndicator />
+                ) : null}
+              </Flex>
             </Flex>
           );
         },
@@ -897,6 +1008,7 @@ function ProjectsTable({
                 }}
                 projectId={row.original.id}
                 timeRange={timeRangeISOStrings}
+                isClearingTraces={row.original.isClearingTraces}
               />
             </div>
           );
