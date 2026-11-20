@@ -45,6 +45,11 @@ import { convertProjectEvaluatorOutputConfigs } from "@phoenix/pages/project/eva
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideover";
 import {
+  getProjectEvaluatorSubmitRefusal,
+  useProjectEvaluatorFilterValidity,
+  type ProjectEvaluatorSubmitGateInput,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorSubmitGate";
+import {
   isSameInputMapping,
   toEvaluationDelayInput,
   toEvaluatorRecordKind,
@@ -441,7 +446,7 @@ function EditLlmProjectEvaluatorContent({
   const variables = useLLMEvaluatorVariables({ instanceId });
   const [error, setError] = useState<string>();
   const [scope, setScope] = useState(() => getScope(evaluator));
-  const [isFilterValid, setIsFilterValid] = useState(true);
+  const filterValidity = useProjectEvaluatorFilterValidity();
   const trackStoreForDirtyCheck = useEvaluatorFormDirtyCheck({
     registerDirtyCheck,
     scope,
@@ -563,7 +568,7 @@ function EditLlmProjectEvaluatorContent({
         return (
           <ProjectLlmEvaluatorDialogContent
             targetType={scope.targetType}
-            isFilterValid={isFilterValid}
+            filterValidity={filterValidity}
             title={title}
             onClose={onClose}
             onSubmit={() => submit(store)}
@@ -576,7 +581,7 @@ function EditLlmProjectEvaluatorContent({
                 projectId={evaluator.project.id}
                 scope={scope}
                 onScopeChange={setScope}
-                onFilterValidityChange={setIsFilterValid}
+                onFilterValidityChange={filterValidity.onFilterValidityChange}
                 isTargetDisabled
               />
             }
@@ -628,6 +633,14 @@ function EditCodeProjectEvaluator({
   // snapshot the stored value to tell an edit from an inherited setting.
   const initialInputMapping = evaluator.inputMapping as EvaluatorInputMapping;
   const [scope, setScope] = useState(() => getScope(evaluator));
+  const filterValidity = useProjectEvaluatorFilterValidity();
+  const submitGate: ProjectEvaluatorSubmitGateInput = {
+    targetType: scope.targetType,
+    filterValidity,
+    variables,
+    requiredVariables,
+    submitLabel: "save",
+  };
   const [error, setError] = useState<string>();
   const clearError = () => setError(undefined);
   // See the LLM edit path: the details page loader must re-run after a save.
@@ -687,6 +700,13 @@ function EditCodeProjectEvaluator({
     store: EvaluatorStoreInstance
   ): Promise<EvaluatorSubmitResult> => {
     setError(undefined);
+    const refusal = await getProjectEvaluatorSubmitRefusal({
+      gate: submitGate,
+      store,
+    });
+    if (refusal) {
+      return refusal;
+    }
     const state = store.getState();
     const inputMappingChanged = !isSameInputMapping(
       state.evaluator.inputMapping,
@@ -813,6 +833,8 @@ function EditCodeProjectEvaluator({
               }}
               scope={scope}
               onScopeChange={setScope}
+              submitGate={submitGate}
+              onFilterValidityChange={filterValidity.onFilterValidityChange}
               isSubmitting={isUpdating}
               error={error}
               onFieldChange={clearError}

@@ -33,9 +33,11 @@ import {
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import {
-  formatUnboundVariablesHint,
-  useUnboundRequiredVariables,
-} from "@phoenix/pages/project/evaluators/ProjectEvaluatorSubmitHint";
+  getProjectEvaluatorSubmitRefusal,
+  useProjectEvaluatorFilterValidity,
+  type ProjectEvaluatorSubmitGateInput,
+  useProjectEvaluatorSubmitGate,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorSubmitGate";
 import {
   toEvaluationDelayInput,
   toEvaluatorRecordKind,
@@ -127,17 +129,21 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
   const [validationMessage, setValidationMessage] = useState<
     string | undefined
   >();
-  const [isFilterValid, setIsFilterValid] = useState(true);
+  const filterValidity = useProjectEvaluatorFilterValidity();
 
   const variables = extractCodeEvaluatorVariables({ language, sourceCode });
   const requiredVariables = extractRequiredCodeEvaluatorVariables({
     language,
     sourceCode,
   });
-  const unboundVariables = useUnboundRequiredVariables({
+  const gateInput: ProjectEvaluatorSubmitGateInput = {
+    targetType: scope.targetType,
+    filterValidity,
     variables,
     requiredVariables,
-  });
+    submitLabel: "create",
+  };
+  const gate = useProjectEvaluatorSubmitGate(gateInput);
 
   // A sandbox config is only valid for its own language.
   const selectedSandboxConfigId = sandboxConfigs.some(
@@ -181,6 +187,13 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
   /** Validates and creates the evaluator; the Create button and PXI share it. */
   const submit = async (): Promise<EvaluatorSubmitResult> => {
     setError(undefined);
+    const refusal = await getProjectEvaluatorSubmitRefusal({
+      gate: gateInput,
+      store,
+    });
+    if (refusal) {
+      return refusal;
+    }
     const state = store.getState();
     // Lets the name field show its own empty error beside the message below.
     void state.validateAll();
@@ -196,11 +209,7 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
           ? "Please select a sandbox configuration."
           : outputConfigErrors.length
             ? outputConfigErrors.join("\n")
-            : unboundVariables.length > 0
-              ? formatUnboundVariablesHint(unboundVariables, "create")
-              : !isFilterValid
-                ? "Fix the filter condition."
-                : undefined;
+            : undefined;
     if (nextValidationMessage || selectedSandboxConfigId == null) {
       const message =
         nextValidationMessage ?? "Please select a sandbox configuration.";
@@ -269,8 +278,8 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
       submitLabel="Create"
       onSubmit={() => void submit()}
       isSubmitting={isCreating}
-      isSubmitDisabled={!isFilterValid || unboundVariables.length > 0}
-      submitHint={formatUnboundVariablesHint(unboundVariables, "create")}
+      isSubmitDisabled={gate.isSubmitDisabled}
+      submitHint={gate.submitHint}
       error={error}
       errorTitle="Failed to create evaluator"
       contentGap="var(--global-dimension-size-100)"
@@ -318,7 +327,7 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
           projectId={projectId}
           scope={scope}
           onScopeChange={onScopeChange}
-          onFilterValidityChange={setIsFilterValid}
+          onFilterValidityChange={filterValidity.onFilterValidityChange}
           onFieldChange={clearValidationMessage}
           codeDefinition={
             <CodeAuthoringFields

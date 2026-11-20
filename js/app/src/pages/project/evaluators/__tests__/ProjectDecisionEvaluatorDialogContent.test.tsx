@@ -7,6 +7,7 @@ import { createMockEnvironment } from "relay-test-utils";
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import { Dialog } from "@phoenix/components/core/dialog";
 import type { DecisionEvaluatorData } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
+import { AgentContext } from "@phoenix/contexts/AgentContext";
 import {
   EvaluatorStoreProvider,
   useEvaluatorStoreInstance,
@@ -23,6 +24,7 @@ import {
   DEFAULT_EVALUATION_DELAY_SECONDS,
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { createAgentStore } from "@phoenix/store/agentStore";
 import { DEFAULT_STORE_VALUES } from "@phoenix/store/evaluatorStore";
 
 const { commit, onSuccess, relay } = vi.hoisted(() => ({
@@ -134,35 +136,39 @@ describe("Project decision evaluator forms", () => {
     container.remove();
   });
 
+  const agentStore = createAgentStore();
+  agentStore.getState().setPermissions({ edits: "bypass" });
   async function render(children: ReactNode) {
     await act(async () =>
       root.render(
-        <ThemeContext.Provider
-          value={{
-            theme: "light",
-            themeMode: "light",
-            systemTheme: "light",
-            setThemeMode: vi.fn(),
-          }}
-        >
-          <Dialog aria-label="Decision evaluator">
-            <EvaluatorStoreProvider
-              initialState={{
-                ...DEFAULT_STORE_VALUES,
-                evaluator: {
-                  ...DEFAULT_STORE_VALUES.evaluator,
-                  kind: "DECISION",
-                  isBuiltin: false,
-                  globalName: "relevance",
-                  description: "",
-                  inputMapping: { pathMapping: {}, literalMapping: {} },
-                },
-              }}
-            >
-              {children}
-            </EvaluatorStoreProvider>
-          </Dialog>
-        </ThemeContext.Provider>
+        <AgentContext.Provider value={agentStore}>
+          <ThemeContext.Provider
+            value={{
+              theme: "light",
+              themeMode: "light",
+              systemTheme: "light",
+              setThemeMode: vi.fn(),
+            }}
+          >
+            <Dialog aria-label="Decision evaluator">
+              <EvaluatorStoreProvider
+                initialState={{
+                  ...DEFAULT_STORE_VALUES,
+                  evaluator: {
+                    ...DEFAULT_STORE_VALUES.evaluator,
+                    kind: "DECISION",
+                    isBuiltin: false,
+                    globalName: "relevance",
+                    description: "",
+                    inputMapping: { pathMapping: {}, literalMapping: {} },
+                  },
+                }}
+              >
+                {children}
+              </EvaluatorStoreProvider>
+            </Dialog>
+          </ThemeContext.Provider>
+        </AgentContext.Provider>
       )
     );
   }
@@ -276,5 +282,35 @@ describe("Project decision evaluator forms", () => {
     });
     expect(galleryEdges()).toHaveLength(0);
     expect(onSuccess).toHaveBeenCalled();
+  });
+
+  it("refuses PXI's attach while an input the Attach button waits on is unmapped", async () => {
+    await render(
+      <AttachProjectDecisionEvaluatorDialogContent
+        title="Attach decision evaluator"
+        projectId="project-1"
+        evaluator={{
+          ...savedEvaluator,
+          inputSchema: { properties: { output: {}, reference: {} } },
+        }}
+        scope={scope}
+        onScopeChange={vi.fn()}
+        onSuccess={onSuccess}
+        registerDirtyCheck={vi.fn()}
+      />
+    );
+    const submit =
+      agentStore.getState().registeredClientActions[
+        "evaluators.project.attach.submit"
+      ];
+    const result = await act(() =>
+      submit({}, { callId: "call-1", sessionId: null })
+    );
+
+    expect(result).toMatchObject({ ok: false });
+    expect(result.ok ? "" : result.error).toContain(
+      "reference has no input mapping"
+    );
+    expect(commit).not.toHaveBeenCalled();
   });
 });

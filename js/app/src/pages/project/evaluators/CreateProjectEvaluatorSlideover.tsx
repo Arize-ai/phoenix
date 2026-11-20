@@ -40,6 +40,13 @@ import {
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideover";
 import {
+  ATTACH_MAP_WITH,
+  getProjectEvaluatorSubmitRefusal,
+  type ProjectEvaluatorFilterValidity,
+  useProjectEvaluatorFilterValidity,
+  type ProjectEvaluatorSubmitGateInput,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorSubmitGate";
+import {
   DEFAULT_EVALUATION_DELAY_SECONDS,
   getDefaultProjectEvaluatorFilterCondition,
   isSameInputMapping,
@@ -482,6 +489,15 @@ function AttachCodeProjectEvaluatorDialog({
     scope,
   });
   trackStoreForDirtyCheck(store);
+  const filterValidity = useProjectEvaluatorFilterValidity();
+  const submitGate: ProjectEvaluatorSubmitGateInput = {
+    targetType: scope.targetType,
+    filterValidity,
+    variables: creationMode.variables,
+    requiredVariables: creationMode.requiredVariables,
+    submitLabel: "attach",
+    mapWith: ATTACH_MAP_WITH,
+  };
   const {
     attach,
     isAttaching: isAddingCodeEvaluator,
@@ -545,6 +561,13 @@ function AttachCodeProjectEvaluatorDialog({
       inputDescriptions: creationMode.inputDescriptions,
     },
     submit: async (): Promise<EvaluatorSubmitResult> => {
+      const refusal = await getProjectEvaluatorSubmitRefusal({
+        gate: submitGate,
+        store,
+      });
+      if (refusal) {
+        return refusal;
+      }
       const result = await attachEvaluator();
       if (!result.ok) {
         return result;
@@ -568,6 +591,8 @@ function AttachCodeProjectEvaluatorDialog({
       canDescribeInputs={false}
       scope={scope}
       onScopeChange={onScopeChange}
+      submitGate={submitGate}
+      onFilterValidityChange={filterValidity.onFilterValidityChange}
       isSubmitting={isAddingCodeEvaluator}
       error={error}
       onSubmit={() => void attachEvaluator()}
@@ -603,7 +628,7 @@ function CreateLlmProjectEvaluatorDialog({
   const variables = useLLMEvaluatorVariables({ instanceId });
   const [error, setError] = useState<string>();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isFilterValid, setIsFilterValid] = useState(true);
+  const filterValidity = useProjectEvaluatorFilterValidity();
   const trackStoreForDirtyCheck = useEvaluatorFormDirtyCheck({
     registerDirtyCheck,
     scope,
@@ -675,8 +700,7 @@ function CreateLlmProjectEvaluatorDialog({
       projectId={projectId}
       scope={scope}
       onScopeChange={onScopeChange}
-      isFilterValid={isFilterValid}
-      onFilterValidityChange={setIsFilterValid}
+      filterValidity={filterValidity}
       onClose={onClose}
       onSubmit={submit}
       isSubmitting={isSubmitting}
@@ -690,8 +714,7 @@ const ScratchLlmDialogContent = ({
   projectId,
   scope,
   onScopeChange,
-  isFilterValid,
-  onFilterValidityChange,
+  filterValidity,
   onClose,
   onSubmit,
   isSubmitting,
@@ -701,8 +724,7 @@ const ScratchLlmDialogContent = ({
   projectId: string;
   scope: ProjectEvaluatorScope;
   onScopeChange: (scope: ProjectEvaluatorScope) => void;
-  isFilterValid: boolean;
-  onFilterValidityChange: (isValid: boolean) => void;
+  filterValidity: ProjectEvaluatorFilterValidity;
   onClose: () => void;
   onSubmit: () => Promise<EvaluatorSubmitResult>;
   isSubmitting: boolean;
@@ -711,7 +733,7 @@ const ScratchLlmDialogContent = ({
   return (
     <ProjectLlmEvaluatorDialogContent
       targetType={scope.targetType}
-      isFilterValid={isFilterValid}
+      filterValidity={filterValidity}
       title={title}
       onClose={onClose}
       onSubmit={onSubmit}
@@ -723,7 +745,7 @@ const ScratchLlmDialogContent = ({
           projectId={projectId}
           scope={scope}
           onScopeChange={onScopeChange}
-          onFilterValidityChange={onFilterValidityChange}
+          onFilterValidityChange={filterValidity.onFilterValidityChange}
         />
       }
       formLeftDock={
