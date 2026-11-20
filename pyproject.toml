@@ -63,7 +63,10 @@ dependencies = [
   # Code-mode sandbox. Direct, not via fastmcp's `code-mode` extra, whose exact `pydantic-monty` pin conflicts and would ship in wheel metadata.
   "pydantic-monty==1.5.0",
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
-  "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.71.0,<3",
+  "pydantic-ai-slim[anthropic,bedrock,mcp,openai,ui]>=2.71.0,<3",
+  # Direct, not via pydantic-ai-slim's `google` extra, whose `<3` cap conflicts
+  # with the `>=3.2.0` floor Gemini's Decisions API needs and would ship in wheel metadata.
+  "google-genai>=3.2.0,<4",
   # Arrives via pydantic-ai-slim[anthropic], which sets no upper bound. Pinned
   # here so the major version is chosen deliberately rather than by resolution.
   "anthropic>=1,<2",
