@@ -32,7 +32,7 @@ import {
 import { getSampleSessionEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSessionEvaluationContext";
 import { getSampleSpanEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
 import { getSampleTraceEvaluationContext } from "@phoenix/pages/project/evaluators/sampleTraceEvaluationContext";
-import { useRecordListing } from "@phoenix/pages/project/evaluators/useRecordListing";
+import { useLoadMoreRecords } from "@phoenix/pages/project/evaluators/useLoadMoreRecords";
 import {
   getSessionDetailsPath,
   getTraceDetailsPath,
@@ -335,9 +335,11 @@ function TraceRecordSource({
   filterCondition,
   ...benchProps
 }: RecordSourceProps) {
-  const { limit, isShowingMore, appendLoadedRows, showMore } = useRecordListing(
-    { filterCondition, startIso: benchProps.timeWindow.startIso }
-  );
+  const { numRecordsToLoad, isLoadingMore, keepListedRowsFirst, loadMore } =
+    useLoadMoreRecords({
+      filterCondition,
+      timeWindowStartISOTimestamp: benchProps.timeWindow.startIso,
+    });
   const data = useLazyLoadQuery<ProjectEvaluatorScopePanelTracesQuery>(
     graphql`
       query ProjectEvaluatorScopePanelTracesQuery(
@@ -386,7 +388,7 @@ function TraceRecordSource({
       projectId,
       traceFilterCondition: filterCondition.trim() || null,
       timeRange: { start: benchProps.timeWindow.startIso },
-      first: limit,
+      first: numRecordsToLoad,
     },
     { fetchPolicy: "store-and-network" }
   );
@@ -428,15 +430,19 @@ function TraceRecordSource({
           },
         ]
       : [];
-  const rows = appendLoadedRows(loadedRows);
+  const hasMore = data.project?.rootSpans?.pageInfo.hasNextPage ?? false;
+  const rows = keepListedRowsFirst({
+    loadedRows,
+    hasNextPage: hasMore,
+  });
   return (
     <ProjectEvaluatorTestBench
       {...benchProps}
       rows={rows}
       recordKind="trace"
-      hasMore={data.project?.rootSpans?.pageInfo.hasNextPage ?? false}
-      isLoadingMore={isShowingMore}
-      onLoadMore={() => showMore(rows)}
+      hasMore={hasMore}
+      isLoadingMore={isLoadingMore}
+      onLoadMore={() => loadMore({ listedRows: rows })}
     />
   );
 }
@@ -457,9 +463,11 @@ function SessionRecordSource({
   filterCondition,
   ...benchProps
 }: RecordSourceProps) {
-  const { limit, isShowingMore, appendLoadedRows, showMore } = useRecordListing(
-    { filterCondition, startIso: benchProps.timeWindow.startIso }
-  );
+  const { numRecordsToLoad, isLoadingMore, keepListedRowsFirst, loadMore } =
+    useLoadMoreRecords({
+      filterCondition,
+      timeWindowStartISOTimestamp: benchProps.timeWindow.startIso,
+    });
   const data = useLazyLoadQuery<ProjectEvaluatorScopePanelSessionsQuery>(
     graphql`
       query ProjectEvaluatorScopePanelSessionsQuery(
@@ -500,7 +508,7 @@ function SessionRecordSource({
       projectId,
       sessionFilterCondition: filterCondition.trim() || null,
       timeRange: { start: benchProps.timeWindow.startIso },
-      first: limit,
+      first: numRecordsToLoad,
     },
     { fetchPolicy: "store-and-network" }
   );
@@ -541,15 +549,19 @@ function SessionRecordSource({
           },
         ]
       : [];
-  const rows = appendLoadedRows(loadedRows);
+  const hasMore = data.project?.sessions?.pageInfo.hasNextPage ?? false;
+  const rows = keepListedRowsFirst({
+    loadedRows,
+    hasNextPage: hasMore,
+  });
   return (
     <ProjectEvaluatorTestBench
       {...benchProps}
       rows={rows}
       recordKind="session"
-      hasMore={data.project?.sessions?.pageInfo.hasNextPage ?? false}
-      isLoadingMore={isShowingMore}
-      onLoadMore={() => showMore(rows)}
+      hasMore={hasMore}
+      isLoadingMore={isLoadingMore}
+      onLoadMore={() => loadMore({ listedRows: rows })}
     />
   );
 }
@@ -559,9 +571,11 @@ function SpanRecordSource({
   filterCondition,
   ...benchProps
 }: RecordSourceProps) {
-  const { limit, isShowingMore, appendLoadedRows, showMore } = useRecordListing(
-    { filterCondition, startIso: benchProps.timeWindow.startIso }
-  );
+  const { numRecordsToLoad, isLoadingMore, keepListedRowsFirst, loadMore } =
+    useLoadMoreRecords({
+      filterCondition,
+      timeWindowStartISOTimestamp: benchProps.timeWindow.startIso,
+    });
   const data = useLazyLoadQuery<ProjectEvaluatorScopePanelSpansQuery>(
     graphql`
       query ProjectEvaluatorScopePanelSpansQuery(
@@ -604,7 +618,7 @@ function SpanRecordSource({
       projectId,
       filterCondition: filterCondition.trim() || null,
       timeRange: { start: benchProps.timeWindow.startIso },
-      first: limit,
+      first: numRecordsToLoad,
     },
     { fetchPolicy: "store-and-network" }
   );
@@ -641,15 +655,19 @@ function SpanRecordSource({
           },
         ]
       : [];
-  const rows = appendLoadedRows(loadedRows);
+  const hasMore = data.project?.spans?.pageInfo.hasNextPage ?? false;
+  const rows = keepListedRowsFirst({
+    loadedRows,
+    hasNextPage: hasMore,
+  });
   return (
     <ProjectEvaluatorTestBench
       {...benchProps}
       rows={rows}
       recordKind="span"
-      hasMore={data.project?.spans?.pageInfo.hasNextPage ?? false}
-      isLoadingMore={isShowingMore}
-      onLoadMore={() => showMore(rows)}
+      hasMore={hasMore}
+      isLoadingMore={isLoadingMore}
+      onLoadMore={() => loadMore({ listedRows: rows })}
     />
   );
 }
