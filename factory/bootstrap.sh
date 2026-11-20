@@ -113,6 +113,7 @@ echo "pnpm: $(pnpm --version 2>/dev/null || echo missing)"
 echo "uv: $(uv --version 2>/dev/null || echo missing)"
 echo "gh: $(gh --version 2>/dev/null | head -n 1 | grep . || echo missing); screenshot attach: $gh_attach_status"
 echo "px: $(px --version 2>/dev/null || echo missing)"
+echo "ffmpeg: $(ffmpeg -version 2>/dev/null | head -n 1 | grep . || echo missing)"
 if [ "$setup_status" -eq 0 ]; then
   echo "make setup: ok"
 else

@@ -9,7 +9,9 @@ config:
     allow_mcp_servers: true
   packages:
     type: packages
-    apt: [gh] # authenticates with the vault's GH_TOKEN credential
+    apt:
+      - gh # authenticates with the vault's GH_TOKEN credential
+      - ffmpeg # joins screenshots into a short video for the demo lane
     pip: [uv, tox] # `make setup` checks for both
     npm:
       - pnpm@12.0.0 # matches packageManager in js/package.json
