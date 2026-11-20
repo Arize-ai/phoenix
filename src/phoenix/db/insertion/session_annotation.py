@@ -98,18 +98,16 @@ class SessionAnnotationQueueInserter(
                     to_discard.append(p)
                 else:
                     to_insert.append(
-                        Received(
-                            received_at=p.received_at,
-                            item=p.item.as_insertable(
+                        p.replace_item(
+                            p.item.as_insertable(
                                 project_session_rowid=anno.session_rowid,
                             ),
                         )
                     )
             elif (existing_session := existing_sessions.get(p.item.session_id)) is not None:
                 to_insert.append(
-                    Received(
-                        received_at=p.received_at,
-                        item=p.item.as_insertable(
+                    p.replace_item(
+                        p.item.as_insertable(
                             project_session_rowid=existing_session.session_rowid,
                         ),
                     )
