@@ -1,5 +1,3 @@
-import { EventEmitter } from "node:events";
-import { PassThrough } from "node:stream";
 import { Pool } from "pg";
 import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
 
@@ -26,7 +24,7 @@ const upstream = vi.hoisted(() => ({
   events: vi.fn(),
   send: vi.fn(),
   reply: vi.fn(),
-  spawn: vi.fn(),
+  github: vi.fn(),
   after: vi.fn(),
   readThread: vi.fn(),
 }));
@@ -34,7 +32,6 @@ vi.mock("../src/slack/client", () => ({
   readSlackThread: upstream.readThread,
 }));
 vi.mock("next/server", () => ({ after: upstream.after }));
-vi.mock("node:child_process", () => ({ spawn: upstream.spawn }));
 vi.mock("../src/workers/client", async (importOriginal) => {
   const actual = await importOriginal<typeof WorkerClient>();
   return {
@@ -86,6 +83,8 @@ beforeEach(async () => {
     ANTHROPIC_API_KEY: "worker-test-key",
     ANTHROPIC_WORKSPACE_ID: "worker-workspace",
     SLACK_ALLOWED_USER_IDS: "alex,sam",
+    FACTORY_GITHUB_TOKEN: "dispatcher-test-token",
+    FACTORY_WORKFLOW_REF: "trusted-factory-ref",
     FACTORY_GITHUB_USERS: '{"alex":"alex-github","sam":"sam-github"}',
   }))
     vi.stubEnv(key, value);
@@ -111,8 +110,20 @@ beforeEach(async () => {
     data: [{ type: "user.message", id: "accepted-input" }],
   });
   upstream.reply.mockResolvedValue({});
+  vi.stubGlobal("fetch", upstream.github);
+  upstream.github.mockImplementation(
+    async (_url: string, options: RequestInit): Promise<Response> =>
+      Response.json(
+        options.method === "POST"
+          ? { workflow_run_id: 123 }
+          : { permission: "write" }
+      )
+  );
 });
-afterEach(() => vi.unstubAllEnvs());
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+});
 afterAll(async () => {
   await pool.end();
   await getDatabase().destroy();
@@ -443,62 +454,143 @@ it("requires valid existing lane targets and server-configured GitHub identities
       }),
     })
   ).rejects.toThrow("configured GitHub identity");
-  expect(upstream.spawn).not.toHaveBeenCalled();
+  expect(upstream.github).not.toHaveBeenCalled();
 });
 
-it("starts through the Python admission bridge using worker credentials and records the actual accepted session", async () => {
-  let bridgeInput: unknown;
-  upstream.spawn.mockImplementation(() => {
-    const child = new EventEmitter();
-    const stdout = new PassThrough();
-    return Object.assign(child, {
-      stdout,
-      unref: vi.fn(),
-      stdin: {
-        once: vi.fn(),
-        end: (body: string): void => {
-          bridgeInput = JSON.parse(body);
-          queueMicrotask(() =>
-            stdout.write(
-              JSON.stringify({
-                session_id: "actual-anthropic-id",
-              }) + "\n"
-            )
-          );
-        },
-      },
+it.each([
+  ["bug", "factory-dispatch.yml", "issue"],
+  ["feature", "factory-dispatch.yml", "issue"],
+  ["docs", "factory-dispatch.yml", "issue"],
+  ["review", "factory-review.yml", "pr"],
+  ["finish", "factory-finish.yml", "pr"],
+])(
+  "queues %s on its existing workflow with the trusted ref and signed return instruction",
+  async (lane, workflow, target) => {
+    const result = await startSession({
+      foremanId: "foreman-a",
+      input: startSessionSchema.parse({
+        repo: "Arize-ai/phoenix",
+        lane,
+        instruction: "Perform the requested work",
+        ...(target === "pr" ? { pr_numbers: [42] } : { issue_numbers: [42] }),
+      }),
     });
-  });
-  const result = await startSession({
-    foremanId: "foreman-a",
-    input: startSessionSchema.parse({
-      repo: "Arize-ai/phoenix",
-      lane: "bug",
-      instruction: "Fix",
-      issue_numbers: [42],
-    }),
-  });
-  expect(result).toMatchObject({
-    session_id: "actual-anthropic-id",
-    status: "accepted",
-  });
-  expect(bridgeInput).toMatchObject({
-    requesters: ["alex-github"],
-    issue_numbers: [42],
-    lane: "bug",
-  });
-  expect(upstream.spawn).toHaveBeenCalledWith(
-    "uv",
-    ["run", "--script", expect.stringContaining("worker_bridge.py")],
-    expect.objectContaining({
-      env: expect.objectContaining({
-        ANTHROPIC_API_KEY: "worker-test-key",
-        GH_REPO: "Arize-ai/phoenix",
+    expect(result).toMatchObject({
+      workflow_run_id: 123,
+      workflow_url: "https://github.com/Arize-ai/phoenix/actions/runs/123",
+      status: "queued",
+    });
+    expect(result).not.toHaveProperty("session_id");
+    expect(upstream.github).toHaveBeenCalledTimes(2);
+    expect(upstream.github.mock.calls[0][0]).toBe(
+      "https://api.github.com/repos/Arize-ai/phoenix/collaborators/alex-github/permission"
+    );
+    const [url, options] = upstream.github.mock.calls[1];
+    expect(url).toBe(
+      `https://api.github.com/repos/Arize-ai/phoenix/actions/workflows/${workflow}/dispatches`
+    );
+    expect(options.redirect).toBe("error");
+    expect(options.headers["x-github-api-version"]).toBe("2026-03-10");
+    const dispatch = JSON.parse(options.body);
+    expect(dispatch.ref).toBe("trusted-factory-ref");
+    expect(dispatch.inputs[target]).toBe("42");
+    const message = JSON.parse(dispatch.inputs.message_request);
+    expect(message).toMatchObject({
+      requesters: ["alex-github"],
+      workspace_id: "worker-workspace",
+      reply_binding: result.request_id,
+      instruction: expect.stringContaining("Perform the requested work"),
+    });
+    const marker = message.instruction.match(/^REPLYING_TO: (.+)$/m)[1];
+    expect(readSignedToken(marker)).toMatchObject({
+      foreman_id: "foreman-a",
+      request_id: result.request_id,
+      is_start: true,
+    });
+  }
+);
+
+it("checks all permitted participants before dispatching and rejects insufficient repository access", async () => {
+  upstream.readThread.mockResolvedValue([
+    { user_id: "alex" },
+    { user_id: "sam" },
+  ]);
+  upstream.github.mockResolvedValueOnce(Response.json({ permission: "write" }));
+  upstream.github.mockResolvedValueOnce(Response.json({ permission: "read" }));
+  await expect(
+    startSession({
+      foremanId: "foreman-a",
+      input: startSessionSchema.parse({
+        repo: "Arize-ai/phoenix",
+        lane: "bug",
+        instruction: "Fix",
+        issue_numbers: [42],
       }),
     })
-  );
-  expect(bridgeInput).toMatchObject({
-    reply_binding: result.request_id,
-    instruction: expect.stringContaining("REPLYING_TO: "),
-  });
+  ).rejects.toThrow("write access");
+  expect(upstream.github).toHaveBeenCalledTimes(2);
+  expect(
+    upstream.github.mock.calls.every(([, options]) => options.method === "GET")
+  ).toBe(true);
 });
+
+it("does not retry an uncertain workflow dispatch or expose GitHub errors and credentials", async () => {
+  upstream.github.mockResolvedValueOnce(Response.json({ permission: "write" }));
+  upstream.github.mockRejectedValueOnce(
+    new TypeError("dispatcher-test-token network failed")
+  );
+  await expect(
+    startSession({
+      foremanId: "foreman-a",
+      input: startSessionSchema.parse({
+        repo: "Arize-ai/phoenix",
+        lane: "review",
+        instruction: "Review",
+        pr_numbers: [42],
+      }),
+    })
+  ).rejects.toThrow("Check Actions before retrying");
+  expect(upstream.github).toHaveBeenCalledTimes(2);
+});
+
+it("rejects forbidden repositories and missing dispatcher credentials before any GitHub request", async () => {
+  const input = startSessionSchema.parse({
+    repo: "other/private",
+    lane: "bug",
+    instruction: "Fix",
+    issue_numbers: [42],
+  });
+  await expect(startSession({ foremanId: "foreman-a", input })).rejects.toThrow(
+    "not available"
+  );
+  vi.stubEnv("FACTORY_GITHUB_TOKEN", "");
+  await expect(
+    startSession({
+      foremanId: "foreman-a",
+      input: { ...input, repo: "Arize-ai/phoenix" },
+    })
+  ).rejects.toThrow();
+  expect(upstream.github).not.toHaveBeenCalled();
+});
+
+it.each(["", "{}", "not-json"])(
+  "treats a successful dispatch with invalid response %j as uncertain without retrying",
+  async (body) => {
+    upstream.github.mockResolvedValueOnce(
+      Response.json({ permission: "write" })
+    );
+    upstream.github.mockResolvedValueOnce(new Response(body, { status: 200 }));
+    await expect(
+      startSession({
+        foremanId: "foreman-a",
+        input: startSessionSchema.parse({
+          repo: "Arize-ai/phoenix",
+          lane: "bug",
+          instruction: "Fix",
+          issue_numbers: [42],
+        }),
+      })
+    ).rejects.toThrow("delivery is uncertain");
+    expect(upstream.github).toHaveBeenCalledTimes(2);
+  }
+);

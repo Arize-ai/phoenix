@@ -82,7 +82,7 @@ async function handleRequest(request: Request): Promise<Response> {
       "start_session",
       {
         description:
-          "Start a Factory lane using its existing GitHub admission checks. bug/feature/docs require exactly one issue; review/finish require exactly one PR. Returns acceptance; results arrive asynchronously.",
+          "Queue an existing Factory GitHub Actions workflow. bug/feature/docs require exactly one issue; review/finish require exactly one PR. Returns a queued workflow link, not a worker session ID; admission and results are asynchronous.",
         inputSchema: startSessionSchema,
         annotations: {
           readOnlyHint: false,

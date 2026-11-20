@@ -1,5 +1,3 @@
-import { spawn } from "node:child_process";
-import { resolve } from "node:path";
 import { getDatabase } from "@/db/client";
 import { readSlackThread } from "@/slack/client";
 import { z } from "zod";
@@ -7,6 +5,7 @@ import { z } from "zod";
 import { authorizeRepository } from "./client";
 import { getWorkerConfig, laneSchema, repoSchema, WorkerError } from "./config";
 import { createReplyInstruction } from "./requests";
+import { dispatchWorkerWorkflow } from "./workflows";
 
 export const startSessionSchema = z
   .object({
@@ -30,17 +29,18 @@ export const startSessionSchema = z
       });
   });
 
-const startResultSchema = z.object({
-  session_id: z.string(),
-});
-
 export async function startSession({
   foremanId,
   input,
 }: {
   foremanId: string;
   input: z.infer<typeof startSessionSchema>;
-}): Promise<{ session_id: string; request_id: string; status: "accepted" }> {
+}): Promise<{
+  workflow_run_id: number;
+  workflow_url: string;
+  request_id: string;
+  status: "queued";
+}> {
   authorizeRepository(input.repo);
   const config = getWorkerConfig();
   const thread = await getDatabase()
@@ -67,6 +67,10 @@ export async function startSession({
         )
     ),
   ];
+  if (participants.length > 100)
+    throw new WorkerError(
+      "Factory starts support at most 100 permitted thread participants."
+    );
   const requesters = participants.map(
     (userId) => config.FACTORY_GITHUB_USERS[userId]
   );
@@ -78,83 +82,17 @@ export async function startSession({
     foremanId,
     message: input.instruction,
   });
-  const bridge = resolve(process.cwd(), "scripts/worker_bridge.py");
-  let isRejected = false;
-  const result = await new Promise<z.infer<typeof startResultSchema>>(
-    (resolve, reject) => {
-      const child = spawn("uv", ["run", "--script", bridge], {
-        detached: true,
-        stdio: ["pipe", "pipe", "ignore"],
-        env: {
-          ...process.env,
-          GH_REPO: input.repo,
-        },
-      });
-      let output = "";
-      child.once("error", () =>
-        reject(
-          new WorkerError(
-            "Factory runtime could not start; check uv and gh installation."
-          )
-        )
-      );
-      child.stdin.once("error", () =>
-        reject(
-          new WorkerError("Factory runtime did not accept the startup request.")
-        )
-      );
-      child.stdout.on("data", (data: Buffer) => {
-        output += data.toString();
-        if (output.length > 4096) {
-          child.stdout.destroy();
-          reject(
-            new WorkerError("Factory startup returned an invalid response.")
-          );
-          return;
-        }
-        if (!output.includes("\n")) return;
-        const line: unknown = ((): unknown => {
-          try {
-            return JSON.parse(output.split("\n")[0]);
-          } catch (error) {
-            if (error instanceof SyntaxError) return null;
-            throw error;
-          }
-        })();
-        const parsed = startResultSchema.safeParse(line);
-        const failure = z
-          .object({ error: z.string(), uncertain: z.boolean() })
-          .safeParse(line);
-        isRejected = failure.success && !failure.data.uncertain;
-        child.stdout.destroy();
-        child.unref();
-        if (parsed.success) resolve(parsed.data);
-        else
-          reject(
-            new WorkerError(
-              isRejected
-                ? "Factory admission rejected this request; check permissions and the target's Factory status comment."
-                : "Factory startup is uncertain. Check sessions before retrying; do not retry automatically."
-            )
-          );
-      });
-      child.once("exit", () => {
-        if (!output.includes("\n"))
-          reject(new WorkerError("Factory startup exited without a session."));
-      });
-      child.stdin.end(
-        JSON.stringify({
-          ...input,
-          instruction: reply.instruction,
-          reply_binding: reply.requestId,
-          requesters,
-        })
-      );
-    }
-  );
+  const workflow = await dispatchWorkerWorkflow({
+    repo: input.repo,
+    lane: input.lane,
+    targetNumber: (input.pr_numbers ?? input.issue_numbers)![0],
+    requesters,
+    instruction: reply.instruction,
+    replyBinding: reply.requestId,
+  });
   return {
-    session_id: result.session_id,
+    ...workflow,
     request_id: reply.requestId,
-    status: "accepted",
+    status: "queued",
   };
 }

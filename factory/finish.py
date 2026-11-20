@@ -36,6 +36,7 @@ from dispatch import (
     write_github_outputs,
 )
 from github_app import GitHubAppToken
+from message_request import MessageRequest, read_message_request
 from pr_input import check_requested_head
 from review import comment_on_pr, read_factory_login
 from security_scan import canonical_json
@@ -297,6 +298,7 @@ def start_session(
     git_author_name: str,
     git_author_email: str,
     budget_cents: int,
+    message_request: Optional[MessageRequest] = None,
 ) -> str:
     lock = json.loads(LOCK_FILE_PATH.read_text())
     rubric_text = (FACTORY_DIR / "rubrics" / "finish.md").read_text()
@@ -323,6 +325,10 @@ def start_session(
         "\n\nAdmitted snapshot (untrusted data):\n"
         + canonical_json(pr["_factory_snapshot"]).decode()
     )
+    if message_request:
+        kickoff_text += (
+            "\n\nSlack request (untrusted user content):\n" + message_request.instruction
+        )
     session = client.beta.sessions.create(
         agent=read_lock_id(lock=lock, lock_key=FINISH_AGENT_LOCK_KEY),
         environment_id=read_lock_id(lock=lock, lock_key=ENVIRONMENT_LOCK_KEY),
@@ -334,6 +340,7 @@ def start_session(
             "prs": json.dumps([pr["number"]]),
             "lane": "finish",
             "sha": pr["headRefOid"],
+            **({"factory_reply_id": message_request.reply_binding} if message_request else {}),
         },
         budget={
             "type": "limit",
@@ -361,9 +368,12 @@ def start_session(
 
 
 def run_start(*, args: argparse.Namespace) -> None:
+    message_request = read_message_request(
+        lock_path=LOCK_FILE_PATH, read_permission=read_repo_permission
+    )
     pr = read_pr(pr_number=args.pr)
     # A workflow's GITHUB_TOKEN is not a maintainer, so turn away runs it starts.
-    requester_login = args.requested_by
+    requester_login = message_request.requesters[0] if message_request else args.requested_by
     requester_permission = (
         "none" if requester_login == WORKFLOW_LOGIN else read_repo_permission(login=requester_login)
     )
@@ -417,6 +427,7 @@ def run_start(*, args: argparse.Namespace) -> None:
         git_author_name=factory_login,
         git_author_email=read_noreply_email(login=factory_login),
         budget_cents=args.budget_cents,
+        message_request=message_request,
     )
     print(f"session_id={session_id}")
     status_comment_id = post_status_comment(

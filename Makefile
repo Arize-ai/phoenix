@@ -361,7 +361,7 @@ format-factory-message-service:
 test-factory-message-service:
 	@cd $(JS_DIR) && $(PNPM) --filter phoenix-factory-message-service run test
 	@cd $(JS_DIR) && $(PNPM) --filter phoenix-factory-message-service run test:integration
-	@$(UV) run --script factory/message-service/scripts/test_worker_bridge.py
+	@$(UV) run --script factory/test_message_request.py
 
 db-migrate-factory-message-service:
 	@cd $(JS_DIR) && $(PNPM) --filter phoenix-factory-message-service run db:migrate

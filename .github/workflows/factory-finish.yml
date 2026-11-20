@@ -9,6 +9,10 @@ on:
       pr:
         description: Pull request number to finish
         required: true
+      message_request:
+        description: Factory message-service request context
+        required: false
+        type: string
 
 permissions:
   contents: read
