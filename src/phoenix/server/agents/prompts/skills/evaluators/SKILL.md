@@ -119,6 +119,11 @@ the scope.
 - A form submit is refused, with the reason, whenever the form's own save button is disabled: a
   required input with no mapping, or a filter that does not parse. Fix what it names and submit
   again.
+- For what the other evaluator pages show (the evaluators table and queue, the details tabs, the
+  compare page) and the fields behind them, load the `phoenix-graphql` skill's
+  `references/project-evaluators.md`. Before enabling, disabling, clearing a queue, or deleting, say
+  what will change, including the queued evaluations a disable or clear drops, and prefer pointing
+  the human to the switch or menu on that page so they see the result.
 
 ## Things To Avoid
 
