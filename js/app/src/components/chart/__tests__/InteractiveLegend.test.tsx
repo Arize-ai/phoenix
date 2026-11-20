@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   InteractiveLegend,
   type InteractiveLegendProps,
+  compactLegendProps,
   defaultLegendProps,
   useInteractiveLegend,
 } from "@phoenix/components/chart";
@@ -115,6 +116,46 @@ describe("InteractiveLegend", () => {
     ).toBe("true");
     expect(uvButton.getAttribute("aria-pressed")).toBe("false");
     expect(uvButton.getAttribute("data-inactive")).toBe("true");
+  });
+
+  it("keeps a horizontal legend to one overflow row instead of wrapping", () => {
+    act(() => {
+      root.render(<TestChart />);
+    });
+
+    const legend = container.querySelector(".recharts-default-legend");
+    const row = legend?.querySelector(":scope > .overflow-row");
+    expect(row).not.toBeNull();
+    expect(row?.classList.contains("overflow-row--collapsed")).toBe(true);
+    expect(row?.querySelectorAll(".recharts-legend-item")).toHaveLength(2);
+    expect(legend?.querySelector("li")).toBeNull();
+  });
+
+  it("gives each horizontal legend item the wrapper's font size, so the overflow popover's copies match the row", () => {
+    act(() => {
+      root.render(<TestChart legendProps={compactLegendProps} />);
+    });
+
+    const items = container.querySelectorAll<HTMLElement>(
+      ".recharts-legend-item"
+    );
+    expect(items).toHaveLength(2);
+    items.forEach((item) => {
+      expect(item.style.fontSize).toBe("var(--global-font-size-xs)");
+    });
+  });
+
+  it("lists a vertical legend's items without an overflow row", () => {
+    act(() => {
+      root.render(
+        <TestChart legendProps={{ layout: "vertical", align: "right" }} />
+      );
+    });
+
+    const legend = container.querySelector(".recharts-default-legend");
+    expect(legend?.tagName).toBe("UL");
+    expect(legend?.querySelector(".overflow-row")).toBeNull();
+    expect(legend?.querySelectorAll("li.recharts-legend-item")).toHaveLength(2);
   });
 
   it("does not toggle when the provided legend onClick prevents default", () => {
