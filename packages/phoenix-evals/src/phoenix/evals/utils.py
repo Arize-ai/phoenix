@@ -423,7 +423,7 @@ def to_annotation_dataframe(
     Args:
         dataframe (pd.DataFrame): DataFrame returned by (async_)evaluate_dataframe
         score_names (List[str]): Names of the score columns to log (e.g., ["precision",
-        "hallucination"]). If None, all columns ending with _score will be used.
+        "hallucination"]). If None, all string column names ending with _score will be used.
 
     Returns:
         pd.DataFrame: DataFrame with the score column, annotation name, and annotator kind columns
@@ -478,7 +478,11 @@ def to_annotation_dataframe(
     # Step 5: Process each score name
     if not score_names:  # Both None and empty list trigger auto-detection
         # use names from columns in dataframe ending with _score
-        score_names = [col[:-6] for col in working_df.columns if col.endswith("_score")]
+        score_names = [
+            col[:-6]
+            for col in working_df.columns
+            if isinstance(col, str) and col.endswith("_score")
+        ]
 
     result_dfs = []
     for score_name in score_names:
