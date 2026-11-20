@@ -1,5 +1,35 @@
 # Changelog
 
+## [22.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v21.3.0...arize-phoenix-v22.0.0) (2026-11-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* add type column to generative_models
+
+### Features
+
+* add type column to generative_models ([3047aab](https://github.com/Arize-ai/phoenix/commit/3047aab652910595d2969ab8efbd961400edc055))
+* **cost-tracking:** calculate costs for DECISION spans ([#17764](https://github.com/Arize-ai/phoenix/issues/17764)) ([0f83453](https://github.com/Arize-ai/phoenix/commit/0f8345311d78de4955ad514edf9041f1cb4e56eb))
+* **cost-tracking:** calculate costs for EMBEDDING spans ([#17788](https://github.com/Arize-ai/phoenix/issues/17788)) ([0f39d64](https://github.com/Arize-ai/phoenix/commit/0f39d64b8b7e7f187023afd0c5c7a0a05edc59b8))
+* **cost-tracking:** expose generative model type in GraphQL ([#17766](https://github.com/Arize-ai/phoenix/issues/17766)) ([6b3ef74](https://github.com/Arize-ai/phoenix/commit/6b3ef7426d09beec1af27d76cf5814785daefc29))
+* **cost-tracking:** model types in the cost manifest and LiteLLM sync ([#17765](https://github.com/Arize-ai/phoenix/issues/17765)) ([3639718](https://github.com/Arize-ai/phoenix/commit/36397181756c9b44902158668dc4b09b7f6f218d))
+* **cost-tracking:** sync embedding model prices into the cost manifest ([#17787](https://github.com/Arize-ai/phoenix/issues/17787)) ([77f564d](https://github.com/Arize-ai/phoenix/commit/77f564df0f2eab5550a9ba929b83e50fb204ea81))
+* **cost-tracking:** sync Gemini models that LiteLLM lists only under gemini/ ([8a0c3ae](https://github.com/Arize-ai/phoenix/commit/8a0c3ae00b46031b0d218141348e794c4c9da8ee))
+
+
+### Bug Fixes
+
+* **api:** make a generative model's type immutable ([5c5a706](https://github.com/Arize-ai/phoenix/commit/5c5a7066142b147f30e18ea973399bbb43ac5665))
+* **db:** drop ix_cumulative_llm_token_count_total on spans ([#18018](https://github.com/Arize-ai/phoenix/issues/18018)) ([3fb99ed](https://github.com/Arize-ai/phoenix/commit/3fb99ed5b0b5a4fc582a90607a45e1682e4a0d28))
+* **db:** run SQLite migrations in an explicit transaction ([28a5155](https://github.com/Arize-ai/phoenix/commit/28a5155bdaf8cce43d53aa5400a023527d7dcfa0))
+
+
+### Documentation
+
+* add v21 to v22 migration notes ([7309c07](https://github.com/Arize-ai/phoenix/commit/7309c077f3085d3a4c8292992462efadc18e7c45))
+* tighten comments and docstrings in cost tracking ([e832d6c](https://github.com/Arize-ai/phoenix/commit/e832d6cea6e41e9cc48df5f8bbfd42d2cf5536bf))
+
 ## [21.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v21.2.1...arize-phoenix-v21.3.0) (2026-11-20)
 
 
