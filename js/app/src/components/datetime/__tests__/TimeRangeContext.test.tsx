@@ -530,3 +530,123 @@ describe("TimeRangeProvider", () => {
     expect(renderedLocations.at(-1)).toBe(customLocation);
   });
 });
+
+describe("TimeRangeProvider scheduled live refresh", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+  let visibilityState: DocumentVisibilityState;
+
+  function setVisibilityState(nextVisibilityState: DocumentVisibilityState) {
+    visibilityState = nextVisibilityState;
+    document.dispatchEvent(new Event("visibilitychange"));
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-09T10:00:30.000Z"));
+    window.localStorage.clear();
+    visibilityState = "visible";
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => visibilityState,
+    });
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(() => {
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+    window.localStorage.clear();
+    // Drop the own-property stub so jsdom's prototype getter applies again.
+    delete (document as { visibilityState?: DocumentVisibilityState })
+      .visibilityState;
+    vi.useRealTimers();
+  });
+
+  it("skips the scheduled refresh while the tab is hidden and refreshes once visible", () => {
+    const renderedTimeRanges: OpenTimeRangeWithKey[] = [];
+    renderTimeRangeProvider({
+      root,
+      lastNTimeRangeKey: "7d",
+      onRender: (timeRange) => {
+        renderedTimeRanges.push(timeRange);
+      },
+    });
+    expect(renderedTimeRanges.at(-1)?.start?.toISOString()).toBe(
+      "2026-06-02T10:00:00.000Z"
+    );
+
+    act(() => {
+      setVisibilityState("hidden");
+    });
+
+    // Leave the hidden tab open across three top-of-hour boundaries.
+    for (let hour = 0; hour < 3; hour++) {
+      act(() => {
+        vi.advanceTimersByTime(60 * 60 * 1000);
+      });
+    }
+    expect(renderedTimeRanges.at(-1)?.start?.toISOString()).toBe(
+      "2026-06-02T10:00:00.000Z"
+    );
+
+    act(() => {
+      setVisibilityState("visible");
+    });
+    expect(renderedTimeRanges.at(-1)?.start?.toISOString()).toBe(
+      "2026-06-02T13:00:00.000Z"
+    );
+  });
+
+  it("does not schedule every client's hourly refresh at the same wall-clock instant", () => {
+    const boundary = new Date("2026-06-09T11:00:00.000Z").getTime();
+    const refreshTimes: number[] = [];
+
+    for (let client = 0; client < 5; client++) {
+      act(() => {
+        root.unmount();
+      });
+      root = createRoot(container);
+      window.localStorage.clear();
+      vi.clearAllTimers();
+      vi.setSystemTime(new Date("2026-06-09T10:00:30.000Z"));
+
+      const renderedNow: number[] = [];
+      const renderedTimeRanges: OpenTimeRangeWithKey[] = [];
+      renderTimeRangeProvider({
+        root,
+        lastNTimeRangeKey: "7d",
+        onRender: (timeRange) => {
+          renderedTimeRanges.push(timeRange);
+        },
+        onRenderNow: (timeRangeNow) => {
+          renderedNow.push(timeRangeNow);
+        },
+      });
+      const initialNow = renderedNow.at(-1);
+      for (
+        let step = 0;
+        step < 20 && renderedNow.at(-1) === initialNow;
+        step++
+      ) {
+        act(() => {
+          vi.advanceTimersToNextTimer();
+        });
+      }
+      const refreshedAt = renderedNow.at(-1);
+      expect(refreshedAt).not.toBe(initialNow);
+      // The refresh must still land after the rollover so the window advances.
+      expect(renderedTimeRanges.at(-1)?.start?.toISOString()).toBe(
+        "2026-06-02T11:00:00.000Z"
+      );
+      refreshTimes.push(refreshedAt as number);
+    }
+
+    expect(refreshTimes.every((time) => time >= boundary)).toBe(true);
+    expect(new Set(refreshTimes).size).toBeGreaterThan(1);
+  });
+});
