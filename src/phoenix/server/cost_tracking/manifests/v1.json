@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-20T03:22:33Z",
-  "models_sha256": "abe4f625f7d988309c75c8980994c17d88594d14e849ca931ea544f6bb256027",
+  "generated_at": "2026-11-20T13:07:26Z",
+  "models_sha256": "cc0d941e187f8c389d2c328532386c72709b7736b118a1c43484384c85ec2771",
   "models": [
     {
       "name": "anthropic.claude-3-5-haiku-20241022-v1:0",
@@ -7917,7 +7917,7 @@
             "type": "threshold_based",
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
-            "new_rate": 0.00003
+            "new_rate": 0.00002
           }
         },
         {
@@ -7928,7 +7928,7 @@
             "type": "threshold_based",
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
-            "new_rate": 0.0001125
+            "new_rate": 0.000075
           }
         },
         {
@@ -7939,18 +7939,18 @@
             "type": "threshold_based",
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
-            "new_rate": 3e-6
+            "new_rate": 2e-6
           }
         },
         {
-          "base_rate": 0.00001875,
+          "base_rate": 0.0000125,
           "is_prompt": true,
           "token_type": "cache_write",
           "customization": {
             "type": "threshold_based",
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
-            "new_rate": 0.0000375
+            "new_rate": 0.000025
           }
         }
       ]

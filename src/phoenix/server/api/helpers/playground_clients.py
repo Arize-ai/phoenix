@@ -1321,7 +1321,7 @@ class OllamaClient(OpenAICompatibleClient):
     model_names=[
         PROVIDER_DEFAULT,
         "qwen-3.8-27b",
-        "llama3.1-8b",
+        "gemma-4-31b",
         "gpt-oss-120b",
     ],
 )
@@ -1356,17 +1356,14 @@ class GroqClient(OpenAICompatibleClient):
     provider_key=GenerativeProviderKey.MOONSHOT,
     model_names=[
         PROVIDER_DEFAULT,
+        "kimi-k3.1-pro",
+        "kimi-k3.1-pro-highspeed",
         "kimi-k3",
         "kimi-k2.7-code",
         "kimi-k2.6",
         "kimi-k2-turbo-preview",
         "kimi-k2-thinking-turbo",
         "kimi-k2-thinking",
-        "kimi-k2.5",
-        "moonshot-v1-128k",
-        "moonshot-v1-32k",
-        "moonshot-v1-8k",
-        "moonshot-v1-auto",
     ],
 )
 class MoonshotClient(OpenAICompatibleClient):
@@ -1402,11 +1399,14 @@ class PerplexityClient(OpenAICompatibleClient):
     provider_key=GenerativeProviderKey.TOGETHER,
     model_names=[
         PROVIDER_DEFAULT,
+        "moonshotai/Kimi-K3.1-Pro",
         "moonshotai/Kimi-K3",
         "moonshotai/Kimi-K2.5",
         "deepseek-ai/DeepSeek-V4.1-Flash",
         "openai/gpt-oss-120b",
         "zai-org/GLM-5.3",
+        "zai-org/GLM-5.3-Flash",
+        "Qwen/Qwen4-Max",
         "Qwen/Qwen3-235B-A22B-Thinking-2507",
         "deepseek-ai/DeepSeek-R1",
     ],
@@ -1425,6 +1425,7 @@ class TogetherClient(OpenAICompatibleClient):
         "glm-5.1",
         "glm-5",
         "glm-4.7",
+        "glm-4.7-flash",
         "glm-4.6",
         "glm-4.5",
         "glm-4.5-air",
@@ -1454,6 +1455,7 @@ class MetaClient(OpenAICompatibleClient):
     provider_key=GenerativeProviderKey.AWS,
     model_names=[
         PROVIDER_DEFAULT,
+        "anthropic.claude-fable-5-2",
         "anthropic.claude-fable-5-1",
         "anthropic.claude-fable-5",
         "anthropic.claude-opus-5-5",
@@ -1469,7 +1471,6 @@ class MetaClient(OpenAICompatibleClient):
         "anthropic.claude-sonnet-4-5-20250929-v1:0",
         "anthropic.claude-haiku-4-5-20251001-v1:0",
         "anthropic.claude-opus-4-20250514-v1:0",
-        "anthropic.claude-sonnet-4-20250514-v1:0",
         "amazon.titan-embed-text-v2:0",
         "amazon.nova-pro-v1:0",
         "amazon.nova-premier-v1:0:8k",
@@ -1485,11 +1486,6 @@ class MetaClient(OpenAICompatibleClient):
         "meta.llama3-1-8b-instruct-v1:0",
         "meta.llama3-1-70b-instruct-v1:0:128k",
         "meta.llama3-1-70b-instruct-v1:0",
-        "meta.llama3-1-405b-instruct-v1:0",
-        "meta.llama3-2-11b-instruct-v1:0",
-        "meta.llama3-2-90b-instruct-v1:0",
-        "meta.llama3-2-1b-instruct-v1:0",
-        "meta.llama3-2-3b-instruct-v1:0",
         "meta.llama3-3-70b-instruct-v1:0",
         "meta.llama4-scout-17b-instruct-v1:0",
         "meta.llama4-maverick-17b-instruct-v1:0",
@@ -1965,12 +1961,8 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
 OPENAI_CHAT_COMPLETIONS_MODELS = [
     "gpt-4.1",
     "gpt-4.1-mini",
-    "gpt-4.1-nano",
     "gpt-4o",
     "gpt-4o-mini",
-    "gpt-4-turbo",
-    "gpt-4",
-    "gpt-3.5-turbo",
 ]
 """OpenAI models that default to /v1/chat/completions. Any other name, known or
 not, defaults to the Responses API. See ``get_openai_client_class``."""
@@ -2011,12 +2003,8 @@ OPENAI_REASONING_MODELS = [
     "gpt-5-mini",
     "gpt-5-nano",
     "gpt-5-pro",
-    "o1",
-    "o1-pro",
     "o3",
     "o3-pro",
-    "o3-mini",
-    "o4-mini",
 ]
 
 
@@ -2024,6 +2012,7 @@ OPENAI_REASONING_MODELS = [
     provider_key=GenerativeProviderKey.OPENAI,
     model_names=[
         PROVIDER_DEFAULT,
+        "gpt-6.2-astra",
         "gpt-6.2-sol",
         "gpt-6.1-terra",
         *OPENAI_REASONING_MODELS,
