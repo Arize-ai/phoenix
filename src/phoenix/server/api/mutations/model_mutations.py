@@ -17,7 +17,11 @@ from phoenix.server.api.auth import IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.queries import Query
-from phoenix.server.api.types.GenerativeModel import GenerativeModel
+from phoenix.server.api.types.GenerativeModel import (
+    GenerativeModel,
+    GenerativeModelType,
+    to_db_generative_model_type,
+)
 from phoenix.server.api.types.GenerativeProvider import KNOWN_LLM_PROVIDER_STRINGS
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.TokenPrice import TokenKind
@@ -52,6 +56,10 @@ class CreateModelMutationInput:
     name_pattern: str
     costs: list[TokenPriceInput]
     start_time: Optional[datetime] = None
+    model_type: GenerativeModelType = strawberry.field(
+        default=GenerativeModelType.LLM,
+        description="The kind of span the model is priced for. Defaults to LLM.",
+    )
 
 
 @strawberry.type
@@ -95,7 +103,8 @@ class ModelMutationMixin:
         info: Info[Context, None],
         input: CreateModelMutationInput,
     ) -> CreateModelMutationPayload:
-        token_prices = _normalized_token_prices(input.costs)
+        model_type = to_db_generative_model_type(input.model_type)
+        token_prices = _normalized_token_prices(input.costs, model_type=model_type)
         name_pattern = _compile_regular_expression(input.name_pattern)
         provider = _normalize_provider(input.provider)
         model = models.GenerativeModel(
@@ -105,10 +114,11 @@ class ModelMutationMixin:
             is_built_in=False,
             token_prices=token_prices,
             start_time=input.start_time,
+            type=model_type,
         )
         async with info.context.db() as session:
             await _raise_on_case_only_provider_collision(
-                session, name_pattern=name_pattern, provider=provider
+                session, name_pattern=name_pattern, provider=provider, model_type=model.type
             )
             try:
                 # The savepoint keeps the session usable after a rejected write, so the
@@ -122,6 +132,7 @@ class ModelMutationMixin:
                     name=input.name,
                     provider=provider,
                     name_pattern=name_pattern,
+                    model_type=model.type,
                 )
 
         return CreateModelMutationPayload(
@@ -140,7 +151,6 @@ class ModelMutationMixin:
         except ValueError:
             raise BadRequest(f'Invalid model id: "{input.id}"')
 
-        token_prices = _normalized_token_prices(input.costs)
         name_pattern = _compile_regular_expression(input.name_pattern)
         provider = _normalize_provider(input.provider)
         async with info.context.db() as session:
@@ -154,30 +164,34 @@ class ModelMutationMixin:
                 raise NotFound(f'Model "{input.id}" not found')
             if model.is_built_in:
                 raise BadRequest("Cannot update built-in model")
+            # The type is fixed at creation, because span costs already priced by this model
+            # reference it by id.
+            model_type = model.type
+            token_prices = _normalized_token_prices(input.costs, model_type=model_type)
             await _raise_on_case_only_provider_collision(
                 session,
                 name_pattern=name_pattern,
                 provider=provider,
+                model_type=model_type,
                 exclude_model_id=model_id,
             )
 
-            await session.execute(
-                delete(models.TokenPrice).where(models.TokenPrice.model_id == model.id)
-            )
-
-            await session.refresh(model)
-
-            model.name = input.name
-            model.provider = provider
-            model.name_pattern = name_pattern
-            model.token_prices = token_prices
-            model.start_time = input.start_time
-            # Explicitly set updated_at so the GenerativeModelStore daemon picks up this
-            # change (SQLAlchemy's onupdate may not trigger for relationship-only changes).
-            model.updated_at = datetime.now(timezone.utc)
-            session.add(model)
             try:
                 async with session.begin_nested():
+                    await session.execute(
+                        delete(models.TokenPrice).where(models.TokenPrice.model_id == model.id)
+                    )
+                    await session.refresh(model)
+
+                    model.name = input.name
+                    model.provider = provider
+                    model.name_pattern = name_pattern
+                    model.token_prices = token_prices
+                    model.start_time = input.start_time
+                    # Explicitly set updated_at so the GenerativeModelStore daemon picks up this
+                    # change (SQLAlchemy's onupdate may not trigger for relationship-only changes).
+                    model.updated_at = datetime.now(timezone.utc)
+                    session.add(model)
                     await session.flush()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 raise await _conflicting_model_error(
@@ -185,6 +199,7 @@ class ModelMutationMixin:
                     name=input.name,
                     provider=provider,
                     name_pattern=name_pattern,
+                    model_type=model_type,
                     exclude_model_id=model_id,
                 )
 
@@ -229,13 +244,14 @@ async def _conflicting_model_error(
     name: str,
     provider: str,
     name_pattern: re.Pattern[str],
+    model_type: models.GenerativeModelType,
     exclude_model_id: Optional[int] = None,
 ) -> Conflict:
     """
     Describe the constraint that a rejected write actually violated.
 
     Custom models are covered by two partial unique indexes over non-deleted rows:
-    `(name, is_built_in)` and `(name_pattern, provider, is_built_in)`. The failure
+    `(name, is_built_in, type)` and `(name_pattern, provider, is_built_in, type)`. The failure
     alone cannot tell them apart, because the backends describe it differently --
     PostgreSQL names the index, SQLite names the columns -- so this looks up the
     offending row rather than guessing, which is how an unrelated failure used to
@@ -249,6 +265,7 @@ async def _conflicting_model_error(
         sa.select(models.GenerativeModel.name)
         .where(models.GenerativeModel.deleted_at.is_(None))
         .where(models.GenerativeModel.is_built_in.is_(False))
+        .where(models.GenerativeModel.type == model_type)
         .where(
             sa.or_(
                 models.GenerativeModel.name == name,
@@ -295,7 +312,11 @@ def _trim_and_snap_to_known(value: str, known_values: frozenset[str]) -> str:
     return lowered if lowered in known_values else value
 
 
-def _normalized_token_prices(costs: list[TokenPriceInput]) -> list[models.TokenPrice]:
+def _normalized_token_prices(
+    costs: list[TokenPriceInput],
+    *,
+    model_type: models.GenerativeModelType,
+) -> list[models.TokenPrice]:
     token_prices = [cost.token_prices for cost in costs]
     for token_price in token_prices:
         # Zero is allowed: it means the tokens are free.
@@ -312,10 +333,12 @@ def _normalized_token_prices(costs: list[TokenPriceInput]) -> list[models.TokenP
             kind = "prompt" if token_price.is_prompt else "completion"
             raise BadRequest(f"Duplicate {kind} token type '{token_price.token_type}'")
         seen.add(key)
-    token_types = {token_price.token_type for token_price in token_prices}
-    if INPUT_TOKEN_TYPE not in token_types:
+    if (True, INPUT_TOKEN_TYPE) not in seen:
         raise BadRequest("input cost is required")
-    if OUTPUT_TOKEN_TYPE not in token_types:
+    # EMBEDDING models need only an input rate. Any completion rate still needs an 'output'
+    # fallback rate, which SpanCostDetailsCalculator requires.
+    requires_output_price = model_type != "EMBEDDING" or any(not is_prompt for is_prompt, _ in seen)
+    if requires_output_price and (False, OUTPUT_TOKEN_TYPE) not in seen:
         raise BadRequest("output cost is required")
     return token_prices
 
@@ -325,12 +348,13 @@ async def _raise_on_case_only_provider_collision(
     *,
     name_pattern: re.Pattern[str],
     provider: str,
+    model_type: models.GenerativeModelType,
     exclude_model_id: Optional[int] = None,
 ) -> None:
     """
     Reject a provider that differs only in case from the provider of another
-    custom model with the same name pattern, since a span whose provider matches
-    neither spelling would be priced by an arbitrary one of them.
+    custom model of the same type with the same name pattern, since a span whose
+    provider matches neither spelling would be priced by an arbitrary one of them.
 
     Case is compared in Python because SQLite's lower() only folds ASCII. Without
     a case-insensitive index the check is not atomic, so concurrent writes could
@@ -342,6 +366,7 @@ async def _raise_on_case_only_provider_collision(
         sa.select(models.GenerativeModel.name, models.GenerativeModel.provider)
         .where(models.GenerativeModel.deleted_at.is_(None))
         .where(models.GenerativeModel.is_built_in.is_(False))
+        .where(models.GenerativeModel.type == model_type)
         .where(models.GenerativeModel.name_pattern == name_pattern)
     )
     if exclude_model_id is not None:

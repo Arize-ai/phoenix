@@ -17,6 +17,7 @@ from phoenix.config import (
     get_env_admins,
     get_env_allowed_origins,
     get_env_auth_settings,
+    get_env_csrf_trusted_origins,
     get_env_database_schema,
     get_env_model_cost_manifest_url,
     get_env_phoenix_admin_secret,
@@ -2505,6 +2506,66 @@ class TestGetEnvAllowedOrigins:
         monkeypatch.setenv("PHOENIX_ALLOWED_ORIGINS", value)
 
         assert get_env_allowed_origins() == expected
+
+
+class TestGetEnvCsrfTrustedOrigins:
+    def test_unset_returns_empty_list(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_CSRF_TRUSTED_ORIGINS", raising=False)
+
+        assert get_env_csrf_trusted_origins() == []
+
+    @pytest.mark.parametrize(
+        "value, expected",
+        [
+            pytest.param(
+                "https://phoenix.example.com,https://app.example.com",
+                ["https://app.example.com", "https://phoenix.example.com"],
+                id="plain",
+            ),
+            pytest.param(
+                "https://phoenix.example.com, https://app.example.com",
+                ["https://app.example.com", "https://phoenix.example.com"],
+                id="spaces-after-commas",
+            ),
+            pytest.param(
+                "https://app.example.com ,https://phoenix.example.com",
+                ["https://app.example.com", "https://phoenix.example.com"],
+                id="space-before-comma",
+            ),
+            pytest.param(
+                "https://phoenix.example.com , https://app.example.com",
+                ["https://app.example.com", "https://phoenix.example.com"],
+                id="spaces-around-commas",
+            ),
+            pytest.param(
+                "https://phoenix.example.com,https://app.example.com ",
+                ["https://app.example.com", "https://phoenix.example.com"],
+                id="trailing-space-at-end-of-value",
+            ),
+            pytest.param(
+                "https://app.example.com ,https://app.example.com",
+                ["https://app.example.com"],
+                id="duplicates-after-trimming",
+            ),
+            pytest.param("", [], id="empty"),
+            pytest.param(" , ", [], id="only-separators"),
+            pytest.param(
+                "https://app.example.com,,", ["https://app.example.com"], id="trailing-commas"
+            ),
+        ],
+    )
+    def test_entries_are_trimmed(
+        self, monkeypatch: MonkeyPatch, value: str, expected: list[str]
+    ) -> None:
+        monkeypatch.setenv("PHOENIX_CSRF_TRUSTED_ORIGINS", value)
+
+        assert get_env_csrf_trusted_origins() == expected
+
+    def test_missing_hostname_raises(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_CSRF_TRUSTED_ORIGINS", "https://app.example.com,not-a-url")
+
+        with pytest.raises(ValueError, match="missing hostname"):
+            get_env_csrf_trusted_origins()
 
 
 class TestGetEnvAllowedSandboxProviders:

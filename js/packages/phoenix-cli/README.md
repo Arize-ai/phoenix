@@ -1108,7 +1108,6 @@ Trace JSON structure:
 
 ## Community
 
-- 🌍 [Slack community](https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g)
 - 📚 [Documentation](https://arize.com/docs/phoenix)
 - 🌟 [GitHub](https://github.com/Arize-ai/phoenix)
 - 🐞 [Report bugs](https://github.com/Arize-ai/phoenix/issues)

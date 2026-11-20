@@ -98,6 +98,7 @@ export function NewModelButton({
                     variables: {
                       input: {
                         name: params.name,
+                        modelType: params.modelType,
                         provider: params.provider,
                         namePattern: params.namePattern,
                         startTime: params.startTime
