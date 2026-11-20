@@ -1,8 +1,10 @@
 import {
   formatQueueGrowthSummary,
   getMirroredCountAxis,
+  getQueueSizeRows,
+  getQueueThroughputRows,
   getTotalNet,
-} from "@phoenix/pages/evaluators/project-evaluators/queueThroughput";
+} from "@phoenix/pages/project/metrics/queueThroughput";
 
 function bin(
   groups: Array<{
@@ -68,5 +70,45 @@ describe("formatQueueGrowthSummary", () => {
     );
     expect(formatQueueGrowthSummary(0)).toBe("Queue kept pace in this range");
     expect(formatQueueGrowthSummary(null)).toBeUndefined();
+  });
+});
+
+describe("queue chart rows", () => {
+  const FIRST_BIN = "2026-11-19T10:00:00Z";
+  const SECOND_BIN = "2026-11-19T11:00:00Z";
+  const bins = [
+    {
+      timestamp: FIRST_BIN,
+      ...bin([
+        { addedCount: 4, evaluatedCount: 1, failedCount: 1 },
+        { addedCount: 2, evaluatedCount: 3 },
+      ]),
+    },
+    { timestamp: SECOND_BIN, ...bin([]) },
+  ];
+  const queueSizeByTimestamp = new Map([[Date.parse(FIRST_BIN), 9]]);
+
+  it("sums each bin's groups for the throughput chart, failures as completed", () => {
+    expect(getQueueThroughputRows({ bins, queueSizeByTimestamp })).toEqual([
+      {
+        timestamp: Date.parse(FIRST_BIN),
+        added: 6,
+        completed: 5,
+        queueSize: 9,
+      },
+      {
+        timestamp: Date.parse(SECOND_BIN),
+        added: 0,
+        completed: 0,
+        queueSize: 0,
+      },
+    ]);
+  });
+
+  it("pairs each bin's queue size with what it processed", () => {
+    expect(getQueueSizeRows({ bins, queueSizeByTimestamp })).toEqual([
+      { timestamp: Date.parse(FIRST_BIN), queueSize: 9, processed: 5 },
+      { timestamp: Date.parse(SECOND_BIN), queueSize: 0, processed: 0 },
+    ]);
   });
 });

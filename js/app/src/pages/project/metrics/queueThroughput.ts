@@ -1,5 +1,18 @@
 import { intShortFormatter } from "@phoenix/utils/numberFormatUtils";
 
+export type QueueThroughputRow = {
+  timestamp: number;
+  added: number;
+  completed: number;
+  queueSize: number;
+};
+
+export type QueueSizeRow = {
+  timestamp: number;
+  queueSize: number;
+  processed: number;
+};
+
 type ActivityBin = {
   groups: ReadonlyArray<{
     evaluatedCount: number;
@@ -8,16 +21,63 @@ type ActivityBin = {
   }>;
 };
 
-/** A bin's evaluations completed, evaluated or failed, across projects. */
-export function getCompletedCount(bin: ActivityBin): number {
+type TimedActivityBin = ActivityBin & { timestamp: string };
+
+/**
+ * One throughput chart row per bin: what was added and completed in it, and
+ * the queue size at its end, or 0 where that was not read.
+ */
+export function getQueueThroughputRows({
+  bins,
+  queueSizeByTimestamp,
+}: {
+  bins: ReadonlyArray<TimedActivityBin>;
+  /** The queue size at each bin's end, keyed by the bin's start. */
+  queueSizeByTimestamp: ReadonlyMap<number, number>;
+}): QueueThroughputRow[] {
+  return bins.map((bin) => {
+    const timestamp = new Date(bin.timestamp).getTime();
+    return {
+      timestamp,
+      added: getAddedCount(bin),
+      completed: getCompletedCount(bin),
+      queueSize: queueSizeByTimestamp.get(timestamp) ?? 0,
+    };
+  });
+}
+
+/**
+ * One queue size chart row per bin: the queue size at its end, or 0 where
+ * that was not read, and the evaluations completed in it.
+ */
+export function getQueueSizeRows({
+  bins,
+  queueSizeByTimestamp,
+}: {
+  bins: ReadonlyArray<TimedActivityBin>;
+  /** The queue size at each bin's end, keyed by the bin's start. */
+  queueSizeByTimestamp: ReadonlyMap<number, number>;
+}): QueueSizeRow[] {
+  return bins.map((bin) => {
+    const timestamp = new Date(bin.timestamp).getTime();
+    return {
+      timestamp,
+      queueSize: queueSizeByTimestamp.get(timestamp) ?? 0,
+      processed: getCompletedCount(bin),
+    };
+  });
+}
+
+/** A bin's evaluations completed, evaluated or failed, across its groups. */
+function getCompletedCount(bin: ActivityBin): number {
   return bin.groups.reduce(
     (sum, group) => sum + group.evaluatedCount + group.failedCount,
     0
   );
 }
 
-/** A bin's evaluations added to the queue, across projects. */
-export function getAddedCount(bin: ActivityBin): number {
+/** A bin's evaluations added to the queue, across its groups. */
+function getAddedCount(bin: ActivityBin): number {
   return bin.groups.reduce((sum, group) => sum + group.addedCount, 0);
 }
 

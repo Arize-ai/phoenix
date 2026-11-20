@@ -1,18 +1,15 @@
-import { type ReactNode, Suspense, useId, useState } from "react";
+import { type ReactNode, Suspense, useState } from "react";
 import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
 import { Group, Panel } from "react-resizable-panels";
 import type { LegendPayload, TooltipContentProps } from "recharts";
 import {
-  Area,
   Bar,
   BarChart,
   CartesianGrid,
   Cell,
-  ComposedChart,
   LabelList,
   Line,
   LineChart,
-  ReferenceLine,
   Tooltip,
   XAxis,
   YAxis,
@@ -37,7 +34,6 @@ import {
   ChartPanelStripSkeleton,
   ChartResponsiveContainer,
   ChartTooltip,
-  ChartTooltipDivider,
   ChartTooltipItem,
   compactChartMargin,
   compactLegendProps,
@@ -56,27 +52,17 @@ import {
   useGrayscaleCategoricalColors,
   useInteractiveLegend,
   useMetricChartsLayout,
-  useSemanticChartColors,
-  useSequentialChartColors,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
-import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import type { ServerEvaluationCharts_queueSize$key } from "@phoenix/pages/evaluators/project-evaluators/__generated__/ServerEvaluationCharts_queueSize.graphql";
 import type {
   ServerEvaluationChartsQuery,
   ServerEvaluationChartsQuery$data,
 } from "@phoenix/pages/evaluators/project-evaluators/__generated__/ServerEvaluationChartsQuery.graphql";
-import {
-  formatQueueGrowthSummary,
-  getAddedCount,
-  getCompletedCount,
-  getMirroredCountAxis,
-  getTotalNet,
-} from "@phoenix/pages/evaluators/project-evaluators/queueThroughput";
 import type {
   ServerEvaluationChart,
   ServerEvaluationChartKey,
@@ -94,7 +80,18 @@ import {
   OTHER_PROJECTS_KEY,
 } from "@phoenix/pages/evaluators/project-evaluators/serverProjectSeries";
 import { formatLag } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
+import {
+  QueueSizeChart,
+  QueueThroughputChart,
+  TimeTooltipContent,
+} from "@phoenix/pages/project/metrics/EvaluationQueueCharts";
 import { getDurationTicks } from "@phoenix/pages/project/metrics/evaluatorActivity";
+import {
+  formatQueueGrowthSummary,
+  getQueueSizeRows,
+  getQueueThroughputRows,
+  getTotalNet,
+} from "@phoenix/pages/project/metrics/queueThroughput";
 import { useClosedTimeRange } from "@phoenix/pages/project/metrics/useClosedTimeRange";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import {
@@ -105,9 +102,6 @@ import {
 
 type ActivityData = ServerEvaluationChartsQuery$data;
 type Activity = ActivityData["evaluationActivity"];
-
-/** The top of an area's fill, fading to nothing at the baseline. */
-const AREA_FILL_TOP_OPACITY = 0.3;
 
 /**
  * The server's evaluation activity over the selected range, grouped by
@@ -408,7 +402,7 @@ function ServerEvaluationChartPanel({
     case "queueThroughput":
       return panel(
         formatQueueGrowthSummary(getTotalNet(activity.series)),
-        <QueueThroughputChart
+        <ServerQueueThroughputChart
           activity={activity}
           xAxisProps={xAxisProps}
           queueSizeRef={queueSizeRef}
@@ -417,7 +411,7 @@ function ServerEvaluationChartPanel({
     case "queueSize":
       return panel(
         `${intShortFormatter(data.evaluationQueue.queuedCount)} in queue now`,
-        <QueueSizeChart
+        <ServerQueueSizeChart
           activity={activity}
           xAxisProps={xAxisProps}
           queueSizeRef={queueSizeRef}
@@ -473,123 +467,12 @@ function ServerEvaluationChartPanel({
   }
 }
 
-function TimeTooltipContent({
-  active,
-  payload,
-  label,
-  formatValue = intFormatter,
-}: TooltipContentProps & { formatValue?: (value: number) => string }) {
-  const { fullTimeFormatter } = useTimeFormatters();
-  if (!active || !payload || payload.length === 0) {
-    return null;
-  }
-  return (
-    <ChartTooltip>
-      {label != null ? (
-        <Text weight="heavy" size="S">
-          {fullTimeFormatter(new Date(Number(label)))}
-        </Text>
-      ) : null}
-      {payload.map((entry) =>
-        entry.value == null ? null : (
-          <ChartTooltipItem
-            key={String(entry.dataKey)}
-            color={entry.color ?? "transparent"}
-            shape="circle"
-            name={String(entry.name ?? entry.dataKey)}
-            value={formatValue(Number(entry.value))}
-          />
-        )
-      )}
-    </ChartTooltip>
-  );
-}
-
 function LagTooltipContent(props: TooltipContentProps) {
   return <TimeTooltipContent {...props} formatValue={formatLag} />;
 }
 
-type QueueThroughputRow = {
-  timestamp: number;
-  added: number;
-  /** Completed, negated so its bar hangs below the line. */
-  completedBelow: number;
-  completed: number;
-  queueSize: number;
-};
-
-function formatSignedCount(value: number): string {
-  return value > 0 ? `+${intFormatter(value)}` : intFormatter(value);
-}
-
-function QueueThroughputTooltipContent({
-  active,
-  payload,
-  label,
-  addedColor,
-  completedColor,
-  queueSizeColor,
-}: TooltipContentProps & {
-  addedColor: string;
-  completedColor: string;
-  queueSizeColor: string;
-}) {
-  const { fullTimeFormatter } = useTimeFormatters();
-  const semanticColors = useSemanticChartColors();
-  const grayscaleColors = useGrayscaleCategoricalColors();
-  const row = payload?.[0]?.payload as QueueThroughputRow | undefined;
-  if (!active || row == null) {
-    return null;
-  }
-  const net = row.added - row.completed;
-  const netItem =
-    net > 0
-      ? { name: "Falling behind", color: semanticColors.danger }
-      : net < 0
-        ? { name: "Catching up", color: semanticColors.success }
-        : { name: "Keeping pace", color: grayscaleColors.gray3 };
-  return (
-    <ChartTooltip>
-      {label != null ? (
-        <Text weight="heavy" size="S">
-          {fullTimeFormatter(new Date(Number(label)))}
-        </Text>
-      ) : null}
-      <ChartTooltipItem
-        color={addedColor}
-        shape="square"
-        name="Added"
-        value={intFormatter(row.added)}
-      />
-      <ChartTooltipItem
-        color={completedColor}
-        shape="square"
-        name="Completed"
-        value={intFormatter(row.completed)}
-      />
-      <ChartTooltipDivider />
-      <ChartTooltipItem
-        color={netItem.color}
-        shape="square"
-        name={netItem.name}
-        value={formatSignedCount(net)}
-      />
-      <ChartTooltipItem
-        color={queueSizeColor}
-        shape="line"
-        name="Queue size"
-        value={intFormatter(row.queueSize)}
-      />
-    </ChartTooltip>
-  );
-}
-
-/**
- * Added and completed evaluations mirrored around the line: added above,
- * completed below, so a bin where the queue fell behind has the taller bar
- * on top.
- */
-function QueueThroughputChart({
+/** The server's throughput chart, with the queue size from the deferred part. */
+function ServerQueueThroughputChart({
   activity,
   xAxisProps,
   queueSizeRef,
@@ -599,95 +482,15 @@ function QueueThroughputChart({
   queueSizeRef: ServerEvaluationCharts_queueSize$key;
 }) {
   const queueSizeByTimestamp = useQueueSizeByTimestamp(queueSizeRef);
-  const grayscaleColors = useGrayscaleCategoricalColors();
-  const sequentialColors = useSequentialChartColors();
-  const addedColor = grayscaleColors.gray1;
-  const completedColor = grayscaleColors.gray3;
-  const rows: QueueThroughputRow[] = activity.series.map((bin) => {
-    const timestamp = new Date(bin.timestamp).getTime();
-    const completed = getCompletedCount(bin);
-    return {
-      timestamp,
-      added: getAddedCount(bin),
-      completedBelow: -completed,
-      completed,
-      queueSize: queueSizeByTimestamp.get(timestamp) ?? 0,
-    };
+  const rows = getQueueThroughputRows({
+    bins: activity.series,
+    queueSizeByTimestamp,
   });
-  const hasData = rows.some((row) => row.added > 0 || row.completed > 0);
-  const { extent, ticks } = getMirroredCountAxis(
-    Math.max(0, ...rows.map((row) => Math.max(row.added, row.completed)))
-  );
-  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
-    useInteractiveLegend();
-  return (
-    <ChartEmptyStateOverlay
-      isEmpty={!hasData}
-      message="No evaluations in this time range"
-      chartType="bar"
-    >
-      <ChartResponsiveContainer>
-        <BarChart
-          data={rows}
-          margin={compactChartMargin}
-          maxBarSize={8}
-          stackOffset="sign"
-        >
-          <CartesianGrid {...defaultCartesianGridProps} />
-          <XAxis {...xAxisProps} />
-          <YAxis
-            {...compactYAxisProps}
-            domain={[-extent, extent]}
-            ticks={ticks}
-            tickFormatter={(y: number) => intShortFormatter(Math.abs(y))}
-          />
-          <Tooltip
-            content={(props: TooltipContentProps) => (
-              <QueueThroughputTooltipContent
-                {...props}
-                addedColor={addedColor}
-                completedColor={completedColor}
-                queueSizeColor={sequentialColors.blue500}
-              />
-            )}
-            {...defaultTooltipProps}
-          />
-          <ReferenceLine y={0} stroke="var(--chart-axis-stroke-color)" />
-          <Bar
-            dataKey="added"
-            name="Added, above the line"
-            stackId="throughput"
-            fill={addedColor}
-            hide={isDataKeyHidden("added")}
-            isAnimationActive={false}
-          />
-          <Bar
-            dataKey="completedBelow"
-            name="Completed, below the line"
-            stackId="throughput"
-            fill={completedColor}
-            hide={isDataKeyHidden("completedBelow")}
-            isAnimationActive={false}
-          />
-          <InteractiveLegend
-            {...compactLegendProps}
-            hiddenDataKeys={hiddenDataKeys}
-            iconType="square"
-            iconSize={8}
-            itemSorter={null}
-            onToggleDataKey={toggleDataKey}
-          />
-        </BarChart>
-      </ChartResponsiveContainer>
-    </ChartEmptyStateOverlay>
-  );
+  return <QueueThroughputChart rows={rows} xAxis={xAxisProps} />;
 }
 
-/**
- * The evaluations in queue at each bin's end, as a filled line, with how
- * many evaluations were processed in each bin.
- */
-function QueueSizeChart({
+/** The server's queue size chart, from the deferred part of the request. */
+function ServerQueueSizeChart({
   activity,
   xAxisProps,
   queueSizeRef,
@@ -697,84 +500,11 @@ function QueueSizeChart({
   queueSizeRef: ServerEvaluationCharts_queueSize$key;
 }) {
   const queueSizeByTimestamp = useQueueSizeByTimestamp(queueSizeRef);
-  const sequentialColors = useSequentialChartColors();
-  const grayscaleColors = useGrayscaleCategoricalColors();
-  const queueSizeColor = sequentialColors.blue500;
-  const processedColor = grayscaleColors.gray1;
-  const gradientId = useId();
-  const chartData = activity.series.map((bin) => {
-    const timestamp = new Date(bin.timestamp).getTime();
-    return {
-      timestamp,
-      queueSize: queueSizeByTimestamp.get(timestamp) ?? 0,
-      processed: getCompletedCount(bin),
-    };
+  const rows = getQueueSizeRows({
+    bins: activity.series,
+    queueSizeByTimestamp,
   });
-  const hasData = chartData.some(
-    (datum) => datum.queueSize > 0 || datum.processed > 0
-  );
-  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
-    useInteractiveLegend();
-  return (
-    <ChartEmptyStateOverlay
-      isEmpty={!hasData}
-      message="Nothing in queue in this time range"
-      chartType="line"
-    >
-      <ChartResponsiveContainer>
-        <ComposedChart data={chartData} margin={compactChartMargin}>
-          <defs>
-            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop
-                offset="0"
-                stopColor={queueSizeColor}
-                stopOpacity={AREA_FILL_TOP_OPACITY}
-              />
-              <stop offset="1" stopColor={queueSizeColor} stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid {...defaultCartesianGridProps} />
-          <XAxis {...xAxisProps} />
-          <YAxis
-            {...compactYAxisProps}
-            tickFormatter={(y: number) => intShortFormatter(y)}
-          />
-          <Tooltip content={TimeTooltipContent} {...defaultTooltipProps} />
-          <Area
-            type="monotone"
-            dataKey="queueSize"
-            name="In queue"
-            stroke={queueSizeColor}
-            fill={`url(#${gradientId})`}
-            strokeWidth={1.5}
-            dot={false}
-            activeDot={{ r: 4 }}
-            hide={isDataKeyHidden("queueSize")}
-            isAnimationActive={false}
-          />
-          <Line
-            type="monotone"
-            dataKey="processed"
-            name="Processed"
-            stroke={processedColor}
-            strokeWidth={1.5}
-            dot={false}
-            activeDot={{ r: 4 }}
-            hide={isDataKeyHidden("processed")}
-            isAnimationActive={false}
-          />
-          <InteractiveLegend
-            {...compactLegendProps}
-            hiddenDataKeys={hiddenDataKeys}
-            iconType="circle"
-            iconSize={8}
-            itemSorter={null}
-            onToggleDataKey={toggleDataKey}
-          />
-        </ComposedChart>
-      </ChartResponsiveContainer>
-    </ChartEmptyStateOverlay>
-  );
+  return <QueueSizeChart rows={rows} xAxis={xAxisProps} />;
 }
 
 /**

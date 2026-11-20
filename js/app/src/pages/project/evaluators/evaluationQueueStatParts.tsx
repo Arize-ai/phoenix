@@ -23,7 +23,7 @@ import { assertUnreachable } from "@phoenix/typeUtils";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 /**
- * Pieces shared by the project evaluators aside and the server-wide project
+ * Pieces shared by the project evaluators strip and the server-wide project
  * evaluators strip, so both read the queue the same way.
  */
 
@@ -54,13 +54,6 @@ export function useQueueStatsPoll({
   );
   return { fetchKey: `${refreshKey}:${pollCount}` };
 }
-
-/** Each kind of evaluation's color in the queue meter and its legend. */
-export const QUEUE_METER_COLOR_BY_TARGET = {
-  SPAN: "category1",
-  TRACE: "category2",
-  SESSION: "category3",
-} as const;
 
 const QUEUE_STATUS_BADGE: Record<
   EvaluationQueueStatusValue,
@@ -137,8 +130,6 @@ export function getNetPerHour({
  * in both.
  */
 export const QUEUE_STAT_HELP = {
-  status:
-    "The queue is Healthy when no evaluation waits more than 10 minutes to start. If not, it is Degraded.",
   inQueue: `The number of evaluations that wait to start, are in progress, or wait to retry. This number is for all projects. The count stops at ${MAX_QUEUE_COUNT.toLocaleString("en-US")}.`,
   addedPerHour:
     "The number of evaluations added to the queue in the last hour.",
