@@ -116,6 +116,24 @@ DATASET_UPLOAD_SPLIT_KEY = ParameterRequirement(
     min_server_version=Version(15, 0, 0),
 )
 
+CREATE_DATASET_SPLIT = RouteRequirement(
+    method="POST",
+    path="/v1/datasets/{dataset_identifier}/splits",
+    min_server_version=Version(19, 20, 0),
+)
+
+UPDATE_DATASET_SPLIT = RouteRequirement(
+    method="PATCH",
+    path="/v1/datasets/{dataset_identifier}/splits/{split_id}",
+    min_server_version=Version(19, 20, 0),
+)
+
+DELETE_DATASET_SPLIT = RouteRequirement(
+    method="DELETE",
+    path="/v1/datasets/{dataset_identifier}/splits/{split_id}",
+    min_server_version=Version(19, 20, 0),
+)
+
 CREATE_PROMPT_VERSION_METADATA = ParameterRequirement(
     parameter_name="metadata",
     parameter_location="body",
