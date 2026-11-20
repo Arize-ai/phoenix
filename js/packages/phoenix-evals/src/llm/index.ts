@@ -16,4 +16,5 @@ export * from "./createToolSelectionEvaluator";
 export * from "./createToxicityEvaluator";
 export * from "./createUserFrictionEvaluator";
 export * from "./generateClassification";
+export * from "./generateClassifications";
 export * from "./LLMEvaluator";
