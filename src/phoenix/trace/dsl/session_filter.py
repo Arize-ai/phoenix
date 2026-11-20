@@ -133,6 +133,9 @@ class _ElementField(typing.NamedTuple):
 
     attribute: str
     kind: typing.Literal["string", "float", "datetime", "boolean"]
+    # True when the value lives on the element span's `span_costs` row rather than on the
+    # span itself, and must therefore be reached by correlation instead of attribute access.
+    from_span_cost: bool = False
 
 
 class _NestedIterable(typing.NamedTuple):
@@ -169,6 +172,11 @@ _SPAN_ELEMENT_FIELDS: typing.Mapping[str, _ElementField] = MappingProxyType(
         "llm_token_count_prompt": _ElementField("llm_token_count_prompt", "float"),
         "llm_token_count_completion": _ElementField("llm_token_count_completion", "float"),
         "llm_token_count_total": _ElementField("llm_token_count_total", "float"),
+        # Reached through the element span's cost row. The session-level names of the same
+        # spelling remain totals across the whole session.
+        "total_cost": _ElementField("total_cost", "float", from_span_cost=True),
+        "prompt_cost": _ElementField("prompt_cost", "float", from_span_cost=True),
+        "completion_cost": _ElementField("completion_cost", "float", from_span_cost=True),
     }
 )
 _TRACE_ELEMENT_FIELDS: typing.Mapping[str, _ElementField] = MappingProxyType(
@@ -244,9 +252,43 @@ _ITERABLE_SPECS: typing.Mapping[str, _IterableSpec] = MappingProxyType(
 )
 
 
+def _span_cost_scalar(element: typing.Any, member: str) -> typing.Any:
+    """Return one cost scalar of the element span as a correlated subquery.
+
+    Adding `span_costs` to the iterable's joins would not work: those are rendered as inner
+    joins, so a span with no cost row would drop out of the comprehension entirely, and an
+    outer join there would still tie the element's multiplicity to the cost table. Correlating
+    a scalar subquery to the element instead leaves the element set untouched and survives the
+    caller's own joins, since the alias is private to this expression.
+
+    An absent cost row and a recorded-but-null column are the same answer to the user's
+    question, so both coalesce to 0 — matching the top-level cost names.
+    """
+    span_cost = aliased(models.SpanCost)
+    # `span_costs.span_rowid` is not unique, so the rows are summed, as the top-level cost
+    # names do. A bare scalar subquery that matches two rows is an error on PostgreSQL.
+    #
+    # Auto-correlation only reaches the immediately enclosing SELECT. When `element` belongs
+    # to an outer comprehension (`span.total_cost` read inside `span.children`), the subquery
+    # would add that alias to its own FROM list and stop correlating, so correlate explicitly.
+    #
+    # The coalesce wraps the subquery rather than the column: SUM over no rows is NULL, and
+    # so is SUM over recorded-but-null columns. Wrapping it turns both into 0.
+    return func.coalesce(
+        select(func.sum(getattr(span_cost, member)))
+        .where(span_cost.span_rowid == element.id)
+        .correlate(element)
+        .scalar_subquery(),
+        0,
+    )
+
+
 def _element_column(source: typing.Any, name: str, spec: _IterableSpec) -> typing.Any:
     """What a loop variable's field compiles to on ``source`` — the element model or an alias."""
-    return getattr(source, spec.fields[name].attribute)
+    field = spec.fields[name]
+    if field.from_span_cost:
+        return _span_cost_scalar(source, field.attribute)
+    return getattr(source, field.attribute)
 
 
 def _element_bindings(spec: _IterableSpec) -> _FilterBindings:
@@ -470,6 +512,18 @@ SESSION_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
         ),
         "spans.llm_token_count_total": (
             "Prompt plus completion tokens recorded on this span; 0 when it records none."
+        ),
+        "spans.total_cost": (
+            "Total cost of this span; 0 when it has no cost row. The bare total_cost is the "
+            "whole session's total."
+        ),
+        "spans.prompt_cost": (
+            "Prompt cost of this span; 0 when it has no cost row. The bare prompt_cost is the "
+            "whole session's total."
+        ),
+        "spans.completion_cost": (
+            "Completion cost of this span; 0 when it has no cost row. The bare completion_cost "
+            "is the whole session's total."
         ),
         "traces.start_time": "Trace start timestamp. Compare against ISO 8601 strings.",
         "traces.end_time": "Trace end timestamp. Compare against ISO 8601 strings.",
