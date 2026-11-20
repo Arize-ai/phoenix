@@ -41,7 +41,7 @@ def read_message_request(
         raise ValueError("Invalid Factory message binding")
     if (
         not isinstance(requesters, list)
-        or not 1 <= len(requesters) <= 100
+        or not requesters
         or any(
             not isinstance(login, str) or not re.fullmatch(r"[A-Za-z0-9-]+", login)
             for login in requesters

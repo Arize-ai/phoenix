@@ -67,10 +67,6 @@ export async function startSession({
         )
     ),
   ];
-  if (participants.length > 100)
-    throw new WorkerError(
-      "Factory starts support at most 100 permitted thread participants."
-    );
   const requesters = participants.map(
     (userId) => config.FACTORY_GITHUB_USERS[userId]
   );

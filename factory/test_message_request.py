@@ -86,6 +86,22 @@ class MessageRequestTest(unittest.TestCase):
             ["dispatcher", "alex", "sam"],
         )
 
+    def test_accepts_more_than_100_requesters_and_checks_every_permission(self) -> None:
+        self.request["requesters"] = [f"member{index}" for index in range(101)]
+        self.write_event()
+        request = self.read_request()
+        self.assertEqual(request.requesters, self.request["requesters"])
+        self.assertEqual(self.permission.call_count, 102)
+        self.permission.assert_called_with(login="member100")
+
+    def test_rejects_the_last_requester_without_write_access_in_a_large_thread(self) -> None:
+        self.request["requesters"] = [f"member{index}" for index in range(101)]
+        self.write_event()
+        self.permission.side_effect = ["write"] * 101 + ["read"]
+        with self.assertRaisesRegex(ValueError, "write access"):
+            self.read_request()
+        self.assertEqual(self.permission.call_count, 102)
+
     def test_rejects_one_participant_without_write_access(self) -> None:
         self.permission.side_effect = ["write", "write", "read"]
         with self.assertRaisesRegex(ValueError, "write access"):

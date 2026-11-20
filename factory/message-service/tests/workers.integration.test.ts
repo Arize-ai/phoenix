@@ -543,6 +543,61 @@ it("checks all permitted participants before dispatching and rejects insufficien
   ).toBe(true);
 });
 
+it.each(["write", "read"])(
+  "checks all 101 participants and honors the last participant's %s permission",
+  async (lastPermission) => {
+    const participants = Array.from(
+      { length: 101 },
+      (_unused, index) => `member${index}`
+    );
+    vi.stubEnv("SLACK_ALLOWED_USER_IDS", participants.join(","));
+    vi.stubEnv(
+      "FACTORY_GITHUB_USERS",
+      JSON.stringify(
+        Object.fromEntries(
+          participants.map((member) => [member, `${member}-github`])
+        )
+      )
+    );
+    upstream.readThread.mockResolvedValue(
+      participants.map((user_id) => ({ user_id }))
+    );
+    upstream.github.mockImplementation(
+      async (url: string, options: RequestInit): Promise<Response> =>
+        Response.json(
+          options.method === "POST"
+            ? { workflow_run_id: 123 }
+            : {
+                permission: url.includes("member100-github")
+                  ? lastPermission
+                  : "write",
+              }
+        )
+    );
+    const started = startSession({
+      foremanId: "foreman-a",
+      input: startSessionSchema.parse({
+        repo: "Arize-ai/phoenix",
+        lane: "bug",
+        instruction: "Fix",
+        issue_numbers: [42],
+      }),
+    });
+    if (lastPermission === "write")
+      await expect(started).resolves.toMatchObject({ status: "queued" });
+    else await expect(started).rejects.toThrow("write access");
+    const permissionCalls = upstream.github.mock.calls.filter(
+      ([, options]) => options.method === "GET"
+    );
+    expect(permissionCalls).toHaveLength(101);
+    expect(
+      upstream.github.mock.calls.filter(
+        ([, options]) => options.method === "POST"
+      )
+    ).toHaveLength(lastPermission === "write" ? 1 : 0);
+  }
+);
+
 it("does not retry an uncertain workflow dispatch or expose GitHub errors and credentials", async () => {
   upstream.github.mockResolvedValueOnce(Response.json({ permission: "write" }));
   upstream.github.mockRejectedValueOnce(
