@@ -30,8 +30,14 @@ def json_lines_to_df(lines: list[str]) -> pd.DataFrame:
     data = []
 
     for line in lines:
+        # Skip blank lines, which are common at the end of JSONL files.
+        if not (line := line.strip()):
+            continue
         # Load the JSON object from the line
         data.append(json.loads(line))
+
+    if not data:
+        return pd.DataFrame()
 
     # Normalize data to a flat structure
     df = pd.concat([pd.json_normalize(item, max_level=1) for item in data], ignore_index=True)
