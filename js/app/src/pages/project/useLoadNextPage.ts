@@ -3,10 +3,8 @@ import { useCallback } from "react";
 type LoadNextOptions = { onComplete?: (error: Error | null) => void };
 
 /**
- * The spans and traces tables' next-page loader. A next page leaves out the
- * project's annotation names, which the table already has, and reports its
- * outcome to the table's deferred-parts failure as the page that starts at
- * the table's current row count.
+ * Relay's `loadNext` for the spans and traces tables: skips annotation names,
+ * and marks the new rows failed if the page's request fails.
  *
  * @param params - the table's pagination and failure hooks
  * @param params.loadNext - the table's `usePaginationFragment` loader

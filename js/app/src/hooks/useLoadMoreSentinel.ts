@@ -12,7 +12,7 @@ export function useLoadMoreSentinel<T extends Element>({
   loadNext,
   pageSize,
   rows,
-  isParentRequestPending = false,
+  isOwnerRequestPending = false,
   margin = "300px",
 }: {
   hasNext: boolean;
@@ -22,10 +22,11 @@ export function useLoadMoreSentinel<T extends Element>({
   /** A change re-checks whether the sentinel is still visible. */
   rows: ReadonlyArray<unknown>;
   /**
-   * The query that delivered the rows still has parts to deliver. Relay
-   * ignores a next page until then, so the sentinel waits and checks again.
+   * The owner request (the query that delivered the rows) still has deferred
+   * payloads to deliver. Relay ignores a next page until then, so the
+   * sentinel waits and checks again.
    */
-  isParentRequestPending?: boolean;
+  isOwnerRequestPending?: boolean;
   margin?: string;
 }): RefCallback<T> {
   const [sentinel, setSentinel] = useState<T | null>(null);
@@ -52,7 +53,7 @@ export function useLoadMoreSentinel<T extends Element>({
       sentinel == null ||
       !hasNext ||
       isLoadingNext ||
-      isParentRequestPending
+      isOwnerRequestPending
     ) {
       return undefined;
     }
@@ -63,6 +64,6 @@ export function useLoadMoreSentinel<T extends Element>({
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [sentinel, hasNext, isLoadingNext, isParentRequestPending, rows, margin]);
+  }, [sentinel, hasNext, isLoadingNext, isOwnerRequestPending, rows, margin]);
   return setSentinel;
 }
