@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-20T00:06:29Z",
-  "models_sha256": "a59d7f04c8c4623744ab4dfeb61ac0c62169eeb94b6ca571754598724195b930",
+  "generated_at": "2026-11-20T03:22:33Z",
+  "models_sha256": "abe4f625f7d988309c75c8980994c17d88594d14e849ca931ea544f6bb256027",
   "models": [
     {
       "name": "anthropic.claude-3-5-haiku-20241022-v1:0",
@@ -4160,33 +4160,6 @@
           "base_rate": 1e-6,
           "is_prompt": true,
           "token_type": "image"
-        }
-      ]
-    },
-    {
-      "name": "gemini-4-argon",
-      "name_pattern": "gemini-4-argon",
-      "source": "manual",
-      "token_prices": [
-        {
-          "base_rate": 2e-6,
-          "is_prompt": true,
-          "token_type": "input"
-        },
-        {
-          "base_rate": 0.00001,
-          "is_prompt": false,
-          "token_type": "output"
-        },
-        {
-          "base_rate": 1e-7,
-          "is_prompt": true,
-          "token_type": "cache_read"
-        },
-        {
-          "base_rate": 0.00001,
-          "is_prompt": false,
-          "token_type": "reasoning"
         }
       ]
     },
@@ -12444,6 +12417,524 @@
       ]
     },
     {
+      "name": "gemini/deep-research-max-preview-04-2026",
+      "name_pattern": "deep-research-max-preview-04-2026",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000012,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gemini/deep-research-preview-04-2026",
+      "name_pattern": "deep-research-preview-04-2026",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000012,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-3.1-flash-tts-preview",
+      "name_pattern": "gemini-3\\.1-flash-tts-preview",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00002,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 0.00002,
+          "is_prompt": false,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-3.5-live-translate-preview",
+      "name_pattern": "gemini-3\\.5-live-translate-preview",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000021,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3.5e-6,
+          "is_prompt": true,
+          "token_type": "audio"
+        },
+        {
+          "base_rate": 0.000021,
+          "is_prompt": false,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-3.5-transcribe",
+      "name_pattern": "gemini-3\\.5-transcribe",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000012,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-3.5-transcribe-live",
+      "name_pattern": "gemini-3\\.5-transcribe-live",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000021,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3.5e-6,
+          "is_prompt": true,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-3.8-flash-lite-tts",
+      "name_pattern": "gemini-3\\.8-flash-lite-tts",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 6e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 6e-6,
+          "is_prompt": false,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-3.8-flash-tts",
+      "name_pattern": "gemini-3\\.8-flash-tts",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 9e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 9e-6,
+          "is_prompt": false,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-4-argon",
+      "name_pattern": "gemini-4-argon",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": false,
+          "token_type": "reasoning"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-4-carbon",
+      "name_pattern": "gemini-4-carbon",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": false,
+          "token_type": "reasoning"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-4-hydrogen",
+      "name_pattern": "gemini-4-hydrogen",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 7.5e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 7.5e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 7.5e-6,
+          "is_prompt": false,
+          "token_type": "reasoning"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-4-neon",
+      "name_pattern": "gemini-4-neon",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000015,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.000015,
+          "is_prompt": false,
+          "token_type": "reasoning"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-exp-1114",
+      "name_pattern": "gemini-exp-1114",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.0,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-gemma-2-27b-it",
+      "name_pattern": "gemini-gemma-2-27b-it",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3.5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1.05e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-gemma-2-9b-it",
+      "name_pattern": "gemini-gemma-2-9b-it",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3.5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1.05e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-omni-1.1-flash",
+      "name_pattern": "gemini-omni-1\\.1-flash",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 9e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.5e-6,
+          "is_prompt": true,
+          "token_type": "audio"
+        },
+        {
+          "base_rate": 9e-6,
+          "is_prompt": false,
+          "token_type": "reasoning"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-omni-1.2-flash",
+      "name_pattern": "gemini-omni-1\\.2-flash",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 9e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.5e-6,
+          "is_prompt": true,
+          "token_type": "image"
+        },
+        {
+          "base_rate": 9e-6,
+          "is_prompt": false,
+          "token_type": "reasoning"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-robotics-er-2-streaming-preview",
+      "name_pattern": "gemini-robotics-er-2-streaming-preview",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 5e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemma-3-27b-it",
+      "name_pattern": "gemma-3-27b-it",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.0,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemma-4-26b-a4b-it",
+      "name_pattern": "gemma-4-26b-a4b-it",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.0,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemma-4-31b-it",
+      "name_pattern": "gemma-4-31b-it",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.0,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gemini/genie-4",
+      "name_pattern": "genie-4",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 9e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.5e-6,
+          "is_prompt": true,
+          "token_type": "image"
+        }
+      ]
+    },
+    {
+      "name": "gemini/learnlm-1.5-pro-experimental",
+      "name_pattern": "learnlm-1\\.5-pro-experimental",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.0,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gemini/nano-banana-pro-preview",
+      "name_pattern": "nano-banana-pro-preview",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000012,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 0.00012,
+          "is_prompt": false,
+          "token_type": "image"
+        }
+      ]
+    },
+    {
       "name": "groq/meta-llama/llama-prompt-guard-2-22m",
       "name_pattern": "meta-llama/llama-prompt-guard-2-22m",
       "source": "litellm",
@@ -15817,6 +16308,29 @@
       ]
     },
     {
+      "name": "together_ai/tencent/Hy4",
+      "name_pattern": "tencent/Hy4",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 8.34e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2.501e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 4.2e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
       "name": "together_ai/thinkingmachines/Inkling",
       "name_pattern": "thinkingmachines/Inkling",
       "source": "litellm",
@@ -16604,6 +17118,24 @@
           "base_rate": 1e-7,
           "is_prompt": true,
           "token_type": "input"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-decision-1",
+      "name_pattern": "gemini-decision-1",
+      "source": "litellm",
+      "type": "DECISION",
+      "token_prices": [
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0,
+          "is_prompt": false,
+          "token_type": "output"
         }
       ]
     },
