@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { Alert, Badge, Flex, Text, Token, View } from "@phoenix/components";
+import { Alert, Badge, Flex, Text, View } from "@phoenix/components";
 
 import { GLOBAL_COLORS } from "../../constants/colorConstants";
 import { OptionGrid } from "../../utils/OptionGrid";
@@ -94,7 +94,6 @@ type SemanticColor = {
   name: string;
   cssVar: string;
   badge: { variant: "info" | "success" | "warning" | "danger"; label: string };
-  token: { color: string; label: string };
   alert: {
     variant: "info" | "success" | "warning" | "danger";
     message: string;
@@ -106,28 +105,24 @@ const semanticColors: SemanticColor[] = [
     name: "Info",
     cssVar: "var(--global-color-info)",
     badge: { variant: "info", label: "Active" },
-    token: { color: "var(--global-color-info)", label: "Info" },
     alert: { variant: "info", message: "Informational message" },
   },
   {
     name: "Success",
     cssVar: "var(--global-color-success)",
     badge: { variant: "success", label: "Approved" },
-    token: { color: "var(--global-color-success)", label: "Success" },
     alert: { variant: "success", message: "Operation completed successfully" },
   },
   {
     name: "Warning",
     cssVar: "var(--global-color-warning)",
     badge: { variant: "warning", label: "Pending" },
-    token: { color: "var(--global-color-warning)", label: "Warning" },
     alert: { variant: "warning", message: "Approaching resource limits" },
   },
   {
     name: "Danger",
     cssVar: "var(--global-color-danger)",
     badge: { variant: "danger", label: "Failed" },
-    token: { color: "var(--global-color-danger)", label: "Danger" },
     alert: { variant: "danger", message: "Operation failed" },
   },
 ];
@@ -166,11 +161,6 @@ export const SemanticColors: Story = {
           <div css={componentRowCSS}>
             <p css={labelCSS}>Badge</p>
             <Badge variant={color.badge.variant}>{color.badge.label}</Badge>
-          </div>
-
-          <div css={componentRowCSS}>
-            <p css={labelCSS}>Token</p>
-            <Token color={color.token.color}>{color.token.label}</Token>
           </div>
 
           <div>

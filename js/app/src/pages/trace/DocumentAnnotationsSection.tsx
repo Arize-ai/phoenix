@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 
-import type { TokenProps, ViewProps } from "@phoenix/components";
+import type { ViewProps } from "@phoenix/components";
 import { Button, Flex, Heading, Icon, Icons, View } from "@phoenix/components";
 
 import {
@@ -17,14 +17,12 @@ export function DocumentAnnotationsSection({
   documentPosition,
   documentAnnotations,
   borderColor,
-  tokenColor,
   canAnnotate,
 }: {
   spanNodeId: string;
   documentPosition: number;
   documentAnnotations: DocumentAnnotation[];
   borderColor: ViewProps["borderColor"];
-  tokenColor: TokenProps["color"];
   canAnnotate: boolean;
 }) {
   const [editingAnnotation, setEditingAnnotation] =
@@ -98,7 +96,6 @@ export function DocumentAnnotationsSection({
                   spanNodeId={spanNodeId}
                   documentPosition={documentPosition}
                   borderColor={borderColor}
-                  tokenColor={tokenColor}
                   canAnnotate={canAnnotate}
                   editingAnnotation={editingAnnotation}
                   existingAnnotationNames={existingAnnotationNames}

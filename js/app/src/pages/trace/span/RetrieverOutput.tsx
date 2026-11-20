@@ -111,7 +111,6 @@ export function RetrieverOutput({
                   documentAnnotations={documentEvaluationsByPosition[idx]}
                   borderColor={"seafoam-300"}
                   backgroundColor={"seafoam-100"}
-                  tokenColor="var(--global-color-seafoam-1000)"
                   spanNodeId={spanNodeId}
                   documentPosition={idx}
                 />

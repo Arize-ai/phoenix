@@ -5,7 +5,6 @@ import { graphql, useMutation, useRefetchableFragment } from "react-relay";
 
 import {
   Alert,
-  Badge,
   Button,
   Card,
   ContextualHelp,
@@ -15,12 +14,14 @@ import {
   Heading,
   Icon,
   Icons,
+  Identifier,
   Menu,
   MenuItem,
   MenuTrigger,
   Modal,
   ModalOverlay,
   Popover,
+  StatusIndicator,
   Text,
   View,
 } from "@phoenix/components";
@@ -81,10 +82,6 @@ const grantScopesListCSS = css`
   margin: var(--global-dimension-size-50) 0 0;
   padding: 0;
 `;
-
-function getClientIdSuffix(clientId: string) {
-  return clientId.length > 8 ? clientId.slice(-8) : clientId;
-}
 
 function GrantScopesHelp({ scopes }: { scopes: readonly string[] }) {
   return (
@@ -329,12 +326,16 @@ export function AuthorizedApplicationsCard({
                     <Text weight="heavy">{grant.clientName}</Text>
                     <GrantScopesHelp scopes={grant.scopes} />
                     {isExpired ? (
-                      <Badge variant="warning">Expired</Badge>
+                      <StatusIndicator category="unavailable" label="Expired" />
                     ) : null}
                     {!grant.isFirstParty ? (
-                      <Badge variant="default" overflowMode="truncate">
-                        client ...{getClientIdSuffix(grant.clientId)}
-                      </Badge>
+                      <Text size="XS" color="text-500" minWidth={0}>
+                        <Identifier
+                          value={grant.clientId}
+                          copyNoun="client ID"
+                          maxWidth="16ch"
+                        />
+                      </Text>
                     ) : null}
                   </Flex>
                   <ul css={authorizedApplicationMetadataCSS}>

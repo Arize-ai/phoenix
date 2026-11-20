@@ -9,6 +9,7 @@ import {
 
 import {
   Autocomplete,
+  Badge,
   Icon,
   Icons,
   Input,
@@ -17,7 +18,6 @@ import {
   MenuItem,
   SearchField,
   Text,
-  Token,
   useFilter,
 } from "@phoenix/components";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation";
@@ -375,7 +375,7 @@ export function AnnotationConfigList(props: {
               <AnnotationColorSwatch annotationName={name || ""} />
             }
             trailingContent={
-              <Token size="S">{annotationType?.toLocaleLowerCase()}</Token>
+              <Badge size="S">{annotationType?.toLocaleLowerCase()}</Badge>
             }
           >
             <Text>{name}</Text>

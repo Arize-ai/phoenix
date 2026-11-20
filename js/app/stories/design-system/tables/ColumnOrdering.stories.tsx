@@ -4,7 +4,7 @@ import { flexRender, useTable } from "@tanstack/react-table";
 import { useState } from "react";
 
 import { Checkbox, Flex, Text, View } from "@phoenix/components";
-import { AnnotationTargetTypeToken } from "@phoenix/components/annotation/AnnotationTargetTypeToken";
+import { AnnotationTargetTypeBadge } from "@phoenix/components/annotation/AnnotationTargetTypeBadge";
 import {
   ColumnHeaderCell,
   ColumnOrderingProvider,
@@ -394,7 +394,7 @@ export const SelectorMenuWithTrailingVisuals: Story = {
           id,
           label,
           trailingVisual: isAnnotation ? (
-            <AnnotationTargetTypeToken
+            <AnnotationTargetTypeBadge
               targetType={isTraceAnnotation ? "trace" : "span"}
             />
           ) : undefined,

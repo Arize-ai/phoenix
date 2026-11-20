@@ -1,6 +1,7 @@
 import type { Meta, StoryFn } from "@storybook/react";
 
 import { SpanKindIcon } from "@phoenix/components/trace";
+import { SpanKindBadge } from "@phoenix/components/trace/SpanKindBadge";
 
 const meta: Meta = {
   title: "Domains/Tracing/Span Kind Icon",
@@ -12,8 +13,8 @@ const meta: Meta = {
         component: `
 Icons representing different span kinds in trace views.
 
-**Note:** Currently only the \`fill\` variant is used in the codebase (TraceTree, SpanDetails, PlaygroundTool).
-The \`outline\` variant exists but is not used anywhere in production.
+The \`fill\` variant, in the kind's own color, is used in the trace tree, span details and the playground.
+The \`outline\` variant leads a \`SpanKindBadge\`, where it takes the badge's text color.
         `,
       },
     },
@@ -110,4 +111,21 @@ export const Thumbnail = {
       ))}
     </div>
   ),
+};
+
+/**
+ * Each kind as a `SpanKindBadge` (spans and traces tables, span header): the
+ * kind's color from the same span kind palette as the icons above, with the
+ * outline icon in the badge's text color.
+ */
+export const InABadge = {
+  tags: ["!dev"],
+  render: () => (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+      {SPAN_KINDS.map((spanKind) => (
+        <SpanKindBadge key={spanKind} spanKind={spanKind} />
+      ))}
+    </div>
+  ),
+  parameters: { themeLayout: "column" },
 };

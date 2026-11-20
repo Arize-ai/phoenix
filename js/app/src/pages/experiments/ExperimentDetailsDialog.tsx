@@ -33,7 +33,7 @@ import { Skeleton } from "@phoenix/components/core/loading";
 import { LoadMoreButton } from "@phoenix/components/core/LoadMoreButton";
 import {
   ExperimentStatus,
-  SequenceNumberToken,
+  SequenceNumber,
 } from "@phoenix/components/experiment";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -512,7 +512,7 @@ function ExperimentDetailsDialogContent({
       <DialogHeader>
         <Flex direction="row" gap="size-100" alignItems="center">
           {experiment.sequenceNumber != null && (
-            <SequenceNumberToken sequenceNumber={experiment.sequenceNumber} />
+            <SequenceNumber sequenceNumber={experiment.sequenceNumber} />
           )}
           <TitleWithID title={experiment.name} id={experimentId} />
           <ExperimentStatus status={job?.status ?? null} />

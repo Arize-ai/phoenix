@@ -19,10 +19,11 @@ import {
   Link,
   LinkButton,
   Text,
-  Token,
+  TagGroup,
 } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
+import { labelTagItem } from "@phoenix/components/label";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import {
   ACTIONS_COLUMN_ID,
@@ -40,10 +41,10 @@ import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
 import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserDisplay } from "@phoenix/components/user/UserDisplay";
+import { getPromptVersionTagColor } from "@phoenix/constants/promptConstants";
 import { useViewerCanModify } from "@phoenix/contexts";
 import { usePromptsTableContext } from "@phoenix/contexts/PromptsTableContext";
 import { useInterval } from "@phoenix/hooks/useInterval";
-import { TagVersionLabel } from "@phoenix/pages/prompt/PromptVersionTagsList";
 import { PromptsFilterBar } from "@phoenix/pages/prompts/PromptsFilterBar";
 import { usePromptsFilterContext } from "@phoenix/pages/prompts/PromptsFilterProvider";
 import { toggleArrayItem } from "@phoenix/utils/arrayUtils";
@@ -71,15 +72,6 @@ const promptsTableCSS = css`
     overflow: hidden;
     text-overflow: ellipsis;
   }
-`;
-
-const tokenListCSS = css`
-  display: flex;
-  flex-direction: row;
-  gap: var(--global-dimension-size-100);
-  min-width: 0;
-  flex-wrap: nowrap;
-  overflow: hidden;
 `;
 
 type PromptsTableProps = {
@@ -264,23 +256,14 @@ export function PromptsTable(props: PromptsTableProps) {
         enableSorting: false,
         cell: ({ row }) => {
           return (
-            <ul css={tokenListCSS}>
-              {row.original.labels.map((label) => (
-                <li key={label.id}>
-                  <StopPropagation>
-                    <Token
-                      color={label.color ?? undefined}
-                      onPress={() => toggleLabelFilter(label.id)}
-                      aria-label={`Filter prompts by label ${label.name}`}
-                    >
-                      <Truncate maxWidth={200} title={label.name}>
-                        {label.name}
-                      </Truncate>
-                    </Token>
-                  </StopPropagation>
-                </li>
-              ))}
-            </ul>
+            <StopPropagation>
+              <TagGroup
+                aria-label="Filter prompts by label"
+                items={row.original.labels.map(labelTagItem)}
+                overflow="collapse"
+                onAction={toggleLabelFilter}
+              />
+            </StopPropagation>
           );
         },
       },
@@ -349,17 +332,18 @@ export function PromptsTable(props: PromptsTableProps) {
         enableSorting: false,
         cell: ({ row }) => {
           return (
-            <ul css={tokenListCSS}>
-              {row.original.versionTags.map((tag) => (
-                <li key={tag.id}>
-                  <Link
-                    to={`${basePath}/${row.original.id}/versions/${tag.promptVersionId}`}
-                  >
-                    <TagVersionLabel maxWidth={200}>{tag.name}</TagVersionLabel>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <StopPropagation>
+              <TagGroup
+                aria-label="Version tags"
+                items={row.original.versionTags.map((tag) => ({
+                  id: tag.id,
+                  label: tag.name,
+                  color: getPromptVersionTagColor(tag.name),
+                  href: `${basePath}/${row.original.id}/versions/${tag.promptVersionId}`,
+                }))}
+                overflow="collapse"
+              />
+            </StopPropagation>
           );
         },
       },

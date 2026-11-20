@@ -1,6 +1,6 @@
 import type { RowData } from "@tanstack/react-table";
 
-import { AnnotationTargetTypeToken } from "@phoenix/components/annotation/AnnotationTargetTypeToken";
+import { AnnotationTargetTypeBadge } from "@phoenix/components/annotation/AnnotationTargetTypeBadge";
 import type { AnnotationTargetType } from "@phoenix/components/annotation/types";
 import type { ColumnSelectorColumn } from "@phoenix/components/table";
 import {
@@ -112,7 +112,7 @@ export function TracingColumnSelector<TData extends RowData>({
             id,
             label: annotation.name,
             trailingVisual: (
-              <AnnotationTargetTypeToken
+              <AnnotationTargetTypeBadge
                 targetType={annotation.kind.targetType}
               />
             ),

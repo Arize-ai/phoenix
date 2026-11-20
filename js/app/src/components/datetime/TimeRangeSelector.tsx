@@ -202,6 +202,7 @@ const presetSearchCSS = css`
 `;
 
 const badgeCSS = css`
+  display: inline-flex;
   flex: none;
   font-variant-numeric: tabular-nums;
 `;
@@ -457,9 +458,11 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
         aria-label="Time range"
         onPointerDown={handleSelectorPointerDown}
       >
-        <Badge size="S" variant={isCustom ? "info" : "default"} css={badgeCSS}>
-          {badgeLabel}
-        </Badge>
+        <span className="time-range-selector__badge" css={badgeCSS}>
+          <Badge size="S" color={isCustom ? "blue" : "neutral"}>
+            {badgeLabel}
+          </Badge>
+        </span>
         <div
           className="time-range-selector__value-shell"
           style={{

@@ -1,6 +1,6 @@
 import { ColorSwatch, Flex, Text, Truncate } from "@phoenix/components";
 import { BaselineExperimentBadge } from "@phoenix/components/experiment";
-import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
+import { SequenceNumber } from "@phoenix/components/experiment/SequenceNumber";
 
 import type { ExperimentReferenceLabel } from "./ExperimentBaselineReference";
 
@@ -25,7 +25,7 @@ export function ExperimentMetricsTooltipHeader({
   return (
     <Flex direction="row" alignItems="center" gap="size-100" maxWidth="100%">
       {color != null && <ColorSwatch color={color} shape="circle" />}
-      <SequenceNumberToken sequenceNumber={sequenceNumber} />
+      <SequenceNumber sequenceNumber={sequenceNumber} />
       {name != null && (
         <Text weight="heavy" size="S" minWidth={0}>
           <Truncate maxWidth="100%" title={name}>

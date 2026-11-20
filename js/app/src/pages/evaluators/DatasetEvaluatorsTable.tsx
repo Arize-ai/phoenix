@@ -24,7 +24,7 @@ import {
 import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
-import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
+import { EvaluatorKindBadge } from "@phoenix/components/evaluators/EvaluatorKindBadge";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import { SandboxConfigLabel } from "@phoenix/components/sandbox/SandboxConfigLabel";
 import { TextCell } from "@phoenix/components/table";
@@ -343,7 +343,7 @@ export const DatasetEvaluatorsTable = ({
         accessorFn: (row) => row.evaluator.kind,
         size: 60,
         cell: ({ getValue }) => (
-          <EvaluatorKindToken kind={getValue() as EvaluatorKind} />
+          <EvaluatorKindBadge kind={getValue() as EvaluatorKind} />
         ),
       },
       {

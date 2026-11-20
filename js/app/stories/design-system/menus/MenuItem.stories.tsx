@@ -13,7 +13,8 @@ import {
   MenuContainer,
   MenuItem,
   Text,
-  Token,
+  Badge,
+  Tag,
 } from "@phoenix/components";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation";
 import {
@@ -232,14 +233,14 @@ const TRAILING_ROWS = [
     ),
   },
   {
-    label: "Token",
+    label: "Badge",
     render: () => (
       <BareMenu label="Annotation configs">
         {ANNOTATION_CONFIGS.map(({ id, type }) => (
           <MenuItem
             key={id}
             id={id}
-            trailingContent={<Token size="S">{type}</Token>}
+            trailingContent={<Badge size="S">{type}</Badge>}
           >
             {id}
           </MenuItem>
@@ -276,7 +277,7 @@ function AnnotationConfigItem({ id, type }: { id: string; type: string }) {
       id={id}
       textValue={id}
       leadingContent={<AnnotationColorSwatch annotationName={id} />}
-      trailingContent={<Token size="S">{type}</Token>}
+      trailingContent={<Badge size="S">{type}</Badge>}
     >
       <Text>{id}</Text>
     </MenuItem>
@@ -335,7 +336,7 @@ const COMPOSITION_ROWS = [
     render: () => <AnnotationConfigMenu />,
   },
   {
-    label: "Checkbox and token",
+    label: "Checkbox and tag",
     render: () => (
       <BareMenu label="Splits">
         {COLORED_SPLITS.map(({ id, color, state }) => (
@@ -346,7 +347,7 @@ const COMPOSITION_ROWS = [
                 isSelected={state === "checked"}
                 isIndeterminate={state === "indeterminate"}
               />
-              <Token color={color}>{id}</Token>
+              <Tag userColor={color}>{id}</Tag>
             </Flex>
           </MenuItem>
         ))}
@@ -422,7 +423,7 @@ const STATE_CONTENT = [
         id="item"
         textValue="correctness"
         leadingContent={<AnnotationColorSwatch annotationName="correctness" />}
-        trailingContent={<Token size="S">categorical</Token>}
+        trailingContent={<Badge size="S">categorical</Badge>}
       >
         <Text>correctness</Text>
       </MenuItem>

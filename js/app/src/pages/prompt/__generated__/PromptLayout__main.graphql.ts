@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6e33dbfd63bd87bc97a0b61bcdbd201f>>
+ * @generated SignedSource<<52d851a4f7aab922e6b08270cc65c64c>>
  * @lightSyntaxTransform
  */
 
@@ -12,6 +12,11 @@ import { FragmentRefs } from "relay-runtime";
 export type PromptLayout__main$data = {
   readonly description: string | null;
   readonly id: string;
+  readonly labels: ReadonlyArray<{
+    readonly color: string | null;
+    readonly id: string;
+    readonly name: string;
+  }>;
   readonly metadata: any;
   readonly name: string;
   readonly sourcePrompt: {
@@ -82,6 +87,26 @@ return {
       "kind": "ScalarField",
       "name": "versionCount",
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "PromptLabel",
+      "kind": "LinkedField",
+      "name": "labels",
+      "plural": true,
+      "selections": [
+        (v0/*:: as any*/),
+        (v1/*:: as any*/),
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "color",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
     }
   ],
   "type": "Prompt",
@@ -89,6 +114,6 @@ return {
 };
 })();
 
-(node as any).hash = "c6fc27d4f5202b24b3f1c42cdf893f25";
+(node as any).hash = "f5375f3a6545d491f9d0c37b69333168";
 
 export default node;

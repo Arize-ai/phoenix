@@ -4,8 +4,6 @@ import { graphql, useFragment, usePreloadedQuery } from "react-relay";
 import { Flex, Text, View } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
 import { PromptChatMessagesCard } from "@phoenix/components/prompt/PromptChatMessagesCard";
-import { PromptLabelConfigButton } from "@phoenix/pages/prompt/PromptLabelConfigButton";
-import { PromptLabels } from "@phoenix/pages/prompt/PromptLabels";
 import { PromptModelConfigurationCard } from "@phoenix/pages/prompt/PromptModelConfigurationCard";
 
 import type { PromptIndexPage__aside$key } from "./__generated__/PromptIndexPage__aside.graphql";
@@ -99,7 +97,6 @@ function PromptIndexPageAside({
         metadata
         ...PromptLatestVersionsListFragment
         ...EditPromptButton_data
-        ...PromptLabels
       }
     `,
     prompt
@@ -126,17 +123,6 @@ function PromptIndexPageAside({
         <Text color={hasDescription ? "text-900" : "text-700"}>
           {data.description || "No Description"}
         </Text>
-        <section>
-          <Flex
-            direction="row"
-            justifyContent="space-between"
-            alignItems="center"
-          >
-            <Heading level={3}>Labels</Heading>
-            <PromptLabelConfigButton promptId={data.id} />
-          </Flex>
-          <PromptLabels prompt={data} />
-        </section>
         <section>
           <Flex
             direction="row"

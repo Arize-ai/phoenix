@@ -2,17 +2,17 @@ import { css } from "@emotion/react";
 import { flexRender, useTable } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useMemo, useRef } from "react";
-import { Focusable } from "react-aria";
 import { graphql, useFragment } from "react-relay";
 
 import {
+  Badge,
   Flex,
   Heading,
   Icon,
   IconButton,
   Icons,
-  Token,
   View,
+  MarkerTrigger,
 } from "@phoenix/components";
 import {
   RichTooltip,
@@ -204,9 +204,9 @@ export function ModelsTable({
               </Truncate>
               <View flex="none">
                 {row.original.kind === "CUSTOM" ? (
-                  <Token>custom</Token>
+                  <Badge>custom</Badge>
                 ) : (
-                  <Token color="var(--global-color-blue-500)">built-in</Token>
+                  <Badge color="blue">built-in</Badge>
                 )}
               </View>
             </Flex>
@@ -255,31 +255,22 @@ export function ModelsTable({
                 {namePattern}
               </Truncate>
               {provider && (
-                <TooltipTrigger delay={0}>
-                  <Focusable>
-                    <Token role="button" color="var(--global-color-gray-300)">
-                      <Flex direction="row" gap="size-100" alignItems="center">
-                        {providerKey ? (
-                          <>
-                            <GenerativeProviderIcon
-                              provider={providerKey}
-                              height={18}
-                            />
-                            <span>{getProviderName(providerKey)}</span>
-                          </>
-                        ) : (
-                          <span>{provider}</span>
-                        )}
-                      </Flex>
-                    </Token>
-                  </Focusable>
-                  <Tooltip>
-                    <TooltipArrow />
-                    The preceding name pattern match will only be applied on
-                    incoming traces with &quot;{provider}&quot; set as the
-                    provider.
-                  </Tooltip>
-                </TooltipTrigger>
+                <MarkerTrigger
+                  explanation={`The preceding name pattern match will only be applied on incoming traces with "${provider}" set as the provider.`}
+                >
+                  <Badge
+                    leadingVisual={
+                      providerKey ? (
+                        <GenerativeProviderIcon
+                          provider={providerKey}
+                          height={14}
+                        />
+                      ) : undefined
+                    }
+                  >
+                    {providerKey ? getProviderName(providerKey) : provider}
+                  </Badge>
+                </MarkerTrigger>
               )}
             </Flex>
           );

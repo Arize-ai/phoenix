@@ -2,7 +2,8 @@ import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 import type { ReactNode } from "react";
 import { Fragment } from "react";
 
-import { OverflowRow, Token, View } from "@phoenix/components";
+import type { TagColor } from "@phoenix/components";
+import { OverflowRow, Tag, View } from "@phoenix/components";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 
 import { OptionGrid } from "../../utils/OptionGrid";
@@ -37,15 +38,15 @@ const LABELS = [
   "groundedness",
 ];
 
-const COLORS = [
-  "var(--global-color-celery-600)",
-  "var(--global-color-fuchsia-600)",
-  "var(--global-color-indigo-600)",
-  "var(--global-color-magenta-600)",
-  "var(--global-color-seafoam-600)",
-  "var(--global-color-yellow-600)",
-  "var(--global-color-purple-600)",
-  "var(--global-color-chartreuse-600)",
+const COLORS: TagColor[] = [
+  "celery",
+  "fuchsia",
+  "indigo",
+  "magenta",
+  "cyan",
+  "yellow",
+  "purple",
+  "chartreuse",
 ];
 
 const Tokens = ({
@@ -62,9 +63,9 @@ const Tokens = ({
       const Wrapper = boxless ? StopPropagation : Fragment;
       return (
         <Wrapper key={label}>
-          <Token color={COLORS[index % COLORS.length]} size={size}>
+          <Tag color={COLORS[index % COLORS.length]} size={size}>
             {label}
-          </Token>
+          </Tag>
         </Wrapper>
       );
     })}

@@ -1302,26 +1302,6 @@ const tableCSS = (theme: Theme) => css`
   }
 `;
 
-const badgeSizingCSS = (theme: Theme) => css`
-  :root,
-  .theme--${theme} {
-    --global-badge-padding-y-s: 0px;
-    --global-badge-padding-x-s: var(--global-dimension-size-50);
-    --global-badge-font-size-s: var(--global-font-size-xs);
-
-    --global-badge-padding-y-m: var(--global-dimension-size-25);
-    --global-badge-padding-x-m: var(--global-dimension-size-75);
-    --global-badge-font-size-m: var(--global-font-size-s);
-
-    --global-badge-padding-y-l: var(--global-dimension-size-50);
-    --global-badge-padding-x-l: var(--global-dimension-size-75);
-    --global-badge-font-size-l: var(--global-font-size-m);
-
-    --global-badge-gap: var(--global-dimension-size-50);
-    --global-badge-border-radius: var(--global-rounding-small);
-  }
-`;
-
 const resizeHandleCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
@@ -1457,7 +1437,6 @@ export const derivedCSS = (theme: Theme) =>
     markdownCSS(theme),
     borderAndGridCSS(theme),
     resizeHandleCSS(theme),
-    badgeSizingCSS(theme),
     promptInputCSS(theme),
     messageTokensCSS(theme),
     skeletonCSS(theme)

@@ -1,14 +1,17 @@
 import type { Meta, StoryFn, StoryObj } from "@storybook/react";
 import type { ReactNode } from "react";
+import { useState } from "react";
 
-import type { PageHeaderProps } from "@phoenix/components";
+import type { PageHeaderProps, TagGroupItem } from "@phoenix/components";
 import {
   Button,
+  EditableTagGroup,
   Flex,
   Heading,
   PageHeader,
+  TagGroup,
+  TagPicker,
   Text,
-  Token,
   Truncate,
   View,
 } from "@phoenix/components";
@@ -17,11 +20,16 @@ import { OptionGrid } from "../../utils/OptionGrid";
 
 /**
  * The title row at the top of a page, with an optional subtitle beneath the
- * title and page-level actions in `extra` at the right.
+ * title, the subject's labels on their own row beneath that, and page-level
+ * actions in `extra` at the right.
+ *
+ * `labels` takes an `EditableTagGroup` where the person can edit the labels
+ * (each change saves at once, as on the dataset and prompt pages), or a
+ * read-only `TagGroup`. Labels never sit in the title row.
  *
  * A string `title` renders as the page's level 1 heading and a string
  * `subTitle` as secondary text. Any other node renders as given, so a title
- * that adds labels or truncation has to supply its own `Heading level={1}`.
+ * that adds truncation has to supply its own `Heading level={1}`.
  */
 const meta: Meta = {
   title: "Design System/Layout/Page Header",
@@ -64,6 +72,12 @@ const PLAYGROUND_ACTIONS = (
   </Flex>
 );
 
+const LABELS: TagGroupItem[] = [
+  { id: "production", label: "production", userColor: "#33c5e8" },
+  { id: "banking", label: "banking", userColor: "#ffa037" },
+  { id: "needs-review", label: "needs-review", userColor: "#ff95bd" },
+];
+
 const SLOTS: { label: string; props: PageHeaderProps }[] = [
   { label: "Bare", props: { title: "Playground" } },
   {
@@ -72,10 +86,18 @@ const SLOTS: { label: string; props: PageHeaderProps }[] = [
   },
   { label: "Extra", props: { title: "Playground", extra: PLAYGROUND_ACTIONS } },
   {
+    label: "Labels",
+    props: {
+      title: "qa-golden-set",
+      labels: <TagGroup aria-label="Dataset labels" items={LABELS} />,
+    },
+  },
+  {
     label: "Every slot",
     props: {
       title: "qa-golden-set",
       subTitle: "Questions with reference answers",
+      labels: <TagGroup aria-label="Dataset labels" items={LABELS} />,
       extra: <Button variant="primary">Run Experiment</Button>,
     },
   },
@@ -99,19 +121,6 @@ const EVALUATOR_TITLE =
 
 const TITLE_CONTENT: { label: string; props: PageHeaderProps }[] = [
   { label: "String", props: { title: "qa-golden-set", subTitle: "--" } },
-  {
-    label: "Heading with labels",
-    props: {
-      title: (
-        <Flex direction="row" gap="size-100" alignItems="center">
-          <Heading level={1}>qa-golden-set</Heading>
-          <Token color="var(--global-color-seafoam-600)">production</Token>
-          <Token color="var(--global-color-yellow-600)">v2</Token>
-        </Flex>
-      ),
-      subTitle: "Questions with reference answers",
-    },
-  },
   {
     label: "Truncated heading",
     props: {
@@ -149,6 +158,53 @@ TitleContent.storyName = "Title Content";
 TitleContent.tags = ["!dev"];
 TitleContent.parameters = { themeLayout: "column" };
 
+function EditableHeaderLabels({ initialIds }: { initialIds: string[] }) {
+  const [ids, setIds] = useState(initialIds);
+  return (
+    <EditableTagGroup
+      aria-label="Dataset labels"
+      items={LABELS.filter((item) => ids.includes(item.id))}
+      onRemove={(removed) => setIds(ids.filter((id) => !removed.has(id)))}
+      picker={
+        <TagPicker
+          options={LABELS}
+          selectedKeys={ids}
+          onSelectionChange={(selected) => setIds([...selected])}
+        />
+      }
+    />
+  );
+}
+
+const EDITABLE_LABELS: { label: string; initialIds: string[] }[] = [
+  { label: "Labeled", initialIds: ["production", "banking"] },
+  { label: "No labels", initialIds: [] },
+];
+
+/**
+ * The labels row with an `EditableTagGroup`, as on the dataset and prompt
+ * pages: remove a label with its × or Delete, add one from the picker.
+ * Without labels the row reads "No labels" beside the add control.
+ */
+export const EditableLabels: StoryFn = () => (
+  <OptionGrid
+    rows={EDITABLE_LABELS}
+    renderCell={(row) => (
+      <Frame>
+        <PageHeader
+          title="banking_saas_dataset"
+          subTitle="banking_saas_dataset.jsonl"
+          labels={<EditableHeaderLabels initialIds={row.initialIds} />}
+          extra={<Button variant="primary">Experiment</Button>}
+        />
+      </Frame>
+    )}
+  />
+);
+EditableLabels.storyName = "Editable Labels";
+EditableLabels.tags = ["!dev"];
+EditableLabels.parameters = { themeLayout: "column" };
+
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
 export const Thumbnail: StoryObj = {
   tags: ["!dev", "!autodocs"],
@@ -157,6 +213,7 @@ export const Thumbnail: StoryObj = {
       <PageHeader
         title="Datasets"
         subTitle="Curated examples"
+        labels={<TagGroup aria-label="Labels" items={LABELS.slice(0, 2)} />}
         extra={<Button variant="primary">New</Button>}
       />
     </div>

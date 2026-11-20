@@ -3,10 +3,10 @@ import { type ReactNode, useId } from "react";
 
 import { Flex, Text, View } from "@phoenix/components";
 import { AnnotationScoreText } from "@phoenix/components/annotation/AnnotationScoreText";
-import { AnnotationTargetTypeToken } from "@phoenix/components/annotation/AnnotationTargetTypeToken";
+import { AnnotationTargetTypeBadge } from "@phoenix/components/annotation/AnnotationTargetTypeBadge";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
-import { AnnotatorKindToken } from "@phoenix/components/trace/AnnotatorKindToken";
+import { AnnotatorKindBadge } from "@phoenix/components/trace/AnnotatorKindBadge";
 import { UserDisplay } from "@phoenix/components/user/UserDisplay";
 import { isAnnotatorKind } from "@phoenix/constants";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
@@ -104,7 +104,7 @@ export function AnnotationDetailsList({
               </Truncate>
             </View>
             <View flex="none">
-              <AnnotationTargetTypeToken targetType={annotationTargetType} />
+              <AnnotationTargetTypeBadge targetType={annotationTargetType} />
             </View>
           </Flex>
           {meanScore != null ? (
@@ -201,7 +201,7 @@ function AnnotationDetailsListItem({
           >
             {isAnnotatorKind(annotatorKind) ? (
               <View flex="none">
-                <AnnotatorKindToken kind={annotatorKind} />
+                <AnnotatorKindBadge kind={annotatorKind} size="S" />
               </View>
             ) : annotatorKind ? (
               <View flex="none">

@@ -3,9 +3,12 @@ import type { ReactNode } from "react";
 import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { Flex, IDBadge, Text } from "@phoenix/components";
+import { Flex, Identifier, MarkerTrigger, Text } from "@phoenix/components";
 import { dotSeparatedRowCSS } from "@phoenix/components/core/styles";
-import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
+import {
+  getSpanKindExplanation,
+  SpanKindBadge,
+} from "@phoenix/components/trace/SpanKindBadge";
 import { SpanMetrics } from "@phoenix/components/trace/SpanMetrics";
 import { SpanStatusIndicator } from "@phoenix/components/trace/SpanStatusIndicator";
 import { useTimeFormatters } from "@phoenix/hooks";
@@ -87,7 +90,9 @@ export function SpanHeader(props: SpanHeaderProps) {
   return (
     <Flex direction="column" gap="size-50" width="100%">
       <div className="span-header__identity" css={identityRowCSS}>
-        <SpanKindToken spanKind={span.spanKind} />
+        <MarkerTrigger explanation={getSpanKindExplanation(span.spanKind)}>
+          <SpanKindBadge spanKind={span.spanKind} />
+        </MarkerTrigger>
         <Text
           size="L"
           weight="heavy"
@@ -102,13 +107,9 @@ export function SpanHeader(props: SpanHeaderProps) {
         ) : null}
       </div>
       <div className="span-header__meta" css={metaRowCSS}>
-        <span>
-          <IDBadge
-            id={span.spanId}
-            variant="quiet"
-            tooltipText="Copy Span ID"
-          />
-        </span>
+        <Text size="S" color="text-500">
+          <Identifier value={span.spanId} copyNoun="span ID" />
+        </Text>
         <span>
           <Text size="S" color="text-500" fontFamily="mono">
             {fullTimeFormatter(startTime)}

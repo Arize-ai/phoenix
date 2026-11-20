@@ -4,6 +4,7 @@ import { graphql } from "relay-runtime";
 
 import { Button } from "@phoenix/components/core/button";
 import { SelectChevronUpDownIcon } from "@phoenix/components/core/icon";
+import { Identifier } from "@phoenix/components/core/identifier";
 import { ListBox } from "@phoenix/components/core/listbox";
 import { Popover } from "@phoenix/components/core/overlay";
 import {
@@ -13,7 +14,6 @@ import {
 } from "@phoenix/components/core/select";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import type { DatasetExampleSelect_ExampleSelectPopoverContentQuery } from "@phoenix/components/dataset/__generated__/DatasetExampleSelect_ExampleSelectPopoverContentQuery.graphql";
-import { IdTruncate } from "@phoenix/pages/playground/PromptMenu";
 
 export type DatasetExampleSelectProps = {
   datasetId: string | null;
@@ -80,7 +80,7 @@ const ExampleSelectPopoverContent = ({
     <ListBox items={examples} selectedKeys={selectedExample}>
       {(item) => (
         <SelectItem key={item.id} id={item.id}>
-          <IdTruncate ellipsis id={item.id} />
+          <Identifier value={item.id} />
         </SelectItem>
       )}
     </ListBox>

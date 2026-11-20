@@ -121,23 +121,20 @@ test.describe("Prompt label management from the list", () => {
     await labelOption.waitFor({ state: "visible" });
     await Promise.all([
       page.waitForResponse((resp) =>
-        isGraphQLMutationResponse(
-          resp,
-          "PromptLabelConfigButtonSetLabelsMutation"
-        )
+        isGraphQLMutationResponse(resp, "PromptLabelPickerSetLabelsMutation")
       ),
       labelOption.click(),
     ]);
-    // The label chip appears in the row live, without a manual refresh.
+    // The label tag appears in the row live, without a manual refresh.
     await expect(
-      labeledRow.getByRole("button", { name: labelName, exact: true })
+      labeledRow.getByRole("row", { name: labelName, exact: true })
     ).toBeVisible();
 
     // Reload the list to reset menu state; the chip persists across navigation.
     await page.goto("/prompts");
     await page.waitForURL("**/prompts");
     await expect(
-      promptRow(page, labeledPrompt).getByRole("button", {
+      promptRow(page, labeledPrompt).getByRole("row", {
         name: labelName,
         exact: true,
       })
@@ -176,33 +173,22 @@ test.describe("Prompt label management from the list", () => {
     await page.getByRole("menuitem", { name: "Label" }).hover();
     await page.getByRole("button", { name: "Create new label" }).click();
 
-    // Fill out the inline create form (no modal) and submit.
+    // Fill out the inline create form (no modal) and submit. A label
+    // created here joins the prompt's labels.
     await page.getByLabel("Label Name").fill(labelName);
     await Promise.all([
       page.waitForResponse((resp) =>
-        isGraphQLMutationResponse(
-          resp,
-          "usePromptLabelMutationsCreateLabelMutation"
-        )
+        isGraphQLMutationResponse(resp, "PromptLabelPickerSetLabelsMutation")
       ),
       page.getByRole("button", { name: "Create Label" }).click(),
     ]);
 
-    // Back in apply mode, the new label is selectable and applies to the prompt.
-    const labelOption = page.getByRole("menuitemcheckbox", { name: labelName });
-    await labelOption.waitFor({ state: "visible" });
-    await Promise.all([
-      page.waitForResponse((resp) =>
-        isGraphQLMutationResponse(
-          resp,
-          "PromptLabelConfigButtonSetLabelsMutation"
-        )
-      ),
-      labelOption.click(),
-    ]);
-
+    // Back in apply mode, the new label is listed and already checked.
     await expect(
-      row.getByRole("button", { name: labelName, exact: true })
+      page.getByRole("menuitemcheckbox", { name: labelName })
+    ).toHaveAttribute("aria-checked", "true");
+    await expect(
+      row.getByRole("row", { name: labelName, exact: true })
     ).toBeVisible();
   });
 });
@@ -231,23 +217,20 @@ test.describe("Dataset label management from the list", () => {
     await labelOption.waitFor({ state: "visible" });
     await Promise.all([
       page.waitForResponse((resp) =>
-        isGraphQLMutationResponse(
-          resp,
-          "DatasetLabelConfigButtonSetLabelsMutation"
-        )
+        isGraphQLMutationResponse(resp, "DatasetLabelPickerSetLabelsMutation")
       ),
       labelOption.click(),
     ]);
-    // The label chip appears in the row live, without a manual refresh.
+    // The label tag appears in the row live, without a manual refresh.
     await expect(
-      labeledRow.getByRole("button", { name: labelName, exact: true })
+      labeledRow.getByRole("row", { name: labelName, exact: true })
     ).toBeVisible();
 
     // Reload the list to reset menu state; the chip persists across navigation.
     await page.goto("/datasets");
     await page.waitForURL("**/datasets");
     await expect(
-      datasetRow(page, labeledDataset).getByRole("button", {
+      datasetRow(page, labeledDataset).getByRole("row", {
         name: labelName,
         exact: true,
       })

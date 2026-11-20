@@ -66,7 +66,7 @@ import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftCli
 import { TraceTokenCosts } from "@phoenix/components/trace";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
-import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
+import { SpanKindBadge } from "@phoenix/components/trace/SpanKindBadge";
 import { SpanStatusIndicator } from "@phoenix/components/trace/SpanStatusIndicator";
 import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
@@ -211,13 +211,17 @@ export const MemoizedTableBody = React.memo(
   TableBody,
   (prev, next) => prev.table.options.data === next.table.options.data
 ) as typeof TableBody;
-const ModelNameCell = <TData extends { modelName?: string | null }, TValue>({
+const ModelNameCell = <
+  TData extends { modelName?: string | null; modelProvider?: string | null },
+  TValue,
+>({
   row,
 }: CellContext<TData, TValue>) => {
   const { appendFilterCondition } = useSpanFilterActions();
   return (
     <ModelNameTableCell
       modelName={row.original.modelName}
+      modelProvider={row.original.modelProvider}
       onFilterConditionPressed={appendFilterCondition}
     />
   );
@@ -360,6 +364,7 @@ export function SpansTable(props: SpansTableProps) {
                 metadata
                 userId
                 modelName
+                modelProvider
                 statusCode
                 statusMessage
                 startTime
@@ -610,7 +615,7 @@ export function SpansTable(props: SpansTableProps) {
       maxSize: 100,
       enableSorting: false,
       cell: ({ getValue }) => {
-        return <SpanKindToken spanKind={getValue() as string} />;
+        return <SpanKindBadge spanKind={getValue() as string} />;
       },
     },
     {

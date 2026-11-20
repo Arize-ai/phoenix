@@ -66,7 +66,7 @@ import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
-import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
+import { SpanKindBadge } from "@phoenix/components/trace/SpanKindBadge";
 import { SpanStatusIndicator } from "@phoenix/components/trace/SpanStatusIndicator";
 import { TraceTokenCosts } from "@phoenix/components/trace/TraceTokenCosts";
 import { TraceTokenCount } from "@phoenix/components/trace/TraceTokenCount";
@@ -731,7 +731,7 @@ export function TracesTable(props: TracesTableProps) {
                     aria-label="Expand row"
                   />
                 ) : null}
-                <SpanKindToken spanKind={props.getValue() as string} />
+                <SpanKindBadge spanKind={props.getValue() as string} />
               </Flex>
             </div>
           );

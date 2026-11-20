@@ -19,8 +19,7 @@ export type {
   ProjectSelectionMenuProps,
 } from "./ProjectSelectionMenu";
 
-export { ProjectToken } from "./ProjectToken";
-export type { ProjectTokenProps } from "./ProjectToken";
+export { projectTagItem } from "./projectTagItem";
 
 export { useAllProjects } from "./useAllProjects";
 

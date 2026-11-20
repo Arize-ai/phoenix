@@ -2,7 +2,7 @@ import { flexRender, useTable } from "@tanstack/react-table";
 import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { Flex, Token } from "@phoenix/components";
+import { Flex, Tag } from "@phoenix/components";
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { IntCell } from "@phoenix/components/table/IntCell";
 import { tableCSS } from "@phoenix/components/table/styles";
@@ -49,10 +49,11 @@ export function PromptLabelsTable({
         header: "label",
         accessorKey: "name",
         cell: ({ row }) => {
-          return (
-            <Token color={row.original.color ?? undefined}>
-              {row.original.name}
-            </Token>
+          const { color, name } = row.original;
+          return color ? (
+            <Tag userColor={color}>{name}</Tag>
+          ) : (
+            <Tag>{name}</Tag>
           );
         },
       },

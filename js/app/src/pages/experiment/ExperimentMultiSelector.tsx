@@ -16,16 +16,16 @@ import {
   ListBoxItem,
   Popover,
   SelectChevronUpDownIcon,
+  SwatchedName,
   Text,
 } from "@phoenix/components";
-import { ColorSwatch } from "@phoenix/components/color/ColorSwatch";
 import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import { selectCSS } from "@phoenix/components/core/select/styles";
 import {
   BaselineExperimentBadge,
   useExperimentColors,
 } from "@phoenix/components/experiment";
-import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
+import { SequenceNumber } from "@phoenix/components/experiment/SequenceNumber";
 import type { ExperimentComparePageQueriesMultiSelectorQuery as ExperimentComparePageQueriesMultiSelectorQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesMultiSelectorQuery.graphql";
 import { ExperimentComparePageQueriesMultiSelectorQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
 
@@ -128,16 +128,16 @@ export function ExperimentMultiSelector(props: {
           <Button size="S" trailingVisual={<SelectChevronUpDownIcon />}>
             {data.baseExperiment != null ? (
               <Flex direction="row" gap="size-100" alignItems="center">
-                <ColorSwatch color={baseExperimentColor} shape="circle" />
                 <Text
                   css={css`
-                    white-space: nowrap;
+                    display: flex;
                     max-width: var(--global-dimension-size-2000);
-                    overflow: hidden;
-                    text-overflow: ellipsis;
                   `}
                 >
-                  {data.baseExperiment.name}
+                  <SwatchedName
+                    name={data.baseExperiment.name ?? ""}
+                    color={baseExperimentColor}
+                  />
                 </Text>
                 {data.baseExperiment.isBaseline ? (
                   <BaselineExperimentBadge />
@@ -186,7 +186,7 @@ export function ExperimentMultiSelector(props: {
                       >
                         <Flex direction="column" gap="size-50">
                           <Flex direction="row" gap="size-100">
-                            <SequenceNumberToken
+                            <SequenceNumber
                               sequenceNumber={experiment.sequenceNumber}
                             />
                             <Text
@@ -246,7 +246,7 @@ export function ExperimentMultiSelector(props: {
                         >
                           <Flex direction="column" gap="size-50">
                             <Flex direction="row" gap="size-100">
-                              <SequenceNumberToken
+                              <SequenceNumber
                                 sequenceNumber={experiment.sequenceNumber}
                               />
                               <Text

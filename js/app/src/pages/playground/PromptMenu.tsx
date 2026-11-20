@@ -4,14 +4,15 @@ import { Autocomplete, Input, useFilter } from "react-aria-components";
 import { useLazyLoadQuery } from "react-relay";
 import { graphql } from "relay-runtime";
 
-import type { TextProps } from "@phoenix/components";
 import {
+  Badge,
   Button,
   CompositeField,
   Flex,
-  LazyTabPanel,
   Icon,
   Icons,
+  Identifier,
+  LazyTabPanel,
   Menu,
   MenuContainer,
   MenuHeader,
@@ -23,7 +24,6 @@ import {
   TabList,
   Tabs,
   Text,
-  Token,
 } from "@phoenix/components";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
@@ -448,12 +448,10 @@ export function PromptVersionSelector({
                         </Truncate>
                       ) : null}
                       <Flex alignItems="center" gap="size-100">
-                        <IdTruncate id={id} textProps={{ size: "S" }} />
-                        {isLatest && (
-                          <Token size="S" color="var(--global-color-gray-700)">
-                            latest
-                          </Token>
-                        )}
+                        <Text size="S">
+                          <Identifier value={id} maxWidth="12ch" />
+                        </Text>
+                        {isLatest && <Badge size="S">latest</Badge>}
                         {createdAt && (
                           <Text size="XS" color="text-300">
                             {fullTimeFormatter(new Date(createdAt))}
@@ -503,8 +501,8 @@ export function PromptVersionSelector({
 }
 
 /**
- * Renders a label for a prompt version. If the version is the latest, it shows "latest" as a tag.
- * Otherwise, it shows the ID truncated to 6 characters.
+ * Renders a label for a prompt version: "latest" for the latest version,
+ * otherwise its ID.
  */
 export function PromptVersionLabel({
   id,
@@ -514,48 +512,7 @@ export function PromptVersionLabel({
   isLatest: boolean;
 }) {
   if (isLatest) {
-    return (
-      <Token size="S" color="var(--global-color-blue-1000)">
-        latest
-      </Token>
-    );
+    return <Badge size="S">latest</Badge>;
   }
-  return <IdTruncate id={id} />;
-}
-
-/**
- * Character based truncation for IDs.
- * Truncates from the start, preserving the last 6 characters (by default).
- * Adds underline as an affordance for hovering, to show the un-truncated ID.
- */
-export function IdTruncate({
-  id,
-  length = 6,
-  textProps,
-  ellipsis,
-}: {
-  id: string;
-  length?: number;
-  textProps?: Partial<TextProps>;
-  ellipsis?: boolean;
-}) {
-  const truncatedValue = useMemo(() => {
-    if (id.length <= length) return id;
-    return id.slice(length * -1);
-  }, [id, length]);
-
-  return (
-    <Text
-      title={id}
-      css={css`
-        text-decoration: underline;
-        text-underline-offset: 4px;
-        font-family: monospace;
-      `}
-      {...textProps}
-    >
-      {ellipsis ? <>&hellip;</> : ""}
-      {truncatedValue}
-    </Text>
-  );
+  return <Identifier value={id} maxWidth="12ch" />;
 }

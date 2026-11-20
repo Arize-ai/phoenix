@@ -3,8 +3,8 @@ import { useMemo } from "react";
 import { graphql, readInlineData, usePaginationFragment } from "react-relay";
 import { useNavigate, useParams } from "react-router";
 
-import { Flex, Text } from "@phoenix/components";
-import { ProjectToken } from "@phoenix/components/project";
+import { TagGroup, Text } from "@phoenix/components";
+import { projectTagItem } from "@phoenix/components/project";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import {
@@ -27,8 +27,6 @@ import { RetentionPolicyActionMenu } from "./RetentionPolicyActionMenu";
  * the remainder into an "and N more" affordance. The full list is visible
  * in the policy's details drawer.
  */
-const MAX_VISIBLE_PROJECTS = 5;
-
 const RETENTION_POLICY_FRAGMENT = graphql`
   fragment RetentionPoliciesTable_retentionPolicy on ProjectTraceRetentionPolicy
   @inline {
@@ -134,8 +132,6 @@ export const RetentionPoliciesTable = ({
         accessorKey: "projects",
         cell: ({ row }) => {
           const projects = row.original.projects.edges.map((edge) => edge.node);
-          const visibleProjects = projects.slice(0, MAX_VISIBLE_PROJECTS);
-          const hiddenProjectsCount = projects.length - visibleProjects.length;
           if (projects.length === 0) {
             return (
               <Text size="S" color="text-700">
@@ -144,23 +140,13 @@ export const RetentionPoliciesTable = ({
             );
           }
           return (
-            <Flex direction="row" gap="size-50" wrap alignItems="center">
-              {visibleProjects.map((project) => (
-                <StopPropagation key={project.id}>
-                  <ProjectToken
-                    projectId={project.id}
-                    name={project.name}
-                    gradientStartColor={project.gradientStartColor}
-                    gradientEndColor={project.gradientEndColor}
-                  />
-                </StopPropagation>
-              ))}
-              {hiddenProjectsCount > 0 && (
-                <Text size="S" color="text-700">
-                  and {hiddenProjectsCount} more
-                </Text>
-              )}
-            </Flex>
+            <StopPropagation>
+              <TagGroup
+                aria-label="Projects"
+                items={projects.map(projectTagItem)}
+                overflow="collapse"
+              />
+            </StopPropagation>
           );
         },
       },

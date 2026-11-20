@@ -12,14 +12,13 @@ import {
   EdgeFade,
   Empty,
   Flex,
+  Identifier,
   ListSkeleton,
   Skeleton,
   Switch,
   Text,
-  Token,
   View,
 } from "@phoenix/components";
-import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { CodeEvaluatorSourceCodeBlock } from "@phoenix/components/evaluators/CodeEvaluatorSourceCodeBlock";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { useTheme } from "@phoenix/contexts";
@@ -123,14 +122,12 @@ function VersionListItem({
       <View width="100%" paddingY="size-100" paddingX="size-200">
         <Flex direction="column" gap="size-50">
           <Flex direction="row" gap="size-100" alignItems="center">
-            <Token color="var(--global-color-blue-900)">
+            <Text size="S" weight="heavy">
               {`v${version.sequenceNumber}`}
-            </Token>
-            <Truncate maxWidth="100%">
-              <Text size="XS" color="text-700" fontFamily="mono">
-                {version.id}
-              </Text>
-            </Truncate>
+            </Text>
+            <Text size="XS" color="text-700" minWidth={0}>
+              <Identifier value={version.id} />
+            </Text>
           </Flex>
           <View paddingStart="size-400">
             <Flex

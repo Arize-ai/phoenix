@@ -1,7 +1,6 @@
 import { css } from "@emotion/react";
 import type { ReactNode, RefObject } from "react";
 import { useState } from "react";
-import { Pressable } from "react-aria";
 import { Panel, Separator } from "react-resizable-panels";
 
 import {
@@ -11,10 +10,8 @@ import {
   Icon,
   Icons,
   LinkButton,
-  RichTooltip,
+  MarkerTrigger,
   Text,
-  TooltipArrow,
-  TooltipTrigger,
 } from "@phoenix/components";
 import { fadedDividerBottomCSS } from "@phoenix/components/core/layout";
 import { compactResizeHandleCSS } from "@phoenix/components/resize/styles";
@@ -211,27 +208,9 @@ export function AgentChatHeader({
           {isActiveSessionTemporary ? <TemporarySessionIcon /> : null}
         </Flex>
         {showBetaBadge ? (
-          <TooltipTrigger delay={0}>
-            <Pressable>
-              <span
-                role="button"
-                tabIndex={0}
-                css={css`
-                  display: inline-flex;
-                  flex: none;
-                  cursor: default;
-                `}
-              >
-                <Badge variant="info">Beta</Badge>
-              </span>
-            </Pressable>
-            <RichTooltip>
-              <TooltipArrow />
-              <Text size="XS">
-                The assistant is in beta — expect changes as it evolves.
-              </Text>
-            </RichTooltip>
-          </TooltipTrigger>
+          <MarkerTrigger explanation="The assistant is in beta — expect changes as it evolves.">
+            <Badge variant="info">Beta</Badge>
+          </MarkerTrigger>
         ) : null}
       </Flex>
       {editingSessionId === activeSessionId && activeSessionTitleFragment ? (

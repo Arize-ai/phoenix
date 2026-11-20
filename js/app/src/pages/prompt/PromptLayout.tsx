@@ -22,6 +22,7 @@ import {
   Text,
 } from "@phoenix/components";
 import { ClonePromptDialog } from "@phoenix/pages/prompt/ClonePromptDialog";
+import { PromptLabelsEditor } from "@phoenix/pages/prompt/PromptLabelPicker";
 
 import type { PromptLayout__main$key } from "./__generated__/PromptLayout__main.graphql";
 import type { promptLoaderQuery as promptLoaderQueryType } from "./__generated__/promptLoaderQuery.graphql";
@@ -84,6 +85,11 @@ export function PromptLayout() {
           name
         }
         versionCount
+        labels {
+          id
+          name
+          color
+        }
       }
     `,
     preloadedData.prompt
@@ -103,6 +109,7 @@ export function PromptLayout() {
             </Text>
           )
         }
+        labels={<PromptLabelsEditor promptId={data.id} labels={data.labels} />}
         extra={
           <Flex direction="row" gap="size-100" justifyContent="end">
             <DialogTrigger>

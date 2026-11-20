@@ -4,17 +4,7 @@ import { flexRender, useTable } from "@tanstack/react-table";
 import React, { useMemo, useState } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import {
-  Flex,
-  Icon,
-  Icons,
-  Text,
-  Token,
-  Tooltip,
-  TooltipArrow,
-  TooltipTrigger,
-  TriggerWrap,
-} from "@phoenix/components";
+import { Icon, Icons, Text } from "@phoenix/components";
 import { AnnotationLabel } from "@phoenix/components/annotation";
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
@@ -119,37 +109,12 @@ const columns = [
           if (!row.values) {
             return "";
           }
-          let tokens = row.values.map(
-            (value: { label: string }, index: number) => (
-              <Token key={index} title={value.label}>
-                <Truncate maxWidth="40px">{value.label}</Truncate>
-              </Token>
-            )
-          );
-          if (row.values.length > 5) {
-            tokens = [
-              ...tokens.slice(-4),
-              <TooltipTrigger key="ellipsis" delay={64}>
-                <TriggerWrap>
-                  <Token
-                    key="ellipsis"
-                    css={css`
-                      white-space: nowrap;
-                    `}
-                  >
-                    + {row.values.length - 5} more
-                  </Token>
-                </TriggerWrap>
-                <Tooltip placement="bottom right">
-                  <TooltipArrow />
-                  {row.values
-                    .map((value: { label: string }) => value.label)
-                    .join(", ")}
-                </Tooltip>
-              </TooltipTrigger>,
-            ];
-          }
-          return tokens;
+          // the values are annotation labels, which are values rather than
+          // attached objects, so they read as text
+          const valueList = row.values
+            .map((value: { label: string }) => value.label)
+            .join(", ");
+          return <Truncate title={valueList}>{valueList}</Truncate>;
         }
         case "CONTINUOUS":
           return `from ${row.lowerBound} to ${row.upperBound}`;
@@ -160,8 +125,7 @@ const columns = [
       }
     },
     cell: ({ getValue }: CellContext<PersistedAnnotationConfig, unknown>) => {
-      const value = getValue() as React.ReactNode;
-      return <Flex gap="size-100">{value}</Flex>;
+      return getValue() as React.ReactNode;
     },
   },
 ] satisfies ColumnDef<PersistedAnnotationConfig>[];

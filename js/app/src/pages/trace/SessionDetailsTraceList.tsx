@@ -23,7 +23,7 @@ import {
   ExpandableContent,
   Icon,
   Icons,
-  IDBadge,
+  Identifier,
   LinkButton,
   ListBox,
   ListBoxItem,
@@ -359,7 +359,7 @@ function SessionTurnDivider({
       >
         Trace
       </LinkButton>
-      <IDBadge id={traceId} tooltipText="Copy Trace ID" />
+      <Identifier value={traceId} copyNoun="trace ID" />
     </Flex>
   );
 }

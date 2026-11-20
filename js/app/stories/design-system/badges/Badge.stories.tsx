@@ -1,33 +1,49 @@
 import { css } from "@emotion/react";
 import type { Meta, StoryFn, StoryObj } from "@storybook/react";
-import type { ReactNode } from "react";
+import { fn } from "storybook/test";
 
-import { Badge, Icon, Icons } from "@phoenix/components";
-import type {
-  BadgeOverflowMode,
-  BadgeProps,
-  BadgeVariant,
-} from "@phoenix/components/core/badge";
+import { Badge, Icon, Icons, MarkerTrigger } from "@phoenix/components";
+import type { BadgeColor, BadgeVariant } from "@phoenix/components/core/badge";
+import type { FamilySize } from "@phoenix/components/core/types";
 
 import { OptionGrid } from "../../utils/OptionGrid";
 
 /**
- * A compact status or metadata label. Choose the variant from what the label
- * means, so its color conveys that meaning at a glance:
+ * A Kind: the classification of a thing, one value from a closed set, such
+ * as a span kind, an annotator kind or a model recommendation. Round,
+ * because it is a property of the thing it sits on.
  *
- * - **default** (neutral) — archived, deleted, paused, draft, not started, ended
- * - **info** (informative) — active, in use, live, published
- * - **success** (positive) — approved, complete, success, new, purchased, licensed
- * - **warning** (notice) — pending, request, needs review, expiring
- * - **danger** (negative) — error, alert, rejected, failed
+ * Every axis is either nominal or evaluative, never both:
  *
- * `S` is the default size and the one most pages need; use `M` and `L`
- * sparingly, to set a badge apart from the ones around it.
+ * - **Nominal** axes name a type (span kind, hosting type) and take a
+ *   categorical `color`, which encodes identity. Green, orange and red are
+ *   not offered, since a green span kind would read as "OK". Use `neutral`
+ *   for an axis whose values need no color of their own.
+ * - **Evaluative** axes judge the thing (a recommendation, a feature's
+ *   maturity) and take a `variant`, which means what it means everywhere else
+ *   in Phoenix: good, worth knowing, caution, harm. The axis's unremarkable
+ *   value is `neutral`.
+ *
+ * To tell them apart, remove the judgment: if the value still says
+ * something, as "Local" still says where a sandbox runs, the axis is nominal.
+ * A value that changes over time, such as "Unavailable", is a status, not a
+ * Kind.
+ *
+ * Use `S` inside menu items and pickers and `M` everywhere else, table cells
+ * included.
+ *
+ * A Badge is never its own hit target and never focusable. When a kind must
+ * open detail, put the Badge inside a `MarkerTrigger`: the trigger draws
+ * only its focus ring, and the Badge shows the trigger's hover and pressed
+ * state, which a static grid cannot hold, so hover and press the triggers in
+ * `In a Trigger` to see them. To filter by a kind, give the cell, row or a
+ * menu the affordance, never the Badge.
  */
 const meta: Meta = {
   title: "Design System/Badges/Badge",
   component: Badge,
-  tags: ["updated", "unreviewed", "complete"],
+  subcomponents: { MarkerTrigger },
+  tags: ["updated", "unreviewed", "incomplete"],
   parameters: {
     layout: "centered",
     controls: { disable: true },
@@ -36,54 +52,68 @@ const meta: Meta = {
 
 export default meta;
 
-const VARIANTS: {
-  label: BadgeVariant;
-  code: true;
-  text: string;
-  icon: ReactNode;
-}[] = [
-  { label: "default", code: true, text: "Paused", icon: <Icons.StopCircle /> },
-  { label: "info", code: true, text: "Active", icon: <Icons.Info /> },
-  {
-    label: "success",
-    code: true,
-    text: "Approved",
-    icon: <Icons.CheckmarkCircle />,
-  },
-  {
-    label: "warning",
-    code: true,
-    text: "Pending",
-    icon: <Icons.AlertTriangle />,
-  },
-  { label: "danger", code: true, text: "Failed", icon: <Icons.CloseCircle /> },
+const COLORS: { label: BadgeColor; code: true; text: string }[] = [
+  { label: "neutral", code: true, text: "System" },
+  { label: "blue", code: true, text: "Chain" },
+  { label: "cyan", code: true, text: "Code" },
+  { label: "indigo", code: true, text: "Embedding" },
+  { label: "purple", code: true, text: "LLM" },
+  { label: "fuchsia", code: true, text: "Guardrail" },
+  { label: "magenta", code: true, text: "Decision" },
+  { label: "seafoam", code: true, text: "Retriever" },
+  { label: "chartreuse", code: true, text: "Evaluator" },
+  { label: "yellow", code: true, text: "Tool" },
 ];
 
-const SIZES: { label: BadgeProps["size"] & string; code: true }[] = [
+const VARIANTS: { label: BadgeVariant; code: true; text: string }[] = [
+  { label: "success", code: true, text: "Recommended" },
+  { label: "info", code: true, text: "Beta" },
+  { label: "warning", code: true, text: "Restricted" },
+  { label: "danger", code: true, text: "Not recommended" },
+];
+
+const SIZES: { label: FamilySize; code: true }[] = [
   { label: "S", code: true },
   { label: "M", code: true },
-  { label: "L", code: true },
 ];
 
 const CONTENT: { label: string; withIcon: boolean }[] = [
   { label: "Text", withIcon: false },
-  { label: "Leading icon", withIcon: true },
-];
-
-const OVERFLOW_MODES: { label: BadgeOverflowMode; code: true }[] = [
-  { label: "wrap", code: true },
-  { label: "truncate", code: true },
+  { label: "Leading visual", withIcon: true },
 ];
 
 const LENGTHS: { label: string; text: string }[] = [
   { label: "Empty", text: "" },
-  { label: "1 character", text: "3" },
-  { label: "Regular", text: "Active" },
-  { label: "Long", text: "24 days left in trial" },
+  { label: "Regular", text: "LLM" },
+  { label: "Long", text: "Retriever" },
 ];
 
-export const Default: StoryFn = () => <Badge>Archived</Badge>;
+const TRIGGER_STATES: { label: string; isDisabled: boolean }[] = [
+  { label: "Enabled", isDisabled: false },
+  { label: "Disabled", isDisabled: true },
+];
+
+const constrainedCSS = css`
+  width: 64px;
+  border-inline-end: 1px dashed var(--global-border-color-default);
+`;
+
+export const Default: StoryFn = () => <Badge color="purple">LLM</Badge>;
 Default.tags = ["!dev"];
+
+export const ColorsAndSizes: StoryFn = () => (
+  <OptionGrid
+    rows={COLORS}
+    columns={SIZES}
+    renderCell={(color, size) => (
+      <Badge color={color.label} size={size?.label}>
+        {color.text}
+      </Badge>
+    )}
+  />
+);
+ColorsAndSizes.tags = ["!dev"];
+ColorsAndSizes.parameters = { themeLayout: "column" };
 
 export const VariantsAndSizes: StoryFn = () => (
   <OptionGrid
@@ -104,9 +134,14 @@ export const ContentAndSizes: StoryFn = () => (
     rows={CONTENT}
     columns={SIZES}
     renderCell={(content, size) => (
-      <Badge variant="success" size={size?.label}>
-        {content.withIcon ? <Icon svg={<Icons.CheckmarkCircle />} /> : null}
-        Approved
+      <Badge
+        color="blue"
+        size={size?.label}
+        leadingVisual={
+          content.withIcon ? <Icon svg={<Icons.Span />} /> : undefined
+        }
+      >
+        Chain
       </Badge>
     )}
   />
@@ -114,64 +149,68 @@ export const ContentAndSizes: StoryFn = () => (
 ContentAndSizes.tags = ["!dev"];
 ContentAndSizes.parameters = { themeLayout: "column" };
 
-export const ContentAndVariants: StoryFn = () => (
-  <OptionGrid
-    rows={VARIANTS}
-    columns={CONTENT}
-    renderCell={(variant, content) => (
-      <Badge variant={variant.label}>
-        {content?.withIcon ? <Icon svg={variant.icon} /> : null}
-        {variant.text}
-      </Badge>
-    )}
-  />
-);
-ContentAndVariants.tags = ["!dev"];
-ContentAndVariants.parameters = { themeLayout: "column" };
-
-const containerCSS = css`
-  width: 100%;
-`;
-
-/**
- * The badge wraps a label too long for its container by default.
- * `overflowMode="truncate"` is meant to keep it on one line with an
- * ellipsis, but it only stops the wrap: the badge grows past its container
- * to the full width of its label and shows no ellipsis.
- */
 export const ContentLength: StoryFn = () => (
   <OptionGrid
-    rows={OVERFLOW_MODES}
-    columns={LENGTHS}
-    cellWidth="80px"
-    alignRows="start"
-    renderCell={(overflowMode, length) => (
-      <div css={containerCSS}>
-        <Badge variant="info" overflowMode={overflowMode.label}>
-          {length?.text}
-        </Badge>
+    rows={LENGTHS}
+    renderCell={(length) => (
+      <div css={constrainedCSS}>
+        <Badge color="seafoam">{length.text}</Badge>
       </div>
     )}
   />
 );
 ContentLength.tags = ["!dev"];
-ContentLength.parameters = { themeLayout: "column" };
+ContentLength.parameters = { themeLayout: "row" };
 
-const thumbnailRowCSS = css`
+export const InATrigger: StoryFn = () => (
+  <OptionGrid
+    rows={TRIGGER_STATES}
+    columns={SIZES}
+    renderCell={(state, size) => (
+      <MarkerTrigger
+        aria-label="Show span kind details"
+        isDisabled={state.isDisabled}
+        onPress={fn()}
+      >
+        <Badge color="purple" size={size?.label}>
+          LLM
+        </Badge>
+      </MarkerTrigger>
+    )}
+  />
+);
+InATrigger.tags = ["!dev"];
+InATrigger.parameters = { themeLayout: "column" };
+
+/**
+ * A Badge that needs explaining takes an `explanation` on its
+ * `MarkerTrigger` instead of an action. Hover, focus or press it to show the
+ * explanation; the trigger holds its own open state, so it cannot be held
+ * open here.
+ */
+export const WithExplanation: StoryFn = () => (
+  <MarkerTrigger explanation="The assistant is in beta — expect changes as it evolves.">
+    <Badge variant="info">Beta</Badge>
+  </MarkerTrigger>
+);
+WithExplanation.tags = ["!dev"];
+
+const thumbnailCSS = css`
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: var(--global-dimension-size-100);
+  max-width: 260px;
 `;
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
 export const Thumbnail: StoryObj = {
   tags: ["!dev", "!autodocs"],
   render: () => (
-    <div css={thumbnailRowCSS}>
-      {VARIANTS.map((variant) => (
-        <Badge key={variant.label} variant={variant.label}>
-          {variant.text}
+    <div css={thumbnailCSS}>
+      {COLORS.slice(0, 8).map((color) => (
+        <Badge key={color.label} color={color.label} size="M">
+          {color.text}
         </Badge>
       ))}
     </div>

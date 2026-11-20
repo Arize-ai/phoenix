@@ -1,8 +1,8 @@
 import { formatRelative } from "date-fns/formatRelative";
 
-import type { TokenProps, ViewProps } from "@phoenix/components";
-import { Flex, Text, Token, View } from "@phoenix/components";
-import { AnnotatorKindToken } from "@phoenix/components/trace/AnnotatorKindToken";
+import type { ViewProps } from "@phoenix/components";
+import { Flex, Text, View } from "@phoenix/components";
+import { AnnotatorKindBadge } from "@phoenix/components/trace/AnnotatorKindBadge";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { isAnnotatorKind } from "@phoenix/constants";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
@@ -33,7 +33,6 @@ export function DocumentAnnotationItem({
   spanNodeId,
   documentPosition,
   borderColor,
-  tokenColor,
   canAnnotate,
   editingAnnotation,
   existingAnnotationNames,
@@ -50,8 +49,6 @@ export function DocumentAnnotationItem({
   documentPosition: number;
   /** Border color token applied to the item's card container */
   borderColor: ViewProps["borderColor"];
-  /** Color token used for label and score badges */
-  tokenColor: TokenProps["color"];
   /** Whether the current user has permission to annotate */
   canAnnotate: boolean;
   /** The annotation currently being edited, or null if none */
@@ -67,11 +64,9 @@ export function DocumentAnnotationItem({
   /** Called when the user cancels editing */
   onCancel: () => void;
 }) {
-  const evalTokenColor =
-    documentAnnotation.label &&
-    DANGER_ANNOTATION_LABELS.includes(documentAnnotation.label)
-      ? "var(--global-color-danger)"
-      : tokenColor;
+  const isDangerLabel =
+    documentAnnotation.label != null &&
+    DANGER_ANNOTATION_LABELS.includes(documentAnnotation.label);
 
   const isEditing =
     editingAnnotation != null && editingAnnotation.id === documentAnnotation.id;
@@ -156,7 +151,9 @@ export function DocumentAnnotationItem({
                 <Text size="XS" color="text-900" weight="heavy">
                   Label
                 </Text>
-                <Token color={evalTokenColor}>{documentAnnotation.label}</Token>
+                <Text size="S" color={isDangerLabel ? "danger" : "text-900"}>
+                  {documentAnnotation.label}
+                </Text>
               </Flex>
             )}
             {typeof documentAnnotation.score === "number" && (
@@ -164,9 +161,9 @@ export function DocumentAnnotationItem({
                 <Text size="XS" color="text-900" weight="heavy">
                   Score
                 </Text>
-                <Token color={evalTokenColor}>
+                <Text size="S" color="text-900">
                   {formatFloat(documentAnnotation.score)}
-                </Token>
+                </Text>
               </Flex>
             )}
             {isAnnotatorKind(documentAnnotation.annotatorKind) && (
@@ -174,7 +171,10 @@ export function DocumentAnnotationItem({
                 <Text size="XS" color="text-900" weight="heavy">
                   Kind
                 </Text>
-                <AnnotatorKindToken kind={documentAnnotation.annotatorKind} />
+                <AnnotatorKindBadge
+                  kind={documentAnnotation.annotatorKind}
+                  size="S"
+                />
               </Flex>
             )}
           </Flex>

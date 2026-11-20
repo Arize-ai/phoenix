@@ -9,8 +9,8 @@ import {
   Label,
   TextArea,
   TextField,
-  Token,
   View,
+  Tag,
 } from "@phoenix/components";
 import {
   ColorSwatch,
@@ -59,7 +59,7 @@ export function NewDatasetSplitForm({
             justifyContent="center"
             width="100%"
           >
-            <Token color={color}>{name || "split preview"}</Token>
+            <Tag userColor={color}>{name || "split preview"}</Tag>
           </Flex>
         </View>
         <Controller

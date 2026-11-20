@@ -1,10 +1,9 @@
 /**
  * The base color for each span kind as defined by openinference.
  *
- * This is the single source of truth for span kind colors — both the
- * SpanKindToken and the SpanKindIcon derive their theme-aware background,
- * border, and foreground colors from these base values so that the two
- * treatments stay visually consistent.
+ * The SpanKindIcon (as in the trace tree) and the SpanKindBadge (as in the
+ * spans table) both derive their theme-aware colors from these base values,
+ * so a kind has one color everywhere.
  */
 const spanKindColorMap: Record<string, string> = {
   llm: "var(--global-color-orange-500)",

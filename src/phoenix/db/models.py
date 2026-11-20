@@ -97,6 +97,7 @@ from phoenix.trace.attributes import get_attribute_value
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE.split(".")
 INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")
 LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME.split(".")
+LLM_PROVIDER = SpanAttributes.LLM_PROVIDER.split(".")
 LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL.split(".")
 LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT.split(".")
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION.split(".")
@@ -990,6 +991,15 @@ class Span(HasId):
     @classmethod
     def _llm_model_name_expression(cls) -> ColumnElement[Any]:
         return cls.attributes[LLM_MODEL_NAME]
+
+    @hybrid_property
+    def llm_provider(self) -> Any:
+        return get_attribute_value(self.attributes, LLM_PROVIDER)
+
+    @llm_provider.inplace.expression
+    @classmethod
+    def _llm_provider_expression(cls) -> ColumnElement[Any]:
+        return cls.attributes[LLM_PROVIDER]
 
     @hybrid_property
     def metadata_(self) -> Any:

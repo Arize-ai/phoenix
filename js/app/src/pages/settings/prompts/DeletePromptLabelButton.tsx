@@ -81,7 +81,7 @@ export function DeletePromptLabelButton(props: DeletePromptLabelButtonProps) {
                               connections: [
                                 ConnectionHandler.getConnectionID(
                                   "client:root",
-                                  "PromptLabelConfigButtonAllLabels_promptLabels"
+                                  "PromptLabelPicker_promptLabels"
                                 ),
                                 ConnectionHandler.getConnectionID(
                                   "client:root",

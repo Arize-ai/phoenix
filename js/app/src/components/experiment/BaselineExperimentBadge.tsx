@@ -1,10 +1,11 @@
-import { css } from "@emotion/react";
-
 import { Badge } from "@phoenix/components";
-import type { ComponentSize } from "@phoenix/components/core/types";
+import type { FamilySize } from "@phoenix/components/core/types";
 
 type BaselineExperimentBadgeProps = {
-  size?: ComponentSize;
+  /**
+   * @default "S"
+   */
+  size?: FamilySize;
   /**
    * The badge text
    * @default "baseline"
@@ -12,26 +13,16 @@ type BaselineExperimentBadgeProps = {
   label?: string;
 };
 
-// The Badge derives its colors from `--family-base-color`, which it sets
-// locally to a neutral gray. Override it from a wrapper with a descendant
-// selector so it takes precedence over Badge's own declaration.
-const baselineBadgeCSS = css`
-  display: inline-flex;
-  .badge {
-    --family-base-color: var(--global-color-indigo-500);
-  }
-`;
-
 /**
- * A passive badge that indicates an experiment is the baseline.
+ * Marks the experiment the others in a comparison are measured against.
  */
 export function BaselineExperimentBadge({
   size = "S",
   label = "baseline",
 }: BaselineExperimentBadgeProps) {
   return (
-    <span css={baselineBadgeCSS}>
-      <Badge size={size}>{label}</Badge>
-    </span>
+    <Badge color="indigo" size={size}>
+      {label}
+    </Badge>
   );
 }
