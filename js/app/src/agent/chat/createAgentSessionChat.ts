@@ -17,6 +17,7 @@ import {
   partitionPendingClientToolCalls,
   resolveStalePendingToolCallParts,
 } from "@phoenix/agent/chat/rehydratePendingToolCalls";
+import { isSessionSelfCancellationGraceActive } from "@phoenix/agent/chat/sessionCancellation";
 import { shouldSendAutomaticallyAfterToolOutput } from "@phoenix/agent/chat/shouldSendAutomatically";
 import { flushToolApprovals } from "@phoenix/agent/chat/toolApprovalFlush";
 import { flushToolOutputs } from "@phoenix/agent/chat/toolOutputFlush";
@@ -351,6 +352,15 @@ export function createAgentSessionChat({
               .setSessionNotice(sessionId, "modelChangedElsewhere");
           }
         });
+        return;
+      }
+      if (
+        isBusyRejection &&
+        isSessionSelfCancellationGraceActive(
+          store.getState().locallyCancelledSessionAtBySessionId[sessionId]
+        )
+      ) {
+        store.getState().setSessionNotice(sessionId, "previousTurnCancelled");
         return;
       }
       store.getState().setSessionBusyElsewhere(sessionId, true);

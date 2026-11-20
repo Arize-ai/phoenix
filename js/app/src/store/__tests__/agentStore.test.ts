@@ -151,6 +151,7 @@ describe("agentStore", () => {
         .getState()
         .setPendingMessage(sessionId, { text: "hi", requestedSkills: [] });
       store.getState().setSessionChatStatus(sessionId, "streaming");
+      store.getState().markSessionLocallyCancelled(sessionId);
 
       store.getState().clearSessionEphemeralState(sessionId);
 
@@ -161,6 +162,9 @@ describe("agentStore", () => {
       expect(state.draftInputBySessionId[sessionId]).toBeUndefined();
       expect(state.pendingMessageBySessionId[sessionId]).toBeUndefined();
       expect(state.chatStatusBySessionId[sessionId]).toBeUndefined();
+      expect(
+        state.locallyCancelledSessionAtBySessionId[sessionId]
+      ).toBeUndefined();
     });
 
     it("keeps ephemeral state belonging to other sessions", () => {
@@ -175,6 +179,25 @@ describe("agentStore", () => {
       );
       expect(
         store.getState().draftInputBySessionId["session-b"]
+      ).toBeUndefined();
+    });
+  });
+
+  describe("locallyCancelledSessionAtBySessionId", () => {
+    it("records, isolates, and clears local cancellation markers", () => {
+      const store = createAgentStore();
+      const timestamp = 1700000000000;
+      store.getState().markSessionLocallyCancelled("session-1", timestamp);
+      expect(
+        store.getState().locallyCancelledSessionAtBySessionId["session-1"]
+      ).toBe(timestamp);
+      expect(
+        store.getState().locallyCancelledSessionAtBySessionId["session-2"]
+      ).toBeUndefined();
+
+      store.getState().clearSessionLocallyCancelled("session-1");
+      expect(
+        store.getState().locallyCancelledSessionAtBySessionId["session-1"]
       ).toBeUndefined();
     });
   });

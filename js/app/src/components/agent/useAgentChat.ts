@@ -19,6 +19,7 @@ import {
 } from "@phoenix/agent/chat/createAgentSessionChat";
 import { getUnresolvedToolCalls } from "@phoenix/agent/chat/interruptToolCalls";
 import { cleanupPendingToolState } from "@phoenix/agent/chat/pendingToolStateCleanup";
+import { isSessionSelfCancellationGraceActive } from "@phoenix/agent/chat/sessionCancellation";
 import { USER_INTERRUPT_ERROR } from "@phoenix/agent/chat/shouldSendAutomatically";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { buildUserMessageMetadata } from "@phoenix/agent/chat/userMessageMetadata";
@@ -264,6 +265,13 @@ export function useAgentChat({
   };
 
   const handleStopWithToolCleanup = async () => {
+    if (
+      persistedSessionId &&
+      chatInstance &&
+      isRequestActive(chatInstance.status)
+    ) {
+      store.getState().markSessionLocallyCancelled(persistedSessionId);
+    }
     await stop();
     if (sessionId) {
       store.getState().setSessionResponsePending(sessionId, false);
@@ -389,7 +397,15 @@ export function useAgentChat({
             // busy-elsewhere mode (the poll swaps in the fresh transcript
             // when the turn completes) instead of raising a red error.
             restorePendingMessage();
-            store.getState().setSessionBusyElsewhere(sessionId, true);
+            const cancelledAt =
+              store.getState().locallyCancelledSessionAtBySessionId[sessionId];
+            if (isSessionSelfCancellationGraceActive(cancelledAt)) {
+              store
+                .getState()
+                .setSessionNotice(sessionId, "previousTurnCancelled");
+            } else {
+              store.getState().setSessionBusyElsewhere(sessionId, true);
+            }
             return;
           }
           if (
