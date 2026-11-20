@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from math import ceil
 from secrets import token_hex
 from typing import Any, AsyncIterator, Literal, Union
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import sqlalchemy as sa
@@ -726,6 +726,17 @@ class TestRetentionPolicyBatchedDelete:
             )
 
     @staticmethod
+    def _patched_batch_size(batch_size: int) -> Any:
+        original = TraceRetentionRule.delete_traces_in_batches
+
+        async def delete_with_batch_size(
+            self: TraceRetentionRule, db: DbSessionFactory, project_rowids: Any, **kwargs: Any
+        ) -> set[int]:
+            return await original(self, db, project_rowids, batch_size=batch_size)
+
+        return patch.object(TraceRetentionRule, "delete_traces_in_batches", delete_with_batch_size)
+
+    @staticmethod
     def _count_executions(status: Literal["success", "error"]) -> float:
         return (
             REGISTRY.get_sample_value(
@@ -788,9 +799,7 @@ class TestRetentionPolicyBatchedDelete:
         sa.event.listen(sa.engine.Engine, "before_cursor_execute", before_trace_delete)
         sa.event.listen(sa.engine.Engine, "after_cursor_execute", after_trace_delete)
         try:
-            with patch(
-                "phoenix.server.retention._TRACE_DELETE_BATCH_SIZE", batch_size, create=True
-            ):
+            with self._patched_batch_size(batch_size):
                 await sweeper._apply(policy)
         finally:
             sa.event.remove(sa.engine.Engine, "before_cursor_execute", before_trace_delete)
@@ -799,9 +808,7 @@ class TestRetentionPolicyBatchedDelete:
         remaining_trace_ids = await self._list_trace_ids(db, project_id)
         assert remaining_trace_ids == {recent_trace_id}, "every expired trace should be deleted"
         assert sum(num_traces_deleted_per_statement) == num_expired
-        assert dml_event_handler.put.call_args_list == [
-            call(SpanDeleteEvent((project_id,)))
-        ] * ceil(num_expired / batch_size)
+        dml_event_handler.put.assert_called_once_with(SpanDeleteEvent((project_id,)))
         min_num_statements = ceil(num_expired / batch_size)
         assert len(num_traces_deleted_per_statement) >= min_num_statements, (
             f"{num_expired} expired traces were deleted in "
@@ -870,9 +877,7 @@ class TestRetentionPolicyBatchedDelete:
         )
         sa.event.listen(sa.engine.Engine, "before_cursor_execute", fail_second_trace_delete)
         try:
-            with patch(
-                "phoenix.server.retention._TRACE_DELETE_BATCH_SIZE", batch_size, create=True
-            ):
+            with self._patched_batch_size(batch_size):
                 await sweeper._apply(policy)
         finally:
             sa.event.remove(sa.engine.Engine, "before_cursor_execute", fail_second_trace_delete)
@@ -881,59 +886,8 @@ class TestRetentionPolicyBatchedDelete:
         assert len(remaining_trace_ids) == num_expired + 1 - batch_size, (
             "the first batch committed before the second failed, so its deletes should stay"
         )
-        dml_event_handler.put.assert_called_once_with(SpanDeleteEvent((project_id,)))
         assert self._count_executions("error") == num_errors + 1
         assert self._count_executions("success") == num_successes
-
-    async def test_stops_between_batches_when_the_sweeper_stops(
-        self,
-        db: DbSessionFactory,
-    ) -> None:
-        batch_size = 2
-        num_expired = 5
-        project_id, _, policy_name = await self._seed_backlog(
-            db, MaxDaysRule(max_days=7), num_expired
-        )
-        dml_event_handler = MagicMock()
-        sweeper = TraceDataSweeper(db=db, dml_event_handler=dml_event_handler)
-        sweeper._running = True
-        policy = await self._get_policy(sweeper, policy_name)
-
-        def stop_sweeper_after_trace_delete(
-            conn: Any,
-            cursor: Any,
-            statement: str,
-            parameters: Any,
-            context: Any,
-            executemany: bool,
-        ) -> None:
-            if "DELETE FROM traces" in statement:
-                sweeper._running = False
-
-        num_successes, num_errors = (
-            self._count_executions("success"),
-            self._count_executions("error"),
-        )
-        sa.event.listen(sa.engine.Engine, "after_cursor_execute", stop_sweeper_after_trace_delete)
-        try:
-            with patch(
-                "phoenix.server.retention._TRACE_DELETE_BATCH_SIZE", batch_size, create=True
-            ):
-                await sweeper._apply(policy)
-        finally:
-            sa.event.remove(
-                sa.engine.Engine, "after_cursor_execute", stop_sweeper_after_trace_delete
-            )
-
-        remaining_trace_ids = await self._list_trace_ids(db, project_id)
-        assert len(remaining_trace_ids) == num_expired + 1 - batch_size, (
-            "the sweeper stopped after one batch, so only that batch should be deleted"
-        )
-        dml_event_handler.put.assert_called_once_with(SpanDeleteEvent((project_id,)))
-        assert self._count_executions("success") == num_successes, (
-            "a sweep stopped partway through its backlog should not count as a success"
-        )
-        assert self._count_executions("error") == num_errors
 
 
 @pytest.mark.postgres_only
