@@ -15,6 +15,7 @@ import type { Disposable } from "relay-runtime";
 import invariant from "tiny-invariant";
 import { useShallow } from "zustand/react/shallow";
 
+import { summarizeBenchEntry } from "@phoenix/agent/tools/projectEvaluatorBench/bench";
 import {
   Alert,
   Button,
@@ -86,6 +87,7 @@ import type {
   ProjectEvaluatorRecordKind,
   ProjectEvaluatorTarget,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { usePublishProjectEvaluatorBench } from "@phoenix/pages/project/evaluators/useProjectEvaluatorBenchRegistration";
 import type { EvaluatorStore } from "@phoenix/store/evaluatorStore";
 import type {
   CodeEvaluatorLanguage,
@@ -187,6 +189,7 @@ export type TestBenchHeaderProps = {
  */
 export function ProjectEvaluatorTestBench({
   rows,
+  filterCondition,
   recordKind,
   hasMore,
   isLoadingMore,
@@ -199,6 +202,8 @@ export function ProjectEvaluatorTestBench({
   ...headerProps
 }: TestBenchHeaderProps & {
   rows: RecordedRunRow[];
+  /** The scope's filter these rows were listed for. */
+  filterCondition: string;
   recordKind: ProjectEvaluatorRecordKind;
   hasMore: boolean;
   isLoadingMore: boolean;
@@ -271,6 +276,26 @@ export function ProjectEvaluatorTestBench({
   // kind of evaluator ran them; a form's provided output configs still apply.
   const previewOutputConfigs = useEvaluatorPreviewOutputConfigs();
   const previewEvaluatorName = useEvaluatorStore(selectPreviewEvaluatorName);
+  usePublishProjectEvaluatorBench({
+    targetType: headerProps.targetType,
+    filterCondition,
+    getEntries: () => entries,
+    getSnapshot: () => ({
+      targetType: headerProps.targetType,
+      recordKind,
+      timeWindow: headerProps.timeWindow.presetId,
+      records: entries.map(summarizeBenchEntry),
+      hasMore,
+      runBlocker,
+    }),
+    runEntries: (selected) => {
+      // Focus the first record run, so the inspector shows what PXI tested.
+      if (selected[0]) {
+        setFocusedKey(selected[0].row.key);
+      }
+      return runOnRows(selected.map(({ row }) => row));
+    },
+  });
   const bench = (
     <div css={benchCSS} data-testid="project-evaluator-test-bench">
       <TestBenchHeader
@@ -290,7 +315,7 @@ export function ProjectEvaluatorTestBench({
             <Icon svg={isRetest ? <Icons.Refresh /> : <Icons.Play />} />
           }
           isDisabled={!isRunnable || runnableEntries.length === 0}
-          onPress={() => runOnRows(runnableEntries.map(({ row }) => row))}
+          onPress={() => void runOnRows(runnableEntries.map(({ row }) => row))}
         >
           {formatBulkTestLabel({
             runnableCount: runnableEntries.length,
@@ -317,7 +342,7 @@ export function ProjectEvaluatorTestBench({
             onFocusRow={setFocusedKey}
             isRunnable={isRunnable}
             runBlocker={runBlocker}
-            onRunRow={(row) => runOnRows([row])}
+            onRunRow={(row) => void runOnRows([row])}
             hasMore={hasMore}
             isLoadingMore={isLoadingMore}
             onLoadMore={onLoadMore}
@@ -337,7 +362,7 @@ export function ProjectEvaluatorTestBench({
               requiredVariables={requiredVariables}
               isRunnable={isRunnable}
               runBlocker={runBlocker}
-              onRun={() => runOnRows([focusedEntry.row])}
+              onRun={() => void runOnRows([focusedEntry.row])}
             />
           ) : null}
         </Panel>
@@ -812,8 +837,13 @@ export function useEvaluatorPreviewRuns({
     : (decisionBlocker ??
       "Fix the evaluator's annotation configuration to test");
 
-  /** Tests one request's worth of rows, each key once, in one stream. */
-  const runOnBatch = (rows: readonly RecordedRunRow[]) => {
+  /**
+   * Tests one request's worth of rows, each key once, in one stream; resolves
+   * with each row's finished run once the stream has settled them all.
+   */
+  const runOnBatch = (
+    rows: readonly RecordedRunRow[]
+  ): Promise<Map<string, FinishedRecordedRun>> => {
     const state = evaluatorStore.getState();
     const evaluator = buildPreviewEvaluator({
       codeEvaluatorId,
@@ -851,8 +881,18 @@ export function useEvaluatorPreviewRuns({
       }
       return next;
     });
+    // What each row's run came to, for a caller (PXI) awaiting the batch;
+    // a row a newer run has taken over still reports this run's result.
+    const finishedRuns = new Map<string, FinishedRecordedRun>();
+    let resolveBatch: (
+      runs: Map<string, FinishedRecordedRun>
+    ) => void = () => {};
+    const settled = new Promise<Map<string, FinishedRecordedRun>>((resolve) => {
+      resolveBatch = resolve;
+    });
     const settle = (rowKey: string, run: FinishedRecordedRun) => {
       pendingKeys.delete(rowKey);
+      finishedRuns.set(rowKey, run);
       if (!ownsRow(rowKey)) {
         return;
       }
@@ -888,6 +928,10 @@ export function useEvaluatorPreviewRuns({
       },
       onError(message) {
         finish();
+        for (const rowKey of pendingKeys) {
+          finishedRuns.set(rowKey, { status: "error", fingerprint, message });
+        }
+        resolveBatch(finishedRuns);
         // Rows a newer run has taken over are that run's to report on.
         const ownedKeys = [...pendingKeys].filter(ownsRow);
         if (ownedKeys.length === 0) {
@@ -924,21 +968,34 @@ export function useEvaluatorPreviewRuns({
             message: "The preview returned no result for this record",
           });
         }
+        resolveBatch(finishedRuns);
       },
     });
     if (!isFinished) {
       activePreviewsRef.current.add(preview);
     }
+    return settled;
   };
 
   /**
    * Tests the rows in as few streams as the server's subject cap allows;
    * each row fills in as its result arrives.
    */
-  const runOnRows = (rows: readonly RecordedRunRow[]) => {
-    for (const batch of previewSubjectBatches(rows)) {
-      runOnBatch(batch);
-    }
+  const runOnRows = async (
+    rows: readonly RecordedRunRow[]
+  ): Promise<FinishedRecordedRun[]> => {
+    const batches = await Promise.all(
+      previewSubjectBatches(rows).map(runOnBatch)
+    );
+    const finishedByKey = new Map(batches.flatMap((batch) => [...batch]));
+    return rows.map(
+      (row) =>
+        finishedByKey.get(row.key) ?? {
+          status: "error",
+          fingerprint: currentFingerprint,
+          message: "The preview returned no result for this record",
+        }
+    );
   };
 
   return {

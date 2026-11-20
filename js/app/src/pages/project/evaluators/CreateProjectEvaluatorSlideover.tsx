@@ -55,6 +55,7 @@ import {
   useEvaluatorFormDirtyCheck,
   type EvaluatorFormDirtyCheck,
 } from "@phoenix/pages/project/evaluators/useEvaluatorFormDirtyCheck";
+import { useProjectEvaluatorAttachRegistration } from "@phoenix/pages/project/evaluators/useProjectEvaluatorAttachRegistration";
 import type { PlaygroundChatTemplate } from "@phoenix/store";
 import {
   DEFAULT_DECISION_EVALUATOR_STORE_VALUES,
@@ -512,6 +513,50 @@ function AttachCodeProjectEvaluatorDialog({
       onSuccess,
     }
   );
+  const attachEvaluator = () =>
+    attach({
+      input: {
+        projectId,
+        evaluatorId: creationMode.evaluatorId,
+        name: creationMode.name,
+        samplingRate: scope.samplingRate,
+        evaluationTarget: scope.targetType,
+        filterCondition: scope.filterCondition,
+        ...toEvaluationDelayInput(scope),
+        tracingEnabled: scope.tracingEnabled,
+        enabled: true,
+        // Left as it was, the project keeps reading through the
+        // evaluator's own mapping, and follows it if that changes.
+        inputMapping: isSameInputMapping(
+          store.getState().evaluator.inputMapping,
+          creationMode.inputMapping
+        )
+          ? null
+          : store.getState().evaluator.inputMapping,
+      },
+    });
+  useProjectEvaluatorAttachRegistration({
+    target: {
+      evaluatorId: creationMode.evaluatorId,
+      name: creationMode.name,
+      kind: "CODE",
+      variables: creationMode.variables,
+      requiredVariables: creationMode.requiredVariables,
+      inputDescriptions: creationMode.inputDescriptions,
+    },
+    submit: async (): Promise<EvaluatorSubmitResult> => {
+      const result = await attachEvaluator();
+      if (!result.ok) {
+        return result;
+      }
+      const saved = result.response.addProjectCodeEvaluator.evaluator;
+      return {
+        ok: true,
+        acceptedBy: "auto",
+        evaluator: { id: saved.id, name: saved.name },
+      };
+    },
+  });
   return (
     <ProjectCodeEvaluatorDialogContent
       title={title}
@@ -525,29 +570,7 @@ function AttachCodeProjectEvaluatorDialog({
       onScopeChange={onScopeChange}
       isSubmitting={isAddingCodeEvaluator}
       error={error}
-      onSubmit={() =>
-        attach({
-          input: {
-            projectId,
-            evaluatorId: creationMode.evaluatorId,
-            name: creationMode.name,
-            samplingRate: scope.samplingRate,
-            evaluationTarget: scope.targetType,
-            filterCondition: scope.filterCondition,
-            ...toEvaluationDelayInput(scope),
-            tracingEnabled: scope.tracingEnabled,
-            enabled: true,
-            // Left as it was, the project keeps reading through the
-            // evaluator's own mapping, and follows it if that changes.
-            inputMapping: isSameInputMapping(
-              store.getState().evaluator.inputMapping,
-              creationMode.inputMapping
-            )
-              ? null
-              : store.getState().evaluator.inputMapping,
-          },
-        })
-      }
+      onSubmit={() => void attachEvaluator()}
     />
   );
 }

@@ -33,6 +33,10 @@ import { getSampleSessionEvaluationContext } from "@phoenix/pages/project/evalua
 import { getSampleSpanEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
 import { getSampleTraceEvaluationContext } from "@phoenix/pages/project/evaluators/sampleTraceEvaluationContext";
 import {
+  ProjectEvaluatorBenchRegistryContext,
+  useProjectEvaluatorBenchRegistration,
+} from "@phoenix/pages/project/evaluators/useProjectEvaluatorBenchRegistration";
+import {
   getSessionDetailsPath,
   getTraceDetailsPath,
 } from "@phoenix/utils/urlUtils";
@@ -124,18 +128,24 @@ export const ProjectEvaluatorScopePanel = ({
     decision,
     requiredVariables,
   };
+  const benchRegistry = useProjectEvaluatorBenchRegistration({
+    targetType: scope.targetType,
+    filterCondition,
+  });
   return (
-    <div css={panelCSS}>
-      <Suspense
-        fallback={<ProjectEvaluatorTestBenchFallback {...headerProps} />}
-      >
-        {codeEvaluatorId || inlineCode || decision ? (
-          <RecordSource {...sourceProps} />
-        ) : (
-          <LlmRecordSource RecordSource={RecordSource} {...sourceProps} />
-        )}
-      </Suspense>
-    </div>
+    <ProjectEvaluatorBenchRegistryContext.Provider value={benchRegistry}>
+      <div css={panelCSS}>
+        <Suspense
+          fallback={<ProjectEvaluatorTestBenchFallback {...headerProps} />}
+        >
+          {codeEvaluatorId || inlineCode || decision ? (
+            <RecordSource {...sourceProps} />
+          ) : (
+            <LlmRecordSource RecordSource={RecordSource} {...sourceProps} />
+          )}
+        </Suspense>
+      </div>
+    </ProjectEvaluatorBenchRegistryContext.Provider>
   );
 };
 
@@ -432,6 +442,7 @@ function TraceRecordSource({
   return (
     <ProjectEvaluatorTestBench
       {...benchProps}
+      filterCondition={filterCondition}
       rows={rows}
       recordKind="trace"
       hasMore={data.project?.rootSpans?.pageInfo.hasNextPage ?? false}
@@ -547,6 +558,7 @@ function SessionRecordSource({
   return (
     <ProjectEvaluatorTestBench
       {...benchProps}
+      filterCondition={filterCondition}
       rows={rows}
       recordKind="session"
       hasMore={data.project?.sessions?.pageInfo.hasNextPage ?? false}
@@ -649,6 +661,7 @@ function SpanRecordSource({
   return (
     <ProjectEvaluatorTestBench
       {...benchProps}
+      filterCondition={filterCondition}
       rows={rows}
       recordKind="span"
       hasMore={data.project?.spans?.pageInfo.hasNextPage ?? false}
