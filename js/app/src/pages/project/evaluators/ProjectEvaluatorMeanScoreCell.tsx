@@ -6,6 +6,8 @@ import invariant from "tiny-invariant";
 
 import {
   Flex,
+  Icon,
+  Icons,
   RichTooltip,
   Skeleton,
   Text,
@@ -573,7 +575,7 @@ function getPreviousWindowStatus({
 /**
  * The change since the previous window, beside the score or leading label:
  * its arrow and magnitude, a placeholder while the previous window loads, or
- * a note when it failed to load.
+ * an alert icon when it failed to load.
  */
 function PreviousWindowChange({
   deltaText,
@@ -596,10 +598,16 @@ function PreviousWindowChange({
     );
   }
   if (previousWindowStatus === "failed") {
+    // The error affordance the table's other failed cells use; the score's
+    // tooltip says what failed.
     return (
-      <Text size="XS" color="text-500" flex="none">
-        change failed to load
-      </Text>
+      <span
+        css={previousWindowChangeFailedCSS}
+        role="img"
+        aria-label="Change failed to load"
+      >
+        <Icon svg={<Icons.AlertCircle />} />
+      </span>
     );
   }
   if (deltaText == null) {
@@ -626,6 +634,12 @@ function PreviousWindowChange({
 const previousWindowChangeSkeletonCSS = css`
   display: inline-flex;
   flex: none;
+`;
+
+const previousWindowChangeFailedCSS = css`
+  display: inline-flex;
+  flex: none;
+  color: var(--global-text-color-300);
 `;
 
 function PreviousWindowFailedNote({ windowKey }: { windowKey: string }) {

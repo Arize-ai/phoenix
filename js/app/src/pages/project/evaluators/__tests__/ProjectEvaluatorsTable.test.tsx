@@ -611,6 +611,13 @@ function countLoadingChanges() {
   return container.querySelectorAll('[aria-label="Loading change"]').length;
 }
 
+/** How many results cells show that the change vs. the previous window failed. */
+function countFailedChanges() {
+  return container.querySelectorAll(
+    '[role="img"][aria-label="Change failed to load"]'
+  ).length;
+}
+
 describe("ProjectEvaluatorsTable results column", () => {
   it("fills in the scores when their part arrives", async () => {
     const stream = createStreamingMultipartResponse();
@@ -722,13 +729,13 @@ describe("ProjectEvaluatorsTable results column", () => {
       fail(stream);
       await settle();
 
-      const scoreWithFailedChange = expect.stringMatching(
-        /0\.75change failed to load$/
-      );
+      const currentScoreOnly = expect.stringMatching(/0\.75$/);
       expect(readResultsCells()).toEqual({
-        "evaluator-1": scoreWithFailedChange,
-        "evaluator-2": scoreWithFailedChange,
+        "evaluator-1": currentScoreOnly,
+        "evaluator-2": currentScoreOnly,
       });
+      expect(countFailedChanges()).toBe(2);
+      expect(countLoadingChanges()).toBe(0);
     }
   );
 
