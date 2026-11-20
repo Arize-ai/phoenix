@@ -170,71 +170,79 @@ export function TraceLatencyPercentilesTimeSeries({
                 tickFormatter={(seconds) => latencyMsFormatter(seconds * 1000)}
               />
               <Line
+                isAnimationActive={false}
                 type="monotone"
                 dataKey="p50"
                 stroke={colors.blue400}
                 strokeWidth={1}
+                dot={false}
                 activeDot={{ r: 4 }}
                 name="P50"
                 hide={isDataKeyHidden("p50")}
               />
               <Line
+                isAnimationActive={false}
                 type="monotone"
                 dataKey="p75"
                 stroke={colors.blue400}
                 strokeWidth={1}
-                dot={{ r: 2 }}
+                dot={false}
                 activeDot={{ r: 4 }}
                 name="P75"
                 hide={isDataKeyHidden("p75")}
               />
               <Line
+                isAnimationActive={false}
                 type="monotone"
                 dataKey="p90"
                 stroke={colors.blue500}
                 strokeWidth={2}
-                dot={{ r: 2 }}
+                dot={false}
                 activeDot={{ r: 4 }}
                 name="P90"
                 hide={isDataKeyHidden("p90")}
               />
               <Line
+                isAnimationActive={false}
                 type="monotone"
                 dataKey="p95"
                 stroke={colors.blue600}
                 strokeWidth={2}
-                dot={{ r: 2 }}
+                dot={false}
                 activeDot={{ r: 4 }}
                 name="P95"
                 hide={isDataKeyHidden("p95")}
               />
               <Line
+                isAnimationActive={false}
                 type="monotone"
                 dataKey="p99"
                 stroke={colors.blue700}
                 strokeWidth={2}
-                dot={{ r: 2 }}
+                dot={false}
                 activeDot={{ r: 4 }}
                 name="P99"
                 hide={isDataKeyHidden("p99")}
               />
               <Line
+                isAnimationActive={false}
                 type="monotone"
                 dataKey="p999"
                 stroke={colors.blue800}
                 strokeWidth={2}
-                dot={{ r: 2 }}
+                dot={false}
                 activeDot={{ r: 4 }}
                 name="P99.9"
                 hide={isDataKeyHidden("p999")}
               />
               <Line
+                isAnimationActive={false}
                 type="monotone"
                 dataKey="max"
                 stroke={colors.blue900}
                 strokeWidth={2}
                 strokeDasharray={"5 5"}
-                dot={{ r: 2 }}
+                dot={false}
                 activeDot={{ r: 4 }}
                 name="Max"
                 hide={isDataKeyHidden("max")}
