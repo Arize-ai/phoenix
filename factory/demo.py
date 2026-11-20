@@ -60,10 +60,13 @@ class Label(NamedTuple):
 DEMO_LABEL = Label(
     "factory-demo", "1D76DB", "The factory captures screenshots of this pull request's UI change"
 )
-# Marks a PR the factory has demoed, so `check` never starts the lane on it again by itself.
-DEMOED_LABEL = Label(
-    "factory-demoed", "C5DEF5", "The factory added screenshots to this pull request's description"
-)
+# Marks a PR the lane has run on, whatever the outcome, so `check` never starts it again by
+# itself.
+DEMOED_LABEL = Label("factory-demoed", "C5DEF5", "The factory's demo lane ran on this pull request")
+# The word the agent ends with when the PR changes nothing a user can see, per
+# agents/pr-demonstrator.md § Process.
+NO_VISIBLE_CHANGE = "NO_VISIBLE_CHANGE"
+MAX_REASON_LENGTH = 300
 
 # The demo section of a PR description, per agents/pr-demonstrator.md § Demo section. The
 # start marker names the commit the screenshots are of.
@@ -259,26 +262,53 @@ def start_session(
     return session.id
 
 
+def read_final_message(*, client: anthropic.Anthropic, session_id: str) -> str:
+    for message_event in client.beta.sessions.events.list(
+        session_id, types=["agent.message"], order="desc", limit=1
+    ):
+        return "\n".join(block.text for block in message_event.content if block.type == "text")
+    return ""
+
+
+def read_no_visible_change_reason(*, final_message: str) -> Optional[str]:
+    """The agent's reason for capturing nothing, or None when it did not say NO_VISIBLE_CHANGE."""
+    for line in final_message.splitlines():
+        if NO_VISIBLE_CHANGE in line:
+            reason = line.split(NO_VISIBLE_CHANGE, 1)[1].strip(" :.-`*")
+            return reason[:MAX_REASON_LENGTH] or "no reason given"
+    return None
+
+
 def format_demo_report(
-    *, demoed_sha: Optional[str], head_sha: str, session_id: str, stop_reason: str
-) -> tuple[str, bool]:
-    """The report to leave on the PR, and whether the demo section is there for `head_sha`."""
+    *,
+    demoed_sha: Optional[str],
+    head_sha: str,
+    final_message: str,
+    session_id: str,
+    stop_reason: str,
+) -> str:
     session_link = format_session_link(session_id=session_id)
     if demoed_sha == head_sha:
         return (
             f"The factory added before and after screenshots of {head_sha[:10]} to this pull "
             f"request's description, under **Factory demo** (session {session_link})."
-        ), True
+        )
+    no_visible_change_reason = read_no_visible_change_reason(final_message=final_message)
+    if no_visible_change_reason is not None:
+        return (
+            f"The factory found nothing to capture on screen for {head_sha[:10]} and left the "
+            f"description as it was: {no_visible_change_reason} (session {session_link})."
+        )
     if demoed_sha is not None:
         return (
             f"The factory's **demo** session {session_link} ended, but the description's demo "
             f"section is of {demoed_sha[:10]}, not {head_sha[:10]} (stop reason: "
             f"`{stop_reason}`)."
-        ), False
+        )
     return (
         f"The factory's **demo** session {session_link} ended without adding screenshots to "
         f"the description (stop reason: `{stop_reason}`)."
-    ), False
+    )
 
 
 def watch_session(
@@ -289,7 +319,7 @@ def watch_session(
     pr_number: int,
     head_sha: str,
     watch_minutes: int,
-) -> tuple[str, bool]:
+) -> str:
     session, idle_event = wait_for_session(
         client=client,
         app_token=app_token,
@@ -301,13 +331,14 @@ def watch_session(
         return (
             f"The factory's **demo** session {format_session_link(session_id=session_id)} "
             f"is still running after {watch_minutes} minutes."
-        ), False
+        )
     stop_reason = idle_event.stop_reason.type if idle_event else "terminated"
     print(f"stop_reason={stop_reason} cost={format_cost(session=session)}")
     pr = read_pr(pr_number=pr_number, token=app_token.refresh())
     return format_demo_report(
         demoed_sha=read_demoed_sha(body=pr["body"] or ""),
         head_sha=head_sha,
+        final_message=read_final_message(client=client, session_id=session_id),
         session_id=session_id,
         stop_reason=stop_reason,
     )
@@ -396,13 +427,12 @@ def run_watch(*, args: argparse.Namespace) -> None:
         f"The factory lost track of session {format_session_link(session_id=args.session_id)}; "
         "see the workflow run."
     )
-    demoed = False
     client = anthropic.Anthropic()
     app_token: Optional[GitHubAppToken] = None
     try:
         app_token = create_app_token(client=client, repo=args.repo)
         app_token.follow_session(session_id=args.session_id)
-        report, demoed = watch_session(
+        report = watch_session(
             client=client,
             app_token=app_token,
             session_id=args.session_id,
@@ -427,8 +457,8 @@ def run_watch(*, args: argparse.Namespace) -> None:
                 token=report_token,
                 notify=True,
             )
-            if demoed:
-                add_label(pr_number=args.pr, label=DEMOED_LABEL, token=report_token)
+            # Whatever the session did, it ran: a rerun is a maintainer's call, not the check's.
+            add_label(pr_number=args.pr, label=DEMOED_LABEL, token=report_token)
         finally:
             # Free the label even when reporting fails, so re-adding it runs the PR again.
             remove_demo_label(pr_number=args.pr, token=report_token)

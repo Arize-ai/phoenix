@@ -42,6 +42,8 @@ The kickoff names the PR, its head commit, and its base branch and base commit, 
 7. **Write the demo section.** Follow § Demo section. Fetch the description immediately before you edit it, with `gh pr view <number> -R Arize-ai/phoenix --json body --jq .body`. If it already has a section between `<!-- factory-demo:start` and `<!-- factory-demo:end -->`, replace that section; otherwise append yours after a blank line. Leave every other character of the description as it was. Write the result to `/tmp/demo/body.md` and, from `/tmp/demo`, run `gh pr edit <number> -R Arize-ai/phoenix --body-file body.md --attach ./after/after-1.png --attach ./before/before-1.png ...`, one `--attach` per image or video the section references, each written exactly as the section's path, so `gh` replaces the path with the uploaded asset and keeps your alt text. Then fetch the description again and check that it holds your section with uploaded assets in place of the local paths, and that the text outside it is unchanged. If the author changed the description in between, redo this step on the new text.
 8. **End your turn** with a short report: the screens you captured, what you couldn't capture and why.
 
+End each final session response with `FACTORY_ARTIFACTS={"issues":[],"prs":[<PR number>]}` as its last line, including after `NO_VISIBLE_CHANGE`. The report line is for the session only, not a GitHub post.
+
 Never commit, push, comment on the PR, or edit anything in the description outside your section. The factory posts the run's result as a comment once your session ends.
 
 ## Demo section

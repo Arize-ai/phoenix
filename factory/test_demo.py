@@ -145,16 +145,36 @@ class DemoSectionTest(unittest.TestCase):
         )
 
     def test_reports_a_demo_only_for_the_admitted_commit(self) -> None:
-        for demoed_sha, expected_demoed in [(HEAD_SHA, True), ("b" * 40, False), (None, False)]:
+        cases = {HEAD_SHA: "added before and after screenshots", "b" * 40: "not aaaaaaaaaa"}
+        for demoed_sha, expected_phrase in cases.items():
             with self.subTest(demoed_sha=demoed_sha):
-                report, demoed = format_demo_report(
-                    demoed_sha=demoed_sha,
-                    head_sha=HEAD_SHA,
-                    session_id="sesn_1",
-                    stop_reason="end_turn",
-                )
-                self.assertIs(demoed, expected_demoed)
+                report = format_report(demoed_sha=demoed_sha, final_message="")
+                self.assertIn(expected_phrase, report)
                 self.assertTrue(report.startswith("The factory"))
+
+    def test_reports_the_agents_reason_when_nothing_is_visible(self) -> None:
+        final_message = (
+            "Read the diff.\n"
+            "`NO_VISIBLE_CHANGE`: the hook only memoizes rows the table already shows.\n"
+            'FACTORY_ARTIFACTS={"issues":[],"prs":[123]}'
+        )
+        report = format_report(demoed_sha=None, final_message=final_message)
+        self.assertIn("found nothing to capture", report)
+        self.assertIn("the hook only memoizes rows the table already shows", report)
+
+    def test_reports_a_session_that_ended_without_a_section(self) -> None:
+        report = format_report(demoed_sha=None, final_message="Ran out of budget.")
+        self.assertIn("ended without adding screenshots", report)
+
+
+def format_report(*, demoed_sha: Optional[str], final_message: str) -> str:
+    return format_demo_report(
+        demoed_sha=demoed_sha,
+        head_sha=HEAD_SHA,
+        final_message=final_message,
+        session_id="sesn_1",
+        stop_reason="end_turn",
+    )
 
 
 if __name__ == "__main__":
