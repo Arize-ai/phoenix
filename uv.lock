@@ -33,6 +33,8 @@ arize-phoenix-otel = "2099-12-31T00:00:00Z"
 arize-phoenix-sqlean = "2099-12-31T00:00:00Z"
 openinference-instrumentation = "2099-12-31T00:00:00Z"
 openinference-semantic-conventions = "2099-12-31T00:00:00Z"
+pydantic-ai-slim = "2026-11-20T00:00:00Z"
+pydantic-graph = "2026-11-20T00:00:00Z"
 
 [manifest]
 members = [
@@ -483,6 +485,7 @@ dependencies = [
     { name = "email-validator" },
     { name = "fastapi" },
     { name = "fastmcp-slim", extra = ["client", "server"] },
+    { name = "google-genai" },
     { name = "graphql-core" },
     { name = "grpc-interceptor" },
     { name = "grpcio" },
@@ -507,7 +510,7 @@ dependencies = [
     { name = "psutil" },
     { name = "pyarrow" },
     { name = "pydantic" },
-    { name = "pydantic-ai-slim", extra = ["anthropic", "bedrock", "google", "mcp", "openai", "ui"] },
+    { name = "pydantic-ai-slim", extra = ["anthropic", "bedrock", "mcp", "openai", "ui"] },
     { name = "pydantic-monty" },
     { name = "pystache" },
     { name = "python-dateutil" },
@@ -706,6 +709,7 @@ requires-dist = [
     { name = "email-validator" },
     { name = "fastapi", specifier = ">=0.142.0" },
     { name = "fastmcp-slim", extras = ["client", "server"], specifier = ">=4,<5" },
+    { name = "google-genai", specifier = ">=3.2.0,<4" },
     { name = "google-genai", marker = "extra == 'container'", specifier = ">=3.2.0" },
     { name = "graphql-core", specifier = ">=3.3.1,<3.4" },
     { name = "grpc-interceptor" },
@@ -723,7 +727,7 @@ requires-dist = [
     { name = "openai", marker = "extra == 'container'", specifier = ">=3.31.0,<4" },
     { name = "openinference-instrumentation", specifier = ">=0.1.60" },
     { name = "openinference-instrumentation-openai", specifier = ">=0.1.41" },
-    { name = "openinference-semantic-conventions", specifier = ">=0.1.41" },
+    { name = "openinference-semantic-conventions", specifier = ">=0.1.46" },
     { name = "opentelemetry-exporter-otlp", specifier = ">=1.45.0" },
     { name = "opentelemetry-proto", specifier = ">=1.45.0" },
     { name = "opentelemetry-sdk", specifier = ">=1.45.0" },
@@ -735,7 +739,7 @@ requires-dist = [
     { name = "py-grpc-prometheus", marker = "extra == 'container'" },
     { name = "pyarrow" },
     { name = "pydantic", specifier = ">=2.1.0" },
-    { name = "pydantic-ai-slim", extras = ["anthropic", "bedrock", "google", "mcp", "openai", "ui"], specifier = ">=2.53.0,<3" },
+    { name = "pydantic-ai-slim", extras = ["anthropic", "bedrock", "mcp", "openai", "ui"], specifier = ">=2.71.0,<3" },
     { name = "pydantic-monty", specifier = "==1.5.0" },
     { name = "pystache" },
     { name = "python-dateutil" },
@@ -803,7 +807,7 @@ dev = [
     { name = "numpy" },
     { name = "openai", specifier = ">=3.31.0,<4" },
     { name = "openinference-instrumentation", specifier = ">=0.1.60" },
-    { name = "openinference-semantic-conventions", specifier = ">=0.1.41" },
+    { name = "openinference-semantic-conventions", specifier = ">=0.1.46" },
     { name = "opentelemetry-exporter-otlp" },
     { name = "opentelemetry-instrumentation-aiohttp-client" },
     { name = "opentelemetry-proto", specifier = ">=1.12.0" },
@@ -2751,15 +2755,15 @@ wheels = [
 
 [[package]]
 name = "genai-prices"
-version = "0.2.2"
+version = "0.2.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx2" },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/9b/f2/bb570469e5d7bfd39ff2f339bff52e32c737a28e4961dcaa4bc8b0798b84/genai_prices-0.2.2.tar.gz", hash = "sha256:f5885a420326c123945aa532c6b5fbfc378c8cdf72f73d969e7719740becce9b", size = 163419, upload-time = "2026-11-10T01:41:46.326Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1d/ce/7b18aeb714493736513bffd919414551324cb73f0a4ac8d6f5ddc2373e6d/genai_prices-0.2.3.tar.gz", hash = "sha256:cdee9b0b2e44b1323c477ebe3c84e44ddbcdd1a3feb0ebce5bb2af1bc667d900", size = 163971, upload-time = "2026-11-10T21:51:42.828Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b3/69/d2d15e8e30a89c793ffd321c347827197b5dacedce051266b2962427e120/genai_prices-0.2.2-py3-none-any.whl", hash = "sha256:8cb0d611939158f9657166b292788ceef855f787adb873069db3609c34e574b2", size = 172955, upload-time = "2026-11-10T01:41:45.047Z" },
+    { url = "https://files.pythonhosted.org/packages/8e/e8/a8773a718b763c608dbbebec2124e6de873798f10bf3eaaf31e1e2810368/genai_prices-0.2.3-py3-none-any.whl", hash = "sha256:56976ce2b04ec206117f7d0e53f4849211a6724ab3a12119afec304eba63ee25", size = 173490, upload-time = "2026-11-10T21:51:41.625Z" },
 ]
 
 [[package]]
@@ -5238,11 +5242,11 @@ wheels = [
 
 [[package]]
 name = "openinference-semantic-conventions"
-version = "0.1.44"
+version = "0.1.46"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/ff/e3/e411e3b9f3540a03b87aa48dccabc7b3fd5326590cd23c22769eda1545a2/openinference_semantic_conventions-0.1.44.tar.gz", hash = "sha256:a1f08fa6aef021f67910eef017b43118199dd7e33fff10978f803a42d5fe1fde", size = 16225, upload-time = "2026-11-11T07:33:19.16Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d7/1e/833656e31c3cb7658243f3e272d846943704e0dca09a8b84aded6c2fc3d8/openinference_semantic_conventions-0.1.46.tar.gz", hash = "sha256:ccf4e92216819df1fdae25d4f76a406618269c53d7765ce78faa061755d70659", size = 16257, upload-time = "2026-11-16T23:48:02.589Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c8/f0/f151f0f52ea599d45ad0ca7f8c9a317a2ea6f7f52c17acee7014f2debead/openinference_semantic_conventions-0.1.44-py3-none-any.whl", hash = "sha256:58c931fb0223c6103eb38dfd6f3c709a27483f5e9e74aea2df607402156e7600", size = 12980, upload-time = "2026-11-11T07:33:17.933Z" },
+    { url = "https://files.pythonhosted.org/packages/57/20/cd62283e007e15962498abe98e128f21cfe6c0cca62232225affa6528904/openinference_semantic_conventions-0.1.46-py3-none-any.whl", hash = "sha256:115fba2b424c5aa9433ca83cd373164436c0872dc2fd721ecb43f0222290da36", size = 12999, upload-time = "2026-11-16T23:48:01.478Z" },
 ]
 
 [[package]]
@@ -6207,7 +6211,7 @@ email = [
 
 [[package]]
 name = "pydantic-ai-slim"
-version = "2.66.0"
+version = "2.71.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -6219,9 +6223,9 @@ dependencies = [
     { name = "pydantic-graph" },
     { name = "typing-inspection" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/cf/35/f8330c6797a3a3646e90c5a05354441a159f7451ff077182a2ea001f61df/pydantic_ai_slim-2.66.0.tar.gz", hash = "sha256:78968fa75086ddae9039bdaa3939e9510f15a40d5f1f58fb3ded04386f9292f2", size = 2451556, upload-time = "2026-11-04T10:28:57.707Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/37/06/b74b16f7f031dc8fe8d585be6e24da39367689c6e9693f2d464fc8744565/pydantic_ai_slim-2.71.0.tar.gz", hash = "sha256:4336f45268c13453c131d9a018a77d1b5900f8f6ac04415fa9188479c162f1b9", size = 2698094, upload-time = "2026-11-19T02:46:10.097Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8b/13/deacff97ec5836e0ef2e2a55731a1d32ba325d6dead37f6839b11a03d463/pydantic_ai_slim-2.66.0-py3-none-any.whl", hash = "sha256:c47bbd0abe6f51e5400308a53b4f7e3409a582b1459140c381e3d4701a205608", size = 2819952, upload-time = "2026-11-04T10:28:44.228Z" },
+    { url = "https://files.pythonhosted.org/packages/dd/72/39d146efd165d43f6b7e3d37ac171d86428b52ff96f18f920a92b1b72e78/pydantic_ai_slim-2.71.0-py3-none-any.whl", hash = "sha256:9ad364aff7bbf9c97919d037c6193de97d7d6392284ccb7e856ac8cc37a22d85", size = 3096931, upload-time = "2026-11-19T02:45:48.601Z" },
 ]
 
 [package.optional-dependencies]
@@ -6230,9 +6234,6 @@ anthropic = [
 ]
 bedrock = [
     { name = "boto3" },
-]
-google = [
-    { name = "google-genai" },
 ]
 mcp = [
     { name = "fastmcp-slim", extra = ["client"] },
@@ -6383,7 +6384,7 @@ wheels = [
 
 [[package]]
 name = "pydantic-graph"
-version = "2.66.0"
+version = "2.71.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -6391,9 +6392,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "typing-inspection" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/9f/60/e098cf08a7cad7dce38f2dbb7b977e93ea6204e99f61c33bcc76df71a7bf/pydantic_graph-2.66.0.tar.gz", hash = "sha256:af31fd3ad5f3446556a270b14e1a43b12996f4bb52a0511f58f739dbacadb3f9", size = 46774, upload-time = "2026-11-04T10:29:02.726Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/83/f7/1b815c073366077990c3b562312fcbac38f0af63437f265f0dd7d94a47c1/pydantic_graph-2.71.0.tar.gz", hash = "sha256:14efd1d194cf3590162c25d2e74c994dc44397d2dd6a04a970d30768ddaf2e8b", size = 47718, upload-time = "2026-11-19T02:46:14.327Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/7d/0c/2c2ff8a1ede97bb734a56e5b4991a9a98dd05b9ba9f5d8683e4acfdc9d34/pydantic_graph-2.66.0-py3-none-any.whl", hash = "sha256:5b2a0aafc569c00fdb36879b1e80bed06ed5926979e2c1d44533222f208fd2ec", size = 53975, upload-time = "2026-11-04T10:28:50.502Z" },
+    { url = "https://files.pythonhosted.org/packages/20/c2/4d541c4c29c5e79e6947ce6a8816b4bf0c9f14caa661c59be5e4e2e54721/pydantic_graph-2.71.0-py3-none-any.whl", hash = "sha256:5fc631ff115b2b7c6debc0ed5e4d748f393a9d21cffe52f8b0c97bd5b2231677", size = 54878, upload-time = "2026-11-19T02:46:03.45Z" },
 ]
 
 [[package]]
