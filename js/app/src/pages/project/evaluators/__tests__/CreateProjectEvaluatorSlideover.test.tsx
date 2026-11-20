@@ -48,7 +48,6 @@ vi.mock(
   "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections",
   async (importOriginal) => ({
     ...(await importOriginal<object>()),
-    ProjectLlmEvaluatorFormSections: () => null,
     ProjectLlmEvaluatorWorkspace: () => null,
     ProjectCodeEvaluatorFormSections: () => null,
     ProjectEvaluatorInputMappingDock: () => null,

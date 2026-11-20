@@ -26,6 +26,7 @@ import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/Evalu
 import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
 import { EvaluatorSectionHeader } from "@phoenix/components/evaluators/EvaluatorSectionHeader";
 import { LLMEvaluatorForm } from "@phoenix/components/evaluators/LLMEvaluatorForm";
+import { EvaluatorWorkspace } from "@phoenix/components/evaluators/workspace/EvaluatorWorkspace";
 import { formatEvaluationTargetPlural } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import { ProjectEvaluatorInputMapping } from "@phoenix/pages/project/evaluators/ProjectEvaluatorInputMapping";
 import { ProjectEvaluatorScopeFieldGroup } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeFields";
@@ -36,7 +37,7 @@ import type {
   ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { toEvaluatorRecordKind } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
-import { ProjectEvaluatorWorkspace } from "@phoenix/pages/project/evaluators/ProjectEvaluatorWorkspace";
+import type { ProjectEvaluatorWorkspacePanelId } from "@phoenix/pages/project/evaluators/projectEvaluatorWorkspaceLayout";
 
 /** Scope-editing props shared by every left definition panel. */
 type ProjectEvaluatorScopeProps = {
@@ -130,29 +131,8 @@ export const ProjectEvaluatorAdvancedSection = ({
 };
 
 /**
- * The left definition panel for an LLM project evaluator; the matching-record
- * test bench lives in {@link ProjectEvaluatorScopePanel} and the input
- * mapping in {@link ProjectEvaluatorInputMappingDock}, pinned under this.
- *
- * The layout mirrors the dataset evaluator form: name and description, then
- * target, sampling, and the record filter, then the prompt with the annotation
- * config, then the advanced settings.
- */
-export const ProjectLlmEvaluatorFormSections = (
-  scopeProps: ProjectEvaluatorScopeProps
-) => {
-  return (
-    <>
-      <EvaluatorNameAndDescriptionFields />
-      <ProjectEvaluatorScopeSection {...scopeProps} />
-      <LLMEvaluatorForm showInputMapping={false} />
-      <ProjectEvaluatorAdvancedSection {...scopeProps} />
-    </>
-  );
-};
-
-/**
- * The LLM project evaluator form as a workspace of tabs: the prompt, its
+ * The panels of the LLM project evaluator form, laid out by
+ * `PROJECT_LLM_EVALUATOR_WORKSPACE_LAYOUT`: the prompt, its
  * annotation, the scope, and the name and settings on the left; the
  * variable mapping docked under them; the records in scope and the focused
  * record's inspector on the right.
@@ -166,7 +146,7 @@ export const ProjectLlmEvaluatorWorkspace = ({
   const variables = useEvaluatorInputVariables();
   const unboundVariables = useUnboundRequiredVariables({ variables });
   return (
-    <ProjectEvaluatorWorkspace
+    <EvaluatorWorkspace<ProjectEvaluatorWorkspacePanelId>
       badges={{
         variables:
           unboundVariables.length > 0 ? (
@@ -371,8 +351,7 @@ const mappingDockCSS = css`
 
 /**
  * The left definition panel for a code project evaluator. When authoring code
- * (`codeDefinition` given) it is laid out the same way as
- * {@link ProjectLlmEvaluatorFormSections}: name and description, then the
+ * (`codeDefinition` given) it holds the name and description, then the
  * scope, then the code authoring fields. When attaching an existing evaluator
  * there is no name to edit, so a summary card of that evaluator stands in for
  * the name, and the scope follows it. The input mapping is docked under

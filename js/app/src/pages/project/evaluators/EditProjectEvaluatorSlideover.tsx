@@ -43,6 +43,7 @@ import {
   toEvaluatorRecordKind,
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { PROJECT_LLM_EVALUATOR_WORKSPACE_LAYOUT } from "@phoenix/pages/project/evaluators/projectEvaluatorWorkspaceLayout";
 import { ProjectLlmEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectLlmEvaluatorDialogContent";
 import {
   useEvaluatorFormDirtyCheck,
@@ -565,16 +566,19 @@ function EditLlmProjectEvaluatorContent({
             mode="update"
             error={error}
             llmEvaluatorNodeId={evaluator.evaluator.id}
-            formWorkspace={
-              <ProjectLlmEvaluatorWorkspace
-                projectId={evaluator.project.id}
-                scope={scope}
-                onScopeChange={setScope}
-                onFilterValidityChange={setIsFilterValid}
-                isFilterValid={isFilterValid}
-                isTargetDisabled
-              />
-            }
+            workspace={{
+              layout: PROJECT_LLM_EVALUATOR_WORKSPACE_LAYOUT,
+              content: (
+                <ProjectLlmEvaluatorWorkspace
+                  projectId={evaluator.project.id}
+                  scope={scope}
+                  onScopeChange={setScope}
+                  onFilterValidityChange={setIsFilterValid}
+                  isFilterValid={isFilterValid}
+                  isTargetDisabled
+                />
+              ),
+            }}
           />
         );
       }}

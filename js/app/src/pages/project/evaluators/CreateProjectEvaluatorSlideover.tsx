@@ -44,6 +44,7 @@ import {
   type ProjectEvaluatorScope,
   type ProjectEvaluatorTarget,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { PROJECT_LLM_EVALUATOR_WORKSPACE_LAYOUT } from "@phoenix/pages/project/evaluators/projectEvaluatorWorkspaceLayout";
 import { ProjectLlmEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectLlmEvaluatorDialogContent";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
 import { useAttachProjectEvaluator } from "@phoenix/pages/project/evaluators/useAttachProjectEvaluator";
@@ -703,15 +704,18 @@ const ScratchLlmDialogContent = ({
       isSubmitting={isSubmitting}
       mode="create"
       error={error}
-      formWorkspace={
-        <ProjectLlmEvaluatorWorkspace
-          projectId={projectId}
-          scope={scope}
-          onScopeChange={onScopeChange}
-          onFilterValidityChange={onFilterValidityChange}
-          isFilterValid={isFilterValid}
-        />
-      }
+      workspace={{
+        layout: PROJECT_LLM_EVALUATOR_WORKSPACE_LAYOUT,
+        content: (
+          <ProjectLlmEvaluatorWorkspace
+            projectId={projectId}
+            scope={scope}
+            onScopeChange={onScopeChange}
+            onFilterValidityChange={onFilterValidityChange}
+            isFilterValid={isFilterValid}
+          />
+        ),
+      }}
     />
   );
 };

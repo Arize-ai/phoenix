@@ -11,6 +11,10 @@ import {
   ViewportModalOverlay,
 } from "@phoenix/components/core/overlay";
 import type { CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation } from "@phoenix/components/dataset/__generated__/CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation.graphql";
+import {
+  DATASET_LLM_EVALUATOR_WORKSPACE_LAYOUT,
+  DatasetLLMEvaluatorWorkspace,
+} from "@phoenix/components/evaluators/DatasetLLMEvaluatorWorkspace";
 import { EditLLMEvaluatorDialogContent } from "@phoenix/components/evaluators/EditLLMEvaluatorDialogContent";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
 import {
@@ -64,7 +68,8 @@ export const CreateLLMDatasetEvaluatorSlideover = ({
   }, [initialState]);
   return (
     <ViewportModalOverlay {...props}>
-      <ViewportModal size="fullscreen">
+      {/* The form is laid out as a workspace, which fills the viewport. */}
+      <ViewportModal size="viewport">
         <Dialog aria-label="Create LLM evaluator">
           {({ close }) => (
             <Suspense fallback={<Loading />}>
@@ -259,6 +264,10 @@ const CreateEvaluatorDialog = ({
           isSubmitting={isCreating}
           mode="create"
           error={error}
+          workspace={{
+            layout: DATASET_LLM_EVALUATOR_WORKSPACE_LAYOUT,
+            content: <DatasetLLMEvaluatorWorkspace />,
+          }}
         />
       )}
     </EvaluatorStoreProvider>

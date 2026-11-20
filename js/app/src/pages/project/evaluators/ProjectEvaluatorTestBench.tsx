@@ -52,6 +52,10 @@ import {
   createLLMEvaluatorPayload,
   getOutputConfigValidationErrors,
 } from "@phoenix/components/evaluators/utils";
+import {
+  EvaluatorWorkspacePortal,
+  useEvaluatorWorkspaceSlot,
+} from "@phoenix/components/evaluators/workspace/EvaluatorWorkspace";
 import { toGqlCredentials } from "@phoenix/components/playground/playgroundInstanceUtils";
 import {
   GRIP_RESIZE_TARGET_MINIMUM_SIZE,
@@ -86,10 +90,6 @@ import type {
   ProjectEvaluatorRecordKind,
   ProjectEvaluatorTarget,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
-import {
-  ProjectEvaluatorWorkspacePortal,
-  useProjectEvaluatorWorkspaceSlot,
-} from "@phoenix/pages/project/evaluators/ProjectEvaluatorWorkspace";
 import type { EvaluatorStore } from "@phoenix/store/evaluatorStore";
 import type {
   CodeEvaluatorLanguage,
@@ -218,7 +218,7 @@ export function ProjectEvaluatorTestBench({
   const [focusedKey, setFocusedKey] = useState<string | undefined>(undefined);
   // Inside the evaluator workspace the inspector is a tab of its own, so the
   // bench renders it there rather than under the table.
-  const inspectorSlot = useProjectEvaluatorWorkspaceSlot("inspector");
+  const inspectorSlot = useEvaluatorWorkspaceSlot("inspector");
   const focusedRow =
     rows.find(({ key }) => key === focusedKey) ?? rows[0] ?? null;
   const inputMapping = useEvaluatorStore(
@@ -366,7 +366,7 @@ export function ProjectEvaluatorTestBench({
               onLoadMore={onLoadMore}
             />
           </div>
-          <ProjectEvaluatorWorkspacePortal panel="inspector">
+          <EvaluatorWorkspacePortal panel="inspector">
             <div css={inspectorSlotCSS}>
               {focusedEntry ? (
                 <ProjectEvaluatorRecordInspector
@@ -380,7 +380,7 @@ export function ProjectEvaluatorTestBench({
                 />
               ) : null}
             </div>
-          </ProjectEvaluatorWorkspacePortal>
+          </EvaluatorWorkspacePortal>
         </>
       )}
     </div>
