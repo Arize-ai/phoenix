@@ -166,3 +166,60 @@ class TestCreateEvaluatorWithTraceId:
             trace_id="async-trace-123",
         )
         assert received["trace_id"] == "async-trace-123"
+
+
+class TestBindEvaluatorSignatureWithKeywordOnlyParam:
+    """Test that a single keyword-only parameter is bound by name."""
+
+    def test_single_keyword_only_output(self) -> None:
+        def evaluator(*, output: str) -> bool:
+            return True
+
+        sig = inspect.signature(evaluator)
+        bound = _bind_evaluator_signature(sig, output="test output")
+        assert bound.arguments["output"] == "test output"
+
+    def test_single_keyword_only_input(self) -> None:
+        def evaluator(*, input: Any) -> bool:
+            return True
+
+        sig = inspect.signature(evaluator)
+        bound = _bind_evaluator_signature(sig, input={"question": "test"})
+        assert bound.arguments["input"] == {"question": "test"}
+
+    def test_single_keyword_only_unknown_name_binds_output(self) -> None:
+        def evaluator(*, result: str) -> bool:
+            return True
+
+        sig = inspect.signature(evaluator)
+        bound = _bind_evaluator_signature(sig, output="test output")
+        assert bound.arguments["result"] == "test output"
+
+    def test_single_positional_param_still_binds_positionally(self) -> None:
+        def evaluator(output: str) -> bool:
+            return True
+
+        sig = inspect.signature(evaluator)
+        bound = _bind_evaluator_signature(sig, output="test output")
+        assert bound.arguments["output"] == "test output"
+
+
+class TestCreateEvaluatorWithKeywordOnlyParam:
+    """Test that evaluators with a single keyword-only parameter evaluate."""
+
+    def test_sync_evaluator_with_keyword_only_output(self) -> None:
+        @create_evaluator(kind="CODE", name="non-empty")
+        def evaluator(*, output: str) -> bool:
+            return bool(output)
+
+        result = evaluator.evaluate(output="some output")
+        assert result == {"score": 1.0, "label": "True"}
+
+    @pytest.mark.anyio
+    async def test_async_evaluator_with_keyword_only_output(self) -> None:
+        @create_evaluator(kind="CODE", name="non-empty-async")
+        async def evaluator(*, output: str) -> bool:
+            return bool(output)
+
+        result = await evaluator.async_evaluate(output="some output")
+        assert result == {"score": 1.0, "label": "True"}
