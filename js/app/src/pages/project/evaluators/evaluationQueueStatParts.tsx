@@ -33,9 +33,10 @@ const QUEUE_STATS_POLL_INTERVAL_MS = 30_000;
 
 /**
  * Polls the queue stats: a fetch key that changes on every poll or refresh.
- * Call it once per page, so the stats and charts refresh together. Paused
- * while `isPolling` is false or the page is hidden; a refresh still changes
- * the key. When the page is shown again while polling, it polls once.
+ * Call it once per page, so everything showing the stats refreshes
+ * together. Paused while `isPolling` is false or the page is hidden; a
+ * refresh still changes the key. When the page is shown again while
+ * polling, it polls once.
  */
 export function useQueueStatsPoll({
   refreshKey,

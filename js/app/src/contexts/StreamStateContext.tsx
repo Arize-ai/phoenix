@@ -7,7 +7,13 @@ import {
   useState,
 } from "react";
 
+import { useInterval } from "@phoenix/hooks/useInterval";
+
 import { usePreferencesContext } from "./PreferencesContext";
+import { INITIAL_FETCH_KEY } from "./streamFetchKeys";
+
+/** The longest the aggregates (charts, totals, summaries) wait for new data. */
+export const DEFAULT_MAX_AGGREGATES_AGE_MS = 60_000;
 
 export type StreamStateContextType = {
   /**
@@ -26,6 +32,14 @@ export type StreamStateContextType = {
    */
   fetchKey: string;
   /**
+   * `fetchKey` as of the aggregates' last refresh, which follows it at most
+   * every `maxAggregatesAgeMs`. A server-side cache of the aggregates would
+   * let them refetch on `fetchKey` and remove this key.
+   */
+  throttledFetchKey: string;
+  /** When `throttledFetchKey` last changed, in epoch milliseconds. */
+  throttledAt: number;
+  /**
    * Sets the fetchKey to force a refetch
    */
   setFetchKey: (fetchKey: string) => void;
@@ -43,29 +57,56 @@ export function useStreamState() {
   return context;
 }
 
+/**
+ * Provides the stream's fetch keys.
+ *
+ * @param props - the provider's props
+ * @param props.initialFetchKey - both keys until the first change
+ * @param props.maxAggregatesAgeMs - the longest `throttledFetchKey` stays
+ * behind `fetchKey` while the tab is visible
+ */
 export function StreamStateProvider({
-  initialFetchKey = "initial",
+  initialFetchKey = INITIAL_FETCH_KEY,
+  maxAggregatesAgeMs = DEFAULT_MAX_AGGREGATES_AGE_MS,
   children,
-}: PropsWithChildren<{ initialFetchKey?: string }>) {
+}: PropsWithChildren<{
+  initialFetchKey?: string;
+  maxAggregatesAgeMs?: number;
+}>) {
   const isStreaming = usePreferencesContext(
     (state) => state.traceStreamingEnabled
   );
   const setIsStreaming = usePreferencesContext(
     (state) => state.setTraceStreamingEnabled
   );
-  const [fetchKey, _setFetchKey] = useState<string>(initialFetchKey);
+  const [fetchKeys, setFetchKeys] = useState(() => ({
+    fetchKey: initialFetchKey,
+    throttledFetchKey: initialFetchKey,
+    throttledAt: Date.now(),
+  }));
 
-  const setFetchKey = useCallback(
-    (fetchKey: string) => {
+  const setFetchKey = useCallback((fetchKey: string) => {
+    startTransition(() => {
+      setFetchKeys((keys) => ({ ...keys, fetchKey }));
+    });
+  }, []);
+  // `useInterval` pauses while the tab is hidden and ticks once it is shown.
+  useInterval(
+    () => {
+      const now = Date.now();
       startTransition(() => {
-        _setFetchKey(fetchKey);
+        setFetchKeys((keys) =>
+          keys.throttledFetchKey === keys.fetchKey
+            ? keys
+            : { ...keys, throttledFetchKey: keys.fetchKey, throttledAt: now }
+        );
       });
     },
-    [_setFetchKey]
+    isStreaming ? maxAggregatesAgeMs : null
   );
   return (
     <StreamStateContext.Provider
-      value={{ isStreaming, setIsStreaming, fetchKey, setFetchKey }}
+      value={{ isStreaming, setIsStreaming, ...fetchKeys, setFetchKey }}
     >
       {children}
     </StreamStateContext.Provider>

@@ -7,10 +7,16 @@ import { ONE_MONTH_MS } from "@phoenix/constants/timeConstants";
  * Hook that converts an open time range from context into a closed time range.
  * If the time range is already closed, it returns it as-is.
  * If it's open, it fills in missing start/end values based on the stable
- * provider-owned "now" timestamp.
+ * provider-owned "now" timestamp, or on `now` when given.
+ *
+ * @param options - optional settings
+ * @param options.now - the time an open range closes at, in epoch milliseconds
+ * @returns the closed time range
  */
-export function useClosedTimeRange(): TimeRange {
-  const { timeRange: contextTimeRange, timeRangeNow } = useTimeRange();
+export function useClosedTimeRange({ now }: { now?: number } = {}): TimeRange {
+  const { timeRange: contextTimeRange, timeRangeNow: providerNow } =
+    useTimeRange();
+  const timeRangeNow = now ?? providerNow;
 
   const startMs = contextTimeRange.start?.getTime() ?? null;
   const endMs = contextTimeRange.end?.getTime() ?? null;

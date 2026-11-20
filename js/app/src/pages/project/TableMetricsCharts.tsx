@@ -40,9 +40,11 @@ const TableMetricsCharts = memo(function TableMetricsCharts({
     (state) => state.metricChartKeys[view]
   );
   const { setCustomTimeRange } = useTimeRange();
-  const { fetchKey: streamFetchKey } = useStreamState();
-  const fetchKey = viewFetchKey ?? streamFetchKey;
-  const timeRange = useClosedTimeRange();
+  const { throttledFetchKey, throttledAt } = useStreamState();
+  const fetchKey = viewFetchKey ?? throttledFetchKey;
+  // Closed at the aggregates' last refresh, so "now" moving with each new
+  // row of data does not refetch the charts.
+  const timeRange = useClosedTimeRange({ now: throttledAt });
   const charts = getProjectMetricCharts(selectedChartKeys);
   return (
     // The strip owns no outer spacing, so this edge-to-edge placement above
