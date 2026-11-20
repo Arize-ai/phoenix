@@ -181,7 +181,9 @@ async def list_datasets(
     ),
 )
 async def delete_dataset(
-    request: Request, id: str = Path(description="The ID of the dataset to delete.")
+    request: Request,
+    background_tasks: BackgroundTasks,
+    id: str = Path(description="The ID of the dataset to delete."),
 ) -> None:
     if id:
         try:
@@ -203,9 +205,8 @@ async def delete_dataset(
         eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
         if (await session.scalar(stmt)) is None:
             raise HTTPException(detail="Dataset does not exist", status_code=404)
-    tasks = BackgroundTasks()
-    tasks.add_task(delete_projects, request.app.state.db, *project_names)
-    tasks.add_task(delete_traces, request.app.state.db, *eval_trace_ids)
+    background_tasks.add_task(delete_projects, request.app.state.db, *project_names)
+    background_tasks.add_task(delete_traces, request.app.state.db, *eval_trace_ids)
 
 
 class DatasetWithExampleCount(Dataset):
