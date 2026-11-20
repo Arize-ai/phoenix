@@ -4,7 +4,8 @@ Talk to `@Foreman` in Slack.
 
 Run a long-lived Node service with Postgres and pnpm. Worker starts dispatch the
 existing GitHub Actions workflows; Actions owns admission, credential refresh,
-monitoring and completion.
+monitoring and completion. The running Node service deletes expired OAuth grants
+once an hour; sessions and Slack mappings are retained.
 
 ## Setup
 

@@ -7,6 +7,7 @@ import { POST as revoke } from "../src/app/api/mcp/oauth/revoke/route";
 import { POST as refresh } from "../src/app/api/mcp/oauth/token/route";
 import { POST as receiveMcp } from "../src/app/api/mcp/route";
 import { getDatabase } from "../src/db/client";
+import { deleteExpiredMcpGrants } from "../src/mcp/cleanup";
 import { getOAuthTokenEndpoint, prepareMcpGrant } from "../src/mcp/oauth";
 import { signToken } from "../src/mcp/tokens";
 
@@ -355,4 +356,63 @@ it("enforces Foreman-only grant ownership, unique identity and hash/expiry const
   await expect(
     pool.query("UPDATE mcp_oauth_grants SET expires_at=created_at")
   ).rejects.toMatchObject({ code: "23514" });
+});
+
+it("deletes only expired grants while preserving sessions, Slack mappings and unexpired grants", async () => {
+  for (const sessionId of [
+    "expired",
+    "boundary",
+    "expired-revoked",
+    "unexpired-revoked",
+  ])
+    await createGrant(sessionId);
+  await pool.query(
+    "UPDATE mcp_oauth_grants SET created_at=now()-interval '91 days', expires_at=now()-interval '1 second' WHERE session_id IN ('expired','expired-revoked')"
+  );
+  await pool.query(
+    "UPDATE mcp_oauth_grants SET created_at=now()-interval '1 day', expires_at=now() WHERE session_id='boundary'"
+  );
+  await pool.query(
+    "UPDATE mcp_oauth_grants SET revoked_at=now() WHERE session_id IN ('expired-revoked','unexpired-revoked')"
+  );
+  await deleteExpiredMcpGrants();
+  expect(
+    (
+      await pool.query(
+        "SELECT session_id FROM mcp_oauth_grants ORDER BY session_id"
+      )
+    ).rows
+  ).toEqual([{ session_id: "foreman" }, { session_id: "unexpired-revoked" }]);
+  expect(
+    (await pool.query("SELECT count(*)::int AS count FROM sessions")).rows[0]
+      .count
+  ).toBe(5);
+  expect(
+    (await pool.query("SELECT count(*)::int AS count FROM slack_threads"))
+      .rows[0].count
+  ).toBe(5);
+  expect((await callMcp(grant.auth.access_token)).status).toBe(200);
+  await deleteExpiredMcpGrants();
+  expect(
+    (await pool.query("SELECT count(*)::int AS count FROM mcp_oauth_grants"))
+      .rows[0].count
+  ).toBe(2);
+});
+
+it("preserves an unexpired grant during concurrent refresh and revocation", async () => {
+  const [refreshed] = await Promise.all([
+    refresh(createRequest()),
+    deleteExpiredMcpGrants(),
+  ]);
+  expect(refreshed.status).toBe(200);
+  const tokens = await refreshed.json();
+  const [revoked] = await Promise.all([
+    revoke(createRequest({ token: tokens.refresh_token, operation: "revoke" })),
+    deleteExpiredMcpGrants(),
+  ]);
+  expect(revoked.status).toBe(200);
+  const row = (await pool.query("SELECT revoked_at FROM mcp_oauth_grants"))
+    .rows[0];
+  expect(row.revoked_at).not.toBeNull();
+  expect((await callMcp(tokens.access_token)).status).toBe(401);
 });
