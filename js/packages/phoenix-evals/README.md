@@ -128,7 +128,7 @@ criterion has its own `name`, `instruction`, and `choices`, and produces its own
 result. Call `evaluateCriteria` to get one result per criterion.
 
 ```typescript
-import { createClassificationEvaluator } from "@arizeai/phoenix-evals/llm";
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
 import { openai } from "@ai-sdk/openai";
 
 const evaluator = createClassificationEvaluator({
