@@ -1,7 +1,6 @@
 import asyncio
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Any, Optional, cast
 
 import strawberry
@@ -693,7 +692,6 @@ class DatasetMutationMixin:
     async def delete_dataset_examples(
         self, info: Info[Context, None], input: DeleteDatasetExamplesInput
     ) -> DatasetMutationPayload:
-        timestamp = datetime.now()
         example_db_ids = [
             from_global_id_with_expected_type(global_id, models.DatasetExample.__name__)
             for global_id in input.example_ids
@@ -735,7 +733,6 @@ class DatasetMutationMixin:
                     description=dataset_version_description,
                     metadata_=dataset_version_metadata,
                     user_id=info.context.user_id,
-                    created_at=timestamp,
                 )
                 .returning(models.DatasetVersion.id)
             )
@@ -766,7 +763,6 @@ class DatasetMutationMixin:
                         DatasetExampleRevision.output.key: {},
                         DatasetExampleRevision.metadata_.key: {},
                         DatasetExampleRevision.revision_kind.key: "DELETE",
-                        DatasetExampleRevision.created_at.key: timestamp,
                     }
                     for dataset_example_rowid in example_db_ids
                 ],
