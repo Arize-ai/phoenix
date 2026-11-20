@@ -1,12 +1,11 @@
 # /// script
 # requires-python = ">=3.12"
 # ///
-"""Deploy PR previews to Railway or remove previews of closed and unlabeled PRs."""
+"""Deploy PR previews to Railway."""
 
 import argparse
 import json
 import os
-import re
 import subprocess
 import sys
 import time
@@ -20,8 +19,6 @@ from gh import run_gh
 DOCKERHUB_API_URL = "https://hub.docker.com/v2"
 RAILWAY_API_URL = "https://backboard.railway.com/graphql/v2"
 PREVIEW_LABEL = "factory-preview"
-PR_SERVICE_PATTERN = re.compile(r"^pr-(\d+)$")
-PR_TAG_PATTERN = re.compile(r"^pr-(\d+)(?:-[0-9a-f]+)?$")
 PHOENIX_PORT = 6006
 DEPLOY_TIMEOUT_SECONDS = 15 * 60
 SKIPPED_GRACE_SECONDS = 120
@@ -273,59 +270,8 @@ def wait_for_seed(deployment_id: str) -> tuple[str, str]:
     return SEED_NOT_FINISHED_LINE, ""
 
 
-def delete_service(service_id: str) -> None:
-    railway("mutation($id: String!) { serviceDelete(id: $id) }", id=service_id)
-
-
 def dockerhub_repository(image: str) -> str:
     return image.removeprefix("docker.io/").partition(":")[0]
-
-
-def list_image_tags(*, image: str) -> list[str]:
-    namespace, _, repository = dockerhub_repository(image).partition("/")
-    tags: list[str] = []
-    page = 1
-    while True:
-        url = (
-            f"{DOCKERHUB_API_URL}/namespaces/{namespace}/repositories/{repository}/tags"
-            f"?page_size=100&name=pr-&page={page}"
-        )
-        with urllib.request.urlopen(url, timeout=60) as response:
-            payload = json.load(response)
-        tags.extend(
-            tag["name"] for tag in payload["results"] if PR_TAG_PATTERN.fullmatch(tag["name"])
-        )
-        if not payload.get("next"):
-            return tags
-        page += 1
-
-
-def delete_image_tag(*, image: str, tag: str, token: str) -> None:
-    if not PR_TAG_PATTERN.fullmatch(tag):
-        raise ValueError(f"Refusing to delete a non-preview tag: {tag}")
-    namespace, _, repository = dockerhub_repository(image).partition("/")
-    request = urllib.request.Request(
-        f"{DOCKERHUB_API_URL}/namespaces/{namespace}/repositories/{repository}/tags/{tag}",
-        method="DELETE",
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    with urllib.request.urlopen(request, timeout=60):
-        pass
-
-
-def get_dockerhub_token() -> str:
-    request = urllib.request.Request(
-        f"{DOCKERHUB_API_URL}/auth/token",
-        data=json.dumps(
-            {
-                "identifier": os.environ["DOCKERHUB_USERNAME"],
-                "secret": os.environ["DOCKERHUB_PASSWORD"],
-            }
-        ).encode(),
-        headers={"Content-Type": "application/json"},
-    )
-    with urllib.request.urlopen(request, timeout=60) as response:
-        return str(json.load(response)["access_token"])
 
 
 def preview_wanted(pr_number: int) -> bool:
@@ -353,11 +299,9 @@ def find_comment(*, pr_number: int) -> Optional[str]:
     return comment_ids[0] if comment_ids else None
 
 
-def upsert_comment(*, pr_number: int, body: str, create: bool = True) -> None:
+def upsert_comment(*, pr_number: int, body: str) -> None:
     body = f"{COMMENT_MARKER}\n{body}"
     comment_id = find_comment(pr_number=pr_number)
-    if comment_id is None and not create:
-        return
     if comment_id is not None:
         run_gh(
             "api",
@@ -546,65 +490,6 @@ def run_deploy(args: argparse.Namespace) -> int:
     return 0 if status == "SUCCESS" and seed_outcome.startswith(seed_log.SUCCESS_LINES) else 1
 
 
-def preview_numbers(*, services: dict[str, str], tags: list[str]) -> set[int]:
-    numbers = {
-        int(match.group(1)) for name in services if (match := PR_SERVICE_PATTERN.match(name))
-    }
-    numbers |= {int(match.group(1)) for tag in tags if (match := PR_TAG_PATTERN.fullmatch(tag))}
-    return numbers
-
-
-def sweep_preview(
-    *, pr_number: int, image: str, services: dict[str, str], tags: list[str], token: Optional[str]
-) -> None:
-    if (service_id := services.get(f"pr-{pr_number}")) is not None:
-        delete_service(service_id)
-        print(f"deleted service pr-{pr_number}")
-    num_deleted = 0
-    for tag in tags:
-        match = PR_TAG_PATTERN.fullmatch(tag)
-        if match and int(match.group(1)) == pr_number and token is not None:
-            delete_image_tag(image=image, tag=tag, token=token)
-            num_deleted += 1
-    print(f"deleted {num_deleted} image tags of PR #{pr_number}")
-    if service_id is not None or num_deleted:
-        upsert_comment(
-            pr_number=pr_number, body="The preview for this PR has been torn down.", create=False
-        )
-
-
-def run_sweep(args: argparse.Namespace) -> int:
-    project_id, _ = read_token_scope()
-    services = list_services(project_id=project_id)
-    tags: list[str] = []
-    token: Optional[str] = None
-    failures = 0
-    try:
-        tags = list_image_tags(image=args.image)
-        if tags:
-            token = get_dockerhub_token()
-    except (urllib.error.URLError, TimeoutError) as error:
-        print(f"::error::Docker Hub cleanup unavailable: {error}", file=sys.stderr)
-        failures += 1
-    for pr_number in sorted(preview_numbers(services=services, tags=tags)):
-        try:
-            if preview_wanted(pr_number):
-                continue
-            sweep_preview(
-                pr_number=pr_number, image=args.image, services=services, tags=tags, token=token
-            )
-        except subprocess.CalledProcessError as error:
-            print(f"::warning::PR #{pr_number}: {error.stderr}")
-            failures += 1
-        except RailwayError as error:
-            print(f"::error::PR #{pr_number}: Railway API: {error}", file=sys.stderr)
-            failures += 1
-        except (urllib.error.URLError, TimeoutError) as error:
-            print(f"::error::PR #{pr_number}: Docker Hub request failed: {error}", file=sys.stderr)
-            failures += 1
-    return 1 if failures else 0
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -617,9 +502,6 @@ def main() -> int:
     )
     deploy_parser.add_argument("--run-url", required=True)
     deploy_parser.set_defaults(run=run_deploy)
-    sweep_parser = subparsers.add_parser("sweep")
-    sweep_parser.add_argument("--image", required=True, help="Docker Hub image, without a tag")
-    sweep_parser.set_defaults(run=run_sweep)
     args = parser.parse_args()
     try:
         return int(args.run(args))

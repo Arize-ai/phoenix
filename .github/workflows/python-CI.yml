@@ -44,7 +44,6 @@ jobs:
       skill_code_examples: ${{ steps.filter.outputs.skill_code_examples }}
       harbor_graphql: ${{ steps.filter.outputs.harbor_graphql }}
       sync_models: ${{ steps.filter.outputs.sync_models }}
-      factory_preview: ${{ steps.filter.outputs.factory_preview }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -55,11 +54,6 @@ jobs:
         with:
           list-files: shell
           filters: |
-            factory_preview:
-              - "factory/preview/**"
-              - ".github/workflows/factory-preview*.yml"
-              - ".github/workflows/python-CI.yml"
-              - "Makefile"
             ipynb:
               - "**/*.ipynb"
             prompts:
@@ -974,26 +968,6 @@ jobs:
           alembic upgrade head
           alembic current
 
-  factory-preview:
-    name: Factory Preview Tests
-    needs: changes
-    if: ${{ needs.changes.outputs.factory_preview == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-      - name: Set up `uv`
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-        with:
-          version-file: "pyproject.toml"
-          resolution-strategy: "lowest"
-          python-version: "3.12"
-          enable-cache: false
-      - name: Test preview deployment and cleanup
-        run: make test-factory-preview
-
   ci-required:
     name: Python CI Required
     needs:
@@ -1020,7 +994,6 @@ jobs:
       - integration-tests
       - test-migrations
       - test-json-canonicalization-schema
-      - factory-preview
     if: always()
     runs-on: ubuntu-latest
     steps:

@@ -34,7 +34,7 @@ NC := \033[0m # No Color
 	graphql schema-graphql relay-build \
 	openapi schema-openapi schema-generative-ui ui-message-stream-fixtures codegen-python-client codegen-ts-client codegen-ts-app codegen-harbor-graphql \
 	dev dev-backend dev-frontend dev-docker dev-mock-llm \
-	test test-python test-factory-preview test-frontend test-ts test-helm test-jcs doctest typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
+	test test-python test-frontend test-ts test-helm test-jcs doctest typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
 	skills skills-check codegen-prompts sync-models test-sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples check-skill-filter-examples check-skill-python-examples check-skill-typescript-examples check-skill-px-commands sync-docs-snippets check-docs-snippets gen-otel-models \
@@ -79,7 +79,6 @@ help: ## Show this help message
 	@echo -e "$(GREEN)Testing:$(NC)"
 	@echo -e "  $(YELLOW)test$(NC)                  - Run all tests (Python + TypeScript workspace)"
 	@echo -e "  test-python            - Run Python tests (unit + integration)"
-	@echo -e "  test-factory-preview   - Test Railway preview registry publishing and cleanup"
 	@echo -e "  test-frontend          - Run frontend tests only (js/app/)"
 	@echo -e "  test-ts                - Run all TypeScript tests (js/ workspace)"
 	@echo -e "  test-helm              - Run Helm chart tests"
@@ -294,9 +293,6 @@ dev-frontend: ## Frontend only (React dev server)
 
 test-integration-docs: ## Run configured integration docs against a running Phoenix server
 	@$(UV) run python scripts/testing/integration_docs/run.py $(INTEGRATION_DOCS_ARGS)
-
-test-factory-preview: ## Test Railway preview registry publishing and cleanup
-	@$(UV) run --no-project --python 3.12 python -m unittest discover -s factory/preview -p 'test_*.py'
 
 test-python: ## Run Python tests (unit + integration)
 	@echo -e "$(CYAN)Running Python unit tests...$(NC)"
