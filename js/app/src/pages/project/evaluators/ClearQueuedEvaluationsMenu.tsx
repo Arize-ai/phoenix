@@ -1,10 +1,5 @@
 import { startTransition, Suspense, useState } from "react";
-import {
-  graphql,
-  useLazyLoadQuery,
-  useMutation,
-  useRelayEnvironment,
-} from "react-relay";
+import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 
 import {
   Button,
@@ -16,66 +11,44 @@ import {
   Popover,
   Text,
 } from "@phoenix/components";
-import { useTimeRange } from "@phoenix/components/datetime";
 import { useNotifySuccess, useViewerCanModify } from "@phoenix/contexts";
-import type { ClearQueuedEvaluationsButtonAllCountsQuery } from "@phoenix/pages/project/evaluators/__generated__/ClearQueuedEvaluationsButtonAllCountsQuery.graphql";
-import type { ClearQueuedEvaluationsButtonClearAllMutation } from "@phoenix/pages/project/evaluators/__generated__/ClearQueuedEvaluationsButtonClearAllMutation.graphql";
-import type { ClearQueuedEvaluationsButtonCountsQuery } from "@phoenix/pages/project/evaluators/__generated__/ClearQueuedEvaluationsButtonCountsQuery.graphql";
-import type { ClearQueuedEvaluationsButtonMutation } from "@phoenix/pages/project/evaluators/__generated__/ClearQueuedEvaluationsButtonMutation.graphql";
+import type { ClearQueuedEvaluationsMenuAllCountsQuery } from "@phoenix/pages/project/evaluators/__generated__/ClearQueuedEvaluationsMenuAllCountsQuery.graphql";
+import type { ClearQueuedEvaluationsMenuClearAllMutation } from "@phoenix/pages/project/evaluators/__generated__/ClearQueuedEvaluationsMenuClearAllMutation.graphql";
+import type { ClearQueuedEvaluationsMenuCountsQuery } from "@phoenix/pages/project/evaluators/__generated__/ClearQueuedEvaluationsMenuCountsQuery.graphql";
+import type { ClearQueuedEvaluationsMenuMutation } from "@phoenix/pages/project/evaluators/__generated__/ClearQueuedEvaluationsMenuMutation.graphql";
 import { ClearQueueConfirmDialog } from "@phoenix/pages/project/evaluators/ClearQueueConfirmDialog";
 import {
   formatQueueCount,
   getClearableCount,
 } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
 import { useRefreshQueueStats } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueStats";
-import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 /** Whose queued evaluations to clear: one project's, or every project's. */
-type ClearScope = { type: "PROJECT"; projectId: string } | { type: "ALL" };
-
-/** Clears this project's queued evaluations. */
-export function ClearQueuedEvaluationsButton({
-  projectId,
-  isProjectQueueEmpty = false,
-}: {
-  projectId: string;
-  /** This project has nothing clearing would remove. */
-  isProjectQueueEmpty?: boolean;
-}) {
-  const environment = useRelayEnvironment();
-  const { timeRangeISOStrings } = useTimeRange();
-  return (
-    <ClearQueueButton
-      scope={{ type: "PROJECT", projectId }}
-      isDisabled={isProjectQueueEmpty}
-      onCleared={() => {
-        void refetchProjectEvaluators({
-          environment,
-          projectId,
-          timeRange: timeRangeISOStrings,
-        });
-      }}
-    />
-  );
-}
+export type ClearScope =
+  | { type: "PROJECT"; projectId: string }
+  | { type: "ALL" };
 
 /**
- * A "more" menu holding the action that clears every project's queued
- * evaluations, kept out of reach of a stray click. Lives on the server-wide
- * project evaluators view only: a project's page clears only its own.
+ * A "more" menu holding the action that clears queued evaluations, kept out
+ * of reach of a stray click: one project's on its evaluators tab, every
+ * project's on the server-wide project evaluators view.
  */
-export function ClearAllQueuedEvaluationsMenu({
+export function ClearQueuedEvaluationsMenu({
+  scope,
   isQueueEmpty = false,
   onCleared,
 }: {
+  scope: ClearScope;
   /** Nothing in the queue that clearing would remove. */
   isQueueEmpty?: boolean;
   onCleared?: () => void;
 }) {
   const canModify = useViewerCanModify();
-  const dialog = useClearQueueDialog();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  // Keys the dialog, so each opening starts with fresh counts and no error.
+  const [dialogOpenCount, setDialogOpenCount] = useState(0);
   if (!canModify) {
     return null;
   }
@@ -93,7 +66,8 @@ export function ClearAllQueuedEvaluationsMenu({
             disabledKeys={isQueueEmpty ? ["clear"] : []}
             onAction={(key) => {
               if (key === "clear") {
-                dialog.open();
+                setDialogOpenCount((count) => count + 1);
+                setIsDialogOpen(true);
               }
             }}
           >
@@ -107,57 +81,10 @@ export function ClearAllQueuedEvaluationsMenu({
         </Popover>
       </MenuTrigger>
       <ClearQueuedEvaluationsDialog
-        key={dialog.openCount}
-        scope={{ type: "ALL" }}
-        isOpen={dialog.isOpen}
-        onOpenChange={dialog.setIsOpen}
-        onCleared={onCleared}
-      />
-    </>
-  );
-}
-
-/** The confirm dialog's open state, keyed so each opening starts fresh. */
-function useClearQueueDialog() {
-  const [isOpen, setIsOpen] = useState(false);
-  // Keys the dialog, so each opening starts with fresh counts and no error.
-  const [openCount, setOpenCount] = useState(0);
-  const open = () => {
-    setOpenCount((count) => count + 1);
-    setIsOpen(true);
-  };
-  return { isOpen, setIsOpen, openCount, open };
-}
-
-function ClearQueueButton({
-  scope,
-  isDisabled,
-  onCleared,
-}: {
-  scope: ClearScope;
-  isDisabled: boolean;
-  onCleared?: () => void;
-}) {
-  const canModify = useViewerCanModify();
-  const { isOpen, setIsOpen, openCount, open } = useClearQueueDialog();
-  if (!canModify) {
-    return null;
-  }
-  return (
-    <>
-      <Button
-        size="S"
-        leadingVisual={<Icon svg={<Icons.Trash />} />}
-        isDisabled={isDisabled}
-        onPress={open}
-      >
-        Clear queue
-      </Button>
-      <ClearQueuedEvaluationsDialog
-        key={openCount}
+        key={dialogOpenCount}
         scope={scope}
-        isOpen={isOpen}
-        onOpenChange={setIsOpen}
+        isOpen={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
         onCleared={onCleared}
       />
     </>
@@ -179,8 +106,8 @@ function ClearQueuedEvaluationsDialog({
   const refreshQueueStats = useRefreshQueueStats();
   const [error, setError] = useState<string | null>(null);
   const [commitClearProject, isClearingProject] =
-    useMutation<ClearQueuedEvaluationsButtonMutation>(graphql`
-      mutation ClearQueuedEvaluationsButtonMutation(
+    useMutation<ClearQueuedEvaluationsMenuMutation>(graphql`
+      mutation ClearQueuedEvaluationsMenuMutation(
         $input: ClearProjectQueuedEvaluationsInput!
       ) {
         clearProjectQueuedEvaluations(input: $input) {
@@ -189,8 +116,8 @@ function ClearQueuedEvaluationsDialog({
       }
     `);
   const [commitClearAll, isClearingAll] =
-    useMutation<ClearQueuedEvaluationsButtonClearAllMutation>(graphql`
-      mutation ClearQueuedEvaluationsButtonClearAllMutation {
+    useMutation<ClearQueuedEvaluationsMenuClearAllMutation>(graphql`
+      mutation ClearQueuedEvaluationsMenuClearAllMutation {
         clearAllQueuedEvaluations {
           clearedCount
         }
@@ -275,9 +202,9 @@ function ClearQueuedEvaluationsDialog({
 
 /** What clearing this project's queue removes, counted when the dialog opens. */
 function ClearProjectSummaryWithCount({ projectId }: { projectId: string }) {
-  const data = useLazyLoadQuery<ClearQueuedEvaluationsButtonCountsQuery>(
+  const data = useLazyLoadQuery<ClearQueuedEvaluationsMenuCountsQuery>(
     graphql`
-      query ClearQueuedEvaluationsButtonCountsQuery($projectId: ID!) {
+      query ClearQueuedEvaluationsMenuCountsQuery($projectId: ID!) {
         project: node(id: $projectId) {
           ... on Project {
             evaluationQueue {
@@ -302,9 +229,9 @@ function ClearProjectSummaryWithCount({ projectId }: { projectId: string }) {
 
 /** What clearing every project's queue removes, counted when the dialog opens. */
 function ClearAllSummaryWithCount() {
-  const data = useLazyLoadQuery<ClearQueuedEvaluationsButtonAllCountsQuery>(
+  const data = useLazyLoadQuery<ClearQueuedEvaluationsMenuAllCountsQuery>(
     graphql`
-      query ClearQueuedEvaluationsButtonAllCountsQuery {
+      query ClearQueuedEvaluationsMenuAllCountsQuery {
         evaluationQueue {
           queuedCount
           runningCount

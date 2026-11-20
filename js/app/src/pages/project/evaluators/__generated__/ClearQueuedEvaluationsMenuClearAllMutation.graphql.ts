@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9805632d479bd724aecab60a07be26d1>>
+ * @generated SignedSource<<96705e061fac5d7b5342fa47f4f8c1e3>>
  * @lightSyntaxTransform
  */
 
@@ -8,15 +8,15 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type ClearQueuedEvaluationsButtonClearAllMutation$variables = Record<PropertyKey, never>;
-export type ClearQueuedEvaluationsButtonClearAllMutation$data = {
+export type ClearQueuedEvaluationsMenuClearAllMutation$variables = Record<PropertyKey, never>;
+export type ClearQueuedEvaluationsMenuClearAllMutation$data = {
   readonly clearAllQueuedEvaluations: {
     readonly clearedCount: number;
   };
 };
-export type ClearQueuedEvaluationsButtonClearAllMutation = {
-  response: ClearQueuedEvaluationsButtonClearAllMutation$data;
-  variables: ClearQueuedEvaluationsButtonClearAllMutation$variables;
+export type ClearQueuedEvaluationsMenuClearAllMutation = {
+  response: ClearQueuedEvaluationsMenuClearAllMutation$data;
+  variables: ClearQueuedEvaluationsMenuClearAllMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -45,7 +45,7 @@ return {
     "argumentDefinitions": [],
     "kind": "Fragment",
     "metadata": null,
-    "name": "ClearQueuedEvaluationsButtonClearAllMutation",
+    "name": "ClearQueuedEvaluationsMenuClearAllMutation",
     "selections": (v0/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -54,20 +54,20 @@ return {
   "operation": {
     "argumentDefinitions": [],
     "kind": "Operation",
-    "name": "ClearQueuedEvaluationsButtonClearAllMutation",
+    "name": "ClearQueuedEvaluationsMenuClearAllMutation",
     "selections": (v0/*:: as any*/)
   },
   "params": {
-    "cacheID": "7a53f6a763e0be3b5f5aaa2672bab3e9",
+    "cacheID": "95fc93db2eb403699f212b6ebfa39673",
     "id": null,
     "metadata": {},
-    "name": "ClearQueuedEvaluationsButtonClearAllMutation",
+    "name": "ClearQueuedEvaluationsMenuClearAllMutation",
     "operationKind": "mutation",
-    "text": "mutation ClearQueuedEvaluationsButtonClearAllMutation {\n  clearAllQueuedEvaluations {\n    clearedCount\n  }\n}\n"
+    "text": "mutation ClearQueuedEvaluationsMenuClearAllMutation {\n  clearAllQueuedEvaluations {\n    clearedCount\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "dfe0d8f200818ad9e935f89adb4314c3";
+(node as any).hash = "0be81506262b2d20662160e1ff58b617";
 
 export default node;

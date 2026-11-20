@@ -1,4 +1,12 @@
-import { act, startTransition, Suspense, useEffect, useState } from "react";
+import type { ReactElement } from "react";
+import {
+  act,
+  cloneElement,
+  startTransition,
+  Suspense,
+  useEffect,
+  useState,
+} from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { RelayEnvironmentProvider } from "react-relay";
 import { MemoryRouter } from "react-router";
@@ -8,6 +16,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
+import type * as PhoenixChart from "@phoenix/components/chart";
 import {
   TimeRangeProvider,
   type TimeRangeContextType,
@@ -17,11 +26,23 @@ import { PreferencesProvider, ThemeProvider } from "@phoenix/contexts";
 import { AgentProvider } from "@phoenix/contexts/AgentContext";
 
 import {
+  EvaluationLagByEvaluatorTimeSeries,
   EvaluationQueueSizeTimeSeries,
   EvaluationsByEvaluatorTimeSeries,
 } from "../EvaluatorActivityCharts";
 import { MetricFetchKeyProvider } from "../types";
 import { useClosedTimeRange } from "../useClosedTimeRange";
+
+// jsdom lays nothing out, so a responsive chart measures zero and draws no
+// marks; a fixed size lets the tests read what the charts draw.
+vi.mock("@phoenix/components/chart", async (importOriginal) => ({
+  ...(await importOriginal<typeof PhoenixChart>()),
+  ChartResponsiveContainer: ({ children }: { children: ReactElement }) =>
+    cloneElement(children as ReactElement<{ width: number; height: number }>, {
+      width: 400,
+      height: 200,
+    }),
+}));
 
 installTestMatchMedia();
 installTestStorage();
@@ -428,3 +449,82 @@ describe("evaluator activity charts slower than the stream", () => {
     expect(countChartsWithData()).toBe(2);
   });
 });
+
+describe("evaluation lag chart", () => {
+  it("draws an evaluator whose lag is known in one bin only", async () => {
+    await act(async () => {
+      root.render(
+        <MemoryRouter
+          initialEntries={[
+            `/projects/${PROJECT_ID}/evaluators?timeRangeKey=1h`,
+          ]}
+        >
+          <PreferencesProvider>
+            <AgentProvider>
+              <TimeRangeProvider>
+                <RelayEnvironmentProvider environment={environment}>
+                  <ThemeProvider>
+                    <LagChart />
+                  </ThemeProvider>
+                </RelayEnvironmentProvider>
+              </TimeRangeProvider>
+            </AgentProvider>
+          </PreferencesProvider>
+        </MemoryRouter>
+      );
+    });
+    // Three bins, and the evaluator finished evaluations in the middle one only
+    await act(async () => {
+      for (const operation of getPendingOperations()) {
+        const end = new Date(String(operation.request.variables.timeRange.end));
+        const getBinTimestamp = (minutesBeforeEnd: number) =>
+          new Date(end.getTime() - minutesBeforeEnd * 60_000).toISOString();
+        environment.mock.resolve(
+          operation,
+          MockPayloadGenerator.generate(operation, {
+            Node: () => ({ __typename: "Project", id: PROJECT_ID }),
+            EvaluationActivity: () => ({
+              groups: [
+                {
+                  projectEvaluator: { id: "evaluator-1", name: "correctness" },
+                  evaluatedCount: 3,
+                  failedCount: 0,
+                  cost: 0,
+                },
+              ],
+              series: [2, 1, 0].map((minutesBeforeEnd) => ({
+                timestamp: getBinTimestamp(minutesBeforeEnd),
+                groups:
+                  minutesBeforeEnd === 1
+                    ? [
+                        {
+                          projectEvaluator: { id: "evaluator-1" },
+                          evaluatedCount: 3,
+                          failedCount: 0,
+                          lagP95Seconds: 1,
+                          cost: 0,
+                        },
+                      ]
+                    : [],
+              })),
+            }),
+          })
+        );
+      }
+    });
+
+    expect(container.querySelectorAll(".recharts-line-dot")).toHaveLength(1);
+  });
+});
+
+function LagChart() {
+  const timeRange = useClosedTimeRange();
+  return (
+    <Suspense fallback={<div>loading</div>}>
+      <EvaluationLagByEvaluatorTimeSeries
+        projectId={PROJECT_ID}
+        timeRange={timeRange}
+      />
+    </Suspense>
+  );
+}

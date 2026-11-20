@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b29ec6f48e3130669d41984bb0a9fcf3>>
+ * @generated SignedSource<<7b65385baa5bcaa9e62e236b601424ed>>
  * @lightSyntaxTransform
  */
 
@@ -8,16 +8,16 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type ClearQueuedEvaluationsButtonAllCountsQuery$variables = Record<PropertyKey, never>;
-export type ClearQueuedEvaluationsButtonAllCountsQuery$data = {
+export type ClearQueuedEvaluationsMenuAllCountsQuery$variables = Record<PropertyKey, never>;
+export type ClearQueuedEvaluationsMenuAllCountsQuery$data = {
   readonly evaluationQueue: {
     readonly queuedCount: number;
     readonly runningCount: number;
   };
 };
-export type ClearQueuedEvaluationsButtonAllCountsQuery = {
-  response: ClearQueuedEvaluationsButtonAllCountsQuery$data;
-  variables: ClearQueuedEvaluationsButtonAllCountsQuery$variables;
+export type ClearQueuedEvaluationsMenuAllCountsQuery = {
+  response: ClearQueuedEvaluationsMenuAllCountsQuery$data;
+  variables: ClearQueuedEvaluationsMenuAllCountsQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -53,7 +53,7 @@ return {
     "argumentDefinitions": [],
     "kind": "Fragment",
     "metadata": null,
-    "name": "ClearQueuedEvaluationsButtonAllCountsQuery",
+    "name": "ClearQueuedEvaluationsMenuAllCountsQuery",
     "selections": (v0/*:: as any*/),
     "type": "Query",
     "abstractKey": null
@@ -62,20 +62,20 @@ return {
   "operation": {
     "argumentDefinitions": [],
     "kind": "Operation",
-    "name": "ClearQueuedEvaluationsButtonAllCountsQuery",
+    "name": "ClearQueuedEvaluationsMenuAllCountsQuery",
     "selections": (v0/*:: as any*/)
   },
   "params": {
-    "cacheID": "68864c3931597bce84acbde3ee2d02ac",
+    "cacheID": "a42c6d289773324770619b523e718769",
     "id": null,
     "metadata": {},
-    "name": "ClearQueuedEvaluationsButtonAllCountsQuery",
+    "name": "ClearQueuedEvaluationsMenuAllCountsQuery",
     "operationKind": "query",
-    "text": "query ClearQueuedEvaluationsButtonAllCountsQuery {\n  evaluationQueue {\n    queuedCount\n    runningCount\n  }\n}\n"
+    "text": "query ClearQueuedEvaluationsMenuAllCountsQuery {\n  evaluationQueue {\n    queuedCount\n    runningCount\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "faffefb05f5ed96698c7b51ce9309188";
+(node as any).hash = "aaeac75d1a592629559362883391cf2e";
 
 export default node;
