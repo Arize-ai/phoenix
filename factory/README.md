@@ -5,8 +5,11 @@ Claude Managed Agents that take a triaged Phoenix issue to a PR that is ready fo
 ## Architecture
 
 New sessions store `issues` and `prs` as JSON arrays encoded as metadata strings
-(for example, `"[123,456]"`), scoped to `repo`. Existing sessions are unchanged;
-additional artifacts are not automatically appended.
+(for example, `"[123,456]"`), scoped to `repo`. Existing sessions are unchanged.
+At completion, workers append `FACTORY_ARTIFACTS={"issues":[],"prs":[]}` to their
+session response; the Python caller merges those references into metadata. Missing
+or malformed reports and failed requests warn without discarding existing links;
+failures before reporting may leave artifacts unrecorded. No message service is needed.
 
 The factory spans three systems. GitHub holds the work: issues, PRs, CI and the Claude Code Review. GitHub Actions is the control plane: `dispatch.py` admits an issue, starts its session, and follows it until the PR is ready for review. Claude Managed Agents is where the work happens: one session per issue, with a lane coordinator and its subagents sharing a sandbox that mounts the repo.
 

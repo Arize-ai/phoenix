@@ -30,6 +30,7 @@ from github_app import GitHubAppToken
 from pr_input import raise_on_checkout_error
 from security_scan import canonical_json
 from security_scan import find_admission_problem as scan_admission
+from session_artifacts import record_completion_artifacts
 
 FACTORY_DIR = Path(__file__).resolve().parent
 LOCK_FILE_PATH = FACTORY_DIR / "claude-lock.json"
@@ -410,6 +411,10 @@ def wait_for_session(
                     and latest_outcome.result not in TERMINAL_OUTCOME_RESULTS
                 )
                 if not is_grading:
+                    if idle_event.stop_reason.type == "end_turn":
+                        session = record_completion_artifacts(
+                            client=client, session=session, completed_at=idle_event.processed_at
+                        )
                     return session, idle_event
         time.sleep(POLL_INTERVAL_SECONDS)
     return None, None
