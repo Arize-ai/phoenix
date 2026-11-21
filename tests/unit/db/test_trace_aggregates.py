@@ -22,11 +22,11 @@ async def test_trace_aggregate_builders(db: DbSessionFactory) -> None:
         root = await _add_span(
             session,
             trace,
-            span_kind="llm",
+            span_kind="LLM",
             llm_token_count_prompt=1,
             llm_token_count_completion=2,
         )
-        tool = await _add_span(session, parent_span=root, span_kind="tool")
+        tool = await _add_span(session, parent_span=root, span_kind="TOOL")
         tool.status_code = "ERROR"
         session.add(
             models.SpanCost(

@@ -101,7 +101,7 @@ def _has_llm_child() -> ColumnElement[bool]:
     return (
         select(1)
         .where(child.parent_id == models.Span.span_id)
-        .where(func.upper(child.span_kind) == "LLM")
+        .where(child.span_kind == "LLM")
         .exists()
     )
 
@@ -124,7 +124,7 @@ def _get_stmt(
         )
         .join_from(models.Trace, models.Span)
         # Wrapping spans can repeat their children's token counts (#12768).
-        .where(func.upper(models.Span.span_kind) == "LLM")
+        .where(models.Span.span_kind == "LLM")
         .where(~_has_llm_child())
         .group_by(pid)
     )
