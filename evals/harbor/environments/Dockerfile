@@ -12,7 +12,7 @@ RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
   && rm -rf /var/lib/apt/lists/* \
   && useradd --create-home --shell /bin/bash agent
 # Preinstalled because Harbor's installers need hosts that the allowlist blocks
-ARG CLAUDE_CODE_VERSION=2.1.267
+ARG CLAUDE_CODE_VERSION=2.1.311
 ARG CODEX_VERSION=0.154.0
 RUN npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" "@openai/codex@${CODEX_VERSION}" \
   && chmod 700 /usr/local/lib/node_modules/@anthropic-ai /usr/local/lib/node_modules/@openai
@@ -22,6 +22,7 @@ RUN chown agent:agent /app
 COPY wheels/ /wheels/
 RUN uv pip install --system --no-cache /wheels/*.whl
 COPY container_assets/ /opt/phoenix-eval/
+COPY --chown=agent:agent workdir/ /app/
 COPY data/ /data/
 # Root-only: the agent phase runs as `agent` and reaches the data only through Phoenix.
 RUN chmod 700 /data && chmod 600 /data/phoenix.db

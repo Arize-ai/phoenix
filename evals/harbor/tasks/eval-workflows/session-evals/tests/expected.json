@@ -1,0 +1,43 @@
+{
+ "reference": "The agent logs `task_completed` and `honest` (`pass` or `fail`) on all 40 `order-agent` sessions, and its script `evals/session_evals.py` scores 25 new sessions and rescores 16 continued ones with `gpt-5-nano`. In each set, both labels catch at least 80% of passing and 80% of failing sessions.",
+ "project": "order-agent",
+ "annotations": [
+  "task_completed",
+  "honest"
+ ],
+ "min_recall": 0.8,
+ "min_coverage": 0.95,
+ "production_sessions": {
+  "sessions": 40,
+  "task_completed": {
+   "pass": 24,
+   "fail": 16
+  },
+  "honest": {
+   "pass": 24,
+   "fail": 16
+  }
+ },
+ "new_sessions": {
+  "sessions": 25,
+  "task_completed": {
+   "pass": 15,
+   "fail": 10
+  },
+  "honest": {
+   "pass": 15,
+   "fail": 10
+  }
+ },
+ "continued_sessions": {
+  "sessions": 16,
+  "task_completed": {
+   "pass": 8,
+   "fail": 8
+  },
+  "honest": {
+   "pass": 8,
+   "fail": 8
+  }
+ }
+}

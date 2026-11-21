@@ -52,6 +52,19 @@ def _trajectory(*tool_calls: tuple[str, dict[str, Any]]) -> dict[str, Any]:
         ),
         pytest.param(
             (
+                "exec_command",
+                {"cmd": "sed -n 1,200p skills/{phoenix-cli,phoenix-evals}/SKILL.md"},
+            ),
+            ["phoenix-cli", "phoenix-evals"],
+            id="codex-brace-expansion",
+        ),
+        pytest.param(
+            ("exec_command", {"cmd": "cat skills/phoenix-{cli,error-analysis}/SKILL.md"}),
+            ["phoenix-cli", "phoenix-error-analysis"],
+            id="codex-brace-suffix",
+        ),
+        pytest.param(
+            (
                 "load_skill_reference",
                 {"skill_name": "phoenix-graphql", "reference_name": "references/sessions.md"},
             ),

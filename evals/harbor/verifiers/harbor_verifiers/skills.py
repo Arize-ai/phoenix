@@ -6,7 +6,8 @@ Agents load a skill in one of three ways:
 - PXI and the MCP clients call ``load_skill`` with a ``skill_name`` argument. MCP clients
   can prefix the tool name, for example ``mcp__phoenix__load_skill``.
 - Codex has no skill tool for installed skills. It reads ``<skill>/SKILL.md`` with a shell
-  command.
+  command, sometimes several at once with brace expansion, as in
+  ``skills/{phoenix-cli,phoenix-evals}/SKILL.md``.
 """
 
 from __future__ import annotations
@@ -17,7 +18,8 @@ from typing import Any
 
 from harbor_verifiers.verify import agent_steps
 
-_SKILL_FILE = re.compile(r"([\w.-]+)/SKILL\.md\b")
+_SKILL_FILE = re.compile(r"((?:[\w.-]|\{[\w.,-]*\})+)/SKILL\.md\b")
+_BRACES = re.compile(r"\{([^{}]*)\}")
 
 # Skills that describe how to read and write Phoenix data. Whether an agent loads one
 # depends on the agent's tools, not on the task, so ``"skills_unexpected": "any_other"``
@@ -36,6 +38,18 @@ def _strings(value: Any) -> Iterator[str]:
             yield from _strings(item)
 
 
+def _expand_braces(text: str) -> list[str]:
+    match = _BRACES.search(text)
+    if not match:
+        return [text]
+    head, tail = text[: match.start()], text[match.end() :]
+    return [
+        expanded
+        for option in match.group(1).split(",")
+        for expanded in _expand_braces(head + option + tail)
+    ]
+
+
 def _skills_in_call(tool_call: dict[str, Any]) -> list[str]:
     name = str(tool_call.get("function_name") or "")
     arguments = tool_call.get("arguments")
@@ -46,7 +60,12 @@ def _skills_in_call(tool_call: dict[str, Any]) -> list[str]:
         return [str(arguments["skill"]).rpartition(":")[2]] if arguments.get("skill") else []
     if name.endswith("load_skill"):
         return [str(arguments["skill_name"])] if arguments.get("skill_name") else []
-    return [match for text in _strings(arguments) for match in _SKILL_FILE.findall(text)]
+    return [
+        name
+        for text in _strings(arguments)
+        for match in _SKILL_FILE.findall(text)
+        for name in _expand_braces(match)
+    ]
 
 
 def loaded_skills(trajectory: dict[str, Any] | None) -> list[str]:

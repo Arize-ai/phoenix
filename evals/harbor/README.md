@@ -10,13 +10,14 @@ compare the conditions in the Phoenix UI.
 | --- | --- | --- | --- |
 | `jobs/regression.yaml` | Can PXI, or Claude Code with the MCP server or px, do a multi-step error analysis and hill-climb a prompt? CI runs this. | `tasks/regression/*` | `regression` |
 | `jobs/trail-benchmark-dev.yaml` | Which Phoenix interface (MCP server, px CLI, or PXI) answers the same project questions most accurately, and at what cost? | `tasks/trail-benchmark-dev/*` | `trail-benchmark-dev` |
+| `jobs/eval-workflows.yaml` | Can a coding agent do a Phoenix user's evaluation work, such as building, fixing, and trusting evals, and what do the Phoenix skills change? See [its README](tasks/eval-workflows/README.md). | `tasks/eval-workflows/*` | `eval-workflows` |
 
 | Path | Contents |
 | --- | --- |
-| `agents/` | PXI and the Claude Code or Codex configurations for the MCP server and px |
-| `environments/` | The shared Dockerfile and the fixture script for each database |
+| `agents/` | PXI, the Claude Code or Codex configurations for the MCP server and px, and `snapshot_skills.sh`, which extracts the skills at a commit for a condition to load |
+| `environments/` | The shared Dockerfile, the fixture script for each database, and the seeder for tasks that ship a `phoenix_seed.json` |
 | `jobs/` | One configuration file for each benchmark |
-| `tasks/` | One directory per benchmark: the tasks under `regression/` and under `trail-benchmark-dev/` |
+| `tasks/` | One directory per benchmark: the tasks under `regression/`, `trail-benchmark-dev/`, and `eval-workflows/` |
 | `verifiers/` | The `harbor_verifiers` package: the reply grader, LLM judge, and reference-solution query helpers, installed in the image as a wheel |
 | `scripts/` | Scripts for staging, building the px archive, selecting job subsets, and checking CI rewards |
 

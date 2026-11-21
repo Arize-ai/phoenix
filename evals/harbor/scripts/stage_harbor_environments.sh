@@ -11,7 +11,7 @@ HERE="$ROOT/evals/harbor"
 ENVIRONMENTS="$HERE/environments"
 CONTEXT="$HERE/.cache/environment"
 FIXTURES="$HERE/.cache/fixtures"
-TASKS_DIR="$HERE/tasks"
+TASKS_DIR=${HARBOR_TASKS_DIR:-"$HERE/tasks"}
 
 # Clear stale wheels first: `uv pip install /wheels/*.whl` in the Dockerfile would
 # otherwise see the previous version alongside the new one.
@@ -63,13 +63,33 @@ for config in "$TASKS_DIR"/*/task.toml "$TASKS_DIR"/*/*/task.toml; do
     echo "$config names no fixture: add [metadata] fixture = \"<name>\"" >&2
     exit 1
   fi
-  if ! ensure_fixture "$fixture"; then
+  if [ "$fixture" = phoenix-seed ]; then
+    seed_file="$task/fixture/phoenix_seed.json"
+    if [ ! -f "$seed_file" ]; then
+      echo "$seed_file is missing; run the task's fixture/build.py" >&2
+      skipped="$skipped ${task#"$TASKS_DIR/"}"
+      continue
+    fi
+    fixture="phoenix-seed-$(shasum -a 256 "$seed_file" | cut -c1-16)"
+    if [ ! -f "$FIXTURES/$fixture/phoenix.db" ]; then
+      echo "Seeding $fixture from $seed_file..."
+      (cd "$ROOT" && uv run python "$ENVIRONMENTS/fixtures/seed_phoenix.py" \
+        --seed "$seed_file" --output "$FIXTURES/$fixture/phoenix.db")
+    fi
+  elif ! ensure_fixture "$fixture"; then
     skipped="$skipped ${task#"$TASKS_DIR/"}"
     continue
   fi
   # Hard links keep a dozen copies of the wheel and the database from costing a dozen
   # times the disk; Docker and Daytona read them as ordinary files.
   rsync -a --delete --link-dest="$CONTEXT/" "$CONTEXT/" "$task/environment/"
+  mkdir -p "$task/environment/workdir"
+  if [ -d "$task/workdir" ]; then
+    rsync -a --exclude __pycache__ "$task/workdir/" "$task/environment/workdir/"
+  else
+    # Daytona uploads only files, so `COPY workdir/` fails on an empty directory.
+    touch "$task/environment/workdir/.keep"
+  fi
   mkdir -p "$task/environment/data"
   ln -f "$FIXTURES/$fixture/phoenix.db" "$task/environment/data/phoenix.db" 2>/dev/null \
     || cp "$FIXTURES/$fixture/phoenix.db" "$task/environment/data/phoenix.db"
