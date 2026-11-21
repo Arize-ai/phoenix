@@ -821,6 +821,12 @@ async def create_prompt_version_tag(
             prompt_version_id=id_,
             user_id=user_id,
         )
+        # On conflict, only update the description when it was explicitly provided:
+        # an omitted description leaves an existing tag untouched, while an explicit
+        # null clears it. A first insert still stores NULL when description is omitted.
+        set_: dict[str, Any] = dict(prompt_version_id=id_, user_id=user_id)
+        if "description" in request_body.model_fields_set:
+            set_["description"] = request_body.description
         await session.execute(
             insert_on_conflict(
                 values,
@@ -828,6 +834,7 @@ async def create_prompt_version_tag(
                 table=models.PromptVersionTag,
                 unique_by=("name", "prompt_id"),
                 on_conflict=OnConflict.DO_UPDATE,
+                set_=set_,
             )
         )
     return None
