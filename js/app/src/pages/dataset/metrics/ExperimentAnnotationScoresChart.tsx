@@ -107,7 +107,7 @@ export function ExperimentAnnotationScoresChart({
   });
   const scoreKeys = Array.from(scoreKeySet);
 
-  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey, showAll } =
     useInteractiveLegend();
 
   // Snap the score axis to [0, 1] when every visible score fits in it, so
@@ -194,6 +194,7 @@ export function ExperimentAnnotationScoresChart({
             hiddenDataKeys={hiddenDataKeys}
             iconSize={8}
             onToggleDataKey={toggleDataKey}
+            onShowAll={showAll}
           />
           <Tooltip
             {...defaultTooltipProps}

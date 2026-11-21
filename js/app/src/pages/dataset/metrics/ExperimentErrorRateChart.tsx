@@ -76,7 +76,7 @@ export function ExperimentErrorRateChart({
   const hasErrors = chartData.some((datum) => (datum.errorRate ?? 0) > 0);
 
   const semanticChartColors = useSemanticChartColors();
-  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey, showAll } =
     useInteractiveLegend();
   const baselineErrorRate = isDataKeyHidden(ERROR_RATE_DATA_KEY)
     ? null
@@ -122,6 +122,7 @@ export function ExperimentErrorRateChart({
             hiddenDataKeys={hiddenDataKeys}
             iconSize={8}
             onToggleDataKey={toggleDataKey}
+            onShowAll={showAll}
             additionalLegendItems={getExperimentBaselineLegendItems({
               value: baselineErrorRate,
               label: referenceLabel,
