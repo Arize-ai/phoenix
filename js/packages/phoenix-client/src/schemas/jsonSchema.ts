@@ -1,5 +1,23 @@
 import z from "zod";
 
+import { type JSONLiteral, literalSchema } from "./jsonLiteralSchema";
+
+const jsonEnumValueSchema: z.ZodType<JSONLiteral> = z.lazy(() =>
+  z.union([
+    literalSchema,
+    z.array(jsonEnumValueSchema),
+    z.custom<Record<string, JSONLiteral>>(
+      (value) =>
+        value !== null &&
+        typeof value === "object" &&
+        z.record(z.string(), z.unknown()).safeParse(value).success &&
+        Object.values(value).every(
+          (entry) => jsonEnumValueSchema.safeParse(entry).success
+        )
+    ),
+  ])
+);
+
 const jsonSchemaPropertiesSchema = z
   .looseObject({
     type: z
@@ -17,7 +35,10 @@ const jsonSchemaPropertiesSchema = z
       .string()
       .optional()
       .describe("A description of the parameter"),
-    enum: z.array(z.string()).optional().describe("The allowed values"),
+    enum: z
+      .array(jsonEnumValueSchema)
+      .optional()
+      .describe("The allowed values"),
   })
   .describe("A map of parameter names to their definitions");
 
