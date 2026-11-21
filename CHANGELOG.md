@@ -1,5 +1,12 @@
 # Changelog
 
+## [22.0.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v22.0.0...arize-phoenix-v22.0.1) (2026-11-21)
+
+
+### Bug Fixes
+
+* **server:** stop cancelled loader batches from freezing the server ([#18111](https://github.com/Arize-ai/phoenix/issues/18111)) ([d561e7d](https://github.com/Arize-ai/phoenix/commit/d561e7d806319a72ed458a284edd1c3c4cc818e3))
+
 ## [22.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v21.3.0...arize-phoenix-v22.0.0) (2026-11-20)
 
 
