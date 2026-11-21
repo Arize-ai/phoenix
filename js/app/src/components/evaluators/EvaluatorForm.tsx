@@ -96,7 +96,7 @@ export const EvaluatorFormProvider = ({
  * @example
  * ```tsx
  * <EvaluatorForm
- *   left={<LLMEvaluatorForm />}
+ *   left={<CodeEvaluatorForm />}
  *   right={<EvaluatorDatasetTestPanel />}
  * />
  * ```

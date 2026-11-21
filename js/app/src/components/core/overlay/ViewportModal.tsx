@@ -61,6 +61,15 @@ const viewportModalOverlayCSS = css`
   ${modalBackdropCSS};
   position: absolute;
   pointer-events: auto;
+
+  // A viewport-sized dialog covers the content area under the top
+  // navigation (the host's last row, when the host lays the plane out as a
+  // grid) and leaves nothing for a backdrop to dim.
+  &:has([data-size="viewport"]) {
+    grid-row: -2 / -1;
+    grid-column: 1 / -1;
+    background: transparent;
+  }
 `;
 
 const viewportModalCSS = css`
@@ -71,6 +80,25 @@ const viewportModalCSS = css`
 
   &[data-size="fullscreen"] {
     --modal-width: calc(100% - var(--global-dimension-size-800));
+  }
+
+  // Fills its region edge to edge: no margin, rounding, border, or shadow,
+  // for workspaces that need every pixel. It fades in rather than zooming,
+  // since it has no edges to grow from.
+  &[data-size="viewport"] .react-aria-Dialog {
+    inset: 0;
+    top: 0;
+    left: 0;
+    transform: none;
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    &[data-entering] {
+      animation: none;
+    }
   }
 
   .react-aria-Dialog {
@@ -257,7 +285,8 @@ export type ViewportModalProps = Omit<
 > & {
   children: ReactNode;
   ref?: Ref<HTMLDivElement>;
-  size?: ModalSize;
+  /** `viewport` fills the application viewport with no margin around it. */
+  size?: ModalSize | "viewport";
 };
 
 export function ViewportModal({

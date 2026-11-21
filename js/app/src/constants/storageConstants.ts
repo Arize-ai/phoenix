@@ -19,6 +19,10 @@ export const FEATURE_FLAGS_STORAGE_KEY = "arize-phoenix-feature-flags";
 /** Prefix react-resizable-panels writes `useDefaultLayout` layouts under. */
 export const PANEL_LAYOUT_STORAGE_KEY_PREFIX = "react-resizable-panels:";
 export const DRAWER_SIZE_STORAGE_KEY_PREFIX = "arize-phoenix-drawer-";
+/** Prefix for the arrangement of a form laid out as an evaluator workspace. */
+export const WORKSPACE_LAYOUT_STORAGE_KEY_PREFIX = "arize-phoenix-workspace-";
+export const PROJECT_EVALUATOR_WORKSPACE_STORAGE_KEY = `${WORKSPACE_LAYOUT_STORAGE_KEY_PREFIX}project-evaluator-v1`;
+export const DATASET_EVALUATOR_WORKSPACE_STORAGE_KEY = `${WORKSPACE_LAYOUT_STORAGE_KEY_PREFIX}dataset-evaluator-v1`;
 
 // Tables and views
 export const PROMPTS_TABLE_STORAGE_KEY = "arize-phoenix-prompts-table";

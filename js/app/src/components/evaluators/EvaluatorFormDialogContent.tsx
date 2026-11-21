@@ -14,6 +14,25 @@ import {
 } from "@phoenix/components/core/dialog";
 import { EvaluatorForm } from "@phoenix/components/evaluators/EvaluatorForm";
 
+/**
+ * The form's body: the two-panel {@link EvaluatorForm}, or a workspace the
+ * caller lays out (see `EvaluatorWorkspace`).
+ */
+type EvaluatorFormLayoutProps =
+  | {
+      left: ReactNode;
+      /** Pinned under the left panel's scroll region. */
+      leftDock?: ReactNode;
+      right: ReactNode;
+      workspace?: never;
+    }
+  | {
+      workspace: ReactNode;
+      left?: never;
+      leftDock?: never;
+      right?: never;
+    };
+
 export const EvaluatorFormDialogContent = ({
   title,
   submitLabel,
@@ -28,6 +47,8 @@ export const EvaluatorFormDialogContent = ({
   left,
   leftDock,
   right,
+  workspace,
+  headerExtra,
   renderInputVariables,
   submitButtonProps,
   contentGap = "var(--global-dimension-size-200)",
@@ -42,19 +63,18 @@ export const EvaluatorFormDialogContent = ({
   error?: string;
   errorTitle: string;
   banner?: ReactNode;
-  left: ReactNode;
-  /** Pinned under the left panel's scroll region; see {@link EvaluatorForm}. */
-  leftDock?: ReactNode;
-  right: ReactNode;
+  /** Rendered in the header, before the close button. */
+  headerExtra?: ReactNode;
   renderInputVariables: (form: ReactNode) => ReactNode;
   submitButtonProps?: { [key: `data-${string}`]: string };
   contentGap?: string;
-}) => {
+} & EvaluatorFormLayoutProps) => {
   return (
     <DialogContent>
       <DialogHeader>
         <DialogTitle>{title}</DialogTitle>
         <DialogTitleExtra>
+          {headerExtra}
           <DialogCloseButton isDisabled={isSubmitting} />
         </DialogTitleExtra>
       </DialogHeader>
@@ -77,7 +97,9 @@ export const EvaluatorFormDialogContent = ({
           </Alert>
         ) : null}
         {renderInputVariables(
-          <EvaluatorForm left={left} leftDock={leftDock} right={right} />
+          workspace ?? (
+            <EvaluatorForm left={left} leftDock={leftDock} right={right} />
+          )
         )}
       </fieldset>
       <DialogFooter>

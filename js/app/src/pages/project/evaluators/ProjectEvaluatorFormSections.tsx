@@ -26,14 +26,18 @@ import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/Evalu
 import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
 import { EvaluatorSectionHeader } from "@phoenix/components/evaluators/EvaluatorSectionHeader";
 import { LLMEvaluatorForm } from "@phoenix/components/evaluators/LLMEvaluatorForm";
+import { EvaluatorWorkspace } from "@phoenix/components/evaluators/workspace/EvaluatorWorkspace";
 import { formatEvaluationTargetPlural } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import { ProjectEvaluatorInputMapping } from "@phoenix/pages/project/evaluators/ProjectEvaluatorInputMapping";
 import { ProjectEvaluatorScopeFieldGroup } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeFields";
+import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import { useUnboundRequiredVariables } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSubmitHint";
 import type {
   ProjectEvaluatorRecordKind,
   ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { toEvaluatorRecordKind } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import type { ProjectEvaluatorWorkspacePanelId } from "@phoenix/pages/project/evaluators/projectEvaluatorWorkspaceLayout";
 
 /** Scope-editing props shared by every left definition panel. */
 type ProjectEvaluatorScopeProps = {
@@ -127,24 +131,62 @@ export const ProjectEvaluatorAdvancedSection = ({
 };
 
 /**
- * The left definition panel for an LLM project evaluator; the matching-record
- * test bench lives in {@link ProjectEvaluatorScopePanel} and the input
- * mapping in {@link ProjectEvaluatorInputMappingDock}, pinned under this.
- *
- * The layout mirrors the dataset evaluator form: name and description, then
- * target, sampling, and the record filter, then the prompt with the annotation
- * config, then the advanced settings.
+ * The panels of the LLM project evaluator form, laid out by
+ * `PROJECT_LLM_EVALUATOR_WORKSPACE_LAYOUT`: the prompt, its
+ * annotation, the scope, and the name and settings on the left; the
+ * variable mapping docked under them; the records in scope and the focused
+ * record's inspector on the right.
  */
-export const ProjectLlmEvaluatorFormSections = (
-  scopeProps: ProjectEvaluatorScopeProps
-) => {
+export const ProjectLlmEvaluatorWorkspace = ({
+  isFilterValid,
+  ...scopeProps
+}: ProjectEvaluatorScopeProps & { isFilterValid: boolean }) => {
+  const { projectId, scope } = scopeProps;
+  const recordKind = toEvaluatorRecordKind(scope.targetType);
+  const variables = useEvaluatorInputVariables();
+  const unboundVariables = useUnboundRequiredVariables({ variables });
   return (
-    <>
-      <EvaluatorNameAndDescriptionFields />
-      <ProjectEvaluatorScopeSection {...scopeProps} />
-      <LLMEvaluatorForm showInputMapping={false} />
-      <ProjectEvaluatorAdvancedSection {...scopeProps} />
-    </>
+    <EvaluatorWorkspace<ProjectEvaluatorWorkspacePanelId>
+      badges={{
+        variables:
+          unboundVariables.length > 0 ? (
+            <Counter variant="danger" count={unboundVariables.length} />
+          ) : variables.length > 0 ? (
+            <Counter variant="quiet" count={variables.length} />
+          ) : null,
+        scope: isFilterValid ? null : (
+          <Icon
+            svg={<Icons.AlertCircleFilled />}
+            color="danger"
+            role="img"
+            aria-label="Invalid filter"
+          />
+        ),
+      }}
+      panels={{
+        prompt: <LLMEvaluatorForm showAnnotationConfig={false} />,
+        annotation: <LLMEvaluatorForm showPrompt={false} />,
+        scope: <ProjectEvaluatorScopeSection {...scopeProps} />,
+        details: (
+          <>
+            <EvaluatorNameAndDescriptionFields />
+            <ProjectEvaluatorAdvancedSection {...scopeProps} />
+          </>
+        ),
+        variables: (
+          <Flex direction="column" gap="size-200">
+            <ProjectEvaluatorInputMappingBody
+              recordKind={recordKind}
+              evaluatorKind="prompt"
+            />
+          </Flex>
+        ),
+        records: (
+          <ProjectEvaluatorScopePanel projectId={projectId} scope={scope} />
+        ),
+        inspector: null,
+      }}
+    />
   );
 };
 
@@ -211,38 +253,67 @@ export const ProjectEvaluatorInputMappingDock = ({
           <DisclosurePanel>
             <div className="mapping-dock__body">
               {/* The trigger is a button, so the description lives here rather
-                  than as a help popover inside it: a button cannot hold one.
-                  With nothing to map, the empty state says it instead. */}
-              {variables.length > 0 ? (
-                <Text size="S" color="text-500">
-                  {`Map evaluator variables to paths on the ${recordKind}. Unmapped input, output, and metadata read the ${recordKind} fields of the same name.`}
-                </Text>
-              ) : null}
-              {/* Keyed so the rows rebuild against the new record kind rather than
-                  carrying the previous one's paths forward. */}
-              <ProjectEvaluatorInputMapping
-                key={recordKind}
+                  than as a help popover inside it: a button cannot hold one. */}
+              <ProjectEvaluatorInputMappingBody
                 recordKind={recordKind}
                 requiredVariables={requiredVariables}
+                evaluatorKind={evaluatorKind}
                 canDescribeInputs={canDescribeInputs}
-                emptyState={
-                  <CompactEmptyState
-                    icon={<Icon svg={<Icons.Plus />} />}
-                    description={
-                      evaluatorKind === "prompt"
-                        ? `Variables in the prompt appear here, each mapped to the ${recordKind} data it reads.`
-                        : evaluatorKind === "decision"
-                          ? `Variables in the decision's state appear here, each mapped to the ${recordKind} data it reads.`
-                          : `Parameters of the evaluator's function appear here, each mapped to the ${recordKind} data it reads.`
-                    }
-                  />
-                }
               />
             </div>
           </DisclosurePanel>
         </Disclosure>
       </DisclosureGroup>
     </div>
+  );
+};
+
+/**
+ * What the input mapping section holds wherever it is shown: a line on what
+ * the mapping does, then one row per declared variable, or an empty state
+ * that says what the section is for when nothing is declared.
+ */
+const ProjectEvaluatorInputMappingBody = ({
+  recordKind,
+  requiredVariables,
+  evaluatorKind,
+  canDescribeInputs,
+}: {
+  recordKind: ProjectEvaluatorRecordKind;
+  requiredVariables?: readonly string[];
+  evaluatorKind: "prompt" | "code" | "decision";
+  /** See {@link ProjectEvaluatorInputMapping}; defaults to true. */
+  canDescribeInputs?: boolean;
+}) => {
+  const variables = useEvaluatorInputVariables();
+  return (
+    <>
+      {variables.length > 0 ? (
+        <Text size="S" color="text-500">
+          {`Map evaluator variables to paths on the ${recordKind}. Unmapped input, output, and metadata read the ${recordKind} fields of the same name.`}
+        </Text>
+      ) : null}
+      {/* Keyed so the rows rebuild against the new record kind rather than
+          carrying the previous one's paths forward. */}
+      <ProjectEvaluatorInputMapping
+        key={recordKind}
+        recordKind={recordKind}
+        requiredVariables={requiredVariables}
+        canDescribeInputs={canDescribeInputs}
+        emptyState={
+          <CompactEmptyState
+            icon={<Icon svg={<Icons.Plus />} />}
+            description={
+              evaluatorKind === "prompt"
+                ? `Variables in the prompt appear here, each mapped to the ${recordKind} data it reads.`
+                : evaluatorKind === "decision"
+                  ? `Variables in the decision's state appear here, each mapped to the ${recordKind} data it reads.`
+                  : `Parameters of the evaluator's function appear here, each mapped to the ${recordKind} data it reads.`
+            }
+          />
+        }
+      />
+    </>
   );
 };
 
@@ -270,8 +341,7 @@ const mappingDockCSS = css`
 
 /**
  * The left definition panel for a code project evaluator. When authoring code
- * (`codeDefinition` given) it is laid out the same way as
- * {@link ProjectLlmEvaluatorFormSections}: name and description, then the
+ * (`codeDefinition` given) it holds the name and description, then the
  * scope, then the code authoring fields. When attaching an existing evaluator
  * there is no name to edit, so a summary card of that evaluator stands in for
  * the name, and the scope follows it. The input mapping is docked under

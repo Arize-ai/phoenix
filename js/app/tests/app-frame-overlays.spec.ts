@@ -129,6 +129,61 @@ test.describe("application frame overlays", () => {
     await expect(dialog).toBeVisible();
   });
 
+  test("viewport dialogs fill the content row under the top navigation", async ({
+    page,
+  }) => {
+    // The LLM project evaluator form is laid out as a workspace, which
+    // opens in a viewport-sized dialog.
+    await page.goto("/projects");
+    await page
+      .getByRole("link")
+      .filter({
+        has: page.getByRole("heading", { name: "default", exact: true }),
+      })
+      .click();
+    await page.waitForURL(/\/projects\/[^/]+/);
+    const projectPath = new URL(page.url()).pathname
+      .split("/")
+      .slice(0, 3)
+      .join("/");
+    await page.goto(`${projectPath}/evaluators/new/llm`);
+
+    const dialog = page.getByRole("dialog", { name: "New LLM evaluator" });
+    await expect(dialog).toBeVisible();
+
+    const [dialogGeometry, viewportGeometry, topNavGeometry, pxiGeometry] =
+      await Promise.all([
+        dialog.boundingBox(),
+        page.getByTestId("application-viewport").boundingBox(),
+        page.getByTestId("application-top-navigation").boundingBox(),
+        page.getByRole("button", { name: "Ask PXI" }).boundingBox(),
+      ]);
+
+    expect(dialogGeometry).not.toBeNull();
+    expect(viewportGeometry).not.toBeNull();
+    expect(topNavGeometry).not.toBeNull();
+    expect(pxiGeometry).not.toBeNull();
+
+    // Flush with the viewport's sides and bottom, and with the top
+    // navigation's bottom edge, so the assistant control stays clear.
+    expect(dialogGeometry!.x).toBeCloseTo(viewportGeometry!.x, 0);
+    expect(dialogGeometry!.x + dialogGeometry!.width).toBeCloseTo(
+      viewportGeometry!.x + viewportGeometry!.width,
+      0
+    );
+    expect(dialogGeometry!.y + dialogGeometry!.height).toBeCloseTo(
+      viewportGeometry!.y + viewportGeometry!.height,
+      0
+    );
+    expect(dialogGeometry!.y).toBeCloseTo(
+      topNavGeometry!.y + topNavGeometry!.height,
+      0
+    );
+    expect(dialogGeometry!.y).toBeGreaterThanOrEqual(
+      pxiGeometry!.y + pxiGeometry!.height
+    );
+  });
+
   test("fullscreen dialogs clear the top navigation with matching margins", async ({
     page,
   }) => {

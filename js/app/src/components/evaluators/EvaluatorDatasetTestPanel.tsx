@@ -11,17 +11,29 @@ import { EvaluatorOutputPreview } from "@phoenix/components/evaluators/Evaluator
  */
 export const EvaluatorDatasetTestPanel = ({
   testSection = <EvaluatorOutputPreview />,
+  showInputPreview = true,
 }: {
   /** The test button and its results. Defaults to the LLM and built-in test. */
   testSection?: ReactNode;
-}) => (
-  <Flex direction="column" gap="size-200">
-    <View paddingX="size-200">
-      <Flex direction="column" gap="size-100">
-        {testSection}
-        <EvaluatorExampleDataset />
-      </Flex>
-    </View>
-    <EvaluatorInputPreview />
-  </Flex>
-);
+  /**
+   * Show the selected example's input below. Off where the preview has a
+   * panel of its own, as in the LLM dataset evaluator workspace.
+   */
+  showInputPreview?: boolean;
+}) =>
+  showInputPreview ? (
+    <Flex direction="column" gap="size-200">
+      <View paddingX="size-200">
+        <Flex direction="column" gap="size-100">
+          {testSection}
+          <EvaluatorExampleDataset />
+        </Flex>
+      </View>
+      <EvaluatorInputPreview />
+    </Flex>
+  ) : (
+    <Flex direction="column" gap="size-100">
+      {testSection}
+      <EvaluatorExampleDataset />
+    </Flex>
+  );

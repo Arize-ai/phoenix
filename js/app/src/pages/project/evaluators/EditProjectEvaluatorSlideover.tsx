@@ -34,12 +34,8 @@ import type { EditProjectEvaluatorSlideoverUpdateCodeMutation } from "@phoenix/p
 import type { EditProjectEvaluatorSlideoverUpdateLlmMutation } from "@phoenix/pages/project/evaluators/__generated__/EditProjectEvaluatorSlideoverUpdateLlmMutation.graphql";
 import { ProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectCodeEvaluatorDialogContent";
 import { EditProjectDecisionEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectDecisionEvaluatorDialogContent";
-import {
-  ProjectEvaluatorInputMappingDock,
-  ProjectLlmEvaluatorFormSections,
-} from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
+import { ProjectLlmEvaluatorWorkspace } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import { convertProjectEvaluatorOutputConfigs } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
-import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideover";
 import {
   isSameInputMapping,
@@ -47,6 +43,7 @@ import {
   toEvaluatorRecordKind,
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { PROJECT_LLM_EVALUATOR_WORKSPACE_LAYOUT } from "@phoenix/pages/project/evaluators/projectEvaluatorWorkspaceLayout";
 import { ProjectLlmEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectLlmEvaluatorDialogContent";
 import {
   useEvaluatorFormDirtyCheck,
@@ -99,7 +96,12 @@ export function EditProjectEvaluatorSlideover({
 } & Omit<ModalOverlayProps, "children">) {
   const title = getEditProjectEvaluatorTitle({ kind, name });
   return (
-    <ProjectEvaluatorSlideover {...props} title={title}>
+    <ProjectEvaluatorSlideover
+      {...props}
+      title={title}
+      // The LLM form is laid out as a workspace, which fills the viewport.
+      size={kind === "LLM" ? "viewport" : "fullscreen"}
+    >
       {(close, registerDirtyCheck) => (
         <EditProjectEvaluatorForm
           projectEvaluatorId={projectEvaluatorId}
@@ -564,27 +566,19 @@ function EditLlmProjectEvaluatorContent({
             mode="update"
             error={error}
             llmEvaluatorNodeId={evaluator.evaluator.id}
-            formLeftPanel={
-              <ProjectLlmEvaluatorFormSections
-                projectId={evaluator.project.id}
-                scope={scope}
-                onScopeChange={setScope}
-                onFilterValidityChange={setIsFilterValid}
-                isTargetDisabled
-              />
-            }
-            formLeftDock={
-              <ProjectEvaluatorInputMappingDock
-                recordKind={toEvaluatorRecordKind(scope.targetType)}
-                evaluatorKind="prompt"
-              />
-            }
-            formRightPanel={
-              <ProjectEvaluatorScopePanel
-                projectId={evaluator.project.id}
-                scope={scope}
-              />
-            }
+            workspace={{
+              layout: PROJECT_LLM_EVALUATOR_WORKSPACE_LAYOUT,
+              content: (
+                <ProjectLlmEvaluatorWorkspace
+                  projectId={evaluator.project.id}
+                  scope={scope}
+                  onScopeChange={setScope}
+                  onFilterValidityChange={setIsFilterValid}
+                  isFilterValid={isFilterValid}
+                  isTargetDisabled
+                />
+              ),
+            }}
           />
         );
       }}

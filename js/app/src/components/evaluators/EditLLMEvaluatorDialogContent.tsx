@@ -2,29 +2,20 @@ import { type ReactNode, useMemo, useRef, useState } from "react";
 
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
-import { EvaluatorDatasetTestPanel } from "@phoenix/components/evaluators/EvaluatorDatasetTestPanel";
 import { EvaluatorFormDialogContent } from "@phoenix/components/evaluators/EvaluatorFormDialogContent";
 import { LLMEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/LLMEvaluatorInputVariablesProvider";
-import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
 import { EvaluatorValidationBanner } from "@phoenix/components/evaluators/EvaluatorValidationBanner";
-import { LLMEvaluatorForm } from "@phoenix/components/evaluators/LLMEvaluatorForm";
 import { useLlmEvaluatorDraftRegistration } from "@phoenix/components/evaluators/useLlmEvaluatorDraftRegistration";
+import {
+  EvaluatorWorkspaceProvider,
+  EvaluatorWorkspaceResetButton,
+  useRevealInvalidWorkspaceField,
+} from "@phoenix/components/evaluators/workspace/EvaluatorWorkspace";
+import type { EvaluatorWorkspaceLayout } from "@phoenix/components/evaluators/workspace/evaluatorWorkspaceModel";
 import { EVALUATOR_VALIDATION_MESSAGE } from "@phoenix/constants";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 
-export const EditLLMEvaluatorDialogContent = ({
-  onSubmit,
-  isSubmitting,
-  isSubmitDisabled = false,
-  submitHint,
-  mode,
-  error,
-  llmEvaluatorNodeId,
-  title,
-  formLeftPanel,
-  formLeftDock,
-  formRightPanel,
-}: {
+type EditLLMEvaluatorDialogContentProps = {
   onClose: () => void;
   onSubmit: () => Promise<EvaluatorSubmitResult>;
   isSubmitting: boolean;
@@ -34,16 +25,32 @@ export const EditLLMEvaluatorDialogContent = ({
   error?: string;
   llmEvaluatorNodeId?: string | null;
   title?: string;
-  formLeftPanel?: ReactNode;
   /**
-   * Pinned to the bottom of the left panel, outside its scroll region.
+   * The form's panels, laid out as a workspace: `content` renders an
+   * {@link EvaluatorWorkspace} for `layout`.
    */
-  formLeftDock?: ReactNode;
-  /**
-   * Replaces the form's right (test) panel.
-   */
-  formRightPanel?: ReactNode;
-}) => {
+  workspace: { layout: EvaluatorWorkspaceLayout; content: ReactNode };
+};
+
+export const EditLLMEvaluatorDialogContent = (
+  props: EditLLMEvaluatorDialogContentProps
+) => (
+  <EvaluatorWorkspaceProvider layout={props.workspace.layout}>
+    <EditLLMEvaluatorDialogBody {...props} />
+  </EvaluatorWorkspaceProvider>
+);
+
+const EditLLMEvaluatorDialogBody = ({
+  onSubmit,
+  isSubmitting,
+  isSubmitDisabled = false,
+  submitHint,
+  mode,
+  error,
+  llmEvaluatorNodeId,
+  title,
+  workspace,
+}: EditLLMEvaluatorDialogContentProps) => {
   const store = useEvaluatorStoreInstance();
 
   useAdvertiseAgentContext(
@@ -57,10 +64,12 @@ export const EditLLMEvaluatorDialogContent = ({
   );
 
   const [showValidationError, setShowValidationError] = useState(false);
+  const revealInvalidField = useRevealInvalidWorkspaceField();
   const handleSubmit = async (): Promise<EvaluatorSubmitResult> => {
     const isValid = await store.getState().validateAll();
     if (!isValid) {
       setShowValidationError(true);
+      revealInvalidField();
       return {
         ok: false,
         error: EVALUATOR_VALIDATION_MESSAGE,
@@ -106,16 +115,8 @@ export const EditLLMEvaluatorDialogContent = ({
           {form}
         </LLMEvaluatorInputVariablesProvider>
       )}
-      left={
-        formLeftPanel ?? (
-          <>
-            <EvaluatorNameAndDescriptionFields />
-            <LLMEvaluatorForm />
-          </>
-        )
-      }
-      leftDock={formLeftDock}
-      right={formRightPanel ?? <EvaluatorDatasetTestPanel />}
+      workspace={workspace.content}
+      headerExtra={<EvaluatorWorkspaceResetButton />}
     />
   );
 };

@@ -8,6 +8,7 @@ import {
   DATASETS_TABLE_STORAGE_KEY,
   DISMISSED_UPDATE_VERSION_STORAGE_KEY,
   DRAWER_SIZE_STORAGE_KEY_PREFIX,
+  WORKSPACE_LAYOUT_STORAGE_KEY_PREFIX,
   EXPERIMENT_COMPARE_CHARTS_STORAGE_KEY,
   EXPERIMENTS_TABLE_STORAGE_KEY_PREFIX,
   FEATURE_FLAGS_STORAGE_KEY,
@@ -103,8 +104,13 @@ export const LOCAL_STORAGE_STORES: readonly LocalStorageStoreDefinition[] = [
   {
     id: "layout",
     label: "Layout",
-    description: "Resizable panel and drawer sizes.",
-    prefixes: [PANEL_LAYOUT_STORAGE_KEY_PREFIX, DRAWER_SIZE_STORAGE_KEY_PREFIX],
+    description:
+      "Resizable panel and drawer sizes, and how evaluator form panels are arranged.",
+    prefixes: [
+      PANEL_LAYOUT_STORAGE_KEY_PREFIX,
+      DRAWER_SIZE_STORAGE_KEY_PREFIX,
+      WORKSPACE_LAYOUT_STORAGE_KEY_PREFIX,
+    ],
   },
   {
     id: "tables",

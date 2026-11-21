@@ -33,11 +33,7 @@ import {
   AttachProjectDecisionEvaluatorDialogContent,
   CreateProjectDecisionEvaluatorDialogContent,
 } from "@phoenix/pages/project/evaluators/ProjectDecisionEvaluatorDialogContent";
-import {
-  ProjectEvaluatorInputMappingDock,
-  ProjectLlmEvaluatorFormSections,
-} from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
-import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
+import { ProjectLlmEvaluatorWorkspace } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideover";
 import {
   DEFAULT_EVALUATION_DELAY_SECONDS,
@@ -48,6 +44,7 @@ import {
   type ProjectEvaluatorScope,
   type ProjectEvaluatorTarget,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import { PROJECT_LLM_EVALUATOR_WORKSPACE_LAYOUT } from "@phoenix/pages/project/evaluators/projectEvaluatorWorkspaceLayout";
 import { ProjectLlmEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectLlmEvaluatorDialogContent";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
 import { useAttachProjectEvaluator } from "@phoenix/pages/project/evaluators/useAttachProjectEvaluator";
@@ -163,6 +160,20 @@ function getProjectEvaluatorCreationTitle(
   return `Attach code evaluator “${creationMode.name}”`;
 }
 
+/** The creation modes that build a new LLM evaluator. */
+function isLlmCreationMode(
+  creationMode: ProjectEvaluatorCreationMode
+): creationMode is Extract<
+  ProjectEvaluatorCreationMode,
+  { kind: "scratch" | "copyLlm" | "template" }
+> {
+  return (
+    creationMode.kind === "scratch" ||
+    creationMode.kind === "copyLlm" ||
+    creationMode.kind === "template"
+  );
+}
+
 export const CreateProjectEvaluatorSlideover = ({
   projectId,
   creationMode,
@@ -177,6 +188,8 @@ export const CreateProjectEvaluatorSlideover = ({
   <ProjectEvaluatorSlideover
     {...props}
     title={getProjectEvaluatorCreationTitle(creationMode)}
+    // The LLM form is laid out as a workspace, which fills the viewport.
+    size={isLlmCreationMode(creationMode) ? "viewport" : "fullscreen"}
   >
     {(close, registerDirtyCheck) => (
       <CreateProjectEvaluatorDialogForMode
@@ -194,11 +207,7 @@ function CreateProjectEvaluatorDialogForMode(
   props: Parameters<typeof CreateProjectEvaluatorDialog>[0]
 ) {
   const { creationMode } = props;
-  if (
-    creationMode.kind === "scratch" ||
-    creationMode.kind === "copyLlm" ||
-    creationMode.kind === "template"
-  ) {
+  if (isLlmCreationMode(creationMode)) {
     const defaultMessages =
       creationMode.kind === "scratch"
         ? getSpanEvaluatorDefaultMessages()
@@ -695,23 +704,18 @@ const ScratchLlmDialogContent = ({
       isSubmitting={isSubmitting}
       mode="create"
       error={error}
-      formLeftPanel={
-        <ProjectLlmEvaluatorFormSections
-          projectId={projectId}
-          scope={scope}
-          onScopeChange={onScopeChange}
-          onFilterValidityChange={onFilterValidityChange}
-        />
-      }
-      formLeftDock={
-        <ProjectEvaluatorInputMappingDock
-          recordKind={toEvaluatorRecordKind(scope.targetType)}
-          evaluatorKind="prompt"
-        />
-      }
-      formRightPanel={
-        <ProjectEvaluatorScopePanel projectId={projectId} scope={scope} />
-      }
+      workspace={{
+        layout: PROJECT_LLM_EVALUATOR_WORKSPACE_LAYOUT,
+        content: (
+          <ProjectLlmEvaluatorWorkspace
+            projectId={projectId}
+            scope={scope}
+            onScopeChange={onScopeChange}
+            onFilterValidityChange={onFilterValidityChange}
+            isFilterValid={isFilterValid}
+          />
+        ),
+      }}
     />
   );
 };
