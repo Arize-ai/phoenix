@@ -28,6 +28,7 @@ const cjsEntries = {
   projects: "../dist/src/projects/index.js",
   secrets: "../dist/src/secrets/index.js",
   users: "../dist/src/users/index.js",
+  models: "../dist/src/models/index.js",
 } as const;
 const esmEntries = {
   datasets: "../dist/esm/datasets/index.js",
@@ -38,6 +39,7 @@ const esmEntries = {
   projects: "../dist/esm/projects/index.js",
   secrets: "../dist/esm/secrets/index.js",
   users: "../dist/esm/users/index.js",
+  models: "../dist/esm/models/index.js",
 } as const;
 // The index entry transitively require()s @arizeai/phoenix-otel's dist via the
 // workspace symlink. Check every guarded entry and that dependency so a
