@@ -108,15 +108,8 @@ export const DatasetLLMEvaluatorWorkspace = () => {
           ) : null,
       }}
       panels={{
-        prompt: (
-          <LLMEvaluatorForm
-            showInputMapping={false}
-            showAnnotationConfig={false}
-          />
-        ),
-        annotation: (
-          <LLMEvaluatorForm showInputMapping={false} showPrompt={false} />
-        ),
+        prompt: <LLMEvaluatorForm showAnnotationConfig={false} />,
+        annotation: <LLMEvaluatorForm showPrompt={false} />,
         details: <EvaluatorNameAndDescriptionFields />,
         variables: (
           <Flex direction="column" gap="size-200">

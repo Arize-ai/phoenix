@@ -390,12 +390,30 @@ export function useRevealInvalidWorkspaceField(): () => void {
             workspace.expandTabset(tabset.id);
           }
           workspace.selectTab(tab.id);
-          window.requestAnimationFrame(() => field.focus());
+          focusOnceShown(field);
           return;
         }
       }
     });
   }, [workspaceRef, slots]);
+}
+
+/**
+ * The tab's content is shown some frames after it is selected, and a field
+ * that is not shown yet cannot take focus, so try again each frame until it
+ * is (for at most about half a second).
+ */
+function focusOnceShown(field: HTMLElement, framesLeft = 30) {
+  const box = field.getBoundingClientRect();
+  if (box.width > 0 && box.height > 0) {
+    field.focus();
+    if (document.activeElement === field) {
+      return;
+    }
+  }
+  if (framesLeft > 0) {
+    window.requestAnimationFrame(() => focusOnceShown(field, framesLeft - 1));
+  }
 }
 
 /** Every tabset, in reading order, then the floating ones. */
