@@ -67,7 +67,6 @@ jobs:
     timeout-minutes: 60
     permissions:
       contents: read
-      packages: write
       pull-requests: write
     env:
       GH_REPO: ${{ github.repository }}
@@ -100,7 +99,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          image="ghcr.io/$(echo "$GH_REPO" | tr '[:upper:]' '[:lower:]' | cut -d/ -f1)/phoenix"
+          image="arizephoenix/phoenix"
           echo "image=$image" >> "$GITHUB_OUTPUT"
           mkdir -p "$RUNNER_TEMP/preview-startup"
           cp base/factory/preview/{Dockerfile,launch.py,seed_log.py} "$RUNNER_TEMP/preview-startup/"
@@ -118,7 +117,7 @@ jobs:
           dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
           dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-      - name: Upload image and publish GHCR tags
+      - name: Upload image and publish Docker Hub tags
         uses: ./base/.github/actions/docker-publish-image
         with:
           variant: root
@@ -126,6 +125,8 @@ jobs:
             ${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }}
             ${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }}-${{ steps.plan.outputs.short-sha }}
           expected-digests: 1
+          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
       - name: Deploy to Railway
         env:
