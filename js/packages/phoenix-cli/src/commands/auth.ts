@@ -127,7 +127,7 @@ async function fetchViewer(config: PhoenixConfig): Promise<FetchViewerResult> {
  * credentials and accept the result only when the server explicitly reports
  * anonymous access.
  */
-async function fetchViewerForStatus(
+export async function fetchViewerForStatus(
   config: PhoenixConfig
 ): Promise<FetchViewerResult> {
   const viewerResult = await fetchViewer(config);
@@ -306,7 +306,7 @@ function formatAuthOutput(
   return lines.join("\n");
 }
 
-function exitCodeForResult(result: FetchViewerResult): ExitCode {
+export function exitCodeForResult(result: FetchViewerResult): ExitCode {
   switch (result.status) {
     case "success":
     // 404 means the server is an older version without /v1/user — the token
