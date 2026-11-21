@@ -55,7 +55,7 @@ ensure_fixture() {
 
 staged=0
 skipped=""
-for config in "$TASKS_DIR"/*/task.toml "$TASKS_DIR"/*/*/task.toml; do
+for config in "$TASKS_DIR"/*/task.toml "$TASKS_DIR"/*/*/task.toml "$TASKS_DIR"/*/*/*/task.toml; do
   [ -f "$config" ] || continue
   task=$(dirname "$config")
   fixture=$(sed -n 's/^fixture = "\(.*\)"$/\1/p' "$config")
@@ -70,6 +70,12 @@ for config in "$TASKS_DIR"/*/task.toml "$TASKS_DIR"/*/*/task.toml; do
   # Hard links keep a dozen copies of the wheel and the database from costing a dozen
   # times the disk; Docker and Daytona read them as ordinary files.
   rsync -a --delete --link-dest="$CONTEXT/" "$CONTEXT/" "$task/environment/"
+  # A fixture's workdir/ holds files the agent starts with, such as an app's source. The
+  # Dockerfile copies it to /app, so every task gets the directory, empty or not.
+  mkdir -p "$task/environment/workdir"
+  if [ -d "$ENVIRONMENTS/fixtures/$fixture/workdir" ]; then
+    rsync -a --delete --exclude __pycache__ "$ENVIRONMENTS/fixtures/$fixture/workdir/" "$task/environment/workdir/"
+  fi
   mkdir -p "$task/environment/data"
   ln -f "$FIXTURES/$fixture/phoenix.db" "$task/environment/data/phoenix.db" 2>/dev/null \
     || cp "$FIXTURES/$fixture/phoenix.db" "$task/environment/data/phoenix.db"

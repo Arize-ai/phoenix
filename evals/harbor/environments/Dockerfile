@@ -19,6 +19,8 @@ RUN npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" "@openai/c
 # Harbor runs the agent and the reference solution from the image's working directory.
 WORKDIR /app
 RUN chown agent:agent /app
+# The fixture's starting files, if any, owned by the agent so it can edit them.
+COPY --chown=agent:agent workdir/ /app/
 COPY wheels/ /wheels/
 RUN uv pip install --system --no-cache /wheels/*.whl
 COPY container_assets/ /opt/phoenix-eval/

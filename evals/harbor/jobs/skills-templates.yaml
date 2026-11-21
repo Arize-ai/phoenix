@@ -1,0 +1,11 @@
+# Check the skill task templates with no model calls. Run it with `-a oracle`, where every
+# template must score 1, and with `-a nop`, where every template must score 0:
+#   make harbor-run HARBOR_JOB=evals/harbor/jobs/skills-templates.yaml HARBOR_ARGS='-a oracle -e docker' HARBOR_PLUGIN=
+#   make harbor-run HARBOR_JOB=evals/harbor/jobs/skills-templates.yaml HARBOR_ARGS='-a nop -e docker' HARBOR_PLUGIN=
+datasets:
+  - path: evals/harbor/tasks/skills/_templates
+agents:
+  - name: oracle
+environment:
+  type: docker
+n_attempts: 1

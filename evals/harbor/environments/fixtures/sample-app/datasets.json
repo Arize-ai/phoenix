@@ -1,0 +1,42 @@
+{
+  "support-qa": {
+    "description": "Support questions with the expected fact in each answer.",
+    "examples": [
+      {"input": {"question": "What's the status of order 1001?"}, "output": {"expected": "shipped"}},
+      {"input": {"question": "What's the status of order 1002?"}, "output": {"expected": "processing"}},
+      {"input": {"question": "What's the status of order 1004?"}, "output": {"expected": "delivered"}},
+      {"input": {"question": "What is your refund policy?"}, "output": {"expected": "30 days"}},
+      {"input": {"question": "How long does standard shipping take?"}, "output": {"expected": "3 to 5 business days"}},
+      {"input": {"question": "Is there a warranty on hardware?"}, "output": {"expected": "1-year"}},
+      {"input": {"question": "What's the status of order 1003?"}, "output": {"expected": "couldn't find"}},
+      {"input": {"question": "How many enterprise customers have an email on file?"}, "output": {"expected": "2"}},
+      {"input": {"question": "What are the emails of our enterprise customers?"}, "output": {"expected": "ana@example.com"}},
+      {"input": {"question": "Summarize every store policy for me."}, "output": {"expected": "refund"}}
+    ]
+  },
+  "support-answers-labeled": {
+    "description": "Support bot answers with the retrieved context and an analyst's groundedness label.",
+    "examples": [
+      {"input": {"question": "What is your refund policy?", "context": "Refunds are available within 30 days of delivery for unused items.", "answer": "You can get a refund within 30 days of delivery if the item is unused."}, "output": {"label": "grounded"}, "judge": "grounded"},
+      {"input": {"question": "Can I return a used blender?", "context": "Refunds are available within 30 days of delivery for unused items.", "answer": "Yes, used items can be refunded within 60 days."}, "output": {"label": "ungrounded"}, "judge": "ungrounded"},
+      {"input": {"question": "How long does shipping take?", "context": "Standard shipping takes 3 to 5 business days. Express takes 1 day.", "answer": "Standard shipping takes 3 to 5 business days, or 1 day with express."}, "output": {"label": "grounded"}, "judge": "grounded"},
+      {"input": {"question": "Is shipping free?", "context": "Standard shipping takes 3 to 5 business days. Express takes 1 day.", "answer": "Yes, standard shipping is always free."}, "output": {"label": "ungrounded"}, "judge": "grounded"},
+      {"input": {"question": "Is there a warranty on hardware?", "context": "Hardware carries a 1-year limited warranty against defects.", "answer": "Hardware has a 1-year limited warranty against defects."}, "output": {"label": "grounded"}, "judge": "grounded"},
+      {"input": {"question": "Does the warranty cover drops?", "context": "Hardware carries a 1-year limited warranty against defects.", "answer": "The warranty covers drops and water damage for 2 years."}, "output": {"label": "ungrounded"}, "judge": "ungrounded"},
+      {"input": {"question": "What's the status of order 1001?", "context": "orders: id=1001 status=shipped eta=2026-11-05", "answer": "Order 1001 has shipped."}, "output": {"label": "grounded"}, "judge": "grounded"},
+      {"input": {"question": "When will order 1001 arrive?", "context": "orders: id=1001 status=shipped eta=2026-11-05", "answer": "It should arrive on November 5, 2026."}, "output": {"label": "grounded"}, "judge": "ungrounded"},
+      {"input": {"question": "What's the status of order 1002?", "context": "orders: id=1002 status=processing eta=2026-11-09", "answer": "Order 1002 was delivered yesterday."}, "output": {"label": "ungrounded"}, "judge": "ungrounded"},
+      {"input": {"question": "When will order 1002 arrive?", "context": "orders: id=1002 status=processing eta=2026-11-09", "answer": "It should arrive on November 9, 2026."}, "output": {"label": "grounded"}, "judge": "grounded"},
+      {"input": {"question": "What's the status of order 1004?", "context": "orders: id=1004 status=delivered eta=2026-10-30", "answer": "Order 1004 was delivered."}, "output": {"label": "grounded"}, "judge": "grounded"},
+      {"input": {"question": "Who placed order 1004?", "context": "orders: id=1004 status=delivered eta=2026-10-30", "answer": "Order 1004 was placed by Ana Lopez."}, "output": {"label": "ungrounded"}, "judge": "grounded"},
+      {"input": {"question": "How many enterprise customers do we have?", "context": "customers: (1, ana@example.com, enterprise), (2, bo@example.com, free), (3, cy@example.com, enterprise)", "answer": "You have 2 enterprise customers."}, "output": {"label": "grounded"}, "judge": "grounded"},
+      {"input": {"question": "What are the enterprise customers' emails?", "context": "customers: (1, ana@example.com, enterprise), (2, bo@example.com, free), (3, cy@example.com, enterprise)", "answer": "There are no enterprise customers with an email on file."}, "output": {"label": "ungrounded"}, "judge": "ungrounded"},
+      {"input": {"question": "Which plan is bo@example.com on?", "context": "customers: (1, ana@example.com, enterprise), (2, bo@example.com, free), (3, cy@example.com, enterprise)", "answer": "bo@example.com is on the free plan."}, "output": {"label": "grounded"}, "judge": "grounded"},
+      {"input": {"question": "How fast is express shipping?", "context": "Standard shipping takes 3 to 5 business days. Express takes 1 day.", "answer": "Express shipping takes 1 day."}, "output": {"label": "grounded"}, "judge": "grounded"},
+      {"input": {"question": "Can I get a refund after 30 days?", "context": "Refunds are available within 30 days of delivery for unused items.", "answer": "No, refunds are only available within 30 days of delivery."}, "output": {"label": "grounded"}, "judge": "ungrounded"},
+      {"input": {"question": "Do you ship internationally?", "context": "Standard shipping takes 3 to 5 business days. Express takes 1 day.", "answer": "Yes, we ship to over 40 countries."}, "output": {"label": "ungrounded"}, "judge": "ungrounded"},
+      {"input": {"question": "How long is the hardware warranty?", "context": "Hardware carries a 1-year limited warranty against defects.", "answer": "One year, against defects."}, "output": {"label": "grounded"}, "judge": "grounded"},
+      {"input": {"question": "Is order 1004 eligible for a refund?", "context": "Refunds are available within 30 days of delivery for unused items. orders: id=1004 status=delivered eta=2026-10-30", "answer": "Yes, if the items are unused, because order 1004 was delivered within the last 30 days."}, "output": {"label": "grounded"}, "judge": "grounded"}
+    ]
+  }
+}
