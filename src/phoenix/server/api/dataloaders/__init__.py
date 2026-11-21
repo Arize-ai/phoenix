@@ -10,6 +10,7 @@ from phoenix.server.types import DbSessionFactory
 
 from .agent_session_message_text import AgentSessionMessageTextDataLoader
 from .annotation_configs_by_project import AnnotationConfigsByProjectDataLoader
+from .annotation_score_metrics import AnnotationScoreMetricsCache, AnnotationScoreMetricsDataLoader
 from .annotation_summaries import AnnotationSummaryCache, AnnotationSummaryDataLoader
 from .average_experiment_repeated_run_group_latency import (
     AverageExperimentRepeatedRunGroupLatencyDataLoader,
@@ -17,6 +18,7 @@ from .average_experiment_repeated_run_group_latency import (
 from .average_experiment_run_latency import AverageExperimentRunLatencyDataLoader
 from .code_evaluator_version_count import CodeEvaluatorVersionCountDataLoader
 from .code_evaluator_version_sequence_number import CodeEvaluatorVersionSequenceNumberDataLoader
+from .custom_provider_models import CustomProviderModelsDataLoader
 from .dataset_dataset_splits import DatasetDatasetSplitsDataLoader
 from .dataset_evaluators import DatasetEvaluatorsDataLoader
 from .dataset_evaluators_by_evaluator import DatasetEvaluatorsByEvaluatorDataLoader
@@ -37,6 +39,11 @@ from .document_evaluation_summaries import (
 )
 from .document_evaluations import DocumentEvaluationsDataLoader
 from .document_retrieval_metrics import DocumentRetrievalMetricsDataLoader
+from .evaluation_queues import (
+    EvaluationQueueDataLoader,
+    EvaluationQueueProjectsDataLoader,
+    EvaluationQueueRatesDataLoader,
+)
 from .evaluator_by_id import EvaluatorByIdDataLoader
 from .experiment_annotation_label_fractions import ExperimentAnnotationLabelFractionsDataLoader
 from .experiment_annotation_summaries import ExperimentAnnotationSummaryDataLoader
@@ -60,12 +67,23 @@ from .last_used_times_by_generative_model_id import LastUsedTimesByGenerativeMod
 from .latency_ms_quantile import LatencyMsQuantileCache, LatencyMsQuantileDataLoader
 from .latest_code_evaluator_versions import LatestCodeEvaluatorVersionDataLoader
 from .latest_prompt_version_ids import LatestPromptVersionIdDataLoader
+from .llm_evaluator_selected_prompt_version_ids import (
+    LLMEvaluatorSelectedPromptVersionIdDataLoader,
+)
 from .min_start_or_max_end_times import MinStartOrMaxEndTimeCache, MinStartOrMaxEndTimeDataLoader
 from .num_child_spans import NumChildSpansDataLoader
 from .num_spans_per_trace import NumSpansPerTraceDataLoader
 from .project_by_name import ProjectByNameDataLoader
+from .project_evaluation_queues import ProjectEvaluationQueueDataLoader
+from .project_evaluator_by_id import ProjectEvaluatorByIdDataLoader
+from .project_evaluator_evaluation_loads import ProjectEvaluatorEvaluationLoadsDataLoader
+from .project_evaluator_lags import ProjectEvaluatorLagsDataLoader
+from .project_evaluator_latest_outcomes import ProjectEvaluatorLatestOutcomesDataLoader
+from .project_evaluator_queues import ProjectEvaluatorQueuesDataLoader
+from .project_evaluator_run_counts import ProjectEvaluatorRunCountsDataLoader
 from .project_has_traces import ProjectHasTracesDataLoader
 from .project_ids_by_trace_retention_policy_id import ProjectIdsByTraceRetentionPolicyIdDataLoader
+from .projects_by_evaluator import ProjectsByEvaluatorDataLoader
 from .prompt_label_usage_counts import PromptLabelUsageCountsDataLoader
 from .prompt_labels_by_prompt import PromptLabelsByPromptDataLoader
 from .prompt_version_counts import PromptVersionCountDataLoader
@@ -137,6 +155,9 @@ class CacheForDataLoaders:
     annotation_summary: AnnotationSummaryCache = field(
         default_factory=AnnotationSummaryCache,
     )
+    annotation_score_metrics: AnnotationScoreMetricsCache = field(
+        default_factory=AnnotationScoreMetricsCache,
+    )
     latency_ms_quantile: LatencyMsQuantileCache = field(
         default_factory=LatencyMsQuantileCache,
     )
@@ -160,6 +181,7 @@ class DataLoaders:
     agent_session_first_inputs: AgentSessionMessageTextDataLoader
     agent_session_latest_outputs: AgentSessionMessageTextDataLoader
     annotation_configs_by_project: AnnotationConfigsByProjectDataLoader
+    annotation_score_metrics: AnnotationScoreMetricsDataLoader
     annotation_summaries: AnnotationSummaryDataLoader
     average_experiment_repeated_run_group_latency: (
         AverageExperimentRepeatedRunGroupLatencyDataLoader
@@ -189,10 +211,18 @@ class DataLoaders:
     dataset_fields: TableFieldsDataLoader
     dataset_split_fields: TableFieldsDataLoader
     dataset_version_fields: TableFieldsDataLoader
+    decision_authors: "VersionAuthorsDataLoader[models.DecisionVersion]"
+    decision_fields: TableFieldsDataLoader
+    decision_label_fields: TableFieldsDataLoader
+    decision_version_fields: TableFieldsDataLoader
+    decision_version_tag_fields: TableFieldsDataLoader
     document_annotation_fields: TableFieldsDataLoader
     document_evaluation_summaries: DocumentEvaluationSummaryDataLoader
     document_evaluations: DocumentEvaluationsDataLoader
     document_retrieval_metrics: DocumentRetrievalMetricsDataLoader
+    evaluation_queue: EvaluationQueueDataLoader
+    evaluation_queue_projects: EvaluationQueueProjectsDataLoader
+    evaluation_queue_rates: EvaluationQueueRatesDataLoader
     evaluator_by_id: EvaluatorByIdDataLoader
     experiment_annotation_label_fractions: ExperimentAnnotationLabelFractionsDataLoader
     experiment_annotation_summaries: ExperimentAnnotationSummaryDataLoader
@@ -217,6 +247,7 @@ class DataLoaders:
     experiment_sequence_number: ExperimentSequenceNumberDataLoader
     generative_model_fields: TableFieldsDataLoader
     generative_model_custom_provider_fields: TableFieldsDataLoader
+    custom_provider_models: CustomProviderModelsDataLoader
     last_used_times_by_generative_model_id: LastUsedTimesByGenerativeModelIdDataLoader
     latency_ms_quantile: LatencyMsQuantileDataLoader
     min_start_or_max_end_times: MinStartOrMaxEndTimeDataLoader
@@ -226,7 +257,15 @@ class DataLoaders:
     project_by_name: ProjectByNameDataLoader
     project_has_traces: ProjectHasTracesDataLoader
     project_fields: TableFieldsDataLoader
+    project_evaluation_queue: ProjectEvaluationQueueDataLoader
+    project_evaluator_by_id: ProjectEvaluatorByIdDataLoader
+    project_evaluator_evaluation_loads: ProjectEvaluatorEvaluationLoadsDataLoader
+    project_evaluator_latest_outcomes: ProjectEvaluatorLatestOutcomesDataLoader
+    project_evaluator_queues: ProjectEvaluatorQueuesDataLoader
+    project_evaluator_lags: ProjectEvaluatorLagsDataLoader
+    project_evaluator_run_counts: ProjectEvaluatorRunCountsDataLoader
     project_trace_retention_policy_fields: TableFieldsDataLoader
+    projects_by_evaluator: ProjectsByEvaluatorDataLoader
     projects_by_trace_retention_policy_id: ProjectIdsByTraceRetentionPolicyIdDataLoader
     prompt_fields: TableFieldsDataLoader
     prompt_label_fields: TableFieldsDataLoader
@@ -240,6 +279,7 @@ class DataLoaders:
     prompt_authors: "VersionAuthorsDataLoader[models.PromptVersion]"
     latest_prompt_version_ids: LatestPromptVersionIdDataLoader
     latest_code_evaluator_versions: LatestCodeEvaluatorVersionDataLoader
+    llm_evaluator_selected_prompt_version_ids: LLMEvaluatorSelectedPromptVersionIdDataLoader
     project_session_annotation_fields: TableFieldsDataLoader
     project_session_fields: TableFieldsDataLoader
     record_counts: RecordCountDataLoader
@@ -309,11 +349,18 @@ def build_data_loaders(
     db: DbSessionFactory,
     cache_for_dataloaders: CacheForDataLoaders | None = None,
 ) -> DataLoaders:
+    project_evaluator_queues = ProjectEvaluatorQueuesDataLoader(db)
     return DataLoaders(
         agent_session_fields=TableFieldsDataLoader(db, models.AgentSession),
         agent_session_first_inputs=AgentSessionMessageTextDataLoader(db, "first_input"),
         agent_session_latest_outputs=AgentSessionMessageTextDataLoader(db, "latest_output"),
         annotation_configs_by_project=AnnotationConfigsByProjectDataLoader(db),
+        annotation_score_metrics=AnnotationScoreMetricsDataLoader(
+            db,
+            cache_map=(
+                cache_for_dataloaders.annotation_score_metrics if cache_for_dataloaders else None
+            ),
+        ),
         average_experiment_repeated_run_group_latency=AverageExperimentRepeatedRunGroupLatencyDataLoader(
             db
         ),
@@ -348,6 +395,16 @@ def build_data_loaders(
         ),
         dataset_label_fields=TableFieldsDataLoader(db, models.DatasetLabel),
         dataset_label_usage_counts=DatasetLabelUsageCountsDataLoader(db),
+        decision_authors=VersionAuthorsDataLoader(
+            db,
+            models.DecisionVersion,
+            models.DecisionVersion.decision_id,
+            resolve_created_by=False,
+        ),
+        decision_fields=TableFieldsDataLoader(db, models.Decision),
+        decision_label_fields=TableFieldsDataLoader(db, models.DecisionLabel),
+        decision_version_fields=TableFieldsDataLoader(db, models.DecisionVersion),
+        decision_version_tag_fields=TableFieldsDataLoader(db, models.DecisionVersionTag),
         document_evaluation_summaries=DocumentEvaluationSummaryDataLoader(
             db,
             cache_map=(
@@ -357,6 +414,9 @@ def build_data_loaders(
         document_annotation_fields=TableFieldsDataLoader(db, models.DocumentAnnotation),
         document_evaluations=DocumentEvaluationsDataLoader(db),
         document_retrieval_metrics=DocumentRetrievalMetricsDataLoader(db),
+        evaluation_queue=EvaluationQueueDataLoader(db),
+        evaluation_queue_projects=EvaluationQueueProjectsDataLoader(db, project_evaluator_queues),
+        evaluation_queue_rates=EvaluationQueueRatesDataLoader(db),
         evaluator_by_id=EvaluatorByIdDataLoader(db),
         experiment_annotation_label_fractions=ExperimentAnnotationLabelFractionsDataLoader(db),
         annotation_summaries=AnnotationSummaryDataLoader(
@@ -389,6 +449,7 @@ def build_data_loaders(
         generative_model_custom_provider_fields=TableFieldsDataLoader(
             db, models.GenerativeModelCustomProvider
         ),
+        custom_provider_models=CustomProviderModelsDataLoader(db),
         last_used_times_by_generative_model_id=LastUsedTimesByGenerativeModelIdDataLoader(db),
         latency_ms_quantile=LatencyMsQuantileDataLoader(
             db,
@@ -406,6 +467,14 @@ def build_data_loaders(
         num_child_spans=NumChildSpansDataLoader(db),
         num_spans_per_trace=NumSpansPerTraceDataLoader(db),
         project_fields=TableFieldsDataLoader(db, models.Project),
+        project_evaluation_queue=ProjectEvaluationQueueDataLoader(db, project_evaluator_queues),
+        project_evaluator_by_id=ProjectEvaluatorByIdDataLoader(db),
+        project_evaluator_evaluation_loads=ProjectEvaluatorEvaluationLoadsDataLoader(db),
+        project_evaluator_latest_outcomes=ProjectEvaluatorLatestOutcomesDataLoader(db),
+        project_evaluator_queues=project_evaluator_queues,
+        project_evaluator_lags=ProjectEvaluatorLagsDataLoader(db),
+        project_evaluator_run_counts=ProjectEvaluatorRunCountsDataLoader(db),
+        projects_by_evaluator=ProjectsByEvaluatorDataLoader(db),
         projects_by_trace_retention_policy_id=ProjectIdsByTraceRetentionPolicyIdDataLoader(db),
         prompt_fields=TableFieldsDataLoader(db, models.Prompt),
         prompt_label_fields=TableFieldsDataLoader(db, models.PromptLabel),
@@ -421,6 +490,7 @@ def build_data_loaders(
         ),
         latest_prompt_version_ids=LatestPromptVersionIdDataLoader(db),
         latest_code_evaluator_versions=LatestCodeEvaluatorVersionDataLoader(db),
+        llm_evaluator_selected_prompt_version_ids=LLMEvaluatorSelectedPromptVersionIdDataLoader(db),
         project_session_annotation_fields=TableFieldsDataLoader(
             db, models.ProjectSessionAnnotation
         ),

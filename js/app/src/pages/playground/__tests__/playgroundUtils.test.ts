@@ -1,3 +1,14 @@
+import {
+  getChatRole,
+  getToolDefinitionDisplay,
+  getToolName,
+  inferOpenAIApiTypeFromTools,
+  promptToolFromGraphQL,
+  toolToPromptToolInput,
+  extractVariablesFromInstances,
+  getVariablesMapFromInstances,
+} from "@phoenix/components/playground/playgroundInstanceUtils";
+import { getDefaultInvocationConfig } from "@phoenix/components/playground/providerAdapters";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
 import type { LlmProviderToolCall } from "@phoenix/schemas/toolCallSchemas";
@@ -19,10 +30,8 @@ import {
 import {
   extractRootVariable,
   extractRootVariables,
-  extractVariablesFromInstances,
   getAzureConfigFromAttributes,
   getBaseModelConfigFromAttributes,
-  getChatRole,
   getModelInvocationParametersFromAttributes,
   getModelProviderFromModelName,
   getOutputFromAttributes,
@@ -31,20 +40,13 @@ import {
   getToolsFromAttributes,
   getResponseFormatFromAttributes,
   getToolChoiceFromAttributes,
-  getToolDefinitionDisplay,
-  getToolName,
-  getVariablesMapFromInstances,
   inferOpenAIApiTypeFromRawToolDefinitions,
-  inferOpenAIApiTypeFromTools,
   isOpenAIResponsesSpan,
   processAttributeToolCalls,
-  promptToolFromGraphQL,
   toCanonicalToolDefinition,
   toolFromEditorJSON,
-  toolToPromptToolInput,
   transformSpanAttributesToPlaygroundInstance,
 } from "../playgroundUtils";
-import { getDefaultInvocationConfig } from "../providerAdapters";
 import type { PlaygroundSpan } from "../spanPlaygroundPageLoader";
 import type { SpanTool, SpanToolCall } from "./fixtures";
 import {
@@ -63,6 +65,7 @@ import {
 const baseTestPlaygroundInstance: PlaygroundInstance = {
   id: 0,
   activeRunId: null,
+  task: { type: "prompt" },
   model: {
     provider: "OPENAI",
     modelName: "gpt-3.5-turbo",
@@ -90,6 +93,7 @@ const baseTestPlaygroundInstance: PlaygroundInstance = {
 const expectedPlaygroundInstanceWithIO: PlaygroundInstance = {
   id: 0,
   activeRunId: null,
+  task: { type: "prompt" },
   model: {
     provider: "OPENAI",
     modelName: "gpt-3.5-turbo",
@@ -764,6 +768,15 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
     });
   });
 
+  it("should not infer a decision-only provider for a chat span with an unknown provider", () => {
+    const { modelConfig, parsingErrors } = getBaseModelConfigFromAttributes({
+      llm: { model_name: "jev-latest", provider: "unknown" },
+    });
+    expect(parsingErrors).toEqual([]);
+    expect(modelConfig?.provider).toEqual(DEFAULT_MODEL_PROVIDER);
+    expect(modelConfig?.modelName).toEqual("jev-latest");
+  });
+
   it("should return invocation parameters parsing errors if they are malformed", () => {
     const parsedAttributes = {
       llm: {
@@ -907,7 +920,7 @@ describe("processAttributeToolCalls", () => {
   ];
 
   type ProviderToolCallTestMap = {
-    [P in ModelProvider]: ProviderToolCallTuple<P>;
+    [P in Exclude<ModelProvider, "TYPESAFE">]: ProviderToolCallTuple<P>;
   };
 
   const ProviderToToolCallTestMap: ProviderToolCallTestMap = {
@@ -1305,6 +1318,7 @@ describe("getVariablesMapFromInstances", () => {
   const baseTestPlaygroundInstance: PlaygroundInstance = {
     id: 0,
     activeRunId: null,
+    task: { type: "prompt" },
     model: {
       provider: "OPENAI",
       modelName: "gpt-3.5-turbo",
@@ -1508,7 +1522,7 @@ type ProviderToolTestTuple<T extends ModelProvider> = [
 ];
 
 type ProviderToolTestMap = {
-  [P in ModelProvider]: ProviderToolTestTuple<P>;
+  [P in Exclude<ModelProvider, "TYPESAFE">]: ProviderToolTestTuple<P>;
 };
 
 describe("getToolsFromAttributes", () => {

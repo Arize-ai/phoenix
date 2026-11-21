@@ -1,14 +1,7 @@
 import { css } from "@emotion/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { JSONSchema7 } from "json-schema";
-import {
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useMemo,
-  useReducer,
-  useRef,
-} from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import type { Control, UseFormGetValues, UseFormReset } from "react-hook-form";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
@@ -17,6 +10,7 @@ import invariant from "tiny-invariant";
 import {
   Alert,
   Button,
+  DialogFooter,
   FieldError,
   Flex,
   Form,
@@ -33,7 +27,6 @@ import {
   Text,
   TextArea,
   TextField,
-  View,
 } from "@phoenix/components";
 import { CodeEditorFieldWrapper } from "@phoenix/components/code";
 import { JSONEditor } from "@phoenix/components/code/JSONEditor";
@@ -45,7 +38,7 @@ import {
   DEFAULT_AWS_AUTH_METHOD,
   DEFAULT_AZURE_AUTH_METHOD,
   type GenerativeModelSDK,
-  SDK_DEFAULT_PROVIDER,
+  SDK_LABELS,
   SDK_OPTIONS,
 } from "@phoenix/constants/generativeConstants";
 import { httpHeadersJSONSchema } from "@phoenix/schemas/httpHeadersSchema";
@@ -54,8 +47,13 @@ import type { CustomProviderFormTestCredentialsMutation } from "./__generated__/
 import { providerFormSchema } from "./customProviderFormSchema";
 import {
   buildClientConfig,
+  buildFormDataForSDKChange,
+  buildProviderModels,
   createDefaultFormData,
 } from "./customProviderFormUtils";
+import { DecisionModelsSection } from "./DecisionModelsSection";
+import { sdkCanServeDecisions } from "./decisionSdks";
+import { OptionalFields, ProviderFormSection } from "./ProviderFormSection";
 
 /**
  * Base form data shared across all provider types.
@@ -84,9 +82,31 @@ const OPENAI_API_TYPE_OPTIONS: { id: OpenAIApiTypeForm; label: string }[] = [
 ];
 
 /**
+ * Decision model settings, shared by the SDKs that can serve decision models.
+ */
+export interface DecisionModelsFormData {
+  /** Whether the provider serves decision models. Always true for TypeSafe. */
+  decision_enabled: boolean;
+  /** Decision model names, comma or newline separated. */
+  decision_model_names?: string;
+}
+
+/**
+ * Chat model names, shared by the SDKs that serve chat models.
+ */
+export interface ChatModelsFormData {
+  /**
+   * Comma or newline separated. Replaces the SDK's built-in list in the model
+   * menu; empty lists the built-in models.
+   */
+  model_names?: string;
+}
+
+/**
  * OpenAI SDK configuration.
  */
-export interface OpenAIFormData extends BaseProviderFormData {
+export interface OpenAIFormData
+  extends BaseProviderFormData, ChatModelsFormData, DecisionModelsFormData {
   sdk: "OPENAI";
   openai_api_type: OpenAIApiTypeForm;
   openai_api_key: string;
@@ -100,7 +120,8 @@ export interface OpenAIFormData extends BaseProviderFormData {
  * Azure OpenAI SDK configuration.
  * Supports both API key and Azure AD token provider authentication.
  */
-export interface AzureOpenAIFormData extends BaseProviderFormData {
+export interface AzureOpenAIFormData
+  extends BaseProviderFormData, ChatModelsFormData, DecisionModelsFormData {
   sdk: "AZURE_OPENAI";
   openai_api_type: OpenAIApiTypeForm;
   azure_endpoint: string;
@@ -118,7 +139,8 @@ export interface AzureOpenAIFormData extends BaseProviderFormData {
 /**
  * Anthropic SDK configuration.
  */
-export interface AnthropicFormData extends BaseProviderFormData {
+export interface AnthropicFormData
+  extends BaseProviderFormData, ChatModelsFormData {
   sdk: "ANTHROPIC";
   anthropic_api_key: string;
   anthropic_base_url?: string;
@@ -129,7 +151,8 @@ export interface AnthropicFormData extends BaseProviderFormData {
  * AWS Bedrock SDK configuration.
  * Supports both explicit access keys and environment credentials (IAM role).
  */
-export interface AWSBedrockFormData extends BaseProviderFormData {
+export interface AWSBedrockFormData
+  extends BaseProviderFormData, ChatModelsFormData {
   sdk: "AWS_BEDROCK";
   aws_region: string;
   aws_auth_method: AWSAuthMethod;
@@ -143,11 +166,23 @@ export interface AWSBedrockFormData extends BaseProviderFormData {
 /**
  * Google GenAI SDK configuration.
  */
-export interface GoogleGenAIFormData extends BaseProviderFormData {
+export interface GoogleGenAIFormData
+  extends BaseProviderFormData, ChatModelsFormData, DecisionModelsFormData {
   sdk: "GOOGLE_GENAI";
   google_api_key: string;
   google_base_url?: string;
   google_headers?: JSONString;
+}
+
+/**
+ * TypeSafe SDK configuration.
+ */
+export interface TypeSafeFormData
+  extends BaseProviderFormData, DecisionModelsFormData {
+  sdk: "TYPESAFE";
+  typesafe_api_key: string;
+  typesafe_base_url?: string;
+  typesafe_default_headers?: JSONString;
 }
 
 /**
@@ -159,7 +194,8 @@ export type ProviderFormData =
   | AzureOpenAIFormData
   | AnthropicFormData
   | AWSBedrockFormData
-  | GoogleGenAIFormData;
+  | GoogleGenAIFormData
+  | TypeSafeFormData;
 
 export interface ProviderFormProps {
   onSubmit: (data: ProviderFormData) => void;
@@ -174,6 +210,37 @@ const flexFieldCSS = css`
   flex: 1 1 auto;
 `;
 
+// The sections scroll between the dialog's header and its pinned footer.
+const formCSS = css`
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+`;
+
+const formBodyCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-300);
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--global-dimension-size-200);
+`;
+
+const providerIdentityFieldsCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-100);
+`;
+
+const OPENAI_OPTIONAL_FIELDS = [
+  "openai_organization",
+  "openai_project",
+  "openai_default_headers",
+] as const;
+
 // Provider-specific field sections
 function OpenAIFields({
   control,
@@ -183,7 +250,7 @@ function OpenAIFields({
   isSubmitting: boolean;
 }) {
   return (
-    <ProviderSection title="OpenAI Configuration">
+    <>
       <Controller
         name="openai_api_type"
         control={control}
@@ -198,7 +265,7 @@ function OpenAIFields({
             }}
             isDisabled={isSubmitting}
           >
-            <Label>API Type</Label>
+            <Label>Chat API Type</Label>
             <Button>
               <SelectValue />
               <SelectChevronUpDownIcon />
@@ -253,64 +320,70 @@ function OpenAIFields({
           </TextField>
         )}
       />
-      <Flex direction="row" gap="size-100">
-        <Controller
-          name="openai_organization"
-          control={control}
-          render={({ field, fieldState: { invalid, error } }) => (
-            <TextField
-              isInvalid={invalid}
-              {...field}
-              isDisabled={isSubmitting}
-              css={flexFieldCSS}
-            >
-              <Label>Organization</Label>
-              <Input />
-              {error && <FieldError>{error.message}</FieldError>}
-            </TextField>
-          )}
-        />
-        <Controller
-          name="openai_project"
-          control={control}
-          render={({ field, fieldState: { invalid, error } }) => (
-            <TextField
-              isInvalid={invalid}
-              {...field}
-              isDisabled={isSubmitting}
-              css={flexFieldCSS}
-            >
-              <Label>Project</Label>
-              <Input />
-              {error && <FieldError>{error.message}</FieldError>}
-            </TextField>
-          )}
-        />
-      </Flex>
-      <Controller
-        name="openai_default_headers"
+      <OptionalFields
+        title="Organization, project and default headers"
         control={control}
-        render={({ field: { value, onChange }, fieldState: { error } }) => (
-          <CodeEditorFieldWrapper
-            label="Default Headers (JSON)"
-            errorMessage={error?.message}
-            description={
-              !error?.message
-                ? "Default HTTP headers sent with each request"
-                : undefined
-            }
-          >
-            <JSONEditor
-              value={typeof value === "string" ? value : ""}
-              onChange={onChange}
-              jsonSchema={httpHeadersJSONSchema as JSONSchema7}
-              placeholder='{"X-Custom-Header": "value"}'
-              optionalLint
-            />
-          </CodeEditorFieldWrapper>
-        )}
-      />
-    </ProviderSection>
+        fields={OPENAI_OPTIONAL_FIELDS}
+      >
+        <Flex direction="row" gap="size-100">
+          <Controller
+            name="openai_organization"
+            control={control}
+            render={({ field, fieldState: { invalid, error } }) => (
+              <TextField
+                isInvalid={invalid}
+                {...field}
+                isDisabled={isSubmitting}
+                css={flexFieldCSS}
+              >
+                <Label>Organization</Label>
+                <Input />
+                {error && <FieldError>{error.message}</FieldError>}
+              </TextField>
+            )}
+          />
+          <Controller
+            name="openai_project"
+            control={control}
+            render={({ field, fieldState: { invalid, error } }) => (
+              <TextField
+                isInvalid={invalid}
+                {...field}
+                isDisabled={isSubmitting}
+                css={flexFieldCSS}
+              >
+                <Label>Project</Label>
+                <Input />
+                {error && <FieldError>{error.message}</FieldError>}
+              </TextField>
+            )}
+          />
+        </Flex>
+        <Controller
+          name="openai_default_headers"
+          control={control}
+          render={({ field: { value, onChange }, fieldState: { error } }) => (
+            <CodeEditorFieldWrapper
+              label="Default Headers (JSON)"
+              errorMessage={error?.message}
+              description={
+                !error?.message
+                  ? "Default HTTP headers sent with each request"
+                  : undefined
+              }
+            >
+              <JSONEditor
+                value={typeof value === "string" ? value : ""}
+                onChange={onChange}
+                jsonSchema={httpHeadersJSONSchema as JSONSchema7}
+                placeholder='{"X-Custom-Header": "value"}'
+                optionalLint
+              />
+            </CodeEditorFieldWrapper>
+          )}
+        />
+      </OptionalFields>
+    </>
   );
 }
 
@@ -325,7 +398,7 @@ function AzureOpenAIFields({
     useWatch({ control, name: "azure_auth_method" }) || "api_key";
 
   return (
-    <ProviderSection title="Azure OpenAI Configuration">
+    <>
       <Controller
         name="openai_api_type"
         control={control}
@@ -340,7 +413,7 @@ function AzureOpenAIFields({
             }}
             isDisabled={isSubmitting}
           >
-            <Label>API Type</Label>
+            <Label>Chat API Type</Label>
             <Button>
               <SelectValue />
               <SelectChevronUpDownIcon />
@@ -515,30 +588,36 @@ function AzureOpenAIFields({
           />
         </>
       )}
-      <Controller
-        name="azure_default_headers"
+      <OptionalFields
+        title="Default headers"
         control={control}
-        render={({ field: { value, onChange }, fieldState: { error } }) => (
-          <CodeEditorFieldWrapper
-            label="Default Headers (JSON)"
-            errorMessage={error?.message}
-            description={
-              !error?.message
-                ? "Default HTTP headers sent with each request"
-                : undefined
-            }
-          >
-            <JSONEditor
-              value={typeof value === "string" ? value : ""}
-              onChange={onChange}
-              jsonSchema={httpHeadersJSONSchema as JSONSchema7}
-              placeholder='{"X-Custom-Header": "value"}'
-              optionalLint
-            />
-          </CodeEditorFieldWrapper>
-        )}
-      />
-    </ProviderSection>
+        fields={["azure_default_headers"]}
+      >
+        <Controller
+          name="azure_default_headers"
+          control={control}
+          render={({ field: { value, onChange }, fieldState: { error } }) => (
+            <CodeEditorFieldWrapper
+              label="Default Headers (JSON)"
+              errorMessage={error?.message}
+              description={
+                !error?.message
+                  ? "Default HTTP headers sent with each request"
+                  : undefined
+              }
+            >
+              <JSONEditor
+                value={typeof value === "string" ? value : ""}
+                onChange={onChange}
+                jsonSchema={httpHeadersJSONSchema as JSONSchema7}
+                placeholder='{"X-Custom-Header": "value"}'
+                optionalLint
+              />
+            </CodeEditorFieldWrapper>
+          )}
+        />
+      </OptionalFields>
+    </>
   );
 }
 
@@ -550,7 +629,7 @@ function AnthropicFields({
   isSubmitting: boolean;
 }) {
   return (
-    <ProviderSection title="Anthropic Configuration">
+    <>
       <Controller
         name="anthropic_api_key"
         control={control}
@@ -583,30 +662,36 @@ function AnthropicFields({
           </TextField>
         )}
       />
-      <Controller
-        name="anthropic_default_headers"
+      <OptionalFields
+        title="Default headers"
         control={control}
-        render={({ field: { value, onChange }, fieldState: { error } }) => (
-          <CodeEditorFieldWrapper
-            label="Default Headers (JSON)"
-            errorMessage={error?.message}
-            description={
-              !error?.message
-                ? "Default HTTP headers sent with each request"
-                : undefined
-            }
-          >
-            <JSONEditor
-              value={typeof value === "string" ? value : ""}
-              onChange={onChange}
-              jsonSchema={httpHeadersJSONSchema as JSONSchema7}
-              placeholder='{"X-Custom-Header": "value"}'
-              optionalLint
-            />
-          </CodeEditorFieldWrapper>
-        )}
-      />
-    </ProviderSection>
+        fields={["anthropic_default_headers"]}
+      >
+        <Controller
+          name="anthropic_default_headers"
+          control={control}
+          render={({ field: { value, onChange }, fieldState: { error } }) => (
+            <CodeEditorFieldWrapper
+              label="Default Headers (JSON)"
+              errorMessage={error?.message}
+              description={
+                !error?.message
+                  ? "Default HTTP headers sent with each request"
+                  : undefined
+              }
+            >
+              <JSONEditor
+                value={typeof value === "string" ? value : ""}
+                onChange={onChange}
+                jsonSchema={httpHeadersJSONSchema as JSONSchema7}
+                placeholder='{"X-Custom-Header": "value"}'
+                optionalLint
+              />
+            </CodeEditorFieldWrapper>
+          )}
+        />
+      </OptionalFields>
+    </>
   );
 }
 
@@ -621,7 +706,7 @@ function AWSFields({
     useWatch({ control, name: "aws_auth_method" }) || DEFAULT_AWS_AUTH_METHOD;
 
   return (
-    <ProviderSection title="AWS Bedrock Configuration">
+    <>
       <Controller
         name="aws_region"
         control={control}
@@ -757,7 +842,7 @@ function AWSFields({
           </TextField>
         )}
       />
-    </ProviderSection>
+    </>
   );
 }
 
@@ -769,7 +854,7 @@ function GoogleFields({
   isSubmitting: boolean;
 }) {
   return (
-    <ProviderSection title="Google GenAI Configuration">
+    <>
       <Controller
         name="google_api_key"
         control={control}
@@ -808,53 +893,145 @@ function GoogleFields({
           </TextField>
         )}
       />
-      <Controller
-        name="google_headers"
+      <OptionalFields
+        title="Headers"
         control={control}
-        render={({ field: { value, onChange }, fieldState: { error } }) => (
-          <CodeEditorFieldWrapper
-            label="Default Headers (JSON)"
-            errorMessage={error?.message}
-            description={
-              !error?.message
-                ? "Default HTTP headers sent with each request"
-                : undefined
-            }
-          >
-            <JSONEditor
-              value={typeof value === "string" ? value : ""}
-              onChange={onChange}
-              jsonSchema={httpHeadersJSONSchema as JSONSchema7}
-              placeholder='{"X-Custom-Header": "value"}'
-              optionalLint
-            />
-          </CodeEditorFieldWrapper>
-        )}
-      />
-    </ProviderSection>
+        fields={["google_headers"]}
+      >
+        <Controller
+          name="google_headers"
+          control={control}
+          render={({ field: { value, onChange }, fieldState: { error } }) => (
+            <CodeEditorFieldWrapper
+              label="Default Headers (JSON)"
+              errorMessage={error?.message}
+              description={
+                !error?.message
+                  ? "Default HTTP headers sent with each request"
+                  : undefined
+              }
+            >
+              <JSONEditor
+                value={typeof value === "string" ? value : ""}
+                onChange={onChange}
+                jsonSchema={httpHeadersJSONSchema as JSONSchema7}
+                placeholder='{"X-Custom-Header": "value"}'
+                optionalLint
+              />
+            </CodeEditorFieldWrapper>
+          )}
+        />
+      </OptionalFields>
+    </>
   );
 }
 
-// Wrapper for SDK-specific sections
-function ProviderSection({
-  title,
-  children,
+function TypeSafeFields({
+  control,
+  isSubmitting,
 }: {
-  title: string;
-  children: ReactNode;
+  control: Control<ProviderFormData>;
+  isSubmitting: boolean;
 }) {
   return (
-    <View
-      borderColor="gray-200"
-      borderWidth="thin"
-      borderRadius="medium"
-      padding="size-200"
+    <>
+      <Controller
+        name="typesafe_api_key"
+        control={control}
+        rules={{ required: "API Key is required" }}
+        render={({
+          field: { name, value, onChange, onBlur },
+          fieldState: { error },
+        }) => (
+          <RedactedCredentialField
+            label="API Key"
+            isRequired
+            isDisabled={isSubmitting}
+            name={name}
+            value={value}
+            onChange={onChange}
+            onBlur={onBlur}
+            errorMessage={error?.message}
+          />
+        )}
+      />
+      <Controller
+        name="typesafe_base_url"
+        control={control}
+        render={({ field, fieldState: { invalid, error } }) => (
+          <TextField isInvalid={invalid} {...field} isDisabled={isSubmitting}>
+            <Label>Base URL</Label>
+            <Input placeholder="https://api.typesafe.ai" />
+            {error && <FieldError>{error.message}</FieldError>}
+          </TextField>
+        )}
+      />
+      <OptionalFields
+        title="Default headers"
+        control={control}
+        fields={["typesafe_default_headers"]}
+      >
+        <Controller
+          name="typesafe_default_headers"
+          control={control}
+          render={({ field: { value, onChange }, fieldState: { error } }) => (
+            <CodeEditorFieldWrapper
+              label="Default Headers (JSON)"
+              errorMessage={error?.message}
+              description={
+                !error?.message
+                  ? "Default HTTP headers sent with each request"
+                  : undefined
+              }
+            >
+              <JSONEditor
+                value={typeof value === "string" ? value : ""}
+                onChange={onChange}
+                jsonSchema={httpHeadersJSONSchema as JSONSchema7}
+                placeholder='{"X-Custom-Header": "value"}'
+                optionalLint
+              />
+            </CodeEditorFieldWrapper>
+          )}
+        />
+      </OptionalFields>
+    </>
+  );
+}
+
+function ChatModelsSection({
+  sdk,
+  control,
+  isSubmitting,
+}: {
+  sdk: GenerativeModelSDK;
+  control: Control<ProviderFormData>;
+  isSubmitting: boolean;
+}) {
+  return (
+    <ProviderFormSection
+      title="Chat models"
+      subtitle={`Replaces the built-in ${SDK_LABELS[sdk]} list when set`}
     >
-      <Flex direction="column" gap="size-100">
-        <Text weight="heavy">{title}</Text>
-        {children}
-      </Flex>
-    </View>
+      <Controller
+        name="model_names"
+        control={control}
+        render={({ field }) => (
+          <TextField
+            {...field}
+            value={field.value ?? ""}
+            isDisabled={isSubmitting}
+          >
+            <Label>Model names</Label>
+            <Input placeholder="qwen3-coder, llama-5-70b" />
+            <Text slot="description">
+              Optional, comma separated. Leave empty to list the built-in
+              models. Any model the endpoint accepts can be used.
+            </Text>
+          </TextField>
+        )}
+      />
+    </ProviderFormSection>
   );
 }
 
@@ -881,6 +1058,8 @@ function SDKFieldsRenderer({
       return <AWSFields control={control} isSubmitting={isSubmitting} />;
     case "GOOGLE_GENAI":
       return <GoogleFields control={control} isSubmitting={isSubmitting} />;
+    case "TYPESAFE":
+      return <TypeSafeFields control={control} isSubmitting={isSubmitting} />;
     default: {
       // Exhaustive type check - TypeScript will error if a new SDK is added
       // without updating this switch statement
@@ -892,7 +1071,8 @@ function SDKFieldsRenderer({
 }
 
 /**
- * SDK selector that resets SDK-specific fields when SDK changes.
+ * SDK selector. Changing the SDK resets connection fields and keeps
+ * served-model fields the new SDK still serves.
  */
 function SDKSelect({
   control,
@@ -906,25 +1086,14 @@ function SDKSelect({
   isSubmitting: boolean;
 }) {
   const handleSDKChange = useCallback(
-    (oldSDK: GenerativeModelSDK, newSDK: GenerativeModelSDK) => {
-      // Reset SDK-specific fields while preserving shared fields
-      const currentValues = getValues();
-      const newDefaults = createDefaultFormData(newSDK);
-
-      // Only update provider if it matches the old SDK's default
-      // (i.e., user hasn't customized it)
-      const currentProviderIsDefault =
-        currentValues.provider === SDK_DEFAULT_PROVIDER[oldSDK];
-      const newProvider = currentProviderIsDefault
-        ? SDK_DEFAULT_PROVIDER[newSDK]
-        : currentValues.provider;
-
-      reset({
-        ...newDefaults,
-        name: currentValues.name || "",
-        description: currentValues.description || "",
-        provider: newProvider,
-      });
+    (newSDK: GenerativeModelSDK) => {
+      reset(
+        buildFormDataForSDKChange({
+          currentValues: getValues(),
+          newSDK,
+        }),
+        { keepDefaultValues: true }
+      );
     },
     [reset, getValues]
   );
@@ -939,12 +1108,10 @@ function SDKSelect({
           value={field.value}
           onChange={(key) => {
             if (key != null) {
-              const oldSDK = field.value;
-              const newSDK = key as GenerativeModelSDK;
               // Note: We don't call field.onChange here because handleSDKChange
               // calls reset() which sets all form values including the SDK field.
               // Calling both would be redundant and could cause race conditions.
-              handleSDKChange(oldSDK, newSDK);
+              handleSDKChange(key as GenerativeModelSDK);
             }
           }}
           isDisabled={isSubmitting}
@@ -1000,100 +1167,118 @@ export const ProviderForm = ({
   invariant(sdk, "SDK field must be defined in form state");
 
   return (
-    <Form onSubmit={handleSubmit(onSubmit)}>
-      <Flex direction="column" gap="size-100">
-        <Controller
-          name="name"
-          control={control}
-          rules={{ required: "Name is required" }}
-          render={({ field, fieldState: { invalid, error } }) => (
-            <TextField
-              isRequired
-              isInvalid={invalid}
-              {...field}
-              isDisabled={isSubmitting}
-            >
-              <Label>Provider Name</Label>
-              <Input placeholder="My Custom Provider" />
-              {error ? (
-                <FieldError>{error.message}</FieldError>
-              ) : (
-                <Text slot="description">
-                  A unique name to identify this provider configuration
-                </Text>
-              )}
-            </TextField>
-          )}
-        />
-
-        <Controller
-          name="description"
-          control={control}
-          render={({ field }) => (
-            <TextField {...field} isDisabled={isSubmitting}>
-              <Label>Description</Label>
-              <TextArea placeholder="Optional description for this provider" />
-            </TextField>
-          )}
-        />
-
-        <Flex direction="row" gap="size-100" alignItems="start">
-          <SDKSelect
-            control={control}
-            reset={reset}
-            getValues={getValues}
-            isSubmitting={isSubmitting}
-          />
+    <Form
+      onSubmit={handleSubmit(onSubmit)}
+      css={formCSS}
+      // The schema validates. A stored key shows as a masked placeholder over an
+      // empty input, which the browser's own required check would reject, so
+      // edits couldn't be saved without retyping the key.
+      validationBehavior="aria"
+    >
+      <div css={formBodyCSS}>
+        <div css={providerIdentityFieldsCSS}>
           <Controller
-            name="provider"
+            name="name"
             control={control}
-            rules={{ required: "Provider is required" }}
+            rules={{ required: "Name is required" }}
             render={({ field, fieldState: { invalid, error } }) => (
               <TextField
                 isRequired
                 isInvalid={invalid}
                 {...field}
                 isDisabled={isSubmitting}
-                css={flexFieldCSS}
               >
-                <Label>Provider String</Label>
-                <Input placeholder="e.g., openai, azure, my-custom-provider" />
-                {error && <FieldError>{error.message}</FieldError>}
+                <Label>Provider Name</Label>
+                <Input placeholder="My Custom Provider" />
+                {error ? (
+                  <FieldError>{error.message}</FieldError>
+                ) : (
+                  <Text slot="description">
+                    A unique name to identify this provider configuration
+                  </Text>
+                )}
               </TextField>
             )}
           />
-        </Flex>
 
-        <SDKFieldsRenderer
+          <Controller
+            name="description"
+            control={control}
+            render={({ field }) => (
+              <TextField {...field} isDisabled={isSubmitting}>
+                <Label>Description</Label>
+                <TextArea placeholder="Optional description for this provider" />
+              </TextField>
+            )}
+          />
+
+          <Flex direction="row" gap="size-100" alignItems="start">
+            <SDKSelect
+              control={control}
+              reset={reset}
+              getValues={getValues}
+              isSubmitting={isSubmitting}
+            />
+            <Controller
+              name="provider"
+              control={control}
+              rules={{ required: "Provider is required" }}
+              render={({ field, fieldState: { invalid, error } }) => (
+                <TextField
+                  isRequired
+                  isInvalid={invalid}
+                  {...field}
+                  isDisabled={isSubmitting}
+                  css={flexFieldCSS}
+                >
+                  <Label>Provider String</Label>
+                  <Input placeholder="e.g., openai, azure, my-custom-provider" />
+                  {error && <FieldError>{error.message}</FieldError>}
+                </TextField>
+              )}
+            />
+          </Flex>
+        </div>
+
+        <ConnectionSection
+          // Keys are unique among siblings; a shared one leaves stale sections
+          // behind when the SDK changes.
+          key={`connection-${sdk}`}
           sdk={sdk}
           control={control}
+          getValues={getValues}
           isSubmitting={isSubmitting}
         />
 
-        <TestConnectionButton
-          key={sdk}
-          control={control}
-          getValues={getValues}
-          sdk={sdk}
-        />
+        {sdk !== "TYPESAFE" ? (
+          <ChatModelsSection
+            sdk={sdk}
+            control={control}
+            isSubmitting={isSubmitting}
+          />
+        ) : null}
 
-        <Flex direction="row" gap="size-100" justifyContent="end">
-          <Button
-            variant="default"
-            onPress={onCancel}
-            isDisabled={isSubmitting}
-          >
-            Cancel
-          </Button>
-          <Button type="submit" variant="primary" isDisabled={isSubmitting}>
-            {isSubmitting
-              ? "Saving..."
-              : initialValues
-                ? "Update Provider"
-                : "Create Provider"}
-          </Button>
-        </Flex>
-      </Flex>
+        {sdkCanServeDecisions(sdk) ? (
+          <DecisionModelsSection
+            key={`decisions-${sdk}`}
+            sdk={sdk}
+            control={control}
+            isSubmitting={isSubmitting}
+          />
+        ) : null}
+      </div>
+      <DialogFooter>
+        <Button variant="default" onPress={onCancel} isDisabled={isSubmitting}>
+          Cancel
+        </Button>
+        <Button type="submit" variant="primary" isDisabled={isSubmitting}>
+          {isSubmitting
+            ? "Saving..."
+            : initialValues
+              ? "Update Provider"
+              : "Create Provider"}
+        </Button>
+      </DialogFooter>
     </Form>
   );
 };
@@ -1101,20 +1286,36 @@ export const ProviderForm = ({
 const testCredentialsMutation = graphql`
   mutation CustomProviderFormTestCredentialsMutation(
     $input: GenerativeModelCustomerProviderConfigInput!
+    $models: ProviderModelsInput
   ) {
-    testGenerativeModelCustomProviderCredentials(input: $input) {
+    testGenerativeModelCustomProviderCredentials(
+      input: $input
+      models: $models
+    ) {
       error
+      chat {
+        error
+      }
+      decision {
+        error
+      }
     }
   }
 `;
 
 type TestStatus = "idle" | "testing" | "valid" | "invalid" | "error";
 type CompletedTestStatus = Exclude<TestStatus, "idle" | "testing">;
+/** The check of one model type the provider serves. */
+type ModelTypeCheck = {
+  label: string;
+  error: string | null;
+};
 type TestConnectionState = {
   isTesting: boolean;
   lastTestResult: {
     status: CompletedTestStatus;
     errorMessage: string | null;
+    checks: ModelTypeCheck[];
   } | null;
   lastTestedValuesSignature: string | null;
 };
@@ -1126,6 +1327,7 @@ type TestConnectionAction =
       payload: {
         status: CompletedTestStatus;
         errorMessage: string | null;
+        checks: ModelTypeCheck[];
         testedValuesSignature: string;
       };
     }
@@ -1158,6 +1360,7 @@ function testConnectionReducer(
         lastTestResult: {
           status: action.payload.status,
           errorMessage: action.payload.errorMessage,
+          checks: action.payload.checks,
         },
         lastTestedValuesSignature: action.payload.testedValuesSignature,
       };
@@ -1190,6 +1393,7 @@ const CREDENTIAL_FIELDS = [
   "aws_access_key_id",
   "aws_secret_access_key",
   "google_api_key",
+  "typesafe_api_key",
 ] as const;
 
 /**
@@ -1237,12 +1441,14 @@ function hasRequiredCredentials(
     }
     case "GOOGLE_GENAI":
       return Boolean(credentials.google_api_key);
+    case "TYPESAFE":
+      return Boolean(credentials.typesafe_api_key);
     default:
       return false;
   }
 }
 
-function TestConnectionButton({
+function useTestCredentials({
   control,
   getValues,
   sdk,
@@ -1317,12 +1523,14 @@ function TestConnectionButton({
 
     try {
       const formValues = getValues();
-      const clientConfig = buildClientConfig(formValues);
       const result = await new Promise<
         CustomProviderFormTestCredentialsMutation["response"] | null
       >((resolve, reject) => {
         commitTestCredentials({
-          variables: { input: clientConfig },
+          variables: {
+            input: buildClientConfig(formValues),
+            models: buildProviderModels(formValues),
+          },
           onCompleted: (response) => resolve(response),
           onError: (error) => reject(error),
         });
@@ -1339,33 +1547,36 @@ function TestConnectionButton({
           payload: {
             status: "error",
             errorMessage: "No response received from server",
+            checks: [],
             testedValuesSignature,
           },
         });
         return;
       }
 
-      const error = result.testGenerativeModelCustomProviderCredentials.error;
-
-      if (!error) {
-        dispatchTestConnectionState({
-          type: "set_result",
-          payload: {
-            status: "valid",
-            errorMessage: null,
-            testedValuesSignature,
-          },
-        });
-      } else {
-        dispatchTestConnectionState({
-          type: "set_result",
-          payload: {
-            status: "invalid",
-            errorMessage: error,
-            testedValuesSignature,
-          },
+      const payload = result.testGenerativeModelCustomProviderCredentials;
+      const checks: ModelTypeCheck[] = [];
+      if (payload.chat) {
+        checks.push({
+          label: "Chat models",
+          error: payload.chat.error ?? null,
         });
       }
+      if (payload.decision) {
+        checks.push({
+          label: "Decision models",
+          error: payload.decision.error ?? null,
+        });
+      }
+      dispatchTestConnectionState({
+        type: "set_result",
+        payload: {
+          status: payload.error ? "invalid" : "valid",
+          errorMessage: payload.error ?? null,
+          checks,
+          testedValuesSignature,
+        },
+      });
     } catch (err) {
       // Ignore error if form changed during request
       if (shouldIgnoreResultRef.current) {
@@ -1376,6 +1587,7 @@ function TestConnectionButton({
         payload: {
           status: "error",
           errorMessage: err instanceof Error ? err.message : "Test failed",
+          checks: [],
           testedValuesSignature,
         },
       });
@@ -1385,66 +1597,120 @@ function TestConnectionButton({
   }, [canTest, commitTestCredentials, getValues]);
 
   const hasResult = testStatus !== "idle" && testStatus !== "testing";
+  const clear = () => dispatchTestConnectionState({ type: "clear" });
+
+  const checks =
+    testStatus === "idle" || testStatus === "testing"
+      ? []
+      : (lastTestResult?.checks ?? []);
+
+  return {
+    canTest,
+    isTesting,
+    hasResult,
+    testStatus,
+    errorMessage,
+    checks,
+    handleTest,
+    clear,
+  };
+}
+
+const CONNECTION_SUBTITLES: Readonly<Record<GenerativeModelSDK, string>> = {
+  OPENAI: "OpenAI SDK: API key, base URL and headers",
+  AZURE_OPENAI: "Azure OpenAI SDK: endpoint, authentication and headers",
+  ANTHROPIC: "Anthropic SDK: API key, base URL and headers",
+  AWS_BEDROCK: "AWS Bedrock SDK: region, credentials and endpoint",
+  GOOGLE_GENAI: "Google GenAI SDK: API key, base URL and headers",
+  TYPESAFE:
+    "Serves decision models only, through System One. Any System One-compatible endpoint works.",
+};
+
+function ConnectionSection({
+  sdk,
+  control,
+  getValues,
+  isSubmitting,
+}: {
+  sdk: GenerativeModelSDK;
+  control: Control<ProviderFormData>;
+  getValues: UseFormGetValues<ProviderFormData>;
+  isSubmitting: boolean;
+}) {
+  const {
+    canTest,
+    isTesting,
+    hasResult,
+    testStatus,
+    errorMessage,
+    checks,
+    handleTest,
+    clear,
+  } = useTestCredentials({ control, getValues, sdk });
 
   return (
-    <Flex direction="column" gap="size-100">
-      <View
-        borderColor="gray-200"
-        borderWidth="thin"
-        borderRadius="medium"
-        padding="size-200"
-      >
-        <Flex direction="row" gap="size-200" alignItems="center">
-          <Text weight="heavy">Test Credentials</Text>
-          <Button
-            variant="default"
-            size="S"
-            onPress={handleTest}
-            isDisabled={isTesting || !canTest}
-            css={css`
-              min-width: 80px;
-            `}
-          >
-            {isTesting ? (
-              <Flex direction="row" gap="size-50" alignItems="center">
-                <ProgressCircle
-                  isIndeterminate
-                  size="S"
-                  aria-label="Testing credentials"
-                />
-                <span>Testing</span>
-              </Flex>
-            ) : (
-              "Test"
-            )}
-          </Button>
-          {!hasResult && !isTesting && (
-            <Text color="text-700" size="S">
-              Verify your credentials work before saving
-            </Text>
+    <ProviderFormSection
+      title="Connection"
+      subtitle={CONNECTION_SUBTITLES[sdk]}
+      extra={
+        <Button
+          variant="default"
+          size="S"
+          onPress={handleTest}
+          isDisabled={isTesting || !canTest}
+        >
+          {isTesting ? (
+            <Flex direction="row" gap="size-50" alignItems="center">
+              <ProgressCircle
+                isIndeterminate
+                size="S"
+                aria-label="Testing connection"
+              />
+              <span>Testing</span>
+            </Flex>
+          ) : (
+            "Test connection"
           )}
-        </Flex>
-      </View>
-      {hasResult && (
+        </Button>
+      }
+    >
+      <SDKFieldsRenderer
+        sdk={sdk}
+        control={control}
+        isSubmitting={isSubmitting}
+      />
+      {hasResult ? (
         <Alert
           variant={testStatus === "valid" ? "success" : "danger"}
           title={
             testStatus === "valid"
-              ? "Credentials Valid"
+              ? "Connection works"
               : testStatus === "invalid"
-                ? "Invalid Credentials"
+                ? "Connection check failed"
                 : "Connection Error"
           }
           dismissable
-          onDismissClick={() => {
-            dispatchTestConnectionState({ type: "clear" });
-          }}
+          onDismissClick={clear}
         >
-          {testStatus === "valid"
-            ? "Successfully connected to the provider."
-            : errorMessage}
+          {checks.length > 0 ? (
+            <ul css={checkListCSS}>
+              {checks.map((check) => (
+                <li key={check.label}>
+                  {check.label}: {check.error ?? "connected"}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            errorMessage
+          )}
         </Alert>
-      )}
-    </Flex>
+      ) : null}
+    </ProviderFormSection>
   );
 }
+
+const checkListCSS = css`
+  margin: 0;
+  padding-inline-start: var(--global-dimension-size-200);
+  word-break: break-word;
+`;

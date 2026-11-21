@@ -58,3 +58,5 @@ Toasts MAY be used for **success** notifications (`useNotifySuccess`) since thos
 ## Input validation
 
 Input restrictions MUST be communicated via description slots before submission — do not wait for a submit attempt to tell the user what's required.
+
+A newly created field, row, or section MUST NOT render in an error state. Report an empty required field only once the user has visited and left it (on blur) or on a submit attempt; until then the placeholder or description says what belongs there. Errors that come from something the user did (a duplicate name, malformed JSON, too few rows after a removal) MAY show at once. Validation that gates an action (a disabled Run or Save) still runs immediately and explains itself on the control.

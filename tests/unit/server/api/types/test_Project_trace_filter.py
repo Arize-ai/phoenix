@@ -1,13 +1,19 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
-from typing import Any, Literal
+from types import SimpleNamespace
+from typing import Any, Literal, cast
 
 import pytest
 import sqlalchemy
+from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.api.types import FilterVocabularyTerm as vocabulary_module
 from phoenix.server.api.types.FilterVocabularyTerm import trace_filter_vocabulary_terms
+from phoenix.server.api.types.Project import Project
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import TraceFilter
 from phoenix.trace.dsl.trace_filter import TRACE_BINDINGS, TRACE_FILTER_DESCRIPTIONS
@@ -391,6 +397,55 @@ async def test_trace_filter_vocabulary_is_compiler_derived_and_project_scoped(
         'trace_annotations["span_only"].score',
     }
     assert excluded.isdisjoint(terms_by_name)
+
+
+async def test_trace_filter_vocabulary_reads_one_span_per_trace_to_find_roots(
+    db: DbSessionFactory,
+) -> None:
+    if db.dialect is not SupportedSQLDialect.POSTGRESQL:
+        pytest.skip("counts rows through PostgreSQL's per-transaction table statistics")
+    start = datetime.fromisoformat("2026-11-10T00:00:00+00:00")
+    num_traces, spans_per_trace = 4, 30
+    async with db() as session:
+        project = await _add_project(session)
+        for i in range(num_traces):
+            trace_start = start + timedelta(minutes=i)
+            trace = await _add_trace(session, project, start_time=trace_start)
+            root = await _add_span(
+                session, trace, attributes={"tier": "gold"}, start_time=trace_start
+            )
+            for j in range(1, spans_per_trace):
+                await _add_span(
+                    session, parent_span=root, start_time=trace_start + timedelta(seconds=j)
+                )
+
+    async with db() as session:
+        # A fixture this small is read sequentially whatever the statement asks for.
+        await session.execute(sqlalchemy.text("SET LOCAL enable_seqscan = off"))
+        await session.execute(sqlalchemy.text("SET LOCAL max_parallel_workers_per_gather = 0"))
+        await session.execute(sqlalchemy.text("ANALYZE spans, traces"))
+
+        @asynccontextmanager
+        async def read() -> AsyncIterator[AsyncSession]:
+            yield session
+
+        info = cast(Any, SimpleNamespace(context=SimpleNamespace(db=SimpleNamespace(read=read))))
+        before = await _spans_rows_read(session)
+        terms = await Project.trace_filter_vocabulary(Project(id=project.id), info)
+        rows_read = await _spans_rows_read(session) - before
+
+    assert 'attributes["tier"]' in {term.name for term in terms}
+    assert rows_read < spans_per_trace
+
+
+async def _spans_rows_read(session: AsyncSession) -> int:
+    rows_read = await session.scalar(
+        sqlalchemy.text(
+            "SELECT seq_tup_read + coalesce(idx_tup_fetch, 0) "
+            "FROM pg_stat_xact_user_tables WHERE relname = 'spans'"
+        )
+    )
+    return int(rows_read or 0)
 
 
 def test_trace_filter_vocabulary_requires_descriptions(

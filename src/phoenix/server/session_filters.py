@@ -3,6 +3,8 @@ from contextlib import contextmanager
 from datetime import datetime
 from typing import Any, Optional, Sequence
 
+from sqlalchemy import select
+from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.sql.expression import Select
 from sqlalchemy.sql.selectable import ScalarSelect
 
@@ -64,11 +66,21 @@ def compile_session_filter(session_filter_condition: str) -> SessionFilter:
         return SessionFilter(condition=session_filter_condition)
 
 
+def validate_session_filter_condition(session_filter_condition: str) -> None:
+    """Compile a session filter for every supported database dialect."""
+    with session_filter_errors():
+        session_filter = compile_session_filter(session_filter_condition)
+        stmt = session_filter(select(models.ProjectSession))
+        str(stmt.compile(dialect=sqlite.dialect()))
+        str(stmt.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
+
+
 def get_filtered_session_rowids_subquery(
     session_filter_condition: str,
     project_rowids: Sequence[int],
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
+    candidate_session_rowids: Optional[Sequence[int]] = None,
     lowering: FilterLowering = "scan",
 ) -> ScalarSelect[int]:
     """Compile the session filter DSL into a subquery of matching project-session rowids."""
@@ -78,6 +90,7 @@ def get_filtered_session_rowids_subquery(
             project_rowids=list(project_rowids),
             start_time=start_time,
             end_time=end_time,
+            candidate_session_rowids=candidate_session_rowids,
             lowering=lowering,
         )
 

@@ -65,7 +65,7 @@ export const CreateLLMDatasetEvaluatorSlideover = ({
   return (
     <ViewportModalOverlay {...props}>
       <ViewportModal size="fullscreen">
-        <Dialog>
+        <Dialog aria-label="Create LLM evaluator">
           {({ close }) => (
             <Suspense fallback={<Loading />}>
               {datasetId && (
@@ -120,6 +120,11 @@ const CreateEvaluatorDialog = ({
                 edgeTypeName: "DatasetEvaluatorEdge"
               ) {
               id
+              # The dataset's Evaluators tab counts its evaluators.
+              dataset {
+                id
+                evaluatorCount
+              }
               name
               ...PlaygroundDatasetSection_evaluator
               evaluator {

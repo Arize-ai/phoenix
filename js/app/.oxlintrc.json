@@ -63,6 +63,32 @@
   // TODO: Enable jsx-a11y globally after the remaining app violations are addressed.
   "overrides": [
     {
+      // Shared components must not depend on the playground page; move what
+      // both need into components/playground/ instead. Relay artifacts of the
+      // page's own queries stay importable as types.
+      "files": ["src/components/**"],
+      "rules": {
+        "eslint/no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "react",
+                "importNames": ["forwardRef"],
+                "message": "Use ref as a prop instead (React 19). See https://react.dev/blog/2024/12/05/react-19#ref-as-a-prop"
+              }
+            ],
+            "patterns": [
+              {
+                "regex": "^@phoenix/pages/playground/([^_]|_[^_])",
+                "message": "Components must not import from the playground page. Move the shared code into components/playground/ instead."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "files": ["stories/**/*.stories.tsx"],
       "plugins": ["react", "typescript", "jsx-a11y"],
       "rules": {

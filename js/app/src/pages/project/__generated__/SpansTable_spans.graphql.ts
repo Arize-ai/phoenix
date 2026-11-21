@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<53df339d7e02c8817bfff3ffd399a6b6>>
+ * @generated SignedSource<<8e65b37b4e60653a3b03b090c81d9726>>
  * @lightSyntaxTransform
  */
 
@@ -15,7 +15,6 @@ import { FragmentRefs } from "relay-runtime";
 export type SpansTable_spans$data = {
   readonly id: string;
   readonly name: string;
-  readonly spanAnnotationNames: ReadonlyArray<string>;
   readonly spans: {
     readonly edges: ReadonlyArray<{
       readonly span: {
@@ -75,7 +74,7 @@ export type SpansTable_spans$data = {
       };
     }>;
   };
-  readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment" | "SpanColumnSelector_annotations" | "SpanColumnSelector_traceAnnotations">;
+  readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment" | "useSpanAnnotationNames_project">;
   readonly " $fragmentType": "SpansTable_spans";
 };
 export type SpansTable_spans$key = {
@@ -161,6 +160,16 @@ return {
     {
       "defaultValue": true,
       "kind": "LocalArgument",
+      "name": "includeAnnotationNames"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "projectEvaluatorId"
+    },
+    {
+      "defaultValue": true,
+      "kind": "LocalArgument",
       "name": "rootSpansOnly"
     },
     {
@@ -209,26 +218,43 @@ return {
   "selections": [
     (v1/*:: as any*/),
     {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "spanAnnotationNames",
-      "storageKey": null
+      "condition": "includeAnnotationNames",
+      "kind": "Condition",
+      "passingValue": true,
+      "selections": [
+        {
+          "kind": "Defer",
+          "selections": [
+            {
+              "kind": "InlineDataFragmentSpread",
+              "name": "useSpanAnnotationNames_project",
+              "selections": [
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "spanAnnotationNames",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "traceAnnotationNames",
+                  "storageKey": null
+                }
+              ],
+              "args": null,
+              "argumentDefinitions": []
+            }
+          ]
+        }
+      ]
     },
     {
       "args": null,
       "kind": "FragmentSpread",
       "name": "ProjectAnnotationConfigsByNameFragment"
-    },
-    {
-      "args": null,
-      "kind": "FragmentSpread",
-      "name": "SpanColumnSelector_annotations"
-    },
-    {
-      "args": null,
-      "kind": "FragmentSpread",
-      "name": "SpanColumnSelector_traceAnnotations"
     },
     {
       "alias": "spans",
@@ -237,6 +263,11 @@ return {
           "kind": "Variable",
           "name": "filterCondition",
           "variableName": "filterCondition"
+        },
+        {
+          "kind": "Variable",
+          "name": "projectEvaluatorId",
+          "variableName": "projectEvaluatorId"
         },
         {
           "kind": "Variable",
@@ -586,6 +617,6 @@ return {
 };
 })();
 
-(node as any).hash = "b88f93524380fcbcce735d30518603af";
+(node as any).hash = "8b4a81765db757e8ebed9eb3b24e1e27";
 
 export default node;

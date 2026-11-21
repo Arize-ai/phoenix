@@ -426,35 +426,32 @@ filter_str = f"(uid={username})"
 
 ## Phoenix LDAP Implementation Highlights
 
-### DN-Based Identification (Stable Primary Key)
+### Identification by Email or Unique ID, Not DN
 
-Phoenix stores **DN** (not email) as primary identifier:
+Phoenix does **not** store the DN. It identifies a user by email, or by an immutable unique ID (`objectGUID`, `entryUUID`) when `PHOENIX_LDAP_ATTR_UNIQUE_ID` is set:
 
 ```mermaid
 graph LR
     subgraph LDAP Directory
-        User["User in LDAP<br/>DN: uid=alice,ou=eng,...<br/>email: alice@example.com"]
+        User["User in LDAP<br/>DN: uid=alice,ou=eng,...<br/>entryUUID: 550e8400-...<br/>email: alice@example.com"]
     end
 
     subgraph Phoenix Database
-        DBUser["User Record<br/>oauth2_user_id: uid=alice,ou=eng,...<br/>email: alice@example.com"]
+        DBUser["LDAPUser row<br/>ldap_unique_id: 550e8400-...<br/>email: alice@example.com"]
     end
 
     User -->|Login| DBUser
-    
-    subgraph Email Change Scenario
-        User2["User in LDAP<br/>DN: uid=alice,ou=eng,...<br/>email: alice@newdomain.com"]
-        DBUser2["Same User Record<br/>oauth2_user_id: uid=alice,ou=eng,...<br/>email: alice@newdomain.com"]
-        User2 -->|Next login<br/>DN matches,<br/>email updated| DBUser2
+
+    subgraph OU Move
+        User2["User in LDAP<br/>DN: uid=alice,ou=platform,...<br/>entryUUID: 550e8400-..."]
+        DBUser2["Same row<br/>ldap_unique_id: 550e8400-..."]
+        User2 -->|Next login<br/>unique ID matches| DBUser2
     end
 ```
 
-**Why DN?**
-- ✅ Stable across email changes
-- ✅ Unique per LDAP directory
-- ✅ Matches Grafana's approach
+**Why not DN?** DNs change when users move between organizational units or are renamed, which would lock users out. See [User Identification Strategy](./user-identification-strategy.md).
 
-**OIDC Equivalent**: Store `sub` claim (stable), sync email on each login.
+**OIDC Equivalent**: the unique ID plays the role of the `sub` claim. Email is synced on each login.
 
 ---
 
@@ -469,7 +466,7 @@ Same user, different representations:
 - "uid=alice,ou=users,dc=example,dc=com"
 ```
 
-Phoenix **canonicalizes** before storing:
+Phoenix **canonicalizes** DNs before comparing them, for example when matching a user's groups against `PHOENIX_LDAP_GROUP_ROLE_MAPPINGS`:
 ```python
 from phoenix.server.ldap import canonicalize_dn
 
@@ -484,22 +481,7 @@ dn_canonical = canonicalize_dn(dn_raw)
 
 ### Email Fallback for Admin-Provisioned Users
 
-Phoenix supports **pre-provisioning** users before first LDAP login:
-
-```python
-# Admin creates user at startup (DN unknown)
-user = models.User(
-    email="alice@example.com",
-    oauth2_client_id=LDAP_CLIENT_ID_MARKER,
-    oauth2_user_id=None,  # DN unknown yet
-)
-
-# First LDAP login:
-# 1. DN lookup fails (oauth2_user_id=NULL)
-# 2. Email fallback finds user
-# 3. Phoenix upgrades: oauth2_user_id = canonical_dn
-# 4. Future logins use DN
-```
+Phoenix supports **pre-provisioning** users before first LDAP login. An admin creates an `LDAPUser` with an email and a NULL `ldap_unique_id`. On first login, Phoenix finds the row by email, and in enterprise mode stores the user's unique ID. Later logins find the row by unique ID.
 
 **OIDC Equivalent**: Similar pattern - provision user by email, link on first login via `sub` claim.
 

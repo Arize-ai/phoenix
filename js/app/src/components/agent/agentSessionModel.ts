@@ -4,7 +4,7 @@ import { graphql, readInlineData } from "react-relay";
 import { createOperationDescriptor, getRequest } from "relay-runtime";
 
 import type { AgentModelSelection } from "@phoenix/agent/chat/buildAgentChatRequestBody";
-import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
+import { getDefaultInvocationConfig } from "@phoenix/components/playground/providerAdapters";
 import type { ModelConfig } from "@phoenix/store/playground/types";
 
 import { getProviderKeyForGenerativeModelSDK } from "../generative/modelProviderUtils";
@@ -110,6 +110,11 @@ export function resolvePersistedAgentModel({
 export function toAgentModelSelection(
   config: ModelConfig
 ): AgentModelSelection {
+  // Keyed on model type, not provider: a provider may serve both chat and
+  // decision models, and new decision providers must not need a change here.
+  if (config.modelType === "DECISION") {
+    throw new Error("Decision models cannot be used as chat agents");
+  }
   if (config.customProvider) {
     return {
       providerType: "custom",

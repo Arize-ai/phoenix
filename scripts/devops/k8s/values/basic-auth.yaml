@@ -1,0 +1,3 @@
+# Enable username/password login alongside OIDC
+auth:
+  disableBasicAuth: false

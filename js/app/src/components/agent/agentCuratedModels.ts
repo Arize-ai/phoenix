@@ -1,4 +1,5 @@
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
+import type { ModelCuration } from "@phoenix/components/generative/modelSearch";
 import type { GenerativeProviderKey } from "@phoenix/components/generative/useModelMenuData";
 
 export type AgentBuiltInModelSelection = {
@@ -115,3 +116,9 @@ export function getAgentCuratedModelDisplayName(
     })?.displayName ?? null
   );
 }
+
+/** PXI's curated models, for the shared model search, see `modelSearch`. */
+export const AGENT_MODEL_CURATION: ModelCuration = {
+  isCurated: isAgentCuratedModelSelection,
+  getDisplayName: getAgentCuratedModelDisplayName,
+};

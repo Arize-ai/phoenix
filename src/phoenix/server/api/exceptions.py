@@ -1,5 +1,5 @@
 from collections.abc import Iterator
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 from graphql import (
     ExecutionResult as GraphQLExecutionResult,
@@ -54,7 +54,27 @@ class Conflict(CustomGraphQLError):
     """
     An error raised when a mutation cannot be completed due to a conflict with
     the current state of one or more resources.
+
+    `reason` is a finer condition under the REST `conflict` code (e.g. `still_bound`), and
+    `extra` carries that reason's own recovery fields (e.g. `binding_counts`); a REST caller
+    (`evaluator_api_errors`) reads both, and GraphQL ignores them.
     """
+
+    def __init__(self, message: str, *, reason: Optional[str] = None, **extra: Any) -> None:
+        super().__init__(message)
+        self.reason = reason
+        self.extra = extra
+
+
+class AlreadyExists(Conflict):
+    """
+    A conflict because another resource already holds a unique name; `existing_id` is that
+    resource's GlobalID when it is known.
+    """
+
+    def __init__(self, message: str, *, existing_id: Optional[str] = None) -> None:
+        super().__init__(message)
+        self.existing_id = existing_id
 
 
 _GENERIC_MASK_MESSAGE = "an unexpected error occurred"
@@ -88,6 +108,36 @@ def is_expected_error(error: BaseException) -> bool:
     return _find_custom_error(error) is not None
 
 
+def mask_error(error: GraphQLError) -> GraphQLError:
+    """Return the error as the client sees it; see `PhoenixErrorMasker`."""
+    inner = _find_custom_error(error)
+    if inner is not None:
+        return GraphQLError(
+            message=str(inner),
+            nodes=error.nodes,
+            source=error.source,
+            positions=error.positions,
+            path=error.path,
+            original_error=None,
+        )
+    # Only mask errors that bubbled up from an uncaught exception inside a
+    # resolver. Validation/syntax errors (missing fields, malformed queries)
+    # are produced during the parse/validate phase, have no original_error,
+    # and should pass through to the client unmasked.
+    if error.original_error is None:
+        return error
+    if not get_env_mask_internal_server_errors():
+        return error
+    return GraphQLError(
+        message=_GENERIC_MASK_MESSAGE,
+        nodes=error.nodes,
+        source=error.source,
+        positions=error.positions,
+        path=error.path,
+        original_error=None,
+    )
+
+
 class PhoenixErrorMasker(SchemaExtension):
     """Replace error messages with the inner safe public error's message
     (a CustomGraphQLError or one of the filter-condition errors) if present;
@@ -100,34 +150,6 @@ class PhoenixErrorMasker(SchemaExtension):
     would otherwise be masked to a generic message under the default config.
     """
 
-    def _rewrite(self, error: GraphQLError) -> GraphQLError:
-        inner = _find_custom_error(error)
-        if inner is not None:
-            return GraphQLError(
-                message=str(inner),
-                nodes=error.nodes,
-                source=error.source,
-                positions=error.positions,
-                path=error.path,
-                original_error=None,
-            )
-        # Only mask errors that bubbled up from an uncaught exception inside a
-        # resolver. Validation/syntax errors (missing fields, malformed queries)
-        # are produced during the parse/validate phase, have no original_error,
-        # and should pass through to the client unmasked.
-        if error.original_error is None:
-            return error
-        if not get_env_mask_internal_server_errors():
-            return error
-        return GraphQLError(
-            message=_GENERIC_MASK_MESSAGE,
-            nodes=error.nodes,
-            source=error.source,
-            positions=error.positions,
-            path=error.path,
-            original_error=None,
-        )
-
     def _process_result(
         self,
         result: Union[
@@ -136,7 +158,7 @@ class PhoenixErrorMasker(SchemaExtension):
     ) -> None:
         if not result.errors:
             return
-        result.errors = [self._rewrite(e) for e in result.errors]
+        result.errors = [mask_error(e) for e in result.errors]
 
     def on_operation(self) -> Iterator[None]:
         yield

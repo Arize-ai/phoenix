@@ -1,0 +1,441 @@
+"""LLM evaluator runtime and template span attribute helpers."""
+
+import json
+from datetime import datetime, timezone
+from typing import Any, Optional, Sequence, TypeAlias
+
+import openinference.instrumentation as oi
+from opentelemetry.context import Context
+from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer, format_trace_id
+from typing_extensions import TypedDict, override
+
+from phoenix.db.types.annotation_configs import CategoricalOutputConfig, OutputConfigType
+from phoenix.db.types.evaluators import InputMapping
+from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.prompts import (
+    PromptAnthropicInvocationParameters,
+    PromptAnthropicThinkingConfigEnabled,
+    PromptChatTemplate,
+    PromptInvocationParameters,
+    PromptTemplateFormat,
+    PromptToolChoiceOneOrMore,
+    PromptToolChoiceSpecificFunctionTool,
+    PromptToolChoiceZeroOrMore,
+    PromptToolFunction,
+    PromptTools,
+    RoleConversion,
+    TextContentPart,
+)
+from phoenix.server.api.helpers.chat_clients import ChatClient
+from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
+from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
+from phoenix.server.api.types.ChatCompletionSubscriptionPayload import ToolCallChunk
+from phoenix.server.evaluators.input_mapping import (
+    apply_input_mapping,
+    cast_template_variable_types,
+    validate_template_variables,
+)
+from phoenix.server.evaluators.runtime.base import (
+    BaseEvaluator,
+    EvaluationResult,
+    EvaluatorAnnotatorKind,
+    EvaluatorProviderClient,
+    EvaluatorResultValidationError,
+    RenderedMessageTooLargeError,
+    result_annotation_names,
+)
+from phoenix.server.evaluators.schemas import infer_input_schema_from_prompt_template
+from phoenix.utilities.template_formatters import get_template_formatter
+
+ToolCallId: TypeAlias = str
+
+
+class ToolCall(TypedDict):
+    name: str
+    arguments: str
+
+
+def _enables_extended_thinking(invocation_parameters: PromptInvocationParameters) -> bool:
+    """Checks whether Anthropic extended thinking is on, which rules out a forced tool choice.
+
+    Adaptive thinking allows a forced tool choice. A `thinking` key in `extra_body`
+    wins because the client merges `extra_body` into the request last.
+    """
+    if not isinstance(invocation_parameters, PromptAnthropicInvocationParameters):
+        return False
+    anthropic_params = invocation_parameters.anthropic
+    extra_body = anthropic_params.extra_body
+    if isinstance(extra_body, dict) and "thinking" in extra_body:
+        thinking = extra_body["thinking"]
+        return isinstance(thinking, dict) and thinking.get("type") == "enabled"
+    return isinstance(anthropic_params.thinking, PromptAnthropicThinkingConfigEnabled)
+
+
+def _request_tool_call_in_prompt(
+    tools: PromptTools,
+    messages: list[PlaygroundMessage],
+) -> tuple[PromptTools, list[PlaygroundMessage]]:
+    """Replaces a forced tool choice with `zero_or_more` and a system message naming the tools."""
+    tool_choice = tools.tool_choice
+    if isinstance(tool_choice, PromptToolChoiceSpecificFunctionTool):
+        tool_names = [tool_choice.function_name]
+    elif isinstance(tool_choice, PromptToolChoiceOneOrMore):
+        tool_names = [
+            tool.function.name for tool in tools.tools if isinstance(tool, PromptToolFunction)
+        ]
+    else:
+        return tools, messages
+    quoted_names = ", ".join(f"`{tool_name}`" for tool_name in tool_names)
+    instruction = (
+        f"Respond by calling the {quoted_names} tool."
+        if len(tool_names) == 1
+        else f"Respond by calling each of these tools: {quoted_names}."
+    )
+    return (
+        tools.model_copy(update={"tool_choice": PromptToolChoiceZeroOrMore(type="zero_or_more")}),
+        [*messages, create_playground_message(ChatCompletionMessageRole.SYSTEM, instruction)],
+    )
+
+
+class LLMEvaluator(BaseEvaluator):
+    def __init__(
+        self,
+        name: str,
+        description: Optional[str],
+        template: PromptChatTemplate,
+        template_format: PromptTemplateFormat,
+        tools: PromptTools,
+        invocation_parameters: PromptInvocationParameters,
+        model_provider: ModelProvider,
+        llm_client: ChatClient[Any],
+        output_configs: Sequence[CategoricalOutputConfig],
+        prompt_name: str,
+        max_message_bytes: Optional[int] = None,
+    ):
+        self._name = name
+        self._description = description
+        self._template = template
+        self._template_format = template_format
+        self._tools = tools
+        self._invocation_parameters = invocation_parameters
+        self._model_provider = model_provider
+        self._llm_client = llm_client
+        self._output_configs = output_configs
+        self._prompt_name = prompt_name
+        self._max_message_bytes = max_message_bytes
+
+    @property
+    @override
+    def provider_client(self) -> EvaluatorProviderClient:
+        return self._llm_client
+
+    @property
+    @override
+    def annotator_kind(self) -> EvaluatorAnnotatorKind:
+        return "LLM"
+
+    @property
+    @override
+    def name(self) -> str:
+        return self._name
+
+    @property
+    @override
+    def description(self) -> Optional[str]:
+        return self._description
+
+    @property
+    @override
+    def output_configs(self) -> Sequence[OutputConfigType]:
+        return self._output_configs
+
+    @property
+    @override
+    def input_schema(self) -> dict[str, Any]:
+        return infer_input_schema_from_prompt_template(
+            template=self._template,
+            template_format=self._template_format,
+        )
+
+    @override
+    async def evaluate(
+        self,
+        *,
+        context: dict[str, Any],
+        input_mapping: InputMapping,
+        name: str,
+        output_configs: Sequence[OutputConfigType],
+        tracer: Optional[Tracer] = None,
+    ) -> list[EvaluationResult]:
+        start_time = datetime.now(timezone.utc)
+        annotation_names = result_annotation_names(name, output_configs)
+        tracer_ = tracer or NoOpTracer()
+
+        with tracer_.start_as_current_span(
+            f"Evaluator: {name}",
+            attributes={
+                **oi.get_span_kind_attributes("evaluator"),
+                **oi.get_input_attributes(context),
+            },
+            context=Context(),  # inject blank context to ensure the evaluator span is the root
+        ) as evaluator_span:
+            trace_id = (
+                format_trace_id(evaluator_span.get_span_context().trace_id) if tracer else None
+            )
+
+            try:
+                categorical_configs: list[CategoricalOutputConfig] = []
+                for config in output_configs:
+                    if not isinstance(config, CategoricalOutputConfig):
+                        raise ValueError(
+                            f"LLMEvaluator only supports CategoricalOutputConfig, "
+                            f"got {type(config).__name__}"
+                        )
+                    categorical_configs.append(config)
+
+                with tracer_.start_as_current_span(
+                    "Input Mapping",
+                    attributes={
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
+                            {
+                                "input_mapping": {
+                                    "path_mapping": input_mapping.path_mapping or {},
+                                    "literal_mapping": input_mapping.literal_mapping or {},
+                                },
+                                "template_variables": context,
+                            }
+                        ),
+                    },
+                ) as input_mapping_span:
+                    template_variables = apply_input_mapping(
+                        input_schema=self.input_schema,
+                        input_mapping=input_mapping,
+                        context=context,
+                    )
+                    template_variables = cast_template_variable_types(
+                        template_variables=template_variables,
+                        input_schema=self.input_schema,
+                    )
+                    validate_template_variables(
+                        template_variables=template_variables,
+                        input_schema=self.input_schema,
+                    )
+                    input_mapping_span.set_attributes(oi.get_output_attributes(template_variables))
+                    input_mapping_span.set_status(Status(StatusCode.OK))
+
+                with tracer_.start_as_current_span(
+                    f"Prompt: {self._prompt_name}",
+                    attributes={
+                        **oi.get_span_kind_attributes("prompt"),
+                        **oi.get_input_attributes(template_variables),
+                    },
+                ) as prompt_span:
+                    template_formatter = get_template_formatter(self._template_format)
+                    messages: list[PlaygroundMessage] = []
+                    for msg in self._template.messages:
+                        role = ChatCompletionMessageRole(RoleConversion.to_gql(msg.role))
+                        if isinstance(msg.content, str):
+                            formatted_content = template_formatter.format(
+                                msg.content, **template_variables
+                            )
+                        else:
+                            text_parts = []
+                            for part in msg.content:
+                                if isinstance(part, TextContentPart):
+                                    formatted_text = template_formatter.format(
+                                        part.text, **template_variables
+                                    )
+                                    text_parts.append(formatted_text)
+                            formatted_content = "".join(text_parts)
+                        messages.append(create_playground_message(role, formatted_content))
+
+                    rendered_message_bytes = sum(
+                        len(message["content"].encode("utf-8")) for message in messages
+                    )
+                    if (
+                        self._max_message_bytes is not None
+                        and rendered_message_bytes > self._max_message_bytes
+                    ):
+                        raise RenderedMessageTooLargeError(
+                            f"Rendered online-eval messages are {rendered_message_bytes} bytes, "
+                            f"exceeding the {self._max_message_bytes}-byte limit. Narrow the "
+                            "slot with a path mapping, shorten the prompt, or raise the limit "
+                            "with PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES."
+                        )
+
+                    formatted_messages = [
+                        oi.Message(role=msg["role"].value.lower(), content=msg["content"])
+                        for msg in messages
+                    ]
+                    prompt_span.set_attributes(
+                        oi.get_output_attributes(
+                            {
+                                "messages": [
+                                    {"role": msg["role"], "content": msg["content"]}
+                                    for msg in formatted_messages
+                                ]
+                            }
+                        )
+                    )
+                    prompt_span.set_status(Status(StatusCode.OK))
+
+                tools = self._tools
+                forced_tool_choice_allowed = (
+                    self._llm_client.supports_forced_tool_choice
+                    and not _enables_extended_thinking(self._invocation_parameters)
+                )
+                if not forced_tool_choice_allowed:
+                    tools, messages = _request_tool_call_in_prompt(tools, messages)
+
+                tool_call_by_id: dict[ToolCallId, ToolCall] = {}
+
+                async for chunk in self._llm_client.chat_completion_create(
+                    messages=messages,
+                    tools=tools,
+                    tracer=tracer_,
+                    invocation_parameters=self._invocation_parameters,
+                    stream_model_output=False,
+                ):
+                    if isinstance(chunk, ToolCallChunk):
+                        if chunk.id not in tool_call_by_id:
+                            tool_call_by_id[chunk.id] = ToolCall(
+                                name=chunk.function.name,
+                                arguments=chunk.function.arguments,
+                            )
+                        else:
+                            tool_call_by_id[chunk.id]["arguments"] += chunk.function.arguments
+
+                with tracer_.start_as_current_span(
+                    "Parse Eval Result",
+                    attributes={
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
+                            {
+                                "tool_calls": {
+                                    call_id: {"name": call["name"], "arguments": call["arguments"]}
+                                    for call_id, call in tool_call_by_id.items()
+                                },
+                                "output_configs": {
+                                    config.name: {
+                                        "values": [
+                                            {"label": v.label, "score": v.score}
+                                            for v in config.values
+                                        ]
+                                    }
+                                    for config in categorical_configs
+                                },
+                            }
+                        ),
+                    },
+                ) as chain_span:
+                    if not tool_call_by_id:
+                        raise ValueError("No tool calls received from LLM")
+
+                    tool_call_by_name: dict[str, ToolCall] = {}
+                    for call in tool_call_by_id.values():
+                        tool_call_by_name.setdefault(call["name"], call)
+                    results: list[EvaluationResult] = []
+                    for annotation_name, config in zip(annotation_names, categorical_configs):
+                        scores_by_label = {value.label: value.score for value in config.values}
+                        tool_call = tool_call_by_name.get(config.name)
+                        args = json.loads(tool_call["arguments"]) if tool_call is not None else {}
+                        label = args.get("label")
+                        if tool_call is None:
+                            invalid = (
+                                f"categorical output {annotation_name!r} was not answered: "
+                                f"the model called no tool named {config.name!r}"
+                            )
+                        elif label is None:
+                            invalid = (
+                                "LLM response missing required 'label' field in tool call arguments"
+                            )
+                        elif not isinstance(label, str) or label not in scores_by_label:
+                            invalid = (
+                                f"categorical output {annotation_name!r} returned invalid label "
+                                f"{label!r}; expected one of {sorted(scores_by_label)!r}"
+                            )
+                        else:
+                            results.append(
+                                EvaluationResult(
+                                    name=annotation_name,
+                                    annotator_kind="LLM",
+                                    label=label,
+                                    score=scores_by_label[label],
+                                    explanation=args.get("explanation"),
+                                    metadata={},
+                                    error=None,
+                                    trace_id=trace_id,
+                                    start_time=start_time,
+                                    end_time=datetime.now(timezone.utc),
+                                )
+                            )
+                            continue
+                        results.append(
+                            self.error_result(
+                                annotation_name,
+                                invalid,
+                                start_time=start_time,
+                                trace_id=trace_id,
+                                error_exc=EvaluatorResultValidationError(invalid),
+                            )
+                        )
+
+                    chain_span.set_attributes(
+                        oi.get_output_attributes(
+                            {
+                                "results": [
+                                    {
+                                        "name": r["name"],
+                                        "label": r["label"],
+                                        "score": r["score"],
+                                        "explanation": r["explanation"],
+                                    }
+                                    for r in results
+                                ]
+                            }
+                        )
+                    )
+                    output_error = next(
+                        (result["error"] for result in results if result["error"] is not None), None
+                    )
+                    chain_span.set_status(
+                        Status(StatusCode.ERROR, output_error)
+                        if output_error is not None
+                        else Status(StatusCode.OK)
+                    )
+
+                evaluator_span.set_attributes(
+                    oi.get_output_attributes(
+                        {
+                            "results": [
+                                {
+                                    "name": r["name"],
+                                    "label": r["label"],
+                                    "score": r["score"],
+                                    "explanation": r["explanation"],
+                                }
+                                for r in results
+                            ]
+                        }
+                    )
+                )
+                evaluator_span.set_status(
+                    Status(StatusCode.ERROR, output_error)
+                    if output_error is not None
+                    else Status(StatusCode.OK)
+                )
+
+            except Exception as e:
+                evaluator_span.record_exception(e)
+                evaluator_span.set_status(Status(StatusCode.ERROR, str(e)))
+                results = self.error_results(
+                    name,
+                    output_configs,
+                    str(e),
+                    start_time=start_time,
+                    trace_id=trace_id,
+                    error_exc=e,
+                )
+
+        return results

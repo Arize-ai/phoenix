@@ -5,6 +5,9 @@ import { devtools, persist } from "zustand/middleware";
 import type { LastNTimeRangeKey } from "@phoenix/components/datetime/types";
 import type { AIQueryModelConfig } from "@phoenix/components/filter/ai/types";
 import { PREFERENCES_STORAGE_KEY } from "@phoenix/constants/storageConstants";
+import type { ServerEvaluationChartKey } from "@phoenix/pages/evaluators/project-evaluators/serverEvaluationChartCatalog";
+import { DEFAULT_SERVER_EVALUATION_CHART_KEYS } from "@phoenix/pages/evaluators/project-evaluators/serverEvaluationChartCatalog";
+import type { ProjectKind } from "@phoenix/pages/projects/types";
 import type { PackageManager, ProgrammingLanguage } from "@phoenix/types/code";
 import {
   pythonPackageManagers,
@@ -86,6 +89,15 @@ export interface PreferencesProps {
    */
   traceStreamingEnabled: boolean;
   /**
+   * Whether streaming is enabled on the project evaluators page
+   * @default false
+   */
+  serverEvaluatorsStreamingEnabled: boolean;
+  /**
+   * The charts shown on the project evaluators page, in display order
+   */
+  serverEvaluationChartKeys: ServerEvaluationChartKey[];
+  /**
    * The last N time range to load data for
    */
   lastNTimeRangeKey: LastNTimeRangeKey;
@@ -115,6 +127,12 @@ export interface PreferencesProps {
    */
   playgroundStreamingEnabled: boolean;
   /**
+   * Whether the evaluator playground's metadata cells leave out the example's
+   * `annotations` key, where expected outputs are recorded. On by default: the
+   * expected value already shows in each evaluator cell's band.
+   */
+  hideExpectedAnnotationsInMetadata: boolean;
+  /**
    * Whether or not the span details are in annotating mode
    */
   isAnnotatingSpans: boolean;
@@ -130,6 +148,11 @@ export interface PreferencesProps {
    * The sort order for projects
    */
   projectSortOrder: ProjectSortOrder;
+  /**
+   * The kinds of projects listed on the projects page
+   * @default ["STANDARD", "PLAYGROUND"]
+   */
+  visibleProjectKinds: ProjectKind[];
   /**
    * The last project selected on the dashboards page.
    */
@@ -204,6 +227,18 @@ export interface PreferencesState extends PreferencesProps {
    */
   setTraceStreamingEnabled: (traceStreamingEnabled: boolean) => void;
   /**
+   * Setter for enabling/disabling streaming on the project evaluators page
+   */
+  setServerEvaluatorsStreamingEnabled: (
+    serverEvaluatorsStreamingEnabled: boolean
+  ) => void;
+  /**
+   * Setter for the charts shown on the project evaluators page
+   */
+  setServerEvaluationChartKeys: (
+    serverEvaluationChartKeys: ServerEvaluationChartKey[]
+  ) => void;
+  /**
    * Setter for the last N time range to load data for
    */
   setLastNTimeRangeKey: (lastNTimeRangeKey: LastNTimeRangeKey) => void;
@@ -234,6 +269,12 @@ export interface PreferencesState extends PreferencesProps {
    */
   setPlaygroundStreamingEnabled: (playgroundStreamingEnabled: boolean) => void;
   /**
+   * Sets whether the evaluator playground's metadata cells hide `annotations`.
+   */
+  setHideExpectedAnnotationsInMetadata: (
+    hideExpectedAnnotationsInMetadata: boolean
+  ) => void;
+  /**
    * Setter for enabling/disabling span annotating
    */
   setIsAnnotatingSpans: (isAnnotatingSpans: boolean) => void;
@@ -249,6 +290,10 @@ export interface PreferencesState extends PreferencesProps {
    * Setter for the project sort order
    */
   setProjectSortOrder: (projectSortOrder: ProjectSortOrder) => void;
+  /**
+   * Setter for the kinds of projects listed on the projects page
+   */
+  setVisibleProjectKinds: (visibleProjectKinds: ProjectKind[]) => void;
   /**
    * Setter for the last project selected on the dashboards page.
    */
@@ -313,6 +358,14 @@ export interface PreferencesState extends PreferencesProps {
   ) => void;
 }
 
+/**
+ * The last-N range applied when no preference has been persisted. Route
+ * loaders that resolve the range before React mounts (e.g. the project
+ * evaluators loader) fall back to this same value so their query variables
+ * match the ones TimeRangeProvider resolves on mount.
+ */
+export const DEFAULT_LAST_N_TIME_RANGE_KEY: LastNTimeRangeKey = "7d";
+
 export const createPreferencesStore = (
   initialProps?: Partial<PreferencesProps>
 ) => {
@@ -330,7 +383,19 @@ export const createPreferencesStore = (
         type: "setTraceStreamingEnabled",
       });
     },
-    lastNTimeRangeKey: "7d",
+    serverEvaluatorsStreamingEnabled: false,
+    setServerEvaluatorsStreamingEnabled: (serverEvaluatorsStreamingEnabled) => {
+      set({ serverEvaluatorsStreamingEnabled }, false, {
+        type: "setServerEvaluatorsStreamingEnabled",
+      });
+    },
+    serverEvaluationChartKeys: DEFAULT_SERVER_EVALUATION_CHART_KEYS,
+    setServerEvaluationChartKeys: (serverEvaluationChartKeys) => {
+      set({ serverEvaluationChartKeys }, false, {
+        type: "setServerEvaluationChartKeys",
+      });
+    },
+    lastNTimeRangeKey: DEFAULT_LAST_N_TIME_RANGE_KEY,
     setLastNTimeRangeKey: (lastNTimeRangeKey) => {
       set({ lastNTimeRangeKey });
     },
@@ -374,6 +439,14 @@ export const createPreferencesStore = (
         type: "setPlaygroundStreamingEnabled",
       });
     },
+    hideExpectedAnnotationsInMetadata: true,
+    setHideExpectedAnnotationsInMetadata: (
+      hideExpectedAnnotationsInMetadata
+    ) => {
+      set({ hideExpectedAnnotationsInMetadata }, false, {
+        type: "setHideExpectedAnnotationsInMetadata",
+      });
+    },
     isAnnotatingSpans: false,
     setIsAnnotatingSpans: (isAnnotatingSpans) => {
       set({ isAnnotatingSpans }, false, { type: "setIsAnnotatingSpans" });
@@ -392,6 +465,10 @@ export const createPreferencesStore = (
     },
     setProjectSortOrder: (projectSortOrder) => {
       set({ projectSortOrder }, false, { type: "setProjectSortOrder" });
+    },
+    visibleProjectKinds: ["STANDARD", "PLAYGROUND"],
+    setVisibleProjectKinds: (visibleProjectKinds) => {
+      set({ visibleProjectKinds }, false, { type: "setVisibleProjectKinds" });
     },
     lastSelectedDashboardProjectId: undefined,
     setLastSelectedDashboardProjectId: (projectId) => {

@@ -33,11 +33,11 @@ NC := \033[0m # No Color
 	setup setup-remote-export install-python install-node \
 	graphql schema-graphql relay-build \
 	openapi schema-openapi schema-generative-ui ui-message-stream-fixtures codegen-python-client codegen-ts-client codegen-ts-app codegen-harbor-graphql \
-	dev dev-backend dev-frontend dev-docker dev-mock-llm \
+	dev dev-backend dev-frontend dev-stack dev-mock-llm \
 	test test-python test-frontend test-ts test-helm test-jcs doctest typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
-	skills skills-check codegen-prompts sync-models test-sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples check-skill-filter-examples check-skill-python-examples check-skill-typescript-examples check-skill-px-commands sync-docs-snippets check-docs-snippets gen-otel-models \
+	skills skills-check codegen-prompts sync-models test-sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples check-skill-filter-examples check-skill-python-examples check-skill-typescript-examples check-skill-px-commands sync-docs-snippets check-docs-snippets check-evaluator-bound-variables check-evaluator-path-parity check-prompt-compilers gen-otel-models \
 	test-integration-docs \
 	gh-comment-watch \
 	harbor-stage harbor-plugin-e2e harbor-run harbor-view \
@@ -73,7 +73,7 @@ help: ## Show this help message
 	@echo -e "  $(YELLOW)dev$(NC)                   - Full dev environment (backend + frontend)"
 	@echo -e "  dev-backend            - Backend only (FastAPI server)"
 	@echo -e "  dev-frontend           - Frontend only (React dev server)"
-	@echo -e "  dev-docker             - Docker devops environment (use ARGS= for arguments)"
+	@echo -e "  dev-stack              - Containerized devops stack (ARGS= or PHOENIX_DEV_ENGINE=)"
 	@echo -e "  dev-mock-llm           - Start the mock LLM server"
 	@echo -e ""
 	@echo -e "$(GREEN)Testing:$(NC)"
@@ -109,6 +109,9 @@ help: ## Show this help message
 	@echo -e "  check-skill-px-commands - Ensure px commands in public skills match the CLI's commands and flags"
 	@echo -e "  sync-docs-snippets     - Copy examples/quickstarts code into the docs' fenced code blocks"
 	@echo -e "  check-docs-snippets    - Ensure docs' fenced code blocks match examples/quickstarts"
+	@echo -e "  check-evaluator-bound-variables - Ensure the evaluator editor's bound variables match the server"
+	@echo -e "  check-evaluator-path-parity - Ensure evaluator mapping path previews match what the server binds"
+	@echo -e "  check-prompt-compilers - Ensure the YAML prompt compilers accept and emit evaluator gallery metadata"
 	@echo -e ""
 	@echo -e "$(GREEN)Utilities:$(NC)"
 	@echo -e "  codegen-prompts        - Compile YAML prompts to Python and TypeScript"
@@ -425,7 +428,7 @@ codegen-prompts: ## Generate prompts code from YAML files
 	@$(UV) run ruff format src/phoenix/__generated__/classification_evaluator_configs packages/phoenix-evals/src/phoenix/evals/__generated__/classification_evaluator_configs
 	@$(UV) run ruff check --fix src/phoenix/__generated__/classification_evaluator_configs packages/phoenix-evals/src/phoenix/evals/__generated__/classification_evaluator_configs
 	@$(UV) run python scripts/prompts/compile_typescript_prompts.py js/packages/phoenix-evals/src/__generated__/default_templates
-	@$(UV) run python -c "import shutil; from pathlib import Path; dest = Path('src/phoenix/server/api/helpers/substitutions'); dest.mkdir(exist_ok=True); shutil.copy('prompts/formatters/server.yaml', dest / 'server.yaml')"
+	@$(UV) run python -c "import shutil; from pathlib import Path; dest = Path('src/phoenix/server/evaluators/substitutions'); dest.mkdir(exist_ok=True); shutil.copy('prompts/formatters/server.yaml', dest / 'server.yaml')"
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 sync-models: ## Sync model cost manifest from remote sources
@@ -514,6 +517,21 @@ check-docs-snippets: ## Ensure docs' fenced code blocks match examples/quickstar
 	@python3 $(CURDIR)/scripts/sync_docs_snippets.py --check
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
+check-evaluator-bound-variables: ## Ensure the evaluator editor's bound variables match the server
+	@echo -e "$(CYAN)Checking the evaluator editor's bound variables against the server...$(NC)"
+	@$(UV) run python $(CURDIR)/scripts/ci/check_evaluator_bound_variables.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+check-evaluator-path-parity: ## Ensure evaluator mapping path previews match what the server binds
+	@echo -e "$(CYAN)Checking evaluator mapping path previews against the server...$(NC)"
+	@$(UV) run python $(CURDIR)/scripts/ci/check_evaluator_path_parity.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+check-prompt-compilers: ## Ensure the YAML prompt compilers accept and emit evaluator gallery metadata
+	@echo -e "$(CYAN)Checking the YAML prompt compilers...$(NC)"
+	@$(UV) run python $(CURDIR)/scripts/ci/check_prompt_compilers.py
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
 gen-otel-models: ## Generate OTel GenAI semconv Pydantic models into src/phoenix/trace/gen_ai/__generated__/models.py
 	@echo -e "$(CYAN)Generating OTel GenAI semconv Pydantic models...$(NC)"
 	@$(UV) run --script scripts/generate_otel_gen_ai_models.py
@@ -536,13 +554,13 @@ test-helm: ## Run comprehensive Helm chart tests
 	$(UV) run python scripts/ci/test_helm.py
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
-dev-docker: ## Run Docker devops environment (use ARGS= to pass arguments, default: up)
-	@echo -e "$(CYAN)Starting Docker devops environment...$(NC)"
-	cd scripts/docker/devops && bash dev.sh $(or $(ARGS),up)
+dev-stack: ## Run containerized devops stack (use ARGS= or PHOENIX_DEV_ENGINE= to configure)
+	@echo -e "$(CYAN)Starting devops stack...$(NC)"
+	cd scripts/devops && bash dev.sh $(or $(ARGS),up)
 
 dev-mock-llm: ## Start the mock LLM server
 	@echo -e "$(CYAN)Starting mock LLM server...$(NC)"
-	cd scripts/mock-llm-server && $(PNPM) install && $(PNPM) run build:all && $(PNPM) start
+	cd scripts/devops/mock-llm-server && $(PNPM) install && $(PNPM) run build:all && $(PNPM) start
 
 gh-comment-watch: ## Start the GitHub comment watcher
 	@echo -e "$(CYAN)Starting GH Comment Watch...$(NC)"

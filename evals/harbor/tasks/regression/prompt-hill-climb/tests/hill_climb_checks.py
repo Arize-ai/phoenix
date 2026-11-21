@@ -16,16 +16,16 @@ from harbor_verifiers.graphql.__generated__ import (
     ContinuousAnnotationConfigInput,
     DatasetEvaluatorFields,
     DatasetEvaluatorFieldsEvaluatorCodeEvaluator,
+    EvaluatorDefinitionInput,
     EvaluatorInputMappingInput,
     EvaluatorKind,
     EvaluatorPreviewInput,
-    EvaluatorPreviewItemInput,
-    EvaluatorPreviewsEvaluatorPreviewsResults,
-    EvaluatorPreviewsInput,
+    EvaluatorPreviewSubjectInput,
     ExperimentFields,
     ExperimentRunFields,
     FreeformAnnotationConfigInput,
     InlineCodeEvaluatorInput,
+    PreviewEvaluatorPreviewEvaluatorResults,
 )
 
 DATASET_NAME = "banking_saas_dataset_clean"
@@ -147,7 +147,7 @@ def _config_input(config: BaseModel) -> AnnotationConfigInput:
     return AnnotationConfigInput(freeform=FreeformAnnotationConfigInput.model_validate(fields))
 
 
-def _preview_ref(evaluator: DatasetEvaluatorFields) -> EvaluatorPreviewInput:
+def _preview_ref(evaluator: DatasetEvaluatorFields) -> EvaluatorDefinitionInput:
     """Builtins are previewed by id. Code evaluators are sent inline because the GraphQL
     by-id preview filters them out as the wrong type: with the saved output configs when
     the binding exposes them and otherwise a freeform config, under which Phoenix passes
@@ -159,7 +159,7 @@ def _preview_ref(evaluator: DatasetEvaluatorFields) -> EvaluatorPreviewInput:
         configs = [_config_input(c) for c in evaluator.output_configs or inner.output_configs] or [
             AnnotationConfigInput(freeform=FreeformAnnotationConfigInput(name=evaluator.name))
         ]
-        return EvaluatorPreviewInput(
+        return EvaluatorDefinitionInput(
             inline_code_evaluator=InlineCodeEvaluatorInput(
                 name=evaluator.name,
                 language=inner.language,
@@ -169,7 +169,7 @@ def _preview_ref(evaluator: DatasetEvaluatorFields) -> EvaluatorPreviewInput:
             )
         )
     if inner.kind is EvaluatorKind.BUILTIN:
-        return EvaluatorPreviewInput(built_in_evaluator_id=inner.id)
+        return EvaluatorDefinitionInput(built_in_evaluator_id=inner.id)
     raise ValueError(f"cannot preview a {inner.kind.value} evaluator")
 
 
@@ -179,31 +179,37 @@ def preview_scores(
     """Score each context with the evaluator through Phoenix, on its own sandbox and with
     its own input mapping, exactly as an experiment run would."""
     input_mapping = EvaluatorInputMappingInput.model_validate(evaluator.input_mapping.model_dump())
-    previews = EvaluatorPreviewsInput(
-        previews=[
-            EvaluatorPreviewItemInput(
-                evaluator=_preview_ref(evaluator), context=context, input_mapping=input_mapping
-            )
-            for context in contexts
-        ]
+    preview = EvaluatorPreviewInput(
+        evaluator=_preview_ref(evaluator),
+        input_mapping=input_mapping,
+        subjects=[
+            EvaluatorPreviewSubjectInput(key=str(index), context=context)
+            for index, context in enumerate(contexts)
+        ],
     )
-    results = phoenix_api.graphql_client().evaluator_previews(previews, timeout=300.0)
-    scores = [_as_score(r) for r in results.evaluator_previews.results]
-    if len(scores) != len(contexts):
-        raise ValueError(f"{len(contexts)} contexts produced {len(scores)} results")
-    return scores
+    results = phoenix_api.graphql_client().preview_evaluator(preview, timeout=300.0)
+    by_key = {result.key: result for result in results.preview_evaluator.results}
+    if len(by_key) != len(contexts):
+        raise ValueError(f"{len(contexts)} contexts produced {len(by_key)} results")
+    return [_as_score(by_key[str(index)]) for index in range(len(contexts))]
 
 
-def _as_score(result: EvaluatorPreviewsEvaluatorPreviewsResults) -> float:
+def _as_score(subject: PreviewEvaluatorPreviewEvaluatorResults) -> float:
+    """The score of a subject's one result: its score, or a pass/fail label read as one."""
+    if subject.error:
+        raise ValueError(subject.error)
+    if len(subject.results) != 1:
+        raise ValueError(f"expected one result per candidate, got {subject.results!r}")
+    (result,) = subject.results
     if result.error:
         raise ValueError(result.error)
     annotation = result.annotation
     if annotation is not None and annotation.score is not None:
         return annotation.score
-    label = (annotation.label if annotation is not None else None) or ""
-    if label.lower() in {"pass", "true", "correct", "match", "yes"}:
+    label = ((annotation.label if annotation is not None else None) or "").lower()
+    if label in {"pass", "true", "correct", "match", "yes"}:
         return 1.0
-    if label.lower() in {"fail", "false", "incorrect", "mismatch", "no"}:
+    if label in {"fail", "false", "incorrect", "mismatch", "no"}:
         return 0.0
     raise ValueError(f"unrecognized evaluator result {result!r}")
 

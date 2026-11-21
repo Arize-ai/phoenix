@@ -32,6 +32,7 @@ import {
 import type { AnnotationConfig } from "@phoenix/components/annotation";
 import { PlainJSONBlock } from "@phoenix/components/code/PlainJSONBlock";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { DecisionAnswerList } from "@phoenix/components/decision/DecisionAnswerList";
 import {
   calculateAnnotationListHeight,
   calculateEstimatedRowHeight,
@@ -45,6 +46,10 @@ import {
   ExperimentRunCellAnnotationsList,
   useExperimentColors,
 } from "@phoenix/components/experiment";
+import {
+  getDecisionRunAnswers,
+  getDecisionTaskQuestions,
+} from "@phoenix/components/experiment/decisionRunOutput";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
 import {
   CellTop,
@@ -65,7 +70,11 @@ import { ExperimentComparePageQueriesCompareGridQuery } from "@phoenix/pages/exp
 import { TraceDetailsDialog } from "@phoenix/pages/experiment/TraceDetailsDialog";
 import type { SelectedTraceDetails } from "@phoenix/pages/experiment/TraceDetailsDrawer";
 import { TraceDetailsDrawer } from "@phoenix/pages/experiment/TraceDetailsDrawer";
-import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
+import type { DecisionQuestionDraft } from "@phoenix/store/playground";
+import {
+  datasetEvaluatorsToAnnotationConfigs,
+  getAnnotationConfigsWithResults,
+} from "@phoenix/utils/datasetEvaluatorUtils";
 import { isWhitespaceOnlyReformat } from "@phoenix/utils/jsonUtils";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
@@ -241,6 +250,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                     annotations {
                       edges {
                         annotation: node {
+                          ...decisionAnnotation_annotation @relay(mask: false)
                           id
                           name
                           score
@@ -291,6 +301,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                       annotationName
                       meanScore
                     }
+                    ...decisionRunOutput_experiment
                   }
                 }
               }
@@ -298,6 +309,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 edges {
                   node {
                     name
+                    evaluator {
+                      kind
+                    }
                     outputConfigs {
                       __typename
                       ... on CategoricalAnnotationConfig {
@@ -342,11 +356,32 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     );
   }, [data]);
 
+  // Only show annotations with results in at least one compared experiment,
+  // so evaluators that never ran on them don't add empty rows.
   const annotationConfigs = useMemo(() => {
     const evaluators =
       data.dataset?.datasetEvaluators?.edges.map((edge) => edge.node) ?? [];
-    return datasetEvaluatorsToAnnotationConfigs(evaluators);
+    return getAnnotationConfigsWithResults({
+      annotationConfigs: datasetEvaluatorsToAnnotationConfigs(evaluators),
+      annotationNames:
+        data.dataset?.experiments?.edges.flatMap((edge) =>
+          edge.experiment.annotationSummaries.map(
+            (summary) => summary.annotationName
+          )
+        ) ?? [],
+    });
   }, [data]);
+
+  const decisionQuestionsByExperimentId = useMemo(
+    () =>
+      new Map(
+        data.dataset?.experiments?.edges.map((edge) => [
+          edge.experiment.id,
+          getDecisionTaskQuestions(edge.experiment),
+        ]) ?? []
+      ),
+    [data]
+  );
 
   const baseExperiment = experimentInfoById[baseExperimentId];
 
@@ -376,22 +411,11 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     return tableData.map((row) => row.id);
   }, [tableData]);
 
-  // Calculate the max annotation count across all repeated run groups for consistent row heights
-  const maxAnnotationCount = useMemo(() => {
-    let max = 0;
-    for (const row of tableData) {
-      for (const group of Object.values(row.repeatedRunGroupsByExperimentId)) {
-        const count = group.annotationSummaries.length;
-        if (count > max) max = count;
-      }
-    }
-    return max;
-  }, [tableData]);
-
-  // Calculate cell content height to account for annotation list
+  // Every run cell lists each annotation config (as a result or a placeholder),
+  // so the config count sets a consistent annotation list height
   const cellContentHeight =
     CELL_PRIMARY_CONTENT_HEIGHT +
-    calculateAnnotationListHeight(maxAnnotationCount);
+    calculateAnnotationListHeight(annotationConfigs.length);
 
   const baseColumns: ColumnDef<TableRow>[] = useMemo(() => {
     return [
@@ -543,6 +567,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               setSelectedExampleIndex={setSelectedExampleIndex}
               annotationSummaries={annotationSummaries}
               annotationConfigs={annotationConfigs}
+              decisionQuestions={
+                decisionQuestionsByExperimentId.get(experimentId) ?? null
+              }
               height={CELL_PRIMARY_CONTENT_HEIGHT}
             />
           );
@@ -556,6 +583,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     baseExperimentId,
     baseExperimentColor,
     compareExperimentIds,
+    decisionQuestionsByExperimentId,
     experimentInfoById,
     getExperimentColor,
     openTraceDetails,
@@ -748,7 +776,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 table={table}
                 tableContainerRef={tableContainerRef}
                 estimatedRowHeight={calculateEstimatedRowHeight(
-                  maxAnnotationCount
+                  annotationConfigs.length
                 )}
               />
             ) : (
@@ -756,7 +784,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 table={table}
                 tableContainerRef={tableContainerRef}
                 estimatedRowHeight={calculateEstimatedRowHeight(
-                  maxAnnotationCount
+                  annotationConfigs.length
                 )}
               />
             )}
@@ -926,6 +954,8 @@ export function ExperimentRunOutput(
     onOpenTraceDetails: (details: SelectedTraceDetails) => void;
     annotationSummaries: readonly AnnotationSummary[];
     annotationConfigs: readonly AnnotationConfig[];
+    /** The experiment's decision questions, or null for other tasks. */
+    decisionQuestions: readonly DecisionQuestionDraft[] | null;
     height: number;
     /**
      * The base experiment's run group for the same example, to show deltas
@@ -944,11 +974,16 @@ export function ExperimentRunOutput(
     annotationConfigs,
     repetitionNumber,
     baseRepeatedRunGroup,
+    decisionQuestions,
   } = props;
 
   if (error) {
     return <RunError error={error} height={height} />;
   }
+  const decisionAnswers = getDecisionRunAnswers({
+    questions: decisionQuestions,
+    output,
+  });
   const annotationsList = annotations?.edges.length
     ? annotations.edges.map((edge) => edge.annotation)
     : [];
@@ -962,7 +997,11 @@ export function ExperimentRunOutput(
     <Flex direction="column" height="100%" justifyContent="space-between">
       <ExpandableContent height={height}>
         <div css={outputContentCSS}>
-          <ExperimentOutputContent value={output} />
+          {decisionAnswers ? (
+            <DecisionAnswerList answers={decisionAnswers} />
+          ) : (
+            <ExperimentOutputContent value={output} />
+          )}
         </div>
       </ExpandableContent>
       <ExperimentRunCellAnnotationsList
@@ -1032,6 +1071,7 @@ function ExperimentRunOutputCell({
   setSelectedExampleIndex,
   annotationSummaries,
   annotationConfigs,
+  decisionQuestions,
   height,
 }: {
   experimentRepetitionCount: number;
@@ -1047,6 +1087,7 @@ function ExperimentRunOutputCell({
   setSelectedExampleIndex: (index: number) => void;
   annotationSummaries: readonly AnnotationSummary[];
   annotationConfigs: readonly AnnotationConfig[];
+  decisionQuestions: readonly DecisionQuestionDraft[] | null;
   height: number;
 }) {
   const [selectedRepetitionNumber, setSelectedRepetitionNumber] = useState(1);
@@ -1144,6 +1185,7 @@ function ExperimentRunOutputCell({
           onOpenTraceDetails={onOpenTraceDetails}
           annotationSummaries={annotationSummaries}
           annotationConfigs={annotationConfigs}
+          decisionQuestions={decisionQuestions}
           height={height}
           baseRepeatedRunGroup={baseRepeatedRunGroup}
         />

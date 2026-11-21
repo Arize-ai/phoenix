@@ -1,5 +1,7 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from typing import Any, Optional
 
+import pytest
 from sqlalchemy import select
 
 from phoenix.db import models
@@ -8,6 +10,7 @@ from phoenix.db.trace_aggregates import (
     error_count_by_trace,
     num_spans_by_trace,
     representative_root_span_by_trace,
+    representative_root_span_of_traces,
     span_kind_count_by_trace,
     token_counts_by_trace,
 )
@@ -104,3 +107,83 @@ async def test_representative_root_treats_foreign_parent_match_as_orphan(
         ).one()
 
         assert tuple(representative) == (trace.id, candidate.id)
+
+
+@pytest.mark.parametrize("orphan_span_as_root_span", [True, False])
+@pytest.mark.parametrize("scope", ["none", "project", "window", "bounded-window"])
+async def test_representative_root_of_traces_matches_ranking_every_span(
+    db: DbSessionFactory,
+    scope: str,
+    orphan_span_as_root_span: bool,
+) -> None:
+    now = datetime(2026, 11, 10, tzinfo=timezone.utc)
+    second = timedelta(seconds=1)
+
+    async def add_trace(
+        project: models.Project,
+        start: datetime,
+        spans: list[tuple[str, Optional[str], timedelta]],
+    ) -> models.Trace:
+        offsets = [offset for _, _, offset in spans] or [timedelta()]
+        trace = await _add_trace(session, project, start_time=start + min(offsets))
+        added: dict[str, models.Span] = {}
+        for key, parent, offset in spans:
+            span = await _add_span(session, trace, start_time=start + offset)
+            if parent is not None:
+                span.parent_id = added[parent].span_id if parent in added else parent
+            added[key] = span
+        return trace
+
+    async with db() as session:
+        app = await _add_project(session)
+        other = await _add_project(session)
+        await _add_project(session)
+        recent = now - timedelta(days=1)
+        await add_trace(app, recent, [("root", None, timedelta()), ("child", "root", second)])
+        await add_trace(app, recent, [("root", None, timedelta()), ("child", "root", timedelta())])
+        await add_trace(app, recent, [("a", None, timedelta()), ("b", None, timedelta())])
+        await add_trace(app, recent, [("root", None, second), ("early_child", "root", timedelta())])
+        await add_trace(app, recent, [("orphan", "lost", timedelta()), ("root", None, second)])
+        await add_trace(app, recent, [("root", None, timedelta()), ("orphan", "lost", second)])
+        await add_trace(app, recent, [("a", "lost", timedelta()), ("b", "lost", timedelta())])
+        await add_trace(app, recent, [])
+        await add_trace(app, now - timedelta(days=60), [("root", None, timedelta())])
+        foreign = await add_trace(other, recent, [("root", None, timedelta())])
+        foreign_root = (
+            await session.scalars(select(models.Span).where(models.Span.trace_rowid == foreign.id))
+        ).one()
+        await add_trace(other, recent, [("child", foreign_root.span_id, timedelta())])
+        await session.flush()
+        trace_rowids = list(await session.scalars(select(models.Trace.id)))
+
+        scopes: dict[str, dict[str, Any]] = {
+            "none": {},
+            "project": {"project_rowids": [app.id]},
+            "window": {"project_rowids": [app.id], "start_time": now - timedelta(days=7)},
+            "bounded-window": {
+                "start_time": now - timedelta(days=7),
+                "end_time": recent + timedelta(minutes=1),
+            },
+        }
+        scope_kwargs = scopes[scope]
+        ranked = (
+            await session.execute(
+                representative_root_span_by_trace(
+                    keys=trace_rowids,
+                    orphan_span_as_root_span=orphan_span_as_root_span,
+                    **scope_kwargs,
+                )
+            )
+        ).all()
+        found = (
+            await session.execute(
+                representative_root_span_of_traces(
+                    trace_rowids,
+                    orphan_span_as_root_span=orphan_span_as_root_span,
+                    **scope_kwargs,
+                )
+            )
+        ).all()
+
+    assert ranked
+    assert sorted(map(tuple, found)) == sorted(map(tuple, ranked))

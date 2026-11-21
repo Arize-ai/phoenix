@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1e3d7445d4f924b8015133b3957d12e8>>
+ * @generated SignedSource<<49daa9f3c1ad038d8400120e3a714f1f>>
  * @lightSyntaxTransform
  */
 
@@ -8,11 +8,13 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type GenerativeModelSDK = "ANTHROPIC" | "AWS_BEDROCK" | "AZURE_OPENAI" | "GOOGLE_GENAI" | "OPENAI";
+export type GenerativeModelSDK = "ANTHROPIC" | "AWS_BEDROCK" | "AZURE_OPENAI" | "GOOGLE_GENAI" | "OPENAI" | "TYPESAFE";
+export type ModelType = "CHAT" | "DECISION";
 export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
 export type CreateGenerativeModelCustomProviderMutationInput = {
   clientConfig: GenerativeModelCustomerProviderConfigInput;
   description?: string | null;
+  models?: ProviderModelsInput | null;
   name: string;
   provider: string;
 };
@@ -22,30 +24,42 @@ export type GenerativeModelCustomerProviderConfigInput = {
   azureOpenai?: never;
   googleGenai?: never;
   openai: OpenAICustomProviderConfigInput;
+  typesafe?: never;
 } | {
   anthropic?: never;
   awsBedrock?: never;
   azureOpenai: AzureOpenAICustomProviderConfigInput;
   googleGenai?: never;
   openai?: never;
+  typesafe?: never;
 } | {
   anthropic: AnthropicCustomProviderConfigInput;
   awsBedrock?: never;
   azureOpenai?: never;
   googleGenai?: never;
   openai?: never;
+  typesafe?: never;
 } | {
   anthropic?: never;
   awsBedrock: AWSBedrockCustomProviderConfigInput;
   azureOpenai?: never;
   googleGenai?: never;
   openai?: never;
+  typesafe?: never;
 } | {
   anthropic?: never;
   awsBedrock?: never;
   azureOpenai?: never;
   googleGenai: GoogleGenAICustomProviderConfigInput;
   openai?: never;
+  typesafe?: never;
+} | {
+  anthropic?: never;
+  awsBedrock?: never;
+  azureOpenai?: never;
+  googleGenai?: never;
+  openai?: never;
+  typesafe: TypeSafeCustomProviderConfigInput;
 };
 export type OpenAICustomProviderConfigInput = {
   openaiApiType?: OpenAIApiType | null;
@@ -134,6 +148,24 @@ export type GoogleGenAIHttpOptionsInput = {
   baseUrl?: string | null;
   headers?: any | null;
 };
+export type TypeSafeCustomProviderConfigInput = {
+  typesafeAuthenticationMethod: TypeSafeAuthenticationMethodInput;
+  typesafeClientKwargs?: TypeSafeClientKwargsInput | null;
+};
+export type TypeSafeAuthenticationMethodInput = {
+  apiKey: string;
+};
+export type TypeSafeClientKwargsInput = {
+  baseUrl?: string | null;
+  defaultHeaders?: any | null;
+};
+export type ProviderModelsInput = {
+  chat?: ModelsOfTypeInput | null;
+  decision?: ModelsOfTypeInput | null;
+};
+export type ModelsOfTypeInput = {
+  names?: ReadonlyArray<string>;
+};
 export type NewCustomProviderButtonCreateMutation$variables = {
   connectionId: string;
   input: CreateGenerativeModelCustomProviderMutationInput;
@@ -144,6 +176,7 @@ export type NewCustomProviderButtonCreateMutation$data = {
       readonly createdAt: string;
       readonly description: string | null;
       readonly id: string;
+      readonly modelTypes: ReadonlyArray<ModelType>;
       readonly name: string;
       readonly provider: string;
       readonly sdk: GenerativeModelSDK;
@@ -221,6 +254,13 @@ v4 = {
       "args": null,
       "kind": "ScalarField",
       "name": "provider",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "modelTypes",
       "storageKey": null
     },
     {
@@ -343,16 +383,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a18674a60a03adce0656973e249761bb",
+    "cacheID": "45360815d8eab0987748d267e1f1571f",
     "id": null,
     "metadata": {},
     "name": "NewCustomProviderButtonCreateMutation",
     "operationKind": "mutation",
-    "text": "mutation NewCustomProviderButtonCreateMutation(\n  $input: CreateGenerativeModelCustomProviderMutationInput!\n) {\n  createGenerativeModelCustomProvider(input: $input) {\n    provider {\n      id\n      name\n      description\n      sdk\n      provider\n      createdAt\n      updatedAt\n      user {\n        id\n        username\n        profilePictureUrl\n      }\n    }\n  }\n}\n"
+    "text": "mutation NewCustomProviderButtonCreateMutation(\n  $input: CreateGenerativeModelCustomProviderMutationInput!\n) {\n  createGenerativeModelCustomProvider(input: $input) {\n    provider {\n      id\n      name\n      description\n      sdk\n      provider\n      modelTypes\n      createdAt\n      updatedAt\n      user {\n        id\n        username\n        profilePictureUrl\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b66de5d56b0d8b2241083125c42c7b32";
+(node as any).hash = "ddc80ef51b3c5f5d4c51ab0d22e10e90";
 
 export default node;

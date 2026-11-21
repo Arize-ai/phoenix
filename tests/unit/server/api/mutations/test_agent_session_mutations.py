@@ -730,6 +730,28 @@ async def test_create_agent_session_requires_a_model(
     assert "model" in response.errors[0].message
 
 
+async def test_create_agent_session_rejects_a_decision_only_provider(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    response = await gql_client.execute(
+        query="""
+          mutation {
+            createAgentSession(
+              input: { model: { builtin: { provider: TYPESAFE, modelName: "jev" } } }
+            ) {
+              agentSession { id }
+            }
+          }
+        """
+    )
+
+    assert response.errors
+    assert "offers decision models only" in response.errors[0].message
+    async with db() as session:
+        assert (await session.scalars(select(models.AgentSession))).all() == []
+
+
 async def test_create_agent_session_can_create_temporary_session(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
@@ -954,6 +976,38 @@ async def test_patch_agent_session_model_rejects_a_missing_custom_provider(
         refreshed = await session.scalar(select(models.AgentSession))
         assert refreshed is not None
         assert refreshed.model_name == original_model_name
+
+
+async def test_patch_agent_session_model_rejects_a_decision_only_provider(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    async with db() as session:
+        agent_session = models.AgentSession(
+            **_agent_session_model_kwargs(),
+            user_id=None,
+            title="Session",
+            project_name="assistant_agent",
+        )
+        session.add(agent_session)
+        await session.flush()
+        agent_session_id = str(GlobalID("AgentSession", str(agent_session.id)))
+        original_provider = agent_session.model_provider
+
+    response = await gql_client.execute(
+        query=_UPDATE_MODEL_MUTATION,
+        variables={
+            "id": agent_session_id,
+            "model": {"builtin": {"provider": "TYPESAFE", "modelName": "jev"}},
+        },
+    )
+
+    assert response.errors
+    assert "offers decision models only" in response.errors[0].message
+    async with db() as session:
+        refreshed = await session.scalar(select(models.AgentSession))
+        assert refreshed is not None
+        assert refreshed.model_provider == original_provider
 
 
 async def test_patch_agent_session_model_is_rejected_while_a_turn_is_streaming(

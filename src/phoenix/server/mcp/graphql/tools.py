@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 _GRAPHQL_TAG = "phoenix-graphql"
 
 # The character budget for one describeGraphqlSchema answer.
-_SEARCH_BUDGET = 4000
+_SEARCH_BUDGET = 5000
 
 # FastMCP requires the root schema to be an object even when it has multiple
 # valid shapes. Pydantic owns every member schema so validation and MCP

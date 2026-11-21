@@ -13,8 +13,10 @@ import {
 } from "@phoenix/components";
 import { EditBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditBuiltInDatasetEvaluatorSlideover";
 import { EditCodeDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditCodeDatasetEvaluatorSlideover";
+import { EditDecisionDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditDecisionDatasetEvaluatorSlideover";
 import { EditLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditLLMDatasetEvaluatorSlideover";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
+import type { EvaluatorKind } from "@phoenix/types";
 
 import { DeleteDatasetEvaluatorDialog } from "./DeleteDatasetEvaluatorDialog";
 
@@ -32,7 +34,7 @@ export function DatasetEvaluatorActionMenu({
 }: {
   datasetId: string;
   datasetEvaluatorId: string;
-  evaluatorKind: "LLM" | "CODE" | "BUILTIN";
+  evaluatorKind: EvaluatorKind;
   evaluatorName: string;
   updateConnectionIds?: string[];
 }) {
@@ -101,7 +103,7 @@ export function DatasetEvaluatorActionMenu({
           onOpenChange={setIsEditDialogOpen}
           updateConnectionIds={updateConnectionIds}
         />
-      ) : (
+      ) : evaluatorKind === "LLM" ? (
         <EditLLMDatasetEvaluatorSlideover
           datasetEvaluatorId={datasetEvaluatorId}
           datasetId={datasetId}
@@ -109,7 +111,15 @@ export function DatasetEvaluatorActionMenu({
           onOpenChange={setIsEditDialogOpen}
           updateConnectionIds={updateConnectionIds}
         />
-      )}
+      ) : evaluatorKind === "DECISION" ? (
+        <EditDecisionDatasetEvaluatorSlideover
+          datasetEvaluatorId={datasetEvaluatorId}
+          datasetId={datasetId}
+          isOpen={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+          updateConnectionIds={updateConnectionIds}
+        />
+      ) : null}
       <DeleteDatasetEvaluatorDialog
         datasetEvaluatorId={datasetEvaluatorId}
         evaluatorName={evaluatorName}

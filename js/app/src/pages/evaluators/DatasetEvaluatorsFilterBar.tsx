@@ -5,9 +5,11 @@ import { useDatasetEvaluatorsFilterContext } from "@phoenix/pages/evaluators/Dat
 export const DatasetEvaluatorsFilterBar = ({
   extraActions,
   padding = "size-200",
+  placeholder = "Search evaluators by name",
 }: {
   extraActions?: React.ReactNode;
   padding?: ViewProps["padding"];
+  placeholder?: string;
 }) => {
   const { setFilter, filter } = useDatasetEvaluatorsFilterContext();
 
@@ -25,10 +27,10 @@ export const DatasetEvaluatorsFilterBar = ({
         gap="size-100"
       >
         <DebouncedSearch
-          aria-label="Search evaluators by name"
+          aria-label={placeholder}
           onChange={setFilter}
           defaultValue={filter}
-          placeholder="Search evaluators by name"
+          placeholder={placeholder}
         />
         {!!extraActions && (
           <Flex direction="row" alignItems="center" gap="size-100" flex="none">

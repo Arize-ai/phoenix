@@ -1,44 +1,27 @@
-import { css } from "@emotion/react";
 import { flexRender, useTable } from "@tanstack/react-table";
-import { useCallback, useContext, useMemo, useState } from "react";
-import { OverlayTriggerStateContext } from "react-aria-components";
+import { useMemo, useState } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import {
   Button,
   Card,
-  Dialog,
-  DialogCloseButton,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTitleExtra,
   DocumentationHelp,
   Flex,
   Icon,
   Icons,
-  LazyTabPanel,
+  Link,
   MarkerTrigger,
   StatusIndicator,
   ViewportModal,
   ViewportModalOverlay,
-  Tab,
-  TabList,
-  Tabs,
   Text,
-  View,
 } from "@phoenix/components";
 import type { StatusCategory } from "@phoenix/components";
-import {
-  GenerativeProviderIcon,
-  ProviderBrowserCredentialsPanel,
-  ProviderServerCredentialsPanel,
-} from "@phoenix/components/generative";
+import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import { getMissingCredentialsStatus } from "@phoenix/components/generative/modelProviderUtils";
 import { tableCSS } from "@phoenix/components/table/styles";
 import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
 import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
-import { useViewer } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
@@ -46,6 +29,8 @@ import type {
   GenerativeProvidersCard_data$data,
   GenerativeProvidersCard_data$key,
 } from "./__generated__/GenerativeProvidersCard_data.graphql";
+import { formatModelTypes } from "./modelTypeUtils";
+import { ProviderCredentialsDialog } from "./ProviderCredentialsDialog";
 
 export function GenerativeProvidersCard({
   query,
@@ -65,6 +50,7 @@ export function GenerativeProvidersCard({
             isRequired
           }
           credentialsSet
+          modelTypes
         }
       }
     `,
@@ -92,21 +78,19 @@ export function GenerativeProvidersCard({
         return (
           <Flex direction="row" alignItems="center" gap="size-100">
             <GenerativeProviderIcon provider={row.original.key} height={18} />
-            {row.original.name}
+            <Link to={`/settings/providers/built-in/${row.original.key}`}>
+              {row.original.name}
+            </Link>
           </Flex>
         );
       },
     },
     {
-      header: "Environment Variables",
-      accessorKey: "apiKeyEnvVar",
-      cell: ({ row }) => {
-        const envVars =
-          row.original.credentialRequirements
-            .map((config) => config.envVarName)
-            .join(", ") || "--";
-        return <Text>{envVars}</Text>;
-      },
+      header: "Model Types",
+      accessorKey: "modelTypes",
+      cell: ({ row }) => (
+        <Text>{formatModelTypes(row.original.modelTypes)}</Text>
+      ),
     },
     {
       header: "Configuration",
@@ -280,108 +264,4 @@ export function getProviderCredentialsStatus({
     };
   }
   return getMissingCredentialsStatus({ providerKey: provider.key });
-}
-
-function CredentialsSetIndicator() {
-  return (
-    <Icon
-      color="success"
-      svg={<Icons.Checkmark />}
-      aria-label="credentials set"
-      css={css`
-        font-size: var(--global-font-size-s);
-      `}
-    />
-  );
-}
-
-function ProviderCredentialsDialog({
-  provider,
-}: {
-  provider: GenerativeProvidersCard_data$data["modelProviders"][number];
-}) {
-  const { viewer } = useViewer();
-  const isAdmin = !viewer || viewer.role?.name === "ADMIN";
-  const providerKey = provider.key;
-  const hasBrowserCredentials = useCredentialsContext((state) => {
-    if (!isModelProvider(providerKey)) {
-      return false;
-    }
-    const providerCredentials = state[providerKey];
-    return provider.credentialRequirements.some(
-      ({ envVarName }) => !!providerCredentials?.[envVarName]
-    );
-  });
-  const overlayState = useContext(OverlayTriggerStateContext);
-  const closeDialog = useCallback(() => {
-    overlayState?.close();
-  }, [overlayState]);
-
-  return (
-    <Dialog>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Configure {provider.name} Credentials</DialogTitle>
-          <DialogTitleExtra>
-            <DialogCloseButton slot="close" />
-          </DialogTitleExtra>
-        </DialogHeader>
-        {isAdmin ? (
-          <>
-            <View paddingX="size-200" paddingY="size-100">
-              <Text size="XS" color="text-700">
-                Credentials can be stored in two places: in this browser for
-                your personal use, and on the server to share with all users.
-              </Text>
-            </View>
-            <Tabs defaultSelectedKey="browser">
-              <TabList aria-label="Credential storage location">
-                <Tab id="browser">
-                  <Flex direction="row" alignItems="center" gap="size-50">
-                    <Text>Browser</Text>
-                    {hasBrowserCredentials && <CredentialsSetIndicator />}
-                  </Flex>
-                </Tab>
-                <Tab id="server">
-                  <Flex direction="row" alignItems="center" gap="size-50">
-                    <Text>Server</Text>
-                    {provider.credentialsSet && <CredentialsSetIndicator />}
-                  </Flex>
-                </Tab>
-              </TabList>
-              <LazyTabPanel id="browser">
-                <View padding="size-200">
-                  <ProviderBrowserCredentialsPanel
-                    provider={provider}
-                    onSaved={closeDialog}
-                  />
-                </View>
-              </LazyTabPanel>
-              <LazyTabPanel id="server">
-                <View padding="size-200">
-                  <ProviderServerCredentialsPanel
-                    provider={provider}
-                    onSaved={closeDialog}
-                  />
-                </View>
-              </LazyTabPanel>
-            </Tabs>
-          </>
-        ) : (
-          <View padding="size-200" paddingTop="size-100">
-            <Flex direction="column" gap="size-100">
-              <Text size="XS" color="text-700">
-                To configure shared credentials for all users on the server,
-                contact an administrator.
-              </Text>
-              <ProviderBrowserCredentialsPanel
-                provider={provider}
-                onSaved={closeDialog}
-              />
-            </Flex>
-          </View>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
 }

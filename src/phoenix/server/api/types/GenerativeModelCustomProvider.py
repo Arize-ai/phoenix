@@ -10,12 +10,15 @@ from strawberry.scalars import JSON
 from strawberry.types import Info
 from typing_extensions import Self, assert_never
 
-from phoenix.db import models
+from phoenix.db import models as db_models
 from phoenix.db.types import model_provider as mp
 from phoenix.server.api.context import Context
-from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
+from phoenix.server.api.helpers.client_registry import CLIENT_REGISTRY
 from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
-from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
+from phoenix.server.api.types.GenerativeProvider import (
+    CONFIG_TYPE_TO_GENERATIVE_PROVIDER_KEY,
+)
+from phoenix.server.api.types.ModelType import ModelType
 from phoenix.server.api.types.RedactedString import RedactedString
 
 if TYPE_CHECKING:
@@ -28,11 +31,49 @@ class GenerativeModelSDK(Enum):
     ANTHROPIC = "anthropic"
     AWS_BEDROCK = "aws_bedrock"
     GOOGLE_GENAI = "google_genai"
+    TYPESAFE = "typesafe"
 
 
 @strawberry.type
 class UnparsableConfig:
     parse_error: str
+
+
+@strawberry.type(description="A custom provider's models of one type, with their settings.")
+class ModelsOfType:
+    names: list[str] = strawberry.field(
+        description=(
+            "Model names the model menu suggests in place of the built-in list; empty suggests "
+            "the built-in models. Not an allowlist: any name the endpoint accepts works."
+        )
+    )
+
+    @classmethod
+    def from_orm(cls, served: mp.ModelsOfType | None) -> Self | None:
+        if served is None:
+            return None
+        return cls(names=list(served.names))
+
+
+@strawberry.type(
+    description="A custom provider's models, by type; the endpoint serves a type when it is set."
+)
+class ProviderModels:
+    chat: ModelsOfType | None
+    decision: ModelsOfType | None = strawberry.field(
+        description=(
+            "Decision models run over the provider's own SDK's protocol (the OpenAI Decisions "
+            "API for OpenAI, System One for TypeSafe), at its base URL, with its API key and "
+            "headers."
+        )
+    )
+
+    @classmethod
+    def from_orm(cls, served: mp.ProviderModels) -> Self:
+        return cls(
+            chat=ModelsOfType.from_orm(served.chat),
+            decision=ModelsOfType.from_orm(served.decision),
+        )
 
 
 @strawberry.type
@@ -338,6 +379,47 @@ class GoogleGenAICustomProviderConfig:
         )
 
 
+@strawberry.type
+class TypeSafeAuthenticationMethod:
+    api_key: RedactedString | None = UNSET
+
+    @classmethod
+    def from_orm(cls, method: mp.TypeSafeAuthenticationMethod) -> Self:
+        return cls(api_key=RedactedString(method.api_key))
+
+
+@strawberry.type
+class TypeSafeClientKwargs:
+    base_url: str | None = UNSET
+    default_headers: JSON | None = UNSET
+
+    @classmethod
+    def from_orm(cls, kwargs: mp.TypeSafeClientKwargs | None) -> Self | None:
+        if not kwargs:
+            return None
+        return cls(
+            base_url=kwargs.base_url,
+            default_headers=JSON(dict(kwargs.default_headers))
+            if kwargs.default_headers is not None
+            else None,
+        )
+
+
+@strawberry.type(description="A System One-compatible endpoint; it serves decision models only.")
+class TypeSafeCustomProviderConfig:
+    typesafe_authentication_method: TypeSafeAuthenticationMethod
+    typesafe_client_kwargs: TypeSafeClientKwargs | None = UNSET
+
+    @classmethod
+    def from_orm(cls, config: mp.TypeSafeCustomProviderConfig) -> Self:
+        return cls(
+            typesafe_authentication_method=TypeSafeAuthenticationMethod.from_orm(
+                config.typesafe_authentication_method
+            ),
+            typesafe_client_kwargs=TypeSafeClientKwargs.from_orm(config.typesafe_client_kwargs),
+        )
+
+
 # Union type for polymorphic config field
 CustomProviderConfig = Annotated[
     Union[
@@ -346,6 +428,7 @@ CustomProviderConfig = Annotated[
         AnthropicCustomProviderConfig,
         AWSBedrockCustomProviderConfig,
         GoogleGenAICustomProviderConfig,
+        TypeSafeCustomProviderConfig,
         UnparsableConfig,
     ],
     strawberry.union("CustomProviderConfig"),
@@ -353,7 +436,7 @@ CustomProviderConfig = Annotated[
 
 
 def _parse_config(
-    sdk: models.GenerativeModelSDK,
+    sdk: db_models.GenerativeModelSDK,
     encrypted_config: bytes,
     decrypt: Callable[[bytes], bytes],
 ) -> CustomProviderConfig:
@@ -379,6 +462,9 @@ def _parse_config(
         elif sdk == "google_genai":
             google_config = mp.GoogleGenAICustomProviderConfig.model_validate_json(data)
             return GoogleGenAICustomProviderConfig.from_orm(google_config)
+        elif sdk == "typesafe":
+            typesafe_config = mp.TypeSafeCustomProviderConfig.model_validate_json(data)
+            return TypeSafeCustomProviderConfig.from_orm(typesafe_config)
         else:
             assert_never(sdk)
     except ValidationError:
@@ -388,7 +474,7 @@ def _parse_config(
 @strawberry.type
 class GenerativeModelCustomProvider(Node):
     id: NodeID[int]
-    db_record: strawberry.Private[models.GenerativeModelCustomProvider | None] = None
+    db_record: strawberry.Private[db_models.GenerativeModelCustomProvider | None] = None
 
     def __post_init__(self) -> None:
         if self.db_record and self.id != self.db_record.id:
@@ -400,7 +486,7 @@ class GenerativeModelCustomProvider(Node):
             val = self.db_record.name
         else:
             val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.name),
+                (self.id, db_models.GenerativeModelCustomProvider.name),
             )
         return val
 
@@ -410,7 +496,7 @@ class GenerativeModelCustomProvider(Node):
             val = self.db_record.description
         else:
             val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.description),
+                (self.id, db_models.GenerativeModelCustomProvider.description),
             )
         return val
 
@@ -420,7 +506,7 @@ class GenerativeModelCustomProvider(Node):
             val = self.db_record.provider
         else:
             val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.provider),
+                (self.id, db_models.GenerativeModelCustomProvider.provider),
             )
         return val
 
@@ -430,7 +516,7 @@ class GenerativeModelCustomProvider(Node):
             val = self.db_record.created_at
         else:
             val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.created_at),
+                (self.id, db_models.GenerativeModelCustomProvider.created_at),
             )
         return val
 
@@ -440,7 +526,7 @@ class GenerativeModelCustomProvider(Node):
             val = self.db_record.updated_at
         else:
             val = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.updated_at),
+                (self.id, db_models.GenerativeModelCustomProvider.updated_at),
             )
         return val
 
@@ -450,7 +536,7 @@ class GenerativeModelCustomProvider(Node):
             sdk = self.db_record.sdk
         else:
             sdk = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.sdk),
+                (self.id, db_models.GenerativeModelCustomProvider.sdk),
             )
         return GenerativeModelSDK(sdk)
 
@@ -465,8 +551,8 @@ class GenerativeModelCustomProvider(Node):
                 encrypted_config,
             ) = await info.context.data_loaders.generative_model_custom_provider_fields.load_many(
                 [
-                    (self.id, models.GenerativeModelCustomProvider.sdk),
-                    (self.id, models.GenerativeModelCustomProvider.config),
+                    (self.id, db_models.GenerativeModelCustomProvider.sdk),
+                    (self.id, db_models.GenerativeModelCustomProvider.config),
                 ]
             )
         return _parse_config(sdk, encrypted_config, info.context.decrypt)
@@ -479,7 +565,7 @@ class GenerativeModelCustomProvider(Node):
             user_id = self.db_record.user_id
         else:
             user_id = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.user_id),
+                (self.id, db_models.GenerativeModelCustomProvider.user_id),
             )
         if user_id is None:
             return None
@@ -487,26 +573,59 @@ class GenerativeModelCustomProvider(Node):
 
         return User(id=user_id)
 
-    @strawberry.field(description="The model names available for this provider.")  # type: ignore
-    async def model_names(self, info: Info[Context, None]) -> list[str]:
+    async def _sdk(self, info: Info[Context, None]) -> db_models.GenerativeModelSDK:
         if self.db_record:
-            sdk = self.db_record.sdk
-        else:
-            sdk = await info.context.data_loaders.generative_model_custom_provider_fields.load(
-                (self.id, models.GenerativeModelCustomProvider.sdk),
+            return self.db_record.sdk
+        sdk: db_models.GenerativeModelSDK = (
+            await info.context.data_loaders.generative_model_custom_provider_fields.load(
+                (self.id, db_models.GenerativeModelCustomProvider.sdk),
             )
+        )
+        return sdk
 
-        if sdk == "openai":
-            provider_key = GenerativeProviderKey.OPENAI
-        elif sdk == "azure_openai":
-            provider_key = GenerativeProviderKey.AZURE_OPENAI
-        elif sdk == "anthropic":
-            provider_key = GenerativeProviderKey.ANTHROPIC
-        elif sdk == "aws_bedrock":
-            provider_key = GenerativeProviderKey.AWS
-        elif sdk == "google_genai":
-            provider_key = GenerativeProviderKey.GOOGLE
-        else:
-            assert_never(sdk)
+    async def _provider_models(self, info: Info[Context, None]) -> mp.ProviderModels:
+        if self.db_record:
+            return self.db_record.models
+        return await info.context.data_loaders.custom_provider_models.load(self.id)
 
-        return PLAYGROUND_CLIENT_REGISTRY.list_models(provider_key)
+    @strawberry.field(
+        description=(
+            "This provider's models, by type, with the names the model menu suggests. The "
+            "admin declares them; its SDK limits which types it can serve."
+        )
+    )  # type: ignore
+    async def models(self, info: Info[Context, None]) -> ProviderModels:
+        return ProviderModels.from_orm(await self._provider_models(info))
+
+    @strawberry.field(
+        description=(
+            "The model types this provider serves: chat models, decision models, or both. "
+            "The keys of models."
+        )
+    )  # type: ignore
+    async def model_types(self, info: Info[Context, None]) -> list[ModelType]:
+        served = await self._provider_models(info)
+        return [
+            ModelType[key] for key in mp.MODEL_TYPES if served.get_models_of_type(key) is not None
+        ]
+
+    @strawberry.field(
+        description=(
+            "Model names for the model menu: the names set for this model type, or the "
+            "SDK's built-in list when there are none; empty when it serves no models of that "
+            "type. Any model name the endpoint accepts can be used."
+        )
+    )  # type: ignore
+    async def model_names(
+        self, info: Info[Context, None], model_type: ModelType = ModelType.CHAT
+    ) -> list[str]:
+        served = await self._provider_models(info)
+        key = model_type.to_model_type_key()
+        models_of_type = served.get_models_of_type(key)
+        if models_of_type is None:
+            return []
+        if models_of_type.names:
+            return list(models_of_type.names)
+        return CLIENT_REGISTRY.list_models(
+            CONFIG_TYPE_TO_GENERATIVE_PROVIDER_KEY[await self._sdk(info)], model_type=key
+        )

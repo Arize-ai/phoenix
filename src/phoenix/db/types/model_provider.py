@@ -1,5 +1,6 @@
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from enum import Enum
+from types import MappingProxyType
 from typing import (
     TYPE_CHECKING,
     Annotated,
@@ -15,12 +16,13 @@ from typing import (
 )
 
 from pydantic import (
+    AfterValidator,
     BaseModel,
     ConfigDict,
     Field,
     RootModel,
 )
-from typing_extensions import TypeAlias, assert_never
+from typing_extensions import TypeAlias, TypeGuard, assert_never
 
 from phoenix.utilities.env_vars import without_env_vars
 
@@ -29,8 +31,16 @@ if TYPE_CHECKING:
     from google.genai.client import AsyncClient as GoogleAsyncClient
     from openai import AsyncOpenAI
     from types_aiobotocore_bedrock_runtime import BedrockRuntimeClient
+    from typesafe_sdk import AsyncTypeSafeClient
 
     from phoenix.db.models import GenerativeModelSDK
+
+DecisionSDK: TypeAlias = Literal[
+    "openai",
+    "azure_openai",
+    "typesafe",
+    "google_genai",
+]
 
 # Covariant type for Protocol (output position only)
 ClientT_co = TypeVar("ClientT_co", covariant=True)
@@ -72,6 +82,53 @@ class LLMClientFactory(ClientFactory[ClientT]):
 
 
 # =============================================================================
+# HTTP client helpers
+# =============================================================================
+
+
+def validate_base_url(base_url: str) -> str:
+    """Validate that ``base_url`` is an HTTP(S) URL without userinfo, query, or fragment.
+
+    Userinfo would be recorded on spans, and a query or fragment does not survive the
+    SDK appending its path.
+    """
+    from urllib.parse import urlsplit
+
+    import httpx
+
+    stripped = base_url.strip()
+    try:
+        url = httpx.URL(stripped)
+    except httpx.InvalidURL as error:
+        raise ValueError("Base URL must be a valid HTTP(S) URL.") from error
+    if (
+        url.scheme not in ("http", "https")
+        or not url.host
+        or "@" in urlsplit(stripped).netloc
+        or "?" in stripped
+        or "#" in stripped
+    ):
+        raise ValueError(
+            "Base URL must be an HTTP(S) URL without embedded credentials, a query, or a fragment."
+        )
+    return stripped
+
+
+def openai_http_client() -> Any:
+    """Default OpenAI HTTP client with redirects disabled so API keys are not forwarded."""
+    from openai import DefaultAsyncHttpxClient
+
+    return DefaultAsyncHttpxClient(follow_redirects=False)
+
+
+def anthropic_http_client() -> Any:
+    """Default Anthropic HTTP client with redirects disabled so API keys are not forwarded."""
+    from anthropic import DefaultAsyncHttpxClient
+
+    return DefaultAsyncHttpxClient(follow_redirects=False)
+
+
+# =============================================================================
 # Rate limit key helpers
 # =============================================================================
 
@@ -99,6 +156,11 @@ def bedrock_rate_limit_key(region: str, credential: str | None) -> tuple[str, st
 def google_rate_limit_key(api_key: str, base_url: str | None) -> tuple[str, int, int]:
     """Rate limit key for Google GenAI."""
     return ("google", hash(api_key), hash(base_url))
+
+
+def typesafe_rate_limit_key(api_key: str, base_url: str | None) -> tuple[str, int, int]:
+    """Rate limit key for TypeSafe System One."""
+    return ("typesafe", hash(api_key), hash(base_url))
 
 
 @asynccontextmanager
@@ -140,6 +202,74 @@ class ModelProvider(Enum):
     TOGETHER = "TOGETHER"
     ZAI = "ZAI"
     META = "META"
+    TYPESAFE = "TYPESAFE"
+
+
+SDK_TO_MODEL_PROVIDER: Mapping["GenerativeModelSDK", ModelProvider] = MappingProxyType(
+    {
+        "openai": ModelProvider.OPENAI,
+        "azure_openai": ModelProvider.AZURE_OPENAI,
+        "anthropic": ModelProvider.ANTHROPIC,
+        "aws_bedrock": ModelProvider.AWS,
+        "google_genai": ModelProvider.GOOGLE,
+        "typesafe": ModelProvider.TYPESAFE,
+    }
+)
+
+
+def model_provider_from_sdk(sdk: "GenerativeModelSDK") -> ModelProvider:
+    return SDK_TO_MODEL_PROVIDER[sdk]
+
+
+_OPENAI_FAMILY_PROVIDERS: frozenset[ModelProvider] = frozenset(
+    {
+        ModelProvider.OPENAI,
+        ModelProvider.AZURE_OPENAI,
+        ModelProvider.DEEPSEEK,
+        ModelProvider.XAI,
+        ModelProvider.OLLAMA,
+        ModelProvider.CEREBRAS,
+        ModelProvider.FIREWORKS,
+        ModelProvider.GROQ,
+        ModelProvider.MOONSHOT,
+        ModelProvider.MINIMAX,
+        ModelProvider.PERPLEXITY,
+        ModelProvider.TOGETHER,
+        ModelProvider.ZAI,
+        ModelProvider.META,
+    }
+)
+
+_SDK_COMPATIBLE_PROVIDERS: Mapping["GenerativeModelSDK", frozenset[ModelProvider]] = (
+    MappingProxyType(
+        {
+            "openai": _OPENAI_FAMILY_PROVIDERS,
+            "azure_openai": _OPENAI_FAMILY_PROVIDERS,
+            "anthropic": frozenset({ModelProvider.ANTHROPIC}),
+            "google_genai": frozenset({ModelProvider.GOOGLE}),
+            "aws_bedrock": frozenset({ModelProvider.AWS}),
+            "typesafe": frozenset(),
+        }
+    )
+)
+
+_CHAT_SDKS: frozenset["GenerativeModelSDK"] = frozenset(
+    {
+        "openai",
+        "azure_openai",
+        "anthropic",
+        "google_genai",
+        "aws_bedrock",
+    }
+)
+_DECISION_SDKS: frozenset["GenerativeModelSDK"] = frozenset(
+    {
+        "openai",
+        "azure_openai",
+        "typesafe",
+        "google_genai",
+    }
+)
 
 
 def is_sdk_compatible_with_model_provider(
@@ -150,34 +280,76 @@ def is_sdk_compatible_with_model_provider(
     Check if a custom provider's SDK can be used with a prompt's model provider.
 
     This prevents misconfigurations like using an AWS Bedrock custom provider
-    with an OpenAI prompt.
+    with an OpenAI prompt. Prompts are chat templates, so an SDK without chat
+    models (see :func:`sdk_offers_chat`) is compatible with none.
     """
-    if sdk == "openai" or sdk == "azure_openai":
-        # openai and azure_openai SDKs are compatible with OpenAI-family providers
-        return model_provider in (
-            ModelProvider.OPENAI,
-            ModelProvider.AZURE_OPENAI,
-            ModelProvider.DEEPSEEK,
-            ModelProvider.XAI,
-            ModelProvider.OLLAMA,
-            ModelProvider.CEREBRAS,
-            ModelProvider.FIREWORKS,
-            ModelProvider.GROQ,
-            ModelProvider.MOONSHOT,
-            ModelProvider.MINIMAX,
-            ModelProvider.PERPLEXITY,
-            ModelProvider.TOGETHER,
-            ModelProvider.ZAI,
-            ModelProvider.META,
+    return model_provider in _SDK_COMPATIBLE_PROVIDERS[sdk]
+
+
+def sdk_offers_chat(sdk: "GenerativeModelSDK") -> bool:
+    return sdk in _CHAT_SDKS
+
+
+def sdk_offers_decisions(sdk: "GenerativeModelSDK") -> TypeGuard[DecisionSDK]:
+    return sdk in _DECISION_SDKS
+
+
+def _clean_model_names(value: tuple[str, ...]) -> tuple[str, ...]:
+    return tuple(dict.fromkeys(name.strip() for name in value if name.strip()))
+
+
+ModelNames: TypeAlias = Annotated[tuple[str, ...], AfterValidator(_clean_model_names)]
+
+ModelTypeKey: TypeAlias = Literal["CHAT", "DECISION"]
+MODEL_TYPES: tuple[ModelTypeKey, ...] = ("CHAT", "DECISION")
+
+
+class ModelsOfType(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    names: ModelNames = Field(
+        default=(),
+        description=(
+            "Model names the model menu suggests in place of the built-in list; empty "
+            "suggests the built-in models. Not an allowlist: any name the endpoint accepts works."
+        ),
+    )
+
+
+class ProviderModels(BaseModel):
+    """Model types a custom provider serves (`None` when not served) and their suggested names."""
+
+    model_config = ConfigDict(frozen=True)
+    chat: ModelsOfType | None = None
+    decision: ModelsOfType | None = None
+
+    def get_models_of_type(self, model_type: ModelTypeKey) -> ModelsOfType | None:
+        if model_type == "CHAT":
+            return self.chat
+        if model_type == "DECISION":
+            return self.decision
+        assert_never(model_type)
+
+    def types(self) -> frozenset[ModelTypeKey]:
+        return frozenset(
+            model_type
+            for model_type in MODEL_TYPES
+            if self.get_models_of_type(model_type) is not None
         )
-    if sdk == "anthropic":
-        return model_provider is ModelProvider.ANTHROPIC
-    if sdk == "google_genai":
-        return model_provider is ModelProvider.GOOGLE
-    if sdk == "aws_bedrock":
-        return model_provider is ModelProvider.AWS
-    else:
-        assert_never(sdk)
+
+
+def servable_model_types(sdk: "GenerativeModelSDK") -> frozenset[ModelTypeKey]:
+    servable: set[ModelTypeKey] = set()
+    if sdk_offers_chat(sdk):
+        servable.add("CHAT")
+    if sdk_offers_decisions(sdk):
+        servable.add("DECISION")
+    return frozenset(servable)
+
+
+def default_provider_models(sdk: "GenerativeModelSDK") -> ProviderModels:
+    if sdk_offers_chat(sdk):
+        return ProviderModels(chat=ModelsOfType())
+    return ProviderModels(decision=ModelsOfType())
 
 
 class AuthenticationMethodApiKey(BaseModel):
@@ -288,6 +460,7 @@ class OpenAICustomProviderConfig(BaseModel):
                     project=project,
                     default_headers=merged_headers,
                     max_retries=0,
+                    http_client=openai_http_client(),
                 )
 
         return LLMClientFactory(create_client, openai_rate_limit_key(api_key, base_url))
@@ -404,6 +577,7 @@ class AzureOpenAICustomProviderConfig(BaseModel):
                         base_url=base_url,
                         default_headers=merged_headers,
                         max_retries=0,
+                        http_client=openai_http_client(),
                     )
 
             return LLMClientFactory(
@@ -437,6 +611,7 @@ class AzureOpenAICustomProviderConfig(BaseModel):
                         base_url=base_url,
                         default_headers=merged_headers,
                         max_retries=0,
+                        http_client=openai_http_client(),
                     )
 
             return LLMClientFactory(
@@ -457,13 +632,14 @@ class AzureOpenAICustomProviderConfig(BaseModel):
             token_provider = get_bearer_token_provider(default_cred, scope)
 
             def create_client_with_default_cred() -> AsyncOpenAI:
-                # No env var isolation needed - credentials are already resolved via token_provider
-                return AsyncOpenAI(
-                    api_key=token_provider,
-                    base_url=base_url,
-                    default_headers=merged_headers,
-                    max_retries=0,
-                )
+                with without_env_vars("OPENAI_*"):
+                    return AsyncOpenAI(
+                        api_key=token_provider,
+                        base_url=base_url,
+                        default_headers=merged_headers,
+                        max_retries=0,
+                        http_client=openai_http_client(),
+                    )
 
             # Default credentials use managed identity, keyed by endpoint
             return LLMClientFactory(
@@ -543,6 +719,7 @@ class AnthropicCustomProviderConfig(BaseModel):
                     base_url=base_url,
                     default_headers=merged_headers,
                     max_retries=0,
+                    http_client=anthropic_http_client(),
                 )
 
         return LLMClientFactory(
@@ -776,15 +953,21 @@ class GoogleGenAICustomProviderConfig(BaseModel):
         if extra_headers:
             headers.update(extra_headers)
         # attempts=1: no HTTP retries (google-genai default is 5 attempts).
+        # Redirects are disabled on both httpx and aiohttp transports so x-goog-api-key
+        # is not forwarded across redirects.
         _no_http_retries = HttpRetryOptions(attempts=1)
-        if base_url or headers:
-            http_options = HttpOptions(
-                base_url=base_url,
-                headers=headers or None,
-                retry_options=_no_http_retries,
-            )
-        else:
-            http_options = HttpOptions(retry_options=_no_http_retries)
+        _no_redirects_client_args = {"follow_redirects": False}
+        _no_redirects_async_client_args = {
+            "follow_redirects": False,
+            "allow_redirects": False,
+        }
+        http_options = HttpOptions(
+            base_url=base_url,
+            headers=headers or None,
+            retry_options=_no_http_retries,
+            client_args=_no_redirects_client_args,
+            async_client_args=_no_redirects_async_client_args,
+        )
 
         # Wrapped with @asynccontextmanager because Google's AsyncClient has
         # a non-standard __aexit__ signature that doesn't conform to
@@ -805,6 +988,64 @@ class GoogleGenAICustomProviderConfig(BaseModel):
         )
 
 
+TypeSafeAuthenticationMethod: TypeAlias = AuthenticationMethodApiKey
+
+
+class TypeSafeClientKwargs(AnthropicClientKwargs):
+    pass
+
+
+class TypeSafeCustomProviderConfig(BaseModel):
+    """A System One-compatible endpoint. It serves decision models only."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        str_strip_whitespace=True,
+    )
+    type: Literal["typesafe"] = "typesafe"
+    typesafe_authentication_method: TypeSafeAuthenticationMethod = Field(
+        ...,
+        description="TypeSafe authentication method",
+    )
+    typesafe_client_kwargs: TypeSafeClientKwargs | None = Field(
+        default=None,
+        description="TypeSafe client kwargs",
+    )
+
+    def get_client_factory(
+        self,
+        *,
+        timeout: float = 60,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> "ClientFactory[AsyncTypeSafeClient]":
+        try:
+            from typesafe_sdk import AsyncTypeSafeClient, RetryPolicy
+        except ImportError:
+            raise ImportError("Install typesafe-sdk to use a TypeSafe provider.")
+
+        kwargs = self.typesafe_client_kwargs
+        base_url = kwargs.base_url if kwargs else None
+        default_headers = kwargs.default_headers if kwargs else None
+        api_key = self.typesafe_authentication_method.api_key
+
+        headers = dict(default_headers) if default_headers else {}
+        if extra_headers:
+            headers.update(extra_headers)
+        merged_headers = headers or None
+
+        def create_client() -> AsyncTypeSafeClient:
+            with without_env_vars("TYPESAFE_*"):
+                return AsyncTypeSafeClient(
+                    api_key=api_key,
+                    base_url=base_url,
+                    headers=merged_headers,
+                    retry=RetryPolicy(max_retries=0),
+                    timeout=timeout,
+                )
+
+        return LLMClientFactory(create_client, typesafe_rate_limit_key(api_key, base_url))
+
+
 GenerativeModelCustomerProviderConfigType = Annotated[
     Union[
         OpenAICustomProviderConfig,
@@ -812,6 +1053,7 @@ GenerativeModelCustomerProviderConfigType = Annotated[
         AnthropicCustomProviderConfig,
         AWSBedrockCustomProviderConfig,
         GoogleGenAICustomProviderConfig,
+        TypeSafeCustomProviderConfig,
     ],
     Field(discriminator="type"),
 ]
@@ -819,3 +1061,28 @@ GenerativeModelCustomerProviderConfigType = Annotated[
 
 class GenerativeModelCustomerProviderConfig(RootModel[GenerativeModelCustomerProviderConfigType]):
     root: GenerativeModelCustomerProviderConfigType
+
+
+def validate_provider_base_urls(config: GenerativeModelCustomerProviderConfigType) -> None:
+    urls: list[str | None]
+    if isinstance(config, OpenAICustomProviderConfig):
+        urls = [config.openai_client_kwargs.base_url if config.openai_client_kwargs else None]
+    elif isinstance(config, AzureOpenAICustomProviderConfig):
+        urls = [config.azure_openai_client_kwargs.azure_endpoint]
+    elif isinstance(config, AnthropicCustomProviderConfig):
+        kwargs = config.anthropic_client_kwargs
+        urls = [kwargs.base_url if kwargs else None]
+    elif isinstance(config, AWSBedrockCustomProviderConfig):
+        urls = [config.aws_bedrock_client_kwargs.endpoint_url]
+    elif isinstance(config, GoogleGenAICustomProviderConfig):
+        google_kwargs = config.google_genai_client_kwargs
+        http_options = google_kwargs.http_options if google_kwargs else None
+        urls = [http_options.base_url if http_options else None]
+    elif isinstance(config, TypeSafeCustomProviderConfig):
+        typesafe_kwargs = config.typesafe_client_kwargs
+        urls = [typesafe_kwargs.base_url if typesafe_kwargs else None]
+    else:
+        assert_never(config)
+    for url in urls:
+        if url and url.strip():
+            validate_base_url(url)

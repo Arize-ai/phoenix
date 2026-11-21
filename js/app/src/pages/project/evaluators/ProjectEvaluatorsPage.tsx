@@ -1,0 +1,213 @@
+import { css } from "@emotion/react";
+import { Suspense, useCallback, useState } from "react";
+import { useRelayEnvironment } from "react-relay";
+import { Outlet, useLoaderData, useParams } from "react-router";
+import invariant from "tiny-invariant";
+
+import { Flex, Text, View } from "@phoenix/components";
+import { useTimeRange } from "@phoenix/components/datetime";
+import { TableSkeleton } from "@phoenix/components/table";
+import { EVALUATOR_FILTER_PARAM } from "@phoenix/constants/searchParams";
+import { ProjectEvaluatorsTableProvider } from "@phoenix/contexts/ProjectEvaluatorsTableContext";
+import { useFilterSearchParam, useOwnedPreloadedQuery } from "@phoenix/hooks";
+import type { projectEvaluatorsLoaderQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorsLoaderQuery.graphql";
+import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
+import { ClearQueuedEvaluationsMenu } from "@phoenix/pages/project/evaluators/ClearQueuedEvaluationsMenu";
+import { useQueueStatsPoll } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
+import { EvaluationQueueStripSkeleton } from "@phoenix/pages/project/evaluators/EvaluationQueueStrip";
+import {
+  ProjectEvaluationQueueStrip,
+  QueueStatsRefreshContext,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueStats";
+import type { ProjectEvaluatorSelection } from "@phoenix/pages/project/evaluators/projectEvaluatorSelection";
+import type { ProjectEvaluatorsLoaderData } from "@phoenix/pages/project/evaluators/projectEvaluatorsLoader";
+import { projectEvaluatorsLoaderGQL } from "@phoenix/pages/project/evaluators/projectEvaluatorsLoader";
+import { ProjectEvaluatorsTable } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsTable";
+import { ProjectEvaluatorsToolbar } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsToolbar";
+import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
+import { useQueueStatsRefreshKey } from "@phoenix/pages/project/evaluators/useQueueStatsRefreshKey";
+import { TableMetricsChartsPanelGroup } from "@phoenix/pages/project/TableMetricsCharts";
+
+/** The content scrolls inside its panel rather than growing the panel. */
+const panelContentCSS = css`
+  flex: 1 1 auto;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+`;
+
+export function ProjectEvaluatorsPage() {
+  const { projectId } = useParams();
+  invariant(projectId, "projectId is required");
+  const [urlFilter, setUrlFilter] = useFilterSearchParam(
+    EVALUATOR_FILTER_PARAM
+  );
+  // One debounced onChange feeds both: the raw text drives the table while
+  // the hook lands the trimmed value in the URL. Seeded from the URL so a
+  // shared or reloaded link restores the search; the route loader preloads
+  // the first page with the same param.
+  const [filter, setFilter] = useState(urlFilter);
+  // Page-owned so selected rows survive table filtering and refetches while
+  // the floating selection toolbar is active.
+  const [selection, setSelection] = useState<ProjectEvaluatorSelection>({});
+  const handleFilterChange = useCallback(
+    (nextFilter: string) => {
+      setFilter(nextFilter);
+      setUrlFilter(nextFilter);
+    },
+    [setUrlFilter]
+  );
+  return (
+    <main
+      css={css`
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      `}
+    >
+      <Suspense
+        fallback={
+          <>
+            <EvaluationQueueStripSkeleton />
+            <TableMetricsChartsPanelGroup view="evaluators" isSkeleton>
+              <TableSkeleton hasToolbar isSelectable rowCount="fill" />
+            </TableMetricsChartsPanelGroup>
+          </>
+        }
+      >
+        <ProjectEvaluatorsTableProvider>
+          <ProjectEvaluatorsPageContent
+            projectId={projectId}
+            filter={filter}
+            onFilterChange={handleFilterChange}
+            selection={selection}
+            onSelectionChange={setSelection}
+          />
+        </ProjectEvaluatorsTableProvider>
+      </Suspense>
+      {/* The gallery modal and the create and edit slideovers, each on its
+          own nested route. The copy and attach routes suspend while loading
+          the evaluator they are seeded from; the list stays interactive until
+          the slideover opens. */}
+      <Suspense fallback={null}>
+        <Outlet />
+      </Suspense>
+    </main>
+  );
+}
+
+function ProjectEvaluatorsPageContent({
+  projectId,
+  filter,
+  onFilterChange,
+  selection,
+  onSelectionChange,
+}: {
+  projectId: string;
+  filter: string;
+  onFilterChange: (filter: string) => void;
+  selection: ProjectEvaluatorSelection;
+  onSelectionChange: (selection: ProjectEvaluatorSelection) => void;
+}) {
+  const { timeRangeISOStrings } = useTimeRange();
+  const environment = useRelayEnvironment();
+  // The route loader preloads the owner query (with the filter and time
+  // range resolved from the URL). Subsequent toolbar, live, or user-selected
+  // changes refetch the pagination fragment in ProjectEvaluatorsTable without
+  // reloading this query.
+  const loaderData = useLoaderData<ProjectEvaluatorsLoaderData>();
+  invariant(loaderData?.queryRef, "loaderData with a queryRef is required");
+  // Frozen at mount: a loader revalidation must not re-key the table below.
+  const [initialTimeRange] = useState(() => loaderData.timeRange);
+  const [initialRequest] = useState(() => loaderData.queryRef.source);
+  const data = useOwnedPreloadedQuery<projectEvaluatorsLoaderQuery>({
+    query: projectEvaluatorsLoaderGQL,
+    queryRef: loaderData.queryRef,
+  });
+  invariant(data.project, "project is required");
+  const isEmptyState =
+    (data.project.evaluatorCount ?? 0) === 0 && filter.trim().length === 0;
+  const { refreshKey: queueRefreshKey, refresh: refreshQueueStats } =
+    useQueueStatsRefreshKey();
+  // One poll keeps the queue strip and the charts in step.
+  const { fetchKey } = useQueueStatsPoll({ refreshKey: queueRefreshKey });
+  const content = (
+    <div css={panelContentCSS}>
+      {isEmptyState ? (
+        <View
+          padding="size-100"
+          borderBottomWidth="thin"
+          borderBottomColor="default"
+          flex="none"
+        >
+          <Flex
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+            gap="size-100"
+          >
+            <Text size="S" color="text-700">
+              Evaluators read span inputs, outputs, retrieved documents, and
+              tool calls, then return labels or scores you can filter, chart,
+              and alert on.
+            </Text>
+            <AddProjectEvaluatorMenu size="M" />
+          </Flex>
+        </View>
+      ) : (
+        <ProjectEvaluatorsToolbar
+          filter={filter}
+          onFilterChange={onFilterChange}
+        />
+      )}
+      <div css={panelContentCSS}>
+        <ProjectEvaluatorsTable
+          project={data.project}
+          projectId={projectId}
+          filter={filter}
+          timeRange={timeRangeISOStrings}
+          initialFilter={loaderData.filter}
+          initialTimeRange={initialTimeRange}
+          initialScoreWindow={loaderData.scoreWindow}
+          initialIncludeMeanScore={loaderData.includeMeanScore}
+          initialRequest={initialRequest}
+          selection={selection}
+          onSelectionChange={onSelectionChange}
+        />
+      </div>
+    </div>
+  );
+  return (
+    <QueueStatsRefreshContext.Provider value={refreshQueueStats}>
+      {/* No queue to show or chart before the first evaluator. */}
+      {isEmptyState ? (
+        content
+      ) : (
+        <>
+          <ProjectEvaluationQueueStrip
+            projectId={projectId}
+            fetchKey={fetchKey}
+            renderActions={(clearableCount) => (
+              <ClearQueuedEvaluationsMenu
+                scope={{ type: "PROJECT", projectId }}
+                isQueueEmpty={clearableCount === 0}
+                onCleared={() => {
+                  void refetchProjectEvaluators({
+                    environment,
+                    projectId,
+                    timeRange: timeRangeISOStrings,
+                  });
+                }}
+              />
+            )}
+          />
+          <TableMetricsChartsPanelGroup view="evaluators" fetchKey={fetchKey}>
+            {content}
+          </TableMetricsChartsPanelGroup>
+        </>
+      )}
+    </QueueStatsRefreshContext.Provider>
+  );
+}

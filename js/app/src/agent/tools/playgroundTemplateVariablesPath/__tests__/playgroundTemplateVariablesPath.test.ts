@@ -22,7 +22,7 @@ describe("playground template variables path agent tool", () => {
     expect(result.ok).toBe(true);
     expect(
       playgroundStore.getState().stateByDatasetId[urlDatasetId]
-        .templateVariablesPath
+        .templateVariablesPathByMode.task
     ).toBe("input.context");
   });
 
@@ -44,7 +44,7 @@ describe("playground template variables path agent tool", () => {
     expect(result.ok).toBe(true);
     expect(
       playgroundStore.getState().stateByDatasetId[experimentDatasetId]
-        .templateVariablesPath
+        .templateVariablesPathByMode.task
     ).toBe("reference.answer");
   });
 
@@ -64,7 +64,7 @@ describe("playground template variables path agent tool", () => {
     expect(result.ok).toBe(true);
     expect(
       playgroundStore.getState().stateByDatasetId[urlDatasetId]
-        .templateVariablesPath
+        .templateVariablesPathByMode.task
     ).toBeNull();
   });
 
@@ -88,7 +88,7 @@ describe("playground template variables path agent tool", () => {
     expect(result.ok).toBe(true);
     expect(
       playgroundStore.getState().stateByDatasetId[storeDatasetId]
-        .templateVariablesPath
+        .templateVariablesPathByMode.task
     ).toBe("input.context");
   });
 
@@ -110,6 +110,31 @@ describe("playground template variables path agent tool", () => {
       expect(result.error).toMatch(/load a dataset first/i);
     }
     expect(playgroundStore.getState().stateByDatasetId).toEqual({});
+  });
+
+  it("sets the path of the page's mode and leaves the other mode's", async () => {
+    const urlDatasetId = "url-dataset";
+    const playgroundStore = createPlaygroundStore({
+      datasetId: null,
+      modelConfigByProvider: {},
+    });
+    const [instance] = playgroundStore.getState().instances;
+    playgroundStore.getState().replaceInstance({
+      instanceId: instance.id,
+      source: { type: "new", taskType: "evaluator", evaluatorKind: "CODE" },
+    });
+    const action = createSetTemplateVariablesPathClientAction({
+      playgroundStore,
+      getSearchParams: () => new URLSearchParams({ datasetId: urlDatasetId }),
+    });
+
+    const result = await action({ path: "output" });
+
+    expect(result.ok).toBe(true);
+    expect(
+      playgroundStore.getState().stateByDatasetId[urlDatasetId]
+        .templateVariablesPathByMode
+    ).toEqual({ task: "input", evaluator: "output" });
   });
 
   it("rejects off-contract input (extra key) via .strict()", async () => {

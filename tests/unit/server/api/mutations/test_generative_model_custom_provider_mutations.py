@@ -2,11 +2,17 @@ from secrets import token_bytes, token_hex
 from typing import Any
 
 from pydantic import SecretStr
+from sqlalchemy import delete as sa_delete
 from sqlalchemy import select
 from strawberry.relay.types import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types import model_provider as mp
+from phoenix.db.types.decisions import JsonState
+from phoenix.db.types.identifier import Identifier as mp_identifier
+from phoenix.db.types.prompts import PromptTemplateFormat
+from phoenix.server.api.auth import IsAdminIfAuthEnabled, IsNotReadOnly, IsNotViewer
+from phoenix.server.api.mutations import Mutation
 from phoenix.server.api.mutations.generative_model_custom_provider_mutations import (
     _redact_provider_error,
 )
@@ -143,15 +149,16 @@ class TestGenerativeModelCustomProviderMutations:
       }
     """
 
-    async def test_test_credentials_is_a_mutation_not_a_query(
+    async def test_outbound_checks_are_mutations_not_queries(
         self,
         gql_client: AsyncGraphQLClient,
     ) -> None:
-        """Security regression: testGenerativeModelCustomProviderCredentials must be a
-        mutation, not a query field. The
-        resolver makes user-controlled outbound HTTP requests, which is an SSRF vector
-        if exposed through the Query surface.
+        """Security regression: the connection check, of chat and decision endpoints, must
+        be a mutation, not a query field. Their resolvers make user-controlled outbound HTTP
+        requests with the user's key, which is an SSRF vector if exposed through the
+        Query surface.
         """
+        field_name = "testGenerativeModelCustomProviderCredentials"
         introspection = """
           query SchemaShape {
             queryType: __type(name: "Query") { fields { name } }
@@ -165,12 +172,20 @@ class TestGenerativeModelCustomProviderMutations:
         query_field_names = {f["name"] for f in result.data["queryType"]["fields"]}
         mutation_field_names = {f["name"] for f in result.data["mutationType"]["fields"]}
 
-        assert "testGenerativeModelCustomProviderCredentials" not in query_field_names, (
-            "testGenerativeModelCustomProviderCredentials must not be exposed as a Query "
-            "field — it triggers user-controlled outbound HTTP and would be reachable "
-            "without authentication."
+        assert field_name not in query_field_names, (
+            f"{field_name} must not be exposed as a Query field — it triggers "
+            "user-controlled outbound HTTP and would be reachable without authentication."
         )
-        assert "testGenerativeModelCustomProviderCredentials" in mutation_field_names
+        assert field_name in mutation_field_names
+
+    def test_outbound_checks_refuse_read_only_viewers_and_non_admins(self) -> None:
+        """Security regression: only a writer who may manage providers can make these
+        outbound requests: not in read-only mode, not a viewer, an admin when auth is on.
+        """
+        resolver_name = "test_generative_model_custom_provider_credentials"
+        definition = getattr(Mutation, "__strawberry_definition__")
+        field = next(f for f in definition.fields if f.python_name == resolver_name)
+        assert {IsNotReadOnly, IsNotViewer, IsAdminIfAuthEnabled} <= set(field.permission_classes)
 
     async def test_all_provider_mutations_comprehensive(
         self,
@@ -1060,3 +1075,110 @@ class TestRedactProviderError:
         result = _redact_provider_error(error, config)
 
         assert result == "NoCredentialsError: Unable to locate credentials"
+
+
+_PATCH_SDK = """
+mutation ($input: PatchGenerativeModelCustomProviderMutationInput!) {
+  patchGenerativeModelCustomProvider(input: $input) { provider { id } }
+}
+"""
+
+_CREATE_OPENAI_PROVIDER = """
+mutation ($input: CreateGenerativeModelCustomProviderMutationInput!) {
+  createGenerativeModelCustomProvider(input: $input) { provider { id } }
+}
+"""
+
+
+async def test_decisions_stay_on_while_decision_versions_use_them(
+    gql_client: AsyncGraphQLClient, db: DbSessionFactory
+) -> None:
+    created = await gql_client.execute(
+        _CREATE_OPENAI_PROVIDER,
+        variables={
+            "input": {
+                "name": "openai-for-decisions",
+                "provider": "openai",
+                "clientConfig": {
+                    "openai": {"openaiAuthenticationMethod": {"apiKey": "sk-test"}},
+                },
+                "models": {"chat": {}, "decision": {}},
+            }
+        },
+    )
+    assert created.data and not created.errors, created.errors
+    provider_id = created.data["createGenerativeModelCustomProvider"]["provider"]["id"]
+    provider_rowid = int(GlobalID.from_id(provider_id).node_id)
+
+    def patch(**fields: Any) -> dict[str, Any]:
+        return {"input": {"id": provider_id, **fields}}
+
+    azure = {
+        "azureOpenaiAuthenticationMethod": {"apiKey": "az-key"},
+        "azureOpenaiClientKwargs": {"azureEndpoint": "https://example.openai.azure.com"},
+    }
+    decisions_off = patch(models={"chat": {}})
+
+    async with db() as session:
+        decision = models.Decision(
+            name=mp_identifier("triage"), description=None, metadata_={}, user_id=None
+        )
+        session.add(decision)
+        await session.flush()
+        session.add(
+            models.DecisionVersion(
+                decision_id=decision.id,
+                description=None,
+                user_id=None,
+                template_format=PromptTemplateFormat.MUSTACHE,
+                state=JsonState(type="json", template="{{ticket}}"),
+                questions=[],
+                model_provider="OPENAI",
+                model_name="gpt-4o",
+                custom_provider_id=provider_rowid,
+                metadata_={},
+            )
+        )
+        await session.flush()
+        version_id = decision.id
+
+    blocked = await gql_client.execute(_PATCH_SDK, variables=decisions_off)
+    assert blocked.errors
+    assert (
+        "referenced by saved decision versions (triage), so you cannot stop it serving decision models"
+    ) in blocked.errors[0].message
+    switched = await gql_client.execute(
+        _PATCH_SDK,
+        variables=patch(clientConfig={"azureOpenai": azure}),
+    )
+    assert switched.data and not switched.errors, switched.errors
+    async with db() as session:
+        record = await session.get(models.GenerativeModelCustomProvider, provider_rowid)
+        assert record is not None and record.sdk == "azure_openai"
+        assert record.models.decision is not None
+    blocked = await gql_client.execute(
+        _PATCH_SDK,
+        variables=patch(clientConfig={"azureOpenai": azure}, models={"chat": {}}),
+    )
+    assert blocked.errors
+    assert "so you cannot stop it serving decision models" in blocked.errors[0].message
+    async with db() as session:
+        record = await session.get(models.GenerativeModelCustomProvider, provider_rowid)
+        assert record is not None and record.sdk == "azure_openai"
+
+    kept = await gql_client.execute(
+        _PATCH_SDK,
+        variables=patch(
+            clientConfig={"openai": {"openaiAuthenticationMethod": {"apiKey": "sk-rotated"}}},
+            models={"chat": {}, "decision": {"names": ["gpt-6-luna"]}},
+        ),
+    )
+    assert kept.data and not kept.errors, kept.errors
+
+    async with db() as session:
+        await session.execute(sa_delete(models.Decision).where(models.Decision.id == version_id))
+    allowed = await gql_client.execute(
+        _PATCH_SDK,
+        variables=patch(clientConfig={"azureOpenai": azure}, models={"chat": {}}),
+    )
+    assert allowed.data and not allowed.errors, allowed.errors

@@ -1,7 +1,8 @@
 import asyncio
 import logging
 import re
-from collections.abc import AsyncIterator, Mapping
+from asyncio import sleep
+from collections.abc import AsyncIterator, Iterable, Mapping
 from contextlib import asynccontextmanager
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
@@ -13,14 +14,15 @@ from unittest.mock import AsyncMock, MagicMock
 import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 import pytest
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
-from sqlalchemy import NullPool, delete, func, select, text
+from sqlalchemy import NullPool, delete, event, func, select, text
+from sqlalchemy.engine import Engine
 from sqlalchemy.exc import DBAPIError, StatementError
 from sqlalchemy.ext.asyncio import AsyncSession, AsyncSessionTransaction, create_async_engine
 
 from phoenix.db import bulk_inserter, models
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import aio_sqlite_engine, get_async_db_url
-from phoenix.db.insertion.helpers import get_sqlstate
+from phoenix.db.insertion.helpers import advance_liveness, get_sqlstate
 from phoenix.db.insertion.span import SpanInsertionEvent, insert_span
 from phoenix.server.app import _db
 from phoenix.server.cost_tracking.span_cost_calculator import SpanCostCalculator
@@ -894,6 +896,48 @@ async def test_savepoint_cleanup_failure_aborts_batch_without_reusing_session(
     assert transactions.sessions[0] is not transactions.sessions[1]
     async with db() as session:
         assert set(await session.scalars(select(models.Span.span_id))) == {"later"}
+
+
+def _record_connection_during_insert(
+    monkeypatch: pytest.MonkeyPatch,
+) -> list[tuple[int, str]]:
+    """The backend pid and plan_cache_mode of each span insert's session."""
+    seen: list[tuple[int, str]] = []
+
+    async def insert(
+        session: AsyncSession, span: Span, project_name: str
+    ) -> SpanInsertionEvent | None:
+        pid = await session.scalar(text("SELECT pg_backend_pid()"))
+        mode = await session.scalar(text("SHOW plan_cache_mode"))
+        seen.append((pid, mode))
+        return await insert_span(session, span, project_name)
+
+    monkeypatch.setattr(bulk_inserter, "insert_span", insert)
+    return seen
+
+
+@pytest.mark.postgres_only
+async def test_span_batch_reuses_cached_plans_within_its_transaction(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    if db.dialect.name_literal != "postgresql":
+        pytest.skip("plan_cache_mode is a PostgreSQL setting")
+    seen = _record_connection_during_insert(monkeypatch)
+    await _inserter(db, _span("first"), _span("second", parent_id="first"))._insert_spans(2)
+    assert [mode for _, mode in seen] == ["auto", "auto"]
+
+
+@pytest.mark.postgres_only
+async def test_span_batch_returns_its_connection_planning_every_execution(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    if db.dialect.name_literal != "postgresql":
+        pytest.skip("plan_cache_mode is a PostgreSQL setting")
+    seen = _record_connection_during_insert(monkeypatch)
+    await _inserter(db, _span("first"))._insert_spans(1)
+    async with db() as session:
+        assert await session.scalar(text("SELECT pg_backend_pid()")) == seen[0][0]
+        assert await session.scalar(text("SHOW plan_cache_mode")) == "force_custom_plan"
 
 
 @pytest.mark.postgres_only
@@ -1772,3 +1816,205 @@ async def test_real_database_rollback_is_retried_without_span_or_count_loss(
             assert saved_root.cumulative_error_count == expected
             assert saved_root.cumulative_llm_token_count_prompt == expected * 7
             assert saved_root.cumulative_llm_token_count_completion == expected * 3
+
+
+def _session_span(*, trace_id: str, span_id: str, session_id: str) -> Span:
+    start_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    return Span(
+        name="session-span",
+        context=SpanContext(trace_id=trace_id, span_id=span_id),
+        span_kind=SpanKind.CHAIN,
+        parent_id=None,
+        start_time=start_time,
+        end_time=start_time + timedelta(seconds=1),
+        status_code=SpanStatusCode.OK,
+        status_message="",
+        attributes={"session": {"id": session_id}},
+        events=[],
+        conversation=None,
+    )
+
+
+async def test_span_batch_coalesces_session_liveness_and_ignores_duplicates(
+    db: DbSessionFactory,
+) -> None:
+    trace_id = "1" * 32
+    session_id = "session-batch"
+    spans = [
+        _session_span(trace_id=trace_id, span_id=f"{index:016x}", session_id=session_id)
+        for index in range(1, 4)
+    ]
+    inserter = BulkInserter(
+        db,
+        event_queue=SimpleQueue(),
+        span_cost_calculator=MagicMock(),
+        initial_batch_of_spans=[(span, "project") for span in spans],
+    )
+    liveness_updates: list[str] = []
+
+    def _capture_liveness_update(
+        _conn: object,
+        _cursor: object,
+        statement: str,
+        _parameters: object,
+        _context: object,
+        _executemany: bool,
+    ) -> None:
+        if "update project_sessions set last_span_ingested_at" in statement.lower():
+            liveness_updates.append(statement)
+
+    event.listen(Engine, "before_cursor_execute", _capture_liveness_update)
+    try:
+        await inserter._insert_spans(len(spans))
+    finally:
+        event.remove(Engine, "before_cursor_execute", _capture_liveness_update)
+
+    assert len(liveness_updates) == 1
+    async with db() as session:
+        project_session = await session.scalar(
+            select(models.ProjectSession).where(models.ProjectSession.session_id == session_id)
+        )
+        assert project_session is not None
+        first_ingested_at = project_session.last_span_ingested_at
+        assert first_ingested_at is not None
+
+    inserter._spans.append((spans[0], "project"))
+    await inserter._insert_spans(1)
+    async with db() as session:
+        duplicate_seen_at = await session.scalar(
+            select(models.ProjectSession.last_span_ingested_at).where(
+                models.ProjectSession.session_id == session_id
+            )
+        )
+    assert duplicate_seen_at == first_ingested_at
+
+    await sleep(0.01)
+    inserter._spans.append(
+        (_session_span(trace_id=trace_id, span_id="4" * 16, session_id=session_id), "project")
+    )
+    await inserter._insert_spans(1)
+    async with db() as session:
+        next_seen_at = await session.scalar(
+            select(models.ProjectSession.last_span_ingested_at).where(
+                models.ProjectSession.session_id == session_id
+            )
+        )
+    assert next_seen_at is not None
+    assert next_seen_at > first_ingested_at
+
+
+async def test_session_liveness_update_is_monotonic(db: DbSessionFactory) -> None:
+    initial_seen_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    future_ingested_at = datetime.now(timezone.utc) + timedelta(hours=1)
+    async with db() as session:
+        project = models.Project(name="monotonic-liveness")
+        session.add(project)
+        await session.flush()
+        project_session = models.ProjectSession(
+            session_id="monotonic-liveness",
+            project_id=project.id,
+            start_time=initial_seen_at,
+            end_time=initial_seen_at,
+            last_span_ingested_at=future_ingested_at,
+        )
+        session.add(project_session)
+        await session.flush()
+        project_session_id = project_session.id
+        await advance_liveness(session, models.ProjectSession, [project_session_id])
+
+    async with db() as session:
+        last_span_ingested_at = await session.scalar(
+            select(models.ProjectSession.last_span_ingested_at).where(
+                models.ProjectSession.id == project_session_id
+            )
+        )
+    assert last_span_ingested_at == future_ingested_at
+
+
+async def test_span_batch_stamps_trace_liveness(db: DbSessionFactory) -> None:
+    trace_id = "3" * 32
+    session_id = "trace-liveness"
+    inserter = BulkInserter(
+        db,
+        event_queue=SimpleQueue(),
+        span_cost_calculator=MagicMock(),
+        initial_batch_of_spans=[
+            (_session_span(trace_id=trace_id, span_id="6" * 16, session_id=session_id), "project")
+        ],
+    )
+
+    await inserter._insert_spans(1)
+
+    async with db() as session:
+        last_span_ingested_at = await session.scalar(
+            select(models.Trace.last_span_ingested_at).where(models.Trace.trace_id == trace_id)
+        )
+    assert last_span_ingested_at is not None
+
+
+async def test_session_liveness_failure_does_not_rollback_inserted_spans(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    span = _session_span(trace_id="2" * 32, span_id="5" * 16, session_id="savepoint-liveness")
+    liveness_update = AsyncMock(side_effect=RuntimeError("liveness update failed"))
+    monkeypatch.setattr(
+        "phoenix.db.bulk_inserter.advance_liveness",
+        liveness_update,
+    )
+    inserter = BulkInserter(
+        db,
+        event_queue=SimpleQueue(),
+        span_cost_calculator=MagicMock(),
+        initial_batch_of_spans=[(span, "project")],
+    )
+
+    await inserter._insert_spans(1)
+
+    liveness_update.assert_awaited_once()
+    async with db() as session:
+        inserted_span = await session.scalar(
+            select(models.Span).where(models.Span.span_id == span.context.span_id)
+        )
+        project_session = await session.scalar(
+            select(models.ProjectSession).where(
+                models.ProjectSession.session_id == "savepoint-liveness"
+            )
+        )
+    assert inserted_span is not None
+    assert project_session is not None
+    assert project_session.last_span_ingested_at is None
+
+
+async def test_liveness_stamp_deadlock_replays_batch(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    trace_id = "7" * 32
+    spans = [_session_span(trace_id=trace_id, span_id=f"{i:016x}", session_id="s") for i in (1, 2)]
+    calls = 0
+
+    async def deadlock_first_stamp(
+        session: AsyncSession,
+        model: type[models.Trace] | type[models.ProjectSession],
+        rowids: Iterable[int],
+    ) -> None:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise DBAPIError("liveness", {}, _PostgresError("40P01"))
+        await advance_liveness(session, model, rowids)
+
+    monkeypatch.setattr(bulk_inserter, "advance_liveness", deadlock_first_stamp)
+    inserter = _inserter(db, *spans)
+
+    await inserter._insert_spans(2)
+    assert len(inserter._span_batch) == 2
+    await inserter._insert_spans(0)
+    assert not inserter._span_batch
+    async with db() as session:
+        span_count = await session.scalar(select(func.count()).select_from(models.Span))
+        trace_seen_at = await session.scalar(
+            select(models.Trace.last_span_ingested_at).where(models.Trace.trace_id == trace_id)
+        )
+    assert span_count == 2
+    assert trace_seen_at is not None

@@ -350,36 +350,21 @@ Thread pool isolation via `anyio.to_thread.run_sync()` is the standard approach 
 **Threat**: In enterprise mode (unique_id configured), a new employee with a recycled email could hijack an old employee's account.
 
 **Attack Scenario** (without protection):
-1. User A leaves company (DB: `email=john@corp.com`, `oauth2_user_id=UUID-A`)
+1. User A leaves company (DB: `email=john@corp.com`, `ldap_unique_id=UUID-A`)
 2. User B joins with recycled email (LDAP: `email=john@corp.com`, `unique_id=UUID-B`)
 3. User B logs in:
    - unique_id lookup: `UUID-B` not found in DB
    - email fallback: finds User A's account
-   - **Vulnerable code would update User A's `oauth2_user_id` to `UUID-B`**
+   - **Vulnerable code would update User A's `ldap_unique_id` to `UUID-B`**
    - User B now has access to User A's data!
 
-**Mitigation** (Phoenix implementation):
-```python
-# Only migrate if user has no existing unique_id
-if user.oauth2_user_id is None:
-    user.oauth2_user_id = unique_id  # Safe: first-time migration
-elif user.oauth2_user_id.lower() != unique_id.lower():
-    # Different person - reject (email is unique in DB, can't create new account)
-    raise HTTPException(
-        status_code=403,
-        detail="Account conflict: this email is associated with a different "
-        "LDAP account. Contact your administrator.",
-    )
-```
+**Mitigation** (`get_or_create_ldap_user` in `routers/ldap.py`): the email fallback stores the unique ID only when the row's `ldap_unique_id` is NULL. When the row already has a different unique ID, Phoenix logs the conflict and rejects the login with the generic 401 used for wrong passwords. A specific error would tell an attacker that the email exists.
 
-**Why 403 Instead of Creating New Account?**
-- Email is unique in the database (`CREATE UNIQUE INDEX ix_users_email`)
-- Attempting to create a new user with the same email would fail with constraint violation
-- Explicit 403 gives users a clear error and directs them to admin
+**Why reject instead of creating a new account?** `email` is unique across users, so a second row with the same email would violate the constraint.
 
 **Resolution Options** (admin intervention required):
 1. Delete the old account (if user truly left)
-2. Update the old account's `oauth2_user_id` to the new UUID
+2. Update the old account's `ldap_unique_id` to the new UUID
 3. Change the old account's email to free it up
 
 ---
@@ -389,31 +374,14 @@ elif user.oauth2_user_id.lower() != unique_id.lower():
 **Threat**: Case-sensitive UUID lookups can cause account lockout or duplicate accounts.
 
 **Scenario**:
-1. Old Phoenix version stored: `oauth2_user_id = "550E8400-..."` (uppercase)
-2. New Phoenix normalizes to: `unique_id = "550e8400-..."` (lowercase)
-3. Case-sensitive lookup fails → user locked out or duplicate created
+1. An older Phoenix version stored a unique ID in uppercase: `"550E8400-..."`
+2. Current Phoenix normalizes IDs to lowercase: `"550e8400-..."`
+3. A case-sensitive lookup would miss the row, locking the user out or creating a duplicate
 
 **Mitigation**:
 
-1. **Normalize output to lowercase** (in `_get_unique_id`):
-```python
-# UUIDs are case-insensitive per RFC 4122
-return decoded.lower()  # Normalize entryUUID
-return str(uuid.UUID(bytes_le=...))  # uuid.UUID always returns lowercase
-```
-
-2. **Case-insensitive database lookup**:
-```python
-# Use func.lower() for case-insensitive comparison
-.where(func.lower(models.User.oauth2_user_id) == unique_id.lower())
-```
-
-3. **Case-insensitive conflict detection**:
-```python
-# Compare lowercase to handle legacy data
-elif user.oauth2_user_id.lower() != unique_id.lower():
-    raise HTTPException(403, ...)
-```
+1. **Normalize to lowercase** when reading the attribute. `uuid.UUID(bytes_le=...)` already produces lowercase for `objectGUID`, and string IDs are lowercased explicitly.
+2. **Compare case-insensitively** in the lookup (`func.lower(models.User.ldap_unique_id) == unique_id.lower()`) and in the conflict check.
 
 **Result**: Existing users with different UUID casing are found and updated on next login.
 

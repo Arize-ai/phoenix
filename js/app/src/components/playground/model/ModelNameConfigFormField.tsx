@@ -3,6 +3,7 @@ import { useMemo } from "react";
 
 import { Input, Label, TextField } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import { isDecisionInstance } from "@phoenix/store/playground";
 
 export type ModelNameConfigFormFieldProps = {
   /**
@@ -44,10 +45,14 @@ export function ModelNameConfigFormField({
   const provider = instance.model.provider;
   const isAzure = provider === "AZURE_OPENAI";
 
+  const isDecision = isDecisionInstance(instance);
+
   const label = isAzure ? "Deployment Name" : "Model Name";
   const placeholder = isAzure
     ? "e.g. azure-openai-deployment-name"
-    : "e.g. gpt-4o";
+    : isDecision
+      ? "e.g. jev-latest"
+      : "e.g. gpt-4o";
 
   return (
     <TextField

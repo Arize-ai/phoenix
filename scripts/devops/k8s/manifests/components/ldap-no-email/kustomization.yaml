@@ -1,0 +1,36 @@
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+patches:
+  - target:
+      kind: Job
+      name: ldap-seed
+    patch: |
+      apiVersion: batch/v1
+      kind: Job
+      metadata:
+        name: ldap-seed
+      spec:
+        template:
+          spec:
+            containers:
+              - name: ldap-seed
+                command:
+                  - /bin/bash
+                  - -c
+                  - |
+                    echo 'Waiting for LDAP server to be ready...'
+                    READY=0
+                    for i in $(seq 1 45); do
+                      if ldapsearch -x -H ldap://ldap:389 -b 'dc=example,dc=com' '(objectClass=*)' dn 2>/dev/null | grep -q 'dc=example,dc=com'; then
+                        echo 'LDAP server is ready'
+                        READY=1
+                        break
+                      fi
+                      echo "Attempt $i/45: LDAP not ready, waiting..."
+                      sleep 2
+                    done
+                    [ "$READY" -eq 1 ] || { echo 'LDAP server failed to become ready'; exit 1; }
+                    echo 'Loading no-email seed data...'
+                    ldapadd -c -x -H ldap://ldap:389 -D 'cn=admin,dc=example,dc=com' -w admin_password -f /seed/ldap-no-email-seed.ldif || [ $? -eq 68 ]
+                    echo 'LDAP no-email seed data loaded'

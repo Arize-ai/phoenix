@@ -50,7 +50,9 @@ export const ExactMatchEvaluatorForm = () => {
   const evaluatorMappingSource = useEvaluatorStore(
     (state) => state.evaluatorMappingSource
   );
-  const allExampleKeys = useFlattenedEvaluatorInputKeys(evaluatorMappingSource);
+  const allExampleKeys = useFlattenedEvaluatorInputKeys({
+    evaluatorMappingSource,
+  });
 
   // Register validator for required SwitchableEvaluatorInput fields.
   const triggerValidation = useCallback(async () => {
@@ -74,7 +76,6 @@ export const ExactMatchEvaluatorForm = () => {
         <SwitchableEvaluatorInput
           fieldName="expected"
           label="Expected"
-          description="The expected text to compare against."
           control={control}
           getValues={getValues}
           setValue={setValue}
@@ -88,7 +89,6 @@ export const ExactMatchEvaluatorForm = () => {
         <SwitchableEvaluatorInput
           fieldName="actual"
           label="Actual"
-          description="The actual text to compare."
           control={control}
           getValues={getValues}
           setValue={setValue}

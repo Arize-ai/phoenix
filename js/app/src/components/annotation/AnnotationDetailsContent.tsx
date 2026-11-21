@@ -1,11 +1,109 @@
+import { css } from "@emotion/react";
+
 import { Flex, Text, View } from "@phoenix/components";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation/AnnotationColorSwatch";
 import { JSONText } from "@phoenix/components/code/JSONText";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { formatOmittedOptions } from "@phoenix/components/decision/decisionAnswers";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { AnnotationScoreText } from "./AnnotationScoreText";
+import {
+  type DecisionAnnotation,
+  decisionProbabilities,
+} from "./decisionAnnotation";
 import type { Annotation } from "./types";
+
+const omittedOptionsCSS = css`
+  opacity: 0.6;
+`;
+
+function DecisionRow({
+  name,
+  value,
+  title,
+}: {
+  name: string;
+  value: string;
+  /** Full text for a name that may be truncated */
+  title?: string;
+}) {
+  return (
+    <Flex direction="row" justifyContent="space-between" gap="size-100">
+      <Text weight="heavy" color="inherit" title={title}>
+        <Truncate maxWidth="200px">{name}</Truncate>
+      </Text>
+      <Text color="inherit" fontFamily="mono">
+        {value}
+      </Text>
+    </Flex>
+  );
+}
+
+const DECISION_STATUS_LABELS: Partial<Record<string, string>> = {
+  ANSWERED: "Answered",
+  REFUSED: "Refused",
+  ERROR: "Error",
+};
+
+/**
+ * Status, uncertainty and provenance for a decision evaluator's annotation.
+ */
+export function DecisionAnnotationDetails({
+  decision,
+}: {
+  decision: DecisionAnnotation;
+}) {
+  const model = decision.resolvedModel ?? decision.requestedModel;
+  const answer = decision.answer;
+  const { probabilities, omittedOptionCount } = decisionProbabilities(decision);
+  return (
+    <View paddingTop="size-50" data-testid="decision-details">
+      <Flex direction="column">
+        <DecisionRow
+          name="decision status"
+          value={DECISION_STATUS_LABELS[decision.status] ?? decision.status}
+        />
+        {decision.question ? (
+          <DecisionRow
+            name="question"
+            value={`${decision.question.name} (${decision.question.type.toLowerCase()})`}
+          />
+        ) : null}
+        {answer?.__typename === "ScaleAnswer" ? (
+          <DecisionRow
+            name="expected level"
+            value={floatFormatter(answer.expectedLevel)}
+          />
+        ) : null}
+        {answer?.__typename === "ChoiceAnswer" ||
+        answer?.__typename === "ScaleAnswer" ? (
+          <DecisionRow
+            name="confidence"
+            value={floatFormatter(answer.confidence)}
+          />
+        ) : null}
+        {probabilities.map(({ key, name, title, probability }) => (
+          <DecisionRow
+            key={key}
+            name={`p(${name})`}
+            title={title}
+            value={floatFormatter(probability)}
+          />
+        ))}
+        {omittedOptionCount > 0 ? (
+          <Text color="inherit" css={omittedOptionsCSS}>
+            {formatOmittedOptions(omittedOptionCount)}
+          </Text>
+        ) : null}
+        {model ? <DecisionRow name="model" value={model} /> : null}
+        {decision.modelProvider ? (
+          <DecisionRow name="provider" value={decision.modelProvider} />
+        ) : null}
+      </Flex>
+    </View>
+  );
+}
 
 /**
  * A component that displays the details of a particular annotation
@@ -15,6 +113,7 @@ export function AnnotationDetailsContent({
 }: {
   annotation: Annotation;
 }) {
+  const decision = annotation.decision;
   return (
     <Flex
       direction="column"
@@ -55,6 +154,7 @@ export function AnnotationDetailsContent({
             </Flex>
           ) : null}
         </View>
+        {decision ? <DecisionAnnotationDetails decision={decision} /> : null}
         {annotation.explanation ? (
           <View paddingTop="size-50">
             <Flex direction="column">

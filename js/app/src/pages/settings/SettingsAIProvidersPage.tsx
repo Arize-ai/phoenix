@@ -1,5 +1,5 @@
 import { usePreloadedQuery } from "react-relay";
-import { useLoaderData } from "react-router";
+import { Outlet, useLoaderData } from "react-router";
 
 import { Flex } from "@phoenix/components";
 import { AIQuerySettingsCard } from "@phoenix/components/filter";
@@ -25,6 +25,7 @@ export function SettingsAIProvidersPage() {
       <CustomProvidersCard query={data} />
       <AIProviderSettingsCard />
       <AIQuerySettingsCard />
+      <Outlet />
     </Flex>
   );
 }

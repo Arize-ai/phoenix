@@ -11,6 +11,7 @@ import { UserDisplay } from "@phoenix/components/user/UserDisplay";
 import { isAnnotatorKind } from "@phoenix/constants";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
+import { DecisionAnnotationDetails } from "./AnnotationDetailsContent";
 import { hasAnnotationValue } from "./annotationUtils";
 import {
   getOptimizationValueFromConfig,
@@ -218,6 +219,9 @@ function AnnotationDetailsListItem({
             />
           </Flex>
         </Flex>
+        {annotation.decision ? (
+          <DecisionAnnotationDetails decision={annotation.decision} />
+        ) : null}
         {annotation.explanation ? (
           <Truncate maxLines={3} title={annotation.explanation}>
             <Text color="text-500">{annotation.explanation}</Text>

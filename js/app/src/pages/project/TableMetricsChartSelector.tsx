@@ -16,14 +16,18 @@ import {
 } from "@phoenix/components/exception";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
-import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
-import type { MetricChartTableView, ProjectMetricChartKey } from "./constants";
+import type {
+  AnnotationMetricLevel,
+  MetricChartTableView,
+  ProjectMetricChartKey,
+} from "./constants";
 import {
   getProjectAnnotationMetricChartInfo,
   getProjectAnnotationMetricChartKey,
 } from "./constants";
 import {
+  EVALUATOR_METRIC_CHARTS,
   getProjectMetricCharts,
   PROJECT_METRIC_CHARTS,
 } from "./metrics/chartCatalog";
@@ -44,6 +48,10 @@ export function TableMetricsChartSelector({
 }: {
   view: MetricChartTableView;
 }) {
+  const showMetricCharts = useProjectContext((state) => state.showMetricCharts);
+  if (!showMetricCharts) {
+    return null;
+  }
   return (
     <MenuTrigger>
       <Button aria-label="Select metric charts">
@@ -60,7 +68,7 @@ export function TableMetricsChartSelector({
 }
 
 function ConnectedChartSelectorMenu({ view }: { view: MetricChartTableView }) {
-  const projectId = useTracingContext((state) => state.projectId);
+  const projectId = useProjectContext((state) => state.projectId);
   const { fetchKey } = useStreamState();
   const selectedChartKeys = useProjectContext(
     (state) => state.metricChartKeys[view]
@@ -85,20 +93,30 @@ function ConnectedChartSelectorMenu({ view }: { view: MetricChartTableView }) {
 }
 
 type ProjectChartSelectorMenuProps = {
-  view: MetricChartTableView;
   projectId: string;
   selectedChartKeys: ProjectMetricChartKey[];
   onSelectionChange: (keys: ProjectMetricChartKey[]) => void;
 };
 
-function ProjectChartSelectorMenu(props: ProjectChartSelectorMenuProps) {
-  switch (props.view) {
+function ProjectChartSelectorMenu({
+  view,
+  ...props
+}: ProjectChartSelectorMenuProps & { view: MetricChartTableView }) {
+  switch (view) {
     case "spans":
       return <SpanChartSelectorMenu {...props} />;
     case "traces":
       return <TraceChartSelectorMenu {...props} />;
     case "sessions":
       return <SessionChartSelectorMenu {...props} />;
+    case "evaluators":
+      return (
+        <MetricsChartSelector
+          options={EVALUATOR_METRIC_CHARTS}
+          selectedKeys={props.selectedChartKeys}
+          onSelectionChange={props.onSelectionChange}
+        />
+      );
   }
   return null;
 }
@@ -108,6 +126,7 @@ function SpanChartSelectorMenu(props: ProjectChartSelectorMenuProps) {
   return (
     <ProjectChartSelectorMenuContent
       {...props}
+      annotationLevel="spans"
       annotationNames={annotationNames}
     />
   );
@@ -118,6 +137,7 @@ function TraceChartSelectorMenu(props: ProjectChartSelectorMenuProps) {
   return (
     <ProjectChartSelectorMenuContent
       {...props}
+      annotationLevel="traces"
       annotationNames={annotationNames}
     />
   );
@@ -128,21 +148,26 @@ function SessionChartSelectorMenu(props: ProjectChartSelectorMenuProps) {
   return (
     <ProjectChartSelectorMenuContent
       {...props}
+      annotationLevel="sessions"
       annotationNames={annotationNames}
     />
   );
 }
 
 function ProjectChartSelectorMenuContent({
-  view,
+  annotationLevel,
   annotationNames,
   selectedChartKeys,
   onSelectionChange,
 }: ProjectChartSelectorMenuProps & {
+  annotationLevel: AnnotationMetricLevel;
   annotationNames: ReadonlyArray<string>;
 }) {
   const annotationKeys = annotationNames.map((annotationName) =>
-    getProjectAnnotationMetricChartKey({ view, annotationName })
+    getProjectAnnotationMetricChartKey({
+      view: annotationLevel,
+      annotationName,
+    })
   );
   const availableAnnotationKeys = new Set<ProjectMetricChartKey>(
     annotationKeys

@@ -1,8 +1,10 @@
 from typing import Any, Optional
 
 import pytest
+from sqlalchemy import func, select
 from strawberry.relay.types import GlobalID
 
+from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -775,6 +777,41 @@ class TestPromptMutations:
         assert len(result.errors) == 1
         assert result.errors[0].message == "A prompt named 'prompt-name' already exists"
         assert result.data is None
+
+    async def test_create_chat_prompt_fails_with_deleted_custom_provider(
+        self, db: DbSessionFactory, gql_client: AsyncGraphQLClient
+    ) -> None:
+        # A custom provider id that doesn't exist, simulating one that was deleted after the
+        # user selected it and before they saved.
+        missing_provider_id = str(GlobalID("GenerativeModelCustomProvider", "2147483647"))
+        variables: dict[str, Any] = {
+            "input": {
+                "name": "prompt-name",
+                "description": "prompt-description",
+                "promptVersion": {
+                    "description": "prompt-version-description",
+                    "templateFormat": "MUSTACHE",
+                    "template": {
+                        "messages": [
+                            {
+                                "role": "USER",
+                                "content": [{"text": {"text": "hello world"}}],
+                            }
+                        ]
+                    },
+                    "invocationParameters": {"openai": {"temperature": 0.4}},
+                    "modelProvider": "OPENAI",
+                    "modelName": "o1-mini",
+                    "customProviderId": missing_provider_id,
+                },
+            }
+        }
+        result = await gql_client.execute(self.CREATE_CHAT_PROMPT_MUTATION, variables)
+        assert len(result.errors) == 1
+        assert missing_provider_id in result.errors[0].message
+        assert result.data is None
+        async with db() as session:
+            assert await session.scalar(select(func.count()).select_from(models.Prompt)) == 0
 
     @pytest.mark.parametrize(
         "variables",

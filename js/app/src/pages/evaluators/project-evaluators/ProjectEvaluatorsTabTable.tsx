@@ -1,0 +1,421 @@
+import type { OnChangeFn, SortingState } from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
+import { graphql, useLazyLoadQuery } from "react-relay";
+
+import { Flex, Icon, Icons, Link, Text } from "@phoenix/components";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { useTimeRange } from "@phoenix/components/datetime";
+import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
+import { ProjectLink } from "@phoenix/components/project/ProjectLink";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
+import { ColumnHeaderWithHelp } from "@phoenix/components/table/ColumnHeaderWithHelp";
+import { tableCSS } from "@phoenix/components/table/styles";
+import { TableColumnHeader } from "@phoenix/components/table/TableColumnHeader";
+import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
+import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
+import type { ProjectEvaluatorsTabTableQuery } from "@phoenix/pages/evaluators/project-evaluators/__generated__/ProjectEvaluatorsTabTableQuery.graphql";
+import { getClearableCount } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
+import {
+  ProjectEvaluatorAverageCost,
+  ProjectEvaluatorCost,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorCost";
+import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
+import { ProjectEvaluatorFailuresCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFailuresCell";
+import { ProjectEvaluatorLagCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorLagCell";
+import { ProjectEvaluatorLoadCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorLoadCell";
+import { ProjectEvaluatorQueueCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueCell";
+import { ProjectEvaluatorStatusCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorStatusCell";
+import { ProjectEvaluatorTargetIcon } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTargetIcon";
+
+type QueryData = ProjectEvaluatorsTabTableQuery["response"];
+type TableRow = QueryData["projectEvaluators"]["edges"][number]["node"];
+
+/** Every project evaluator on the server is loaded; sorting happens here. */
+const PROJECT_EVALUATORS_LIMIT = 1000;
+
+/** An evaluator's part of the server queue, at most all of it. */
+function getEvaluatorShareOfServerQueue({
+  evaluatorQueuedCount,
+  serverQueuedCount,
+}: {
+  evaluatorQueuedCount: number;
+  serverQueuedCount: number;
+}): number {
+  return serverQueuedCount > 0
+    ? Math.min(1, evaluatorQueuedCount / serverQueuedCount)
+    : 0;
+}
+
+const shareFormatter = new Intl.NumberFormat(undefined, {
+  style: "percent",
+  maximumFractionDigits: 0,
+});
+
+function ServerQueueShareCell({ share }: { share: number | null }) {
+  if (share == null || share === 0) {
+    return (
+      <Text fontFamily="mono" color="text-700">
+        --
+      </Text>
+    );
+  }
+  return (
+    <Text fontFamily="mono">
+      {share < 0.01 ? "<1%" : shareFormatter.format(share)}
+    </Text>
+  );
+}
+
+function getProjectEvaluatorDetailsPath(row: TableRow): string {
+  return `/projects/${encodeURIComponent(row.project.id)}/evaluators/${encodeURIComponent(row.id)}`;
+}
+
+/**
+ * Every project evaluator on the server, across projects, so the ones taking
+ * the shared queue's bandwidth can be found and turned off from one place.
+ */
+export function ProjectEvaluatorsTabTable({
+  filter,
+  fetchKey,
+  sorting,
+  onSortingChange,
+}: {
+  /** Matches an evaluator's name or its project's name. */
+  filter: string;
+  /** Changes when the queue was changed from this page, to refetch at once. */
+  fetchKey: number;
+  sorting: SortingState;
+  onSortingChange: OnChangeFn<SortingState>;
+}) {
+  const { timeRangeISOStrings } = useTimeRange();
+  const data = useLazyLoadQuery<ProjectEvaluatorsTabTableQuery>(
+    graphql`
+      query ProjectEvaluatorsTabTableQuery(
+        $first: Int!
+        $timeRange: TimeRange!
+      ) {
+        evaluationQueue {
+          queuedCount
+        }
+        projectEvaluators(first: $first) {
+          edges {
+            node {
+              id
+              name
+              enabled
+              evaluationTarget
+              project {
+                id
+                name
+              }
+              evaluator {
+                kind
+              }
+              runSummary {
+                status
+                lastRunAt
+                queuedCount
+                runningCount
+                evaluatedCount
+                failedCount
+                clearedCount
+                oldestWaitingOrRetryingAt
+              }
+              tracingEnabled
+              evaluationLoad {
+                evaluationCount
+                meanEvaluationSeconds
+                shareOfEvaluationTime
+                excludesUntracedEvaluators
+              }
+              failureSummary(timeRange: $timeRange) {
+                failedCount
+                evaluatedCount
+                failureRate
+                lastFailedAt
+                lastError
+              }
+              lag(timeRange: $timeRange) {
+                p50Seconds
+                p95Seconds
+                p99Seconds
+              }
+              tracedEvaluationCount(timeRange: $timeRange)
+              costSummary(timeRange: $timeRange) {
+                total {
+                  cost
+                }
+                prompt {
+                  cost
+                }
+                completion {
+                  cost
+                }
+              }
+            }
+          }
+        }
+      }
+    `,
+    { first: PROJECT_EVALUATORS_LIMIT, timeRange: timeRangeISOStrings },
+    { fetchKey, fetchPolicy: "store-and-network" }
+  );
+  const trimmedFilter = filter.trim().toLowerCase();
+  const nodes = data.projectEvaluators.edges.map((edge) => edge.node);
+  const rows = nodes.filter(
+    (node) =>
+      trimmedFilter.length === 0 ||
+      node.name.toLowerCase().includes(trimmedFilter) ||
+      node.project.name.toLowerCase().includes(trimmedFilter)
+  );
+  const serverQueuedCount = data.evaluationQueue.queuedCount;
+  const columns: ColumnDef<TableRow>[] = [
+    {
+      id: "enabled",
+      header: "enabled",
+      size: 80,
+      enableSorting: false,
+      cell: ({ row }) => (
+        <StopPropagation>
+          <ProjectEvaluatorEnabledSwitch
+            projectEvaluatorId={row.original.id}
+            name={row.original.name}
+            enabled={row.original.enabled}
+            clearableCount={getClearableCount(row.original.runSummary)}
+          />
+        </StopPropagation>
+      ),
+    },
+    {
+      id: "kind",
+      header: "kind",
+      size: 80,
+      accessorFn: (row) => row.evaluator.kind,
+      cell: ({ row }) => (
+        <EvaluatorKindToken kind={row.original.evaluator.kind} />
+      ),
+    },
+    {
+      id: "name",
+      header: "name",
+      size: 200,
+      accessorFn: (row) => row.name,
+      cell: ({ row }) => (
+        <Flex direction="row" gap="size-100" alignItems="center">
+          <ProjectEvaluatorTargetIcon target={row.original.evaluationTarget} />
+          <Link to={getProjectEvaluatorDetailsPath(row.original)}>
+            <Truncate maxWidth="100%">{row.original.name}</Truncate>
+          </Link>
+        </Flex>
+      ),
+    },
+    {
+      id: "project",
+      header: "project",
+      size: 180,
+      accessorFn: (row) => row.project.name,
+      cell: ({ row }) => (
+        <ProjectLink
+          name={row.original.project.name}
+          to={`/projects/${encodeURIComponent(row.original.project.id)}/evaluators`}
+        />
+      ),
+    },
+    {
+      id: "status",
+      header: "status",
+      size: 120,
+      accessorFn: (row) => row.runSummary.status,
+      cell: ({ row }) => (
+        <ProjectEvaluatorStatusCell runSummary={row.original.runSummary} />
+      ),
+    },
+    {
+      id: "queue",
+      header: () => (
+        <ColumnHeaderWithHelp help="Evaluations waiting, retrying or running now, and how long the oldest has waited.">
+          in queue
+        </ColumnHeaderWithHelp>
+      ),
+      size: 110,
+      meta: { textAlign: "right" },
+      sortDescFirst: true,
+      accessorFn: (row) => row.runSummary.queuedCount,
+      cell: ({ row }) => (
+        <ProjectEvaluatorQueueCell queuedWork={row.original.runSummary} />
+      ),
+    },
+    {
+      id: "share",
+      header: () => (
+        <ColumnHeaderWithHelp help="This evaluator's share of all queued evaluations.">
+          share of server queue
+        </ColumnHeaderWithHelp>
+      ),
+      size: 180,
+      meta: { textAlign: "right" },
+      sortDescFirst: true,
+      accessorFn: (row) =>
+        getEvaluatorShareOfServerQueue({
+          evaluatorQueuedCount: row.runSummary.queuedCount,
+          serverQueuedCount,
+        }),
+      cell: ({ getValue }) => (
+        <ServerQueueShareCell share={getValue() as number} />
+      ),
+    },
+    {
+      id: "lag",
+      header: () => (
+        <ColumnHeaderWithHelp help="95% of evaluations that finished in the time range, failures included, did so within this long of being queued. Hover a value for p50 and p99.">
+          lag p95
+        </ColumnHeaderWithHelp>
+      ),
+      size: 120,
+      meta: { textAlign: "right" },
+      sortDescFirst: true,
+      sortUndefined: "last",
+      accessorFn: (row) => row.lag?.p95Seconds,
+      cell: ({ row }) => <ProjectEvaluatorLagCell lag={row.original.lag} />,
+    },
+    {
+      id: "load",
+      header: () => (
+        <ColumnHeaderWithHelp help="This evaluator's part of the server's evaluation time over the last hour, whatever the time range.">
+          eval time share
+        </ColumnHeaderWithHelp>
+      ),
+      size: 150,
+      meta: { textAlign: "right" },
+      sortDescFirst: true,
+      sortUndefined: "last",
+      accessorFn: (row) =>
+        row.evaluationLoad.shareOfEvaluationTime ?? undefined,
+      cell: ({ row }) => (
+        <ProjectEvaluatorLoadCell
+          evaluationLoad={row.original.evaluationLoad}
+          isTracingEnabled={row.original.tracingEnabled}
+        />
+      ),
+    },
+    {
+      id: "failures",
+      header: () => (
+        <ColumnHeaderWithHelp help="Share of evaluations that finished in the time range and were given up on, because retries ran out or the error is not retried.">
+          failure rate
+        </ColumnHeaderWithHelp>
+      ),
+      size: 130,
+      meta: { textAlign: "right" },
+      sortDescFirst: true,
+      sortUndefined: "last",
+      accessorFn: (row) => row.failureSummary.failureRate ?? undefined,
+      cell: ({ row }) => (
+        <ProjectEvaluatorFailuresCell
+          failureSummary={row.original.failureSummary}
+        />
+      ),
+    },
+    {
+      id: "cost",
+      header: () => (
+        <ColumnHeaderWithHelp help="Token cost of this evaluator's LLM calls in the time range. Evaluators that make no LLM calls have no cost.">
+          total cost
+        </ColumnHeaderWithHelp>
+      ),
+      size: 120,
+      meta: { textAlign: "right" },
+      sortDescFirst: true,
+      sortUndefined: "last",
+      accessorFn: (row) => row.costSummary?.total.cost ?? undefined,
+      cell: ({ row }) => (
+        <ProjectEvaluatorCost
+          evaluatorKind={row.original.evaluator.kind}
+          costSummary={row.original.costSummary}
+          isTracingEnabled={row.original.tracingEnabled}
+        />
+      ),
+    },
+    {
+      id: "averageCost",
+      header: () => (
+        <ColumnHeaderWithHelp help="Total cost divided by the number of evaluations traced in the time range.">
+          avg cost / evaluation
+        </ColumnHeaderWithHelp>
+      ),
+      size: 170,
+      meta: { textAlign: "right" },
+      sortDescFirst: true,
+      sortUndefined: "last",
+      accessorFn: (row) => {
+        const cost = row.costSummary?.total.cost;
+        const runCount = row.tracedEvaluationCount;
+        return cost != null && runCount != null && runCount > 0
+          ? cost / runCount
+          : undefined;
+      },
+      cell: ({ row }) => (
+        <ProjectEvaluatorAverageCost
+          evaluatorKind={row.original.evaluator.kind}
+          costSummary={row.original.costSummary}
+          runCount={row.original.tracedEvaluationCount}
+          isTracingEnabled={row.original.tracingEnabled}
+        />
+      ),
+    },
+  ];
+  const table = useTable({
+    features: appTableFeatures,
+    data: rows as TableRow[],
+    columns,
+    state: { sorting },
+    onSortingChange,
+    getRowId: (row) => row.id,
+  });
+  const tableRows = table.getRowModel().rows;
+  return (
+    <table css={tableCSS} aria-label="Project evaluators across all projects">
+      <thead>
+        {table.getHeaderGroups().map((headerGroup) => (
+          <tr key={headerGroup.id}>
+            {headerGroup.headers.map((header) => (
+              <TableColumnHeader key={header.id} header={header} />
+            ))}
+          </tr>
+        ))}
+      </thead>
+      {tableRows.length === 0 ? (
+        <TableEmptyWrap>
+          <CompactEmptyState
+            icon={<Icon svg={<Icons.Scale />} />}
+            description="No project evaluators"
+            isFiltered={trimmedFilter.length > 0}
+          />
+        </TableEmptyWrap>
+      ) : (
+        <tbody>
+          {tableRows.map((row) => (
+            <tr key={row.id}>
+              {row.getVisibleCells().map((cell) => (
+                <td
+                  key={cell.id}
+                  style={{
+                    width: cell.column.getSize(),
+                    maxWidth: cell.column.getSize(),
+                    overflow: "hidden",
+                    whiteSpace: "nowrap",
+                    textAlign: cell.column.columnDef.meta?.textAlign,
+                  }}
+                >
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      )}
+    </table>
+  );
+}

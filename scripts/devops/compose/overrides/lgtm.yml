@@ -1,0 +1,8 @@
+# Phoenix sends its own traces and logs to the otel-lgtm collector. Metrics need
+# nothing here: the collector pulls them from phoenix:9090.
+services:
+  phoenix:
+    environment:
+      - PHOENIX_LOGGING_MODE=structured
+      - PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT=http://lgtm:4318
+      - PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_HTTP_ENDPOINT=http://lgtm:4318

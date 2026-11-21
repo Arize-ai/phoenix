@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8ce4b372233d811b2420799e1e0c8663>>
+ * @generated SignedSource<<8cb055aaf88c1e9c79b94eae9da5747c>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,8 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
-export type GenerativeModelSDK = "ANTHROPIC" | "AWS_BEDROCK" | "AZURE_OPENAI" | "GOOGLE_GENAI" | "OPENAI";
+export type GenerativeModelSDK = "ANTHROPIC" | "AWS_BEDROCK" | "AZURE_OPENAI" | "GOOGLE_GENAI" | "OPENAI" | "TYPESAFE";
+export type ModelType = "CHAT" | "DECISION";
 import { FragmentRefs } from "relay-runtime";
 export type CustomProvidersCard_data$data = {
   readonly generativeModelCustomProviders: {
@@ -17,18 +18,11 @@ export type CustomProvidersCard_data$data = {
         readonly config: {
           readonly parseError?: string;
         };
-        readonly createdAt: string;
-        readonly description: string | null;
         readonly id: string;
+        readonly modelTypes: ReadonlyArray<ModelType>;
         readonly name: string;
         readonly provider: string;
         readonly sdk: GenerativeModelSDK;
-        readonly updatedAt: string;
-        readonly user: {
-          readonly id: string;
-          readonly profilePictureUrl: string | null;
-          readonly username: string;
-        } | null;
       };
     }>;
   };
@@ -44,14 +38,7 @@ import CustomProvidersCardQuery_graphql from './CustomProvidersCardQuery.graphql
 const node: ReaderFragment = (function(){
 var v0 = [
   "generativeModelCustomProviders"
-],
-v1 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "id",
-  "storageKey": null
-};
+];
 return {
   "argumentDefinitions": [
     {
@@ -114,19 +101,18 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                (v1/*:: as any*/),
                 {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
-                  "name": "name",
+                  "name": "id",
                   "storageKey": null
                 },
                 {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
-                  "name": "description",
+                  "name": "name",
                   "storageKey": null
                 },
                 {
@@ -147,40 +133,7 @@ return {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
-                  "name": "createdAt",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "updatedAt",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "concreteType": "User",
-                  "kind": "LinkedField",
-                  "name": "user",
-                  "plural": false,
-                  "selections": [
-                    (v1/*:: as any*/),
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "username",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "profilePictureUrl",
-                      "storageKey": null
-                    }
-                  ],
+                  "name": "modelTypes",
                   "storageKey": null
                 },
                 {
@@ -262,6 +215,6 @@ return {
 };
 })();
 
-(node as any).hash = "c29e85fe3f8eb2ea260fdc204f7f5ada";
+(node as any).hash = "23b6d022f28f9227a28b33e14b3ec33d";
 
 export default node;

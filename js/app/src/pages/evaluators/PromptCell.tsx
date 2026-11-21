@@ -1,8 +1,4 @@
-import { css } from "@emotion/react";
-import type { ReactNode } from "react";
-
-import { Flex, Link, Text, Token } from "@phoenix/components";
-import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { VersionedNameLink } from "./VersionedNameLink";
 
 export const PromptCell = ({
   prompt,
@@ -36,63 +32,28 @@ export const PromptLink = ({
   promptName,
   promptVersionTag,
   wrapWidth,
+  nameMaxWidth,
 }: {
   promptId: string;
   promptName: string;
   promptVersionTag?: string;
-  /**
-   * When set, constrains the component to a max-width (in pixels) and allows
-   * the content to wrap onto two lines if needed. When undefined, the component
-   * displays inline without wrapping.
-   */
+  /** See VersionedNameLink. */
   wrapWidth?: number;
+  /** See VersionedNameLink. */
+  nameMaxWidth?: string;
 }) => {
-  let to: string;
-  let specifier: ReactNode;
   // if tag exists, that means the evaluator is pinned to a specific version of the prompt
   // otherwise, we assume the latest version is pinned
-  if (promptVersionTag) {
-    specifier = (
-      <Token size="S" color="var(--global-color-gray-700)">
-        <Truncate maxWidth="10rem">{promptVersionTag}</Truncate>
-      </Token>
-    );
-    to = `/redirects/prompts/${promptId}/tags/${encodeURIComponent(promptVersionTag)}`;
-  } else {
-    specifier = (
-      <Token size="S" color="var(--global-color-gray-700)">
-        latest
-      </Token>
-    );
-    to = `/prompts/${promptId}`;
-  }
-
+  const to = promptVersionTag
+    ? `/redirects/prompts/${promptId}/tags/${encodeURIComponent(promptVersionTag)}`
+    : `/prompts/${promptId}`;
   return (
-    <Link
+    <VersionedNameLink
       to={to}
-      css={css`
-        text-decoration: none;
-        ${wrapWidth != null &&
-        css`
-          max-width: ${wrapWidth}px;
-        `}
-      `}
-    >
-      <Flex
-        alignItems="center"
-        wrap={wrapWidth != null ? "wrap" : undefined}
-        gap={wrapWidth != null ? "size-50" : undefined}
-      >
-        <Truncate maxWidth={wrapWidth != null ? "100%" : "10rem"}>
-          {promptName}
-        </Truncate>
-        <Flex alignItems="center">
-          <Text color="text-300">
-            {wrapWidth != null ? "@\u00A0" : "\u00A0@\u00A0"}
-          </Text>
-          {specifier}
-        </Flex>
-      </Flex>
-    </Link>
+      name={promptName}
+      versionTag={promptVersionTag}
+      wrapWidth={wrapWidth}
+      nameMaxWidth={nameMaxWidth}
+    />
   );
 };
