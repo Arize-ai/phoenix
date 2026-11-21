@@ -1,0 +1,69 @@
+---
+title: "PopNow Tracing"
+description: "Phoenix provides auto-instrumentation for PopNow through the OpenAI Python Library since PopNow provides an OpenAI-compatible API endpoint."
+---
+
+import RegisterTracerPython from "../../../../snippets/register-tracer-python.mdx";
+
+## Install
+
+```bash
+pip install openinference-instrumentation-openai openai
+```
+
+## Setup
+
+Add your PopNow API key as an environment variable. Create one in the [PopNow API console](https://popnow.ai/api/console/keys):
+
+```bash
+export POPNOW_API_KEY='your_popnow_api_key'
+```
+
+<RegisterTracerPython projectName="my-llm-app" />
+
+## Run PopNow
+
+```python
+import os
+import openai
+
+client = openai.OpenAI(
+    base_url="https://api.popnow.ai/v1",
+    api_key=os.environ["POPNOW_API_KEY"]
+)
+
+response = client.chat.completions.create(
+    model="google/gemini-3.7-flash/chat",
+    messages=[{"role": "user", "content": "Write a haiku about observability."}],
+)
+print(response.choices[0].message.content)
+```
+
+PopNow model IDs follow the `<lab>/<model>/chat` format, for example `anthropic/claude-sonnet-5.5/chat`, `openai/gpt-6.1-terra/chat` or `deepseek/v4-flash/chat`. List them with `client.models.list()`.
+
+## Observe
+
+Now that you have tracing set up, all invocations of the OpenAI client pointed at PopNow will be streamed to your running Phoenix for observability and evaluation.
+
+## What Gets Traced
+
+All PopNow model calls are automatically traced and include:
+
+* Request/response data and timing
+* Model name
+* Token usage
+* Error handling and debugging information
+
+## Common Issues
+
+* **API Key**: Use your PopNow API key (`sk-popnow-...`), not an OpenAI key
+* **Model Names**: Use the full PopNow model ID, including the `/chat` suffix. See the [PopNow chat API docs](https://popnow.ai/docs/chat) for available models and prices
+* **Insufficient balance**: PopNow is prepaid. Add funds to your API balance before sending requests
+* **Base URL**: Ensure you're using `https://api.popnow.ai/v1` as the base URL
+
+## Resources
+
+<Columns cols={2}>
+  <Card title="PopNow Chat API Documentation" href="https://popnow.ai/docs/chat" icon="book" horizontal description="Models, parameters and pricing"/>
+  <Card title="OpenInference OpenAI Instrumentation" href="https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai" icon="puzzle-piece" horizontal description="OpenAI instrumentation package"/>
+</Columns>
