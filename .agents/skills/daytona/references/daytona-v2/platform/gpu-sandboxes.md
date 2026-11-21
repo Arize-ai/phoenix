@@ -18,7 +18,3 @@ A GPU sandbox is ephemeral: deleting it discards its filesystem. Its state can b
 | **GPU memory** | The memory on a GPU that holds the data the GPU works on, such as model weights.                     |
 | **Checkpoint** | A saved copy of the processes and memory of a running program, from which the program resumes later. |
 | **Ephemeral**  | A sandbox whose filesystem is discarded when the sandbox is deleted.                                 |
-
-> **Note:**
->
-> GPU sandboxes for Daytona v2 are coming soon.

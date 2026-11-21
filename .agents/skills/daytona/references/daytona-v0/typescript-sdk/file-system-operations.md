@@ -112,7 +112,7 @@ Daytona provides methods to download files from sandboxes.
 Download a single file by providing the path to the file to download.
 
 ```typescript
-import { DaytonaNotFoundError } from '@daytona/sdk'
+import { DaytonaNotFoundError } from '@daytona/sdk/v0'
 
 try {
   const downloadedFile = await sandbox.fs.downloadFile('file1.txt')

@@ -4,6 +4,7 @@
 - Mount a Cloudflare R2 bucket
 - Mount a Tigris bucket
 - Mount a Supabase Storage bucket
+- Mount a Nebius Object Storage bucket
 - Mount a Google Cloud Storage bucket
 - Mount an Azure Blob container
 - Mount a Box folder
@@ -15,9 +16,9 @@
 
 
 
-Mount object storage (Amazon S3, Cloudflare R2, Tigris, Supabase Storage, Google Cloud Storage, Azure Blob), cloud storage like Box, and filesystems like Archil, MesaFS, and TiDB Cloud Filesystem into a Daytona sandbox as a regular directory. The sandbox reads from and writes to the bucket as if it were a local directory, so existing tools, scripts, and agents work without changes. This is useful for bringing in datasets, model weights, or build artifacts that already live in your own cloud account.
+Mount object storage (Amazon S3, Cloudflare R2, Tigris, Supabase Storage, Nebius Object Storage, Google Cloud Storage, Azure Blob), cloud storage like Box, and filesystems like Archil, MesaFS, and TiDB Cloud Filesystem into a Daytona sandbox as a regular directory. The sandbox reads from and writes to the bucket as if it were a local directory, so existing tools, scripts, and agents work without changes. This is useful for bringing in datasets, model weights, or build artifacts that already live in your own cloud account.
 
-External storage mounts and [Daytona Volumes](./volumes.md) are complementary FUSE-based mechanisms — both expose remote object storage as a regular sandbox directory, both can be shared across sandboxes, and both persist beyond any individual sandbox's lifetime. The main distinction is **where the data physically lives**: Daytona Volumes are hosted on Daytona's own S3-compatible object store, while external mounts connect to a bucket or filesystem hosted on another provider (Amazon S3, Cloudflare R2, Tigris, Supabase Storage, GCS, Azure Blob, Box, Archil, MesaFS, TiDB Cloud Filesystem).
+External storage mounts and [Daytona Volumes](./volumes.md) are complementary FUSE-based mechanisms — both expose remote object storage as a regular sandbox directory, both can be shared across sandboxes, and both persist beyond any individual sandbox's lifetime. The main distinction is **where the data physically lives**: Daytona Volumes are hosted on Daytona's own S3-compatible object store, while external mounts connect to a bucket or filesystem hosted on another provider (Amazon S3, Cloudflare R2, Tigris, Supabase Storage, Nebius Object Storage, GCS, Azure Blob, Box, Archil, MesaFS, TiDB Cloud Filesystem).
 
 External storage is mounted using FUSE. Daytona supports two approaches, and each provider section below shows both — pick whichever fits your workflow:
 
@@ -41,7 +42,8 @@ Build a snapshot with `mount-s3` preinstalled, then launch all S3-enabled sandbo
 Create a reusable snapshot that installs `mount-s3` and its system dependencies. After it finishes, every sandbox launched from `fuse-s3` already has the mount binary available.
 
 ```python
-from daytona import CreateSnapshotParams, Daytona, Image
+from daytona import Daytona
+from daytona.v0 import CreateSnapshotParams, Image
 
 daytona = Daytona()
 
@@ -58,7 +60,7 @@ image = (
   )
 )
 
-daytona.snapshot.create(
+daytona.v0.snapshot.create(
     CreateSnapshotParams(name="fuse-s3", image=image),
     on_logs=print,
 )
@@ -70,11 +72,12 @@ Pass AWS credentials as environment variables on sandbox creation. `mount-s3` re
 
 ```python
 import os
-from daytona import CreateSandboxFromSnapshotParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
 
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxFromSnapshotParams(
         snapshot="fuse-s3",
         env_vars={
@@ -102,11 +105,12 @@ Start from a default sandbox and install `mount-s3` during startup before runnin
 
 ```python
 import os
-from daytona import CreateSandboxBaseParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxBaseParams
 
 daytona = Daytona()
 
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxBaseParams(
         env_vars={
             "AWS_ACCESS_KEY_ID": os.environ["AWS_ACCESS_KEY_ID"],
@@ -149,7 +153,8 @@ Build a snapshot with `mount-s3` preinstalled, then launch all R2-enabled sandbo
 Create a reusable snapshot that installs the same `mount-s3` tool used for S3. R2 remains S3-compatible, so this snapshot is identical to S3 setup and only the runtime mount command changes.
 
 ```python
-from daytona import CreateSnapshotParams, Daytona, Image
+from daytona import Daytona
+from daytona.v0 import CreateSnapshotParams, Image
 
 daytona = Daytona()
 
@@ -166,7 +171,7 @@ image = (
   )
 )
 
-daytona.snapshot.create(
+daytona.v0.snapshot.create(
     CreateSnapshotParams(name="fuse-r2", image=image),
     on_logs=print,
 )
@@ -178,14 +183,15 @@ Pass your R2 credentials into the sandbox as `AWS_*` environment variables and m
 
 ```python
 import os
-from daytona import CreateSandboxFromSnapshotParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
 
 # R2 credentials live in your Cloudflare dashboard under R2 > Manage API Tokens
 account_id = os.environ["R2_ACCOUNT_ID"]
 
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxFromSnapshotParams(
         snapshot="fuse-r2",
         env_vars={
@@ -213,13 +219,14 @@ Start from a default sandbox and install `mount-s3` during startup, then mount y
 
 ```python
 import os
-from daytona import CreateSandboxBaseParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxBaseParams
 
 daytona = Daytona()
 
 account_id = os.environ["R2_ACCOUNT_ID"]
 
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxBaseParams(
         env_vars={
             "AWS_ACCESS_KEY_ID": os.environ["R2_ACCESS_KEY_ID"],
@@ -266,7 +273,8 @@ Build a snapshot with `mount-s3` preinstalled, then launch Tigris sandboxes from
 Create a reusable snapshot that installs `mount-s3`. Because Tigris is S3-compatible, this setup matches S3 and only the runtime mount command changes.
 
 ```python
-from daytona import CreateSnapshotParams, Daytona, Image
+from daytona import Daytona
+from daytona.v0 import CreateSnapshotParams, Image
 
 daytona = Daytona()
 
@@ -283,7 +291,7 @@ image = (
   )
 )
 
-daytona.snapshot.create(
+daytona.v0.snapshot.create(
     CreateSnapshotParams(name="fuse-tigris", image=image),
     on_logs=print,
 )
@@ -295,11 +303,12 @@ Pass Tigris credentials into the sandbox as `AWS_*` environment variables, then 
 
 ```python
 import os
-from daytona import CreateSandboxFromSnapshotParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
 
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxFromSnapshotParams(
         snapshot="fuse-tigris",
         env_vars={
@@ -327,11 +336,12 @@ Start from a default sandbox, install `mount-s3` during startup, then mount with
 
 ```python
 import os
-from daytona import CreateSandboxBaseParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxBaseParams
 
 daytona = Daytona()
 
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxBaseParams(
         env_vars={
             "AWS_ACCESS_KEY_ID": os.environ["TIGRIS_STORAGE_ACCESS_KEY_ID"],
@@ -396,7 +406,7 @@ const fork = forkSet.forks[0]
 
 // 2. Launch the sandbox with the fork's scoped credentials
 const daytona = new Daytona()
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   snapshot: 'fuse-tigris',
   envVars: {
     AWS_ACCESS_KEY_ID: fork.credentials!.accessKeyId,
@@ -415,7 +425,7 @@ try {
   const response = await sandbox.process.executeCommand(`ls ${mountPath}`)
   console.log(response.result)
 } finally {
-  await daytona.delete(sandbox)
+  await daytona.v0.delete(sandbox)
   await teardownForks(forkSet) // revokes the scoped key and deletes the fork bucket
 }
 ```
@@ -451,7 +461,8 @@ Build a snapshot with `mount-s3` preinstalled, then launch Supabase-enabled sand
 Create a reusable snapshot that installs `mount-s3`. Because Supabase Storage is S3-compatible, this setup matches S3 and only the runtime mount command changes.
 
 ```python
-from daytona import CreateSnapshotParams, Daytona, Image
+from daytona import Daytona
+from daytona.v0 import CreateSnapshotParams, Image
 
 daytona = Daytona()
 
@@ -468,7 +479,7 @@ image = (
   )
 )
 
-daytona.snapshot.create(
+daytona.v0.snapshot.create(
     CreateSnapshotParams(name="fuse-supabase", image=image),
     on_logs=print,
 )
@@ -480,7 +491,8 @@ Pass your Supabase S3 access keys into the sandbox as `AWS_*` environment variab
 
 ```python
 import os
-from daytona import CreateSandboxFromSnapshotParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
 
@@ -488,7 +500,7 @@ daytona = Daytona()
 project_ref = os.environ["SUPABASE_PROJECT_REF"]
 region = os.environ["SUPABASE_REGION"]
 
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxFromSnapshotParams(
         snapshot="fuse-supabase",
         env_vars={
@@ -517,14 +529,15 @@ Start from a default sandbox, install `mount-s3` during startup, then mount with
 
 ```python
 import os
-from daytona import CreateSandboxBaseParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxBaseParams
 
 daytona = Daytona()
 
 project_ref = os.environ["SUPABASE_PROJECT_REF"]
 region = os.environ["SUPABASE_REGION"]
 
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxBaseParams(
         env_vars={
             "AWS_ACCESS_KEY_ID": os.environ["SUPABASE_S3_ACCESS_KEY_ID"],
@@ -557,6 +570,128 @@ response = sandbox.process.exec(f"ls {mount_path}")
 print(response.result)
 ```
 
+## Mount a Nebius Object Storage bucket
+
+Mount a Nebius Object Storage bucket with the same `mount-s3` tool used for S3. Nebius Object Storage is [S3-compatible ↗](https://docs.nebius.com/object-storage/interfaces/s3-api-compatibility) and serves each region at `https://storage.<region>.nebius.cloud`, so pass the endpoint for your bucket's region with `--endpoint-url` and the region ID with `--region`. For performance settings recommended for high-throughput workloads, see the Nebius [Mountpoint for Amazon S3 guide ↗](https://docs.nebius.com/object-storage/interfaces/mountpoint-s3).
+
+**Credentials** — in the [Nebius AI Cloud console ↗](https://console.nebius.com/iam), go to **Administration** > **IAM**, create a service account, and add it to a group with access to your bucket, such as the default `editors` group. Then [create an access key ↗](https://docs.nebius.com/iam/service-accounts/access-keys) for the service account. Set `NEBIUS_REGION` (the region of the bucket's project, e.g. `eu-north1`), `NEBIUS_ACCESS_KEY_ID` (the key's AWS-compatible ID, not its Nebius resource ID), and `NEBIUS_SECRET_ACCESS_KEY` in your local environment. The snippets below pass the keys into the sandbox via `envVars` under the `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` names that `mount-s3` expects. The default groups grant permissions across the whole tenant, so for production, use a [custom group ↗](https://docs.nebius.com/iam/authorization/groups#custom-groups) with access to the bucket only.
+
+### Pre-built snapshot
+
+Build a snapshot with `mount-s3` preinstalled, then launch Nebius-enabled sandboxes from that snapshot. The mount flow matches S3 except for the Nebius `--endpoint-url` and `--region` flags, and startup stays fast because installation happens once during snapshot build.
+
+#### Build a snapshot
+
+Create a reusable snapshot that installs `mount-s3`. Because Nebius Object Storage is S3-compatible, this setup matches S3 and only the runtime mount command changes.
+
+```python
+from daytona import Daytona
+from daytona.v0 import CreateSnapshotParams, Image
+
+daytona = Daytona()
+
+image = (
+  Image.base("daytonaio/sandbox")
+  .run_commands(
+    "sudo apt-get update "
+    "&& sudo apt-get install -y --no-install-recommends libfuse2 ca-certificates wget",
+    'arch="$(dpkg --print-architecture | sed s/amd64/x86_64/)" '
+    '&& wget -O /tmp/mount-s3.deb '
+    '"https://s3.amazonaws.com/mountpoint-s3-release/latest/${arch}/mount-s3.deb" '
+    "&& sudo apt-get install -y /tmp/mount-s3.deb "
+    "&& rm /tmp/mount-s3.deb",
+  )
+)
+
+daytona.v0.snapshot.create(
+    CreateSnapshotParams(name="fuse-nebius", image=image),
+    on_logs=print,
+)
+```
+
+#### Launch and mount
+
+Pass your Nebius access key into the sandbox as `AWS_*` environment variables, then mount with the regional endpoint URL and region. This keeps authentication compatible with `mount-s3` while targeting your Nebius bucket.
+
+```python
+import os
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
+
+daytona = Daytona()
+
+# Nebius serves each region from its own endpoint, e.g. storage.eu-north1.nebius.cloud
+region = os.environ["NEBIUS_REGION"]
+
+sandbox = daytona.v0.create(
+    CreateSandboxFromSnapshotParams(
+        snapshot="fuse-nebius",
+        env_vars={
+            "AWS_ACCESS_KEY_ID": os.environ["NEBIUS_ACCESS_KEY_ID"],
+            "AWS_SECRET_ACCESS_KEY": os.environ["NEBIUS_SECRET_ACCESS_KEY"],
+        },
+    )
+)
+
+mount_path = "/home/daytona/nebius"
+
+sandbox.process.exec(f"mkdir -p {mount_path}")
+sandbox.process.exec(
+    f"mount-s3 --endpoint-url https://storage.{region}.nebius.cloud "
+    f"--region {region} "
+    f"my-nebius-bucket {mount_path}"
+)
+
+response = sandbox.process.exec(f"ls {mount_path}")
+print(response.result)
+```
+
+### Runtime install
+
+Start from a default sandbox, install `mount-s3` during startup, then mount with the Nebius `--endpoint-url` and `--region` flags. This path is convenient for prototyping or one-off tasks, but each new sandbox repeats package installation.
+
+```python
+import os
+from daytona import Daytona
+from daytona.v0 import CreateSandboxBaseParams
+
+daytona = Daytona()
+
+region = os.environ["NEBIUS_REGION"]
+
+sandbox = daytona.v0.create(
+    CreateSandboxBaseParams(
+        env_vars={
+            "AWS_ACCESS_KEY_ID": os.environ["NEBIUS_ACCESS_KEY_ID"],
+            "AWS_SECRET_ACCESS_KEY": os.environ["NEBIUS_SECRET_ACCESS_KEY"],
+        },
+    )
+)
+
+# Install mount-s3
+sandbox.process.exec(
+    "sudo apt-get update "
+    "&& sudo apt-get install -y --no-install-recommends libfuse2 ca-certificates wget"
+)
+sandbox.process.exec(
+    'arch="$(dpkg --print-architecture | sed s/amd64/x86_64/)" '
+    '&& wget -O /tmp/mount-s3.deb '
+    '"https://s3.amazonaws.com/mountpoint-s3-release/latest/${arch}/mount-s3.deb" '
+    "&& sudo apt-get install -y /tmp/mount-s3.deb"
+)
+
+# Mount with Nebius endpoint
+mount_path = "/home/daytona/nebius"
+sandbox.process.exec(
+    f"mkdir -p {mount_path} && "
+    f"mount-s3 --endpoint-url https://storage.{region}.nebius.cloud "
+    f"--region {region} "
+    f"my-nebius-bucket {mount_path}"
+)
+response = sandbox.process.exec(f"ls {mount_path}")
+print(response.result)
+```
+
 ## Mount a Google Cloud Storage bucket
 
 Mount a GCS bucket using [gcsfuse ↗](https://github.com/GoogleCloudPlatform/gcsfuse) — Google's official FUSE client.
@@ -574,7 +709,8 @@ Build a snapshot with `gcsfuse` preinstalled, then launch all GCS-enabled sandbo
 Create a reusable snapshot that installs `gcsfuse` plus its apt repository configuration. After this step, GCS-enabled sandboxes can mount immediately without repeating package setup.
 
 ```python
-from daytona import CreateSnapshotParams, Daytona, Image
+from daytona import Daytona
+from daytona.v0 import CreateSnapshotParams, Image
 
 daytona = Daytona()
 
@@ -593,7 +729,7 @@ image = (
   )
 )
 
-daytona.snapshot.create(
+daytona.v0.snapshot.create(
     CreateSnapshotParams(name="fuse-gcs", image=image),
     on_logs=print,
 )
@@ -605,14 +741,15 @@ daytona.snapshot.create(
 
 ```python
 import os
-from daytona import CreateSandboxFromSnapshotParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
 
 # GCS_SERVICE_ACCOUNT_KEY holds the full service account JSON as a string
 service_account_key = os.environ["GCS_SERVICE_ACCOUNT_KEY"].encode()
 
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="fuse-gcs"))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="fuse-gcs"))
 
 mount_path = "/home/daytona/gcs"
 key_path = "/home/daytona/.gcs-key.json"
@@ -636,14 +773,15 @@ Start from a default sandbox and install `gcsfuse` when the sandbox starts, then
 
 ```python
 import os
-from daytona import CreateSandboxBaseParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxBaseParams
 
 daytona = Daytona()
 
 # GCS_SERVICE_ACCOUNT_KEY holds the full service account JSON as a string
 service_account_key = os.environ["GCS_SERVICE_ACCOUNT_KEY"].encode()
 
-sandbox = daytona.create(CreateSandboxBaseParams())
+sandbox = daytona.v0.create(CreateSandboxBaseParams())
 
 # Install gcsfuse from the bookworm repo (works on Trixie)
 sandbox.process.exec(
@@ -691,7 +829,8 @@ Build a snapshot with `blobfuse2` and required FUSE compatibility setup preinsta
 Create a reusable snapshot that installs `blobfuse2`, configures required FUSE dependencies, and applies the Trixie compatibility steps. This ensures Azure mounts work out of the box in sandboxes launched from `fuse-azure`.
 
 ```python
-from daytona import CreateSnapshotParams, Daytona, Image
+from daytona import Daytona
+from daytona.v0 import CreateSnapshotParams, Image
 
 daytona = Daytona()
 
@@ -719,7 +858,7 @@ image = (
   )
 )
 
-daytona.snapshot.create(
+daytona.v0.snapshot.create(
     CreateSnapshotParams(name="fuse-azure", image=image),
     on_logs=print,
 )
@@ -733,11 +872,12 @@ The YAML below tells `blobfuse2` three things: **where to connect** (the `azstor
 
 ```python
 import os
-from daytona import CreateSandboxFromSnapshotParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
 
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="fuse-azure"))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="fuse-azure"))
 
 mount_path = "/home/daytona/azure"
 config_path = "/home/daytona/.blobfuse2.yaml"
@@ -783,11 +923,12 @@ Start from a default sandbox and install `blobfuse2` during startup before writi
 
 ```python
 import os
-from daytona import CreateSandboxBaseParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxBaseParams
 
 daytona = Daytona()
 
-sandbox = daytona.create(CreateSandboxBaseParams())
+sandbox = daytona.v0.create(CreateSandboxBaseParams())
 
 # Install blobfuse2
 sandbox.process.exec(
@@ -862,7 +1003,8 @@ Box Mount ships as a single Linux binary (x86_64 and ARM64). Bake it into a snap
 Create a reusable snapshot that copies the binary from your local machine into the image — the snippets assume it sits at `./box-mount`; adjust the local path to match the file Box provided. The binary is installed as `agent-mount` with a `box-mount` symlink because current preview binaries resolve their sync engine by the `agent-mount` name. Sandboxes launched from `box-mount` need no further installation. The Java SDK supports `addLocalFile` from `io.daytona:sdk` version `0.214.0`.
 
 ```python
-from daytona import CreateSnapshotParams, Daytona, Image
+from daytona import Daytona
+from daytona.v0 import CreateSnapshotParams, Image
 
 daytona = Daytona()
 
@@ -875,7 +1017,7 @@ image = (
   )
 )
 
-daytona.snapshot.create(
+daytona.v0.snapshot.create(
     CreateSnapshotParams(name="box-mount", image=image),
     on_logs=print,
 )
@@ -886,11 +1028,12 @@ daytona.snapshot.create(
 To skip snapshot management, upload the binary into a running sandbox instead — slower per sandbox, but with no snapshot to maintain:
 
 ```python
-from daytona import CreateSandboxBaseParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxBaseParams
 
 daytona = Daytona()
 
-sandbox = daytona.create(CreateSandboxBaseParams())
+sandbox = daytona.v0.create(CreateSandboxBaseParams())
 
 with open("./box-mount", "rb") as f:
     sandbox.fs.upload_file(f.read(), "/tmp/box-mount")
@@ -914,14 +1057,15 @@ JWT is the recommended mode for sandboxes: authentication is fully non-interacti
 
 ```python
 import os
-from daytona import CreateSandboxFromSnapshotParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
 
 # BOX_CONFIG_JSON holds the full Platform App config JSON as a string
 box_config = os.environ["BOX_CONFIG_JSON"].encode()
 
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxFromSnapshotParams(
         snapshot="box-mount",
         env_vars={
@@ -956,11 +1100,12 @@ OAuth mode acts as the user who authorized the app, so the mount can never reach
 
 ```python
 import os
-from daytona import CreateSandboxFromSnapshotParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
 
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxFromSnapshotParams(
         snapshot="box-mount",
         env_vars={
@@ -1002,7 +1147,8 @@ Build a snapshot with the `archil` CLI preinstalled, then launch Archil-enabled 
 Create a reusable snapshot that installs the `archil` CLI. The `daytonaio/sandbox` base image ships Debian Trixie which doesn't include `libfuse2`, and the `archil` CLI links against it, so we apt-install it before the Archil installer. On Trixie the package is named `libfuse2t64`; installing `libfuse2` also works because it is a transitional package that pulls in `libfuse2t64`.
 
 ```python
-from daytona import CreateSnapshotParams, Daytona, Image
+from daytona import Daytona
+from daytona.v0 import CreateSnapshotParams, Image
 
 daytona = Daytona()
 
@@ -1015,7 +1161,7 @@ image = (
   )
 )
 
-daytona.snapshot.create(
+daytona.v0.snapshot.create(
     CreateSnapshotParams(name="fuse-archil", image=image),
     on_logs=lambda chunk: print(chunk, end="", flush=True),
 )
@@ -1027,13 +1173,14 @@ Pass `ARCHIL_MOUNT_TOKEN`, `ARCHIL_REGION`, and `ARCHIL_DISK` to the sandbox via
 
 ```python
 import os
-from daytona import CreateSandboxFromSnapshotParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
 
 mount_path = "/home/daytona/archil"
 
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxFromSnapshotParams(
         snapshot="fuse-archil",
         env_vars={
@@ -1066,13 +1213,14 @@ Start from a default sandbox and install the `archil` CLI during startup before 
 
 ```python
 import os
-from daytona import CreateSandboxBaseParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxBaseParams
 
 daytona = Daytona()
 
 mount_path = "/home/daytona/archil"
 
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxBaseParams(
         env_vars={
             "ARCHIL_MOUNT_TOKEN": os.environ["ARCHIL_MOUNT_TOKEN"],
@@ -1165,7 +1313,8 @@ Build a snapshot with the Mesa CLI preinstalled, then launch Mesa-enabled sandbo
 Create a reusable snapshot that installs the Mesa CLI and enables the FUSE `user_allow_other` setting. Sandboxes launched from `fuse-mesa` can then authenticate and mount repos without repeating install work.
 
 ```python
-from daytona import CreateSnapshotParams, Daytona, Image
+from daytona import Daytona
+from daytona.v0 import CreateSnapshotParams, Image
 
 daytona = Daytona()
 
@@ -1177,7 +1326,7 @@ image = (
   )
 )
 
-daytona.snapshot.create(
+daytona.v0.snapshot.create(
     CreateSnapshotParams(name="fuse-mesa", image=image),
     on_logs=lambda chunk: print(chunk, end="", flush=True),
 )
@@ -1189,7 +1338,8 @@ Pass `MESA_API_KEY` and your Mesa organization slug to the sandbox via `envVars`
 
 ```python
 import os
-from daytona import CreateSandboxFromSnapshotParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
 
@@ -1198,7 +1348,7 @@ repo = "my-workspace"
 mount_path = f"/home/daytona/mesa/mnt/{org}/{repo}"
 config_path = "/home/daytona/.config/mesa/config.toml"
 
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxFromSnapshotParams(
         snapshot="fuse-mesa",
         env_vars={
@@ -1232,7 +1382,8 @@ Start from a default sandbox and install the Mesa CLI during startup before conf
 
 ```python
 import os
-from daytona import CreateSandboxBaseParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxBaseParams
 
 daytona = Daytona()
 
@@ -1241,7 +1392,7 @@ repo = "my-workspace"
 mount_path = f"/home/daytona/mesa/mnt/{org}/{repo}"
 config_path = "/home/daytona/.config/mesa/config.toml"
 
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxBaseParams(
         env_vars={
             "MESA_API_KEY": os.environ["MESA_API_KEY"],
@@ -1280,7 +1431,8 @@ For non-test workloads, Mesa recommends minting a **short-lived, scoped API key 
 ```python
 import asyncio
 import os
-from daytona import CreateSandboxFromSnapshotParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 from mesa_sdk import Mesa
 
 
@@ -1297,7 +1449,7 @@ async def mint_ephemeral_key() -> str:
 ephemeral_key = asyncio.run(mint_ephemeral_key())
 
 daytona = Daytona()
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxFromSnapshotParams(
         snapshot="fuse-mesa",
         env_vars={
@@ -1352,7 +1504,8 @@ Build a snapshot with `ti` preinstalled, then launch sandboxes from that snapsho
 Create a reusable snapshot that installs `ti` to `/home/daytona/.ti/bin`. Sandboxes launched from `fuse-tidbfs` can mount the filesystem without repeating install work.
 
 ```python
-from daytona import CreateSnapshotParams, Daytona, Image
+from daytona import Daytona
+from daytona.v0 import CreateSnapshotParams, Image
 
 daytona = Daytona()
 
@@ -1364,7 +1517,7 @@ image = (
   )
 )
 
-daytona.snapshot.create(
+daytona.v0.snapshot.create(
     CreateSnapshotParams(name="fuse-tidbfs", image=image),
     on_logs=lambda chunk: print(chunk, end="", flush=True),
 )
@@ -1376,14 +1529,15 @@ Pass `TI_FS_TOKEN` and `TI_REGION_CODE` to the sandbox via `envVars`. Your code 
 
 ```python
 import os
-from daytona import CreateSandboxFromSnapshotParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
 
 ti = "/home/daytona/.ti/bin/ti"
 mount_path = "/home/daytona/tidb-fs"
 
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxFromSnapshotParams(
         snapshot="fuse-tidbfs",
         env_vars={
@@ -1410,14 +1564,15 @@ Start from a default sandbox and install `ti` during startup before mounting the
 
 ```python
 import os
-from daytona import CreateSandboxBaseParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxBaseParams
 
 daytona = Daytona()
 
 ti = "/home/daytona/.ti/bin/ti"
 mount_path = "/home/daytona/tidb-fs"
 
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxBaseParams(
         env_vars={
             "TI_FS_TOKEN": os.environ["TI_FS_TOKEN"],
@@ -1476,7 +1631,7 @@ response = sandbox.process.exec(f"{ti} fs drain-file-system --mount-path {mount_
 if response.exit_code != 0:
     raise RuntimeError(response.result)
 
-daytona.delete(sandbox)
+daytona.v0.delete(sandbox)
 ```
 
 If the drain fails or times out, keep the sandbox running, resolve the error, and retry. Deleting the sandbox discards writes that have not been drained, including when the sandbox is deleted automatically.
@@ -1490,7 +1645,7 @@ If the drain fails or times out, keep the sandbox running, resolve the error, an
 
 ## Unmount
 
-When a sandbox is deleted via `daytona.delete(sandbox)`, the container teardown automatically removes any active FUSE mounts and shuts down their daemons. For normal cleanup, this is all you need — no manual unmount required.
+When a sandbox is deleted via `daytona.v0.delete(sandbox)`, the container teardown automatically removes any active FUSE mounts and shuts down their daemons. For normal cleanup, this is all you need — no manual unmount required.
 
 To free a mount path **during** a sandbox's lifetime (for example, to remount with different credentials or before persisting a workspace archive), relocate the mount onto a throwaway path:
 

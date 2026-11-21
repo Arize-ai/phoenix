@@ -19,7 +19,3 @@ While the sandbox is running, it exposes a toolbox for command and process execu
 | **Persistent**     | A sandbox that keeps its disk across stop and start.                                                           |
 | **PowerShell**     | The Windows shell that runs commands and sessions inside the sandbox.                                          |
 | **Remote desktop** | Access to the Windows desktop of the sandbox over the remote desktop protocol (RDP).                           |
-
-> **Note:**
->
-> Windows sandboxes for Daytona v2 are coming soon.

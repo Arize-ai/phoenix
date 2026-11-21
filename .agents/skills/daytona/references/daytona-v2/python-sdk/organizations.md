@@ -63,7 +63,7 @@ daytona org create 'My Organization'
 
 | **Flag** | **Description** |
 | --- | --- |
-| `<name>` | Sets the organization name.<br />**Required**<br />**Maximum:** 64 characters<br />**Format:** text without control characters<br />**Example:** `'My Organization'` |
+| `<name>` | Sets the organization name.<br />**Required**<br />**Minimum:** 1 character<br />**Maximum:** 64 characters<br />**Format:** text without control characters<br />**Example:** `'My Organization'` |
 
 > **Notes:**
 >
@@ -125,8 +125,8 @@ curl 'https://api.daytona.com/orgs' \
 
 | **Field** | **Description** |
 | --- | --- |
-| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `cursor` | Continues from a previous page. |
+| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 
 > **Notes:**
 >
@@ -225,6 +225,8 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/api-keys/current' \
   --header 'Authorization: Bearer YOUR_ORG_API_KEY'
 ```
 
+**Response:**
+
 ```json
 {
   "id": "KEY_ID",
@@ -259,7 +261,7 @@ daytona org update ORGANIZATION_ID --name 'New Organization Name'
 
 | **Flag** | **Description** |
 | --- | --- |
-| `--name` | Sets the new organization name.<br />**Required**<br />**Maximum:** 64 characters<br />**Format:** text without control characters<br />**Example:** `'New Organization Name'` |
+| `--name` | Sets the new organization name.<br />**Required**<br />**Minimum:** 1 character<br />**Maximum:** 64 characters<br />**Format:** text without control characters<br />**Example:** `'New Organization Name'` |
 
 > **Notes:**
 >
@@ -470,9 +472,9 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/roles' \
 | **Field** | **Description** |
 | --- | --- |
 | `name` | Sets the role name.<br />**Required**<br />**Minimum:** 1 character<br />**Maximum:** 64 characters<br />**Rules:** unique in the organization, ignoring case, and not a built-in role name<br />**Example:** `"Sandbox operator"` |
-| `description` | Sets the purpose of the role.<br />**Maximum:** 256 characters<br />**Example:** `"Runs and manages sandboxes"` |
 | `project_permissions` | Sets the project permissions that the role grants.<br />**Required**<br />**Example:** `["read:sandboxes", "write:sandboxes"]` |
 | `organization_permissions` | Sets the organization permissions that the role grants.<br />**Required**<br />**Example:** `["read:organization", "read:projects", "write:project_api_keys"]` |
+| `description` | Sets the purpose of the role.<br />**Maximum:** 256 characters<br />**Example:** `"Runs and manages sandboxes"` |
 
 > **Notes:**
 >
@@ -514,10 +516,10 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/roles/ROLE_ID' \
 
 | **Field** | **Description** |
 | --- | --- |
-| `name` | Sets the new role name.<br />**Minimum:** 1 character<br />**Maximum:** 64 characters<br />**Example:** `"Sandbox reader"` |
 | `description` | Sets the new purpose of the role.<br />**Maximum:** 256 characters<br />**Example:** `"Reads sandboxes"` |
-| `project_permissions` | Replaces the project permissions that the role grants.<br />**Example:** `["read:sandboxes"]` |
+| `name` | Sets the new role name.<br />**Minimum:** 1 character<br />**Maximum:** 64 characters<br />**Example:** `"Sandbox reader"` |
 | `organization_permissions` | Replaces the organization permissions that the role grants.<br />**Example:** `["read:organization", "read:projects", "write:project_api_keys"]` |
+| `project_permissions` | Replaces the project permissions that the role grants.<br />**Example:** `["read:sandboxes"]` |
 
 > **Notes:**
 >
@@ -598,8 +600,8 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/members' \
 
 | **Field** | **Description** |
 | --- | --- |
-| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `cursor` | Continues from a previous page. |
+| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 
 > **Notes:**
 >
@@ -937,8 +939,8 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/invitations' \
 
 | **Field** | **Description** |
 | --- | --- |
-| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `cursor` | Continues from a previous page. |
+| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 
 > **Notes:**
 >
@@ -1065,6 +1067,8 @@ Get the entitlements to check whether the plan includes a feature, such as turni
 curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/entitlements' \
   --header 'Authorization: Bearer YOUR_OIDC_TOKEN'
 ```
+
+**Response:**
 
 ```json
 {

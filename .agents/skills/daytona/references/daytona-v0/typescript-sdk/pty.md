@@ -157,7 +157,8 @@ await ptyHandle.resize(150, 40) // cols, rows
 Handle interactive commands with PTY sessions, allowing you to handle interactive commands that require user input and can be resized during execution.
 
 ```typescript
-import { Daytona, Sandbox } from '@daytona/sdk'
+import { Daytona } from '@daytona/sdk'
+import { Sandbox } from '@daytona/sdk/v0'
 
 // Create PTY session
 const ptyHandle = await sandbox.process.createPty({
@@ -202,7 +203,8 @@ console.log(`Session completed with exit code: ${result.exitCode}`)
 Manage long-running processes with PTY sessions, allowing you to manage long-running processes that need to be monitored or terminated.
 
 ```typescript
-import { Daytona, Sandbox } from '@daytona/sdk'
+import { Daytona } from '@daytona/sdk'
+import { Sandbox } from '@daytona/sdk/v0'
 
 // Create PTY session
 const ptyHandle = await sandbox.process.createPty({

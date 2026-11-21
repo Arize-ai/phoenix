@@ -149,10 +149,10 @@ daytona key mint --project PROJECT_ID \
 
 | **Flag** | **Description** |
 | --- | --- |
-| `--project` | Selects the project that the key belongs to.<br />**Format:** a project ID or name<br />**Example:** `default` |
-| `--name` | Sets the key name.<br />**Default:** `default`<br />**Example:** `tenant-a-key` |
 | `--permission` | Sets the project permissions of the key.<br />**Required**<br />**Format:** [permission](./api-keys.md#scopes) names, comma-separated or one per flag<br />**Example:** `write:sandboxes,delete:sandboxes` |
 | `--expires` | Sets when the key expires.<br />**Default:** no expiry<br />**Format:** a Go duration in whole seconds, counted from now, or an RFC 3339 timestamp<br />**Example:** `720h` |
+| `--name` | Sets the key name.<br />**Default:** `default`<br />**Example:** `tenant-a-key` |
+| `--project` | Selects the project that the key belongs to.<br />**Format:** a project ID or name<br />**Example:** `default` |
 
 > **Notes:**
 >
@@ -177,9 +177,9 @@ curl 'https://api.daytona.com/projects/PROJECT_ID/api-keys' \
 
 | **Field** | **Description** |
 | --- | --- |
-| `name` | Sets the key name.<br />**Default:** `default`<br />**Example:** `"tenant-a-key"` |
 | `project_permissions` | Sets the project permissions of the key.<br />**Required**<br />**Format:** [permission](./api-keys.md#scopes) names<br />**Example:** `["write:sandboxes", "delete:sandboxes"]` |
 | `expires_at` | Sets when the key expires.<br />**Default:** no expiry<br />**Format:** an RFC 3339 timestamp<br />**Example:** `"2027-01-01T00:00:00Z"` |
+| `name` | Sets the key name.<br />**Default:** `default`<br />**Example:** `"tenant-a-key"` |
 
 > **Notes:**
 >
@@ -214,9 +214,9 @@ console.log(result.stdout) // dtns_..., the placeholder
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `name` | Sets the secret name.<br />**Required**<br />**Maximum:** 256 characters<br />**Format:** a letter or underscore, followed by letters, digits, and underscores<br />**Example:** `'MY_API_KEY'` |
-| `value` | Sets the secret value.<br />**Required**<br />**Maximum:** 64 KiB<br />**Example:** `'secret-value'` |
-| `allowedDomains` | Sets the hosts that the secret may be sent to.<br />**Required**<br />**Maximum:** 50 hosts<br />**Format:** hostnames, or an asterisk and a period followed by a hostname to match its subdomains<br />**Value:** `['*']` for any verified host<br />**Example:** `['api.example.com']` |
+| `name` | Sets the secret name.<br />**Required**<br />**Minimum:** 1 character<br />**Maximum:** 256 characters<br />**Format:** a letter or underscore, followed by letters, digits, and underscores<br />**Example:** `'MY_API_KEY'` |
+| `value` | Sets the secret value.<br />**Required**<br />**Minimum:** 1 byte<br />**Maximum:** 64 KiB<br />**Example:** `'secret-value'` |
+| `allowedDomains` | Sets the hosts that the secret may be sent to.<br />**Required**<br />**Minimum:** 1 host<br />**Maximum:** 50 hosts<br />**Format:** hostnames, or an asterisk and a period followed by a hostname to match its subdomains<br />**Value:** `['*']` for any verified host<br />**Example:** `['api.example.com']` |
 | `secrets` | Attaches project secrets by name.<br />**Example:** `['MY_API_KEY']` |
 
 > **Notes:**

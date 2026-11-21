@@ -111,14 +111,14 @@ daytona volume create corp-data --type bucket --bucket corp-data --bucket-region
 
 | **Flag** | **Description** |
 | --- | --- |
-| `--type` | Sets the volume type.<br />**Value:** `disk` or `bucket`<br />**Example:** `bucket` |
+| `--access-key-secret` | Sets the project secret that holds the access key.<br />**Format:** a project secret name<br />**Example:** `AWS_KEY` |
 | `--bucket` | Sets the name of your bucket.<br />**Format:** 3 to 63 lowercase letters, digits, periods, and hyphens, starting and ending with a letter or digit<br />**Example:** `corp-data` |
 | `--bucket-region` | Sets the S3 region of the bucket.<br />**Default:** the default bucket region of the deployment<br />**Format:** 1 to 64 lowercase letters, digits, and hyphens<br />**Example:** `us-east-1` |
 | `--endpoint` | Sets the endpoint of an S3-compatible service.<br />**Default:** AWS S3<br />**Format:** an http or https URL with a public host<br />**Example:** `https://storage.googleapis.com` |
-| `--prefix` | Limits the volume to keys under a prefix.<br />**Maximum:** 511 characters<br />**Format:** a relative path with no empty, current-directory, or parent-directory segments<br />**Example:** `datasets/` |
 | `--path-style` | Sends requests with path-style addressing instead of virtual-hosted addressing.<br />**Default:** `false` |
-| `--access-key-secret` | Sets the project secret that holds the access key.<br />**Format:** a project secret name<br />**Example:** `AWS_KEY` |
+| `--prefix` | Limits the volume to keys under a prefix.<br />**Maximum:** 511 characters<br />**Format:** a relative path with no empty, current-directory, or parent-directory segments<br />**Example:** `datasets/` |
 | `--secret-key-secret` | Sets the project secret that holds the secret key.<br />**Format:** a project secret name<br />**Example:** `AWS_SECRET` |
+| `--type` | Sets the volume type.<br />**Value:** `disk` or `bucket`<br />**Example:** `bucket` |
 
 > **Notes:**
 >
@@ -304,8 +304,8 @@ while True:
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `cursor` | Continues from a previous page. |
+| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 
 ##### Iterate over all volumes
 

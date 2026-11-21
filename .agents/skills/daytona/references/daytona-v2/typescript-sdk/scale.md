@@ -27,7 +27,7 @@ Sandbox scaling, or vertical scaling, is the sizing of a single sandbox: how muc
 
 The resources of a sandbox are fixed when the sandbox is created, and no operation resizes them. The requested resources are a guaranteed floor that is reserved when the sandbox is placed. Beyond that floor, the sandbox uses idle host capacity up to its resource limits.
 
-Size the guarantee for the average use of the sandbox, and let bursting absorb the peaks. For a fixed shape with no bursting, make every limit equal to its guarantee. The resources of a sandbox are **vCPU**, **memory**, and **disk**. Without set [limits](./limits.md#sandbox-limits), its CPU and memory burst up to the platform maximum or your plan cap, whichever is lower, and its disk up to the platform maximum.
+Size the guarantee for the average use of the sandbox, and let bursting absorb the peaks. For a fixed shape with no bursting, make every limit equal to its guarantee. The resources of a sandbox are **vCPU**, **memory**, and **disk**. Without set [limits](./limits.md#sandbox-limits), its CPU, memory, and disk burst up to the [sandbox limits](./limits.md#sandbox-limits) of your plan.
 
 **Custom resources:**
 
@@ -47,9 +47,9 @@ const sandbox = await daytona.v2.create({
 | **Parameter** | **Description** |
 | --- | --- |
 | `resources` | Sets the guaranteed and maximum CPU, memory, and disk of the sandbox.<br />**Example:** `{ cpu: 2, memory: 4, disk: 16 }` |
-| `cpu` | Sets the guaranteed CPU in cores.<br />**Default:** one core per 8 GiB of guaranteed memory, at least `0.5`<br />**Minimum:** `0.125`<br />**Maximum:** the CPU limit, at most `16` |
-| `memory` | Sets the guaranteed memory in GiB.<br />**Default:** `1`<br />**Minimum:** `0.5`<br />**Maximum:** the memory limit, at most `32` |
-| `disk` | Sets the guaranteed writable disk in GiB.<br />**Default:** `0.5`<br />**Minimum:** `10`<br />**Maximum:** the disk limit, at most `256` |
+| `cpu` | Sets the guaranteed CPU in cores.<br />**Default:** one core per 8 GiB of guaranteed memory, at least `0.5`<br />**Minimum:** `0.125`<br />**Maximum:** the CPU limit |
+| `memory` | Sets the guaranteed memory in GiB.<br />**Default:** `1`<br />**Minimum:** `0.5`<br />**Maximum:** the memory limit |
+| `disk` | Sets the guaranteed writable disk in GiB.<br />**Default:** `0.5`, or `10` when the CPU or memory guarantee is set<br />**Minimum:** `10`<br />**Maximum:** the disk limit |
 
 > **Notes:**
 >
@@ -59,7 +59,7 @@ const sandbox = await daytona.v2.create({
 
 **Burst ceilings:**
 
-A sandbox bursts beyond its guarantee up to the [plan caps](./limits.md#sandbox-limits) of your organization: **4** cores (8 vCPUs) and **16** GiB of memory on Starter, **8** cores (16 vCPUs) and **32** GiB on Team, and the platform caps of **16** cores (32 vCPUs) and **32** GiB on Enterprise. The ranges below are the platform caps; a value above the plan cap is rejected. The per-sandbox core and memory limits lower those ceilings and cannot raise them. CPU guarantees can be fractional, as small as 0.125 cores. Usage above the guarantee is billed as measured; see [billing](../platform/billing.md).
+A sandbox bursts beyond its guarantee up to the [sandbox limits](./limits.md#sandbox-limits) of your plan; a value above them is rejected. The per-sandbox core and memory limits lower those ceilings and cannot raise them. CPU guarantees can be fractional, as small as 0.125 cores. Usage above the guarantee is billed as measured; see [billing](../platform/billing.md).
 
 ```typescript
 import { Daytona } from '@daytona/sdk'
@@ -74,10 +74,10 @@ const sandbox = await daytona.v2.create({
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `cpu` | Sets the guaranteed CPU in cores.<br />**Default:** one core per 8 GiB of guaranteed memory, at least `0.5`<br />**Minimum:** `0.125`<br />**Maximum:** the CPU limit, at most `16` |
-| `cpuMax` | Sets the CPU limit in cores.<br />**Default:** the platform maximum or the plan cap, whichever is lower<br />**Minimum:** `0.5`<br />**Maximum:** `16`<br />**Format:** a multiple of `0.5` |
-| `memory` | Sets the guaranteed memory in GiB.<br />**Default:** `1`<br />**Minimum:** `0.5`<br />**Maximum:** the memory limit, at most `32` |
-| `memoryMax` | Sets the memory limit in GiB.<br />**Default:** the platform maximum or the plan cap, whichever is lower<br />**Minimum:** `0.25`<br />**Maximum:** `32` |
+| `cpu` | Sets the guaranteed CPU in cores.<br />**Default:** one core per 8 GiB of guaranteed memory, at least `0.5`<br />**Minimum:** `0.125`<br />**Maximum:** the CPU limit |
+| `cpuMax` | Sets the CPU limit in cores.<br />**Default:** the [sandbox limit](./limits.md#sandbox-limits)<br />**Minimum:** `0.5`<br />**Maximum:** the [sandbox limit](./limits.md#sandbox-limits)<br />**Format:** a multiple of `0.5` |
+| `memory` | Sets the guaranteed memory in GiB.<br />**Default:** `1`<br />**Minimum:** `0.5`<br />**Maximum:** the memory limit |
+| `memoryMax` | Sets the memory limit in GiB.<br />**Default:** the [sandbox limit](./limits.md#sandbox-limits)<br />**Minimum:** `0.25`<br />**Maximum:** the [sandbox limit](./limits.md#sandbox-limits) |
 
 > **Notes:**
 >
@@ -226,6 +226,6 @@ done
 
 | **Field** | **Description** |
 | --- | --- |
-| `wait` | Sets the state to wait for.<br />**Example:** `running` |
 | `ids` | Sets the sandboxes that the batch wait waits on. The response lists each of them that belongs to the project with its current status, and leaves out other IDs.<br />**Required**<br />**Format:** a comma-separated list of up to 200 sandbox IDs |
 | `timeout_ms` | Sets the time in milliseconds that one batch wait request blocks.<br />**Example:** `60000` |
+| `wait` | Sets the state to wait for.<br />**Example:** `running` |

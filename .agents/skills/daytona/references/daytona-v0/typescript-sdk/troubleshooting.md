@@ -188,7 +188,7 @@ import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
 
-for await (const sandbox of daytona.list({ isRecoverable: true })) {
+for await (const sandbox of daytona.v0.list({ isRecoverable: true })) {
   await sandbox.recover()
 }
 ```
@@ -284,7 +284,7 @@ See [isolation](./isolation.md#network-isolation) and [create sandboxes with net
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const sandbox = await daytona.get('my-sandbox')
+const sandbox = await daytona.v0.get('my-sandbox')
 
 // Short interactive command
 await sandbox.process.executeCommand('make test', undefined, undefined, 120)
@@ -310,17 +310,13 @@ await sandbox.process.executeSessionCommand('build', {
 The Daytona SDKs raise subclasses of `DaytonaError` for API, daemon, proxy, and transport failures. Catch the precise class or catch `DaytonaError` for a general handler.
 
 ```typescript
-import {
-  Daytona,
-  DaytonaError,
-  DaytonaNotFoundError,
-  DaytonaRateLimitError,
-} from '@daytona/sdk'
+import { Daytona } from '@daytona/sdk'
+import { DaytonaError, DaytonaNotFoundError, DaytonaRateLimitError } from '@daytona/sdk/v0'
 
 const daytona = new Daytona()
 
 try {
-  const sandbox = await daytona.get('missing-sandbox')
+  const sandbox = await daytona.v0.get('missing-sandbox')
 } catch (error) {
   if (error instanceof DaytonaNotFoundError) {
     console.log(error.statusCode, error.message)
@@ -416,14 +412,15 @@ See [API keys](../platform/api-keys.md) and [organizations](../platform/organiza
 ### Rate limit retry
 
 ```typescript
-import { Daytona, DaytonaRateLimitError } from '@daytona/sdk'
+import { Daytona } from '@daytona/sdk'
+import { DaytonaRateLimitError } from '@daytona/sdk/v0'
 
 const daytona = new Daytona()
 
 async function createWithRetry(maxRetries = 5) {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      return await daytona.create()
+      return await daytona.v0.create()
     } catch (error) {
       if (!(error instanceof DaytonaRateLimitError) || attempt === maxRetries - 1) {
         throw error
@@ -444,7 +441,7 @@ async function createWithRetry(maxRetries = 5) {
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const sandbox = await daytona.get('my-sandbox')
+const sandbox = await daytona.v0.get('my-sandbox')
 
 // Wait up to 40 seconds for recover to reach started
 if (sandbox.recoverable) {

@@ -17,6 +17,50 @@ or observed by polling only when the deprecated polling mode is enabled.
 
 ### Methods
 
+#### getNodes()
+```java
+public SandboxNodes getNodes()
+```
+
+Rank-ordered nodes, including the head at rank zero.
+
+**Returns**:
+
+- `SandboxNodes` -
+
+#### getNodeCount()
+```java
+public int getNodeCount()
+```
+
+Number of nodes reported by the last refresh.
+
+**Returns**:
+
+- `int` -
+
+#### getTopologyGeneration()
+```java
+public Integer getTopologyGeneration()
+```
+
+Current topology generation, or null when elasticity is unavailable.
+
+**Returns**:
+
+- `Integer` -
+
+#### isDegraded()
+```java
+public boolean isDegraded()
+```
+
+Whether the API reports a degraded gang.
+
+**Returns**:
+
+- `boolean` -
+
 #### createLspServer()
 ```java
 public LspServer createLspServer(String languageId, String pathToProject)

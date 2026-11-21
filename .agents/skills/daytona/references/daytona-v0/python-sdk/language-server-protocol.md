@@ -36,11 +36,12 @@ Create an LSP server instance by providing the language ID and the path to the p
 - **Custom**: Install the language server for your target language
 
 ```python
-from daytona import Daytona, LspLanguageId
+from daytona import Daytona
+from daytona.v0 import LspLanguageId
 
 # Create Sandbox
 daytona = Daytona()
-sandbox = daytona.create()
+sandbox = daytona.v0.create()
 
 # Create LSP server for Python
 lsp_server = sandbox.create_lsp_server(
@@ -54,7 +55,7 @@ lsp_server = sandbox.create_lsp_server(
 Start an LSP server by calling **`start()`** before any other LSP operation.
 
 ```python
-from daytona import LspLanguageId
+from daytona.v0 import LspLanguageId
 
 lsp = sandbox.create_lsp_server(
     language_id=LspLanguageId.PYTHON,
@@ -81,7 +82,7 @@ Get code completions for a specific position in a file by providing the file pat
 - Call **`didOpen()`** on the file before requesting completions
 
 ```python
-from daytona import LspCompletionPosition
+from daytona.v0 import LspCompletionPosition
 
 completions = lsp_server.completions(
     path="workspace/project/main.py",

@@ -56,11 +56,11 @@ print(response.logs.stdout)
 | **Parameter** | **Description** |
 | --- | --- |
 | `code` | Sets the code to run.<br />**Required**<br />**Example:** `"print(1)"` |
-| `language` | Sets the language of the code.<br />**Default:** `"python"`<br />**Value:** `python`, `typescript`, or `javascript`<br />**Example:** `"typescript"` |
 | `context` | Runs the code in an [interpreter context](#interpreter-contexts).<br />**Format:** a context handle, a saved to_json() dict, or a context ID<br />**Example:** `ctx` |
-| `isolated` | Runs the code in a [temporary kernel](#run-code-in-an-isolated-kernel).<br />**Default:** `False` |
 | `cwd` | Sets the working directory of the shared kernel when this run starts it.<br />**Default:** the default working directory of the sandbox<br />**Example:** `"/tmp"` |
 | `env` | Sets environment variables of the shared kernel when this run starts it.<br />**Format:** variable names mapped to string values<br />**Example:** `{"STAGE": "dev"}` |
+| `isolated` | Runs the code in a [temporary kernel](#run-code-in-an-isolated-kernel).<br />**Default:** `False` |
+| `language` | Sets the language of the code.<br />**Default:** `"python"`<br />**Value:** `python`, `typescript`, or `javascript`<br />**Example:** `"typescript"` |
 | `timeout` | Sets how many seconds the call waits for the run.<br />**Default:** no limit<br />**Value:** `0` for no limit<br />**Example:** `30` |
 
 > **Notes:**
@@ -124,9 +124,9 @@ if response.error:
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `isolated` | Runs the code in a temporary kernel.<br />**Default:** `False` |
 | `cwd` | Sets the working directory of the temporary kernel.<br />**Default:** the default working directory of the sandbox<br />**Example:** `"/tmp"` |
 | `env` | Sets environment variables of the temporary kernel.<br />**Format:** variable names mapped to string values<br />**Example:** `{"STAGE": "dev"}` |
+| `isolated` | Runs the code in a temporary kernel.<br />**Default:** `False` |
 
 > **Notes:**
 >

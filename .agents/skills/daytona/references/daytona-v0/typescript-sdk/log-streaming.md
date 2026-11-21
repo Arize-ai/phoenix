@@ -13,7 +13,7 @@ import { Daytona } from '@daytona/sdk'
 
 async function main() {
   const daytona = new Daytona()
-  const sandbox = await daytona.create()
+  const sandbox = await daytona.v0.create()
   const sessionId = "exec-session-1"
   await sandbox.process.createSession(sessionId)
 
@@ -55,7 +55,7 @@ import { Daytona } from '@daytona/sdk'
 
 async function main() {
   const daytona = new Daytona()
-  const sandbox = await daytona.create()
+  const sandbox = await daytona.v0.create()
   const sessionId = "exec-session-1"
   await sandbox.process.createSession(sessionId)
 

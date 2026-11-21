@@ -6,38 +6,38 @@ macOS sandboxes are **macOS virtual machines (VMs)** that run on dedicated Apple
 
 Daytona runs each macOS sandbox as a virtual machine on a Mac mini that one organization reserves for 24 hours at a time. Code inside it sees a full macOS with a desktop and a shell, and nothing of other organizations, which never share that Mac. Up to two sandboxes share one reserved Mac, and each takes its cores, memory, and disk from it. A sandbox lives only while a reservation holds its Mac, and the end of the reservation erases the Mac.
 
-Use macOS sandboxes to build, test, and automate software that needs macOS, Xcode, or the iPhone simulator. Your organization must have macOS sandboxes turned on before you reserve a Mac or create a sandbox. When your organization holds no reservation, a create can buy one for you.
+Use macOS sandboxes to build, test, and automate software that needs macOS, Xcode, or the iPhone simulator. When your organization holds no reservation, a create can buy one for you.
 
-| **Concept**      | **Description**                                                               |
-| ---------------- | ----------------------------------------------------------------------------- |
-| **Reservation**  | The exclusive use of one Mac by one organization for a fixed period.          |
-| **Model**        | The type of Mac, defined by its chip, memory, and disk.                       |
-| **Resources**    | The cores, memory, and disk of one sandbox.                                   |
-| **Auto-reserve** | The automatic reservation of a Mac when a sandbox needs one and none is held. |
-| **Image**        | A macOS disk that a sandbox starts from.                                      |
-| **Persistent**   | A sandbox that keeps its disk across stop and start.                          |
+| **Component**   | **Description**                                                                                        |
+| --------------- | ------------------------------------------------------------------------------------------------------ |
+| **Sandbox**     | An isolated macOS machine that runs code.                                                              |
+| **Host**        | The physical Mac that runs one or more sandboxes.                                                      |
+| **Guest**       | The macOS operating system that runs inside a sandbox, as opposed to the operating system of the host. |
+| **Reservation** | The exclusive use of one Mac by one organization for a fixed period.                                   |
+| **Model**       | The type of Mac, defined by its chip, memory, and disk.                                                |
+| **Resources**   | The cores, memory, and disk of one sandbox.                                                            |
+| **Image**       | A macOS disk that a sandbox starts from.                                                               |
+| **Desktop**     | The graphical interface of an operating system, operated with a mouse and keyboard.                    |
 
 ## Contents
 
 - [Use cases](#use-cases)
-- [Connect to the macOS API](#connect-to-the-macos-api)
+- [Connect to the API](#connect-to-the-api)
 - [Create a macOS sandbox](#create-a-macos-sandbox)
-- [Images](#images)
-- [Resources](#resources)
 - [Mac reservations](#mac-reservations)
+- [Resources](#resources)
+- [Regions](#regions)
+- [Lifecycle](#lifecycle)
 - [Persistence](#persistence)
 - [Snapshots](#snapshots)
-- [Run commands](#run-commands)
-- [SSH](#ssh)
-- [Desktop](#desktop)
+- [Images](#images)
+- [User and password](#user-and-password)
 - [Logs](#logs)
-- [Lifecycle](#lifecycle)
-- [Operations](#operations)
 - [Permissions](#permissions)
 
 ## Use cases
 
-Use macOS sandboxes when the software, build, or task requires macOS or Apple tooling.
+Sandboxes are used wherever code must run in a real environment, but you cannot trust the code or you cannot afford for it to affect anything else. Use macOS sandboxes when the software, build, or task requires macOS or Apple tooling.
 
 - **Build and test Apple apps.** An agent or a CI job builds and tests iOS and macOS apps with Xcode and the iPhone simulator on a clean Mac. The base image ships with Xcode, its iPhone simulator, Homebrew, and Python. The image runs macOS 26.6.2, and its Homebrew includes CocoaPods, fastlane, and Node.js 24.
 
@@ -49,32 +49,28 @@ Use macOS sandboxes when the software, build, or task requires macOS or Apple to
 
 - **Fleets of Macs.** One request reserves up to 100 Macs for parallel builds and tests. Each Mac is a separate reservation with its own ID, period, charge, and renewal. A minimum count accepts fewer Macs when not enough are available.
 
-## Connect to the macOS API
+## Connect to the API
 
-Connect to the macOS API to send the requests that reserve Macs and manage macOS sandboxes. A connection to a service needs its address and a credential, and reading both from the environment keeps them out of the source code that calls the service.
+Connect to the API to send the requests that create and manage sandboxes. A connection to a service needs its address and a credential, and reading both from the environment keeps them out of the source code that calls the service.
 
-A connection to the macOS API is separate from the connection to the main API, because macOS sandboxes and Mac reservations live behind their own address, in their own region. It authenticates with a project API key.
+macOS sandboxes and Mac reservations live behind the Daytona API, the same address as Linux sandboxes, which the SDKs and the CLI connect to by default. The API authenticates with a project API key.
 
-Connect before you reserve a Mac or create a macOS sandbox. Create a project API key from the dashboard, then set it and the macOS API address in the environment. Install the exact SDK and CLI versions in the tabs, because pre-release and latest installs lack the macOS features. Give the region of the Macs on each reservation and each macOS create.
+Connect before you reserve a Mac or create a macOS sandbox. [Create a project API key](./api-keys.md#create-an-api-key) from the dashboard, then set it in the [environment](./authentication.md#environment-variables). Install SDK 2.x and the latest CLI with the commands in the tabs. Give a [region with Macs](#regions) on each reservation and each macOS create.
 
-| **Service**                               | **Address**                                                  |
-| ----------------------------------------- | ------------------------------------------------------------ |
-| Dashboard                                 | **`https://app.daytona.com`**                                |
-| Daytona API (organizations, API keys)     | **`https://api.daytona.com`**                                |
-| macOS API (reservations, macOS sandboxes) | **`https://api.us-macos.daytona.com`**                       |
-| Sandbox SSH                               | **`ssh.us-macos.daytona.com`**, port **`2222`**              |
-| Desktop over VNC                          | **`wss://proxy.us-macos.daytona.app/vnc/SANDBOX_ID`**        |
-| Region of the Macs                        | **`macos-1`**                                                |
+| **Service**     | **Address**                   |
+| --------------- | ----------------------------- |
+| **Dashboard**   | **`https://app.daytona.com`** |
+| **Daytona API** | **`https://api.daytona.com`** |
 
 ```python
 from daytona import Daytona
 
-daytona = Daytona()  # reads DAYTONA_API_KEY and DAYTONA_V2_API_URL
+daytona = Daytona()  # reads DAYTONA_API_KEY
 ```
 
 > **Notes:**
 >
-> - **Prerequisites:** The SDK must be installed with `pip install daytona==2.0.0a13`, on Python 3.10 or later. The environment must set DAYTONA_API_KEY to a project API key and DAYTONA_V2_API_URL to `https://api.us-macos.daytona.com`. `pip install --pre daytona` installs a version without the macOS features.
+> - **Prerequisites:** The SDK must be installed with `pip install "daytona>=2,<3"`, on Python 3.10 or later. The environment must set DAYTONA_API_KEY to a project API key. DAYTONA_V2_API_URL can stay unset, because the SDK defaults to `https://api.daytona.com`.
 > - **Compatibility:** The SDK takes memory and disk in GiB and every timeout in seconds.
 > - **Clients:** AsyncDaytona has the same methods, called with await.
 
@@ -84,93 +80,39 @@ Create a macOS sandbox to get a macOS virtual machine on a reserved Mac. Creatio
 
 A create of a macOS sandbox places the sandbox on one Mac reservation of the organization and boots it from a macOS image.
 
-Create a macOS sandbox programmatically after you [connect to the macOS API](#connect-to-the-macos-api). With [auto-reserve](#auto-reserve) on, which is the default, a create without a reservation buys one, so you do not need to reserve a Mac first. With auto-reserve off, [reserve a Mac](#reserve-a-mac) before you create a sandbox. A reservation that a create buys stays bought, even when the sandbox fails to start in time.
+Create a macOS sandbox programmatically after you [connect to the API](#connect-to-the-api). With [auto-reserve](#auto-reserve) on, which is the default, a create without a reservation buys one, so you do not need to reserve a Mac first. With auto-reserve off, [reserve a Mac](#reserve-a-mac) before you create a sandbox. A reservation that a create buys stays bought, even when the sandbox fails to start in time.
 
 ```python
 from daytona import Daytona
 
 daytona = Daytona()
-sandbox = daytona.v2.create_macos("base-macos", region="macos-1")
+sandbox = daytona.v2.create_macos("base-macos", region="us-east-bos-1")
 ```
 
 | **Parameter** | **Description** |
 | --- | --- |
 | `image` | Sets the macOS image that the sandbox starts from.<br />**Required**<br />**Format:** an image name or ID<br />**Example:** `"base-macos"` |
-| `reservation` | Sets the [reservation](#sandbox-placement) that the sandbox runs on.<br />**Default:** any reservation of the organization in the region with room, or one that auto-reserve buys<br />**Format:** a reservation ID<br />**Value:** `"new"` for a new reservation of the cheapest model that fits<br />**Example:** `"new"` |
 | `auto_renew` | Turns on [automatic renewal](#automatic-renewal) of the reservation that the create buys.<br />**Default:** the organization's auto-reserve setting |
-| `persistent` | Keeps the disk across stop and start.<br />**Default:** `False` |
+| `create_timeout_seconds` | Sets how many seconds the sandbox has to reach running before it is deleted.<br />**Default:** `3600`<br />**Minimum:** `1`<br />**Maximum:** `86400`<br />**Value:** `-1` for the maximum<br />**Example:** `600` |
+| `name` | Sets the display name.<br />**Default:** a generated name, sandbox- followed by 8 hexadecimal characters<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, not starting with a period or a reserved prefix such as sbx_ or img_<br />**Example:** `"ios-builder"` |
+| `persistent` | Keeps the disk across stop and start.<br />**Default:** `False`<br />**Rules:** set at creation and cannot change; stop, start, pause, resume, fork, and filesystem snapshots need a persistent sandbox |
+| `region` | Sets the region.<br />**Default:** the region of the named reservation, otherwise the only region with Macs, otherwise the project's or organization's default region<br />**Value:** `earth`, `us`, `us-east`, `us-east-ash-1`, `us-east-bos-1`, or `us-east-iad-1`<br />**Example:** `"us-east-bos-1"` |
+| `reservation` | Sets the [reservation](#sandbox-placement) that the sandbox runs on.<br />**Default:** any reservation of the organization in the region with room, or one that auto-reserve buys<br />**Format:** a reservation ID<br />**Value:** `"new"` for a new reservation of the cheapest model that fits<br />**Example:** `"new"` |
 | `resources` | Sets the [resources](#resources) of the sandbox.<br />**Default:** the default resources of the Mac model<br />**Example:** `MacosResources(cpu=4, memory=8, disk=100)` |
 | `cpu` | Sets the number of CPU cores.<br />**Default:** the default resources of the Mac model<br />**Minimum:** `4`<br />**Maximum:** the cores of the [Mac model](./macos-sandboxes.md#models-and-prices) |
 | `memory` | Sets the memory in GiB.<br />**Default:** the default resources of the Mac model<br />**Minimum:** `4`<br />**Maximum:** the memory of the [Mac model](./macos-sandboxes.md#models-and-prices)<br />**Format:** a value that converts to a whole number of MiB |
 | `disk` | Sets the whole guest disk in GiB, macOS included.<br />**Default:** the default resources of the Mac model, or the disk size of a captured image<br />**Minimum:** `80`<br />**Maximum:** the sandbox disk space of the [Mac model](./macos-sandboxes.md#models-and-prices)<br />**Format:** a value that converts to a whole number of MiB |
-| `region` | Sets the region.<br />**Default:** the region of the named reservation, otherwise the only region with Macs, otherwise the project's or organization's default region<br />**Format:** a listed region ID<br />**Example:** `"macos-1"` |
-| `name` | Sets the display name.<br />**Default:** a generated name, sandbox- followed by 8 hexadecimal characters<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, not starting with a period or a reserved prefix such as sbx_ or img_<br />**Example:** `"ios-builder"` |
 | `wait_seconds` | Sets how many seconds create waits for the sandbox to start.<br />**Default:** `60`<br />**Value:** `0` for no wait<br />**Example:** `120` |
-| `create_timeout_seconds` | Sets how many seconds the sandbox has to reach running before it is deleted.<br />**Default:** `3600`<br />**Maximum:** `86400`<br />**Value:** `-1` for the maximum<br />**Example:** `600` |
 
 > **Notes:**
 >
 > - **Compatibility:** The other create options, env, labels, secrets, ports, and network_policy, work as on [Linux sandboxes](./linux-sandboxes.md#create-a-linux-sandbox).
-
-## Images
-
-[Images](./images.md) are packaged disks that a sandbox starts from. An image is built once and read many times, so every sandbox started from it begins in the same state.
-
-The image of a macOS sandbox is a full macOS disk, with the operating system, its user, and the installed tools. It is set when the sandbox is created and does not change.
-
-Start a sandbox from the base-macos image to build with Xcode and common tools, or from a [filesystem snapshot](#filesystem-snapshot) to start from a prepared disk. The base image signs in as the lume user, as [user and password](#user-and-password) describes.
-
-| **Property**     | **Value**                                                                                                                   |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Image            | `base-macos`                                                                                                                |
-| Operating system | macOS 26.6.2                                                                                                                |
-| Tools            | Xcode 26.6 and its iPhone simulator, Homebrew (with git, Node.js 24, Ruby, CocoaPods, fastlane, gh and jq) and Python 3.14 |
-| User             | `lume`, with home `/Users/lume`                                                                                             |
-| Password         | `lume`                                                                                                                      |
-
-## Resources
-
-Resources are the processor cores, memory, and disk that a sandbox can use. A host divides its own hardware between the sandboxes it runs, so the resources of all of them must fit in the host together.
-
-The resources of a macOS sandbox come from the Mac of its reservation, and its disk is the whole guest disk, macOS included. Up to two sandboxes run on one Mac at the same time. The Mac fixes the resources when it accepts the sandbox, and the sandbox reports them from then on.
-
-Set the resources of each sandbox to share a Mac between two sandboxes, or to give one sandbox the whole Mac. On the m4pro-12c-24g model, one sandbox of 12 cores, 24 GiB memory, and 220 GiB disk uses the whole Mac. A sandbox of 4 cores, 8 GiB, and 100 GiB fits beside one of 8 cores, 16 GiB, and 120 GiB. The SDKs take memory and disk in GiB, the CLI and the API in MiB.
-
-| **Resource** | **Minimum**        | **Maximum on `m4pro-12c-24g`** | **Default on `m4pro-12c-24g`** |
-| ------------ | ------------------ | ------------------------------ | ------------------------------ |
-| Cores        | 4                  | 12                             | 6                              |
-| Memory       | 4 GiB (4096 MiB)   | 24 GiB (24576 MiB)             | 12 GiB (12288 MiB)             |
-| Disk         | 80 GiB (81920 MiB) | 220 GiB (225280 MiB)           | 110 GiB (112640 MiB)           |
-
-```python
-from daytona import Daytona
-from daytona.v2 import MacosResources
-
-daytona = Daytona()
-r = daytona.v2.reservations.create(region="macos-1", model="m4pro-12c-24g",
-                             idempotency_key="shared-mac-1")
-a = daytona.v2.create_macos("base-macos", region="macos-1", reservation=r.id,
-                             resources=MacosResources(cpu=4, memory=8, disk=100))
-b = daytona.v2.create_macos("base-macos", region="macos-1", reservation=r.id,
-                             resources=MacosResources(cpu=8, memory=16, disk=120))
-print(a.cpu, a.memory, a.disk, b.cpu, b.memory, b.disk)
-```
-
-| **Parameter** | **Description** |
-| --- | --- |
-| `reservation` | Sets the [reservation](#sandbox-placement) that the sandbox runs on.<br />**Default:** any reservation of the organization in the region with room, or one that auto-reserve buys<br />**Format:** a reservation ID<br />**Value:** `"new"` for a new reservation of the cheapest model that fits<br />**Example:** `"new"` |
-| `resources` | Sets the [resources](#resources) of the sandbox.<br />**Default:** the default resources of the Mac model<br />**Example:** `MacosResources(cpu=4, memory=8, disk=100)` |
-| `cpu` | Sets the number of CPU cores.<br />**Default:** the default resources of the Mac model<br />**Minimum:** `4`<br />**Maximum:** the cores of the [Mac model](./macos-sandboxes.md#models-and-prices) |
-| `memory` | Sets the memory in GiB.<br />**Default:** the default resources of the Mac model<br />**Minimum:** `4`<br />**Maximum:** the memory of the [Mac model](./macos-sandboxes.md#models-and-prices)<br />**Format:** a value that converts to a whole number of MiB |
-| `disk` | Sets the whole guest disk in GiB, macOS included.<br />**Default:** the default resources of the Mac model, or the disk size of a captured image<br />**Minimum:** `80`<br />**Maximum:** the sandbox disk space of the [Mac model](./macos-sandboxes.md#models-and-prices)<br />**Format:** a value that converts to a whole number of MiB |
 
 ## Mac reservations
 
 A Mac reservation is the exclusive use of one Mac by one organization for a fixed period. Reserved hardware is set aside for a single customer, so no other workload competes for it.
 
 The Mac reservation of a macOS sandbox gives one organization one dedicated Mac for a 24-hour period, and nobody else uses that Mac while it is held. The first period starts when a Mac accepts the reservation, not when it is requested. A reservation cannot end early, and it ends with its period unless it renews.
-
-Reserve a Mac to control which Macs your organization holds and pays for, or let [auto-reserve](#auto-reserve) buy one at create. You pay for each period when it starts, and waiting for a Mac is not charged. A reservation that no Mac accepts within 5 minutes fails, and the charge is refunded.
 
 **Reservation statuses:**
 
@@ -187,16 +129,21 @@ Reserve a Mac to control which Macs your organization holds and pays for, or let
 
 A Mac model is a type of Mac, defined by its chip, memory, and disk. The model decides how much hardware one reservation holds and what it costs.
 
-The Mac model of a macOS sandbox is the production Mac, an Apple M4 Pro with 12 cores and 24 GB memory. The [pricing](https://www.daytona.com/pricing) page sets its price per Mac-hour, and each reservation period is charged as 24 Mac-hours when the period starts.
+The Mac model of a macOS sandbox is one of four Macs with an Apple M4, M4 Pro, or M5 Pro chip, which differ in cores, memory, and disk. The model sets the hardware of the reservation, and the [resources](#resources) of each sandbox set its share of that hardware. The [pricing](https://www.daytona.com/pricing) page sets its price per Mac-hour, and each reservation period is charged as 24 Mac-hours when the period starts.
 
-Give the model ID m4pro-12c-24g whenever you reserve. Read the Mac catalog for the current price and the number of available Macs, the Macs nobody has reserved. The number is a guide only, because another purchase can reserve a Mac first.
-
-| **Model**             | **Cores** | **Memory** | **Sandbox disk** | **Sandboxes at a time** |
-| --------------------- | --------- | ---------- | ---------------- | ----------------------- |
-| **`m4pro-12c-24g`**   | 12        | 24 GiB     | 220 GiB          | Up to 2                 |
+| **Model**        | **ID**          | **Cores** | **Memory** | **Sandbox disk** | **Sandboxes at a time** |
+| ---------------- | --------------- | --------- | ---------- | ---------------- | ----------------------- |
+| **Apple M4**     | `m4-10c-16g`    | **10**    | **16 GiB** | **80 GiB**       | **1**                   |
+| **Apple M4 Pro** | `m4pro-12c-24g` | **12**    | **24 GiB** | **276 GiB**      | **Up to 2**             |
+| **Apple M4 Pro** | `m4pro-12c-48g` | **12**    | **48 GiB** | **236 GiB**      | **Up to 2**             |
+| **Apple M5 Pro** | `m5pro-15c-24g` | **15**    | **24 GiB** | **287 GiB**      | **Up to 2**             |
 
 ```python
-catalog = daytona.v2.mac_models.catalog(region="macos-1")
+from daytona import Daytona
+
+daytona = Daytona()
+
+catalog = daytona.v2.mac_models.catalog(region="us-east-bos-1")
 for region in catalog.regions:
     for entry in region.models:
         price = entry.price
@@ -213,7 +160,7 @@ for model in daytona.v2.mac_models.list():
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `region` | Limits the catalog to one region.<br />**Default:** every region<br />**Format:** a listed region ID<br />**Example:** `"macos-1"` |
+| `region` | Limits the catalog to one region.<br />**Default:** every region<br />**Value:** `earth`, `us`, `us-east`, `us-east-ash-1`, `us-east-bos-1`, or `us-east-iad-1`<br />**Example:** `"us-east-bos-1"` |
 
 ### Sandbox placement
 
@@ -221,13 +168,7 @@ Sandbox placement is the choice of the host that a sandbox runs on. A placement 
 
 The placement of a macOS sandbox is one reservation of the organization in the region of the create, with a free slot and enough disk left. It is decided when the sandbox is created.
 
-Name a reservation to choose the Mac a sandbox runs on, or leave it out to take any reservation with room. Set the reservation to new to buy a reservation for this sandbox alone, the only case in which a create can also set automatic renewal.
-
-| **Reservation**    | **Where the sandbox goes**                                                                                   |
-| ------------------ | ------------------------------------------------------------------------------------------------------------ |
-| Not set            | Any reservation of the organization in the region with room, or one that [auto-reserve](#auto-reserve) buys. |
-| A reservation ID   | That reservation.                                                                                            |
-| `new`              | A new reservation that the create buys for this sandbox.                                                     |
+Name a reservation to choose the Mac a sandbox runs on, or leave it out to take any reservation with room, or one that [auto-reserve](#auto-reserve) buys. Set the reservation to new to buy a reservation for this sandbox alone, the only case in which a create can also set automatic renewal.
 
 ### Reserve a Mac
 
@@ -238,8 +179,12 @@ A purchase of a Mac reservation buys one Mac of one model in one region, for one
 Give your own idempotency key when your code can retry a purchase. Without one, the SDKs and the CLI make a new key for each call, so a retry buys a second Mac.
 
 ```python
+from daytona import Daytona
+
+daytona = Daytona()
+
 reservation = daytona.v2.reservations.create(
-    region="macos-1",
+    region="us-east-bos-1",
     model="m4pro-12c-24g",
     idempotency_key="build-mac-2026-10-24",
 )
@@ -248,10 +193,10 @@ print(reservation.id, reservation.status)
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `region` | Sets the region whose Macs to reserve.<br />**Required**<br />**Format:** a listed region ID<br />**Example:** `"macos-1"` |
-| `model` | Sets the Mac [model](#models-and-prices) to reserve.<br />**Default:** the region's default model<br />**Format:** a Mac model ID<br />**Example:** `"m4pro-12c-24g"` |
-| `idempotency_key` | Makes a retried purchase return the same reservation.<br />**Default:** a new key for each call<br />**Maximum:** 256 characters<br />**Format:** printable ASCII<br />**Example:** `"build-mac-2026-10-24"` |
+| `region` | Sets the region whose Macs to reserve.<br />**Required**<br />**Value:** `earth`, `us`, `us-east`, `us-east-ash-1`, `us-east-bos-1`, or `us-east-iad-1`<br />**Example:** `"us-east-bos-1"` |
 | `auto_renew` | Turns on [automatic renewal](#automatic-renewal).<br />**Default:** the organization's auto-reserve setting |
+| `idempotency_key` | Makes a retried purchase return the same reservation.<br />**Default:** a new key for each call<br />**Minimum:** 1 character<br />**Maximum:** 256 characters<br />**Format:** printable ASCII<br />**Example:** `"build-mac-2026-10-24"` |
+| `model` | Sets the Mac [model](#models-and-prices) to reserve.<br />**Default:** the region's default model<br />**Value:** `m4-10c-16g`, `m4pro-12c-24g`, `m4pro-12c-48g`, or `m5pro-15c-24g`<br />**Example:** `"m4pro-12c-24g"` |
 
 ##### Reserve many Macs
 
@@ -262,8 +207,12 @@ A bulk purchase of Mac reservations reserves from 1 to 100 Macs of one model in 
 Set a minimum count to accept fewer Macs than you ask for. By default, the request is all or nothing: if fewer Macs are available than the count, it reserves none and fails. With a minimum count, it reserves as many as are available, if that is at least the minimum.
 
 ```python
+from daytona import Daytona
+
+daytona = Daytona()
+
 batch = daytona.v2.reservations.create_bulk(
-    region="macos-1",
+    region="us-east-bos-1",
     model="m4pro-12c-24g",
     count=20,
     min_count=10,
@@ -275,11 +224,78 @@ ids = [r.id for r in batch.reservations]
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `region` | Sets the region whose Macs to reserve.<br />**Required**<br />**Format:** a listed region ID<br />**Example:** `"macos-1"` |
-| `model` | Sets the Mac [model](#models-and-prices) to reserve.<br />**Default:** the region's default model<br />**Format:** a Mac model ID<br />**Example:** `"m4pro-12c-24g"` |
+| `region` | Sets the region whose Macs to reserve.<br />**Required**<br />**Value:** `earth`, `us`, `us-east`, `us-east-ash-1`, `us-east-bos-1`, or `us-east-iad-1`<br />**Example:** `"us-east-bos-1"` |
 | `count` | Sets how many Macs to reserve.<br />**Required**<br />**Minimum:** `1`<br />**Maximum:** `100`<br />**Example:** `20` |
+| `idempotency_key` | Makes a retried purchase return the same reservations.<br />**Default:** a new key for each call<br />**Minimum:** 1 character<br />**Maximum:** 256 characters<br />**Format:** printable ASCII<br />**Example:** `"ci-fleet-2026-10-24"` |
 | `min_count` | Sets the fewest Macs to accept when fewer than the count are available.<br />**Default:** the count<br />**Minimum:** `1`<br />**Maximum:** the count |
-| `idempotency_key` | Makes a retried purchase return the same reservations.<br />**Default:** a new key for each call<br />**Maximum:** 256 characters<br />**Format:** printable ASCII<br />**Example:** `"ci-fleet-2026-10-24"` |
+| `model` | Sets the Mac [model](#models-and-prices) to reserve.<br />**Default:** the region's default model<br />**Value:** `m4-10c-16g`, `m4pro-12c-24g`, `m4pro-12c-48g`, or `m5pro-15c-24g`<br />**Example:** `"m4pro-12c-24g"` |
+
+### List reservations
+
+List reservations to see which Macs an organization holds and when their periods end. A reservation list is a record of past purchases as well as a view of the current ones.
+
+A list of Mac reservations returns the open reservations of the organization and those that ended in the last 30 days.
+
+List reservations to check their status, period end, and automatic renewal. A page holds 100 reservations by default and up to 200, and the next cursor of a page reads the next one.
+
+```python
+from daytona import Daytona
+
+daytona = Daytona()
+
+cursor = None
+while True:
+    page = daytona.v2.reservations.list(limit=100, cursor=cursor)
+    for r in page.items:
+        print(r.id, r.status, r.model, r.period_end, r.auto_renew)
+    cursor = page.next_cursor  # None on the last page
+    if cursor is None:
+        break
+```
+
+| **Parameter** | **Description** |
+| --- | --- |
+| `cursor` | Continues from a previous page.<br />**Format:** the next_cursor of the previous page |
+| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
+
+##### Iterate over all reservations
+
+Iterate over all reservations to read every page without handling cursors. An iterator fetches the next page when the current one runs out.
+
+An iteration over Mac reservations stops when a page returns no cursor.
+
+Iterate in the SDKs when you need every reservation. The CLI reads every page in one command.
+
+```python
+from daytona import Daytona
+
+daytona = Daytona()
+
+for r in daytona.v2.reservations.iter():
+    print(r.id, r.status, r.model, r.period_end, r.auto_renew)
+```
+
+| **Parameter** | **Description** |
+| --- | --- |
+| `cursor` | Starts the iteration after a previous page.<br />**Format:** the next_cursor of the previous page |
+| `limit` | Sets the page size that the iterator fetches.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
+
+### Get a reservation
+
+Get a reservation to read its current status and the end of its period. A get reads one resource by its identifier and changes nothing.
+
+A get of a Mac reservation returns the same fields as an item of the list.
+
+Get a reservation after a purchase to see when it becomes active, or before a renewal.
+
+```python
+from daytona import Daytona
+
+daytona = Daytona()
+
+r = daytona.v2.reservations.get("RESERVATION_ID")
+print(r.id, r.status, r.period_end, r.auto_renew)
+```
 
 ### Renew a reservation
 
@@ -290,12 +306,17 @@ A renewal of a Mac reservation keeps the Mac, its sandboxes, and their disks.
 Renew a reservation by hand to keep a Mac past its period when [automatic renewal](#automatic-renewal) is off. Use a new idempotency key for each period you buy, and the same key to retry.
 
 ```python
+from daytona import Daytona
+
+daytona = Daytona()
+reservation = daytona.v2.reservations.get("RESERVATION_ID")
+
 daytona.v2.reservations.renew(reservation.id, idempotency_key=f"renew-{reservation.id}-2")
 ```
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `idempotency_key` | Makes a retried renewal return the reservation without charging another period.<br />**Default:** a new key for each call<br />**Maximum:** 256 characters<br />**Format:** printable ASCII<br />**Example:** `"renew-2"` |
+| `idempotency_key` | Makes a retried renewal return the reservation without charging another period.<br />**Default:** a new key for each call<br />**Minimum:** 1 character<br />**Maximum:** 256 characters<br />**Format:** printable ASCII<br />**Example:** `"renew-2"` |
 
 > **Notes:**
 >
@@ -310,6 +331,11 @@ The automatic renewal of a Mac reservation runs in the last hour of its period, 
 Turn automatic renewal on for a reservation that sandboxes use across days, and off to let it end with its period. A new reservation takes the organization's auto-reserve setting. A failed renewal records the reason on the reservation, which then ends with its period.
 
 ```python
+from daytona import Daytona
+
+daytona = Daytona()
+reservation = daytona.v2.reservations.get("RESERVATION_ID")
+
 daytona.v2.reservations.update(reservation.id, auto_renew=False)
 ```
 
@@ -331,7 +357,7 @@ Get the auto-reserve settings to read whether auto-reserve is on and how many re
 
 A read of the macOS settings returns the values of one organization, including when and by whom auto-reserve was last turned off.
 
-Get the settings before you change them, or to check why a create bought no Mac. The request goes to the Daytona API, not the macOS API.
+Get the settings before you change them, or to check why a create bought no Mac.
 
 **API:**
 
@@ -351,7 +377,7 @@ Set the auto-reserve settings to turn auto-reserve on or off, or to change how m
 
 An update of the macOS settings applies to one organization. Turning auto-reserve off records the time and the admin, turning it off again keeps them, and turning it on clears them.
 
-Raise the limit when your organization needs more auto-reserved Macs at once than the limit allows. The request goes to the Daytona API, not the macOS API.
+Raise the limit when your organization needs more auto-reserved Macs at once than the limit allows.
 
 **API:**
 
@@ -385,22 +411,22 @@ Watch the end of the period, the automatic renewal setting, and any renewal erro
 
 | **Step** | **What happens**                                                                                                                       |
 | -------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| 1        | The reservation enters the **`ending`** status, and no sandbox can start, resume, or be created on it.                                 |
-| 2        | Persistent sandboxes shut down, paused ones after a resume, and each one that ran is exported as an unnamed image that records its ID. |
-| 3        | Sandboxes that are not persistent are deleted with their data.                                                                         |
-| 4        | When every export is saved or has failed, the Mac is erased: the sandbox disks, the console logs, and the macOS user and its files.    |
-| 5        | The Mac is checked and goes back to the pool for the next customer.                                                                    |
-| 6        | The reservation enters the **`released`** status, and every sandbox on it is deleted.                                                  |
+| **1**    | The reservation enters the **`ending`** status, and no sandbox can start, resume, or be created on it.                                 |
+| **2**    | Persistent sandboxes shut down, paused ones after a resume, and each one that ran is exported as an unnamed image that records its ID. |
+| **3**    | Sandboxes that are not persistent are deleted with their data.                                                                         |
+| **4**    | When every export is saved or has failed, the Mac is erased: the sandbox disks, the console logs, and the macOS user and its files.    |
+| **5**    | The Mac is checked and goes back to the pool for the next customer.                                                                    |
+| **6**    | The reservation enters the **`released`** status, and every sandbox on it is deleted.                                                  |
 
-| **Data**                          | **After the end**                                                                                                         |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Disk of a persistent sandbox      | Kept as an unnamed image unless its export fails, and deleted after 30 days without a create from it unless you name it. |
-| Snapshots you made                | Kept, named ones until you delete them and unnamed ones while a sandbox is created from them at least once every 7 days.  |
-| Usage records and bills           | Kept.                                                                                                                     |
-| Sandboxes that are not persistent | Lost.                                                                                                                     |
-| Memory of paused sandboxes        | Lost, while the disk is exported.                                                                                         |
-| Console logs                      | Lost.                                                                                                                     |
-| The Mac                           | Erased.                                                                                                                   |
+| **Data**                              | **After the end**                                                                                                        |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| **Disk of a persistent sandbox**      | Kept as an unnamed image unless its export fails, and deleted after 30 days without a create from it unless you name it. |
+| **Snapshots you made**                | Kept, named ones until you delete them and unnamed ones while a sandbox is created from them at least once every 7 days. |
+| **Usage records and bills**           | Kept.                                                                                                                    |
+| **Sandboxes that are not persistent** | Lost.                                                                                                                    |
+| **Memory of paused sandboxes**        | Lost, while the disk is exported.                                                                                        |
+| **Console logs**                      | Lost.                                                                                                                    |
+| **The Mac**                           | Erased.                                                                                                                  |
 
 ##### Continue after the end
 
@@ -411,255 +437,119 @@ A continuation of a macOS sandbox is a new sandbox created from the image that t
 Find the exported image by the ID of the old sandbox, then create a sandbox from it on an existing reservation, a new one, or one that auto-reserve buys. Name the image to keep it past 30 days without use.
 
 ```python
-exports = daytona.v2.images.list(anonymous=True, sandbox_id="OLD_SANDBOX_ID")
-image = exports.items[0]
-daytona.v2.images.promote(image.id, "ios-builder-day-2")   # optional: keep it
-sandbox = daytona.v2.create_macos(image.id, region="macos-1", persistent=True, wait_seconds=120)
-```
-
-| **Parameter** | **Description** |
-| --- | --- |
-| `anonymous` | Lists only the images without a name.<br />**Default:** `False` |
-| `sandbox_id` | Lists only the images captured from one sandbox.<br />**Format:** a sandbox ID |
-| `name` | Sets the name that promote gives the image.<br />**Required**<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, not starting with a period or a reserved prefix such as img_ or sbx_<br />**Example:** `"ios-builder-day-2"` |
-
-> **Notes:**
->
-> - **Prerequisites:** Only an image without a name can be named.
-
-## Persistence
-
-Persistence is how long the state of a sandbox lasts: the files on its disk, and the processes and data in its memory. State that persists outlives the events that would otherwise discard it.
-
-The persistence of a macOS sandbox is set when the sandbox is created and does not change. Only a persistent sandbox keeps its disk across stop and start.
-
-Create a persistent sandbox for work that must outlast a stop, such as installed tools and build caches. Stop, start, pause, resume, fork, and filesystem snapshots all need a persistent sandbox.
-
-```python
 from daytona import Daytona
 
 daytona = Daytona()
+
+exports = daytona.v2.images.list(anonymous=True, sandbox_id="OLD_SANDBOX_ID")
+image = exports.items[0]
+daytona.v2.images.promote(image.id, "ios-builder-day-2")  # optional: keep it
 sandbox = daytona.v2.create_macos(
-    "base-macos",
-    region="macos-1",
+    image.id,
+    region="us-east-bos-1",
     persistent=True,
-    name="ios-builder",
+    wait_seconds=120,
 )
 ```
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `persistent` | Keeps the disk across stop and start.<br />**Default:** `False` |
-| `name` | Sets the display name.<br />**Default:** a generated name, sandbox- followed by 8 hexadecimal characters<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, not starting with a period or a reserved prefix such as sbx_ or img_<br />**Example:** `"ios-builder"` |
+| `name` | Sets the name that promote gives the image.<br />**Required**<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, not starting with a period or a reserved prefix such as img_ or sbx_<br />**Example:** `"ios-builder-day-2"` |
+| `anonymous` | Lists only the images without a name.<br />**Default:** `False` |
+| `sandbox_id` | Lists only the images captured from one sandbox.<br />**Format:** a sandbox ID |
 
-### Filesystem persistence
+> **Notes:**
+>
+> - **Prerequisites:** Only an image without a name can be named.
 
-Filesystem persistence keeps the contents of a sandbox's disk: files, installed packages, cloned repositories, and build artifacts. A sandbox with a preserved filesystem starts with its environment intact, with nothing to reinstall or rebuild.
+## Resources
 
-The filesystem of a persistent macOS sandbox stays on its Mac across stop and start for as long as the reservation lives. A restart of the Mac while the sandbox runs brings the sandbox back stopped, with its disk.
+Resources are the processor cores, memory, and disk space that a sandbox reserves to run code.
 
-To keep the disk beyond the reservation, take a [filesystem snapshot](#filesystem-snapshot), or let the [end of the reservation](#when-a-reservation-ends) export it. A sandbox that is not persistent loses its disk when it is deleted, when the reservation ends, or when its Mac restarts.
-
-### Memory persistence
-
-Memory persistence keeps the runtime state of a sandbox: running processes, open connections, and everything loaded in RAM. A sandbox with preserved memory continues from the point it was frozen, with processes still running, instead of starting from a clean boot.
-
-The memory of a persistent macOS sandbox is saved on its Mac when the sandbox pauses, and the sandbox keeps its place on the reservation. A resume continues from that memory, and the end of the reservation discards it.
-
-[Pause a sandbox](#pause--resume) to keep its processes and memory between sessions on the same reservation. Filesystem snapshots and forks copy the disk only, never the memory.
-
-## Snapshots
-
-Snapshots are saved copies of a sandbox at one point in time. A new sandbox starts from a snapshot instead of a clean install, so the setup that many sandboxes share runs only once.
-
-A snapshot of a macOS sandbox is captured from a stopped persistent sandbox and holds its disk only.
-
-Take a snapshot when many sandboxes must start from the same prepared disk, or to keep a disk after its reservation ends.
-
-### Filesystem snapshot
-
-A filesystem snapshot is a copy of the disk of a sandbox at one point in time, without its processes or memory. A sandbox started from it boots with the captured files.
-
-A filesystem snapshot of a macOS sandbox is an [image](./images.md) of its disk, and new sandboxes start from it on any Mac of the region. A new sandbox from it gets a new machine identity.
-
-Stop the sandbox, capture the image, and wait until it is ready before you create sandboxes from it. Apps bound to one machine, such as an iCloud sign-in or some licenses, need a new sign-in in the new sandbox.
+| **macOS** | **ID** | **Default** | **Minimum** | **Maximum** |
+| --- | --- | --- | --- | --- |
+| **Apple M4** | `m4-10c-16g` | 10 cores<br />16 GiB memory<br />80 GiB disk | 4 cores<br />4 GiB memory<br />80 GiB disk | 10 cores<br />16 GiB memory<br />80 GiB disk |
+| **Apple M4 Pro** | `m4pro-12c-24g` | 6 cores<br />12 GiB memory<br />122 GiB disk | 4 cores<br />4 GiB memory<br />80 GiB disk | 12 cores<br />24 GiB memory<br />276 GiB disk |
+| **Apple M4 Pro** | `m4pro-12c-48g` | 6 cores<br />24 GiB memory<br />102 GiB disk | 4 cores<br />4 GiB memory<br />80 GiB disk | 12 cores<br />48 GiB memory<br />236 GiB disk |
+| **Apple M5 Pro** | `m5pro-15c-24g` | 7 cores<br />12 GiB memory<br />127 GiB disk | 4 cores<br />4 GiB memory<br />80 GiB disk | 15 cores<br />24 GiB memory<br />287 GiB disk |
 
 ```python
-sandbox.stop()
-image = sandbox.capture_image(name="ios-builder-ready")
-image = daytona.v2.images.get(image.id, wait="ready", timeout=3600)
-print(image.id, image.status)
+from daytona import Daytona
+from daytona.v2 import MacosResources
 
-copy = daytona.v2.create_macos("ios-builder-ready", region="macos-1", persistent=True)
+daytona = Daytona()
+r = daytona.v2.reservations.create(
+    region="us-east-bos-1",
+    model="m4pro-12c-24g",
+    idempotency_key="shared-mac-1",
+)
+a = daytona.v2.create_macos(
+    "base-macos",
+    region="us-east-bos-1",
+    reservation=r.id,
+    resources=MacosResources(cpu=4, memory=8, disk=100),
+)
+b = daytona.v2.create_macos(
+    "base-macos",
+    region="us-east-bos-1",
+    reservation=r.id,
+    resources=MacosResources(cpu=8, memory=16, disk=120),
+)
+print(a.cpu, a.memory, a.disk, b.cpu, b.memory, b.disk)
 ```
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `name` | Sets the image name.<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, not starting with a period or a reserved prefix such as img_ or sbx_<br />**Example:** `"ios-builder-ready"` |
-| `wait` | Holds the request until the image is ready.<br />**Value:** `"ready"` |
-| `timeout` | Sets how many seconds images.get waits for the image.<br />**Value:** `0` for a single long poll<br />**Example:** `3600` |
+| `reservation` | Sets the [reservation](#sandbox-placement) that the sandbox runs on.<br />**Default:** any reservation of the organization in the region with room, or one that auto-reserve buys<br />**Format:** a reservation ID<br />**Value:** `"new"` for a new reservation of the cheapest model that fits<br />**Example:** `"new"` |
+| `resources` | Sets the [resources](#resources) of the sandbox.<br />**Default:** the default resources of the Mac model<br />**Example:** `MacosResources(cpu=4, memory=8, disk=100)` |
+| `cpu` | Sets the number of CPU cores.<br />**Default:** the default resources of the Mac model<br />**Minimum:** `4`<br />**Maximum:** the cores of the [Mac model](./macos-sandboxes.md#models-and-prices) |
+| `memory` | Sets the memory in GiB.<br />**Default:** the default resources of the Mac model<br />**Minimum:** `4`<br />**Maximum:** the memory of the [Mac model](./macos-sandboxes.md#models-and-prices)<br />**Format:** a value that converts to a whole number of MiB |
+| `disk` | Sets the whole guest disk in GiB, macOS included.<br />**Default:** the default resources of the Mac model, or the disk size of a captured image<br />**Minimum:** `80`<br />**Maximum:** the sandbox disk space of the [Mac model](./macos-sandboxes.md#models-and-prices)<br />**Format:** a value that converts to a whole number of MiB |
 
-> **Notes:**
->
-> - **Prerequisites:** The sandbox must be persistent and stopped.
-> - **Lifetime:** The sandbox cannot be deleted while the capture still needs its disk.
+## Regions
 
-## Run commands
+[Regions](./regions.md) are geographic or logical areas in which sandboxes run. Every sandbox runs in a region. A create request can name one, and Daytona places the sandbox on capacity there.
 
-Run commands to build, test, and inspect software inside a sandbox. A command runs in a shell inside the sandbox and returns its output and exit code.
-
-A command in a macOS sandbox runs in the foreground, where the call returns its output, or in the background, where the call returns a handle to the process.
-
-Run a command to build with xcodebuild or to check the macOS version. File operations, git, and PTYs work as on [Linux sandboxes](./linux-sandboxes.md).
-
-```python
-result = sandbox.exec("sw_vers -productVersion && xcodebuild -version")
-print(result.exit_code, result.output)
-
-handle = sandbox.process.start("xcodebuild -scheme App build")  # runs in the background
-print(handle.wait().exit_code)
-```
-
-## SSH
-
-SSH access is encrypted access to a sandbox over the SSH (Secure Shell) network protocol. It lets a person or a script run commands and inspect files in a sandbox from any SSH client.
-
-SSH access to a macOS sandbox goes through an SSH gateway, which checks a short-lived sandbox token instead of a password or an SSH key. The token is limited to one sandbox and to SSH, and works until it expires.
-
-Connect with the CLI, which opens the connection for you, or with your own SSH client. For your own client, create a token that allows SSH, and put the sandbox ID and the token in the user name, joined by a hash sign (#). Create a new token when the old one expires.
-
-```python
-token = sandbox.create_access_token(operations=["ssh"], ttl_seconds=3600)
-print(f'ssh -p 2222 "{sandbox.id}#{token.access_token}@ssh.us-macos.daytona.com"')
-```
-
-| **Parameter** | **Description** |
+| **Region** | **ID** |
 | --- | --- |
-| `operations` | Sets the operations that the token allows.<br />**Default:** every operation that the caller can grant<br />**Value:** `"toolbox"`, `"toolbox:exec"`, `"toolbox:fs"`, `"toolbox:git"`, `"toolbox:lsp"`, `"desktop"`, `"ssh"`, `"sandbox:stop"`, `"sandbox:pause"`, `"sandbox:delete"`<br />**Example:** `["ssh"]` |
-| `ttl_seconds` | Sets the token lifetime in seconds.<br />**Default:** `3600`<br />**Maximum:** `86400`<br />**Example:** `600` |
-
-> **Notes:**
->
-> - **Clients:** Keep project API keys out of SSH commands, and use a sandbox token scoped to the sandbox and SSH.
-
-## Desktop
-
-A desktop is the graphical interface of an operating system, with windows, a pointer, and a keyboard focus. A desktop in a sandbox lets a person or an agent operate graphical apps that have no command line.
-
-The desktop of a macOS sandbox is 1280 by 800 and takes mouse and keyboard input as soon as it connects.
-
-Open the sandbox from the dashboard and choose the desktop view to watch or control it. To drive it from code, use [computer use](#computer-use), and to view it in your own client, connect a [VNC client](#vnc-client).
-
-### User and password
-
-An operating system user is the account that a desktop session and its processes run as. Its password protects system settings and the locked screen.
-
-The user of a macOS sandbox signs in when the sandbox starts, so the desktop opens without a login screen. A sandbox from a filesystem snapshot keeps the user settings of its source, including a changed password.
-
-Enter the password when macOS asks for it, such as when you allow an app under Privacy & Security or unlock the screen. SSH and the desktop view do not use this password, and check your sandbox token instead.
-
-| **Property**     | **Value**                                                                                   |
-| ---------------- | ------------------------------------------------------------------------------------------- |
-| User             | `lume`                                                                                      |
-| Password         | `lume`                                                                                      |
-| Administrator    | Yes                                                                                         |
-| `sudo`           | Does not ask for a password                                                                 |
-| Sign-in at start | Automatic                                                                                   |
-| Screen lock      | Only when you lock the screen or the display sleeps, and the sandbox does not sleep on its own. |
-
-### Computer use
-
-Computer use is the control of a graphical desktop by a program, through screenshots and mouse and keyboard input. It lets an agent operate apps the way a person does.
-
-Computer use in a macOS sandbox acts on the desktop of the sandbox. It also reads the accessibility tree and records the screen.
-
-Start computer use before the first screenshot or input. For the other actions, see [computer use](./computer-use.md).
+| **Earth** | `earth` |
+| `└─` **United States** | `us` |
+| `   └─` **US East** | `us-east` |
+| `      ├─` **Ashburn** | `us-east-ash-1` |
+| `      ├─` **Boston** | `us-east-bos-1` |
+| `      └─` **N. Virginia** | `us-east-iad-1` |
 
 ```python
-import base64
+from daytona import Daytona
 
-cu = sandbox.computer_use
-cu.start()
-print(cu.status())
-
-shot = cu.screen.screenshot()
-with open("screen.png", "wb") as f:
-    f.write(base64.b64decode(shot.screenshot))
-
-cu.mouse.click(x=640, y=400)
-cu.keyboard.type(text="hello from Daytona")
-cu.keyboard.hotkey(keys="cmd+space")       # modifiers: cmd, ctrl, alt (option), shift
-print(cu.display.windows())
-```
-
-> **Notes:**
->
-> - **Clients:** The a11y property reads the accessibility tree and acts on controls, and the recording property records the screen.
-
-### VNC client
-
-A VNC client is a program that shows a remote desktop and sends mouse and keyboard input to it over the VNC protocol. It lets a person view the desktop of a sandbox in a tool of their choice.
-
-The VNC connection of a macOS sandbox runs over a WebSocket through a proxy, which completes the VNC password step for the client.
-
-Create a sandbox token with the desktop operation and connect a noVNC client to the WebSocket address. Your client must support the DesktopSize encoding, which noVNC supports.
-
-```python
-token = sandbox.create_access_token(operations=["desktop"], ttl_seconds=3600)
-print(f"wss://proxy.us-macos.daytona.app/vnc/{sandbox.id}?daytona_token={token.access_token}")
-```
-
-| **Parameter** | **Description** |
-| --- | --- |
-| `operations` | Sets the operations that the token allows.<br />**Default:** every operation that the caller can grant<br />**Value:** `"toolbox"`, `"toolbox:exec"`, `"toolbox:fs"`, `"toolbox:git"`, `"toolbox:lsp"`, `"desktop"`, `"ssh"`, `"sandbox:stop"`, `"sandbox:pause"`, `"sandbox:delete"`<br />**Example:** `["desktop"]` |
-| `ttl_seconds` | Sets the token lifetime in seconds.<br />**Default:** `3600`<br />**Maximum:** `86400`<br />**Example:** `600` |
-
-## Logs
-
-Logs are the records that an operating system and its programs write while they run. They show what happened inside a sandbox after the fact.
-
-The console log of a macOS sandbox holds its console output and the lifecycle lines of the platform, and lives on the Mac. The end of the reservation erases it with the Mac.
-
-Read the console log to debug a boot or a lifecycle change, and keep your own process logs for builds and tests. Copy what you need before the reservation ends.
-
-| **Log**                   | **Description**                                                                                                                                                         |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Console log**           | The console output of the macOS sandbox and the platform's lifecycle lines, read at `GET /sandboxes/SANDBOX_ID/console-logs`.                                         |
-| **Your own process logs** | The output of a command run with `process.start(...)`, read with `handle.logs()` or `handle.stream_logs()` (TypeScript: `logs()`, `streamLogs()`), or written to a file you copy out. |
-| **Usage**                 | The usage of the sandbox, read with `daytona sandbox usage SANDBOX_ID`.                                                                                                 |
-
-**CLI:**
-
-```bash
-daytona sandbox logs SANDBOX_ID
-daytona sandbox logs SANDBOX_ID --follow
-```
-
-**API:**
-
-```bash
-curl 'https://api.us-macos.daytona.com/sandboxes/SANDBOX_ID/console-logs' \
-  --header 'Authorization: Bearer YOUR_API_KEY'
+daytona = Daytona()
+sandbox = daytona.v2.create_macos("base-macos", region="us-east-bos-1")
 ```
 
 ## Lifecycle
 
-A lifecycle is the set of states a sandbox moves through from creation to deletion, and the transitions between them. A sandbox changes state when a user acts on it, or automatically when a rule fires on the user's behalf.
+A sandbox lifecycle is the set of states that a sandbox moves through from creation to deletion. A sandbox changes state when a user acts on it, or on its own when a timeout elapses. The actions it accepts, and what it keeps across them, depend on its type.
 
-A macOS sandbox lives from its create to its deletion or the end of its reservation. Only a persistent sandbox changes state in between, and a sandbox that is not persistent can only run or be deleted.
-
-Stop or pause a persistent sandbox between sessions, and delete a sandbox when its work is done. A stopped sandbox does not keep [automatic renewal](#automatic-renewal) going, so a reservation whose sandboxes are all stopped ends with its period.
+| **Lifecycle**              | **macOS** |
+| -------------------------- | --------- |
+| **Stop and start**         | ✓         |
+| **Pause and resume**       | ✓         |
+| **Fork**                   | ✓         |
+| **Delete**                 | ✓         |
+| **Filesystem persistence** | ✓         |
+| **Memory persistence**     | ✓         |
+| **Spot (Preemption)**      | ✗         |
 
 **Lifecycle actions:**
 
-| **Action** | **What happens**                                                                                                                                                       |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Stop       | macOS shuts down, and the disk stays on the same Mac and keeps its disk room, while the cores, memory, and slot become available to other sandboxes.                  |
-| Start      | macOS boots from the same disk on any Mac of the organization with an open slot and enough cores and memory.                                                          |
-| Pause      | The Mac saves the memory of the sandbox, which keeps its place on the reservation.                                                                                    |
-| Resume     | The sandbox continues from the saved memory, or boots from the disk with mac_boot_mode `cold_after_restore_failure` when the memory cannot be restored.                |
-| Fork       | A new sandbox starts with a copy of the disk.                                                                                                                         |
-| Delete     | The sandbox and its disk are erased, with no undo.                                                                                                                    |
+| **Action** | **What happens**                                                                                                                                        |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Stop**   | macOS shuts down, and the disk stays on the same Mac and keeps its disk room, while the cores, memory, and slot become available to other sandboxes. Only a persistent sandbox stops, and a stopped sandbox does not keep [automatic renewal](#automatic-renewal) going. |
+| **Start**  | macOS boots from the same disk on any Mac of the organization with an open slot and enough cores and memory.                                            |
+| **Pause**  | The Mac saves the memory of the sandbox, which keeps its place on the reservation. Only a persistent sandbox pauses.                                    |
+| **Resume** | The sandbox continues from the saved memory, or boots from the disk with mac_boot_mode `cold_after_restore_failure` when the memory cannot be restored. |
+| **Fork**   | A new sandbox starts with a copy of the disk.                                                                                                           |
+| **Delete** | The sandbox and its disk are erased, with no undo.                                                                                                      |
 
 ### Stop / start
 
@@ -670,6 +560,11 @@ A stop of a macOS sandbox keeps its disk on the same Mac, and a start boots it o
 Stop a persistent sandbox between sessions to free the cores and memory of its Mac for other sandboxes. After a start on a different Mac, iCloud asks the user to sign in again. With no reservation in the region, a start buys one if [auto-reserve](#auto-reserve) is on.
 
 ```python
+from daytona import Daytona
+
+daytona = Daytona()
+sandbox = daytona.v2.create_macos("base-macos", region="us-east-bos-1", persistent=True)
+
 sandbox.stop()
 sandbox.wait(until="stopped")
 sandbox.start(timeout=120)
@@ -699,6 +594,11 @@ A paused macOS sandbox counts as active, so its reservation keeps renewing autom
 Pause a persistent sandbox to keep its processes between sessions on the same reservation. A resume that cannot restore the memory boots macOS from the disk instead.
 
 ```python
+from daytona import Daytona
+
+daytona = Daytona()
+sandbox = daytona.v2.create_macos("base-macos", region="us-east-bos-1", persistent=True)
+
 sandbox.pause()
 sandbox.resume()
 
@@ -726,6 +626,11 @@ A fork of a macOS sandbox copies the disk only, never the memory. A fork of a ru
 Fork a persistent sandbox to try a change without touching the source. A fork request that asks for memory fails.
 
 ```python
+from daytona import Daytona
+
+daytona = Daytona()
+sandbox = daytona.v2.create_macos("base-macos", region="us-east-bos-1", persistent=True)
+
 twin = sandbox.fork(name="ios-builder-2")
 ```
 
@@ -740,13 +645,18 @@ twin = sandbox.fork(name="ios-builder-2")
 
 ### Delete
 
-Delete a sandbox to erase it and release its share of the Mac. Deletion removes a resource permanently, together with the data stored only in it.
+Delete a sandbox to remove it and release its resources. Deletion removes a resource permanently, together with the data stored only in it.
 
 A deletion of a macOS sandbox erases the sandbox and its disk, and cannot be undone.
 
 Delete a sandbox when its work is done. To keep its disk, take a [filesystem snapshot](#filesystem-snapshot) first.
 
 ```python
+from daytona import Daytona
+
+daytona = Daytona()
+sandbox = daytona.v2.create_macos("base-macos", region="us-east-bos-1")
+
 sandbox.delete()
 ```
 
@@ -754,101 +664,126 @@ sandbox.delete()
 | --- | --- |
 | `timeout` | Sets how many seconds the call waits for the sandbox to be deleted.<br />**Default:** `60`<br />**Value:** `0` for no limit<br />**Example:** `120` |
 
-## Operations
+## Persistence
 
-Operations on existing resources read them after they are created. A list reads a scope page by page, and a get reads one resource by its identifier.
+[Persistence](./persistence.md) is how long the state of a sandbox lasts: the files on its disk, and the processes and data in its memory. State that persists outlives the events that would otherwise discard it.
 
-The operations of macOS sandboxes read the sandboxes and Mac reservations of one organization, and none of them changes either.
+```python
+from daytona import Daytona
 
-List or get a resource to check its status before a step that needs it. Follow the cursor of a list, or iterate over it, to read every page.
+daytona = Daytona()
+sandbox = daytona.v2.create_macos(
+    "base-macos",
+    region="us-east-bos-1",
+    persistent=True,
+    name="ios-builder",
+)
+```
 
-### List macOS sandboxes
+| **Parameter** | **Description** |
+| --- | --- |
+| `name` | Sets the display name.<br />**Default:** a generated name, sandbox- followed by 8 hexadecimal characters<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, not starting with a period or a reserved prefix such as sbx_ or img_<br />**Example:** `"ios-builder"` |
+| `persistent` | Keeps the disk across stop and start.<br />**Default:** `False`<br />**Rules:** set at creation and cannot change; stop, start, pause, resume, fork, and filesystem snapshots need a persistent sandbox |
 
-List macOS sandboxes to find the sandboxes of a region and their states. A paged list returns a fixed number of items per request, with a cursor for the next page.
+### Filesystem persistence
 
-A list of macOS sandboxes is filtered by region after each page is read.
+Filesystem persistence keeps the contents of a sandbox's disk, such as installed packages and build artifacts. A sandbox that starts from a preserved filesystem has its environment intact, with nothing to reinstall or rebuild.
 
-List the macOS sandboxes of a region with the CLI. A page holds up to 100 sandboxes, and fewer when the region filter removes some, so read every page to see them all.
+### Memory persistence
+
+Memory persistence keeps the runtime state of a sandbox: its running processes and everything loaded in memory. A sandbox that starts from preserved memory continues from the point it was saved, with its processes still running, instead of a clean boot.
+
+## Snapshots
+
+[Snapshots](./snapshots.md) are saved copies of a sandbox at one point in time. A new sandbox starts from a snapshot instead of a clean install, so the setup that many sandboxes share runs only once.
+
+### Filesystem snapshot
+
+A [filesystem snapshot](./images.md#capture-images) is a copy of the disk of a sandbox at one point in time, without its processes or memory. A sandbox started from it boots with the captured files.
+
+```python
+from daytona import Daytona
+
+daytona = Daytona()
+sandbox = daytona.v2.create_macos("base-macos", region="us-east-bos-1", persistent=True)
+
+sandbox.stop()
+image = sandbox.capture_image(name="ios-builder-ready")
+image = daytona.v2.images.get(image.id, wait="ready", timeout=3600)
+print(image.id, image.status)
+
+copy = daytona.v2.create_macos("ios-builder-ready", region="us-east-bos-1", persistent=True)
+```
+
+| **Parameter** | **Description** |
+| --- | --- |
+| `name` | Sets the image name.<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, not starting with a period or a reserved prefix such as img_ or sbx_<br />**Example:** `"ios-builder-ready"` |
+| `timeout` | Sets how many seconds images.get waits for the image.<br />**Value:** `0` for a single long poll<br />**Example:** `3600` |
+| `wait` | Holds the request until the image is ready.<br />**Value:** `"ready"` |
+
+> **Notes:**
+>
+> - **Prerequisites:** The sandbox must be persistent and stopped.
+> - **Lifetime:** The sandbox cannot be deleted while the capture still needs its disk.
+> - **Recovery:** On `DISK_NOT_READY` shortly after the stop, retry the capture after a short wait while the sandbox saves its disk.
+> - **Behaviour:** A sandbox created from the image starts on any Mac of the region with a new machine identity, so apps bound to one machine, such as an iCloud sign-in or some licenses, need a new sign-in.
+
+## Images
+
+[Images](./images.md) are packaged filesystems, together with the configuration a program needs to start: environment variables, a working directory, and a command. An image is built once and read many times, so every sandbox started from it begins in the same state. An image defines the operating system, tools, and files that a sandbox starts with.
+
+| **Property**         | **Value**                                                                                                                       |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| **Image**            | `base-macos`                                                                                                                    |
+| **Operating system** | macOS 26.6.2                                                                                                                    |
+| **Tools**            | Xcode 26.6 and its iPhone simulator, Homebrew (with git, Node.js 24, Ruby, CocoaPods, fastlane, gh and jq) and Python 3.14     |
+| **User**             | `lume`, with home `/Users/lume`                                                                                                 |
+| **Password**         | `lume`                                                                                                                          |
+
+## User and password
+
+An operating system user is the account that a desktop session and its processes run as. Its password protects system settings and the locked screen.
+
+The user of a macOS sandbox signs in when the sandbox starts, so the desktop opens without a login screen. A sandbox from a filesystem snapshot keeps the user settings of its source, including a changed password.
+
+Enter the password when macOS asks for it, such as when you allow an app under Privacy & Security or unlock the screen. SSH and the desktop view do not use this password, and check your sandbox token instead.
+
+| **Property**         | **Value**                                                                                       |
+| -------------------- | ----------------------------------------------------------------------------------------------- |
+| **User**             | `lume`                                                                                          |
+| **Password**         | `lume`                                                                                          |
+| **Administrator**    | Yes                                                                                             |
+| **`sudo`**           | Does not ask for a password                                                                     |
+| **Sign-in at start** | Automatic                                                                                       |
+| **Screen lock**      | Only when you lock the screen or the display sleeps, and the sandbox does not sleep on its own. |
+
+## Logs
+
+Logs are the text output that a program or operating system writes as it runs. They show what happened inside a sandbox after the fact.
 
 **CLI:**
 
 ```bash
-daytona sandbox list --region macos-1
+daytona sandbox logs SANDBOX_ID
+daytona sandbox logs SANDBOX_ID --follow
 ```
 
-| **Flag** | **Description** |
-| --- | --- |
-| `--region` | Lists the sandboxes of one region.<br />**Format:** a listed region ID<br />**Example:** `macos-1` |
-| `--cursor` | Continues from a previous page.<br />**Format:** the cursor that the previous page prints |
-| `--all` | Follows every page until the last one. |
+> **Notes:**
+>
+> - **Results:** The log holds the console output of macOS and the lifecycle lines of the platform, so it shows a boot or a lifecycle change. The output of your own commands is read through [process execution](./process-execution.md).
+> - **Lifetime:** The log lives on the Mac, and the end of the reservation erases it with the Mac. Copy what you need before the reservation ends.
 
-### Get a macOS sandbox
+**API:**
 
-Get a macOS sandbox to read its current state and properties by its ID. A get reads one resource and changes nothing.
-
-A get of a macOS sandbox returns the sandbox with its reservation and resources.
-
-Get a sandbox to check its state before a step that needs it, or to work with it from a new process.
-
-```python
-sandbox = daytona.v2.get("SANDBOX_ID")
-print(sandbox.id, sandbox.reservation_id, sandbox.cpu, sandbox.memory, sandbox.disk)
+```bash
+curl 'https://api.daytona.com/sandboxes/SANDBOX_ID/console-logs' \
+  --header 'Authorization: Bearer YOUR_API_KEY'
 ```
 
-### List reservations
-
-List reservations to see which Macs an organization holds and when their periods end. A reservation list is a record of past purchases as well as a view of the current ones.
-
-A list of Mac reservations returns the open reservations of the organization and those that ended in the last 30 days.
-
-List reservations to check their status, period end, and automatic renewal. A page holds 100 reservations by default and up to 200, and the next cursor of a page reads the next one.
-
-```python
-cursor = None
-while True:
-    page = daytona.v2.reservations.list(limit=100, cursor=cursor)
-    for r in page.items:
-        print(r.id, r.status, r.model, r.period_end, r.auto_renew)
-    cursor = page.next_cursor  # None on the last page
-    if cursor is None:
-        break
-```
-
-| **Parameter** | **Description** |
-| --- | --- |
-| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
-| `cursor` | Continues from a previous page.<br />**Format:** the next_cursor of the previous page |
-
-##### Iterate over all reservations
-
-Iterate over all reservations to read every page without handling cursors. An iterator fetches the next page when the current one runs out.
-
-An iteration over Mac reservations stops when a page returns no cursor.
-
-Iterate in the SDKs when you need every reservation. The CLI reads every page in one command.
-
-```python
-for r in daytona.v2.reservations.iter():
-    print(r.id, r.status, r.model, r.period_end, r.auto_renew)
-```
-
-| **Parameter** | **Description** |
-| --- | --- |
-| `limit` | Sets the page size that the iterator fetches.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
-| `cursor` | Starts the iteration after a previous page.<br />**Format:** the next_cursor of the previous page |
-
-### Get a reservation
-
-Get a reservation to read its current status and the end of its period. A get reads one resource by its identifier and changes nothing.
-
-A get of a Mac reservation returns the same fields as an item of the list.
-
-Get a reservation after a purchase to see when it becomes active, or before a renewal.
-
-```python
-r = daytona.v2.reservations.get("RESERVATION_ID")
-print(r.id, r.status, r.period_end, r.auto_renew)
-```
+> **Notes:**
+>
+> - **Results:** The log holds the console output of macOS and the lifecycle lines of the platform, so it shows a boot or a lifecycle change. The output of your own commands is read through [process execution](./process-execution.md).
+> - **Lifetime:** The log lives on the Mac, and the end of the reservation erases it with the Mac. Copy what you need before the reservation ends.
 
 ## Permissions
 

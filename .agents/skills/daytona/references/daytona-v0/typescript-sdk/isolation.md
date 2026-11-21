@@ -58,17 +58,17 @@ import { Daytona } from '@daytona/sdk'
 const daytona = new Daytona()
 
 // Block all outbound traffic
-const blocked = await daytona.create({
+const blocked = await daytona.v0.create({
   networkBlockAll: true,
 })
 
 // Or allow specific domains only
-const domainRestricted = await daytona.create({
+const domainRestricted = await daytona.v0.create({
   domainAllowList: 'example.com,*.daytona.io',
 })
 
 // Or allow specific CIDR ranges only
-const cidrRestricted = await daytona.create({
+const cidrRestricted = await daytona.v0.create({
   networkAllowList: '208.80.154.232/32,192.168.1.0/24',
 })
 ```
@@ -81,7 +81,7 @@ const cidrRestricted = await daytona.create({
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const sandbox = await daytona.create()
+const sandbox = await daytona.v0.create()
 
 // Preview URLs require a token unless the sandbox is public
 const preview = await sandbox.getPreviewLink(3000)
@@ -98,10 +98,10 @@ import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
 
-const parent = await daytona.create()
+const parent = await daytona.v0.create()
 
 // Only linked sandboxes share a network; everything else is isolated
-const child = await daytona.create({
+const child = await daytona.v0.create({
   linkedSandbox: parent.id,
   ephemeral: true,
 })
@@ -143,12 +143,13 @@ curl 'https://app.daytona.io/api/api-keys' \
 **[Secrets](./secrets.md)** keep credentials out of sandboxes entirely. A sandbox holds an opaque placeholder; an outbound proxy substitutes the real value only for requests to the secret's allowed hosts. Code in the sandbox can use the credential but cannot read it or send it anywhere else.
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
 
 # The sandbox receives a placeholder, never the plaintext value
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     secrets={
         "MY_API_KEY": "my-secret",
     },
@@ -165,13 +166,14 @@ sandbox.process.exec(
 **[Volumes](./volumes.md)** scope shared data with a `subpath`, so each sandbox mounts only its tenant's slice of a shared volume.
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams, Daytona, VolumeMount
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams, VolumeMount
 
 daytona = Daytona()
-volume = daytona.volume.get("tenant-data", create=True)
+volume = daytona.v0.volume.get("tenant-data", create=True)
 
 # Each sandbox mounts only its tenant's slice of the shared volume
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     volumes=[VolumeMount(
         volume_id=volume.id,
         mount_path="/home/daytona/data",

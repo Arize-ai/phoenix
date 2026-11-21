@@ -55,7 +55,7 @@ The snapshot must be active and available in the target region. Creating a secon
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const pool = await daytona.warmPool.create({
+const pool = await daytona.v0.warmPool.create({
   snapshot: 'my-snapshot',
   pool: 3,
   target: 'us',
@@ -70,7 +70,7 @@ List the warm pools in your organization. Each pool reports the desired size (`p
 2. Click a snapshot to see its warm pools per region in the **Warm Pool** section
 
 ```typescript
-const pools = await daytona.warmPool.list()
+const pools = await daytona.v0.warmPool.list()
 for (const pool of pools) {
   console.log(`${pool.snapshot}: ${pool.currentSize}/${pool.pool} ready`)
 }
@@ -86,7 +86,7 @@ Resize a warm pool to change the desired number of warm sandboxes. Daytona conve
 4. Enter the new **Pool size** and click <Button>Save</Button>
 
 ```typescript
-await daytona.warmPool.update(pool.id, { pool: 5 })
+await daytona.v0.warmPool.update(pool.id, { pool: 5 })
 ```
 
 ## Delete a warm pool
@@ -99,7 +99,7 @@ Delete a warm pool and destroy all of its unclaimed warm sandboxes. Sandboxes al
 4. Click <Button>Delete</Button> to confirm
 
 ```typescript
-await daytona.warmPool.delete(pool.id)
+await daytona.v0.warmPool.delete(pool.id)
 ```
 
 ## List warm sandboxes

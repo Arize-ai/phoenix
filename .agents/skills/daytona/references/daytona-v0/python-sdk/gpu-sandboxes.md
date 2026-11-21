@@ -70,10 +70,11 @@ Create a GPU sandbox from a default snapshot.
 4. Click <Button>Create</Button>
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxFromSnapshotParams(
         snapshot="daytona-gpu",
         auto_delete_interval=0,
@@ -96,10 +97,11 @@ Create a GPU sandbox with custom GPU resources: units and types.
     Daytona uses the first available type in the order you provide. This lets you fall back from a preferred GPU to an alternative when the first choice is not available.
 
 ```python
-from daytona import Daytona, CreateSandboxFromImageParams, Resources, GpuType
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromImageParams, Resources, GpuType
 
 daytona = Daytona()
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxFromImageParams(
         image="pytorch/pytorch:2.11.0-cuda12.8-cudnn9-runtime",
         auto_delete_interval=0,
@@ -122,10 +124,11 @@ Create a GPU sandbox with NVIDIA GPUs.
 5. Select <Button>GPU Type</Button>: **`H100`**, **`H200`**, **`B200`**, **`B300`**, **`RTX-PRO-6000`**, **`RTX-4090`**, **`RTX-5090`**, **`L40S`**
 
 ```python
-from daytona import Daytona, CreateSandboxFromImageParams, Resources, GpuType
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromImageParams, Resources, GpuType
 
 daytona = Daytona()
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxFromImageParams(
         image="pytorch/pytorch:2.11.0-cuda12.8-cudnn9-runtime",
         auto_delete_interval=0,
@@ -148,10 +151,11 @@ Create a GPU sandbox with AMD GPUs.
 5. Select <Button>GPU Type</Button>: **`MI355X`**
 
 ```python
-from daytona import Daytona, CreateSandboxFromImageParams, Resources, GpuType
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromImageParams, Resources, GpuType
 
 daytona = Daytona()
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxFromImageParams(
         image="rocm/vllm:rocm10.0.0_ubuntu24.04_py3.14_pytorch_2.12.0_vllm_0.27.0",
         auto_delete_interval=0,
@@ -174,10 +178,11 @@ When a spot GPU sandbox is destroyed, normal [sandbox lifecycle state](#lifecycl
 Spot GPU sandboxes require Tier 2 or higher. Spot GPU sandboxes do not count against the organization's GPU quota. Available GPU capacity is the only limit. If no spot GPU is available, create fails immediately.
 
 ```python
-from daytona import Daytona, CreateSandboxFromImageParams, Resources, GpuType
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromImageParams, Resources, GpuType
 
 daytona = Daytona()
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxFromImageParams(
         image="pytorch/pytorch:2.11.0-cuda12.8-cudnn9-runtime",
         auto_delete_interval=0,
@@ -248,13 +253,14 @@ Filesystem persistence keeps the contents of a sandbox's disk: files, installed 
 GPU sandboxes are ephemeral: stop deletes the sandbox and its filesystem. To keep results, mount a [volume](./volumes.md) and write to the mount path. The volume and its data remain after the sandbox is deleted, and any other sandbox can mount the same volume.
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams, VolumeMount
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams, VolumeMount
 
 daytona = Daytona()
-volume = daytona.volume.get("gpu-results", create=True)
+volume = daytona.v0.volume.get("gpu-results", create=True)
 
 # Mount the volume in the GPU sandbox
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxFromSnapshotParams(
         snapshot="daytona-gpu",
         auto_delete_interval=0,
@@ -338,7 +344,7 @@ Two intervals end a GPU sandbox automatically. Each interval is set in minutes.
 - [Wall-clock TTL](./sandboxes.md#wall-clock-ttl) deletes the sandbox at a fixed deadline, whether or not it is active.
 
 ```python
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     snapshot="daytona-gpu",
     auto_delete_interval=0,
     auto_stop_interval=30,

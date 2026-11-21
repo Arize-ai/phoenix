@@ -52,22 +52,23 @@ Network isolation controls traffic in each direction separately. Outbound and in
 **Outbound** traffic passes a per-sandbox firewall. [Tier-based restrictions](./network-limits.md#tier-based-network-restrictions) apply automatically, and each sandbox can be locked down further with one of three mutually exclusive settings: block all traffic, allow specific CIDR ranges, or allow specific domains. Under the default tier policy, [essential services](./network-limits.md#essential-services) such as package registries stay reachable on all tiers. A sandbox-level allow list or block-all setting on Tier 3 or Tier 4 is strict: essential services do not bypass it.
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
 
 # Block all outbound traffic
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     network_block_all=True,
 ))
 
 # Or allow specific domains only
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     domain_allow_list="example.com,*.daytona.io",
 ))
 
 # Or allow specific CIDR ranges only
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     network_allow_list="208.80.154.232/32,192.168.1.0/24",
 ))
 ```
@@ -80,7 +81,7 @@ sandbox = daytona.create(CreateSandboxFromSnapshotParams(
 from daytona import Daytona
 
 daytona = Daytona()
-sandbox = daytona.create()
+sandbox = daytona.v0.create()
 
 # Preview URLs require a token unless the sandbox is public
 preview = sandbox.get_preview_link(3000)
@@ -93,14 +94,15 @@ print(preview.token)  # sent via the x-daytona-preview-token header
 **Between sandboxes**, there is no shared network. [Linked sandboxes](./sandboxes.md#linked-sandboxes) are the deliberate exception: children are scheduled onto the same runner as their parent and joined into a link network where each sandbox is reachable by name, while remaining isolated from every sandbox outside the group.
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
 
-parent = daytona.create()
+parent = daytona.v0.create()
 
 # Only linked sandboxes share a network; everything else is isolated
-child = daytona.create(CreateSandboxFromSnapshotParams(
+child = daytona.v0.create(CreateSandboxFromSnapshotParams(
     linked_sandbox=parent.id,
     ephemeral=True,
 ))
@@ -140,12 +142,13 @@ curl 'https://app.daytona.io/api/api-keys' \
 **[Secrets](./secrets.md)** keep credentials out of sandboxes entirely. A sandbox holds an opaque placeholder; an outbound proxy substitutes the real value only for requests to the secret's allowed hosts. Code in the sandbox can use the credential but cannot read it or send it anywhere else.
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
 
 # The sandbox receives a placeholder, never the plaintext value
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     secrets={
         "MY_API_KEY": "my-secret",
     },
@@ -162,13 +165,14 @@ sandbox.process.exec(
 **[Volumes](./volumes.md)** scope shared data with a `subpath`, so each sandbox mounts only its tenant's slice of a shared volume.
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams, Daytona, VolumeMount
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams, VolumeMount
 
 daytona = Daytona()
-volume = daytona.volume.get("tenant-data", create=True)
+volume = daytona.v0.volume.get("tenant-data", create=True)
 
 # Each sandbox mounts only its tenant's slice of the shared volume
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     volumes=[VolumeMount(
         volume_id=volume.id,
         mount_path="/home/daytona/data",
