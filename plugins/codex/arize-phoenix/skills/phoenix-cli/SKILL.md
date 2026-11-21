@@ -48,6 +48,7 @@ px dataset-labels remove --dataset <name-or-id> --label <label-id>
 px dataset-labels replace --dataset <name-or-id> --label <label-id>
 px experiment list
 px experiment get <id>
+px experiment export <id> --format csv|json
 px experiment delete <experiment-id>
 px prompt list
 px prompt get <prompt-identifier>
