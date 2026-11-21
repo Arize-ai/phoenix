@@ -732,6 +732,9 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
             **kwargs,
         )
 
+        if not choices:
+            raise ValueError("Labels must be a non-empty list or dictionary.")
+
         self.include_explanation = include_explanation
         score_map: Optional[Dict[str, Union[float, int]]] = None
         labels: Union[List[str], Dict[str, str]]
