@@ -95,18 +95,16 @@ class TraceAnnotationQueueInserter(
                     to_discard.append(p)
                 else:
                     to_insert.append(
-                        Received(
-                            received_at=p.received_at,
-                            item=p.item.as_insertable(
+                        p.replace_item(
+                            p.item.as_insertable(
                                 trace_rowid=anno.trace_rowid,
                             ),
                         )
                     )
             elif (trace := existing_traces.get(p.item.trace_id)) is not None:
                 to_insert.append(
-                    Received(
-                        received_at=p.received_at,
-                        item=p.item.as_insertable(
+                    p.replace_item(
+                        p.item.as_insertable(
                             trace_rowid=trace.trace_rowid,
                         ),
                     )

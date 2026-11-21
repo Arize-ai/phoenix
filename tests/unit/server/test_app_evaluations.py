@@ -179,6 +179,37 @@ def test_evaluations_to_precursors_span() -> None:
     assert p.obj.metadata_ == {}
 
 
+def test_evaluations_to_precursors_missing_values_become_none() -> None:
+    # pandas represents a missing cell as NaN; a NaN label or explanation cannot be
+    # bound to a text column on PostgreSQL, so the annotation would never be saved.
+    evals = SpanEvaluations(
+        eval_name="my-eval",
+        dataframe=pd.DataFrame(
+            {
+                "context.span_id": ["abc123", "def456"],
+                "score": [0.8, float("nan")],
+                "label": ["good", float("nan")],
+                "explanation": ["looks fine", float("nan")],
+            }
+        ),
+    )
+    precursors = {
+        p.span_id: p
+        for p in evaluations_to_precursors(evals)
+        if isinstance(p, Precursors.SpanAnnotation)
+    }
+    assert isinstance(complete := precursors["abc123"], Precursors.SpanAnnotation)
+    assert (complete.obj.score, complete.obj.label, complete.obj.explanation) == (
+        0.8,
+        "good",
+        "looks fine",
+    )
+    assert isinstance(missing := precursors["def456"], Precursors.SpanAnnotation)
+    assert missing.obj.score is None
+    assert missing.obj.label is None
+    assert missing.obj.explanation is None
+
+
 def test_evaluations_to_precursors_document() -> None:
     span_id = "abc123"
     evals = DocumentEvaluations(

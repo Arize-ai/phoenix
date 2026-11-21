@@ -653,10 +653,12 @@ def get_annotation_precursors_from_fixture(
 def _get_precursor_result(
     row: "pd.Series[str]",
 ) -> tuple[Optional[float], Optional[str], Optional[str]]:
+    # pandas represents a missing cell as NaN, which PostgreSQL rejects for text columns.
+    score, label, explanation = (row.get(key) for key in ("score", "label", "explanation"))
     return (
-        cast(Optional[float], row.get("score")),
-        row.get("label"),
-        row.get("explanation"),
+        None if pd.isna(score) else cast(float, score),
+        None if pd.isna(label) else label,
+        None if pd.isna(explanation) else explanation,
     )
 
 

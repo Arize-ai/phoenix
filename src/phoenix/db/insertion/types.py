@@ -27,6 +27,7 @@ class Insertable(Protocol):
 
 
 _AnyT = TypeVar("_AnyT")
+_OtherT = TypeVar("_OtherT")
 _PrecursorT = TypeVar("_PrecursorT")
 _InsertableT = TypeVar("_InsertableT", bound=Insertable)
 _RowT = TypeVar("_RowT", bound=models.Base)
@@ -41,10 +42,18 @@ class Received(Generic[_AnyT]):
     def postpone(self, retries_left: int = DEFAULT_RETRY_ALLOWANCE) -> Postponed[_AnyT]:
         return Postponed(item=self.item, received_at=self.received_at, retries_left=retries_left)
 
+    def replace_item(self, item: _OtherT) -> Received[_OtherT]:
+        return Received(item=item, received_at=self.received_at)
+
 
 @dataclass(frozen=True)
 class Postponed(Received[_AnyT]):
     retries_left: int = field(default=DEFAULT_RETRY_ALLOWANCE)
+
+    def replace_item(self, item: _OtherT) -> Postponed[_OtherT]:
+        # Keep the retry count so that a row that keeps failing to insert is
+        # eventually dropped instead of being retried with a fresh allowance.
+        return Postponed(item=item, received_at=self.received_at, retries_left=self.retries_left)
 
 
 class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT, _DmlEventT]):

@@ -96,18 +96,16 @@ class SpanAnnotationQueueInserter(
                     to_discard.append(p)
                 else:
                     to_insert.append(
-                        Received(
-                            received_at=p.received_at,
-                            item=p.item.as_insertable(
+                        p.replace_item(
+                            p.item.as_insertable(
                                 span_rowid=anno.span_rowid,
                             ),
                         )
                     )
             elif (span := existing_spans.get(p.item.span_id)) is not None:
                 to_insert.append(
-                    Received(
-                        received_at=p.received_at,
-                        item=p.item.as_insertable(
+                    p.replace_item(
+                        p.item.as_insertable(
                             span_rowid=span.span_rowid,
                         ),
                     )
