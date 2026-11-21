@@ -28,7 +28,7 @@ import {
   Workspace,
 } from "react-resizable-panels";
 
-import { Button } from "@phoenix/components/core/button";
+import { Button, IconButton } from "@phoenix/components/core/button";
 import { Icon, Icons } from "@phoenix/components/core/icon";
 import {
   Menu,
@@ -108,6 +108,7 @@ type WorkspaceController = {
   layout: EvaluatorWorkspaceLayout;
   workspaceRef: RefObject<WorkspaceImperativeHandle<TabData> | null>;
   initialModel: WorkspaceModelInput<TabData>;
+  slots: WorkspaceSlots;
 };
 
 const WorkspaceControllerContext = createContext<WorkspaceController | null>(
@@ -136,9 +137,21 @@ export function EvaluatorWorkspaceProvider({
   // would re-render the workspace in a loop.
   const workspaceRef = useWorkspaceRef<TabData>();
   const [initialModel] = useState(() => readSavedModel(layout));
+  // One element per panel for the whole life of the form, moved into the
+  // tab that shows it. A portal into it keeps its content (and the state
+  // that content holds) however the tab is moved or hidden.
+  const [slots] = useState<WorkspaceSlots>(() =>
+    Object.fromEntries(
+      Object.keys(layout.panels).map((panel) => {
+        const element = document.createElement("div");
+        element.className = "evaluator-workspace__slot";
+        return [panel, element];
+      })
+    )
+  );
   const value = useMemo(
-    () => ({ layout, workspaceRef, initialModel }),
-    [layout, workspaceRef, initialModel]
+    () => ({ layout, workspaceRef, initialModel, slots }),
+    [layout, workspaceRef, initialModel, slots]
   );
   return (
     <WorkspaceControllerContext.Provider value={value}>
@@ -160,20 +173,8 @@ export function EvaluatorWorkspace<PanelId extends string>({
   /** Shown after a tab's title, e.g. how many variables are unbound. */
   badges?: Partial<Record<PanelId, ReactNode>>;
 }) {
-  const { layout, workspaceRef, initialModel } = useWorkspaceController();
-  const panelIds = Object.keys(layout.panels);
-  // One element per panel for the whole life of the form, moved into the
-  // tab that shows it. A portal into it keeps its content (and the state
-  // that content holds) however the tab is moved or hidden.
-  const [slots] = useState<WorkspaceSlots>(() =>
-    Object.fromEntries(
-      panelIds.map((panel) => {
-        const element = document.createElement("div");
-        element.className = "evaluator-workspace__slot";
-        return [panel, element];
-      })
-    )
-  );
+  const { layout, workspaceRef, initialModel, slots } =
+    useWorkspaceController();
   const renderTabContent = useCallback(
     (tab: TabNode<TabData>) => (
       <WorkspaceSlotHost
@@ -291,15 +292,16 @@ function WorkspaceTabsetToolbar({
     <div className="evaluator-workspace__toolbar">
       {overflowTabs.length > 0 && !state?.isCollapsed ? (
         <MenuTrigger>
-          <button
-            type="button"
-            className="evaluator-workspace__tool evaluator-workspace__overflow"
-            title="More tabs"
+          {/* A React Aria button: MenuTrigger opens on presses its child
+              reports, which a native button does not. */}
+          <Button
+            size="S"
+            variant="quiet"
+            leadingVisual={<Icon svg={<Icons.ChevronRightDouble />} />}
             aria-label={`${overflowTabs.length} more tabs`}
           >
-            <Icon svg={<Icons.ChevronRightDouble />} />
-            <span>{overflowTabs.length}</span>
-          </button>
+            {String(overflowTabs.length)}
+          </Button>
           <MenuContainer minHeight="auto">
             <Menu
               aria-label="More tabs"
@@ -315,18 +317,20 @@ function WorkspaceTabsetToolbar({
         </MenuTrigger>
       ) : null}
       {state && !state.isFloating && !state.isRoot && !state.isMaximized ? (
-        <button
-          type="button"
-          className="evaluator-workspace__tool"
-          title="Float panel"
+        <IconButton
+          size="S"
           aria-label="Float panel"
-          onClick={() => parent?.float({ width: 520, height: 420 })}
+          onPress={() => parent?.float({ width: 520, height: 420 })}
         >
           <Icon svg={<Icons.ArrowUpRightCorner />} />
-        </button>
+        </IconButton>
       ) : null}
+      {/* Fixed names, with aria-expanded and aria-pressed giving the state,
+          in place of the library's "Collapse tabset" and "Maximize
+          tabset". */}
       <TabsetCollapseButton
         className="evaluator-workspace__tool"
+        aria-label="Collapse panel"
         title={({ isCollapsed }) =>
           isCollapsed ? "Expand panel" : "Collapse panel"
         }
@@ -339,6 +343,7 @@ function WorkspaceTabsetToolbar({
       </TabsetCollapseButton>
       <TabsetMaximizeButton
         className="evaluator-workspace__tool"
+        aria-label="Maximize panel"
         title={({ isMaximized }) =>
           isMaximized ? "Restore panel" : "Maximize panel"
         }
@@ -349,6 +354,62 @@ function WorkspaceTabsetToolbar({
       </TabsetMaximizeButton>
     </div>
   );
+}
+
+/**
+ * Returns a function that brings the first invalid field into view: it
+ * selects the tab that holds it, expanding or restoring its tabset as
+ * needed, and focuses the field. A failed submit calls it, since the field
+ * can sit in a tab that is not selected.
+ */
+export function useRevealInvalidWorkspaceField(): () => void {
+  const { workspaceRef, slots } = useWorkspaceController();
+  return useCallback(() => {
+    // After the validation state has rendered the fields as invalid.
+    window.requestAnimationFrame(() => {
+      const workspace = workspaceRef.current;
+      if (workspace == null) {
+        return;
+      }
+      const model = workspace.getModel();
+      for (const tabset of listTabsets(model)) {
+        for (const tab of tabset.tabs) {
+          const field = slots[tab.id]?.querySelector<HTMLElement>(
+            '[aria-invalid="true"]'
+          );
+          if (field == null) {
+            continue;
+          }
+          if (
+            model.maximizedTabsetId != null &&
+            model.maximizedTabsetId !== tabset.id
+          ) {
+            workspace.restoreTabset();
+          }
+          if (tabset.collapsed) {
+            workspace.expandTabset(tabset.id);
+          }
+          workspace.selectTab(tab.id);
+          window.requestAnimationFrame(() => field.focus());
+          return;
+        }
+      }
+    });
+  }, [workspaceRef, slots]);
+}
+
+/** Every tabset, in reading order, then the floating ones. */
+function listTabsets(model: WorkspaceModel<TabData>): TabsetNode<TabData>[] {
+  const tabsets: TabsetNode<TabData>[] = [];
+  const visit = (node: WorkspaceModel<TabData>["root"]) => {
+    if (node.type === "tabset") {
+      tabsets.push(node);
+    } else {
+      node.children.forEach(visit);
+    }
+  };
+  visit(model.root);
+  return [...tabsets, ...(model.floating ?? [])];
 }
 
 /** Puts every panel back where the layout starts it. */
@@ -501,6 +562,8 @@ const workspaceCSS = css`
     opacity: var(--global-opacity-disabled);
   }
 
+  // The collapse and maximize buttons are the library's own, drawn here as
+  // the small icon button.
   .evaluator-workspace__tool {
     all: unset;
     box-sizing: border-box;
@@ -540,12 +603,6 @@ const workspaceCSS = css`
     width: var(--global-button-height-s);
     height: var(--global-button-height-s);
     font-size: var(--global-font-size-l);
-  }
-  .evaluator-workspace__overflow {
-    width: auto;
-    gap: var(--global-dimension-size-25);
-    padding: 0 var(--global-dimension-size-50);
-    font-size: var(--global-font-size-s);
   }
 
   [data-tabset-toolbar] {

@@ -181,11 +181,12 @@ export const ProjectLlmEvaluatorWorkspace = ({
           </>
         ),
         variables: (
-          <ProjectEvaluatorInputMappingPanel
-            key={recordKind}
-            recordKind={recordKind}
-            evaluatorKind="prompt"
-          />
+          <Flex direction="column" gap="size-200">
+            <ProjectEvaluatorInputMappingBody
+              recordKind={recordKind}
+              evaluatorKind="prompt"
+            />
+          </Flex>
         ),
         records: (
           <ProjectEvaluatorScopePanel projectId={projectId} scope={scope} />
@@ -193,39 +194,6 @@ export const ProjectLlmEvaluatorWorkspace = ({
         inspector: null,
       }}
     />
-  );
-};
-
-/** The mapping rows on their own, for a workspace tab. */
-const ProjectEvaluatorInputMappingPanel = ({
-  recordKind,
-  evaluatorKind,
-}: {
-  recordKind: ProjectEvaluatorRecordKind;
-  evaluatorKind: "prompt" | "code" | "decision";
-}) => {
-  const variables = useEvaluatorInputVariables();
-  return (
-    <Flex direction="column" gap="size-200">
-      {variables.length > 0 ? (
-        <Text size="S" color="text-500">
-          {`Map evaluator variables to paths on the ${recordKind}. Unmapped input, output, and metadata read the ${recordKind} fields of the same name.`}
-        </Text>
-      ) : null}
-      <ProjectEvaluatorInputMapping
-        recordKind={recordKind}
-        emptyState={
-          <CompactEmptyState
-            icon={<Icon svg={<Icons.Plus />} />}
-            description={
-              evaluatorKind === "prompt"
-                ? `Variables in the prompt appear here, each mapped to the ${recordKind} data it reads.`
-                : `Inputs appear here, each mapped to the ${recordKind} data it reads.`
-            }
-          />
-        }
-      />
-    </Flex>
   );
 };
 
@@ -292,38 +260,67 @@ export const ProjectEvaluatorInputMappingDock = ({
           <DisclosurePanel>
             <div className="mapping-dock__body">
               {/* The trigger is a button, so the description lives here rather
-                  than as a help popover inside it: a button cannot hold one.
-                  With nothing to map, the empty state says it instead. */}
-              {variables.length > 0 ? (
-                <Text size="S" color="text-500">
-                  {`Map evaluator variables to paths on the ${recordKind}. Unmapped input, output, and metadata read the ${recordKind} fields of the same name.`}
-                </Text>
-              ) : null}
-              {/* Keyed so the rows rebuild against the new record kind rather than
-                  carrying the previous one's paths forward. */}
-              <ProjectEvaluatorInputMapping
-                key={recordKind}
+                  than as a help popover inside it: a button cannot hold one. */}
+              <ProjectEvaluatorInputMappingBody
                 recordKind={recordKind}
                 requiredVariables={requiredVariables}
+                evaluatorKind={evaluatorKind}
                 canDescribeInputs={canDescribeInputs}
-                emptyState={
-                  <CompactEmptyState
-                    icon={<Icon svg={<Icons.Plus />} />}
-                    description={
-                      evaluatorKind === "prompt"
-                        ? `Variables in the prompt appear here, each mapped to the ${recordKind} data it reads.`
-                        : evaluatorKind === "decision"
-                          ? `Variables in the decision's state appear here, each mapped to the ${recordKind} data it reads.`
-                          : `Parameters of the evaluator's function appear here, each mapped to the ${recordKind} data it reads.`
-                    }
-                  />
-                }
               />
             </div>
           </DisclosurePanel>
         </Disclosure>
       </DisclosureGroup>
     </div>
+  );
+};
+
+/**
+ * What the input mapping section holds wherever it is shown: a line on what
+ * the mapping does, then one row per declared variable, or an empty state
+ * that says what the section is for when nothing is declared.
+ */
+const ProjectEvaluatorInputMappingBody = ({
+  recordKind,
+  requiredVariables,
+  evaluatorKind,
+  canDescribeInputs,
+}: {
+  recordKind: ProjectEvaluatorRecordKind;
+  requiredVariables?: readonly string[];
+  evaluatorKind: "prompt" | "code" | "decision";
+  /** See {@link ProjectEvaluatorInputMapping}; defaults to true. */
+  canDescribeInputs?: boolean;
+}) => {
+  const variables = useEvaluatorInputVariables();
+  return (
+    <>
+      {variables.length > 0 ? (
+        <Text size="S" color="text-500">
+          {`Map evaluator variables to paths on the ${recordKind}. Unmapped input, output, and metadata read the ${recordKind} fields of the same name.`}
+        </Text>
+      ) : null}
+      {/* Keyed so the rows rebuild against the new record kind rather than
+          carrying the previous one's paths forward. */}
+      <ProjectEvaluatorInputMapping
+        key={recordKind}
+        recordKind={recordKind}
+        requiredVariables={requiredVariables}
+        canDescribeInputs={canDescribeInputs}
+        emptyState={
+          <CompactEmptyState
+            icon={<Icon svg={<Icons.Plus />} />}
+            description={
+              evaluatorKind === "prompt"
+                ? `Variables in the prompt appear here, each mapped to the ${recordKind} data it reads.`
+                : evaluatorKind === "decision"
+                  ? `Variables in the decision's state appear here, each mapped to the ${recordKind} data it reads.`
+                  : `Parameters of the evaluator's function appear here, each mapped to the ${recordKind} data it reads.`
+            }
+          />
+        }
+      />
+    </>
   );
 };
 

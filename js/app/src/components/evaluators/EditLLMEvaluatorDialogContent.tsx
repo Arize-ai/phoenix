@@ -9,22 +9,13 @@ import { useLlmEvaluatorDraftRegistration } from "@phoenix/components/evaluators
 import {
   EvaluatorWorkspaceProvider,
   EvaluatorWorkspaceResetButton,
+  useRevealInvalidWorkspaceField,
 } from "@phoenix/components/evaluators/workspace/EvaluatorWorkspace";
 import type { EvaluatorWorkspaceLayout } from "@phoenix/components/evaluators/workspace/evaluatorWorkspaceModel";
 import { EVALUATOR_VALIDATION_MESSAGE } from "@phoenix/constants";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 
-export const EditLLMEvaluatorDialogContent = ({
-  onSubmit,
-  isSubmitting,
-  isSubmitDisabled = false,
-  submitHint,
-  mode,
-  error,
-  llmEvaluatorNodeId,
-  title,
-  workspace,
-}: {
+type EditLLMEvaluatorDialogContentProps = {
   onClose: () => void;
   onSubmit: () => Promise<EvaluatorSubmitResult>;
   isSubmitting: boolean;
@@ -39,7 +30,27 @@ export const EditLLMEvaluatorDialogContent = ({
    * {@link EvaluatorWorkspace} for `layout`.
    */
   workspace: { layout: EvaluatorWorkspaceLayout; content: ReactNode };
-}) => {
+};
+
+export const EditLLMEvaluatorDialogContent = (
+  props: EditLLMEvaluatorDialogContentProps
+) => (
+  <EvaluatorWorkspaceProvider layout={props.workspace.layout}>
+    <EditLLMEvaluatorDialogBody {...props} />
+  </EvaluatorWorkspaceProvider>
+);
+
+const EditLLMEvaluatorDialogBody = ({
+  onSubmit,
+  isSubmitting,
+  isSubmitDisabled = false,
+  submitHint,
+  mode,
+  error,
+  llmEvaluatorNodeId,
+  title,
+  workspace,
+}: EditLLMEvaluatorDialogContentProps) => {
   const store = useEvaluatorStoreInstance();
 
   useAdvertiseAgentContext(
@@ -53,10 +64,12 @@ export const EditLLMEvaluatorDialogContent = ({
   );
 
   const [showValidationError, setShowValidationError] = useState(false);
+  const revealInvalidField = useRevealInvalidWorkspaceField();
   const handleSubmit = async (): Promise<EvaluatorSubmitResult> => {
     const isValid = await store.getState().validateAll();
     if (!isValid) {
       setShowValidationError(true);
+      revealInvalidField();
       return {
         ok: false,
         error: EVALUATOR_VALIDATION_MESSAGE,
@@ -76,36 +89,34 @@ export const EditLLMEvaluatorDialogContent = ({
     handleSubmitRef,
   });
   return (
-    <EvaluatorWorkspaceProvider layout={workspace.layout}>
-      <EvaluatorFormDialogContent
-        title={
-          title ??
-          (mode === "create" ? "Create LLM Evaluator" : "Edit LLM Evaluator")
-        }
-        submitLabel={mode === "create" ? "Create" : "Update"}
-        onSubmit={handleSubmit}
-        isSubmitting={isSubmitting}
-        isSubmitDisabled={isSubmitDisabled}
-        submitHint={submitHint}
-        error={error}
-        errorTitle={
-          mode === "create"
-            ? "Failed to create evaluator"
-            : "Failed to update evaluator"
-        }
-        banner={showValidationError ? <EvaluatorValidationBanner /> : null}
-        submitButtonProps={{
-          "data-testid": "llm-evaluator-form-submit-button",
-          "data-mode": mode,
-        }}
-        renderInputVariables={(form) => (
-          <LLMEvaluatorInputVariablesProvider>
-            {form}
-          </LLMEvaluatorInputVariablesProvider>
-        )}
-        workspace={workspace.content}
-        headerExtra={<EvaluatorWorkspaceResetButton />}
-      />
-    </EvaluatorWorkspaceProvider>
+    <EvaluatorFormDialogContent
+      title={
+        title ??
+        (mode === "create" ? "Create LLM Evaluator" : "Edit LLM Evaluator")
+      }
+      submitLabel={mode === "create" ? "Create" : "Update"}
+      onSubmit={handleSubmit}
+      isSubmitting={isSubmitting}
+      isSubmitDisabled={isSubmitDisabled}
+      submitHint={submitHint}
+      error={error}
+      errorTitle={
+        mode === "create"
+          ? "Failed to create evaluator"
+          : "Failed to update evaluator"
+      }
+      banner={showValidationError ? <EvaluatorValidationBanner /> : null}
+      submitButtonProps={{
+        "data-testid": "llm-evaluator-form-submit-button",
+        "data-mode": mode,
+      }}
+      renderInputVariables={(form) => (
+        <LLMEvaluatorInputVariablesProvider>
+          {form}
+        </LLMEvaluatorInputVariablesProvider>
+      )}
+      workspace={workspace.content}
+      headerExtra={<EvaluatorWorkspaceResetButton />}
+    />
   );
 };

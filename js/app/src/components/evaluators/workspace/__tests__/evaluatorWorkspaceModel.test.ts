@@ -63,6 +63,27 @@ describe("resolveSavedWorkspaceModel", () => {
     });
   });
 
+  it("restores a panel floated above the layout", () => {
+    const saved = JSON.stringify({
+      version: 1,
+      root: { type: "tabset", id: "left", tabs: [tab("prompt")] },
+      floating: [
+        {
+          type: "tabset",
+          id: "floating",
+          x: 40,
+          y: 40,
+          width: 400,
+          height: 300,
+          tabs: [tab("test")],
+        },
+      ],
+    });
+    const model = resolveSavedWorkspaceModel({ layout, saved });
+    expect(model).not.toBe(layout.defaultModel);
+    expect(model.floating).toMatchObject([{ tabs: [{ id: "test" }] }]);
+  });
+
   it("starts from the default when a panel is missing from the saved arrangement", () => {
     const saved = JSON.stringify({
       version: 1,
