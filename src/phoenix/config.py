@@ -161,11 +161,21 @@ ENV_PHOENIX_SCARF_SH_PIXEL_ID = "PHOENIX_SCARF_SH_PIXEL_ID"
 The Scarf.sh pixel ID for web analytics tracking. When set, Scarf.sh tracking
 will be enabled in the Phoenix web interface.
 """
+ENV_PHOENIX_POSTHOG_API_KEY = "PHOENIX_POSTHOG_API_KEY"
+"""
+The PostHog project API key for anonymous product analytics. When set, the Phoenix web
+interface sends anonymous page views, keyed by route pattern, to PostHog.
+"""
+ENV_PHOENIX_POSTHOG_HOST = "PHOENIX_POSTHOG_HOST"
+"""
+The PostHog ingestion host that receives product analytics. Defaults to
+https://us.i.posthog.com.
+"""
 ENV_PHOENIX_TELEMETRY_ENABLED = "PHOENIX_TELEMETRY_ENABLED"
 """
-Master toggle for telemetry pixels (FullStory and Scarf.sh).
-When set to False, disables both FullStory and Scarf.sh tracking regardless of their
-individual environment variable settings. Defaults to True.
+Master toggle for telemetry (FullStory, Scarf.sh, and PostHog).
+When set to False, disables all of them regardless of their individual environment variable
+settings. Defaults to True.
 """
 ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES = "PHOENIX_ALLOW_EXTERNAL_RESOURCES"
 """
@@ -3803,7 +3813,7 @@ def get_env_telemetry_enabled() -> bool:
     """
     Gets whether telemetry is enabled from the PHOENIX_TELEMETRY_ENABLED environment variable.
 
-    When set to False, disables both FullStory and Scarf.sh tracking regardless of their
+    When set to False, disables FullStory, Scarf.sh, and PostHog tracking regardless of their
     individual environment variable settings.
 
     Returns False if external resources are disallowed.
@@ -3840,6 +3850,40 @@ def get_env_scarf_sh_pixel_id() -> Optional[str]:
         return None
     # Return the phoenix-app-v12 pixel
     return getenv(ENV_PHOENIX_SCARF_SH_PIXEL_ID) or "98877b05-7d80-493e-ab95-97c104785d1e"
+
+
+DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com"
+
+
+@dataclass(frozen=True)
+class PostHogConfig:
+    """Connection settings for anonymous product analytics in the web interface."""
+
+    api_key: str
+    host: str
+
+
+def get_env_posthog_config() -> Optional[PostHogConfig]:
+    """
+    Get the PostHog product analytics settings from environment variables.
+
+    Returns:
+        Optional[PostHogConfig]: The settings if an API key is set and telemetry is enabled,
+        None otherwise.
+    """
+    if not get_env_telemetry_enabled():
+        return None
+    api_key = (getenv(ENV_PHOENIX_POSTHOG_API_KEY) or "").strip()
+    if not api_key:
+        return None
+    host = (getenv(ENV_PHOENIX_POSTHOG_HOST) or "").strip().rstrip("/") or DEFAULT_POSTHOG_HOST
+    parsed_host = urlparse(host)
+    if parsed_host.scheme not in ("http", "https") or not parsed_host.netloc:
+        raise ValueError(
+            f"Invalid value for environment variable {ENV_PHOENIX_POSTHOG_HOST}: "
+            f"{host}. Value must be an http(s) URL."
+        )
+    return PostHogConfig(api_key=api_key, host=host)
 
 
 def get_env_management_url() -> Optional[str]:
@@ -3887,6 +3931,7 @@ def verify_server_environment_variables() -> None:
     validate_env_allowed_providers()
     validate_env_allowed_sandbox_providers()
     validate_env_wasm_binary_path()
+    get_env_posthog_config()
 
     # Notify users about deprecated environment variables if they are being used.
     if os.getenv("PHOENIX_ENABLE_WEBSOCKETS") is not None:

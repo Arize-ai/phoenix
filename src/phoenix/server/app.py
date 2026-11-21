@@ -63,6 +63,7 @@ from phoenix.config import (
     ENV_PHOENIX_CSRF_TRUSTED_ORIGINS,
     SERVER_DIR,
     OAuth2ClientConfig,
+    PostHogConfig,
     get_env_agents_mcp_code_mode,
     get_env_allow_external_resources,
     get_env_allowed_providers,
@@ -84,6 +85,7 @@ from phoenix.config import (
     get_env_model_cost_manifest_url,
     get_env_phoenix_agents_disable_bash,
     get_env_port,
+    get_env_posthog_config,
     get_env_support_email,
     verify_server_environment_variables,
 )
@@ -286,6 +288,8 @@ class AppConfig(NamedTuple):
     """ FullStory organization ID for web analytics tracking """
     scarf_sh_pixel_id: Optional[str] = None
     """ Scarf.sh pixel ID for open-source analytics and usage """
+    posthog: Optional[PostHogConfig] = None
+    """ PostHog settings for anonymous product analytics """
     management_url: Optional[str] = None
     """ URL for a phoenix management interface, only visible to management users """
     support_email: Optional[str] = None
@@ -369,6 +373,11 @@ class Static(StaticFiles):
                     "auto_login_idp_name": self._app_config.auto_login_idp_name,
                     "fullstory_org": self._app_config.fullstory_org,
                     "scarf_sh_pixel_id": self._app_config.scarf_sh_pixel_id,
+                    "posthog": (
+                        {"apiKey": posthog.api_key, "apiHost": posthog.host}
+                        if (posthog := self._app_config.posthog)
+                        else None
+                    ),
                     "management_url": self._app_config.management_url,
                     "support_email": self._app_config.support_email,
                     "has_db_threshold": self._app_config.has_db_threshold,
@@ -1467,6 +1476,7 @@ def create_app(
                     auto_login_idp_name=auto_login_idp_name,
                     fullstory_org=Settings.fullstory_org,
                     scarf_sh_pixel_id=Settings.scarf_sh_pixel_id,
+                    posthog=get_env_posthog_config(),
                     management_url=management_url,
                     support_email=get_env_support_email(),
                     has_db_threshold=bool(

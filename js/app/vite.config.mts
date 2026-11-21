@@ -130,6 +130,11 @@ export default defineConfig(({ mode }) => {
                 name: "vendor-streamdown",
                 test: /streamdown/,
               },
+              // Loaded only when PostHog analytics is configured.
+              {
+                name: "vendor-posthog",
+                test: /posthog-js|@posthog\//,
+              },
               // Catch-all for remaining node_modules
               {
                 name: "vendor",
