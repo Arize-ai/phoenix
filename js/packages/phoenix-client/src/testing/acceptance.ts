@@ -143,7 +143,14 @@ function meetsBar({
   threshold: number;
   direction: OptimizationDirection;
 }): boolean {
-  return direction === "minimize" ? value <= threshold : value >= threshold;
+  // Use a small tolerance to handle floating-point precision issues when the
+  // mean is exactly at the threshold. Without this, `(0.7 + 0.1) / 2` can land
+  // just below 0.4 due to rounding, causing the suite to fail even though the
+  // decimal mean equals the threshold.
+  const tolerance = 1e-9 * Math.max(1, Math.abs(threshold));
+  return direction === "minimize"
+    ? value <= threshold + tolerance
+    : value >= threshold - tolerance;
 }
 
 /**
