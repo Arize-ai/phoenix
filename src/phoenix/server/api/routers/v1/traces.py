@@ -417,12 +417,12 @@ async def delete_project_traces(
     async with request.app.state.db() as session:
         project = await get_project_by_identifier(session, project_identifier)
         project_rowid = project.id
-        deleted_trace_count = await delete_traces_and_orphan_sessions(
-            session,
-            project_rowid,
-            start_time=normalized_start_time,
-            end_time=normalized_end_time,
-        )
+    deleted_trace_count = await delete_traces_and_orphan_sessions(
+        request.app.state.db,
+        project_rowid,
+        start_time=normalized_start_time,
+        end_time=normalized_end_time,
+    )
     if deleted_trace_count:
         request.state.event_queue.put(SpanDeleteEvent((project_rowid,)))
     return None
