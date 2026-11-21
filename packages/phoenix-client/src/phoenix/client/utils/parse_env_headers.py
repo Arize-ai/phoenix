@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from re import compile, split
 from typing import Optional
-from urllib.parse import unquote
+from urllib.parse import quote, unquote
 
 logger = logging.getLogger(__name__)
 
@@ -37,16 +37,30 @@ def parse_env_headers(s: Optional[str]) -> dict[str, str]:
     for header in headers_list:
         if not header:  # empty string
             continue
-        match = _HEADER_PATTERN.fullmatch(header.strip())
-        if not match:
+        if not _HEADER_PATTERN.fullmatch(header.strip()):
+            # Accept a value that is not URL encoded, such as "Authorization=Bearer <key>",
+            # and never log the value, which is often a credential.
+            name, sep, value = header.partition("=")
+            if not sep:
+                logger.warning(
+                    "Header format invalid! Header values in environment variables must be "
+                    "URL encoded and in the form name=value."
+                )
+                continue
+            if not _HEADER_PATTERN.fullmatch(f"{quote(name)}={quote(value)}".strip()):
+                logger.warning(
+                    "Header format invalid! Header values in environment variables must be "
+                    "URL encoded and in the form name=value: %s: ****",
+                    name,
+                )
+                continue
             logger.warning(
-                "Header format invalid! Header values in environment variables must be "
-                "URL encoded: %s",
-                header,
+                "Header values in environment variables should be URL encoded, attempting to "
+                "URL encode header: %s: ****",
+                name,
             )
-            continue
         # value may contain any number of `=`
-        name, value = match.string.split("=", 1)
+        name, value = header.split("=", 1)
         name = unquote(name).strip().lower()
         value = unquote(value).strip()
         headers[name] = value
