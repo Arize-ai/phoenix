@@ -28,7 +28,7 @@ every task, three attempts each, in Daytona sandboxes:
 | Condition | Agent | Model | Skills |
 | --- | --- | --- | --- |
 | `claude-code-opus-no-skills` | Claude Code with the px CLI | Claude Opus 5.5 | None |
-| `claude-code-opus-skills` | Claude Code with the px CLI | Claude Opus 5.5 | `phoenix-cli`, `phoenix-error-analysis`, `phoenix-evals`, `phoenix-tracing` from the repository's `skills/` |
+| `claude-code-opus-skills` | Claude Code with the px CLI | Claude Opus 5.5 | `phoenix-cli`, `phoenix-error-analysis`, `phoenix-evals`, `phoenix-experiments`, `phoenix-judge-alignment`, `phoenix-tracing` from the repository's `skills/` |
 | `codex-sol-no-skills` | Codex with the px CLI | `gpt-6.2-sol` | None |
 | `codex-sol-skills` | Codex with the px CLI | `gpt-6.2-sol` | Same as above |
 
