@@ -157,7 +157,7 @@ def _to_plain(value: Any) -> Any:
     if isinstance(value, Enum):
         return value.value
     if isinstance(value, PurePath):
-        return str(value)
+        return value.as_posix()
     if isinstance(value, (datetime, date, time)):
         return value.isoformat()
     if dataclasses.is_dataclass(value) and not isinstance(value, type):

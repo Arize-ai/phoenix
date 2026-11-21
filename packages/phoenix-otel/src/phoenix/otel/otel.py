@@ -738,7 +738,9 @@ def _construct_phoenix_cloud_endpoint(parsed_endpoint: ParseResult) -> ParseResu
 
 
 def _construct_grpc_endpoint(parsed_endpoint: ParseResult) -> ParseResult:
-    return parsed_endpoint._replace(netloc=f"{parsed_endpoint.hostname}:{get_env_grpc_port()}")
+    hostname = parsed_endpoint.hostname
+    host = f"[{hostname}]" if hostname and ":" in hostname else hostname
+    return parsed_endpoint._replace(netloc=f"{host}:{get_env_grpc_port()}")
 
 
 _KNOWN_PROVIDERS = {

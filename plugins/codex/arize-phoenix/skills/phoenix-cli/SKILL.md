@@ -40,13 +40,19 @@ px session delete <session-id>
 px session-annotations delete
 px dataset list
 px dataset get <name>
+px dataset-versions list <dataset-identifier>
 px dataset delete <dataset-identifier>
+px dataset-labels list --dataset <name-or-id>
+px dataset-labels add --dataset <name-or-id> --label <label-id>
+px dataset-labels remove --dataset <name-or-id> --label <label-id>
+px dataset-labels replace --dataset <name-or-id> --label <label-id>
 px experiment list
 px experiment get <id>
 px experiment delete <experiment-id>
 px prompt list
 px prompt get <prompt-identifier>
 px prompt-versions list <prompt-identifier>
+px prompt tag <prompt-version-id> --tag <name>
 px prompt delete <prompt-identifier>
 px project list
 px project get <name>
@@ -386,18 +392,50 @@ px dataset list --format raw --no-progress | jq '.[].name'
 px dataset get <name> --format raw | jq '.examples[] | {input, output: .expected_output}'
 px dataset get <name> --split train --format raw | jq .    # filter by split
 px dataset get <name> --version <version-id> --format raw | jq .
+px dataset-versions list <name-or-id> --format raw --no-progress | jq '.[].version_id'
+px dataset-labels list --dataset <name-or-id> --format raw --no-progress | jq '.[].name'
+px dataset-labels add --dataset <name-or-id> --label <label-id>
+px dataset-labels remove --dataset <name-or-id> --label <label-id>
+px dataset-labels replace --dataset <name-or-id> --label <label-id> --label <another-label-id>
+px dataset-labels replace --dataset <name-or-id> --clear
 px experiment list --dataset <name> --format raw --no-progress | jq '.[] | {id, name, failed_run_count}'
 px experiment get <id> --format raw --no-progress | jq '.[] | select(.error != null) | {input, error}'
 px prompt list --format raw --no-progress | jq '.[].name'
 px prompt get <name> --format text --no-progress   # plain text, ideal for piping to AI
 px prompt-versions list <name-or-id> --limit 10 --format raw --no-progress | jq '.[].id'
+px prompt tag <version-id> --tag production --description "Current release" --format raw --no-progress
 ```
+
+`dataset-versions list` fetches all pages unless `--limit` is set. JSON/raw output
+is an array of full version objects (`version_id`, `description`, `metadata`,
+`created_at`). A dataset with no versions yet returns `[]`; unknown dataset names
+exit nonzero. Use the IDs with `dataset get --version`.
+
+`dataset-labels` manages assignments of existing labels (Phoenix server >= 17.16.0).
+Dataset names and GlobalIDs are accepted directly; labels use GlobalIDs.
+Find label IDs with `GET /v1/dataset_labels`, or use the configured CLI connection:
+
+```bash
+px api graphql '{ datasetLabels(first: 50) { edges { node { id name } } pageInfo { hasNextPage endCursor } } }'
+```
+
+Use `node.id` with `--label`. If `hasNextPage` is true, repeat with `after: "<endCursor>"`.
+Add/remove are idempotent. Remove preserves the global label. Replace sets all
+assignments; `--clear` explicitly removes them all and cannot be combined with `--label`.
+JSON/raw output is a label array for list/replace, a label object for add, and
+`{dataset_identifier, label_id}` for remove (the API returns no body).
+HTTP failures preserve the server's JSON or plain-text detail so agents can distinguish dataset and label errors.
 
 `prompt-versions list` fetches all pages unless `--limit` is set. JSON/raw output is
 an array of full version objects. `created_at` is absent on older servers (blank
 in pretty output); tags are not included. Use the IDs with `prompt get --version`.
 Missing prompts exit nonzero. JSON/raw errors go to stderr as
 `{ error, code, hint? }`.
+
+`prompt tag` creates the tag, or moves it if another version of the prompt has it,
+and prints `{ prompt_version_id, name, description }` (no create/move flag; the
+server returns no body). Omitting `--description` clears the tag's existing
+description. Tag names: lowercase letters, digits, `-`, `_`.
 
 ## Annotation Configs
 

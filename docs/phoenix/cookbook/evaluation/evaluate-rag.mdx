@@ -403,6 +403,9 @@ from phoenix.evals import LLM, async_evaluate_dataframe, bind_evaluator
 from phoenix.evals.metrics import RetrievalRelevanceEvaluator
 
 llm = LLM(provider="openai", model="gpt-4-turbo-preview")
+# You can also use a decision model: DecisionModel(provider="openai", model="gpt-6-luna").
+# Note: a decision model returns a label with per-label probabilities but no explanation,
+# so the explanations enabled above would not be available with it.
 relevance_evaluator = RetrievalRelevanceEvaluator(llm=llm)
 # Score each retrieved document on its own by mapping the evaluator's `context`
 # field to the dataframe's `reference` column (one document per row).
@@ -578,6 +581,8 @@ from phoenix.evals import LLM, async_evaluate_dataframe
 from phoenix.evals.metrics import CorrectnessEvaluator, FaithfulnessEvaluator
 
 llm = LLM(provider="openai", model="gpt-4-turbo-preview")
+# These evaluators also accept a decision model: DecisionModel(provider="openai", model="gpt-6-luna").
+# A decision model returns a label with per-label probabilities but no explanation.
 qa_evaluator = CorrectnessEvaluator(llm=llm)
 hallucination_evaluator = FaithfulnessEvaluator(llm=llm)
 

@@ -61,14 +61,14 @@ def test_or_semantics(condition: str, score: int) -> None:
 @pytest.mark.parametrize(
     "condition, score",
     [
-        ("parent_id is None and cumulative_token_count.total > 50000", 1),
-        ("cumulative_token_count.total > 50000 and parent_id is None", 1),
-        ("cumulative_token_count.total > 50000", 0),
-        ("parent_id is None or cumulative_token_count.total > 50000", 0),
+        ("parent_id is None and latency_ms > 30000", 1),
+        ("latency_ms > 30000 and parent_id is None", 1),
+        ("latency_ms > 30000", 0),
+        ("parent_id is None or latency_ms > 30000", 0),
     ],
 )
 def test_root_scope(condition: str, score: int) -> None:
-    assert _score("cumulative-tokens-roots", _script(condition)) == score
+    assert _score("slow-traces-roots", _script(condition)) == score
 
 
 @pytest.mark.parametrize(

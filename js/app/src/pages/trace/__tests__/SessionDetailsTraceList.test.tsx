@@ -285,7 +285,9 @@ describe("SessionTurnList", () => {
     await hoverTurn(0);
     await waitForPreview("First turn");
     expect(getTooltip()?.querySelector("section")).toBeNull();
-    expect(getTooltip()?.querySelector('[aria-label="ERROR"]')).toBeNull();
+    expect(
+      getTooltip()?.querySelector('.status-indicator[data-category="failed"]')
+    ).toBeNull();
     await waitForPreview("2 prompt → 1 completion");
     expect(onFetch).toHaveBeenCalledExactlyOnceWith("trace-node-1");
   });
@@ -311,7 +313,9 @@ describe("SessionTurnList", () => {
     await hoverTurn(1);
     await waitForPreview("Second turn");
     expect(getEvalGroupHeadings()).toEqual(["Trace", "Root span"]);
-    expect(getTooltip()?.querySelector('[aria-label="ERROR"]')).not.toBeNull();
+    expect(
+      getTooltip()?.querySelector('.status-indicator[data-category="failed"]')
+    ).not.toBeNull();
     // Label and mean score as one tinted value, with no unfavorable tally
     const value = getTooltip()?.querySelector(
       ".span-preview-annotation__value"

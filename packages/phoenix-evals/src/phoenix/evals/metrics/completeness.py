@@ -17,7 +17,7 @@ class CompletenessEvaluator(ClassificationEvaluator):
     was actually completed.
 
     Args:
-        llm (LLM): The LLM instance to use for the evaluation.
+        llm (Union[LLM, DecisionModel]): The LLM or decision model to use for the evaluation.
 
     Notes:
         - Completeness measures finished work: delivered answers, delivered
@@ -28,14 +28,15 @@ class CompletenessEvaluator(ClassificationEvaluator):
           `conversation` so action success can be verified. If tools are
           omitted, the judge falls back to the visible dialogue.
         - Returns one `Score` with `label` (complete or incomplete), `score`
-          (1.0 if complete, 0.0 if incomplete), and an `explanation` from the
-          LLM judge that lists each intention.
+          (1.0 if complete, 0.0 if incomplete), and, when an `LLM` judge is used,
+          an `explanation` that lists each intention (decision models return a label
+          and probabilities, not an explanation).
 
     Examples::
 
         from phoenix.evals.metrics.completeness import CompletenessEvaluator
-        from phoenix.evals import LLM
-        llm = LLM(provider="openai", model="gpt-4o-mini")
+        from phoenix.evals import DecisionModel
+        llm = DecisionModel(provider="openai", model="gpt-6-luna")
 
         completeness_eval = CompletenessEvaluator(llm=llm)
 
@@ -48,8 +49,8 @@ class CompletenessEvaluator(ClassificationEvaluator):
         scores = completeness_eval.evaluate(eval_input)
         print(scores)
         [Score(name='completeness', score=0.0, label='incomplete',
-            explanation='The billing-address request was never completed.',
-            metadata={'model': 'gpt-4o-mini'},
+            metadata={'model': 'gpt-6-luna', 'model_id': 'gpt-6-luna', 'confidence': 0.94,
+                'probabilities': {'incomplete': 0.96, 'complete': 0.04}},
             kind="llm", direction="maximize")]
 
     """

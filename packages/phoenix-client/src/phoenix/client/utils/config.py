@@ -17,7 +17,6 @@ from phoenix.client.constants import (
     ENV_PHOENIX_DISCOVER_CONFIG,
     ENV_PHOENIX_ENDPOINT,
     ENV_PHOENIX_HOST,
-    ENV_PHOENIX_HOST_ROOT_PATH,
     ENV_PHOENIX_PORT,
     ENV_PHOENIX_PROJECT,
     ENV_PHOENIX_PROJECT_NAME,
@@ -405,22 +404,6 @@ def get_env_port() -> int:
 
 def get_env_host() -> str:
     return _resolve_server_location_values()[0].get(ENV_PHOENIX_HOST) or HOST
-
-
-def get_env_host_root_path() -> str:
-    if (host_root_path := getenv(ENV_PHOENIX_HOST_ROOT_PATH)) is None:
-        return ""
-    if not host_root_path.startswith("/"):
-        _reject_invalid_env_value(
-            ENV_PHOENIX_HOST_ROOT_PATH, host_root_path, "Value must start with '/'"
-        )
-        return ""
-    if host_root_path.endswith("/"):
-        _reject_invalid_env_value(
-            ENV_PHOENIX_HOST_ROOT_PATH, host_root_path, "Value cannot end with '/'"
-        )
-        return ""
-    return host_root_path
 
 
 def get_env_client_headers() -> dict[str, str]:

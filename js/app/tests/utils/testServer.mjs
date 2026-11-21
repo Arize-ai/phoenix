@@ -78,6 +78,7 @@ if (
   // for the standard e2e suite; PXI specs run with PXI_E2E=true and rely on the
   // assistant being enabled.
   process.env["PHOENIX_DISABLE_AGENT_ASSISTANT"] = "True";
+  process.env["PHOENIX_ALLOW_EXTERNAL_RESOURCES"] = "False";
 }
 
 console.log("Phoenix test server starting...");
