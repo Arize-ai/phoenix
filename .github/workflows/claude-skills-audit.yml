@@ -129,12 +129,12 @@ jobs:
       - name: Check for changes
         id: changes
         run: |
-          if ! git diff --quiet -- skills src/phoenix/server/mcp/skills src/phoenix/server/agents/prompts/public_skills; then
+          if ! git diff --quiet -- skills src/phoenix/server/mcp/skills src/phoenix/server/agents/prompts/public_skills plugins .cursor-plugin; then
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
-            git diff --stat -- skills src/phoenix/server/mcp/skills src/phoenix/server/agents/prompts/public_skills
-          elif [[ -n "$(git ls-files --others --exclude-standard skills src/phoenix/server/mcp/skills src/phoenix/server/agents/prompts/public_skills)" ]]; then
+            git diff --stat -- skills src/phoenix/server/mcp/skills src/phoenix/server/agents/prompts/public_skills plugins .cursor-plugin
+          elif [[ -n "$(git ls-files --others --exclude-standard skills src/phoenix/server/mcp/skills src/phoenix/server/agents/prompts/public_skills plugins .cursor-plugin)" ]]; then
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
-            git ls-files --others --exclude-standard skills src/phoenix/server/mcp/skills src/phoenix/server/agents/prompts/public_skills
+            git ls-files --others --exclude-standard skills src/phoenix/server/mcp/skills src/phoenix/server/agents/prompts/public_skills plugins .cursor-plugin
           else
             echo "has_changes=false" >> "$GITHUB_OUTPUT"
             echo "No skill changes — exiting cleanly."
@@ -155,7 +155,7 @@ jobs:
           # take precedence over gh's credential helper, so reset the remote to
           # a clean URL to push with the PAT configured above.
           git remote set-url origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
-          git add skills src/phoenix/server/mcp/skills src/phoenix/server/agents/prompts/public_skills
+          git add skills src/phoenix/server/mcp/skills src/phoenix/server/agents/prompts/public_skills plugins .cursor-plugin
           git commit -m "docs(skills): weekly audit — $AUDIT_DATE"
           git push origin "$AUDIT_BRANCH"
 

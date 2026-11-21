@@ -1,8 +1,1719 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-06T13:07:36Z",
-  "models_sha256": "a434f22dc2efa1dd612951d51f6ee7967eb2424cdef3102c6b5903c83d5032bd",
+  "generated_at": "2026-11-20T03:22:33Z",
+  "models_sha256": "abe4f625f7d988309c75c8980994c17d88594d14e849ca931ea544f6bb256027",
   "models": [
+    {
+      "name": "anthropic.claude-3-5-haiku-20241022-v1:0",
+      "name_pattern": "anthropic\\.claude-3-5-haiku-20241022-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 8e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "anthropic.claude-3-5-sonnet-20240620-v1:0",
+      "name_pattern": "anthropic\\.claude-3-5-sonnet-20240620-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000015,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 3.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "anthropic.claude-3-5-sonnet-20241022-v2:0",
+      "name_pattern": "anthropic\\.claude-3-5-sonnet-20241022-v2:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000015,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 3.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "anthropic.claude-3-7-sonnet-20240620-v1:0",
+      "name_pattern": "anthropic\\.claude-3-7-sonnet-20240620-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3.6e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000018,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3.6e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 4.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "anthropic.claude-3-7-sonnet-20250219-v1:0",
+      "name_pattern": "anthropic\\.claude-3-7-sonnet-20250219-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000015,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 3.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "anthropic.claude-3-opus-20240229-v1:0",
+      "name_pattern": "anthropic\\.claude-3-opus-20240229-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.000015,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000075,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001875,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "anthropic.claude-fable-5",
+      "name_pattern": "anthropic\\.claude-fable-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.00001,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00005,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.0000125,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "anthropic.claude-fable-5-1",
+      "name_pattern": "anthropic\\.claude-fable-5-1",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.00001,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00005,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.0000125,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "anthropic.claude-fable-5-2",
+      "name_pattern": "anthropic\\.claude-fable-5-2",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00004,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "anthropic.claude-haiku-4-5-20251001-v1:0",
+      "name_pattern": "anthropic\\.claude-haiku-4-5-20251001-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 5e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 1.25e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "anthropic.claude-haiku-4-5@20251001",
+      "name_pattern": "anthropic\\.claude-haiku-4-5@20251001",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 5e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 1.25e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "anthropic.claude-haiku-5-5",
+      "name_pattern": "anthropic\\.claude-haiku-5-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 5e-7
+          }
+        },
+        {
+          "base_rate": 5e-7,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 2.5e-6
+          }
+        },
+        {
+          "base_rate": 1e-8,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 5e-8
+          }
+        },
+        {
+          "base_rate": 1.25e-7,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 6.25e-7
+          }
+        }
+      ]
+    },
+    {
+      "name": "anthropic.claude-mythos-5-1",
+      "name_pattern": "anthropic\\.claude-mythos-5-1",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.00001,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00005,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.0000125,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "anthropic.claude-mythos-5-2",
+      "name_pattern": "anthropic\\.claude-mythos-5-2",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00004,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "anthropic.claude-mythos-preview",
+      "name_pattern": "anthropic\\.claude-mythos-preview",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.0000275,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0001375,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.000034375,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "anthropic.claude-opus-4-1-20250805-v1:0",
+      "name_pattern": "anthropic\\.claude-opus-4-1-20250805-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.000015,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000075,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001875,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "anthropic.claude-opus-4-20250514-v1:0",
+      "name_pattern": "anthropic\\.claude-opus-4-20250514-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.000015,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000075,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001875,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "anthropic.claude-opus-4-5-20251101-v1:0",
+      "name_pattern": "anthropic\\.claude-opus-4-5-20251101-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000025,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.25e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "anthropic.claude-opus-4-6-v1",
+      "name_pattern": "anthropic\\.claude-opus-4-6-v1",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000025,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.25e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "anthropic.claude-opus-4-7",
+      "name_pattern": "anthropic\\.claude-opus-4-7",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000025,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.25e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "anthropic.claude-opus-4-8",
+      "name_pattern": "anthropic\\.claude-opus-4-8",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000025,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.25e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "anthropic.claude-opus-5",
+      "name_pattern": "anthropic\\.claude-opus-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000025,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.25e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "anthropic.claude-opus-5-5",
+      "name_pattern": "anthropic\\.claude-opus-5-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 4e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00002,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 5e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "anthropic.claude-sonnet-4-20250514-v1:0",
+      "name_pattern": "anthropic\\.claude-sonnet-4-20250514-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 6e-6
+          }
+        },
+        {
+          "base_rate": 0.000015,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 0.0000225
+          }
+        },
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 6e-7
+          }
+        },
+        {
+          "base_rate": 3.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 7.5e-6
+          }
+        }
+      ]
+    },
+    {
+      "name": "anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "name_pattern": "anthropic\\.claude-sonnet-4-5-20250929-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 6e-6
+          }
+        },
+        {
+          "base_rate": 0.000015,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 0.0000225
+          }
+        },
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 6e-7
+          }
+        },
+        {
+          "base_rate": 3.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 7.5e-6
+          }
+        }
+      ]
+    },
+    {
+      "name": "anthropic.claude-sonnet-4-6",
+      "name_pattern": "anthropic\\.claude-sonnet-4-6",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000015,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 3.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "anthropic.claude-sonnet-5",
+      "name_pattern": "anthropic\\.claude-sonnet-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 2.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "anthropic.claude-sonnet-5-5",
+      "name_pattern": "anthropic\\.claude-sonnet-5-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 2.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "anthropic.claude-v1",
+      "name_pattern": "anthropic\\.claude-v1",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000024,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "anthropic.claude-v2:1",
+      "name_pattern": "anthropic\\.claude-v2:1",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000024,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "apac.anthropic.claude-fable-5",
+      "name_pattern": "apac\\.anthropic\\.claude-fable-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.000011,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000055,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.1e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001375,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "apac.anthropic.claude-haiku-4-5-20251001-v1:0",
+      "name_pattern": "apac\\.anthropic\\.claude-haiku-4-5-20251001-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.1e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 1.375e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "apac.anthropic.claude-haiku-5-5",
+      "name_pattern": "apac\\.anthropic\\.claude-haiku-5-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.1e-7,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 5.5e-7
+          }
+        },
+        {
+          "base_rate": 5.5e-7,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 2.75e-6
+          }
+        },
+        {
+          "base_rate": 1.1e-8,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 5.5e-8
+          }
+        },
+        {
+          "base_rate": 1.375e-7,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 6.875e-7
+          }
+        }
+      ]
+    },
+    {
+      "name": "apac.anthropic.claude-mythos-preview",
+      "name_pattern": "apac\\.anthropic\\.claude-mythos-preview",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.0000275,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0001375,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.000034375,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "apac.anthropic.claude-opus-4-7",
+      "name_pattern": "apac\\.anthropic\\.claude-opus-4-7",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0000275,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5.5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.875e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "apac.anthropic.claude-opus-4-8",
+      "name_pattern": "apac\\.anthropic\\.claude-opus-4-8",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0000275,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5.5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.875e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "apac.anthropic.claude-opus-5",
+      "name_pattern": "apac\\.anthropic\\.claude-opus-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0000275,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5.5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.875e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "apac.anthropic.claude-opus-5-5",
+      "name_pattern": "apac\\.anthropic\\.claude-opus-5-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 4.4e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000022,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "apac.anthropic.claude-sonnet-4-20250514-v1:0",
+      "name_pattern": "apac\\.anthropic\\.claude-sonnet-4-20250514-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 6e-6
+          }
+        },
+        {
+          "base_rate": 0.000015,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 0.0000225
+          }
+        },
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 6e-7
+          }
+        },
+        {
+          "base_rate": 3.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 7.5e-6
+          }
+        }
+      ]
+    },
+    {
+      "name": "apac.anthropic.claude-sonnet-4-6",
+      "name_pattern": "apac\\.anthropic\\.claude-sonnet-4-6",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3.3e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0000165,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3.3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 4.125e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "apac.anthropic.claude-sonnet-5",
+      "name_pattern": "apac\\.anthropic\\.claude-sonnet-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2.2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000011,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 2.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "apac.anthropic.claude-sonnet-5-5",
+      "name_pattern": "apac\\.anthropic\\.claude-sonnet-5-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2.2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000011,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 2.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "au.anthropic.claude-fable-5",
+      "name_pattern": "au\\.anthropic\\.claude-fable-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.000011,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000055,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.1e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001375,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "au.anthropic.claude-haiku-4-5-20251001-v1:0",
+      "name_pattern": "au\\.anthropic\\.claude-haiku-4-5-20251001-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.1e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 1.375e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "au.anthropic.claude-haiku-5-5",
+      "name_pattern": "au\\.anthropic\\.claude-haiku-5-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.1e-7,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 5.5e-7
+          }
+        },
+        {
+          "base_rate": 5.5e-7,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 2.75e-6
+          }
+        },
+        {
+          "base_rate": 1.1e-8,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 5.5e-8
+          }
+        },
+        {
+          "base_rate": 1.375e-7,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 6.875e-7
+          }
+        }
+      ]
+    },
+    {
+      "name": "au.anthropic.claude-mythos-preview",
+      "name_pattern": "au\\.anthropic\\.claude-mythos-preview",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.0000275,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0001375,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.000034375,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "au.anthropic.claude-opus-4-6-v1",
+      "name_pattern": "au\\.anthropic\\.claude-opus-4-6-v1",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0000275,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5.5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.875e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "au.anthropic.claude-opus-4-7",
+      "name_pattern": "au\\.anthropic\\.claude-opus-4-7",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0000275,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5.5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.875e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "au.anthropic.claude-opus-4-8",
+      "name_pattern": "au\\.anthropic\\.claude-opus-4-8",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0000275,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5.5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.875e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "au.anthropic.claude-opus-5",
+      "name_pattern": "au\\.anthropic\\.claude-opus-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0000275,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5.5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.875e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "au.anthropic.claude-opus-5-5",
+      "name_pattern": "au\\.anthropic\\.claude-opus-5-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 4.4e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000022,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "au.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "name_pattern": "au\\.anthropic\\.claude-sonnet-4-5-20250929-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3.3e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 6.6e-6
+          }
+        },
+        {
+          "base_rate": 0.0000165,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 0.00002475
+          }
+        },
+        {
+          "base_rate": 3.3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 6.6e-7
+          }
+        },
+        {
+          "base_rate": 4.125e-6,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 8.25e-6
+          }
+        }
+      ]
+    },
+    {
+      "name": "au.anthropic.claude-sonnet-4-6",
+      "name_pattern": "au\\.anthropic\\.claude-sonnet-4-6",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3.3e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0000165,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3.3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 4.125e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "au.anthropic.claude-sonnet-5",
+      "name_pattern": "au\\.anthropic\\.claude-sonnet-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2.2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000011,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 2.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "au.anthropic.claude-sonnet-5-5",
+      "name_pattern": "au\\.anthropic\\.claude-sonnet-5-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2.2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000011,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 2.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "ca.anthropic.claude-haiku-5-5",
+      "name_pattern": "ca\\.anthropic\\.claude-haiku-5-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.1e-7,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 5.5e-7
+          }
+        },
+        {
+          "base_rate": 5.5e-7,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 2.75e-6
+          }
+        },
+        {
+          "base_rate": 1.1e-8,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 5.5e-8
+          }
+        },
+        {
+          "base_rate": 1.375e-7,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 6.875e-7
+          }
+        }
+      ]
+    },
+    {
+      "name": "ca.anthropic.claude-sonnet-5-5",
+      "name_pattern": "ca\\.anthropic\\.claude-sonnet-5-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2.2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000011,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 2.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
     {
       "name": "chatgpt-image-latest",
       "name_pattern": "chatgpt-image-latest",
@@ -84,6 +1795,33 @@
         },
         {
           "base_rate": 0.0000125,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "claude-fable-5-2",
+      "name_pattern": "claude-fable-5-2",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00004,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001,
           "is_prompt": true,
           "token_type": "cache_write"
         }
@@ -243,6 +1981,33 @@
         },
         {
           "base_rate": 0.0000125,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "claude-mythos-5-2",
+      "name_pattern": "claude-mythos-5-2",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00004,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001,
           "is_prompt": true,
           "token_type": "cache_write"
         }
@@ -699,6 +2464,726 @@
         },
         {
           "base_rate": 2.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "eu.anthropic.claude-3-5-haiku-20241022-v1:0",
+      "name_pattern": "eu\\.anthropic\\.claude-3-5-haiku-20241022-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 8e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "eu.anthropic.claude-3-5-sonnet-20240620-v1:0",
+      "name_pattern": "eu\\.anthropic\\.claude-3-5-sonnet-20240620-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000015,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 3.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "eu.anthropic.claude-3-5-sonnet-20241022-v2:0",
+      "name_pattern": "eu\\.anthropic\\.claude-3-5-sonnet-20241022-v2:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000015,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 3.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "eu.anthropic.claude-3-7-sonnet-20250219-v1:0",
+      "name_pattern": "eu\\.anthropic\\.claude-3-7-sonnet-20250219-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000015,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 3.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "eu.anthropic.claude-3-opus-20240229-v1:0",
+      "name_pattern": "eu\\.anthropic\\.claude-3-opus-20240229-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.000015,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000075,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001875,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "eu.anthropic.claude-fable-5",
+      "name_pattern": "eu\\.anthropic\\.claude-fable-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.000011,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000055,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.1e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001375,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "eu.anthropic.claude-fable-5-1",
+      "name_pattern": "eu\\.anthropic\\.claude-fable-5-1",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.000011,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000055,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.75e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001375,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "eu.anthropic.claude-fable-5-2",
+      "name_pattern": "eu\\.anthropic\\.claude-fable-5-2",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8.8e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000044,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.000011,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "eu.anthropic.claude-haiku-4-5-20251001-v1:0",
+      "name_pattern": "eu\\.anthropic\\.claude-haiku-4-5-20251001-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.1e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 1.375e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "eu.anthropic.claude-haiku-5-5",
+      "name_pattern": "eu\\.anthropic\\.claude-haiku-5-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.1e-7,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 5.5e-7
+          }
+        },
+        {
+          "base_rate": 5.5e-7,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 2.75e-6
+          }
+        },
+        {
+          "base_rate": 1.1e-8,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 5.5e-8
+          }
+        },
+        {
+          "base_rate": 1.375e-7,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 6.875e-7
+          }
+        }
+      ]
+    },
+    {
+      "name": "eu.anthropic.claude-mythos-5-2",
+      "name_pattern": "eu\\.anthropic\\.claude-mythos-5-2",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8.8e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000044,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.000011,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "eu.anthropic.claude-opus-4-1-20250805-v1:0",
+      "name_pattern": "eu\\.anthropic\\.claude-opus-4-1-20250805-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.000015,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000075,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001875,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "eu.anthropic.claude-opus-4-20250514-v1:0",
+      "name_pattern": "eu\\.anthropic\\.claude-opus-4-20250514-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.000015,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000075,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001875,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "eu.anthropic.claude-opus-4-5-20251101-v1:0",
+      "name_pattern": "eu\\.anthropic\\.claude-opus-4-5-20251101-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0000275,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5.5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.875e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "eu.anthropic.claude-opus-4-6-v1",
+      "name_pattern": "eu\\.anthropic\\.claude-opus-4-6-v1",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0000275,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5.5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.875e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "eu.anthropic.claude-opus-4-7",
+      "name_pattern": "eu\\.anthropic\\.claude-opus-4-7",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0000275,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5.5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.875e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "eu.anthropic.claude-opus-4-8",
+      "name_pattern": "eu\\.anthropic\\.claude-opus-4-8",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0000275,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5.5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.875e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "eu.anthropic.claude-opus-5",
+      "name_pattern": "eu\\.anthropic\\.claude-opus-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0000275,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5.5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.875e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "eu.anthropic.claude-opus-5-5",
+      "name_pattern": "eu\\.anthropic\\.claude-opus-5-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 4.4e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000022,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "eu.anthropic.claude-sonnet-4-20250514-v1:0",
+      "name_pattern": "eu\\.anthropic\\.claude-sonnet-4-20250514-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 6e-6
+          }
+        },
+        {
+          "base_rate": 0.000015,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 0.0000225
+          }
+        },
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 6e-7
+          }
+        },
+        {
+          "base_rate": 3.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 7.5e-6
+          }
+        }
+      ]
+    },
+    {
+      "name": "eu.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "name_pattern": "eu\\.anthropic\\.claude-sonnet-4-5-20250929-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3.3e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 6.6e-6
+          }
+        },
+        {
+          "base_rate": 0.0000165,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 0.00002475
+          }
+        },
+        {
+          "base_rate": 3.3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 6.6e-7
+          }
+        },
+        {
+          "base_rate": 4.125e-6,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 8.25e-6
+          }
+        }
+      ]
+    },
+    {
+      "name": "eu.anthropic.claude-sonnet-4-6",
+      "name_pattern": "eu\\.anthropic\\.claude-sonnet-4-6",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3.3e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0000165,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3.3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 4.125e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "eu.anthropic.claude-sonnet-5",
+      "name_pattern": "eu\\.anthropic\\.claude-sonnet-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2.2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000011,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 2.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "eu.anthropic.claude-sonnet-5-5",
+      "name_pattern": "eu\\.anthropic\\.claude-sonnet-5-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2.2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000011,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 2.75e-6,
           "is_prompt": true,
           "token_type": "cache_write"
         }
@@ -1679,33 +4164,6 @@
       ]
     },
     {
-      "name": "gemini-4-argon",
-      "name_pattern": "gemini-4-argon",
-      "source": "manual",
-      "token_prices": [
-        {
-          "base_rate": 2e-6,
-          "is_prompt": true,
-          "token_type": "input"
-        },
-        {
-          "base_rate": 0.00001,
-          "is_prompt": false,
-          "token_type": "output"
-        },
-        {
-          "base_rate": 1e-7,
-          "is_prompt": true,
-          "token_type": "cache_read"
-        },
-        {
-          "base_rate": 0.00001,
-          "is_prompt": false,
-          "token_type": "reasoning"
-        }
-      ]
-    },
-    {
       "name": "gemini-exp-1206",
       "name_pattern": "gemini-exp-1206",
       "source": "litellm",
@@ -1974,6 +4432,564 @@
       ]
     },
     {
+      "name": "global.anthropic.claude-fable-5",
+      "name_pattern": "global\\.anthropic\\.claude-fable-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.00001,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00005,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.0000125,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "global.anthropic.claude-fable-5-1",
+      "name_pattern": "global\\.anthropic\\.claude-fable-5-1",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.00001,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00005,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.0000125,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "global.anthropic.claude-fable-5-2",
+      "name_pattern": "global\\.anthropic\\.claude-fable-5-2",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00004,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
+      "name_pattern": "global\\.anthropic\\.claude-haiku-4-5-20251001-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 5e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 1.25e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "global.anthropic.claude-haiku-5-5",
+      "name_pattern": "global\\.anthropic\\.claude-haiku-5-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 5e-7
+          }
+        },
+        {
+          "base_rate": 5e-7,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 2.5e-6
+          }
+        },
+        {
+          "base_rate": 1e-8,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 5e-8
+          }
+        },
+        {
+          "base_rate": 1.25e-7,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 6.25e-7
+          }
+        }
+      ]
+    },
+    {
+      "name": "global.anthropic.claude-mythos-5-1",
+      "name_pattern": "global\\.anthropic\\.claude-mythos-5-1",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.00001,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00005,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.0000125,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "global.anthropic.claude-mythos-5-2",
+      "name_pattern": "global\\.anthropic\\.claude-mythos-5-2",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00004,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "global.anthropic.claude-opus-4-5-20251101-v1:0",
+      "name_pattern": "global\\.anthropic\\.claude-opus-4-5-20251101-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000025,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.25e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "global.anthropic.claude-opus-4-6-v1",
+      "name_pattern": "global\\.anthropic\\.claude-opus-4-6-v1",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000025,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.25e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "global.anthropic.claude-opus-4-7",
+      "name_pattern": "global\\.anthropic\\.claude-opus-4-7",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000025,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.25e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "global.anthropic.claude-opus-4-8",
+      "name_pattern": "global\\.anthropic\\.claude-opus-4-8",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000025,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.25e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "global.anthropic.claude-opus-5",
+      "name_pattern": "global\\.anthropic\\.claude-opus-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000025,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.25e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "global.anthropic.claude-opus-5-5",
+      "name_pattern": "global\\.anthropic\\.claude-opus-5-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 4e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00002,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 5e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "global.anthropic.claude-sonnet-4-20250514-v1:0",
+      "name_pattern": "global\\.anthropic\\.claude-sonnet-4-20250514-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 6e-6
+          }
+        },
+        {
+          "base_rate": 0.000015,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 0.0000225
+          }
+        },
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 6e-7
+          }
+        },
+        {
+          "base_rate": 3.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 7.5e-6
+          }
+        }
+      ]
+    },
+    {
+      "name": "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "name_pattern": "global\\.anthropic\\.claude-sonnet-4-5-20250929-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 6e-6
+          }
+        },
+        {
+          "base_rate": 0.000015,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 0.0000225
+          }
+        },
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 6e-7
+          }
+        },
+        {
+          "base_rate": 3.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 7.5e-6
+          }
+        }
+      ]
+    },
+    {
+      "name": "global.anthropic.claude-sonnet-4-6",
+      "name_pattern": "global\\.anthropic\\.claude-sonnet-4-6",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000015,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 3.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "global.anthropic.claude-sonnet-5",
+      "name_pattern": "global\\.anthropic\\.claude-sonnet-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 2.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "global.anthropic.claude-sonnet-5-5",
+      "name_pattern": "global\\.anthropic\\.claude-sonnet-5-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 2.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
       "name": "global.openai.gpt-5.4",
       "name_pattern": "global\\.openai\\.gpt-5\\.4",
       "source": "litellm",
@@ -2050,6 +5066,33 @@
             "threshold": 272000.0,
             "new_rate": 1e-6
           }
+        }
+      ]
+    },
+    {
+      "name": "global.openai.gpt-5.6-cyber",
+      "name_pattern": "global\\.openai\\.gpt-5\\.6-cyber",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.0000125,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000075,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.25e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.000015625,
+          "is_prompt": true,
+          "token_type": "cache_write"
         }
       ]
     },
@@ -2457,6 +5500,159 @@
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
             "new_rate": 2.5e-6
+          }
+        }
+      ]
+    },
+    {
+      "name": "global.openai.gpt-6.2-astra",
+      "name_pattern": "global\\.openai\\.gpt-6\\.2-astra",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000016
+          }
+        },
+        {
+          "base_rate": 0.00004,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00006
+          }
+        },
+        {
+          "base_rate": 4e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 8e-7
+          }
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00002
+          }
+        }
+      ]
+    },
+    {
+      "name": "global.openai.gpt-6.2-sol",
+      "name_pattern": "global\\.openai\\.gpt-6\\.2-sol",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 4e-6
+          }
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000015
+          }
+        },
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 2e-7
+          }
+        },
+        {
+          "base_rate": 2.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 5e-6
+          }
+        }
+      ]
+    },
+    {
+      "name": "global.openai.gpt-daybreak-blue-5.6-sol",
+      "name_pattern": "global\\.openai\\.gpt-daybreak-blue-5\\.6-sol",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 4e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 8e-6
+          }
+        },
+        {
+          "base_rate": 0.00002,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00003
+          }
+        },
+        {
+          "base_rate": 4e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 8e-7
+          }
+        },
+        {
+          "base_rate": 5e-6,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00001
           }
         }
       ]
@@ -3080,7 +6276,7 @@
           "token_type": "output"
         },
         {
-          "base_rate": 1.25e-6,
+          "base_rate": 3e-6,
           "is_prompt": true,
           "token_type": "audio"
         }
@@ -3102,7 +6298,7 @@
           "token_type": "output"
         },
         {
-          "base_rate": 1.25e-6,
+          "base_rate": 3e-6,
           "is_prompt": true,
           "token_type": "audio"
         }
@@ -3124,7 +6320,7 @@
           "token_type": "output"
         },
         {
-          "base_rate": 1.25e-6,
+          "base_rate": 3e-6,
           "is_prompt": true,
           "token_type": "audio"
         }
@@ -3256,7 +6452,7 @@
           "token_type": "output"
         },
         {
-          "base_rate": 2.5e-6,
+          "base_rate": 6e-6,
           "is_prompt": true,
           "token_type": "audio"
         }
@@ -3278,7 +6474,7 @@
           "token_type": "output"
         },
         {
-          "base_rate": 2.5e-6,
+          "base_rate": 6e-6,
           "is_prompt": true,
           "token_type": "audio"
         }
@@ -4580,17 +7776,35 @@
         {
           "base_rate": 0.00001,
           "is_prompt": true,
-          "token_type": "input"
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00002
+          }
         },
         {
           "base_rate": 0.00005,
           "is_prompt": false,
-          "token_type": "output"
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000075
+          }
         },
         {
           "base_rate": 1e-6,
           "is_prompt": true,
-          "token_type": "cache_read"
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 2e-6
+          }
         }
       ]
     },
@@ -4602,17 +7816,35 @@
         {
           "base_rate": 0.00002,
           "is_prompt": true,
-          "token_type": "input"
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00004
+          }
         },
         {
           "base_rate": 0.0001,
           "is_prompt": false,
-          "token_type": "output"
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00015
+          }
         },
         {
           "base_rate": 2e-6,
           "is_prompt": true,
-          "token_type": "cache_read"
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 4e-6
+          }
         },
         {
           "base_rate": 0.000025,
@@ -4678,7 +7910,7 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.000015,
+          "base_rate": 0.00001,
           "is_prompt": true,
           "token_type": "input",
           "customization": {
@@ -4689,7 +7921,7 @@
           }
         },
         {
-          "base_rate": 0.000075,
+          "base_rate": 0.00005,
           "is_prompt": false,
           "token_type": "output",
           "customization": {
@@ -4700,7 +7932,7 @@
           }
         },
         {
-          "base_rate": 1.5e-6,
+          "base_rate": 1e-6,
           "is_prompt": true,
           "token_type": "cache_read",
           "customization": {
@@ -4872,6 +8104,159 @@
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
             "new_rate": 2.5e-6
+          }
+        }
+      ]
+    },
+    {
+      "name": "gpt-6.2-astra",
+      "name_pattern": "gpt-6\\.2-astra",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000016
+          }
+        },
+        {
+          "base_rate": 0.00004,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00006
+          }
+        },
+        {
+          "base_rate": 4e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 8e-7
+          }
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00002
+          }
+        }
+      ]
+    },
+    {
+      "name": "gpt-6.2-astra-law",
+      "name_pattern": "gpt-6\\.2-astra-law",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000016
+          }
+        },
+        {
+          "base_rate": 0.00004,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00006
+          }
+        },
+        {
+          "base_rate": 4e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 8e-7
+          }
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00002
+          }
+        }
+      ]
+    },
+    {
+      "name": "gpt-6.2-sol",
+      "name_pattern": "gpt-6\\.2-sol",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 4e-6
+          }
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000015
+          }
+        },
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 2e-7
+          }
+        },
+        {
+          "base_rate": 2.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 5e-6
           }
         }
       ]
@@ -5865,6 +9250,480 @@
       ]
     },
     {
+      "name": "in.anthropic.claude-opus-5",
+      "name_pattern": "in\\.anthropic\\.claude-opus-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0000275,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5.5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.875e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "in.anthropic.claude-sonnet-5",
+      "name_pattern": "in\\.anthropic\\.claude-sonnet-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2.2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000011,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 2.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "in.openai.gpt-5.6-luna",
+      "name_pattern": "in\\.openai\\.gpt-5\\.6-luna",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2.2e-7,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 4.4e-7
+          }
+        },
+        {
+          "base_rate": 1.32e-6,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 1.98e-6
+          }
+        },
+        {
+          "base_rate": 2.2e-8,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 4.4e-8
+          }
+        },
+        {
+          "base_rate": 2.75e-7,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 5.5e-7
+          }
+        }
+      ]
+    },
+    {
+      "name": "in.openai.gpt-5.6-terra",
+      "name_pattern": "in\\.openai\\.gpt-5\\.6-terra",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2.2e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 4.4e-6
+          }
+        },
+        {
+          "base_rate": 0.0000132,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.0000198
+          }
+        },
+        {
+          "base_rate": 2.2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 4.4e-7
+          }
+        },
+        {
+          "base_rate": 2.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 5.5e-6
+          }
+        }
+      ]
+    },
+    {
+      "name": "jp.anthropic.claude-haiku-4-5-20251001-v1:0",
+      "name_pattern": "jp\\.anthropic\\.claude-haiku-4-5-20251001-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.1e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 1.375e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "jp.anthropic.claude-haiku-5-5",
+      "name_pattern": "jp\\.anthropic\\.claude-haiku-5-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.1e-7,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 5.5e-7
+          }
+        },
+        {
+          "base_rate": 5.5e-7,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 2.75e-6
+          }
+        },
+        {
+          "base_rate": 1.1e-8,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 5.5e-8
+          }
+        },
+        {
+          "base_rate": 1.375e-7,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 6.875e-7
+          }
+        }
+      ]
+    },
+    {
+      "name": "jp.anthropic.claude-opus-4-7",
+      "name_pattern": "jp\\.anthropic\\.claude-opus-4-7",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0000275,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5.5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.875e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "jp.anthropic.claude-opus-4-8",
+      "name_pattern": "jp\\.anthropic\\.claude-opus-4-8",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0000275,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5.5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.875e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "jp.anthropic.claude-opus-5",
+      "name_pattern": "jp\\.anthropic\\.claude-opus-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0000275,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5.5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.875e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "jp.anthropic.claude-opus-5-5",
+      "name_pattern": "jp\\.anthropic\\.claude-opus-5-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 4.4e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000022,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "jp.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "name_pattern": "jp\\.anthropic\\.claude-sonnet-4-5-20250929-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3.3e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 6.6e-6
+          }
+        },
+        {
+          "base_rate": 0.0000165,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 0.00002475
+          }
+        },
+        {
+          "base_rate": 3.3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 6.6e-7
+          }
+        },
+        {
+          "base_rate": 4.125e-6,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 8.25e-6
+          }
+        }
+      ]
+    },
+    {
+      "name": "jp.anthropic.claude-sonnet-4-6",
+      "name_pattern": "jp\\.anthropic\\.claude-sonnet-4-6",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3.3e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0000165,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3.3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 4.125e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "jp.anthropic.claude-sonnet-5",
+      "name_pattern": "jp\\.anthropic\\.claude-sonnet-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2.2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000011,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 2.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "jp.anthropic.claude-sonnet-5-5",
+      "name_pattern": "jp\\.anthropic\\.claude-sonnet-5-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2.2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000011,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 2.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
       "name": "o1",
       "name_pattern": "o1",
       "source": "litellm",
@@ -6299,6 +10158,108 @@
       ]
     },
     {
+      "name": "openai.gpt-6.2-astra",
+      "name_pattern": "openai\\.gpt-6\\.2-astra",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000016
+          }
+        },
+        {
+          "base_rate": 0.00004,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00006
+          }
+        },
+        {
+          "base_rate": 4e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 8e-7
+          }
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00002
+          }
+        }
+      ]
+    },
+    {
+      "name": "openai.gpt-6.2-sol",
+      "name_pattern": "openai\\.gpt-6\\.2-sol",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 4e-6
+          }
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000015
+          }
+        },
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 2e-7
+          }
+        },
+        {
+          "base_rate": 2.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 5e-6
+          }
+        }
+      ]
+    },
+    {
       "name": "openai.gpt-oss-120b-1:0",
       "name_pattern": "openai\\.gpt-oss-120b-1:0",
       "source": "litellm",
@@ -6367,6 +10328,448 @@
       ]
     },
     {
+      "name": "us-gov.anthropic.claude-fable-5-1",
+      "name_pattern": "us-gov\\.anthropic\\.claude-fable-5-1",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.000012,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00006,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.000015,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us-gov.anthropic.claude-fable-5-2",
+      "name_pattern": "us-gov\\.anthropic\\.claude-fable-5-2",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 9.6e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000048,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.4e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.000012,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us-gov.anthropic.claude-haiku-5-5",
+      "name_pattern": "us-gov\\.anthropic\\.claude-haiku-5-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.2e-7,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 6e-7
+          }
+        },
+        {
+          "base_rate": 6e-7,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 3e-6
+          }
+        },
+        {
+          "base_rate": 1.2e-8,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 6e-8
+          }
+        },
+        {
+          "base_rate": 1.5e-7,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 7.5e-7
+          }
+        }
+      ]
+    },
+    {
+      "name": "us-gov.anthropic.claude-mythos-5-2",
+      "name_pattern": "us-gov\\.anthropic\\.claude-mythos-5-2",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 9.6e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000048,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.4e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.000012,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us-gov.anthropic.claude-opus-4-8",
+      "name_pattern": "us-gov\\.anthropic\\.claude-opus-4-8",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 6e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00003,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 6e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 7.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us-gov.anthropic.claude-opus-5",
+      "name_pattern": "us-gov\\.anthropic\\.claude-opus-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 6e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00003,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 6e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 7.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us-gov.anthropic.claude-opus-5-5",
+      "name_pattern": "us-gov\\.anthropic\\.claude-opus-5-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 4.8e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000024,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.4e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us-gov.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "name_pattern": "us-gov\\.anthropic\\.claude-sonnet-4-5-20250929-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3.6e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 7.2e-6
+          }
+        },
+        {
+          "base_rate": 0.000018,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 0.000027
+          }
+        },
+        {
+          "base_rate": 3.6e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 7.2e-7
+          }
+        },
+        {
+          "base_rate": 4.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 9e-6
+          }
+        }
+      ]
+    },
+    {
+      "name": "us-gov.anthropic.claude-sonnet-5",
+      "name_pattern": "us-gov\\.anthropic\\.claude-sonnet-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2.4e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000012,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.4e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us-gov.anthropic.claude-sonnet-5-5",
+      "name_pattern": "us-gov\\.anthropic\\.claude-sonnet-5-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2.4e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000012,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us-gov.openai.gpt-5.4",
+      "name_pattern": "us-gov\\.openai\\.gpt-5\\.4",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3.3e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0000198,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3.3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "us-gov.openai.gpt-5.6-luna",
+      "name_pattern": "us-gov\\.openai\\.gpt-5\\.6-luna",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2.64e-7,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 5.28e-7
+          }
+        },
+        {
+          "base_rate": 1.584e-6,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 2.376e-6
+          }
+        },
+        {
+          "base_rate": 2.64e-8,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 5.28e-8
+          }
+        },
+        {
+          "base_rate": 3.3e-7,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 6.6e-7
+          }
+        }
+      ]
+    },
+    {
+      "name": "us-gov.openai.gpt-5.6-terra",
+      "name_pattern": "us-gov\\.openai\\.gpt-5\\.6-terra",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2.64e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 5.28e-6
+          }
+        },
+        {
+          "base_rate": 0.00001584,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00002376
+          }
+        },
+        {
+          "base_rate": 2.64e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 5.28e-7
+          }
+        },
+        {
+          "base_rate": 3.3e-6,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 6.6e-6
+          }
+        }
+      ]
+    },
+    {
       "name": "us-gov.openai.gpt-oss-120b-1:0",
       "name_pattern": "us-gov\\.openai\\.gpt-oss-120b-1:0",
       "source": "litellm",
@@ -6397,6 +10800,807 @@
           "base_rate": 3.6e-7,
           "is_prompt": false,
           "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "us.anthropic.claude-3-5-haiku-20241022-v1:0",
+      "name_pattern": "us\\.anthropic\\.claude-3-5-haiku-20241022-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 8e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us.anthropic.claude-3-5-sonnet-20240620-v1:0",
+      "name_pattern": "us\\.anthropic\\.claude-3-5-sonnet-20240620-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000015,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 3.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
+      "name_pattern": "us\\.anthropic\\.claude-3-5-sonnet-20241022-v2:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000015,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 3.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+      "name_pattern": "us\\.anthropic\\.claude-3-7-sonnet-20250219-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000015,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 3.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us.anthropic.claude-3-opus-20240229-v1:0",
+      "name_pattern": "us\\.anthropic\\.claude-3-opus-20240229-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.000015,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000075,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001875,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us.anthropic.claude-fable-5",
+      "name_pattern": "us\\.anthropic\\.claude-fable-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.000011,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000055,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.1e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001375,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us.anthropic.claude-fable-5-1",
+      "name_pattern": "us\\.anthropic\\.claude-fable-5-1",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.000011,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000055,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.75e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001375,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us.anthropic.claude-fable-5-2",
+      "name_pattern": "us\\.anthropic\\.claude-fable-5-2",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8.8e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000044,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.000011,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+      "name_pattern": "us\\.anthropic\\.claude-haiku-4-5-20251001-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.1e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 1.375e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us.anthropic.claude-haiku-5-5",
+      "name_pattern": "us\\.anthropic\\.claude-haiku-5-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.1e-7,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 5.5e-7
+          }
+        },
+        {
+          "base_rate": 5.5e-7,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 2.75e-6
+          }
+        },
+        {
+          "base_rate": 1.1e-8,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 5.5e-8
+          }
+        },
+        {
+          "base_rate": 1.375e-7,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 100000.0,
+            "new_rate": 6.875e-7
+          }
+        }
+      ]
+    },
+    {
+      "name": "us.anthropic.claude-mythos-5",
+      "name_pattern": "us\\.anthropic\\.claude-mythos-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.000011,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000055,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.1e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001375,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us.anthropic.claude-mythos-5-1",
+      "name_pattern": "us\\.anthropic\\.claude-mythos-5-1",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.000011,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000055,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.75e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001375,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us.anthropic.claude-mythos-5-2",
+      "name_pattern": "us\\.anthropic\\.claude-mythos-5-2",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8.8e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000044,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.000011,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us.anthropic.claude-mythos-preview",
+      "name_pattern": "us\\.anthropic\\.claude-mythos-preview",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.0000275,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0001375,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.000034375,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us.anthropic.claude-opus-4-1-20250805-v1:0",
+      "name_pattern": "us\\.anthropic\\.claude-opus-4-1-20250805-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.000015,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000075,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001875,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us.anthropic.claude-opus-4-20250514-v1:0",
+      "name_pattern": "us\\.anthropic\\.claude-opus-4-20250514-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.000015,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000075,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001875,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us.anthropic.claude-opus-4-5-20251101-v1:0",
+      "name_pattern": "us\\.anthropic\\.claude-opus-4-5-20251101-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0000275,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5.5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.875e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us.anthropic.claude-opus-4-6-v1",
+      "name_pattern": "us\\.anthropic\\.claude-opus-4-6-v1",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0000275,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5.5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.875e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us.anthropic.claude-opus-4-7",
+      "name_pattern": "us\\.anthropic\\.claude-opus-4-7",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0000275,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5.5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.875e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us.anthropic.claude-opus-4-8",
+      "name_pattern": "us\\.anthropic\\.claude-opus-4-8",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0000275,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5.5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.875e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us.anthropic.claude-opus-5",
+      "name_pattern": "us\\.anthropic\\.claude-opus-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0000275,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5.5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 6.875e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us.anthropic.claude-opus-5-5",
+      "name_pattern": "us\\.anthropic\\.claude-opus-5-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 4.4e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000022,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us.anthropic.claude-sonnet-4-20250514-v1:0",
+      "name_pattern": "us\\.anthropic\\.claude-sonnet-4-20250514-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 6e-6
+          }
+        },
+        {
+          "base_rate": 0.000015,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 0.0000225
+          }
+        },
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 6e-7
+          }
+        },
+        {
+          "base_rate": 3.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 7.5e-6
+          }
+        }
+      ]
+    },
+    {
+      "name": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "name_pattern": "us\\.anthropic\\.claude-sonnet-4-5-20250929-v1:0",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3.3e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 6.6e-6
+          }
+        },
+        {
+          "base_rate": 0.0000165,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 0.00002475
+          }
+        },
+        {
+          "base_rate": 3.3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 6.6e-7
+          }
+        },
+        {
+          "base_rate": 4.125e-6,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 8.25e-6
+          }
+        }
+      ]
+    },
+    {
+      "name": "us.anthropic.claude-sonnet-4-6",
+      "name_pattern": "us\\.anthropic\\.claude-sonnet-4-6",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3.3e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0000165,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3.3e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 4.125e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us.anthropic.claude-sonnet-5",
+      "name_pattern": "us\\.anthropic\\.claude-sonnet-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2.2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000011,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2.2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 2.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "us.anthropic.claude-sonnet-5-5",
+      "name_pattern": "us\\.anthropic\\.claude-sonnet-5-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2.2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000011,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 2.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
         }
       ]
     },
@@ -6477,6 +11681,33 @@
             "threshold": 272000.0,
             "new_rate": 1.1e-6
           }
+        }
+      ]
+    },
+    {
+      "name": "us.openai.gpt-5.6-cyber",
+      "name_pattern": "us\\.openai\\.gpt-5\\.6-cyber",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.00001375,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0000825,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.375e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.0000171875,
+          "is_prompt": true,
+          "token_type": "cache_write"
         }
       ]
     },
@@ -6889,6 +12120,159 @@
       ]
     },
     {
+      "name": "us.openai.gpt-6.2-astra",
+      "name_pattern": "us\\.openai\\.gpt-6\\.2-astra",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8.8e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.0000176
+          }
+        },
+        {
+          "base_rate": 0.000044,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000066
+          }
+        },
+        {
+          "base_rate": 4.4e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 8.8e-7
+          }
+        },
+        {
+          "base_rate": 0.000011,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000022
+          }
+        }
+      ]
+    },
+    {
+      "name": "us.openai.gpt-6.2-sol",
+      "name_pattern": "us\\.openai\\.gpt-6\\.2-sol",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2.2e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 4.4e-6
+          }
+        },
+        {
+          "base_rate": 0.000011,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.0000165
+          }
+        },
+        {
+          "base_rate": 1.1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 2.2e-7
+          }
+        },
+        {
+          "base_rate": 2.75e-6,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 5.5e-6
+          }
+        }
+      ]
+    },
+    {
+      "name": "us.openai.gpt-daybreak-blue-5.6-sol",
+      "name_pattern": "us\\.openai\\.gpt-daybreak-blue-5\\.6-sol",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 4.4e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 8.8e-6
+          }
+        },
+        {
+          "base_rate": 0.000022,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000033
+          }
+        },
+        {
+          "base_rate": 4.4e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 8.8e-7
+          }
+        },
+        {
+          "base_rate": 5.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000011
+          }
+        }
+      ]
+    },
+    {
       "name": "cerebras/gemma-4-31b",
       "name_pattern": "gemma-4-31b",
       "source": "litellm",
@@ -7033,6 +12417,524 @@
       ]
     },
     {
+      "name": "gemini/deep-research-max-preview-04-2026",
+      "name_pattern": "deep-research-max-preview-04-2026",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000012,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gemini/deep-research-preview-04-2026",
+      "name_pattern": "deep-research-preview-04-2026",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000012,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-3.1-flash-tts-preview",
+      "name_pattern": "gemini-3\\.1-flash-tts-preview",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00002,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 0.00002,
+          "is_prompt": false,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-3.5-live-translate-preview",
+      "name_pattern": "gemini-3\\.5-live-translate-preview",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000021,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3.5e-6,
+          "is_prompt": true,
+          "token_type": "audio"
+        },
+        {
+          "base_rate": 0.000021,
+          "is_prompt": false,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-3.5-transcribe",
+      "name_pattern": "gemini-3\\.5-transcribe",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000012,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-3.5-transcribe-live",
+      "name_pattern": "gemini-3\\.5-transcribe-live",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000021,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3.5e-6,
+          "is_prompt": true,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-3.8-flash-lite-tts",
+      "name_pattern": "gemini-3\\.8-flash-lite-tts",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 6e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 6e-6,
+          "is_prompt": false,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-3.8-flash-tts",
+      "name_pattern": "gemini-3\\.8-flash-tts",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 9e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 9e-6,
+          "is_prompt": false,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-4-argon",
+      "name_pattern": "gemini-4-argon",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": false,
+          "token_type": "reasoning"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-4-carbon",
+      "name_pattern": "gemini-4-carbon",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": false,
+          "token_type": "reasoning"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-4-hydrogen",
+      "name_pattern": "gemini-4-hydrogen",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 7.5e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 7.5e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 7.5e-6,
+          "is_prompt": false,
+          "token_type": "reasoning"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-4-neon",
+      "name_pattern": "gemini-4-neon",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000015,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.000015,
+          "is_prompt": false,
+          "token_type": "reasoning"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-exp-1114",
+      "name_pattern": "gemini-exp-1114",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.0,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-gemma-2-27b-it",
+      "name_pattern": "gemini-gemma-2-27b-it",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3.5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1.05e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-gemma-2-9b-it",
+      "name_pattern": "gemini-gemma-2-9b-it",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 3.5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1.05e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-omni-1.1-flash",
+      "name_pattern": "gemini-omni-1\\.1-flash",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 9e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.5e-6,
+          "is_prompt": true,
+          "token_type": "audio"
+        },
+        {
+          "base_rate": 9e-6,
+          "is_prompt": false,
+          "token_type": "reasoning"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-omni-1.2-flash",
+      "name_pattern": "gemini-omni-1\\.2-flash",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 9e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.5e-6,
+          "is_prompt": true,
+          "token_type": "image"
+        },
+        {
+          "base_rate": 9e-6,
+          "is_prompt": false,
+          "token_type": "reasoning"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-robotics-er-2-streaming-preview",
+      "name_pattern": "gemini-robotics-er-2-streaming-preview",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 5e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemma-3-27b-it",
+      "name_pattern": "gemma-3-27b-it",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.0,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemma-4-26b-a4b-it",
+      "name_pattern": "gemma-4-26b-a4b-it",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.0,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemma-4-31b-it",
+      "name_pattern": "gemma-4-31b-it",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.0,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gemini/genie-4",
+      "name_pattern": "genie-4",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 9e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.5e-6,
+          "is_prompt": true,
+          "token_type": "image"
+        }
+      ]
+    },
+    {
+      "name": "gemini/learnlm-1.5-pro-experimental",
+      "name_pattern": "learnlm-1\\.5-pro-experimental",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.0,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "gemini/nano-banana-pro-preview",
+      "name_pattern": "nano-banana-pro-preview",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.000012,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 0.00012,
+          "is_prompt": false,
+          "token_type": "image"
+        }
+      ]
+    },
+    {
       "name": "groq/meta-llama/llama-prompt-guard-2-22m",
       "name_pattern": "meta-llama/llama-prompt-guard-2-22m",
       "source": "litellm",
@@ -7131,7 +13033,7 @@
           "token_type": "output"
         },
         {
-          "base_rate": 3.7e-8,
+          "base_rate": 3.75e-8,
           "is_prompt": true,
           "token_type": "cache_read"
         }
@@ -7152,6 +13054,47 @@
           "base_rate": 4e-6,
           "is_prompt": false,
           "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "meta/muse-ember-1.0",
+      "name_pattern": "muse-ember-1\\.0",
+      "source": "litellm",
+      "provider": "meta",
+      "token_prices": [
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 3e-7
+          }
+        },
+        {
+          "base_rate": 5e-7,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 1.5e-6
+          }
+        },
+        {
+          "base_rate": 4e-9,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 200000.0,
+            "new_rate": 1.2e-8
+          }
         }
       ]
     },
@@ -7471,6 +13414,29 @@
             "threshold": 512000.0,
             "new_rate": 1.2e-7
           }
+        }
+      ]
+    },
+    {
+      "name": "minimax/MiniMax-M3.1-Flash",
+      "name_pattern": "MiniMax-M3\\.1-Flash",
+      "source": "litellm",
+      "provider": "minimax",
+      "token_prices": [
+        {
+          "base_rate": 1.5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 6e-7,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.5e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
         }
       ]
     },
@@ -8115,17 +14081,17 @@
       "provider": "mistralai",
       "token_prices": [
         {
-          "base_rate": 5e-7,
+          "base_rate": 7e-7,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 1.5e-6,
+          "base_rate": 2.1e-6,
           "is_prompt": false,
           "token_type": "output"
         },
         {
-          "base_rate": 5e-8,
+          "base_rate": 7e-8,
           "is_prompt": true,
           "token_type": "cache_read"
         }
@@ -8770,6 +14736,33 @@
         },
         {
           "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
+      "name": "moonshot/kimi-k3.1-pro-highspeed",
+      "name_pattern": "kimi-k3\\.1-pro-highspeed",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 4e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00002,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 4e-6,
           "is_prompt": true,
           "token_type": "cache_write"
         }
@@ -9421,17 +15414,17 @@
       "provider": "together",
       "token_prices": [
         {
-          "base_rate": 1.5e-6,
+          "base_rate": 2.5e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 4.5e-6,
+          "base_rate": 7.5e-6,
           "is_prompt": false,
           "token_type": "output"
         },
         {
-          "base_rate": 3e-7,
+          "base_rate": 5e-7,
           "is_prompt": true,
           "token_type": "cache_read"
         }
@@ -9493,6 +15486,29 @@
           "base_rate": 4.7e-7,
           "is_prompt": false,
           "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/Qwen/Qwen4-Max",
+      "name_pattern": "Qwen/Qwen4-Max",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 1.05e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 3.15e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5.25e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
         }
       ]
     },
@@ -9693,6 +15709,47 @@
           "base_rate": 6e-9,
           "is_prompt": true,
           "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/elorian-labs/glimpse-1.0",
+      "name_pattern": "elorian-labs/glimpse-1\\.0",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 6e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 3e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 6e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/essentialai/rnj-1-instruct",
+      "name_pattern": "essentialai/rnj-1-instruct",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 1.5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1.5e-7,
+          "is_prompt": false,
+          "token_type": "output"
         }
       ]
     },
@@ -10251,8 +16308,77 @@
       ]
     },
     {
+      "name": "together_ai/tencent/Hy4",
+      "name_pattern": "tencent/Hy4",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 8.34e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2.501e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 4.2e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
       "name": "together_ai/thinkingmachines/Inkling",
       "name_pattern": "thinkingmachines/Inkling",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4.05e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.7e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/thinkingmachines/Inkling-2-Small",
+      "name_pattern": "thinkingmachines/Inkling-2-Small",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 3e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/thinkingmachines/inkling",
+      "name_pattern": "thinkingmachines/inkling",
       "source": "litellm",
       "provider": "together",
       "token_prices": [
@@ -10853,6 +16979,309 @@
           "base_rate": 2.4e-7,
           "is_prompt": true,
           "token_type": "cache_read"
+        }
+      ]
+    }
+  ],
+  "non_llm_models": [
+    {
+      "name": "gemini-embedding-001",
+      "name_pattern": "gemini-embedding-001",
+      "source": "litellm",
+      "type": "EMBEDDING",
+      "token_prices": [
+        {
+          "base_rate": 1.5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        }
+      ]
+    },
+    {
+      "name": "gemini-embedding-2",
+      "name_pattern": "gemini-embedding-2",
+      "source": "litellm",
+      "type": "EMBEDDING",
+      "token_prices": [
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        }
+      ]
+    },
+    {
+      "name": "gemini-embedding-2-preview",
+      "name_pattern": "gemini-embedding-2-preview",
+      "source": "litellm",
+      "type": "EMBEDDING",
+      "token_prices": [
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        }
+      ]
+    },
+    {
+      "name": "gpt-6-luna",
+      "name_pattern": "gpt-6-luna",
+      "source": "litellm",
+      "type": "DECISION",
+      "token_prices": [
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "decision.token_count.input",
+            "threshold": 272000.0,
+            "new_rate": 2e-7
+          }
+        },
+        {
+          "base_rate": 0.0,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1e-8,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "decision.token_count.input",
+            "threshold": 272000.0,
+            "new_rate": 2e-8
+          }
+        },
+        {
+          "base_rate": 1.25e-7,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "decision.token_count.input",
+            "threshold": 272000.0,
+            "new_rate": 2.5e-7
+          }
+        }
+      ]
+    },
+    {
+      "name": "text-embedding-3-large",
+      "name_pattern": "text-embedding-3-large",
+      "source": "litellm",
+      "type": "EMBEDDING",
+      "token_prices": [
+        {
+          "base_rate": 1.3e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        }
+      ]
+    },
+    {
+      "name": "text-embedding-3-small",
+      "name_pattern": "text-embedding-3-small",
+      "source": "litellm",
+      "type": "EMBEDDING",
+      "token_prices": [
+        {
+          "base_rate": 2e-8,
+          "is_prompt": true,
+          "token_type": "input"
+        }
+      ]
+    },
+    {
+      "name": "text-embedding-ada-002",
+      "name_pattern": "text-embedding-ada-002",
+      "source": "litellm",
+      "type": "EMBEDDING",
+      "token_prices": [
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        }
+      ]
+    },
+    {
+      "name": "text-embedding-ada-002-v2",
+      "name_pattern": "text-embedding-ada-002-v2",
+      "source": "litellm",
+      "type": "EMBEDDING",
+      "token_prices": [
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        }
+      ]
+    },
+    {
+      "name": "gemini/gemini-decision-1",
+      "name_pattern": "gemini-decision-1",
+      "source": "litellm",
+      "type": "DECISION",
+      "token_prices": [
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "mistral/codestral-embed",
+      "name_pattern": "codestral-embed",
+      "source": "litellm",
+      "provider": "mistralai",
+      "type": "EMBEDDING",
+      "token_prices": [
+        {
+          "base_rate": 1.5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        }
+      ]
+    },
+    {
+      "name": "mistral/codestral-embed-2505",
+      "name_pattern": "codestral-embed-2505",
+      "source": "litellm",
+      "provider": "mistralai",
+      "type": "EMBEDDING",
+      "token_prices": [
+        {
+          "base_rate": 1.5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        }
+      ]
+    },
+    {
+      "name": "mistral/mistral-embed",
+      "name_pattern": "mistral-embed",
+      "source": "litellm",
+      "provider": "mistralai",
+      "type": "EMBEDDING",
+      "token_prices": [
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        }
+      ]
+    },
+    {
+      "name": "mistral/mistral-embed-2312",
+      "name_pattern": "mistral-embed-2312",
+      "source": "litellm",
+      "provider": "mistralai",
+      "type": "EMBEDDING",
+      "token_prices": [
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/BAAI/bge-base-en-v1.5",
+      "name_pattern": "BAAI/bge-base-en-v1\\.5",
+      "source": "litellm",
+      "provider": "together",
+      "type": "EMBEDDING",
+      "token_prices": [
+        {
+          "base_rate": 8e-9,
+          "is_prompt": true,
+          "token_type": "input"
+        }
+      ]
+    },
+    {
+      "name": "typesafe/jev-1.13.0",
+      "name_pattern": "jev-1\\.13\\.0",
+      "source": "litellm",
+      "provider": "typesafe",
+      "type": "DECISION",
+      "token_prices": [
+        {
+          "base_rate": 4.2e-8,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "typesafe/jev-1.14.0",
+      "name_pattern": "jev-1\\.14\\.0",
+      "source": "litellm",
+      "provider": "typesafe",
+      "type": "DECISION",
+      "token_prices": [
+        {
+          "base_rate": 4.2e-8,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "typesafe/jev-latest",
+      "name_pattern": "jev-latest",
+      "source": "litellm",
+      "provider": "typesafe",
+      "type": "DECISION",
+      "token_prices": [
+        {
+          "base_rate": 4.2e-8,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0,
+          "is_prompt": false,
+          "token_type": "output"
+        }
+      ]
+    },
+    {
+      "name": "typesafe/jev-preview",
+      "name_pattern": "jev-preview",
+      "source": "litellm",
+      "provider": "typesafe",
+      "type": "DECISION",
+      "token_prices": [
+        {
+          "base_rate": 4.2e-8,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.0,
+          "is_prompt": false,
+          "token_type": "output"
         }
       ]
     }

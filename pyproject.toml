@@ -25,14 +25,14 @@ dependencies = [
   "numpy",
   "pandas>=1.0",
   "jinja2",
-  "jsonpath-ng",
+  "jsonpath-ng>=1.16.0",
   "jsonschema",
   "pystache",
   "PyYAML",
   "starlette>=0.37.0",
   "uvicorn",
   "psutil",
-  "strawberry-graphql==0.339.1",
+  "strawberry-graphql==0.341.2",
   "graphql-core>=3.3.1,<3.4",
   "pyarrow",
   "typing-extensions>=4.6",
@@ -42,10 +42,10 @@ dependencies = [
   "tqdm",
   "httpx2[http2]",
   "certifi>=2026.10.19",
-  "opentelemetry-sdk",
-  "opentelemetry-proto>=1.12.0",  # needed to avoid this issue: https://github.com/Arize-ai/phoenix/issues/2695
-  "opentelemetry-exporter-otlp",
-  "openinference-semantic-conventions>=0.1.40",
+  "opentelemetry-sdk>=1.45.0",
+  "opentelemetry-proto>=1.45.0",
+  "opentelemetry-exporter-otlp>=1.45.0",
+  "openinference-semantic-conventions>=0.1.46",
   "openinference-instrumentation>=0.1.60",
   "openinference-instrumentation-openai>=0.1.41",
   "sqlglot==30.21.0",
@@ -61,9 +61,9 @@ dependencies = [
   "fastapi>=0.142.0",  # 0.142 adds native OpenTelemetry support
   "fastmcp-slim[client,server]>=4,<5",  # client: pydantic-ai's MCPToolset, used by the agent assistant. server: the in-process MCP server mounted at /mcp.
   # Code-mode sandbox. Direct, not via fastmcp's `code-mode` extra, whose exact `pydantic-monty` pin conflicts and would ship in wheel metadata.
-  "pydantic-monty==1.4.0",
+  "pydantic-monty==1.5.0",
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
-  "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.53.0,<3",
+  "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.71.0,<3",
   # Arrives via pydantic-ai-slim[anthropic], which sets no upper bound. Pinned
   # here so the major version is chosen deliberately rather than by resolution.
   "anthropic>=1,<2",
@@ -108,7 +108,7 @@ dev = [
   "grpc-interceptor[testing]",
   "grpcio",
   "httpx2",
-  "jsonpath-ng",
+  "jsonpath-ng>=1.16.0",
   "ldap3",
   "litellm>=1.83.14,!=1.107.0; python_version < '3.14'",  # >=1.83.14 fixes CVE-2026-42208; excluded because upstream metadata does not support Python 3.14 (https://github.com/BerriAI/litellm/issues/26343)
   "modal>=1.2.0",  # type-checking only; runtime is gated by the [modal] extra
@@ -120,11 +120,9 @@ dev = [
   "numpy",
   "scikit-learn",  # reference implementation for retrieval metric tests
   "openai>=3.1.0,<4",
-  "openinference-semantic-conventions>=0.1.40",
+  "openinference-semantic-conventions>=0.1.46",
   "openinference-instrumentation>=0.1.60",
   "opentelemetry-exporter-otlp",
-  "opentelemetry-instrumentation-grpc",
-  "opentelemetry-instrumentation-sqlalchemy",
   "opentelemetry-instrumentation-aiohttp-client",
   "opentelemetry-proto>=1.12.0",
   "opentelemetry-sdk>=1.35.0",
@@ -151,7 +149,7 @@ dev = [
   "pytest-xdist",
   "requests",  # this is needed to type-check third-party packages
   "responses",
-  "strawberry-graphql[opentelemetry,cli]==0.339.1",  # cli extra provides typer for `strawberry export-schema` (schema-graphql); previously satisfied transitively via huggingface-hub, which dropped typer in 1.22.0
+  "strawberry-graphql[opentelemetry,cli]==0.341.2",  # cli extra provides typer for `strawberry export-schema` (schema-graphql); previously satisfied transitively via huggingface-hub, which dropped typer in 1.22.0
   "syrupy",
   "tenacity",
   "tiktoken",
@@ -221,16 +219,8 @@ container = [
   "openai>=3.1.0,<4",
   "azure-identity>=1.18.0",  # MSAL-backed in-memory token cache for ManagedIdentityCredential
   "aiohttp",  # used by azure-identity via azure.core.pipeline.transport
-  # Note: when updating opentelemetry dependencies, all packages must use versions
-  # released on the same date (e.g., 1.45.0/0.66b0) to ensure compatibility.
-  "opentelemetry-sdk==1.45.0",
-  "opentelemetry-proto==1.45.0",
-  "opentelemetry-exporter-otlp==1.45.0",
-  "opentelemetry-semantic-conventions==0.66b0",
-  "opentelemetry-instrumentation-sqlalchemy==0.66b0",
-  "opentelemetry-instrumentation-grpc==0.66b0",
   "py-grpc-prometheus",
-  "strawberry-graphql[opentelemetry]==0.339.1",
+  "strawberry-graphql[opentelemetry]==0.341.2",
   "uvloop; platform_system != 'Windows'",
   "aioboto3",
   "aiobotocore>=3.2.0",  # first release whose botocore floor includes Converse ToolSpecification "strict"; older botocore rejects it client-side
@@ -300,6 +290,17 @@ artifacts = [
   "src/phoenix/server/cost_tracking/manifests",
   "src/phoenix/server/api/helpers/substitutions/server.yaml",
 ]
+
+# check-wheel-contents runs every check except W002 (duplicate files). Each skill
+# directory in the wheel is self-contained, so a skill that ships to both the MCP
+# server and PXI, or two skills that share a reference file, carry identical copies.
+# W002 is left out of `select` instead of listed under `ignore` because a CLI
+# `--ignore`, like the one in publish.yaml, replaces a configured `ignore`.
+# publish.yaml runs check-wheel-contents from the repo root, where it reads this file,
+# so the client, evals, and otel wheels skip W002 too. A check that a later release
+# adds stays off until it's added here.
+[tool.check-wheel-contents]
+select = ["W001", "W003", "W004", "W005", "W006", "W007", "W008", "W009", "W010", "W1", "W2"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -378,6 +379,7 @@ module = [
   "jsonpath_ng",
   "wasmtime",
   "snowballstemmer",
+  "check_wheel_contents.*",
 ]
 ignore_missing_imports = true
 
@@ -479,7 +481,7 @@ exclude-newer = "3 days"
 # this to be installable at all on the day it publishes. The openinference
 # packages are ours too (Arize-ai/openinference), and phoenix regularly needs a
 # semantic convention or instrumentation helper the day it is released.
-exclude-newer-package = { arize-phoenix-client = "2099-12-31T00:00:00Z", arize-phoenix-evals = "2099-12-31T00:00:00Z", arize-phoenix-otel = "2099-12-31T00:00:00Z", arize-phoenix-sqlean = "2099-12-31T00:00:00Z", openinference-instrumentation = "2099-12-31T00:00:00Z", openinference-semantic-conventions = "2099-12-31T00:00:00Z" }
+exclude-newer-package = { arize-phoenix-client = "2099-12-31T00:00:00Z", arize-phoenix-evals = "2099-12-31T00:00:00Z", arize-phoenix-otel = "2099-12-31T00:00:00Z", arize-phoenix-sqlean = "2099-12-31T00:00:00Z", openinference-instrumentation = "2099-12-31T00:00:00Z", openinference-semantic-conventions = "2099-12-31T00:00:00Z", pydantic-ai-slim = "2026-11-20T00:00:00Z", pydantic-graph = "2026-11-20T00:00:00Z" }
 # litellm bounds shared dependencies below what the rest of the tree needs: it
 # caps `openai<3` while phoenix and pydantic-ai require openai 3, and it has
 # capped `python-dotenv` below the `>=1.1.0` fastmcp requires. Overriding is safe

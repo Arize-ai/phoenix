@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a21e3363e1727bbe63c26cc9fd19b927>>
+ * @generated SignedSource<<dcb4a319d01172a749c8ddedfd11d251>>
  * @lightSyntaxTransform
  */
 
@@ -8,6 +8,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+export type GenerativeModelType = "DECISION" | "EMBEDDING" | "LLM";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI" | "ZAI";
 export type TokenKind = "COMPLETION" | "PROMPT";
 export type CloneModelButtonQuery$variables = {
@@ -16,6 +17,7 @@ export type CloneModelButtonQuery$variables = {
 export type CloneModelButtonQuery$data = {
   readonly node: {
     readonly id?: string;
+    readonly modelType?: GenerativeModelType;
     readonly name?: string;
     readonly namePattern?: string;
     readonly provider?: string | null;
@@ -66,31 +68,38 @@ v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "provider",
+  "name": "modelType",
   "storageKey": null
 },
 v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "namePattern",
+  "name": "provider",
   "storageKey": null
 },
 v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "providerKey",
+  "name": "namePattern",
   "storageKey": null
 },
 v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "startTime",
+  "name": "providerKey",
   "storageKey": null
 },
 v8 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "startTime",
+  "storageKey": null
+},
+v9 = {
   "alias": null,
   "args": null,
   "concreteType": "TokenPrice",
@@ -146,7 +155,8 @@ return {
               (v5/*:: as any*/),
               (v6/*:: as any*/),
               (v7/*:: as any*/),
-              (v8/*:: as any*/)
+              (v8/*:: as any*/),
+              (v9/*:: as any*/)
             ],
             "type": "GenerativeModel",
             "abstractKey": null
@@ -188,7 +198,8 @@ return {
               (v5/*:: as any*/),
               (v6/*:: as any*/),
               (v7/*:: as any*/),
-              (v8/*:: as any*/)
+              (v8/*:: as any*/),
+              (v9/*:: as any*/)
             ],
             "type": "GenerativeModel",
             "abstractKey": null
@@ -199,16 +210,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c6375c02dea693149c710391a257a587",
+    "cacheID": "68a4e243d4f40a0e2ea4fe8f9c8faa76",
     "id": null,
     "metadata": {},
     "name": "CloneModelButtonQuery",
     "operationKind": "query",
-    "text": "query CloneModelButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on GenerativeModel {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      startTime\n      tokenPrices {\n        tokenType\n        kind\n        costPerMillionTokens\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query CloneModelButtonQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on GenerativeModel {\n      id\n      name\n      modelType\n      provider\n      namePattern\n      providerKey\n      startTime\n      tokenPrices {\n        tokenType\n        kind\n        costPerMillionTokens\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b0ce69ce5cc1eb1d694234678e1d6169";
+(node as any).hash = "2fb1c7ca87f336f7d6601c7138c667b1";
 
 export default node;

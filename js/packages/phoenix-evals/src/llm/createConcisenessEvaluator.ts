@@ -41,7 +41,7 @@ export type ConcisenessEvaluationRecord = {
  *
  * @example
  * ```ts
- * const evaluator = createConcisenessEvaluator({ model: openai("gpt-4o-mini") });
+ * const evaluator = createConcisenessEvaluator({ model: openai.decisionModel("gpt-6-luna") });
  * const result = await evaluator.evaluate({
  *   input: "What is the capital of France?",
  *   output: "Paris.",

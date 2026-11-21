@@ -40,7 +40,7 @@ A lightweight wrapper around OpenTelemetry for Node.js applications that simplif
 npm install @arizeai/phoenix-otel
 ```
 
-Requires Node.js 18 or newer. Both ESM and CommonJS entry points are provided.
+Requires Node.js 22.15 or newer and OpenTelemetry JS 3 (`@opentelemetry/api` 1.10). Both ESM and CommonJS entry points are provided.
 
 ## Quick Start
 
@@ -112,16 +112,21 @@ values.
 
 The `register` function accepts the following parameters:
 
-| Parameter          | Type                     | Default                   | Description                                            |
-| ------------------ | ------------------------ | ------------------------- | ------------------------------------------------------ |
-| `projectName`      | `string`                 | `"default"`               | The project name for organizing traces in Phoenix      |
-| `url`              | `string`                 | `"http://localhost:6006"` | The URL to your Phoenix instance                       |
-| `apiKey`           | `string`                 | `undefined`               | API key for Phoenix authentication                     |
-| `headers`          | `Record<string, string>` | `{}`                      | Custom headers for OTLP requests                       |
-| `batch`            | `boolean`                | `true`                    | Use batch span processing (recommended for production) |
-| `instrumentations` | `Instrumentation[]`      | `undefined`               | Array of OpenTelemetry instrumentations to register    |
-| `global`           | `boolean`                | `true`                    | Register the tracer provider globally                  |
-| `diagLogLevel`     | `DiagLogLevel`           | `undefined`               | Diagnostic logging level for debugging                 |
+| Parameter          | Type                     | Default                                         | Description                                            |
+| ------------------ | ------------------------ | ----------------------------------------------- | ------------------------------------------------------ |
+| `projectName`      | `string`                 | `"default"`                                     | The project name for organizing traces in Phoenix      |
+| `url`              | `string`                 | `"http://localhost:6006"`                       | The URL to your Phoenix instance                       |
+| `apiKey`           | `string`                 | `undefined`                                     | API key for Phoenix authentication                     |
+| `headers`          | `Record<string, string>` | `{}`                                            | Custom headers for OTLP requests                       |
+| `batch`            | `boolean`                | `true`                                          | Use batch span processing (recommended for production) |
+| `instrumentations` | `Instrumentation[]`      | `undefined`                                     | Array of OpenTelemetry instrumentations to register    |
+| `global`           | `boolean`                | `true`                                          | Register the tracer provider globally                  |
+| `diagLogLevel`     | `DiagLogLevel`           | `undefined`                                     | Diagnostic logging level for debugging                 |
+| `sampler`          | `Sampler`                | `ParentBasedSampler({ root: AlwaysOnSampler })` | Decides which spans are recorded and exported          |
+| `spanLimits`       | `SpanLimits`             | SDK defaults                                    | Limits on span attributes, events and links            |
+
+OpenTelemetry JS 3 does not read `OTEL_TRACES_SAMPLER*`, `OTEL_SPAN_*`, `OTEL_ATTRIBUTE_*`
+or `OTEL_BSP_*`; use the options above instead. See [MIGRATION.md](./MIGRATION.md).
 
 ### Custom Span Processors
 
@@ -712,8 +717,6 @@ The tracing helper wrappers resolve the default tracer when they run. That keeps
 
 Join our community to connect with thousands of AI builders:
 
-- 🌍 Join our [Slack community](https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g)
-- 💡 Ask questions and provide feedback in the _#phoenix-support_ channel
 - 🌟 Leave a star on our [GitHub](https://github.com/Arize-ai/phoenix)
 - 🐞 Report bugs with [GitHub Issues](https://github.com/Arize-ai/phoenix/issues)
 - 𝕏 Follow us on [𝕏](https://twitter.com/ArizePhoenix)

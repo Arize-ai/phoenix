@@ -233,10 +233,7 @@ function IOValueTooltipCell({
         }
       }}
     >
-      <TriggerWrap
-        css={triggerCSS}
-        onPress={(event) => event.continuePropagation()}
-      >
+      <TriggerWrap css={triggerCSS}>
         <span>{previewText}</span>
       </TriggerWrap>
       {/* Side placement keeps the tooltip out of the column's vertical mouse

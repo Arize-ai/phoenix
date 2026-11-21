@@ -23,9 +23,11 @@ class HallucinationEvaluator(ClassificationEvaluator):
     truth is the conversation rather than a separately supplied context.
 
     Args:
-        llm (LLM): The LLM instance to use for the evaluation.
-        **kwargs: Additional invocation parameters forwarded to the LLM client
-            (e.g., ``temperature=0.0``, ``max_tokens=256``).
+        llm (Union[LLM, DecisionModel]): The LLM or decision model to use for the evaluation.
+        **kwargs: Additional invocation parameters forwarded to the judge. What is accepted
+            depends on the judge: an ``LLM`` accepts generation parameters (e.g.
+            ``temperature``, ``max_tokens``); a decision model accepts request options (e.g.
+            ``timeout``).
 
     Notes:
         - ``input`` is the full conversation history the assistant had access to
@@ -33,21 +35,23 @@ class HallucinationEvaluator(ClassificationEvaluator):
           the assistant's latest response. The conversation is the source of
           truth.
         - Returns one `Score` with `label` (grounded or hallucinated), `score`
-          (1.0 if hallucinated, 0.0 if grounded), and an `explanation` from the
-          LLM judge.
-        - Requires an LLM that supports tool calling or structured output.
+          (1.0 if hallucinated, 0.0 if grounded), and, when an `LLM` judge is used,
+          an `explanation` (decision models return a label and probabilities, not an
+          explanation).
+        - When backed by an `LLM`, requires one that supports tool calling or structured
+          output; decision models answer through a typed choices API, so this does not apply.
 
     Examples::
 
         from phoenix.evals.metrics.hallucination import HallucinationEvaluator
-        from phoenix.evals import LLM
-        llm = LLM(provider="openai", model="gpt-4o-mini")
+        from phoenix.evals import DecisionModel
+        llm = DecisionModel(provider="openai", model="gpt-6-luna")
 
         # Default usage
         hallucination_eval = HallucinationEvaluator(llm=llm)
 
         # With custom invocation parameters
-        hallucination_eval = HallucinationEvaluator(llm=llm, temperature=0.0)
+        hallucination_eval = HallucinationEvaluator(llm=llm, timeout=30)
 
         eval_input = {
             "input": (
@@ -61,8 +65,9 @@ class HallucinationEvaluator(ClassificationEvaluator):
         scores = hallucination_eval.evaluate(eval_input)
         print(scores)
         [Score(name='hallucination', score=1.0, label='hallucinated',
-            explanation='The conversation does not support a 90-day window for electronics.',
-            metadata={'model': 'gpt-4o-mini'}, kind="llm", direction="minimize")]
+            metadata={'model': 'gpt-6-luna', 'model_id': 'gpt-6-luna', 'confidence': 0.93,
+                'probabilities': {'hallucinated': 0.95, 'grounded': 0.05}},
+            kind="llm", direction="minimize")]
 
     """
 

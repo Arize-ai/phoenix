@@ -25,24 +25,28 @@ class DocumentRelevanceEvaluator(ClassificationEvaluator):
         in the next major release.
 
     Args:
-        llm (LLM): The LLM instance to use for the evaluation.
-        **kwargs: Additional invocation parameters forwarded to the LLM client
-            (e.g., ``temperature=0.0``, ``max_tokens=256``).
+        llm (Union[LLM, DecisionModel]): The LLM or decision model to use for the evaluation.
+        **kwargs: Additional invocation parameters forwarded to the judge. What is accepted
+            depends on the judge: an ``LLM`` accepts generation parameters (e.g.
+            ``temperature``, ``max_tokens``); a decision model accepts request options (e.g.
+            ``timeout``).
 
     Notes:
         - Evaluates whether a document contains information relevant to
           answering a specific question.
         - Returns one `Score` with `label` (relevant or unrelated), `score` (1.0
-          if relevant, 0.0 if unrelated), and an `explanation` from the LLM
-          judge.
-        - Requires an LLM that supports tool calling or structured output.
+          if relevant, 0.0 if unrelated), and, when an `LLM` judge is used, an
+          `explanation` (decision models return a label and probabilities, not an
+          explanation).
+        - When backed by an `LLM`, requires one that supports tool calling or structured
+          output; decision models answer through a typed choices API, so this does not apply.
 
     Migration example::
 
-        from phoenix.evals import LLM
+        from phoenix.evals import DecisionModel
         from phoenix.evals.metrics import RetrievalRelevanceEvaluator
 
-        llm = LLM(provider="openai", model="gpt-4o-mini")
+        llm = DecisionModel(provider="openai", model="gpt-6-luna")
         relevance_eval = RetrievalRelevanceEvaluator(llm=llm)
         scores = relevance_eval.evaluate({
             "input": "What is the capital of France?",
