@@ -9,6 +9,7 @@ from opentelemetry.trace import Tracer
 from phoenix.evals.rate_limiters import RateLimiter
 from phoenix.evals.tracing import trace
 
+from .._criteria import ClassificationAnswer, ClassificationCriterion, Name
 from .adapters import register_adapters
 from .prompts import PromptLike
 from .registries import PROVIDER_REGISTRY, adapter_availability_table
@@ -438,6 +439,46 @@ class LLM:
         result: Dict[str, Any] = await self.async_generate_object(prompt, schema, **kwargs)
         return result
 
+    def generate_classifications(
+        self,
+        prompt: PromptLike,
+        criteria: Dict[Name, ClassificationCriterion],
+        include_explanation: bool = True,
+        **kwargs: Any,
+    ) -> Dict[Name, ClassificationAnswer]:
+        """Answer several named classification questions about one prompt in a single request.
+
+        Args:
+            prompt (Union[str, List[Dict[str, Any]]]): The prompt to classify.
+            criteria (Dict[Name, ClassificationCriterion]): The questions to answer; each has a
+                ``name``, its ``labels`` (a list or a label->description dict), and optional
+                ``instructions``.
+            include_explanation (bool): Whether to prompt the LLM for a per-question explanation.
+            **kwargs: Additional keyword arguments to pass to the LLM SDK (e.g. ``method``).
+
+        Returns:
+            Dict[Name, ClassificationAnswer]: One :class:`ClassificationAnswer` per criterion,
+            keyed by criterion name.
+        """
+        schema = generate_classifications_schema(criteria, include_explanation)
+        raw: Dict[str, Any] = self.generate_object(prompt, schema, **kwargs)
+        return _parse_classifications(raw, criteria)
+
+    async def async_generate_classifications(
+        self,
+        prompt: PromptLike,
+        criteria: Dict[Name, ClassificationCriterion],
+        include_explanation: bool = True,
+        **kwargs: Any,
+    ) -> Dict[Name, ClassificationAnswer]:
+        """Asynchronously answer several named classification questions in a single request.
+
+        See :meth:`generate_classifications`.
+        """
+        schema = generate_classifications_schema(criteria, include_explanation)
+        raw: Dict[str, Any] = await self.async_generate_object(prompt, schema, **kwargs)
+        return _parse_classifications(raw, criteria)
+
 
 def show_provider_availability() -> None:
     """Show the availability of all providers.
@@ -522,3 +563,57 @@ def generate_classification_schema(
     required.append("label")
 
     return {"type": "object", "properties": properties, "required": required}
+
+
+def generate_classifications_schema(
+    criteria: Dict[Name, ClassificationCriterion],
+    include_explanation: bool = True,
+) -> Dict[str, Any]:
+    """Build one JSON Schema object that classifies several named criteria at once.
+
+    Each criterion becomes a required property (keyed by its name) whose value is the
+    single-criterion object schema (``label`` plus an optional ``explanation``). The
+    criterion's ``instructions`` describe that property.
+
+    Args:
+        criteria (Dict[Name, ClassificationCriterion]): The questions to answer; each has a
+            ``name``, its ``labels``, and optional ``instructions``.
+        include_explanation (bool): Whether each criterion's object requests an explanation.
+
+    Returns:
+        Dict[str, Any]: A JSON Schema object with one property per criterion.
+    """
+    properties: Dict[str, Any] = {}
+    required: List[str] = []
+    for criterion in criteria.values():
+        name = criterion["name"]
+        inner = generate_classification_schema(criterion["labels"], include_explanation)
+        instructions = criterion.get("instructions")
+        if instructions:
+            inner["description"] = instructions
+        properties[name] = inner
+        required.append(name)
+    return {"type": "object", "properties": properties, "required": required}
+
+
+def _parse_classifications(
+    raw: Dict[str, Any],
+    criteria: Dict[Name, ClassificationCriterion],
+) -> Dict[Name, ClassificationAnswer]:
+    """Turn the nested object from :func:`generate_classifications_schema` into one
+    :class:`ClassificationAnswer` per criterion, keyed by criterion name."""
+    answers: Dict[Name, ClassificationAnswer] = {}
+    for criterion in criteria.values():
+        name = criterion["name"]
+        answer = raw.get(name)
+        if not isinstance(answer, dict) or "label" not in answer:
+            raise ValueError(
+                f"The model returned a malformed or missing answer for criterion '{name}': "
+                f"{answer!r}. Expected an object with a 'label' field."
+            )
+        answers[name] = ClassificationAnswer(
+            name=name,
+            label=answer["label"],
+            explanation=answer.get("explanation"),
+        )
+    return answers

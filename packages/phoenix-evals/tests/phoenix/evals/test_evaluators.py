@@ -7,8 +7,10 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
+from phoenix.evals._criteria import ClassificationAnswer
 from phoenix.evals.evaluators import (
     ClassificationEvaluator,
+    Criterion,
     EnforcedString,
     Evaluator,
     LLMEvaluator,
@@ -20,6 +22,7 @@ from phoenix.evals.evaluators import (
     to_thread,
 )
 from phoenix.evals.llm import LLM, PromptTemplate
+from phoenix.evals.llm.types import ObjectGenerationMethod
 
 
 # --- Shared Mock Classes ---
@@ -38,6 +41,25 @@ class MockLLM(LLM):
         self, prompt: str, labels, include_explanation: bool, method
     ):
         return {"label": "good", "explanation": "This is a good result"}
+
+    @staticmethod
+    def _first_label(labels):
+        return labels[0] if isinstance(labels, list) else next(iter(labels))
+
+    def generate_classifications(self, prompt, criteria, include_explanation=True, method=None):
+        return {
+            name: ClassificationAnswer(
+                name=name,
+                label=self._first_label(c["labels"]),
+                explanation="This is a good result",
+            )
+            for name, c in criteria.items()
+        }
+
+    async def async_generate_classifications(
+        self, prompt, criteria, include_explanation=True, method=None
+    ):
+        return self.generate_classifications(prompt, criteria, include_explanation, method)
 
 
 class TestScore:
@@ -425,6 +447,133 @@ class TestClassificationEvaluator:
         assert evaluator.label_score_map == expected_score_map
         assert evaluator.include_explanation is True
 
+    @pytest.mark.parametrize(
+        "choices,expected_leaf,expected_labels,expected_score_map",
+        [
+            pytest.param(
+                ["good", "bad"],
+                ["good", "bad"],
+                ["good", "bad"],
+                None,
+                id="List choices normalize to one criterion",
+            ),
+            pytest.param(
+                {"good": 1.0, "bad": 0.0},
+                {"good": 1.0, "bad": 0.0},
+                ["good", "bad"],
+                {"good": 1.0, "bad": 0.0},
+                id="Score-map choices normalize to one criterion",
+            ),
+            pytest.param(
+                {"good": (1.0, "Good result"), "bad": (0.0, "Bad result")},
+                {"good": 1.0, "bad": 0.0},
+                {"good": "Good result", "bad": "Bad result"},
+                {"good": 1.0, "bad": 0.0},
+                id="Tuple choices: criterion keeps score map, labels keep descriptions",
+            ),
+        ],
+    )
+    def test_legacy_choices_normalize_to_single_criterion(
+        self, choices, expected_leaf, expected_labels, expected_score_map
+    ):
+        """Legacy formats collapse to one criterion named after the evaluator (parity rule)."""
+        evaluator = ClassificationEvaluator(
+            name="test_evaluator",
+            llm=MockLLM(),
+            prompt_template="Test template with {input}",
+            choices=choices,
+            direction="minimize",
+        )
+
+        assert len(evaluator.criteria) == 1
+        criterion = evaluator.criteria[0]
+        assert criterion.name == "test_evaluator"
+        assert criterion.description == ""
+        assert criterion.choices == expected_leaf
+        assert criterion.direction == "minimize"  # inherits the evaluator's direction
+        # Legacy public attributes are unchanged.
+        assert evaluator.labels == expected_labels
+        assert evaluator.label_score_map == expected_score_map
+
+    def test_criteria_list_choices_passthrough(self):
+        """The new List[Criterion] format passes through, one criterion each."""
+        criteria = [
+            Criterion(name="helpfulness", description="How helpful", choices=["poor", "good"]),
+            Criterion(
+                name="accuracy",
+                description="How accurate",
+                choices={"wrong": 0.0, "right": 1.0},
+                direction="minimize",
+            ),
+        ]
+        evaluator = ClassificationEvaluator(
+            name="quality",
+            llm=MockLLM(),
+            prompt_template="Rate this: {input}",
+            choices=criteria,
+            direction="maximize",
+        )
+
+        assert [c.name for c in evaluator.criteria] == ["helpfulness", "accuracy"]
+        # Missing per-criterion direction inherits the evaluator's; explicit one is kept.
+        assert evaluator.criteria[0].direction == "maximize"
+        assert evaluator.criteria[1].direction == "minimize"
+        # Legacy attributes track the first criterion.
+        assert evaluator.labels == ["poor", "good"]
+        assert evaluator.label_score_map is None
+
+    def test_criteria_list_accepts_plain_dicts(self):
+        """Criteria may be given as plain dicts (coerced to Criterion)."""
+        evaluator = ClassificationEvaluator(
+            name="quality",
+            llm=MockLLM(),
+            prompt_template="Rate this: {input}",
+            choices=[
+                {"name": "clarity", "description": "How clear", "choices": {"no": 0, "yes": 1}},
+            ],
+        )
+
+        assert isinstance(evaluator.criteria[0], Criterion)
+        assert evaluator.criteria[0].name == "clarity"
+        assert evaluator.criteria[0].label_score_map == {"no": 0, "yes": 1}
+
+    @pytest.mark.parametrize(
+        "kwargs,match",
+        [
+            pytest.param(
+                {"name": "c", "description": "d", "choices": []}, "at least one", id="empty-choices"
+            ),
+        ],
+    )
+    def test_criterion_validation(self, kwargs, match):
+        # Note: an empty ``name`` is validated at evaluator construction for the List[Criterion]
+        # format (see ``test_criteria_list_rejects_empty_name``), not on ``Criterion`` itself, so
+        # the legacy formats' internally-synthesized criterion is unaffected.
+        with pytest.raises(ValueError, match=match):
+            Criterion(**kwargs)
+
+    def test_criterion_backend_labels(self):
+        """backend_labels is a bare list without descriptions, a label->description dict with."""
+        bare = Criterion(name="c", description="d", choices=["a", "b"])
+        assert bare.backend_labels == ["a", "b"]
+
+        described = Criterion(
+            name="c",
+            description="d",
+            choices={"a": 1, "b": 0},
+            label_descriptions={"a": "A", "b": "B"},
+        )
+        assert described.backend_labels == {"a": "A", "b": "B"}
+
+    def test_criterion_rejects_unknown_label_description(self):
+        with pytest.raises(ValueError, match="unknown labels"):
+            Criterion(
+                name="c",
+                description="d",
+                choices=["a", "b"],
+                label_descriptions={"a": "A", "z": "Z"},
+            )
+
     def test_classification_evaluator_evaluate_success(self):
         """Test successful classification evaluation."""
         llm = MockLLM()
@@ -458,7 +607,11 @@ class TestClassificationEvaluator:
     def test_classification_evaluator_invalid_label(self):
         """Test classification evaluation with invalid label."""
         llm = MockLLM()
-        llm.generate_classification = MagicMock(return_value={"label": "invalid"})
+        llm.generate_classifications = MagicMock(
+            return_value={
+                "test_evaluator": ClassificationAnswer(name="test_evaluator", label="invalid")
+            }
+        )
 
         template = "Test template with {input}"
         choices = ["good", "bad"]
@@ -512,6 +665,172 @@ class TestClassificationEvaluator:
         assert len(result) == 1
         assert result[0].name == "sentiment"
         assert result[0].label == "good"  # MockLLM returns "good"
+
+    def test_multiple_criteria_return_one_score_each(self):
+        """A List[Criterion] evaluator yields one Score per criterion, each with its own
+        name, score map, and direction."""
+        evaluator = ClassificationEvaluator(
+            name="review",
+            llm=MockLLM(),
+            prompt_template="review: {text}",
+            choices=[
+                Criterion(
+                    name="helpfulness", description="How helpful?", choices={"good": 1, "bad": 0}
+                ),
+                Criterion(
+                    name="accuracy",
+                    description="How accurate?",
+                    choices=["right", "wrong"],
+                    direction="minimize",
+                ),
+            ],
+        )
+
+        scores = evaluator._evaluate({"text": "..."})
+
+        assert [s.name for s in scores] == ["helpfulness", "accuracy"]
+        # MockLLM returns each criterion's first label.
+        assert scores[0].label == "good" and scores[0].score == 1
+        assert scores[1].label == "right" and scores[1].score is None
+        assert scores[0].direction == "maximize"  # inherited from the evaluator default
+        assert scores[1].direction == "minimize"  # per-criterion override
+        assert all(s.metadata["model"] == "test-model" for s in scores)
+
+    async def test_multiple_criteria_async(self):
+        evaluator = ClassificationEvaluator(
+            name="review",
+            llm=MockLLM(),
+            prompt_template="review: {text}",
+            choices=[
+                Criterion(name="a", description="qa", choices=["x", "y"]),
+                Criterion(name="b", description="qb", choices=["x", "y"]),
+            ],
+        )
+
+        scores = await evaluator._async_evaluate({"text": "..."})
+
+        assert [s.name for s in scores] == ["a", "b"]
+
+    def test_multiple_criteria_invalid_label_raises(self):
+        """An off-list label for any one criterion raises (Answered/Unanswered is later work)."""
+        llm = MockLLM()
+        llm.generate_classifications = MagicMock(
+            return_value={
+                "a": ClassificationAnswer(name="a", label="x"),
+                "b": ClassificationAnswer(name="b", label="nope"),  # invalid for criterion b
+            }
+        )
+        evaluator = ClassificationEvaluator(
+            name="review",
+            llm=llm,
+            prompt_template="review: {text}",
+            choices=[
+                Criterion(name="a", description="qa", choices=["x", "y"]),
+                Criterion(name="b", description="qb", choices=["x", "y"]),
+            ],
+        )
+
+        with pytest.raises(ValueError, match="'b' received invalid label 'nope'"):
+            evaluator._evaluate({"text": "..."})
+
+    def test_multi_criterion_requires_non_empty_description(self):
+        """User-supplied criteria must each carry a non-empty description (the question)."""
+        with pytest.raises(ValueError, match="non-empty description"):
+            ClassificationEvaluator(
+                name="review",
+                llm=MockLLM(),
+                prompt_template="review: {text}",
+                choices=[Criterion(name="a", description="", choices=["x", "y"])],
+            )
+
+    def test_criteria_list_forwards_description_and_resolves_method(self, openai_api_key):
+        """The List[Criterion] path must send each criterion's ``description`` to the backend as
+        that property's ``description``, omit the ``explanation`` property when
+        ``include_explanation=False``, and pick ``TOOL_CALLING`` for criteria with
+        ``label_descriptions``. ``MockLLM`` can't catch these because it ignores both the schema
+        and the ``method`` kwarg, so use a real ``LLM`` with only ``generate_object`` stubbed."""
+        from phoenix.evals import LLM
+
+        llm = LLM(provider="openai", model="gpt-4o", client="openai")
+        llm._sync_adapter = MagicMock()
+        llm._sync_adapter.generate_object.return_value = {"relevance": {"label": "relevant"}}
+
+        criterion = Criterion(
+            name="relevance",
+            description="Is the answer relevant to the question?",
+            choices={"relevant": 1, "irrelevant": 0},
+            label_descriptions={
+                "relevant": "The answer addresses the question.",
+                "irrelevant": "The answer does not address the question.",
+            },
+        )
+        evaluator = ClassificationEvaluator(
+            name="my eval",
+            llm=llm,
+            prompt_template="judge: {x}",
+            choices=[criterion],
+            include_explanation=False,
+        )
+
+        [score] = evaluator._evaluate({"x": "1"})
+        assert score.name == "relevance" and score.label == "relevant" and score.score == 1
+
+        args, kwargs = llm._sync_adapter.generate_object.call_args
+        schema = args[1]
+        prop = schema["properties"]["relevance"]
+
+        # description reaches the backend as the criterion property's description (instructions).
+        assert prop["description"] == criterion.description
+        # include_explanation=False => no explanation property on the criterion object.
+        assert "explanation" not in prop["properties"]
+        # label_descriptions => TOOL_CALLING, not AUTO.
+        assert kwargs["method"] == ObjectGenerationMethod.TOOL_CALLING
+
+    def test_choices_list_mixing_criterion_and_string_raises(self):
+        """A list mixing a Criterion with plain strings is rejected, not silently filtered."""
+        with pytest.raises(ValueError, match="mixing them is not supported"):
+            ClassificationEvaluator(
+                name="e",
+                llm=MockLLM(),
+                prompt_template="t {x}",
+                choices=[Criterion(name="q", description="d", choices=["a", "b"]), "a"],
+            )
+
+    def test_legacy_empty_name_evaluator_constructs_and_evaluates(self):
+        """Regression: a legacy (non-List[Criterion]) evaluator with an empty name constructed
+        and evaluated on ``main``. The refactor wraps legacy choices in an internally-built
+        Criterion, so the Criterion name check must not leak onto legacy evaluators."""
+        evaluator = ClassificationEvaluator(
+            name="",
+            llm=MockLLM(),
+            prompt_template="t {x}",
+            choices=["good", "bad"],
+        )
+        [score] = evaluator._evaluate({"x": "1"})
+        assert score.name == "" and score.label == "good"
+
+    def test_criteria_list_rejects_empty_name(self):
+        """The List[Criterion] format still rejects an empty criterion name."""
+        with pytest.raises(ValueError, match="Criterion.name must be a non-empty string"):
+            ClassificationEvaluator(
+                name="e",
+                llm=MockLLM(),
+                prompt_template="t {x}",
+                choices=[Criterion(name="", description="d", choices=["a", "b"])],
+            )
+
+    def test_multi_criterion_rejects_duplicate_names(self):
+        """Two criteria sharing a name would collapse to one question, so it is rejected."""
+        with pytest.raises(ValueError, match="names must be unique.*'q'"):
+            ClassificationEvaluator(
+                name="review",
+                llm=MockLLM(),
+                prompt_template="review: {text}",
+                choices=[
+                    Criterion(name="q", description="d", choices=["a", "b"]),
+                    Criterion(name="q", description="d2", choices=["a", "c"]),
+                ],
+            )
 
 
 class TestCreateEvaluatorAsync:
