@@ -68,11 +68,11 @@ printf %s 'YOUR_REGISTRY_PASSWORD' | daytona registry set YOUR_REGISTRY_HOST \
 | **Flag** | **Description** |
 | --- | --- |
 | `<host>` | Sets the registry host.<br />**Required**<br />**Format:** a bare host with an optional port, without scheme or path<br />**Example:** `ghcr.io` |
-| `--username` | Sets the registry username.<br />**Default:** the stored username<br />**Rules:** required for a new credential<br />**Rules:** the IAM role ARN for the ecr_role kind |
-| `--password-stdin` | Reads the password or token from standard input.<br />**Rules:** exactly one of --password-stdin or --password, except for the ecr_role kind, which takes no password |
-| `--password` | Sets the password or token on the command line.<br />**Rules:** exactly one of --password-stdin or --password, except for the ecr_role kind, which takes no password |
-| `--kind` | Sets the authentication kind.<br />**Default:** `basic`, or the stored kind<br />**Value:** `basic`, `ghcr`, `gcr`, `ecr`, or `ecr_role`<br />**Example:** `ghcr` |
 | `--description` | Sets the description.<br />**Default:** the stored description<br />**Value:** an empty string for no description<br />**Example:** `'CI pull credential'` |
+| `--kind` | Sets the authentication kind.<br />**Default:** `basic`, or the stored kind<br />**Value:** `basic`, `ghcr`, `gcr`, `ecr`, or `ecr_role`<br />**Example:** `ghcr` |
+| `--password` | Sets the password or token on the command line.<br />**Rules:** exactly one of --password-stdin or --password, except for the ecr_role kind, which takes no password |
+| `--password-stdin` | Reads the password or token from standard input.<br />**Rules:** exactly one of --password-stdin or --password, except for the ecr_role kind, which takes no password |
+| `--username` | Sets the registry username.<br />**Default:** the stored username<br />**Rules:** required for a new credential<br />**Rules:** the IAM role ARN for the ecr_role kind |
 
 > **Notes:**
 >
@@ -93,11 +93,11 @@ curl 'https://api.daytona.com/registries/YOUR_REGISTRY_HOST' \
 
 | **Field** | **Description** |
 | --- | --- |
-| `host` | Sets the registry host.<br />**Format:** a bare host with an optional port, without scheme or path<br />**Example:** `ghcr.io` |
 | `username` | Sets the registry username, or the IAM role ARN for the ecr_role kind.<br />**Required** |
-| `password` | Sets the password or token.<br />**Maximum:** 64 KiB |
-| `kind` | Sets the authentication kind.<br />**Default:** `basic`<br />**Value:** `basic`, `ghcr`, `gcr`, `ecr`, or `ecr_role`<br />**Example:** `"ghcr"` |
 | `description` | Sets the description.<br />**Default:** no description<br />**Example:** `"CI pull credential"` |
+| `host` | Sets the registry host.<br />**Format:** a bare host with an optional port, without scheme or path<br />**Example:** `ghcr.io` |
+| `kind` | Sets the authentication kind.<br />**Default:** `basic`<br />**Value:** `basic`, `ghcr`, `gcr`, `ecr`, or `ecr_role`<br />**Example:** `"ghcr"` |
+| `password` | Sets the password or token.<br />**Minimum:** 1 byte<br />**Maximum:** 64 KiB |
 
 > **Notes:**
 >
@@ -132,8 +132,8 @@ printf %s 'YOUR_DOCKERHUB_TOKEN' | daytona registry set docker.io \
 | **Flag** | **Description** |
 | --- | --- |
 | `<host>` | Sets the registry host.<br />**Required**<br />**Format:** a bare host with an optional port, without scheme or path<br />**Example:** `docker.io` |
-| `--username` | Sets the registry username.<br />**Default:** the stored username |
 | `--password-stdin` | Reads the password or token from standard input.<br />**Rules:** exactly one of --password-stdin or --password |
+| `--username` | Sets the registry username.<br />**Default:** the stored username |
 
 > **Notes:**
 >
@@ -154,9 +154,9 @@ curl 'https://api.daytona.com/registries/docker.io' \
 
 | **Field** | **Description** |
 | --- | --- |
-| `host` | Sets the registry host.<br />**Format:** a bare host with an optional port, without scheme or path<br />**Example:** `docker.io` |
 | `username` | Sets the registry username.<br />**Required** |
-| `password` | Sets the password or token.<br />**Maximum:** 64 KiB |
+| `host` | Sets the registry host.<br />**Format:** a bare host with an optional port, without scheme or path<br />**Example:** `docker.io` |
+| `password` | Sets the password or token.<br />**Minimum:** 1 byte<br />**Maximum:** 64 KiB |
 
 > **Notes:**
 >
@@ -184,9 +184,9 @@ daytona registry set us-docker.pkg.dev \
 | **Flag** | **Description** |
 | --- | --- |
 | `<host>` | Sets the registry host.<br />**Required**<br />**Format:** a bare host with an optional port, without scheme or path<br />**Rules:** a `gcr.io`, `*.gcr.io`, or `*-docker.pkg.dev` host with the kind `gcr`<br />**Example:** `us-docker.pkg.dev` |
-| `--username` | Sets the registry username.<br />**Default:** the stored username<br />**Value:** `_json_key` |
-| `--password-stdin` | Reads the password or token from standard input.<br />**Rules:** exactly one of --password-stdin or --password |
 | `--kind` | Sets the authentication kind.<br />**Default:** `basic`, or the stored kind<br />**Value:** `basic`, `ghcr`, `gcr`, `ecr`, or `ecr_role`<br />**Example:** `gcr` |
+| `--password-stdin` | Reads the password or token from standard input.<br />**Rules:** exactly one of --password-stdin or --password |
+| `--username` | Sets the registry username.<br />**Default:** the stored username<br />**Value:** `_json_key` |
 
 > **Notes:**
 >
@@ -208,10 +208,10 @@ curl 'https://api.daytona.com/registries/us-docker.pkg.dev' \
 
 | **Field** | **Description** |
 | --- | --- |
-| `host` | Sets the registry host.<br />**Format:** a bare host with an optional port, without scheme or path<br />**Rules:** a `gcr.io`, `*.gcr.io`, or `*-docker.pkg.dev` host with the kind `gcr`<br />**Example:** `us-docker.pkg.dev` |
 | `username` | Sets the registry username.<br />**Required**<br />**Value:** `_json_key` |
-| `password` | Sets the password or token.<br />**Maximum:** 64 KiB |
+| `host` | Sets the registry host.<br />**Format:** a bare host with an optional port, without scheme or path<br />**Rules:** a `gcr.io`, `*.gcr.io`, or `*-docker.pkg.dev` host with the kind `gcr`<br />**Example:** `us-docker.pkg.dev` |
 | `kind` | Sets the authentication kind.<br />**Default:** `basic`<br />**Value:** `basic`, `ghcr`, `gcr`, `ecr`, or `ecr_role`<br />**Example:** `"gcr"` |
+| `password` | Sets the password or token.<br />**Minimum:** 1 byte<br />**Maximum:** 64 KiB |
 
 > **Notes:**
 >
@@ -238,9 +238,9 @@ printf %s 'YOUR_GITHUB_PAT' | daytona registry set ghcr.io \
 | **Flag** | **Description** |
 | --- | --- |
 | `<host>` | Sets the registry host.<br />**Required**<br />**Format:** a bare host with an optional port, without scheme or path<br />**Example:** `ghcr.io` |
-| `--username` | Sets the registry username.<br />**Default:** the stored username |
-| `--password-stdin` | Reads the password or token from standard input.<br />**Rules:** exactly one of --password-stdin or --password |
 | `--kind` | Sets the authentication kind.<br />**Default:** `basic`, or the stored kind<br />**Value:** `basic`, `ghcr`, `gcr`, `ecr`, or `ecr_role`<br />**Example:** `ghcr` |
+| `--password-stdin` | Reads the password or token from standard input.<br />**Rules:** exactly one of --password-stdin or --password |
+| `--username` | Sets the registry username.<br />**Default:** the stored username |
 
 > **Notes:**
 >
@@ -262,10 +262,10 @@ curl 'https://api.daytona.com/registries/ghcr.io' \
 
 | **Field** | **Description** |
 | --- | --- |
-| `host` | Sets the registry host.<br />**Format:** a bare host with an optional port, without scheme or path<br />**Example:** `ghcr.io` |
 | `username` | Sets the registry username.<br />**Required** |
-| `password` | Sets the password or token.<br />**Maximum:** 64 KiB |
+| `host` | Sets the registry host.<br />**Format:** a bare host with an optional port, without scheme or path<br />**Example:** `ghcr.io` |
 | `kind` | Sets the authentication kind.<br />**Default:** `basic`<br />**Value:** `basic`, `ghcr`, `gcr`, `ecr`, or `ecr_role`<br />**Example:** `"ghcr"` |
+| `password` | Sets the password or token.<br />**Minimum:** 1 byte<br />**Maximum:** 64 KiB |
 
 > **Notes:**
 >
@@ -292,9 +292,9 @@ printf %s 'YOUR_AWS_SECRET_ACCESS_KEY' | daytona registry set AWS_ACCOUNT_ID.dkr
 | **Flag** | **Description** |
 | --- | --- |
 | `<host>` | Sets the registry host.<br />**Required**<br />**Format:** a bare host with an optional port, without scheme or path<br />**Example:** `123456789012.dkr.ecr.us-east-1.amazonaws.com` |
-| `--username` | Sets the registry username.<br />**Default:** the stored username |
-| `--password-stdin` | Reads the password or token from standard input.<br />**Rules:** exactly one of --password-stdin or --password |
 | `--kind` | Sets the authentication kind.<br />**Default:** `basic`, or the stored kind<br />**Value:** `basic`, `ghcr`, `gcr`, `ecr`, or `ecr_role`<br />**Example:** `ecr` |
+| `--password-stdin` | Reads the password or token from standard input.<br />**Rules:** exactly one of --password-stdin or --password |
+| `--username` | Sets the registry username.<br />**Default:** the stored username |
 
 > **Notes:**
 >
@@ -316,10 +316,10 @@ curl 'https://api.daytona.com/registries/AWS_ACCOUNT_ID.dkr.ecr.AWS_REGION.amazo
 
 | **Field** | **Description** |
 | --- | --- |
-| `host` | Sets the registry host.<br />**Format:** a bare host with an optional port, without scheme or path<br />**Example:** `123456789012.dkr.ecr.us-east-1.amazonaws.com` |
 | `username` | Sets the registry username.<br />**Required** |
-| `password` | Sets the password or token.<br />**Maximum:** 64 KiB |
+| `host` | Sets the registry host.<br />**Format:** a bare host with an optional port, without scheme or path<br />**Example:** `123456789012.dkr.ecr.us-east-1.amazonaws.com` |
 | `kind` | Sets the authentication kind.<br />**Default:** `basic`<br />**Value:** `basic`, `ghcr`, `gcr`, `ecr`, or `ecr_role`<br />**Example:** `"ecr"` |
+| `password` | Sets the password or token.<br />**Minimum:** 1 byte<br />**Maximum:** 64 KiB |
 
 > **Notes:**
 >
@@ -375,8 +375,8 @@ daytona registry list
 
 | **Flag** | **Description** |
 | --- | --- |
-| `--limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `--all` | Lists every page. |
+| `--limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 
 > **Notes:**
 >
@@ -391,8 +391,8 @@ curl 'https://api.daytona.com/registries' \
 
 | **Field** | **Description** |
 | --- | --- |
-| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `cursor` | Continues from a previous page. |
+| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 
 > **Notes:**
 >

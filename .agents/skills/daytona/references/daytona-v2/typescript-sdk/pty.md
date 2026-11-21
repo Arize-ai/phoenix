@@ -79,11 +79,11 @@ const handle = await sandbox.pty.start('python3 -i', {
 | **Parameter** | **Description** |
 | --- | --- |
 | `command` | Sets the command that runs in the terminal.<br />**Default:** an interactive shell<br />**Example:** `'python3 -i'` |
-| `terminal` | Sets the terminal size in columns and rows.<br />**Default:** `{ cols: 80, rows: 24 }`<br />**Minimum:** `1` for cols and rows<br />**Maximum:** `65535` for cols and rows, or `32767` on Windows |
 | `cwd` | Sets the working directory of the command.<br />**Example:** `'/tmp'` |
 | `env` | Sets environment variables for the command.<br />**Example:** `{ TERM: 'xterm' }` |
-| `name` | Sets a name that replaces the session ID in requests while the session runs.<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, other than a single or double period, entrypoint, or dockerd<br />**Example:** `'dev-shell'` |
 | `keepLogs` | Sets how long the record and output are kept after the session exits.<br />**Default:** `'until_cleanup'`<br />**Value:** `'until_cleanup'`, `'on_exit_ttl'`, or `'none'`<br />**Example:** `'on_exit_ttl'` |
+| `name` | Sets a name that replaces the session ID in requests while the session runs.<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, other than a single or double period, entrypoint, or dockerd<br />**Example:** `'dev-shell'` |
+| `terminal` | Sets the terminal size in columns and rows.<br />**Default:** `{ cols: 80, rows: 24 }`<br />**Minimum:** `1` for cols and rows<br />**Maximum:** `65535` for cols and rows, or `32767` on Windows |
 
 > **Notes:**
 >
@@ -140,9 +140,9 @@ const handle = await sandbox.pty.start(undefined, {
 
 | **Parameter** | **Description** |
 | --- | --- |
+| `executionTimeoutSeconds` | Sets how many seconds the session can run before Daytona kills it.<br />**Value:** `0` for no limit<br />**Example:** `600` |
 | `shell` | Sets the shell that runs the session.<br />**Default:** on Linux and macOS, the login shell of the user, or the first of `bash`, `zsh`, and `sh` in the image, and on Windows, `pwsh.exe`, or `powershell.exe` when PowerShell 7 is missing<br />**Format:** a path, or a name looked up on PATH<br />**Example:** `'/bin/bash'` |
 | `user` | Sets the OS user that the session runs as.<br />**Example:** `'root'` |
-| `executionTimeoutSeconds` | Sets how many seconds the session can run before Daytona kills it.<br />**Value:** `0` for no limit<br />**Example:** `600` |
 
 > **Notes:**
 >
@@ -267,9 +267,9 @@ await handle.delete()
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `signal` | Sets the signal to send.<br />**Default:** `'TERM'`<br />**Value:** `'TERM'`, `'KILL'`, `'INT'`, `'HUP'`, `'QUIT'`, `'USR1'`, or `'USR2'`<br />**Example:** `'INT'` |
-| `escalateAfterSeconds` | Sets how many seconds to wait before sending the escalation signal to a session that still runs.<br />**Maximum:** `600`<br />**Example:** `5` |
+| `escalateAfterSeconds` | Sets how many seconds to wait before sending the escalation signal to a session that still runs.<br />**Minimum:** `0`<br />**Maximum:** `600`<br />**Example:** `5` |
 | `escalateTo` | Sets the escalation signal.<br />**Default:** `'KILL'`<br />**Value:** `'TERM'`, `'KILL'`, `'INT'`, `'HUP'`, `'QUIT'`, `'USR1'`, or `'USR2'`<br />**Example:** `'QUIT'` |
+| `signal` | Sets the signal to send.<br />**Default:** `'TERM'`<br />**Value:** `'TERM'`, `'KILL'`, `'INT'`, `'HUP'`, `'QUIT'`, `'USR1'`, or `'USR2'`<br />**Example:** `'INT'` |
 
 ### Delete a PTY session
 
@@ -365,8 +365,8 @@ for (const frame of page.items) {
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `limit` | Sets the number of log frames in a page.<br />**Default:** `1000`<br />**Value:** `1` to `5000`, with other values clamped to that range |
 | `encoding` | Sets the encoding of the frame data.<br />**Default:** `'text'`<br />**Value:** `'text'` or `'base64'`<br />**Example:** `'base64'` |
+| `limit` | Sets the number of log frames in a page.<br />**Default:** `1000`<br />**Value:** `1` to `5000`, with other values clamped to that range |
 
 > **Notes:**
 >

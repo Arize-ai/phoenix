@@ -12,18 +12,13 @@ Regions managed by Daytona and available to all organizations:
 | Europe        | **`eu`**   |
 
 ```python
-from daytona import Daytona, DaytonaConfig
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
-# Configure Daytona to use the US region
-config = DaytonaConfig(
-    target="us"
-)
-
-# Initialize the Daytona client with the specified configuration
-daytona = Daytona(config)
+daytona = Daytona()
 
 # Create a sandbox in the US region
-sandbox = daytona.create()
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(target="us"))
 ```
 
 List regions managed by Daytona and available to all organizations:

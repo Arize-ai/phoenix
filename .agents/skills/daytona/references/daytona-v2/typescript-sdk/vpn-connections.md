@@ -298,7 +298,7 @@ Create the file with a text editor such as nano or vim, or upload it to your san
 
 **CLI:**
 
-```bash
+```text
 client
 proto udp
 explicit-exit-notify

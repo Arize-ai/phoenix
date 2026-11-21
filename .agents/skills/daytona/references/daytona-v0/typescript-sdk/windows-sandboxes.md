@@ -64,7 +64,7 @@ Create a Windows sandbox from a default snapshot. The snapshot sets the sandbox 
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const sandbox = await daytona.create({ snapshot: 'windows-small' })
+const sandbox = await daytona.v0.create({ snapshot: 'windows-small' })
 ```
 
 **Custom:**
@@ -85,14 +85,14 @@ Create a Windows sandbox from your own snapshot. Windows snapshots are created f
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const sandbox = await daytona.create({ snapshot: 'windows-small' })
+const sandbox = await daytona.v0.create({ snapshot: 'windows-small' })
 
 // Install and configure the software you need, then create a snapshot
 await sandbox.stop()
 await sandbox.createSnapshot('my-windows-snapshot')
 
 // Create a Windows sandbox from your snapshot
-const newSandbox = await daytona.create({ snapshot: 'my-windows-snapshot' })
+const newSandbox = await daytona.v0.create({ snapshot: 'my-windows-snapshot' })
 ```
 
 ## Filesystem snapshot
@@ -103,7 +103,7 @@ A filesystem snapshot, also called a cold snapshot, saves the filesystem of a st
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const sandbox = await daytona.create({ snapshot: 'windows-small' })
+const sandbox = await daytona.v0.create({ snapshot: 'windows-small' })
 
 // Write a file to the filesystem
 await sandbox.fs.uploadFile(Buffer.from('done'), 'setup.txt')
@@ -113,7 +113,7 @@ await sandbox.stop()
 await sandbox.createSnapshot('my-windows-snapshot')
 
 // A sandbox created from the snapshot starts with the same filesystem
-const newSandbox = await daytona.create({ snapshot: 'my-windows-snapshot' })
+const newSandbox = await daytona.v0.create({ snapshot: 'my-windows-snapshot' })
 const content = await newSandbox.fs.downloadFile('setup.txt')
 console.log(content.toString()) // done
 ```
@@ -145,7 +145,7 @@ Windows sandboxes preserve their filesystem across [stop and start](#stop--start
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const sandbox = await daytona.create({ snapshot: 'windows-small' })
+const sandbox = await daytona.v0.create({ snapshot: 'windows-small' })
 
 // Write a file to the filesystem
 await sandbox.fs.uploadFile(Buffer.from('done'), 'setup.txt')
@@ -169,7 +169,7 @@ Windows sandboxes preserve their memory across [pause and resume](#pause--resume
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const sandbox = await daytona.create({ snapshot: 'windows-small' })
+const sandbox = await daytona.v0.create({ snapshot: 'windows-small' })
 
 // Start a process that runs in the background
 await sandbox.process.createSession('keepalive')
@@ -354,7 +354,7 @@ The interval is set in minutes:
 The sandbox pauses after no new events occur for the specified interval. Events include sandbox state changes and interactions with the sandbox through the SDK. Interactions through [sandbox previews](./preview.md) do not reset the timer.
 
 ```typescript
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   snapshot: 'windows-small',
   autoPauseInterval: 60,
 })
@@ -375,7 +375,7 @@ Set `ttl_minutes` when creating a sandbox, or update it later. The value is in m
 Calling `set_ttl` after creation resets the deadline from the current moment. Use wall-clock TTL for agent sessions, CI jobs, and any sandbox that must not outlive a fixed deadline.
 
 ```typescript
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   snapshot: 'windows-small',
   ttlMinutes: 120,
 })

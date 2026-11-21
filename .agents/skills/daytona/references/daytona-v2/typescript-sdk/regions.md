@@ -6,16 +6,24 @@ Regions are geographic or logical areas in which sandboxes run. The region of a 
 
 Daytona runs every sandbox in a **region** and places it on available capacity within that region. Regions nest, so a broad region such as Earth covers the narrower regions inside it.
 
-Use a region to place sandboxes close to their users and data, and to set the price multiplier that a sandbox is billed at. Set the region when you create a sandbox. A create request that names a region covering other regions places the sandbox in a region inside it, and is refused when no region inside it is available. A create refused because placement passed its deadline or met database contention can be retried with the same idempotency key.
+Use a region to place sandboxes close to their users and data, and to set the price multiplier that a sandbox is billed at. Choose the region when you create a sandbox, and read the regions an organization can use before you choose.
+
+## Create sandboxes in a region
+
+Create sandboxes in a region to run them in a chosen area. Placement is the choice of the host that a workload runs on, within the area that the workload is allowed to use.
+
+A create in a region places the sandbox on a host inside that region. A create that names a region covering other regions, such as Earth, places the sandbox in one of the regions inside it.
+
+Set the region in the create request of a sandbox. A create that names a covering region is refused when no region inside it is available.
 
 | **Region** | **ID** | **Multiplier** |
 | --- | --- | --- |
 | **Earth** | `earth` | 1.0× |
-| <span className="font-mono whitespace-pre">└─ </span>**United States** | `us` | 1.15× |
-| <span className="font-mono whitespace-pre">   └─ </span>**US East** | `us-east` | 1.75× |
-| <span className="font-mono whitespace-pre">      ├─ </span>**Ashburn** | `us-east-ash-1` | 2.0× |
-| <span className="font-mono whitespace-pre">      ├─ </span>**Boston** | `us-east-bos-1` | 2.0× |
-| <span className="font-mono whitespace-pre">      └─ </span>**N. Virginia** | `us-east-iad-1` | 2.0× |
+| `└─` **United States** | `us` | 1.15× |
+| `   └─` **US East** | `us-east` | 1.75× |
+| `      ├─` **Ashburn** | `us-east-ash-1` | 2.0× |
+| `      ├─` **Boston** | `us-east-bos-1` | 2.0× |
+| `      └─` **N. Virginia** | `us-east-iad-1` | 2.0× |
 
 ```typescript
 import { Daytona } from '@daytona/sdk'
@@ -28,12 +36,13 @@ const sandbox = await daytona.v2.create({ region: 'earth' })
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `region` | Sets the region.<br />**Default:** the project's default region, then the organization's, then `earth`<br />**Value:** a region ID from [List regions](#list-regions), such as `earth`, `us`, `us-east`, `us-east-ash-1`, `us-east-bos-1`, or `us-east-iad-1`<br />**Example:** `'earth'` |
+| `region` | Sets the region.<br />**Default:** the project's default region, then the organization's, then `earth`<br />**Value:** `earth`, `us`, `us-east`, `us-east-ash-1`, `us-east-bos-1`, `us-east-iad-1`, or the ID of a [BYOC region](./bring-your-own-compute.md) of the organization<br />**Example:** `'earth'` |
 
 > **Notes:**
 >
 > - **Permissions:** The request requires the `write:sandboxes` permission.
 > - **Results:** The region of the returned sandbox is the region that the create named, such as `earth`, until the sandbox is read again.
+> - **Recovery:** A create refused because placement passed its deadline or met database contention can be retried with the same idempotency key.
 > - **Behaviour:** The SDKs and the CLI send an idempotency key with every create.
 
 ## Operations

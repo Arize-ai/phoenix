@@ -45,7 +45,7 @@ You can create SSH access tokens programmatically. The token can then be used to
 from daytona import Daytona
 
 daytona = Daytona()
-sandbox = daytona.get("sandbox-abc123")
+sandbox = daytona.v0.get("sandbox-abc123")
 
 # Create SSH access token
 ssh_access = sandbox.create_ssh_access(expires_in_minutes=60)

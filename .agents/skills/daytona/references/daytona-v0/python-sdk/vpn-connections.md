@@ -62,7 +62,7 @@ def setup_tailscale_vpn_interactive():
     """
     # Create the sandbox
     print("Creating sandbox...")
-    sandbox = daytona.create()
+    sandbox = daytona.v0.create()
     print(f"Sandbox created: {sandbox.id}")
 
     # Step 1: Install Tailscale
@@ -191,7 +191,7 @@ def setup_tailscale_vpn(auth_key: str):
     """
     # Create the sandbox
     print("Creating sandbox...")
-    sandbox = daytona.create()
+    sandbox = daytona.v0.create()
     print(f"Sandbox created: {sandbox.id}")
 
     # Step 1: Install Tailscale
@@ -384,7 +384,7 @@ def setup_openvpn(ovpn_config: str):
     """
     # Create the sandbox
     print("Creating sandbox...")
-    sandbox = daytona.create()
+    sandbox = daytona.v0.create()
     print(f"Sandbox created: {sandbox.id}")
 
     # Step 1: Install OpenVPN
@@ -473,7 +473,7 @@ async function setupOpenvpn(ovpnConfig: string): Promise<void> {
 
   // Create the sandbox
   console.log("Creating sandbox...");
-  const sandbox = await daytona.create();
+  const sandbox = await daytona.v0.create();
   console.log(`Sandbox created: ${sandbox.id}`);
 
   // Step 1: Install OpenVPN
@@ -648,7 +648,7 @@ def setup_netbird():
 
     # Create the sandbox
     print("Creating sandbox...")
-    sandbox = daytona.create()
+    sandbox = daytona.v0.create()
     print(f"Sandbox created: {sandbox.id}")
     print("\nInstalling NetBird via the official install script...")
     install_cmd = (
@@ -708,7 +708,7 @@ def setup_netbird():
     """
     # Create the sandbox
     print("Creating sandbox...")
-    sandbox = daytona.create()
+    sandbox = daytona.v0.create()
     print(f"Sandbox created: {sandbox.id}")
     # Install NetBird via the official install script
     print("\nInstalling NetBird via the official install script...")
@@ -843,7 +843,7 @@ def setup_twingate(service_key_path: str):
 
     # Create the sandbox
     print("Creating sandbox...")
-    sandbox = daytona.create()
+    sandbox = daytona.v0.create()
     print(f"Sandbox created: {sandbox.id}")
 
     # Step 1: Install the Twingate Client

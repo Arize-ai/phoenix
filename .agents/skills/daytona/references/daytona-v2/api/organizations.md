@@ -59,7 +59,7 @@ Adds the current user to the organization with the invitation's roles. An existi
 | 400 | The request body is invalid (`BAD_REQUEST`) | [ErrorBody](./schemas.md#errorbody) (`application/json`) |
 | 401 | Missing or invalid authentication (`UNAUTHORIZED`) | [ErrorBody](./schemas.md#errorbody) (`application/json`) |
 | 404 | Invitation not found | [ErrorBody](./schemas.md#errorbody) (`application/json`) |
-| 409 | The roles the invitation grants no longer exist (`CONFLICT`) | [ErrorBody](./schemas.md#errorbody) (`application/json`) |
+| 409 | The roles the invitation grants no longer exist (`CONFLICT`). Membership changes in the organization are paused (`MEMBERSHIP_EDITS_FROZEN`) | [ErrorBody](./schemas.md#errorbody) (`application/json`) |
 | 429 | The request was rate limited, the service is overloaded, or a limit was reached (`RATE_LIMITED`, `OVERLOADED`, `LIMIT_EXCEEDED`, `TOO_MANY_REQUESTS`) | [ErrorBody](./schemas.md#errorbody) (`application/json`) |
 
 ---
@@ -248,7 +248,7 @@ Deletes an organization after confirming that no active resources block removal.
 | 401 | Missing or invalid authentication (`UNAUTHORIZED`) | [ErrorBody](./schemas.md#errorbody) (`application/json`) |
 | 403 | The caller does not have access to this operation (`FORBIDDEN`) | [ErrorBody](./schemas.md#errorbody) (`application/json`) |
 | 404 | Organization not found | [ErrorBody](./schemas.md#errorbody) (`application/json`) |
-| 409 | The organization is a personal organization (`CONFLICT`). The organization still has a Mac reservation that has not ended (`CONFLICT`). The organization still owns live sandboxes, volumes, images or snapshots (`CONFLICT`). The organization still has sandboxes or operations winding down (`CONFLICT`). The organization still has sandbox creates in flight (`CONFLICT`). The organization owns a dedicated region or macro region (`CONFLICT`) | [ErrorBody](./schemas.md#errorbody) (`application/json`) |
+| 409 | The organization is a personal organization (`CONFLICT`). The organization still has a Mac reservation that has not ended (`CONFLICT`). The organization still owns live sandboxes, volumes, images or snapshots (`CONFLICT`). The organization still has sandboxes or operations winding down (`CONFLICT`). The organization still has sandbox creates in flight (`CONFLICT`). The organization owns a dedicated region or macro region (`CONFLICT`). Membership changes in the organization are paused (`MEMBERSHIP_EDITS_FROZEN`) | [ErrorBody](./schemas.md#errorbody) (`application/json`) |
 
 ---
 
@@ -276,6 +276,7 @@ Returns audit logs newest first. The `actor_created_by` field is `null` when the
 | `status` | query | integer (int32) | No | The response status code filter |
 | `start_at` | query | string (date-time) | No | The inclusive start of the time range |
 | `end_at` | query | string (date-time) | No | The exclusive end of the time range |
+| `actor_partner` | query | string | No | The partner application filter |
 
 ### Responses
 
@@ -625,7 +626,7 @@ Replaces the member's complete role set.
 | 401 | Missing or invalid authentication (`UNAUTHORIZED`) | [ErrorBody](./schemas.md#errorbody) (`application/json`) |
 | 403 | The caller does not have access to this operation (`FORBIDDEN`) | [ErrorBody](./schemas.md#errorbody) (`application/json`) |
 | 404 | Member not found | [ErrorBody](./schemas.md#errorbody) (`application/json`) |
-| 409 | The update would leave the organization without an administrator (`CONFLICT`) | [ErrorBody](./schemas.md#errorbody) (`application/json`) |
+| 409 | The update would leave the organization without an administrator (`CONFLICT`). Membership changes in the organization are paused (`MEMBERSHIP_EDITS_FROZEN`) | [ErrorBody](./schemas.md#errorbody) (`application/json`) |
 
 ---
 
@@ -650,7 +651,7 @@ Replaces the member's complete role set.
 | 401 | Missing or invalid authentication (`UNAUTHORIZED`) | [ErrorBody](./schemas.md#errorbody) (`application/json`) |
 | 403 | The caller does not have access to this operation (`FORBIDDEN`) | [ErrorBody](./schemas.md#errorbody) (`application/json`) |
 | 404 | Member not found | [ErrorBody](./schemas.md#errorbody) (`application/json`) |
-| 409 | Removal would leave the organization without an administrator (`CONFLICT`) | [ErrorBody](./schemas.md#errorbody) (`application/json`) |
+| 409 | Removal would leave the organization without an administrator (`CONFLICT`). Membership changes in the organization are paused (`MEMBERSHIP_EDITS_FROZEN`) | [ErrorBody](./schemas.md#errorbody) (`application/json`) |
 
 ---
 

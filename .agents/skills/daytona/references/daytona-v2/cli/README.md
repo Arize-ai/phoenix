@@ -26,18 +26,18 @@ Install the Daytona CLI to run its commands on a local computer. An installation
 
 An installation of the CLI is one binary for the operating system and architecture of the computer. The installer checks that a new binary runs before it replaces the installed one.
 
-Install the CLI with Homebrew on macOS, or with the install script on Linux, macOS, and Windows. The v2 CLI is released as 2.0.0-alpha.N versions, and the daytona Homebrew formula and the latest GitHub release install the v0 CLI. The scripts verify the release checksum before they install it.
+Install the CLI with Homebrew on macOS, or with the install script on Linux, macOS, and Windows. The daytona Homebrew formula and the latest GitHub release install the v2 CLI. The scripts verify the release checksum before they install it.
 
 **Homebrew:**
 
 ```bash
-brew install daytonaio/cli/daytona-alpha
+brew install daytonaio/cli/daytona
 
 # Keep brew upgrade from skipping the tap
 brew trust daytonaio/cli
 
 # Upgrade to the latest release
-brew upgrade daytonaio/cli/daytona-alpha
+brew upgrade daytonaio/cli/daytona
 ```
 
 > **Notes:**
@@ -47,12 +47,12 @@ brew upgrade daytonaio/cli/daytona-alpha
 **Linux and macOS:**
 
 ```bash
-curl -fsSL https://github.com/daytona/clients/releases/download/v2.0.0/install.sh | sh -s -- --version 2.0.0
+curl -fsSL https://github.com/daytona/clients/releases/latest/download/install.sh | sh
 ```
 
 | **Flag**    | **Description** |
 | ----------- | --------------- |
-| `--version` | Sets the release to install.<br />**Default:** the highest stable 2.x release, or the highest 2.x pre-release if no stable one exists<br />**Format:** a release version, with or without a leading v<br />**Example:** `2.0.0-alpha.12` |
+| `--version` | Sets the release to install.<br />**Default:** the highest stable 2.x release, or the highest 2.x pre-release if no stable one exists<br />**Format:** a release version, with or without a leading v<br />**Example:** `2.1.0` |
 | `--dir`     | Sets the directory to install to.<br />**Default:** the value of DAYTONA_INSTALL_DIR, otherwise /usr/local/bin when it is writable, otherwise ~/.local/bin<br />**Example:** `~/bin` |
 
 > **Notes:**
@@ -62,12 +62,12 @@ curl -fsSL https://github.com/daytona/clients/releases/download/v2.0.0/install.s
 **Windows:**
 
 ```powershell
-$env:DAYTONA_VERSION = "2.0.0"; irm https://github.com/daytona/clients/releases/download/v2.0.0/install.ps1 | iex
+irm https://github.com/daytona/clients/releases/latest/download/install.ps1 | iex
 ```
 
 | **Variable**          | **Description** |
 | --------------------- | --------------- |
-| `DAYTONA_VERSION`     | Sets the release to install.<br />**Default:** the highest stable 2.x release, or the highest 2.x pre-release if no stable one exists<br />**Format:** a release version, with or without a leading v<br />**Example:** `2.0.0-alpha.12` |
+| `DAYTONA_VERSION`     | Sets the release to install.<br />**Default:** the highest stable 2.x release, or the highest 2.x pre-release if no stable one exists<br />**Format:** a release version, with or without a leading v<br />**Example:** `2.1.0` |
 | `DAYTONA_INSTALL_DIR` | Sets the directory to install to.<br />**Default:** %LOCALAPPDATA%\Daytona\bin<br />**Example:** `C:\Tools\Daytona` |
 
 > **Notes:**

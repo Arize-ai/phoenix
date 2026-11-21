@@ -183,11 +183,12 @@ State covers whether a started sandbox stays usable: [recovery](./sandboxes.md#r
 See [recover sandboxes](./sandboxes.md#recover-sandboxes).
 
 ```python
-from daytona import Daytona, ListSandboxesQuery
+from daytona import Daytona
+from daytona.v0 import ListSandboxesQuery
 
 daytona = Daytona()
 
-for sandbox in daytona.list(ListSandboxesQuery(is_recoverable=True)):
+for sandbox in daytona.v0.list(ListSandboxesQuery(is_recoverable=True)):
     sandbox.recover()
 ```
 
@@ -279,10 +280,11 @@ See [isolation](./isolation.md#network-isolation) and [create sandboxes with net
 **Solution:** Raise the timeout, or run long jobs asynchronously in a [session](./process-code-execution.md#session-operations) with `run_async=True` and poll for completion. For ended sessions or completed commands, create a new session and read the prior exit code or logs instead of re-executing.
 
 ```python
-from daytona import Daytona, SessionExecuteRequest
+from daytona import Daytona
+from daytona.v0 import SessionExecuteRequest
 
 daytona = Daytona()
-sandbox = daytona.get("my-sandbox")
+sandbox = daytona.v0.get("my-sandbox")
 
 # Short interactive command
 sandbox.process.exec("make test", timeout=120)
@@ -308,12 +310,13 @@ sandbox.process.execute_session_command(
 The Daytona SDKs raise subclasses of `DaytonaError` for API, daemon, proxy, and transport failures. Catch the precise class or catch `DaytonaError` for a general handler.
 
 ```python
-from daytona import Daytona, DaytonaError, DaytonaNotFoundError, DaytonaRateLimitError
+from daytona import Daytona
+from daytona.v0 import DaytonaError, DaytonaNotFoundError, DaytonaRateLimitError
 
 daytona = Daytona()
 
 try:
-    sandbox = daytona.get("missing-sandbox")
+    sandbox = daytona.v0.get("missing-sandbox")
 except DaytonaNotFoundError as e:
     print(e.status_code, e.message)
 except DaytonaRateLimitError as e:
@@ -405,14 +408,15 @@ See [API keys](../platform/api-keys.md) and [organizations](../platform/organiza
 
 ```python
 import time
-from daytona import Daytona, DaytonaRateLimitError
+from daytona import Daytona
+from daytona.v0 import DaytonaRateLimitError
 
 daytona = Daytona()
 
 def create_with_retry(max_retries: int = 5):
     for attempt in range(max_retries):
         try:
-            return daytona.create()
+            return daytona.v0.create()
         except DaytonaRateLimitError as e:
             if attempt == max_retries - 1:
                 raise
@@ -428,7 +432,7 @@ def create_with_retry(max_retries: int = 5):
 from daytona import Daytona
 
 daytona = Daytona()
-sandbox = daytona.get("my-sandbox")
+sandbox = daytona.v0.get("my-sandbox")
 
 # Wait up to 40 seconds for recover to reach started
 if sandbox.recoverable:

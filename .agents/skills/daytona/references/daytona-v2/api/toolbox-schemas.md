@@ -13,9 +13,6 @@
 - [CommitInfo](#commitinfo)
 - [CommitRequest](#commitrequest)
 - [CommitResponse](#commitresponse)
-- [CompletionContext](#completioncontext)
-- [CompletionList](#completionlist)
-- [CompletionRequest](#completionrequest)
 - [ComputerUseA11yFindRequest](#computerusea11yfindrequest)
 - [ComputerUseA11yFindResponse](#computerusea11yfindresponse)
 - [ComputerUseA11yNodeRequest](#computerusea11ynoderequest)
@@ -48,7 +45,6 @@
 - [CreateProcessRequest](#createprocessrequest)
 - [CreateSessionRequest](#createsessionrequest)
 - [DockerStatus](#dockerstatus)
-- [DocumentRequest](#documentrequest)
 - [EnvRequest](#envrequest)
 - [ErrorEnvelope](#errorenvelope)
 - [ExitResult](#exitresult)
@@ -77,7 +73,6 @@
 - [ResizeRequest](#resizerequest)
 - [RestoreRequest](#restorerequest)
 - [SearchResponse](#searchresponse)
-- [ServerRequest](#serverrequest)
 - [SessionDto](#sessiondto)
 - [SessionListResponse](#sessionlistresponse)
 - [SetConfigRequest](#setconfigrequest)
@@ -85,12 +80,9 @@
 - [StatusResponse](#statusresponse)
 - [StdinMode](#stdinmode)
 - [StdinRequest](#stdinrequest)
-- [SymbolInfo](#symbolinfo)
-- [SymbolPosition](#symbolposition)
 - [TerminalSize](#terminalsize)
 - [VersionResponse](#versionresponse)
 - [UploadedFile](#uploadedfile)
-- [CompletionItem](#completionitem)
 - [ComputerUseAccessibilityNode](#computeruseaccessibilitynode)
 - [ComputerUseDisplay](#computerusedisplay)
 - [ComputerUseWindow](#computerusewindow)
@@ -109,13 +101,9 @@
 - [PullVolumeStatus](#pullvolumestatus)
 - [KernelKind](#kernelkind)
 - [FileStatus](#filestatus)
-- [SymbolLocation](#symbollocation)
-- [CompletionDocumentation](#completiondocumentation)
 - [ComputerUseAccessibilityBounds](#computeruseaccessibilitybounds)
 - [ComputerUseDesktopFailureCode](#computerusedesktopfailurecode)
 - [State](#state)
-- [SymbolRange](#symbolrange)
-- [MarkupContent](#markupcontent)
 
 ## AddRemoteRequest
 
@@ -226,36 +214,6 @@ Commit creation result.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `hash` | string | Yes | Full SHA of this operation's created commit, captured from git's commit output rather than a later read of HEAD. |
-
-## CompletionContext
-
-Extra context for a completion request.
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `triggerCharacter` | string \| null | No | Trigger character when the completion was opened by one; omitted otherwise. |
-| `triggerKind` | integer (int64) | Yes | LSP trigger kind enum value. |
-
-## CompletionList
-
-Normalized completion response shape.
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `isIncomplete` | boolean | Yes | Whether the server considers the list incomplete and expects re-querying. |
-| `items` | array of [CompletionItem](#completionitem) | Yes | Completion items, with non-contract keys pruned. |
-
-## CompletionRequest
-
-Completion request body forwarded to `textDocument/completion`.
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `context` | null \| [CompletionContext](#completioncontext) | No |  |
-| `languageId` | string | Yes | The LSP language key (`python`, `typescript`). |
-| `pathToProject` | string | Yes | Absolute project root path used as the server's workspace root. |
-| `position` | [SymbolPosition](#symbolposition) | Yes | Cursor position for which completions are requested. |
-| `uri` | string | Yes | Document URI, typically a `file://` URI. |
 
 ## ComputerUseA11yFindRequest
 
@@ -578,16 +536,6 @@ Read-only: asking never starts or restarts anything.
 | `reason` | string \| null | No | Why the state is what it is (a failure cause, a storage limitation, or a note on a `ready` engine the sandbox user cannot reach). `null` when there is nothing to add. |
 | `state` | [DockerState](#dockerstate) | Yes | Startup state. |
 
-## DocumentRequest
-
-Identifies one document within a language-server workspace.
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `languageId` | string | Yes | The LSP language key (`python`, `typescript`). |
-| `pathToProject` | string | Yes | Absolute project root path used as the server's workspace root. |
-| `uri` | string | Yes | Document URI, typically a `file://` URI. |
-
 ## EnvRequest
 
 Update environment variables for processes, PTYs, and sessions created after this call.
@@ -854,15 +802,6 @@ Recursive filename-glob search results from `GET /files/search`.
 | `files` | array of string | Yes | Absolute matching file paths. |
 | `skipped` | array of string | Yes | Absolute paths below the root that the sandbox user cannot read, so their contents were not searched. Empty when nothing was skipped; at most 1000 entries. |
 
-## ServerRequest
-
-Identifies a language-server instance for one language and one project root.
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `languageId` | string | Yes | The LSP language key (`python`, `typescript`). |
-| `pathToProject` | string | Yes | Absolute project root path used as the server's workspace root. |
-
 ## SessionDto
 
 Session information returned by create, list, and get operations.
@@ -934,25 +873,6 @@ Type: string: `closed`, `open`
 | `encoding` | string \| null | No | Optional payload encoding: `text` (default) or `base64`. |
 | `eof` | boolean | No | Whether this request also closes stdin after writing. |
 
-## SymbolInfo
-
-One document or workspace symbol.
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `kind` | integer (int64) | Yes | LSP symbol kind enum value. |
-| `location` | [SymbolLocation](#symbollocation) | Yes | Symbol location. Hierarchical symbols without an LSP `location` are normalized to an empty URI and zero range. |
-| `name` | string | Yes | Human-visible symbol name. |
-
-## SymbolPosition
-
-Zero-based line/character location within a document.
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `character` | integer (int32) | Yes | Zero-based UTF-16 character offset on the line. |
-| `line` | integer (int32) | Yes | Zero-based line number. |
-
 ## TerminalSize
 
 Terminal dimensions for PTY processes.
@@ -976,20 +896,6 @@ One uploaded file result from `POST /files/bulk-upload`.
 |-------|------|----------|-------------|
 | `bytes` | integer (int64) | Yes | Number of bytes written. |
 | `path` | string | Yes | Absolute destination path the API wrote. |
-
-## CompletionItem
-
-One normalized completion item.
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `detail` | string \| null | No | Short detail string shown beside the label; omitted when absent. |
-| `documentation` | null \| [CompletionDocumentation](#completiondocumentation) | No |  |
-| `filterText` | string \| null | No | Filter key from the language server; omitted when absent. |
-| `insertText` | string \| null | No | Text inserted on accept; omitted when absent. |
-| `kind` | integer (int64) \| null | No | LSP completion item kind enum value; omitted when the server left it unset. |
-| `label` | string | Yes | Human-visible completion label. |
-| `sortText` | string \| null | No | Sort key from the language server; omitted when absent. |
 
 ## ComputerUseAccessibilityNode
 
@@ -1160,7 +1066,7 @@ One log frame in a JSON log page or SSE `log` event.
 |-------|------|----------|-------------|
 | `channel` | string | Yes | Channel such as `stdout`, `stderr`, `pty`, `setup`, `display`, `execute_result`, or `error`. |
 | `cursor` | string | Yes | Cursor naming this frame. |
-| `data` | string | Yes | Frame payload in the requested encoding; `base64` is standard padded RFC 4648 section 4 (`+/` alphabet, `=` padding). |
+| `data` | string | Yes | Frame payload in the requested encoding. With `text`, the bytes of a character that the next frame on the same channel completes move to that frame, so `data` can be empty. `base64` is the frame's exact bytes, standard padded RFC 4648 section 4 (`+/` alphabet, `=` padding). |
 | `timestamp` | integer (int64) | Yes | Unix timestamp in milliseconds. |
 
 ## PullVolumeStatus
@@ -1184,21 +1090,6 @@ One file entry from `git status`.
 | `staging` | string | Yes | Index status column. |
 | `worktree` | string | Yes | Worktree status column. |
 
-## SymbolLocation
-
-Location of a symbol in a document.
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `range` | [SymbolRange](#symbolrange) | Yes | Symbol range in that document. |
-| `uri` | string | Yes | Document URI, typically a `file://` URI. |
-
-## CompletionDocumentation
-
-Completion documentation as plain text or structured markup.
-
-Type: string \| [MarkupContent](#markupcontent)
-
 ## ComputerUseAccessibilityBounds
 
 Accessibility bounds rectangle.
@@ -1221,21 +1112,3 @@ Type: string: `desktop_exited`, `addon_crashed`, `start_failed`, `start_interrup
 Process lifecycle state: `starting`, optionally `provisioning`, then `running` and `terminal`. `provisioning` indicates that the execution environment is being prepared. See `ExitResult` for exit code, signal, timeout, or loss.
 
 Type: string: `starting`, `provisioning`, `running`, `terminal`
-
-## SymbolRange
-
-Half-open range within a document.
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `end` | [SymbolPosition](#symbolposition) | Yes | Range end position. |
-| `start` | [SymbolPosition](#symbolposition) | Yes | Range start position. |
-
-## MarkupContent
-
-Rich-text documentation attached to a completion item.
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `kind` | string | Yes | Markup kind, typically `markdown` or `plaintext`. |
-| `value` | string | Yes | Rendered documentation body. |

@@ -73,6 +73,8 @@ curl 'https://api.daytona.com/orgs/{organizationId}/audit-logs' \
   --header 'Authorization: Bearer YOUR_API_KEY'
 ```
 
+**Response:**
+
 ```json
 {
   "next_cursor": "MjAyNi0wOS0wOVQxMDoxMjozMy4xMjM0NTY3ODlafDAxOTliMmMx...",
@@ -128,17 +130,17 @@ daytona audit list --org {organizationId} --limit 100 --action create --target-t
 
 | **Flag** | **Description** |
 | --- | --- |
-| `--limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
-| `--cursor` | Continues from a previous page. |
-| `--all` | Lists every page. |
 | `--action` | Filters by action.<br />**Value:** the [audit actions](#list-audit-actions)<br />**Example:** `create` |
 | `--action-not-in` | Leaves out entries with any of the listed actions.<br />**Format:** a comma-separated list<br />**Value:** the [audit actions](#list-audit-actions)<br />**Example:** `stop,start` |
-| `--target-type` | Filters by target type.<br />**Value:** the [target types](#list-audit-actions)<br />**Example:** `sandbox` |
-| `--target-id` | Filters by the ID of the affected resource. |
 | `--actor` | Filters by actor.<br />**Format:** a user ID or API key ID |
-| `--status` | Filters by HTTP status code.<br />**Example:** `500` |
-| `--start-at` | Filters out entries recorded before this time.<br />**Format:** an RFC 3339 timestamp<br />**Example:** `2026-09-01T00:00:00Z` |
+| `--all` | Lists every page. |
+| `--cursor` | Continues from a previous page. |
 | `--end-at` | Filters out entries recorded at or after this time.<br />**Format:** an RFC 3339 timestamp<br />**Example:** `2026-09-02T00:00:00Z` |
+| `--limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
+| `--start-at` | Filters out entries recorded before this time.<br />**Format:** an RFC 3339 timestamp<br />**Example:** `2026-09-01T00:00:00Z` |
+| `--status` | Filters by HTTP status code.<br />**Example:** `500` |
+| `--target-id` | Filters by the ID of the affected resource. |
+| `--target-type` | Filters by target type.<br />**Value:** the [target types](#list-audit-actions)<br />**Example:** `sandbox` |
 
 > **Notes:**
 >
@@ -153,15 +155,15 @@ curl 'https://api.daytona.com/orgs/{organizationId}/audit-logs?limit=100&action=
 
 | **Field** | **Description** |
 | --- | --- |
-| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
-| `cursor` | Continues from a previous page. |
 | `action` | Filters by action.<br />**Value:** the [audit actions](#list-audit-actions)<br />**Example:** `create` |
-| `target_type` | Filters by target type.<br />**Value:** the [target types](#list-audit-actions)<br />**Example:** `sandbox` |
-| `target_id` | Filters by the ID of the affected resource. |
 | `actor` | Filters by actor.<br />**Format:** a user ID or API key ID |
-| `status` | Filters by HTTP status code.<br />**Example:** `500` |
-| `start_at` | Filters out entries recorded before this time.<br />**Format:** an RFC 3339 timestamp<br />**Example:** `2026-09-01T00:00:00Z` |
+| `cursor` | Continues from a previous page. |
 | `end_at` | Filters out entries recorded at or after this time.<br />**Format:** an RFC 3339 timestamp<br />**Example:** `2026-09-02T00:00:00Z` |
+| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
+| `start_at` | Filters out entries recorded before this time.<br />**Format:** an RFC 3339 timestamp<br />**Example:** `2026-09-01T00:00:00Z` |
+| `status` | Filters by HTTP status code.<br />**Example:** `500` |
+| `target_id` | Filters by the ID of the affected resource. |
+| `target_type` | Filters by target type.<br />**Value:** the [target types](#list-audit-actions)<br />**Example:** `sandbox` |
 
 > **Notes:**
 >
@@ -341,6 +343,8 @@ curl 'https://api.daytona.com/orgs/{organizationId}/audit-logs/config' \
   --data '{ "disabled": true }'
 ```
 
+**Response:**
+
 ```json
 {
   "disabled": true
@@ -349,8 +353,8 @@ curl 'https://api.daytona.com/orgs/{organizationId}/audit-logs/config' \
 
 | **Field** | **Description** |
 | --- | --- |
-| `org_id` | Sets the organization.<br />**Format:** an organization ID |
 | `disabled` | Turns workload-plane capture off.<br />**Required** |
+| `org_id` | Sets the organization.<br />**Format:** an organization ID |
 
 > **Notes:**
 >

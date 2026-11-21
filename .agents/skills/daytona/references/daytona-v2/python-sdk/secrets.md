@@ -139,10 +139,10 @@ daytona.v2.secrets.set(
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `name` | Sets the secret name.<br />**Required**<br />**Maximum:** 256 characters<br />**Format:** a letter or underscore, followed by letters, digits, and underscores<br />**Example:** `"MY_API_KEY"` |
-| `value` | Sets the secret value.<br />**Required**<br />**Maximum:** 64 KiB<br />**Example:** `"secret-value"` |
+| `name` | Sets the secret name.<br />**Required**<br />**Minimum:** 1 character<br />**Maximum:** 256 characters<br />**Format:** a letter or underscore, followed by letters, digits, and underscores<br />**Example:** `"MY_API_KEY"` |
+| `value` | Sets the secret value.<br />**Required**<br />**Minimum:** 1 byte<br />**Maximum:** 64 KiB<br />**Example:** `"secret-value"` |
+| `allowed_domains` | Sets the hosts that the secret may be sent to.<br />**Required**<br />**Minimum:** 1 host<br />**Maximum:** 50 hosts<br />**Format:** hostnames, or an asterisk and a period followed by a hostname to match its subdomains<br />**Value:** `["*"]` for any verified host<br />**Example:** `["api.example.com"]` |
 | `description` | Sets the description.<br />**Default:** the stored description<br />**Maximum:** 1 KiB<br />**Value:** `""` for no description<br />**Example:** `"Example API key"` |
-| `allowed_domains` | Sets the hosts that the secret may be sent to.<br />**Required**<br />**Maximum:** 50 hosts<br />**Format:** hostnames, or an asterisk and a period followed by a hostname to match its subdomains<br />**Value:** `["*"]` for any verified host<br />**Example:** `["api.example.com"]` |
 | `if_not_exists` | Makes the write create-only.<br />**Default:** `False` |
 
 ## Use a secret in a sandbox
@@ -336,8 +336,8 @@ for secret in secrets.items:
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `cursor` | Continues from a previous page.<br />**Example:** `secrets.next_cursor` |
+| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 
 ##### Iterate over all secrets
 
@@ -404,8 +404,8 @@ daytona.v2.secrets.set(
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `value` | Sets the new secret value.<br />**Required**<br />**Maximum:** 64 KiB<br />**Example:** `"new-secret-value"` |
-| `allowed_domains` | Sets the hosts that the secret may be sent to.<br />**Required**<br />**Maximum:** 50 hosts<br />**Format:** hostnames, or an asterisk and a period followed by a hostname to match its subdomains<br />**Value:** `["*"]` for any verified host<br />**Example:** `["api.example.com", "*.example.com"]` |
+| `value` | Sets the new secret value.<br />**Required**<br />**Minimum:** 1 byte<br />**Maximum:** 64 KiB<br />**Example:** `"new-secret-value"` |
+| `allowed_domains` | Sets the hosts that the secret may be sent to.<br />**Required**<br />**Minimum:** 1 host<br />**Maximum:** 50 hosts<br />**Format:** hostnames, or an asterisk and a period followed by a hostname to match its subdomains<br />**Value:** `["*"]` for any verified host<br />**Example:** `["api.example.com", "*.example.com"]` |
 | `description` | Sets the description.<br />**Default:** the stored description<br />**Maximum:** 1 KiB<br />**Value:** `""` for no description<br />**Example:** `"Example API key"` |
 
 ### Delete a secret

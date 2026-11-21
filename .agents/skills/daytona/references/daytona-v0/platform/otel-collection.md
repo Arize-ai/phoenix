@@ -239,7 +239,7 @@ from daytona import AsyncDaytona, DaytonaConfig
 
 # Using async context manager (recommended)
 async with AsyncDaytona(DaytonaConfig(otel_enabled=True)) as daytona:
-    sandbox = await daytona.create()
+    sandbox = await daytona.v0.create()
     # All operations will be traced
 # OpenTelemetry traces are flushed on close
 ```
@@ -251,7 +251,7 @@ from daytona import AsyncDaytona, DaytonaConfig
 
 daytona = AsyncDaytona(DaytonaConfig(otel_enabled=True))
 try:
-    sandbox = await daytona.create()
+    sandbox = await daytona.v0.create()
     # All operations will be traced
 finally:
     await daytona.close()  # Flushes traces
@@ -265,7 +265,7 @@ import { Daytona } from '@daytona/sdk'
 // Using async dispose (recommended)
 await using daytona = new Daytona({ otelEnabled: true })
 
-const sandbox = await daytona.create()
+const sandbox = await daytona.v0.create()
 // All operations will be traced
 // Traces are automatically flushed on dispose
 ```
@@ -278,7 +278,7 @@ import { Daytona } from '@daytona/sdk'
 const daytona = new Daytona({ otelEnabled: true })
 
 try {
-  const sandbox = await daytona.create()
+  const sandbox = await daytona.v0.create()
   // All operations will be traced
 } finally {
   await daytona[Symbol.asyncDispose]()  // Flushes traces
@@ -445,7 +445,7 @@ async def main():
     async with AsyncDaytona(DaytonaConfig(otel_enabled=True)) as daytona:
 
         # Create a sandbox - this operation will be traced
-        sandbox = await daytona.create()
+        sandbox = await daytona.v0.create()
         print(f"Created sandbox: {sandbox.id}")
 
         # Execute code - this operation will be traced
@@ -459,7 +459,7 @@ print(f"NumPy version: {np.__version__}")
         await sandbox.fs.upload_file("local.txt", "/home/daytona/remote.txt")
 
         # Delete sandbox - this operation will be traced
-        await daytona.delete(sandbox)
+        await daytona.v0.delete(sandbox)
 
     # Traces are automatically flushed when exiting the context manager
 
@@ -481,7 +481,7 @@ async function main() {
   await using daytona = new Daytona({ otelEnabled: true })
 
   // Create a sandbox - this operation will be traced
-  const sandbox = await daytona.create()
+  const sandbox = await daytona.v0.create()
   console.log(`Created sandbox: ${sandbox.id}`)
 
   // Execute code - this operation will be traced
@@ -495,7 +495,7 @@ print(f"NumPy version: {np.__version__}")
   await sandbox.fs.uploadFile('local.txt', '/home/daytona/remote.txt')
 
   // Delete sandbox - this operation will be traced
-  await daytona.delete(sandbox)
+  await daytona.v0.delete(sandbox)
 
   // Traces are automatically flushed when the daytona instance is disposed
 }

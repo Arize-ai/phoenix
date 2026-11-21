@@ -96,7 +96,7 @@ Stream regular files at absolute paths using the sandbox user's permissions. Inv
 
 `POST /files/bulk-upload`
 
-Upload files using paired absolute `files[i].path` and `files[i].file` multipart fields. A relative or empty path, or a non-regular destination, returns 400 `INVALID_FILE_PATH`; non-regular destinations use `<path>: not a regular file`. Earlier uploads are not rolled back. Other partial success is reported per file in the JSON body. New files and directories belong to the configured sandbox user, and writes require that user’s permissions. With `atomic=true`, each successful file is replaced atomically; unsupported atomic replacement is reported for that file while other files continue.
+Upload files using paired absolute `files[i].path` and `files[i].file` multipart fields. A relative or empty path, or a non-regular destination, returns 400 `INVALID_FILE_PATH`; non-regular destinations use `<path>: not a regular file`. Earlier uploads are not rolled back. Other partial success is reported per file in the JSON body. A malformed or truncated multipart body is reported as an entry in `errors`, beside the files written before it. New files and directories belong to the configured sandbox user, and writes require that user’s permissions. With `atomic=true`, each successful file is replaced atomically; unsupported atomic replacement is reported for that file while other files continue.
 
 ### Parameters
 

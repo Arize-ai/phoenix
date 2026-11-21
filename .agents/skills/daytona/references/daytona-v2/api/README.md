@@ -225,7 +225,7 @@ Authentication uses Bearer tokens; each operation's security declaration names t
 
 ## Toolbox API
 
-The Toolbox API runs inside each sandbox and serves process, file system, git, LSP, and computer use operations. Requests go through the toolbox proxy: prefix each path with the `toolbox_proxy_url` field of the sandbox and the sandbox ID.
+The Toolbox API runs inside each sandbox and serves process, file system, git, and computer use operations. Requests go through the toolbox proxy: prefix each path with the `toolbox_proxy_url` field of the sandbox and the sandbox ID.
 
 ```bash
 curl '{toolboxProxyUrl}/{sandboxId}/system/metrics' \
@@ -284,13 +284,6 @@ curl '{toolboxProxyUrl}/{sandboxId}/system/metrics' \
 | `POST` | `/git/reset` | [Reset repository state](./toolbox-git.md#reset-repository-state) | [git](./toolbox-git.md) |
 | `POST` | `/git/restore` | [Restore files](./toolbox-git.md#restore-files) | [git](./toolbox-git.md) |
 | `GET` | `/git/status` | [Read repository status](./toolbox-git.md#read-repository-status) | [git](./toolbox-git.md) |
-| `POST` | `/lsp/completions` | [Request completions](./toolbox-lsp.md#request-completions) | [lsp](./toolbox-lsp.md) |
-| `POST` | `/lsp/did-close` | [Notify LSP did-close](./toolbox-lsp.md#notify-lsp-did-close) | [lsp](./toolbox-lsp.md) |
-| `POST` | `/lsp/did-open` | [Notify LSP did-open](./toolbox-lsp.md#notify-lsp-did-open) | [lsp](./toolbox-lsp.md) |
-| `GET` | `/lsp/document-symbols` | [List document symbols](./toolbox-lsp.md#list-document-symbols) | [lsp](./toolbox-lsp.md) |
-| `POST` | `/lsp/start` | [Start an LSP server](./toolbox-lsp.md#start-an-lsp-server) | [lsp](./toolbox-lsp.md) |
-| `POST` | `/lsp/stop` | [Stop an LSP server](./toolbox-lsp.md#stop-an-lsp-server) | [lsp](./toolbox-lsp.md) |
-| `GET` | `/lsp/workspacesymbols` | [List workspace symbols](./toolbox-lsp.md#list-workspace-symbols) | [lsp](./toolbox-lsp.md) |
 | `GET` | `/port` | [List listening ports](./toolbox-ports.md#list-listening-ports) | [ports](./toolbox-ports.md) |
 | `GET` | `/port/{port}/in-use` | [Check whether a port is in use](./toolbox-ports.md#check-whether-a-port-is-in-use) | [ports](./toolbox-ports.md) |
 | `GET` | `/system/metrics` | [Sample sandbox resource metrics](./toolbox-system.md#sample-sandbox-resource-metrics) | [system](./toolbox-system.md) |
