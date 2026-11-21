@@ -1,4 +1,5 @@
 import { defineEvaluatorWorkspaceLayout } from "@phoenix/components/evaluators/workspace/evaluatorWorkspaceModel";
+import { PROJECT_EVALUATOR_WORKSPACE_STORAGE_KEY } from "@phoenix/constants/storageConstants";
 
 export type ProjectEvaluatorWorkspacePanelId =
   | "prompt"
@@ -17,7 +18,7 @@ export type ProjectEvaluatorWorkspacePanelId =
  */
 export const PROJECT_LLM_EVALUATOR_WORKSPACE_LAYOUT =
   defineEvaluatorWorkspaceLayout<ProjectEvaluatorWorkspacePanelId>({
-    storageKey: "arize-phoenix-project-evaluator-workspace-v1",
+    storageKey: PROJECT_EVALUATOR_WORKSPACE_STORAGE_KEY,
     panels: {
       prompt: { title: "Prompt" },
       annotation: { title: "Annotation" },

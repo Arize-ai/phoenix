@@ -7,6 +7,7 @@ import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluator
 import { LLMEvaluatorForm } from "@phoenix/components/evaluators/LLMEvaluatorForm";
 import { EvaluatorWorkspace } from "@phoenix/components/evaluators/workspace/EvaluatorWorkspace";
 import { defineEvaluatorWorkspaceLayout } from "@phoenix/components/evaluators/workspace/evaluatorWorkspaceModel";
+import { DATASET_EVALUATOR_WORKSPACE_STORAGE_KEY } from "@phoenix/constants/storageConstants";
 
 type DatasetLLMEvaluatorWorkspacePanelId =
   | "prompt"
@@ -24,7 +25,7 @@ type DatasetLLMEvaluatorWorkspacePanelId =
  */
 export const DATASET_LLM_EVALUATOR_WORKSPACE_LAYOUT =
   defineEvaluatorWorkspaceLayout<DatasetLLMEvaluatorWorkspacePanelId>({
-    storageKey: "arize-phoenix-dataset-evaluator-workspace-v1",
+    storageKey: DATASET_EVALUATOR_WORKSPACE_STORAGE_KEY,
     panels: {
       prompt: { title: "Prompt" },
       annotation: { title: "Annotation" },
