@@ -918,12 +918,27 @@ async def check_healthz(_: Request) -> PlainTextResponse:
 
 @router.get("/readyz")
 async def check_readyz(request: Request) -> JSONResponse:
+    state = request.app.state
+    failures: int = getattr(state, "_readyz_failures", 0)
     try:
-        async with request.app.state.db() as session:
+        async with state.db() as session:
             await session.execute(select(1))
     except Exception as e:
-        logger.error(f"Database health check failed: {e}")
+        failures += 1
+        state._readyz_failures = failures
+        # A readiness probe fires every few seconds, so an unreachable database
+        # produces one full-traceback ERROR per probe: at a 5 s interval that is
+        # ~17k lines a day per replica, which buries the daemon errors that
+        # describe the outage and makes the error channel useless for alerting.
+        # Log the transition once, then stay quiet until recovery.
+        if failures == 1:
+            logger.error(f"Database health check failed: {e}")
+        else:
+            logger.debug(f"Database health check still failing ({failures} consecutive probes)")
         raise HTTPException(status_code=503, detail="database unreachable")
+    if failures:
+        state._readyz_failures = 0
+        logger.info(f"Database health check recovered after {failures} failed probe(s)")
     return JSONResponse({})
 
 
