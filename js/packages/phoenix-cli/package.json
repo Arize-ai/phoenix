@@ -42,16 +42,16 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@arizeai/openinference-semantic-conventions": "^2.17.0",
+    "@arizeai/openinference-semantic-conventions": "^2.17.1",
     "@arizeai/phoenix-client": "workspace:*",
     "@arizeai/phoenix-config": "workspace:*",
     "@clack/prompts": "^1.9.0",
     "ai": "^7.0.152",
     "commander": "^15.1.0",
     "cross-spawn": "^7.0.6",
-    "ignore": "^7.0.14",
+    "ignore": "^7.0.16",
     "ink": "^7.1.1",
-    "marked": "^18.2.0",
+    "marked": "^18.2.1",
     "marked-terminal": "^7.3.1",
     "react": "19.3.0",
     "zod": "^4.6.7"
@@ -65,7 +65,7 @@
     "rimraf": "^6.1.4",
     "tsc-alias": "^1.9.0",
     "tsx": "^4.23.15",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.1"
   },
   "engines": {
     "node": ">=22.15.0"
