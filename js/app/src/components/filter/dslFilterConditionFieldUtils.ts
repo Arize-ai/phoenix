@@ -70,6 +70,48 @@ export function getDSLFilterCompletionTokenBeforeCursor(
 }
 
 /**
+ * Whether a whole condition can stand in place of the token being completed.
+ * Accepting a full-condition suggestion replaces only that token, so anywhere
+ * else it would splice into the surrounding expression and break the query.
+ */
+export function canInsertDSLFilterConditionAtToken({
+  textBeforeCursor,
+  textAfterCursor,
+}: {
+  textBeforeCursor: string;
+  textAfterCursor: string;
+}): boolean {
+  const { from } = getDSLFilterCompletionTokenBeforeCursor(textBeforeCursor);
+  const after = textAfterCursor.trimStart();
+  return (
+    isDSLFilterConditionStart(textBeforeCursor.slice(0, from)) &&
+    (after === "" || /^(?:(?:and|or)\b|\))/.test(after))
+  );
+}
+
+/**
+ * Whether `text` ends where a new condition can begin: the start of the
+ * query, or after `and` / `or`. A trailing `not` or `(` only counts when the
+ * text before it is itself such a place, so the `not` of `is not` / `not in`
+ * and the `(` of a call or tuple don't qualify.
+ */
+function isDSLFilterConditionStart(text: string): boolean {
+  let before = text.trimEnd();
+  for (;;) {
+    if (before === "" || /(?:^|[\s()])(?:and|or)$/.test(before)) {
+      return true;
+    }
+    if (/(?:^|[\s()])not$/.test(before)) {
+      before = before.slice(0, -"not".length).trimEnd();
+    } else if (before.endsWith("(")) {
+      before = before.slice(0, -1).trimEnd();
+    } else {
+      return false;
+    }
+  }
+}
+
+/**
  * Finds an unmatched quote before the cursor while respecting backslash
  * escapes. This is intentionally lightweight: it only needs enough string
  * awareness to avoid offering field completions while the user is typing a
