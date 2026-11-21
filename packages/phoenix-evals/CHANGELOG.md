@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.10.0...arize-phoenix-evals-v3.11.0) (2026-11-21)
+
+
+### Features
+
+* **evals:** deprecate gpt 4o mini and add decision models in docs ([#17718](https://github.com/Arize-ai/phoenix/issues/17718)) ([ecfe6f5](https://github.com/Arize-ai/phoenix/commit/ecfe6f505e413e721a858c3c682695f0596d4988))
+
+
+### Documentation
+
+* remove Slack community links from READMEs ([#18109](https://github.com/Arize-ai/phoenix/issues/18109)) ([02ed180](https://github.com/Arize-ai/phoenix/commit/02ed1808d9fb82263e85479e6ae80310883fcc2b))
+
 ## [3.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.9.5...arize-phoenix-evals-v3.10.0) (2026-11-10)
 
 
