@@ -5,6 +5,8 @@ from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.server.dml_event import DmlEvent, SpanDeleteEvent
+from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -94,6 +96,37 @@ class TestTraceTransferMutationMixin:
                 )
             ).all()
             assert len(span_costs) == 2
+
+    async def test_transfer_traces_invalidates_source_and_destination_projects(
+        self,
+        gql_client: AsyncGraphQLClient,
+        trace_transfer_fixture: dict[str, int],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        events: list[DmlEvent] = []
+        original_put = DmlEventHandler.put
+
+        def spy_put(self: DmlEventHandler, event: DmlEvent) -> None:
+            events.append(event)
+            original_put(self, event)
+
+        monkeypatch.setattr(DmlEventHandler, "put", spy_put)
+        result = await gql_client.execute(
+            self.TRANSFER_TRACES_MUTATION,
+            variables={
+                "traceIds": [str(GlobalID("Trace", str(trace_transfer_fixture["trace1_id"])))],
+                "projectId": str(
+                    GlobalID("Project", str(trace_transfer_fixture["dest_project_id"]))
+                ),
+            },
+        )
+        assert not result.errors
+        delete_events = [e for e in events if isinstance(e, SpanDeleteEvent)]
+        assert len(delete_events) == 1
+        assert set(delete_events[0].ids) == {
+            trace_transfer_fixture["source_project_id"],
+            trace_transfer_fixture["dest_project_id"],
+        }
 
     async def test_transfer_traces_fails_with_non_existent_trace_id(
         self,

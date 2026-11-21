@@ -1648,6 +1648,9 @@ async def delete_span(
 
         # Store values needed for later operations
         trace_rowid = target_span.trace_rowid
+        project_rowid = await session.scalar(
+            select(models.Trace.project_rowid).where(models.Trace.id == trace_rowid)
+        )
         parent_id = target_span.parent_id
         cumulative_error_count = target_span.cumulative_error_count
         cumulative_llm_token_count_prompt = target_span.cumulative_llm_token_count_prompt
@@ -1686,6 +1689,6 @@ async def delete_span(
                 )
             )
     # Trigger cache invalidation event
-    request.state.event_queue.put(SpanDeleteEvent((trace_rowid,)))
+    request.state.event_queue.put(SpanDeleteEvent((project_rowid,)))
 
     return None
