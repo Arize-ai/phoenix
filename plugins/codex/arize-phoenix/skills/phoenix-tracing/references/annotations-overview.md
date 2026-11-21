@@ -38,17 +38,21 @@ Every annotation has these fields:
 
 | Field            | Type   | Description                                                                             |
 | ---------------- | ------ | --------------------------------------------------------------------------------------- |
-| `annotator_kind` | String | Who created this annotation: "HUMAN", "LLM", or "CODE" (default: "HUMAN")               |
+| `annotator_kind` | String | Who created this annotation: "HUMAN", "LLM", "CODE", "DECISION", or "AGENT" (default: "HUMAN") |
 | `identifier`     | String | Unique identifier for upsert behavior (updates existing if same name+entity+identifier) |
 | `metadata`       | Object | Custom metadata as key-value pairs                                                      |
 
 ## Annotator Kinds
 
-| Kind    | Description                    | Example                           |
-| ------- | ------------------------------ | --------------------------------- |
-| `HUMAN` | Manual feedback from a person  | User ratings, expert labels       |
-| `LLM`   | Automated feedback from an LLM | GPT-4 evaluating response quality |
-| `CODE`  | Automated feedback from code   | Rule-based checks, heuristics     |
+| Kind       | Description                               | Example                                        |
+| ---------- | ----------------------------------------- | ---------------------------------------------- |
+| `HUMAN`    | Manual feedback from a person             | User ratings, expert labels                    |
+| `LLM`      | Automated feedback from an LLM            | GPT-4 evaluating response quality              |
+| `CODE`     | Automated feedback from code              | Rule-based checks, heuristics                  |
+| `DECISION` | Automated feedback from a decision model  | A decision-model judge picking a label         |
+| `AGENT`    | Automated feedback from an AI agent       | A multi-step agent reviewing a trace           |
+
+`DECISION` and `AGENT` require Phoenix server 21.0.0 or later; older servers reject them.
 
 ## Examples
 

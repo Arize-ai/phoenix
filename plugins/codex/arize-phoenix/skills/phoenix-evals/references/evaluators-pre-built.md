@@ -113,7 +113,7 @@ retrieval — an error, a timeout, or "no results found" — scores `irrelevant`
 from phoenix.evals import LLM
 from phoenix.evals.metrics import RetrievalRelevanceEvaluator
 
-relevance_eval = RetrievalRelevanceEvaluator(llm=LLM(provider="openai", model="gpt-4o-mini"))
+relevance_eval = RetrievalRelevanceEvaluator(llm=LLM(provider="openai", model="gpt-6-luna"))
 scores = relevance_eval.evaluate({
     "input": "What is the capital of France?",
     "context": "Paris is the capital and largest city of France.",
@@ -125,7 +125,7 @@ print(scores[0].label)  # "relevant"
 import { createRetrievalRelevanceEvaluator } from "@arizeai/phoenix-evals";
 import { openai } from "@ai-sdk/openai";
 
-const evaluator = createRetrievalRelevanceEvaluator({ model: openai("gpt-4o-mini") });
+const evaluator = createRetrievalRelevanceEvaluator({ model: openai("gpt-6-luna") });
 const result = await evaluator.evaluate({
   input: "What is the capital of France?",
   context: "Paris is the capital and largest city of France.",

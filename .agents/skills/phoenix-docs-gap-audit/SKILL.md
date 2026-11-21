@@ -158,7 +158,6 @@ Map each public surface to a **package of record**:
 | `packages/phoenix-otel/src/phoenix/otel/` | Python otel |
 | `js/packages/phoenix-client/src/` | TS client |
 | `js/packages/phoenix-evals/src/` | TS evals |
-| `js/packages/phoenix-mcp/src/` | TS MCP |
 | `js/packages/phoenix-cli/src/` | TS CLI |
 | `js/app/src/` | Phoenix UI |
 

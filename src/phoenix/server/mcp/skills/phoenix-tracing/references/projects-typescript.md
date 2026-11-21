@@ -19,7 +19,7 @@ export PHOENIX_PROJECT="my-app-prod"  # PHOENIX_PROJECT_NAME is a supported alia
 ```typescript
 process.env.PHOENIX_PROJECT = "my-app-prod";
 import { register } from "@arizeai/phoenix-otel";
-register();  // Uses "my-app-prod"
+register({});  // Uses "my-app-prod"
 ```
 
 `PHOENIX_PROJECT` is canonical and takes precedence over the `PHOENIX_PROJECT_NAME`

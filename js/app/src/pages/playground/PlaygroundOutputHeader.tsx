@@ -31,9 +31,7 @@ export function PlaygroundOutputHeader({
       <Flex direction="row" gap="size-100" alignItems="center">
         <AlphabeticIndexIcon index={index} size="XS" />
         <span>Output</span>
-        {errorCount > 0 ? (
-          <Counter variant="danger">{errorCount}</Counter>
-        ) : null}
+        <Counter variant="danger" count={errorCount} showZero={false} />
       </Flex>
       <PlaygroundInstanceProgressIndicator instanceId={instanceId} />
     </Flex>

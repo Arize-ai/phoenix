@@ -24,7 +24,7 @@ FROM python:${PYTHON_VERSION}-slim-trixie AS backend-builder
 WORKDIR /phoenix
 
 # Install uv - pin version to match pyproject.toml [tool.uv] required-version
-RUN pip install uv==0.13.5
+RUN pip install uv==0.13.7
 
 # Copy dependency files first for better layer caching
 COPY ./pyproject.toml ./uv.lock ./LICENSE ./IP_NOTICE ./README.md ./

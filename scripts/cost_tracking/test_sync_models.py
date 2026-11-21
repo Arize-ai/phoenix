@@ -1,7 +1,10 @@
 """Run with ``make test-sync-models``, as CI does; it lives outside tests/ beside the script."""
 
+import json
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
+import pytest
 from sync_models import (
     LiteLLMPricingEntry,
     ModelConfig,
@@ -10,11 +13,14 @@ from sync_models import (
     TokenPrice,
     _dump_models,
     extract_litellm_entries,
+    model_type_for_mode,
     next_generated_at,
     serialize_manifest,
+    stamp,
     update_manifest,
 )
 
+from phoenix.db.models import GenerativeModelType
 from phoenix.server.cost_tracking.manifest import compute_models_sha256
 
 PREVIOUS = datetime(2026, 10, 1, tzinfo=timezone.utc)
@@ -210,3 +216,339 @@ def test_extract_litellm_entries_skips_zero_token_rates_with_non_token_price() -
             ("image", False): 4e-5,
         },
     }
+
+
+def test_extract_litellm_entries_keeps_bedrock_cross_region_anthropic_ids() -> None:
+    # Bedrock bills cross-region inference profiles at its own regional rate, which LiteLLM
+    # lists under these ids, 10% above Anthropic's list price for the same model.
+    entries = extract_litellm_entries(
+        {
+            "us.anthropic.claude-sonnet-4-5-20250929-v1:0": {
+                "input_cost_per_token": 3.3e-6,
+                "output_cost_per_token": 1.65e-5,
+            },
+            "eu.anthropic.claude-opus-4-5-20251101-v1:0": {
+                "input_cost_per_token": 5.5e-6,
+                "output_cost_per_token": 2.75e-5,
+            },
+            "jp.anthropic.claude-sonnet-4-5-20250929-v1:0": {
+                "input_cost_per_token": 3.3e-6,
+                "output_cost_per_token": 1.65e-5,
+            },
+        }
+    )
+    assert _rates(entries) == {
+        "us.anthropic.claude-sonnet-4-5-20250929-v1:0": {
+            ("input", True): 3.3e-6,
+            ("output", False): 1.65e-5,
+        },
+        "eu.anthropic.claude-opus-4-5-20251101-v1:0": {
+            ("input", True): 5.5e-6,
+            ("output", False): 2.75e-5,
+        },
+        "jp.anthropic.claude-sonnet-4-5-20250929-v1:0": {
+            ("input", True): 3.3e-6,
+            ("output", False): 1.65e-5,
+        },
+    }
+
+
+# Modeled on LiteLLM's model_prices_and_context_window.json.
+GPT_6_LUNA: dict[str, Any] = {
+    "litellm_provider": "openai",
+    "mode": "chat",
+    "input_cost_per_token": 1e-7,
+    "input_cost_per_token_above_272k_tokens": 2e-7,
+    "output_cost_per_token": 5e-7,
+    "output_cost_per_token_above_272k_tokens": 1e-6,
+    "cache_read_input_token_cost": 1e-8,
+    "cache_read_input_token_cost_above_272k_tokens": 2e-8,
+    "cache_creation_input_token_cost": 1.25e-7,
+    "cache_creation_input_token_cost_above_272k_tokens": 2.5e-7,
+    "input_cost_per_token_decisions": 1e-7,
+    "input_cost_per_token_above_272k_tokens_decisions": 2e-7,
+    "output_cost_per_token_decisions": 0.0,
+    "output_cost_per_token_above_272k_tokens_decisions": 0.0,
+    "cache_read_input_token_cost_decisions": 1e-8,
+    "cache_read_input_token_cost_above_272k_tokens_decisions": 2e-8,
+    "cache_creation_input_token_cost_decisions": 1.25e-7,
+    "cache_creation_input_token_cost_above_272k_tokens_decisions": 2.5e-7,
+}
+
+LITELLM_DATA: dict[str, Any] = {
+    "gpt-6-luna": GPT_6_LUNA,
+    "typesafe/jev-latest": {
+        "litellm_provider": "typesafe",
+        "mode": "evaluation",
+        "input_cost_per_token": 4.2e-8,
+        "output_cost_per_token": 0.0,
+    },
+    "typesafe/jev-decider": {
+        "litellm_provider": "typesafe",
+        "mode": "decisions",
+        "input_cost_per_token": 3e-8,
+        "output_cost_per_token": 0.0,
+    },
+    "together_ai/BAAI/bge-base-en-v1.5": {
+        "litellm_provider": "together_ai",
+        "mode": "embedding",
+        "input_cost_per_token": 8e-9,
+        "input_cost_per_token_above_8k_tokens": 1.6e-8,
+        "output_cost_per_token": 0.0,
+    },
+}
+
+
+def _tiers(entry: LiteLLMPricingEntry) -> dict[str, tuple[str, float, float] | None]:
+    return {
+        tp.token_type: (
+            None
+            if tp.customization is None
+            else (tp.customization.key, tp.customization.threshold, tp.customization.new_rate)
+        )
+        for tp in entry.token_prices
+    }
+
+
+def test_extract_litellm_entries_assigns_types_by_mode() -> None:
+    entries = extract_litellm_entries(LITELLM_DATA)
+    by_key = {(entry.name, entry.type): entry for entry in entries}
+    assert sorted(by_key) == [
+        ("gpt-6-luna", "DECISION"),
+        ("gpt-6-luna", "LLM"),
+        ("together_ai/BAAI/bge-base-en-v1.5", "EMBEDDING"),
+        ("typesafe/jev-decider", "DECISION"),
+        ("typesafe/jev-latest", "DECISION"),
+    ]
+
+    llm = by_key["gpt-6-luna", "LLM"]
+    assert (llm.provider, llm.name_pattern) == (None, "gpt-6-luna")
+    assert _rates([llm])["gpt-6-luna"] == {
+        ("input", True): 1e-7,
+        ("output", False): 5e-7,
+        ("cache_read", True): 1e-8,
+        ("cache_write", True): 1.25e-7,
+    }
+    prompt = "llm.token_count.prompt"
+    assert _tiers(llm) == {
+        "input": (prompt, 272000.0, 2e-7),
+        "output": (prompt, 272000.0, 1e-6),
+        "cache_read": (prompt, 272000.0, 2e-8),
+        "cache_write": (prompt, 272000.0, 2.5e-7),
+    }
+
+    # Built only from the _decisions fields, with tiers keyed on the decision input tokens.
+    decision = by_key["gpt-6-luna", "DECISION"]
+    assert (decision.provider, decision.name_pattern) == (None, "gpt-6-luna")
+    assert _rates([decision])["gpt-6-luna"] == {
+        ("input", True): 1e-7,
+        ("output", False): 0.0,
+        ("cache_read", True): 1e-8,
+        ("cache_write", True): 1.25e-7,
+    }
+    decision_input = "decision.token_count.input"
+    assert _tiers(decision) == {
+        "input": (decision_input, 272000.0, 2e-7),
+        # LiteLLM's 0 -> 0 output tier is a no-op and isn't emitted.
+        "output": None,
+        "cache_read": (decision_input, 272000.0, 2e-8),
+        "cache_write": (decision_input, 272000.0, 2.5e-7),
+    }
+
+    jev = by_key["typesafe/jev-latest", "DECISION"]
+    assert (jev.provider, jev.name_pattern) == ("typesafe", "jev-latest")
+    assert _rates([jev])["typesafe/jev-latest"] == {("input", True): 4.2e-8, ("output", False): 0.0}
+
+    # Priced on input alone, with tiers keyed on llm.token_count.prompt; LiteLLM's published
+    # 0 output rate isn't used.
+    bge = by_key["together_ai/BAAI/bge-base-en-v1.5", "EMBEDDING"]
+    assert (bge.provider, bge.name_pattern) == ("together", "BAAI/bge-base-en-v1.5")
+    assert _rates([bge])["together_ai/BAAI/bge-base-en-v1.5"] == {("input", True): 8e-9}
+    assert _tiers(bge) == {"input": (prompt, 8000.0, 1.6e-8)}
+
+
+@pytest.mark.parametrize(
+    "fields, expected_rate",
+    [
+        # An LLM entry would need an output rate too.
+        pytest.param({"input_cost_per_token": 1e-7}, 1e-7, id="no-output-rate"),
+        # Multimodal embedding models keep their text rate (embedding spans carry no modality
+        # breakdown)...
+        pytest.param(
+            {"input_cost_per_token": 2e-7, "input_cost_per_audio_token": 6.5e-6},
+            2e-7,
+            id="multimodal-uses-text-rate",
+        ),
+        pytest.param({"input_cost_per_token": 0}, 0.0, id="free"),
+        # ...unless the text rate is 0, meaning the model is billed by modality or non-token unit.
+        pytest.param(
+            {"input_cost_per_token": 0, "input_cost_per_image_token": 4.5e-7},
+            None,
+            id="zero-rate-with-modality-token-price",
+        ),
+        pytest.param(
+            {"input_cost_per_token": 0, "input_cost_per_image": 1e-4},
+            None,
+            id="zero-rate-with-non-token-price",
+        ),
+        pytest.param({}, None, id="no-input-rate"),
+        pytest.param({"input_cost_per_token": -1e-7}, None, id="negative-rate"),
+    ],
+)
+def test_extract_litellm_entries_prices_embedding_models_on_input_only(
+    fields: dict[str, Any], expected_rate: float | None
+) -> None:
+    entries = extract_litellm_entries({"mistral/mistral-embed": {"mode": "embedding", **fields}})
+    assert _rates(entries) == (
+        {} if expected_rate is None else {"mistral/mistral-embed": {("input", True): expected_rate}}
+    )
+
+
+@pytest.mark.parametrize(
+    "model_id, synced",
+    [
+        # OpenAI's embedding models have their own include pattern...
+        ("text-embedding-3-small", True),
+        ("text-embedding-ada-002", True),
+        # ...which leaves out Google's, unprefixed like them.
+        ("text-embedding-005", False),
+        # Embedding names aren't excluded.
+        ("gemini-embedding-001", True),
+    ],
+)
+def test_extract_litellm_entries_filters_embedding_models_by_name(
+    model_id: str, synced: bool
+) -> None:
+    entries = extract_litellm_entries(
+        {model_id: {"mode": "embedding", "input_cost_per_token": 1e-7}}
+    )
+    assert [entry.name for entry in entries] == ([model_id] if synced else [])
+
+
+def test_extract_litellm_entries_keeps_gemini_prefixed_models_without_an_unprefixed_twin() -> None:
+    chat = {"mode": "chat", "input_cost_per_token": 3e-6, "output_cost_per_token": 1.5e-5}
+    entries = extract_litellm_entries(
+        {
+            "gemini-2.5-pro": chat,
+            "gemini/gemini-2.5-pro": chat,
+            "gemini/gemini-4-neon": chat,
+            "gemini/gemini-1.5-pro": chat,
+            "gemini/gemini-decision-1": {
+                "mode": "decisions",
+                "input_cost_per_token": 1e-7,
+                "output_cost_per_token": 0.0,
+            },
+        }
+    )
+    assert sorted(
+        (entry.name, entry.type, entry.provider, entry.name_pattern) for entry in entries
+    ) == [
+        ("gemini-2.5-pro", "LLM", None, "gemini-2.5-pro"),
+        ("gemini/gemini-4-neon", "LLM", None, "gemini-4-neon"),
+        ("gemini/gemini-decision-1", "DECISION", None, "gemini-decision-1"),
+    ]
+
+
+def test_extract_litellm_entries_decision_entry_does_not_borrow_chat_rates() -> None:
+    # Only the _decisions fields price the DECISION entry; without an output rate among them,
+    # it has no pricing and isn't emitted.
+    luna = {k: v for k, v in GPT_6_LUNA.items() if not k.startswith("output_cost_per_token_")}
+    entries = extract_litellm_entries({"gpt-6-luna": luna})
+    assert [(entry.name, entry.type) for entry in entries] == [("gpt-6-luna", "LLM")]
+
+
+def _model_config(
+    name: str,
+    base_rate: float = 1e-6,
+    *,
+    type: GenerativeModelType | None = None,
+    source: ModelSource = ModelSource.LITELLM,
+) -> ModelConfig:
+    return ModelConfig(
+        name=name,
+        name_pattern=name,
+        source=source,
+        type=type,
+        token_prices=[TokenPrice(base_rate=base_rate, is_prompt=True, token_type="input")],
+    )
+
+
+def _entry(name: str, base_rate: float, type: GenerativeModelType = "LLM") -> LiteLLMPricingEntry:
+    return LiteLLMPricingEntry(
+        name=name,
+        provider=None,
+        name_pattern=name,
+        token_prices=[TokenPrice(base_rate=base_rate, is_prompt=True, token_type="input")],
+        type=type,
+    )
+
+
+def test_update_manifest_routes_entries_by_type() -> None:
+    manifest = ModelCostManifest(
+        generated_at=PREVIOUS,
+        models=[],
+        non_llm_models=[
+            _model_config("manual-decision", type="DECISION", source=ModelSource.MANUAL)
+        ],
+    )
+    updated = update_manifest(
+        manifest,
+        [_entry("gpt-6-luna", 1e-7), _entry("gpt-6-luna", 2e-7, type="DECISION")],
+    )
+    dumped = json.loads(serialize_manifest(updated))
+    assert [(m["name"], m.get("type")) for m in dumped["models"]] == [("gpt-6-luna", None)]
+    assert [(m["name"], m["type"]) for m in dumped["non_llm_models"]] == [
+        ("gpt-6-luna", "DECISION"),
+        ("manual-decision", "DECISION"),
+    ]
+
+    # A DECISION entry gone upstream is removed; the same-name LLM and manual entries stay.
+    updated = update_manifest(updated, [_entry("gpt-6-luna", 3e-7)])
+    assert [(m.name, m.type, m.token_prices[0].base_rate) for m in updated.models] == [
+        ("gpt-6-luna", None, 3e-7)
+    ]
+    assert [(m.name, m.type) for m in updated.non_llm_models] == [("manual-decision", "DECISION")]
+
+
+def test_digest_is_unchanged_without_non_llm_models() -> None:
+    manifest = _manifest(1e-6)
+    assert manifest.non_llm_models == []
+    llm_models = manifest.model_dump(mode="json", exclude_none=True)["models"]
+    assert compute_models_sha256(_dump_models(manifest)) == compute_models_sha256(llm_models)
+    # Adding a non-LLM entry changes it, so generated_at is bumped.
+    manifest.non_llm_models.append(_model_config("decision-a", type="DECISION"))
+    assert compute_models_sha256(_dump_models(manifest)) != compute_models_sha256(llm_models)
+
+
+@pytest.mark.parametrize(
+    "mode, expected",
+    [
+        pytest.param("image_generation", "LLM", id="other-mode"),
+        pytest.param(["chat"], "LLM", id="not-a-string"),
+    ],
+)
+def test_model_type_for_mode(mode: Any, expected: GenerativeModelType) -> None:
+    assert model_type_for_mode(mode) == expected
+
+
+def test_stamp_moves_entries_edited_by_hand_into_the_list_for_their_type() -> None:
+    # Servers that predate types would price a DECISION entry in models as an LLM.
+    manifest = ModelCostManifest(
+        generated_at=PREVIOUS,
+        models=[
+            _model_config("llm-a"),
+            _model_config("decision-a", type="DECISION", source=ModelSource.MANUAL),
+        ],
+        non_llm_models=[_model_config("llm-b", type="LLM", source=ModelSource.MANUAL)],
+    )
+    previous = manifest.model_copy(deep=True)
+    stamp(manifest, previous)
+    dumped = json.loads(serialize_manifest(manifest))
+    assert [(m["name"], m.get("type")) for m in dumped["models"]] == [
+        ("llm-a", None),
+        ("llm-b", None),
+    ]
+    assert [(m["name"], m["type"]) for m in dumped["non_llm_models"]] == [
+        ("decision-a", "DECISION")
+    ]
+    assert manifest.generated_at != PREVIOUS

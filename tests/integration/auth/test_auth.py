@@ -1151,7 +1151,7 @@ class TestSandboxAndCodeEvaluatorPermissions:
             {
                 "input": {
                     "datasetId": dataset_id,
-                    "evaluatorId": code_evaluator_id,
+                    "source": {"evaluatorId": code_evaluator_id},
                     "name": f"auth_dataset_eval_{token_hex(8)}",
                     "inputMapping": self._INPUT_MAPPING,
                 }
@@ -1225,7 +1225,7 @@ class TestSandboxAndCodeEvaluatorPermissions:
             {
                 "input": {
                     "datasetId": dataset_id,
-                    "evaluatorId": code_evaluator_id,
+                    "source": {"evaluatorId": code_evaluator_id},
                     "name": f"auth_dataset_eval_{token_hex(8)}",
                     "inputMapping": self._INPUT_MAPPING,
                 }

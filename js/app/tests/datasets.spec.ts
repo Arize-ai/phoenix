@@ -7,14 +7,6 @@ function datasetRow(page: Page, datasetName: string) {
   });
 }
 
-function datasetNameLink(page: Page, datasetName: string) {
-  return datasetRow(page, datasetName)
-    .locator("a")
-    .filter({
-      hasText: new RegExp(`^${datasetName}$`),
-    });
-}
-
 async function createDataset(
   page: Page,
   datasetName: string,
@@ -30,6 +22,9 @@ async function createDataset(
   await page.getByTestId("dialog").getByLabel("Description").fill(description);
   await page.getByRole("button", { name: "Create Dataset" }).click();
   await expect(page.getByTestId("dialog")).not.toBeVisible();
+  await page.waitForURL("**/datasets/**/examples");
+  await page.goto("/datasets");
+  await page.waitForURL("**/datasets");
 }
 
 async function clickSortableHeaderAndExpect(
@@ -62,10 +57,13 @@ test.describe("Datasets", () => {
 
     await page.getByRole("button", { name: "Create Dataset" }).click();
     await expect(page.getByTestId("dialog")).not.toBeVisible();
-    await expect(datasetRow(page, datasetName)).toBeVisible();
+    await page.waitForURL("**/datasets/**/examples");
+    await expect(
+      page.getByRole("heading", { name: datasetName })
+    ).toBeVisible();
   });
 
-  test("can create a dataset from scratch and navigate to it", async ({
+  test("lists a newly created dataset in the datasets table", async ({
     page,
   }) => {
     const datasetName = `test-dataset-${randomUUID()}`;
@@ -88,12 +86,10 @@ test.describe("Datasets", () => {
 
     await page.getByRole("button", { name: "Create Dataset" }).click();
     await expect(page.getByTestId("dialog")).not.toBeVisible();
-
-    await datasetNameLink(page, datasetName).click({ force: true });
     await page.waitForURL("**/datasets/**/examples");
-    await expect(
-      page.getByRole("heading", { name: datasetName })
-    ).toBeVisible();
+
+    await page.goto("/datasets");
+    await expect(datasetRow(page, datasetName)).toBeVisible();
   });
 
   test("shows validation error when dataset name is empty", async ({

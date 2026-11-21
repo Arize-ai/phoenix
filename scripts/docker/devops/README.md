@@ -1,12 +1,15 @@
 # Phoenix Development Environment
 
-Complete Docker Compose development environment with Phoenix, PostgreSQL, Grafana, Prometheus, and OIDC authentication using Traefik reverse proxy.
+Complete Docker Compose development environment with Phoenix, PostgreSQL, Grafana, Prometheus, Tempo, Loki, OpenTelemetry Collector, and OIDC authentication using Traefik reverse proxy.
 
 ## Quick Start
 
 ```bash
 # Start all services (most common)
 ./dev.sh up
+
+# Start with self-instrumentation & monitoring (Grafana + Prometheus + Tempo + Loki)
+./dev.sh up --profile grafana
 
 # Stop all services
 ./dev.sh down
@@ -17,6 +20,8 @@ Complete Docker Compose development environment with Phoenix, PostgreSQL, Grafan
 - **Phoenix**: http://localhost:18273/phoenix/
 - **SMTP Mail**: http://localhost:18273/mail/
 - **Database**: localhost:5433 (postgres/postgres)
+- **Grafana** (`--profile grafana`): http://localhost:18273/grafana/ (Prometheus, Tempo, and Loki datasources pre-provisioned with trace-to-logs correlation)
+- **Tempo / Loki / OTel Collector** (`--profile grafana`): `http://localhost:3200` (Tempo), `http://localhost:3100` (Loki), `localhost:14317` / `http://localhost:14318` (OTLP gRPC / HTTP)
 
 ## Commands
 

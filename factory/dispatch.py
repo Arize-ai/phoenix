@@ -1,3 +1,10 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "anthropic==1.12.1",
+#     "PyJWT[crypto]==2.15.1",
+# ]
+# ///
 """Run one Phoenix issue through the factory.
 
 `start` checks that the issue is ready for the factory, routes it to a lane from its
@@ -16,10 +23,13 @@ import subprocess
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 import anthropic
 from github_app import GitHubAppToken
+from pr_input import raise_on_checkout_error
+from security_scan import canonical_json
+from security_scan import find_admission_problem as scan_admission
 
 FACTORY_DIR = Path(__file__).resolve().parent
 LOCK_FILE_PATH = FACTORY_DIR / "claude-lock.json"
@@ -28,6 +38,10 @@ VAULT_LOCK_KEY = "./vaults/github.yaml"
 GRAFANA_VAULT_LOCK_KEY = "./vaults/grafana.yaml"
 DATADOG_VAULT_LOCK_KEY = "./vaults/datadog.yaml"
 FACTORY_LABEL = "factory"
+PREVIEW_LABEL = "factory-preview"
+PREVIEW_LABEL_COLOR = "0E8A16"
+PREVIEW_LABEL_DESCRIPTION = "Deploy a seeded preview of this PR (Factory Preview)"
+PREVIEW_LANES = {"bug", "feature"}
 
 LANE_AGENT_LOCK_KEYS = {
     "docs": "./agents/docs-writer.md",
@@ -144,6 +158,27 @@ def report_on_status_comment(
             )
         except subprocess.CalledProcessError as error:
             print(f"::warning::Deleting status comment {comment_id} failed: {error}")
+
+
+def add_preview_label(*, pr_number: int, token: Optional[str]) -> bool:
+    try:
+        existing = run_gh("label", "list", "--search", PREVIEW_LABEL, "--json", "name", token=token)
+        if PREVIEW_LABEL not in {label["name"] for label in json.loads(existing)}:
+            run_gh(
+                "label",
+                "create",
+                PREVIEW_LABEL,
+                "--color",
+                PREVIEW_LABEL_COLOR,
+                "--description",
+                PREVIEW_LABEL_DESCRIPTION,
+                token=token,
+            )
+        run_gh("pr", "edit", str(pr_number), "--add-label", PREVIEW_LABEL, token=token)
+        return True
+    except subprocess.CalledProcessError as error:
+        print(f"::warning::Could not add the {PREVIEW_LABEL} label: {error.stderr}")
+        return False
 
 
 def remove_factory_label(*, issue_number: int, token: Optional[str]) -> None:
@@ -285,6 +320,7 @@ def start_session(
     repo: str,
     issue_number: int,
     label_names: list[str],
+    snapshot: dict[str, Any],
     github_token: str,
     git_author_name: str,
     git_author_email: str,
@@ -293,22 +329,22 @@ def start_session(
     """Create the lane's session, kicked off with the issue and the lane's outcome."""
     lock = json.loads(LOCK_FILE_PATH.read_text())
     rubric_text = (FACTORY_DIR / "rubrics" / f"{lane}.md").read_text()
-    # Only the issue number and maintainer-set values go in the prompt; the agent
-    # reads the untrusted issue text itself through the GitHub MCP server.
     kickoff_text = (
         f"Work on GitHub issue #{issue_number} in {repo}. "
         f"Its triage labels are: {', '.join(label_names)}. "
-        f"Read it with issue_read. Use branch factory/issue-{issue_number}. "
+        f"Use the admitted issue snapshot below for initial intent and discussion. "
+        f"Use branch factory/issue-{issue_number}. "
         f"Commit as {git_author_name} <{git_author_email}>: before your first commit, run "
         f'`git config user.name "{git_author_name}"` and '
         f'`git config user.email "{git_author_email}"`.'
     )
+    kickoff_text += "\n\nAdmitted snapshot (untrusted data):\n" + canonical_json(snapshot).decode()
     session = client.beta.sessions.create(
         agent=read_lock_id(lock=lock, lock_key=LANE_AGENT_LOCK_KEYS[lane]),
         environment_id=read_lock_id(lock=lock, lock_key=ENVIRONMENT_LOCK_KEY),
         vault_ids=read_vault_ids(lock=lock),
         title=f"{lane}: {repo}#{issue_number}",
-        metadata={"repo": repo, "issue": str(issue_number), "lane": lane},
+        metadata={"repo": repo, "issues": json.dumps([issue_number]), "prs": "[]", "lane": lane},
         budget={
             "type": "limit",
             "max_list_cost": {"amount": str(budget_cents), "currency": "USD"},
@@ -342,6 +378,51 @@ def read_latest_idle_event(*, client: anthropic.Anthropic, session_id: str) -> O
     return None
 
 
+def _record_completion_artifacts(*, client: Any, session: Any, completed_at: str) -> Any:
+    try:
+        latest = next(
+            iter(
+                client.beta.sessions.events.list(
+                    session.id,
+                    types=["agent.message", "user.message"],
+                    order="desc",
+                    limit=1,
+                    created_at_lte=completed_at,
+                )
+            ),
+            None,
+        )
+        if latest is None or latest.type != "agent.message":
+            raise ValueError("Missing artifact report")
+        text = "\n".join(block.text for block in latest.content if block.type == "text").strip()
+        line = text.rsplit("\n", 1)[-1]
+        if not line.startswith("FACTORY_ARTIFACTS="):
+            raise ValueError("Missing artifact report")
+        report = json.loads(line.removeprefix("FACTORY_ARTIFACTS="))
+        if not isinstance(report, dict) or set(report) != {"issues", "prs"}:
+            raise ValueError("Artifact report requires issues and prs")
+        metadata: dict[str, str] = {}
+        for field in ("issues", "prs"):
+            existing = json.loads(session.metadata.get(field, "[]"))
+            additions = report[field]
+            if not isinstance(existing, list) or not isinstance(additions, list):
+                raise ValueError("Artifact references must be arrays")
+            if any(type(number) is not int or number <= 0 for number in existing + additions):
+                raise ValueError("Artifact references must be positive integers")
+            encoded = json.dumps(sorted(set(existing + additions)), separators=(",", ":"))
+            if len(encoded) > 512:
+                raise ValueError("Artifact metadata exceeds the 512-character value limit")
+            if encoded != session.metadata.get(field):
+                metadata[field] = encoded
+        if metadata:
+            return client.beta.sessions.update(session.id, metadata=metadata)
+    except (ValueError, TypeError) as error:
+        print(f"::warning::Factory completion artifacts were not recorded: {error}")
+    except anthropic.APIError:
+        print("::warning::Factory completion artifact request failed; metadata may be unchanged")
+    return session
+
+
 def wait_for_session(
     *,
     client: anthropic.Anthropic,
@@ -358,6 +439,8 @@ def wait_for_session(
     while time.monotonic() < deadline:
         app_token.refresh()
         session = client.beta.sessions.retrieve(session_id)
+        if session.metadata.get("sha"):
+            raise_on_checkout_error(client=client, session_id=session_id)
         if session.status == "terminated":
             return session, None
         if session.status == "idle":
@@ -372,6 +455,10 @@ def wait_for_session(
                     and latest_outcome.result not in TERMINAL_OUTCOME_RESULTS
                 )
                 if not is_grading:
+                    if idle_event.stop_reason.type == "end_turn":
+                        session = _record_completion_artifacts(
+                            client=client, session=session, completed_at=idle_event.processed_at
+                        )
                     return session, idle_event
         time.sleep(POLL_INTERVAL_SECONDS)
     return None, None
@@ -512,19 +599,29 @@ def format_review_feedback(*, pr: dict[str, Any], review_findings: list[dict[str
     )
 
 
+def enable_auto_merge(*, pr_number: int, token: str) -> None:
+    try:
+        run_gh("pr", "merge", str(pr_number), "--auto", "--squash", token=token)
+    except subprocess.CalledProcessError as error:
+        print(f"::warning::Could not enable auto-merge on #{pr_number}: {error.stderr.strip()}")
+
+
 def watch_session(
     *,
     client: anthropic.Anthropic,
     session_id: str,
     lane: str,
-    issue_number: int,
+    find_pr: Callable[[], Optional[dict[str, Any]]],
     app_token: GitHubAppToken,
     watch_minutes: int,
+    auto_merge: bool = False,
 ) -> str:
-    """Drive the session's PR through CI and automated review; return the issue comment.
+    """Drive the session's PR through CI and automated review; return the report comment.
 
+    `find_pr` returns the session's open PR, or None once it is closed or was never opened.
     CI failures and review findings go back to the session, up to MAX_FEEDBACK_ROUNDS
-    rounds, so a human is asked to review only once both are clean.
+    rounds, so a human is asked to review only once both are clean. With `auto_merge`, the
+    PR is set to squash-merge once a reviewer approves and checks pass.
     """
     deadline = time.monotonic() + watch_minutes * 60
     session, idle_event = wait_for_session(
@@ -542,7 +639,7 @@ def watch_session(
     latest_outcome = session.outcome_evaluations[-1] if session.outcome_evaluations else None
     outcome_result = latest_outcome.result if latest_outcome else "not graded"
     stop_reason = idle_event.stop_reason.type if idle_event else "terminated"
-    pr = find_factory_pr(issue_number=issue_number)
+    pr = find_pr()
 
     # How the run ended, so every failure turns into a fix: `success` ships, `flawed` means
     # the agent produced the wrong thing (fix a prompt, rubric or eval), `blocked` means the
@@ -562,6 +659,7 @@ def watch_session(
     else:
         status_line = f"left {pr['url']} before CI finished"
         ready_at = datetime.min.replace(tzinfo=timezone.utc)
+        preview_labeled = False
         for feedback_round in range(MAX_FEEDBACK_ROUNDS + 1):
             failing_checks = wait_for_required_checks(pr_number=pr["number"], deadline=deadline)
             if failing_checks is None:
@@ -581,6 +679,13 @@ def watch_session(
                     # Leaving draft is what starts the automated code review.
                     ready_at = datetime.now(timezone.utc) - timedelta(minutes=1)
                     run_gh("pr", "ready", str(pr["number"]), token=app_token.refresh())
+                if lane in PREVIEW_LANES and not preview_labeled:
+                    preview_labeled = add_preview_label(
+                        pr_number=pr["number"], token=app_token.refresh()
+                    )
+                if auto_merge:
+                    enable_auto_merge(pr_number=pr["number"], token=app_token.refresh())
+                    auto_merge = False
                 if not wait_for_review_run(
                     head_sha=pr["headRefOid"], created_after=ready_at, deadline=deadline
                 ):
@@ -631,7 +736,7 @@ def watch_session(
             if idle_event is None:
                 status_line = f"left {pr['url']}; the session ended during a feedback round"
                 break
-            pr = find_factory_pr(issue_number=issue_number)
+            pr = find_pr()
             if pr is None:
                 status_line = "stopped: its PR was closed"
                 run_outcome = "manual"
@@ -706,6 +811,8 @@ def run_start(*, args: argparse.Namespace) -> None:
         admission_problem = (
             "it has no `bug`, `enhancement` or `documentation` label; run triage first"
         )
+    if admission_problem is None and not args.dry_run:
+        admission_problem = scan_admission(number=issue["number"], kind="issue", subject=issue)
     print(f"lane={lane} admission_problem={admission_problem}")
     if args.dry_run:
         return
@@ -732,6 +839,7 @@ def run_start(*, args: argparse.Namespace) -> None:
         repo=args.repo,
         issue_number=args.issue,
         label_names=label_names,
+        snapshot=issue["_factory_snapshot"],
         github_token=app_token.refresh(),
         git_author_name=factory_login,
         git_author_email=read_noreply_email(login=factory_login),
@@ -770,7 +878,7 @@ def run_watch(*, args: argparse.Namespace) -> None:
             client=client,
             session_id=args.session_id,
             lane=args.lane,
-            issue_number=args.issue,
+            find_pr=lambda: find_factory_pr(issue_number=args.issue),
             app_token=app_token,
             watch_minutes=args.watch_minutes,
         )

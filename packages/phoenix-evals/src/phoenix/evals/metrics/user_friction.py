@@ -17,9 +17,11 @@ class UserFrictionEvaluator(ClassificationEvaluator):
     assistant's preceding behavior.
 
     Args:
-        llm (LLM): The LLM instance to use for the evaluation.
-        **kwargs: Additional invocation parameters forwarded to the LLM client
-            (e.g., ``temperature=0.0``, ``max_tokens=256``).
+        llm (Union[LLM, DecisionModel]): The LLM or decision model to use for the evaluation.
+        **kwargs: Additional invocation parameters forwarded to the judge. What is accepted
+            depends on the judge: an ``LLM`` accepts generation parameters (e.g.
+            ``temperature``, ``max_tokens``); a decision model accepts request options (e.g.
+            ``timeout``).
 
     Notes:
         - Detects expressed corrections, retries, frustration, and challenges
@@ -28,23 +30,25 @@ class UserFrictionEvaluator(ClassificationEvaluator):
           message. The target message is supplied separately as
           ``user_message`` so the judge cannot confuse it with earlier turns.
         - Returns one `Score` with `label` (friction or no_friction), `score`
-          (1.0 if friction, 0.0 if no_friction), and an `explanation` from the
-          LLM judge.
+          (1.0 if friction, 0.0 if no_friction), and, when an `LLM` judge is used,
+          an `explanation` (decision models return a label and probabilities, not an
+          explanation).
         - `no_friction` does not prove the user was satisfied; users often
           abandon conversations without saying why.
-        - Requires an LLM that supports tool calling or structured output.
+        - When backed by an `LLM`, requires one that supports tool calling or structured
+          output; decision models answer through a typed choices API, so this does not apply.
 
     Examples::
 
         from phoenix.evals.metrics.user_friction import UserFrictionEvaluator
-        from phoenix.evals import LLM
-        llm = LLM(provider="openai", model="gpt-4o-mini")
+        from phoenix.evals import DecisionModel
+        llm = DecisionModel(provider="openai", model="gpt-6-luna")
 
         # Default usage
         user_friction_eval = UserFrictionEvaluator(llm=llm)
 
         # With custom invocation parameters
-        user_friction_eval = UserFrictionEvaluator(llm=llm, temperature=0.0)
+        user_friction_eval = UserFrictionEvaluator(llm=llm, timeout=30)
 
         eval_input = {
             "conversation": (
@@ -56,8 +60,8 @@ class UserFrictionEvaluator(ClassificationEvaluator):
         scores = user_friction_eval.evaluate(eval_input)
         print(scores)
         [Score(name='user_friction', score=1.0, label='friction',
-            explanation='The user corrects the assistant for answering the wrong time range.',
-            metadata={'model': 'gpt-4o-mini'},
+            metadata={'model': 'gpt-6-luna', 'model_id': 'gpt-6-luna', 'confidence': 0.91,
+                'probabilities': {'friction': 0.94, 'no_friction': 0.06}},
             kind="llm", direction="minimize")]
 
     """

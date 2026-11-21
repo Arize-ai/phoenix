@@ -46,7 +46,7 @@ const MODEL_MENU_DATA = {
       { providerKey: "OPENAI", name: "gpt-4o-mini" },
       { providerKey: "OPENAI", name: "gpt-5.4-mini" },
       { providerKey: "ANTHROPIC", name: "claude-opus-5-5" },
-      { providerKey: "ANTHROPIC", name: "claude-sonnet-5-5" },
+      { providerKey: "ANTHROPIC", name: "claude-fable-5-2" },
       { providerKey: "AWS", name: "anthropic.claude-opus-4-6-v1:0" },
     ],
   },
@@ -144,20 +144,20 @@ describe("SettingsAgentsGeneralTab model setting", () => {
     });
     expect(container.textContent).toContain(UNVERIFIED_WARNING);
 
-    await pickModel({ query: "sonnet", name: "Claude Sonnet 5.5" });
+    await pickModel({ query: "fable", name: "Claude Fable 5.2" });
 
     const { defaultModelConfig, recentModels } = store.getState();
     expect(defaultModelConfig).toMatchObject({
       provider: "ANTHROPIC",
-      modelName: "claude-sonnet-5-5",
+      modelName: "claude-fable-5-2",
       customProvider: null,
     });
     expect(recentModels[0]).toMatchObject({
       provider: "ANTHROPIC",
-      modelName: "claude-sonnet-5-5",
+      modelName: "claude-fable-5-2",
     });
     expect(getTrigger().getAttribute("aria-label")).toBe(
-      "Model: Claude Sonnet 5.5 (claude-sonnet-5-5), Anthropic"
+      "Model: Claude Fable 5.2 (claude-fable-5-2), Anthropic"
     );
     expect(container.textContent).not.toContain(UNVERIFIED_WARNING);
   });

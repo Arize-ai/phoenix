@@ -1,6 +1,9 @@
 <p align="center">
     <a target="_blank" href="https://phoenix.arize.com" style="background:none">
-        <img alt="phoenix banner" src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/socal/github-large-banner-phoenix-v2.jpg?raw=true" width="auto" height="auto"></img>
+        <picture>
+            <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Arize-ai/phoenix/main/assets/brand/arize-phoenix-banner-dark.svg">
+            <img alt="phoenix banner" src="https://raw.githubusercontent.com/Arize-ai/phoenix/main/assets/brand/arize-phoenix-banner-light.svg" width="100%">
+        </picture>
     </a>
     <br/>
     <br/>
@@ -9,9 +12,6 @@
     <br/>
     <a href="https://arize.com/docs/phoenix/">
         <img src="https://img.shields.io/static/v1?message=Docs&logo=data:image/png;base64,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&labelColor=grey&color=blue&logoColor=white&label=%20"/>
-    </a>
-    <a target="_blank" href="https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g">
-        <img src="https://img.shields.io/static/v1?message=Community&logo=slack&labelColor=grey&color=blue&logoColor=white&label=%20"/>
     </a>
      <a target="_blank" href="https://bsky.app/profile/arize-phoenix.bsky.social">
         <img src="https://img.shields.io/badge/-phoenix-blue.svg?color=blue&labelColor=gray&logo=bluesky">
@@ -156,7 +156,6 @@ Das Paket `arize-phoenix` enthält die gesamte Phoenix-Plattform. Wenn Sie die P
 | [@arizeai/phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel)     | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                           | Stellt einen schlanken Wrapper um OpenTelemetry-Primitive mit auf Phoenix abgestimmten Standardwerten bereit |
 | [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                       | Client für die Arize-Phoenix-API |
 | [@arizeai/phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals)   | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                         | TypeScript-Evaluierungsbibliothek für LLM-Anwendungen (Alpha-Version) |
-| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | Eigenständiger stdio-MCP-Server für ältere Phoenix-Versionen (Wartungsmodus – abgelöst durch den in Phoenix integrierten [Remote-MCP-Server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)) |
 | [@arizeai/phoenix-cli](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)](https://www.npmjs.com/package/@arizeai/phoenix-cli) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) | CLI zum Abrufen von Traces, Datasets und Experimenten zur Verwendung mit Claude Code, Cursor und anderen Coding-Agenten |
 
 ## Tracing-Integrationen
@@ -280,7 +279,7 @@ Führen Sie Phoenix-[Code-Evaluatoren](https://arize.com/docs/phoenix/evaluation
 Phoenix ist so gebaut, dass es von Menschen und KI-Coding-Agenten gleichermaßen gesteuert werden kann. Über drei Schnittstellen können Agenten (Claude Code, Codex, Cursor und andere) mit Ihren Traces, Datasets und Experimenten arbeiten:
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` ruft Traces, Datasets und Experimente ab und instrumentiert Ihre App (`setup`), sodass ein Agent Kontext abrufen und direkt im Terminal darauf reagieren kann.
-- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) bündelt Workflows, die Agenten beibringen, wie sie mit Phoenix debuggen, evaluieren und tracen.
+- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`skills/`](../../skills/) bündelt Workflows, die Agenten beibringen, wie sie mit Phoenix debuggen, evaluieren und tracen.
 - **[Remote-MCP-Server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — verbinden Sie einen beliebigen MCP-Client mit dem `/mcp`-Endpunkt Ihrer Instanz, um Phoenix direkt abzufragen.
 
 Einrichtung und Verwendung sind in der [Dokumentation zu Coding-Agenten](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) beschrieben.
@@ -305,9 +304,7 @@ Sie können die Telemetrie deaktivieren, indem Sie die folgende Umgebungsvariabl
 
 Treten Sie unserer Community bei und vernetzen Sie sich mit Tausenden von KI-Entwicklern.
 
-- 🌍 Treten Sie unserer [Slack-Community](https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g) bei.
 - 📚 Lesen Sie unsere [Dokumentation](https://arize.com/docs/phoenix).
-- 💡 Stellen Sie Fragen und geben Sie Feedback im Kanal _#phoenix-support_.
 - 🌟 Geben Sie uns einen Stern auf [GitHub](https://github.com/Arize-ai/phoenix).
 - 🐞 Melden Sie Fehler über [GitHub Issues](https://github.com/Arize-ai/phoenix/issues).
 - 𝕏 Folgen Sie uns auf [𝕏](https://twitter.com/ArizePhoenix).

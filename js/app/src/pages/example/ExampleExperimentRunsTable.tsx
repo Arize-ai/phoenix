@@ -10,6 +10,7 @@ import {
   AnnotationTooltip,
 } from "@phoenix/components/annotation";
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
@@ -40,6 +41,12 @@ const annotationTooltipExtraCSS = css`
   align-items: center;
   color: var(--global-color-primary);
   gap: var(--global-dimension-size-50);
+`;
+
+// long unbroken values (paths, identifiers) wrap within the cell rather than
+// widening the column and pushing the evaluations and actions out of view
+const outputCellCSS = css`
+  overflow-wrap: anywhere;
 `;
 
 export function ExampleExperimentRunsTable({
@@ -131,9 +138,19 @@ export function ExampleExperimentRunsTable({
         // eslint-disable-next-line react/prop-types
         const maybeError = props.row.original?.error;
         if (maybeError !== null) {
-          return <Text color="danger">{maybeError}</Text>;
+          return (
+            <div css={outputCellCSS}>
+              <Truncate maxLines={3} title={maybeError}>
+                <Text color="danger">{maybeError}</Text>
+              </Truncate>
+            </div>
+          );
         }
-        return <TextCell {...props} />;
+        return (
+          <div css={outputCellCSS}>
+            <TextCell {...props} />
+          </div>
+        );
       },
     },
     {

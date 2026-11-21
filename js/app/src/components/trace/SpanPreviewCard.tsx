@@ -7,7 +7,7 @@ import type { AnnotationOptimizationConfig } from "@phoenix/components/annotatio
 import { RowPreviewCard } from "./RowPreviewCard";
 import { SpanKindIcon } from "./SpanKindIcon";
 import { SpanPreviewAnnotations } from "./SpanPreviewAnnotations";
-import { SpanStatusCodeIcon } from "./SpanStatusCodeIcon";
+import { SpanStatusIndicator } from "./SpanStatusIndicator";
 import type { TokenDetailsBreakdownProps } from "./TokenDetailsBreakdown";
 import type { ISpanItem } from "./types";
 
@@ -52,7 +52,7 @@ export function SpanPreviewCard({
             {span.name}
           </Text>
           {span.statusCode === "ERROR" ? (
-            <SpanStatusCodeIcon statusCode="ERROR" />
+            <SpanStatusIndicator statusCode="ERROR" />
           ) : null}
         </>
       }

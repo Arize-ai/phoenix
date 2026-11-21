@@ -7,12 +7,30 @@ Execute experiments with `run_experiment`.
 ```python
 from phoenix.client import Client
 from phoenix.client.experiments import run_experiment
+from openai import OpenAI
 
 client = Client()
-dataset = client.datasets.get_dataset(name="qa-test-v1")
+openai_client = OpenAI()
+
+# Replace these sample rows with your local QA examples.
+qa_examples = [
+    {"question": "What is 2+2?", "expected": "4"},
+    {"question": "What is the capital of France?", "expected": "Paris"},
+]
+dataset = client.datasets.create_dataset(
+    name="qa-test-v1",
+    examples=[
+        {"input": {"question": row["question"]}, "output": {"answer": row["expected"]}}
+        for row in qa_examples
+    ],
+)
 
 def my_task(example):
-    return call_llm(example.input["question"])
+    response = openai_client.chat.completions.create(
+        model="gpt-4o",
+        messages=[{"role": "user", "content": example.input["question"]}],
+    )
+    return response.choices[0].message.content or ""
 
 def exact_match(output, expected):
     return 1.0 if output.strip().lower() == expected["answer"].strip().lower() else 0.0
@@ -22,8 +40,11 @@ experiment = run_experiment(
     task=my_task,
     evaluators=[exact_match],
     experiment_name="qa-experiment-v1",
+    repetitions=3,  # Average sampling noise from the LLM task on a small dataset
 )
 ```
+
+`expected` is the dataset example's entire `output` dictionary, not a flattened answer. Here, local `row["expected"]` is stored as `output["answer"]`, so the evaluator reads `expected["answer"]`. If you store it under `output["expected"]` instead, read `expected["expected"]`. When adapting an existing evaluator that takes two strings, wrap it as `def qa_evaluator(output, expected): return existing_evaluator(output, expected["answer"])` and pass the wrapper to `run_experiment`.
 
 ## Task Functions
 
@@ -42,7 +63,7 @@ def rag_task(example):
 | Parameter | Access |
 | --------- | ------ |
 | `output` | Task output |
-| `expected` | Example expected output |
+| `expected` | Entire example output dictionary; select the key used when creating the dataset |
 | `input` | Example input |
 | `metadata` | Example metadata |
 
@@ -62,12 +83,13 @@ experiment = run_experiment(
 ## Results
 
 ```python
-print(experiment.aggregate_scores)
-# {'accuracy': 0.85, 'faithfulness': 0.92}
+print(experiment["experiment_id"])
 
-for run in experiment.runs:
-    print(run.output, run.scores)
+for run in experiment["task_runs"]:
+    print(run["output"])
 ```
+
+`run_experiment` prints a summary by default. View aggregate scores and compare named experiments in the Phoenix UI. The returned `RanExperiment` is a dictionary with `task_runs` and `evaluation_runs`; it has no `aggregate_scores` or `runs` attributes.
 
 ## Stability
 

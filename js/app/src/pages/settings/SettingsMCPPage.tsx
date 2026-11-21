@@ -14,8 +14,8 @@ import {
   Flex,
   Heading,
   Icon,
-  Icons,
   Label,
+  StatusIndicator,
   Text,
   View,
 } from "@phoenix/components";
@@ -36,10 +36,6 @@ import {
 import { BASE_URL } from "@phoenix/config";
 import { PHOENIX_DOCUMENTATION_LINKS } from "@phoenix/constants";
 
-const statusItemCSS = css`
-  white-space: nowrap;
-`;
-
 /**
  * A compact enabled/disabled indicator shown in the card header so the state
  * of the deployment is legible before reading any setup instructions.
@@ -52,18 +48,10 @@ function StatusItem({
   label: string;
 }) {
   return (
-    <Flex direction="row" alignItems="center" gap="size-50" css={statusItemCSS}>
-      <Icon
-        svg={
-          isEnabled ? <Icons.CheckmarkCircleFilled /> : <Icons.MinusCircle />
-        }
-        color={isEnabled ? "success" : "gray-500"}
-        aria-hidden
-      />
-      <Text size="S" color="text-700">
-        {`${label}: ${isEnabled ? "enabled" : "disabled"}`}
-      </Text>
-    </Flex>
+    <StatusIndicator
+      category={isEnabled ? "succeeded" : "disabled"}
+      label={`${label}: ${isEnabled ? "enabled" : "disabled"}`}
+    />
   );
 }
 
@@ -323,25 +311,26 @@ export function SettingsMCPPage() {
           </section>
           <section css={sectionCSS}>
             <Heading level={4} weight="heavy">
-              Quick setup
+              Claude Code and Codex
             </Heading>
             <Text size="S" color="text-700">
-              The px CLI infers your endpoint and writes your coding
-              agent&apos;s MCP config for you:
+              Install the Arize Phoenix plugin. It registers this server and
+              installs the Phoenix skills in one step. Set its endpoint to{" "}
+              {BASE_URL}.{" "}
+              <ExternalLink
+                href={PHOENIX_DOCUMENTATION_LINKS.codingAgentPlugins}
+              >
+                Plugin setup
+              </ExternalLink>
             </Text>
-            <BashBlockWithCopy
-              value={
-                "px setup mcp --agent claude  # or codex, gemini, cursor, opencode, vscode"
-              }
-            />
           </section>
           <section css={sectionCSS}>
             <Heading level={4} weight="heavy">
               Connect a client
             </Heading>
             <Text size="S" color="text-700">
-              Prefer to configure by hand? Follow the steps for your client
-              below.
+              For any other client, or to configure Claude Code or Codex by
+              hand, follow the steps for your client below.
             </Text>
             <View
               borderWidth="thin"

@@ -5,6 +5,8 @@ from ...registries import register_provider
 from ...types import BaseDecisionAdapter
 from .factories import create_typesafe_client, get_typesafe_rate_limit_errors
 
+_QUESTION_NAME = "label"
+
 
 @register_provider(
     provider="typesafe",
@@ -30,11 +32,11 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
         criteria: Dict[str, Optional[str]] = (
             dict(labels) if isinstance(labels, dict) else {label: None for label in labels}
         )
-        return {"label": Choice(criteria=criteria)}
+        return {_QUESTION_NAME: Choice(criteria=criteria)}
 
     @staticmethod
     def _to_result(response: Any) -> Dict[str, Any]:
-        answer = response.choices["label"]
+        answer = response.choices[_QUESTION_NAME]
         metadata: Dict[str, Any] = {
             "probabilities": answer.probabilities,
             "model_id": response.model,
@@ -61,7 +63,7 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
     ) -> Dict[str, Any]:
         questions = self._build_questions(labels)
         response = self.client.system_one(
-            state=self._to_state(prompt), questions=questions, model=self.model, **kwargs
+            state=self._to_input(prompt), questions=questions, model=self.model, **kwargs
         )
         return self._to_result(response)
 
@@ -73,6 +75,6 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
     ) -> Dict[str, Any]:
         questions = self._build_questions(labels)
         response = await self.client.system_one(
-            state=self._to_state(prompt), questions=questions, model=self.model, **kwargs
+            state=self._to_input(prompt), questions=questions, model=self.model, **kwargs
         )
         return self._to_result(response)

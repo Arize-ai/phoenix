@@ -9,7 +9,18 @@ export { suppressTracing } from "@opentelemetry/core";
 export { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
 export { registerInstrumentations } from "@opentelemetry/instrumentation";
 export { type Instrumentation } from "@opentelemetry/instrumentation";
-export { type NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
+export {
+  AlwaysOffSampler,
+  AlwaysOnSampler,
+  type BatchSpanProcessorOptions,
+  ParentBasedSampler,
+  type Sampler,
+  type SimpleSpanProcessorOptions,
+  type SpanLimits,
+  type SpanProcessor,
+  TraceIdRatioBasedSampler,
+  type TracerProvider as NodeTracerProvider,
+} from "@opentelemetry/sdk-trace";
 
 // OpenInference semantic conventions
 export * from "@arizeai/openinference-semantic-conventions";
@@ -22,4 +33,5 @@ export * from "@arizeai/openinference-core";
 export * from "./createNoOpProvider";
 export * from "./lazyOpenInferenceSpanProcessor";
 export * from "./register";
+export * from "./spanProcessors";
 export * from "./utils";

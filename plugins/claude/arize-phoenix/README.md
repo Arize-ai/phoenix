@@ -1,14 +1,16 @@
 # Arize Phoenix plugin for Claude Code
 
-A [Claude Code plugin](https://code.claude.com/docs/en/plugins) that connects Claude Code to your Phoenix instance. It registers the Phoenix [remote MCP server](https://arize.com/docs/phoenix/integrations/remote-mcp) and ships the public Phoenix skills, so Claude Code can explore traces, run evals, and instrument apps.
+A [Claude Code plugin](https://code.claude.com/docs/en/plugins) that connects Claude Code to your Phoenix instance. It registers the Phoenix [remote MCP server](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) and installs all five public Phoenix skills, so Claude Code can explore traces, run evals, and instrument apps. This is the recommended way to connect Claude Code to Phoenix. See [Connect Your Coding Agent](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents).
 
 ## What you get
 
 | Component | What it is |
 | --------- | ---------- |
 | `phoenix` MCP server | Streamable HTTP to `<PHOENIX_ENDPOINT>/mcp`. Defaults to a local Phoenix at `http://localhost:6006`. Signs in with your Phoenix account in the browser on first use. |
-| `phoenix-cli` skill | Fetch traces, inspect datasets and experiments, query GraphQL with the `px` CLI. |
+| `phoenix-cli` skill | Fetch traces, inspect datasets and experiments, query GraphQL with the `px` CLI. Needs `px` installed. |
+| `phoenix-error-analysis` skill | Read sampled traces and group failures into categories that pick eval targets. |
 | `phoenix-evals` skill | Build and run evaluators. |
+| `phoenix-harbor` skill | Configure and interpret Harbor agent evaluations in Phoenix. |
 | `phoenix-tracing` skill | Instrument apps with OpenInference. |
 
 The skills are symlinks to the public skills in [`skills/`](../../../skills/), written by `make skills`. Claude Code copies the resolved files when it installs the plugin, so nothing is duplicated in the repository.
@@ -29,9 +31,9 @@ To set it non-interactively, pass `--config endpoint=https://phoenix.example.com
 }
 ```
 
-The setting configures the MCP server only. The `px` CLI used by the `phoenix-cli` skill reads `PHOENIX_ENDPOINT` and, if your Phoenix has auth enabled, `PHOENIX_API_KEY` from your shell, so export those too.
+The setting configures the MCP server only. The `px` CLI is optional, and the plugin doesn't install it. If you want the `phoenix-cli` skill, [install the CLI](https://arize.com/docs/phoenix/integrations/developer-tools/cli#install). It reads `PHOENIX_ENDPOINT` and, if your Phoenix has auth enabled, `PHOENIX_API_KEY` from your shell.
 
-The MCP server signs in with OAuth in the browser. There is no slot for an API key; for headless use, register the server yourself with `px setup mcp --agent claude --header 'Authorization: Bearer ${PHOENIX_API_KEY}'`.
+The MCP server signs in with OAuth in the browser. It has no slot for an API key. For headless use, register the server yourself with `claude mcp add --transport http phoenix <PHOENIX_ENDPOINT>/mcp --header 'Authorization: Bearer ${PHOENIX_API_KEY}'`. Keep the single quotes so Claude Code expands the variable at runtime.
 
 Requires Phoenix 19.0.0 or later, which serves `/mcp`.
 

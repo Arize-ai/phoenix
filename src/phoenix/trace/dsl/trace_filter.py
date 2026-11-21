@@ -134,16 +134,6 @@ _SPAN_ELEMENT_FIELDS: typing.Mapping[str, _ElementField] = MappingProxyType(
         "start_time": _ElementField("start_time", "datetime"),
         "end_time": _ElementField("end_time", "datetime"),
         "latency_ms": _ElementField("latency_ms", "float"),
-        "cumulative_error_count": _ElementField("cumulative_error_count", "float"),
-        "cumulative_llm_token_count_prompt": _ElementField(
-            "cumulative_llm_token_count_prompt", "float"
-        ),
-        "cumulative_llm_token_count_completion": _ElementField(
-            "cumulative_llm_token_count_completion", "float"
-        ),
-        "cumulative_llm_token_count_total": _ElementField(
-            "cumulative_llm_token_count_total", "float"
-        ),
         "llm_token_count_prompt": _ElementField("llm_token_count_prompt", "float"),
         "llm_token_count_completion": _ElementField("llm_token_count_completion", "float"),
         "llm_token_count_total": _ElementField("llm_token_count_total", "float"),
@@ -401,18 +391,6 @@ TRACE_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
             "`2026-07-01T00:00:00+00:00`."
         ),
         "spans.latency_ms": "A span's duration in milliseconds within the trace.",
-        "spans.cumulative_error_count": (
-            "Number of ERROR spans at or under a span in the trace, including that span."
-        ),
-        "spans.cumulative_llm_token_count_prompt": (
-            "Prompt tokens recorded at or under a span in the trace, including that span."
-        ),
-        "spans.cumulative_llm_token_count_completion": (
-            "Completion tokens recorded at or under a span in the trace, including that span."
-        ),
-        "spans.cumulative_llm_token_count_total": (
-            "Total tokens recorded at or under a span in the trace, including that span."
-        ),
         "spans.llm_token_count_prompt": ("Prompt tokens recorded on a span in the trace."),
         "spans.llm_token_count_completion": ("Completion tokens recorded on a span in the trace."),
         "spans.llm_token_count_total": (
@@ -453,22 +431,6 @@ TRACE_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
         "spans.parent_span.latency_ms": (
             "A span's direct parent's duration in milliseconds within the trace; missing when "
             "no parent row is stored."
-        ),
-        "spans.parent_span.cumulative_error_count": (
-            "ERROR spans at or under a span's direct parent in the trace, including the parent; "
-            "missing when no parent row is stored."
-        ),
-        "spans.parent_span.cumulative_llm_token_count_prompt": (
-            "Prompt tokens at or under a span's direct parent in the trace, including the parent; "
-            "missing when no parent row is stored."
-        ),
-        "spans.parent_span.cumulative_llm_token_count_completion": (
-            "Completion tokens at or under a span's direct parent in the trace, including the "
-            "parent; missing when no parent row is stored."
-        ),
-        "spans.parent_span.cumulative_llm_token_count_total": (
-            "Total tokens at or under a span's direct parent in the trace, including the parent; "
-            "missing when no parent row is stored."
         ),
         "spans.parent_span.llm_token_count_prompt": (
             "Prompt tokens recorded on a span's direct parent in the trace; missing when no "

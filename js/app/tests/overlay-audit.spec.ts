@@ -52,6 +52,8 @@ async function createDataset(page: Page, name: string) {
   await dialog.getByLabel("Dataset Name").fill(name);
   await dialog.getByRole("button", { name: "Create Dataset" }).click();
   await expect(dialog).not.toBeVisible();
+  await page.waitForURL("**/datasets/**/examples");
+  await page.goto("/datasets");
   await expect(page.getByRole("link", { name, exact: true })).toBeVisible();
 }
 
