@@ -605,6 +605,52 @@ def test_session_filter_first_last_io_compiles_to_window_shape(dialect: Dialect)
     assert "session_scope.start_time" in compiled
 
 
+@pytest.mark.parametrize(
+    "condition, expected_keys",
+    [
+        pytest.param("metadata['n'] in [1, 2]", {"int", "float", "numeric-string"}, id="in"),
+        pytest.param("metadata['n'] not in [1, 2]", {"fraction"}, id="not-in"),
+    ],
+)
+async def test_session_filter_metadata_number_membership_reads_numbers(
+    db: DbSessionFactory,
+    condition: str,
+    expected_keys: set[str],
+) -> None:
+    values: dict[str, Any] = {
+        "int": 1,
+        "float": 1.0,
+        "fraction": 1.5,
+        "numeric-string": "1",
+        "text": "abc",
+        "list": [1],
+    }
+    start = datetime.now(timezone.utc)
+    async with db() as session:
+        project = await _add_project(session)
+        session_rowid_by_key: dict[str, int] = {}
+        for key, value in values.items():
+            project_session = await _seed_session(
+                session,
+                project,
+                num_traces=1,
+                total_cost=0.0,
+                start_time=start,
+                root_attributes={"metadata": {"n": value}},
+            )
+            session_rowid_by_key[key] = project_session.id
+        missing = await _seed_session(
+            session, project, num_traces=1, total_cost=0.0, start_time=start
+        )
+        session_rowid_by_key["missing"] = missing.id
+        await session.flush()
+
+        matched = await _matched_rowids(session, SessionFilter(condition), project)
+        assert {key for key, rowid in session_rowid_by_key.items() if rowid in matched} == (
+            expected_keys
+        )
+
+
 async def test_session_filter_any_io_returns_any_turn_matches(db: DbSessionFactory) -> None:
     start = datetime.now(timezone.utc)
     async with db() as session:

@@ -274,6 +274,55 @@ async def test_root_attribute_casts_execute(
         ) == {matching_trace.id}
 
 
+_NUMERIC_MEMBERSHIP_VALUES: dict[str, Any] = {
+    "int": 1,
+    "float": 1.0,
+    "fraction": 1.5,
+    "numeric-string": "1",
+    "text": "abc",
+    "list": [1],
+}
+
+
+@pytest.mark.parametrize(
+    "condition, expected_keys",
+    [
+        pytest.param(
+            'attributes["numeric"] in [1, 2]',
+            {"int", "float", "numeric-string"},
+            id="in",
+        ),
+        pytest.param(
+            'attributes["numeric"] not in [1, 2]',
+            {"fraction"},
+            id="not-in",
+        ),
+    ],
+)
+@pytest.mark.parametrize("lowering", ["scan", "probe"])
+async def test_root_attribute_number_membership_reads_numbers(
+    db: DbSessionFactory,
+    lowering: FilterLowering,
+    condition: str,
+    expected_keys: set[str],
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace_rowid_by_key: dict[str, int] = {}
+        for key, value in _NUMERIC_MEMBERSHIP_VALUES.items():
+            trace = await _add_trace(session, project)
+            await _add_span(session, trace, attributes={"numeric": value})
+            trace_rowid_by_key[key] = trace.id
+        missing_trace = await _add_trace(session, project)
+        await _add_span(session, missing_trace, attributes={})
+        trace_rowid_by_key["missing"] = missing_trace.id
+
+        matched = await _matched_rowids(session, TraceFilter(condition), project, lowering)
+        assert {key for key, rowid in trace_rowid_by_key.items() if rowid in matched} == (
+            expected_keys
+        )
+
+
 @pytest.mark.parametrize("lowering", ["scan", "probe"])
 async def test_root_io_uses_wire_key_candidate_paths(
     db: DbSessionFactory,

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3cdf51f9ffd5d31732a274da87a0f7e6>>
+ * @generated SignedSource<<9ea941512b9da0254ee38116d0678cf8>>
  * @lightSyntaxTransform
  */
 
@@ -248,6 +248,16 @@ return {
       "name": "after"
     },
     {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "experimentFilterCondition"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "filterCondition"
+    },
+    {
       "defaultValue": 100,
       "kind": "LocalArgument",
       "name": "first"
@@ -468,7 +478,18 @@ return {
     },
     {
       "alias": "experiments",
-      "args": null,
+      "args": [
+        {
+          "kind": "Variable",
+          "name": "experimentFilterCondition",
+          "variableName": "experimentFilterCondition"
+        },
+        {
+          "kind": "Variable",
+          "name": "filterCondition",
+          "variableName": "filterCondition"
+        }
+      ],
       "concreteType": "ExperimentConnection",
       "kind": "LinkedField",
       "name": "__ExperimentsTable_experiments_connection",
@@ -759,6 +780,6 @@ return {
 };
 })();
 
-(node as any).hash = "1f43803ba5c929080ce7453a214b11cf";
+(node as any).hash = "89b6322229f8dec2b68dc2ccc1548202";
 
 export default node;
