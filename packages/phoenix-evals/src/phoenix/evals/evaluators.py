@@ -56,6 +56,13 @@ def _coerce_to_str(value: Any) -> str:
 EnforcedString = Annotated[str, BeforeValidator(_coerce_to_str)]
 
 
+def _convert_numpy_scalar(value: Any) -> Any:
+    """Convert a NumPy scalar (np.int64, np.float32, np.bool_, ...) to its Python type."""
+    if type(value).__module__ == "numpy" and hasattr(value, "item"):
+        return value.item()
+    return value
+
+
 def _smart_string_coerce(value: Any) -> str:
     """Coerce a value to string using JSON serialisation for non-strings.
 
@@ -975,11 +982,17 @@ def create_evaluator(
             f"tuples of numbers, booleans, and strings. "
             f"Got: {repr(result)}"
         )
+        # NumPy scalars (e.g. np.int64, np.float32, np.bool_) are not int/float/bool instances
+        result = _convert_numpy_scalar(result)
+        if isinstance(result, tuple):
+            result = tuple(_convert_numpy_scalar(item) for item in result)
+        elif isinstance(result, dict) and "score" in result:
+            result = {**result, "score": _convert_numpy_scalar(result["score"])}
         # If already a Score object, ensure name, kind, and direction are set correctly
         if isinstance(result, Score):
             # Create a new Score with the correct name, kind, and direction
             return Score(
-                score=result.score,
+                score=_convert_numpy_scalar(result.score),
                 name=name,
                 label=result.label,
                 explanation=result.explanation,
