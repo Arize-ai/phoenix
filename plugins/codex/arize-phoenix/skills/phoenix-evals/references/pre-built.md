@@ -8,29 +8,36 @@ care about, and check it against human labels like any other judge.
 
 ## LLM judges
 
-Input names are snake_case in Python and camelCase in TypeScript. For example,
-`available_tools` is `availableTools`, `tool_selection` is `toolSelection`,
-`tool_call` is `toolCall`, `tool_result` is `toolResult`, and `user_message` is
-`userMessage`. For `minimize` evaluators, 1.0 is the bad outcome.
+The set of pre-built judges grows with each release, so list what your installed
+version has instead of relying on a fixed list. This prints each judge's inputs,
+labels with their scores, and direction:
 
-| Evaluator | Inputs (Python names) | Labels (1.0 / 0.0) | Direction |
-| --------- | --------------------- | ------------------ | --------- |
-| Completeness | `conversation` | `complete` / `incomplete` | maximize |
-| Conciseness | `input`, `output` | `concise` / `verbose` | maximize |
-| Correctness | `input`, `output` | `correct` / `incorrect` | maximize |
-| Faithfulness | `input`, `output`, `context` | `faithful` / `unfaithful` | maximize |
-| Hallucination | `input`, `output` | `hallucinated` / `grounded` | minimize |
-| PiiDetection | `conversation` | `pii_detected` / `no_pii_detected` | minimize |
-| Refusal | `input`, `output` | `refused` / `answered` | neutral |
-| RetrievalRelevance | `input`, `context` | `relevant` / `irrelevant` | maximize |
-| ToolInvocation | `input`, `available_tools`, `tool_selection` | `correct` / `incorrect` | maximize |
-| ToolResponseHandling | `input`, `tool_call`, `tool_result`, `output` | `correct` / `incorrect` | maximize |
-| ToolSelection | `input`, `available_tools`, `tool_selection` | `correct` / `incorrect` | maximize |
-| Toxicity | `text` | `toxic` / `non-toxic` | minimize |
-| UserFriction | `conversation`, `user_message` | `friction` / `no_friction` | minimize |
+```python
+import inspect
+import warnings
+from typing import Any, cast
 
-`DocumentRelevanceEvaluator` (`createDocumentRelevanceEvaluator`) is deprecated. Use
-RetrievalRelevance.
+from phoenix.evals import LLM, ClassificationEvaluator, metrics
+
+llm = LLM(provider="openai", model="gpt-4o")
+for name in metrics.__all__:
+    evaluator_class = getattr(metrics, name)
+    if not (inspect.isclass(evaluator_class) and issubclass(evaluator_class, ClassificationEvaluator)):
+        continue
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        evaluator = cast(Any, evaluator_class)(llm=llm)
+    if any(issubclass(warning.category, DeprecationWarning) for warning in caught):
+        continue
+    inputs = list(evaluator.input_schema.model_json_schema()["properties"])
+    print(name, inputs, evaluator.label_score_map, evaluator.direction)
+```
+
+In TypeScript, the judges are the `create<Name>Evaluator` exports of
+`@arizeai/phoenix-evals`. Input names are snake_case in Python and camelCase in
+TypeScript, so `available_tools` is `availableTools`. For `minimize` evaluators, 1.0
+is the bad outcome. The [pre-built metrics docs](https://arize.com/docs/phoenix/evaluation/pre-built-metrics)
+describe what each judge checks.
 
 ```python
 from phoenix.evals import LLM
@@ -54,12 +61,38 @@ const result = await faithfulness.evaluate({
 });
 ```
 
-The TypeScript factories also accept `name`, `choices`, `promptTemplate`,
-`optimizationDirection`, and `inputMapping` overrides. Python pre-built evaluators
-keep their own name and labels. When the user asked for a different annotation name
-or label set, such as `pass` and `fail`, set `annotation_name` and map the labels
-in the annotation dataframe before logging, or write a
-`ClassificationEvaluator` with the name and choices they want.
+### Inputs are open-ended
+
+The input names describe a role, not a fixed field. Choose what goes in each one from
+your data and the goal of the eval. `input` can be the last user message or the whole
+conversation so far. `output` can be a final reply, or everything the system did in
+response, including tool calls. Use an input mapping to fill each input from your
+records (see [evaluators-python](evaluators-python.md)).
+
+### Start from a pre-built prompt
+
+A pre-built judge doesn't have to be used as is. To change its definitions, edge
+cases, or inputs, copy its prompt into your own `ClassificationEvaluator` and edit
+it there:
+
+```python
+from phoenix.evals import LLM, ClassificationEvaluator
+from phoenix.evals.metrics import FaithfulnessEvaluator
+
+print(FaithfulnessEvaluator.PROMPT.template)
+
+support_faithfulness = ClassificationEvaluator(
+    name="support_faithfulness",
+    llm=LLM(provider="openai", model="gpt-4o"),
+    prompt_template=FaithfulnessEvaluator.PROMPT.template,
+    choices=FaithfulnessEvaluator.CHOICES,
+)
+```
+
+Replace `prompt_template` with your edited copy of the messages, and keep the labels
+in `choices` in step with the labels the prompt names. In TypeScript, the factories
+accept `name`, `choices`, `promptTemplate`, `optimizationDirection`, and
+`inputMapping` overrides directly.
 
 ## Code metrics
 
@@ -115,27 +148,20 @@ print(iso_date.evaluate({"output": "Due 2026-11-18"})[0].score)  # 1.0
 
 ## Retrieval relevance
 
-`RetrievalRelevanceEvaluator` works with any retrieval source and scores the
-retrieved information as a whole. If any meaningful part of it materially helps
-address the request, the step is `relevant`. The labels are `relevant` (`1.0`)
-and `irrelevant` (`0.0`), the direction is maximize, and each result carries an
-`explanation` from the judge.
+`RetrievalRelevanceEvaluator` works with any retrieval source and judges whether the
+retrieved information helps address the request. If any meaningful part of it does,
+the label is `relevant`. Each result carries an `explanation` from the judge.
 
-Pass one retrieved document as `context` for per-document evaluation. To judge
-the whole retrieval step, join all returned items into one `context` value.
+Two field choices change what you measure without raising an error:
 
-Two field conventions matter. Getting either one wrong changes what you measure
-without raising an error:
-
-- `input` should be the user's request, for example the trace root's
-  `input.value`, not a reformulated tool argument or a generated SQL query.
-- `context` should contain the retrieved information at the scope you want to
-  judge: one document for per-document evaluation, or all returned items joined
-  together for holistic step evaluation.
+- `input` should be the user's request, for example the trace root's `input.value`,
+  not a reformulated tool argument or a generated SQL query.
+- `context` sets the scope. Pass one document to score that document, or join all
+  returned items into one value to score the retrieval step as a whole.
 
 Relevance isn't correctness. Outdated or later-contradicted information still
-scores `relevant` if it was about the right subject. A failed
-retrieval (an error, a timeout, or "no results found") scores `irrelevant`.
+scores `relevant` if it was about the right subject. A failed retrieval, such as an
+error, a timeout, or "no results found", scores `irrelevant`.
 
 ```python
 from phoenix.evals import LLM
@@ -161,9 +187,6 @@ const result = await evaluator.evaluate({
 console.log(result.label); // "relevant"
 ```
 
-`RetrievalRelevanceEvaluator` takes `llm` and forwards any other keyword
-arguments, such as `max_tokens`, to the LLM client. It requires a model that
-supports tool calling or structured output. The TypeScript factory accepts optional `name`,
-`choices`, `promptTemplate`, and `optimizationDirection` overrides on top of the
-usual classification evaluator arguments.
-
+`RetrievalRelevanceEvaluator` forwards keyword arguments other than `llm`, such as
+`max_tokens`, to the model client. Like every pre-built judge, it takes an `LLM` that
+supports tool calling or structured output, or a `DecisionModel`.

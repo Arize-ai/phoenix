@@ -14,9 +14,9 @@ Patterns that look right, often type-check, and produce wrong numbers.
   rows (1,000 by default), `client.spans.get_spans` and `client.traces.get_traces`
   default to 100, and `getSpans` returns one page. Check the count against the
   project before reporting a rate.
-- **Ignoring direction.** `Hallucination`, `Toxicity`, `PiiDetection`, and
-  `UserFriction` score the bad outcome as 1.0. Read `direction` before you average or
-  threshold.
+- **Ignoring direction.** Some evaluators, including several pre-built ones, score the
+  bad outcome as 1.0 and set `direction` to `minimize`. Read `direction` before you
+  average or threshold.
 - **A label the model can't return.** The judge picks only from `choices`. A
   "cannot evaluate" case written only into the prompt never comes back.
 - **Counting errors as passes or dropping them.** Rows where the evaluator failed
@@ -34,7 +34,6 @@ Patterns that look right, often type-check, and produce wrong numbers.
 - **Short column names.** Spans dataframes use `attributes.input.value`, not
   `input.value`. Annotations read back from Phoenix use `result.label` and
   `result.score`; dataframes you log use `label` and `score`.
-- **`project_name=` on spans methods.** It's deprecated; use `project_identifier=`.
 - **`Client(endpoint=...)` or `Client(url=...)`.** The argument is `base_url`.
 - **Positional arguments.** `evaluate_dataframe`, `bind_evaluator`,
   `create_classifier`, and `to_annotation_dataframe` warn on positional arguments.

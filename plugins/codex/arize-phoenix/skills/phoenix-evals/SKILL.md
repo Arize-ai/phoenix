@@ -1,8 +1,8 @@
 ---
 name: phoenix-evals
-description: Write and run evaluators with the Phoenix evals library (arize-phoenix-evals in Python, @arizeai/phoenix-evals in TypeScript), code checks and LLM-as-a-judge classifiers, pre-built metrics such as faithfulness, correctness, and retrieval relevance, and score existing traces, spans, sessions, or retrieved documents and log the results back to Phoenix as annotations. Use for "write an eval for", "score these traces", "add an LLM judge", "check groundedness or relevance", "evaluate my RAG app", "annotate spans with eval results", "a script that scores new traces", "our eval numbers look wrong, fix the eval", "rescore after changing the judge", or code that uses llm_classify, run_evals, or OpenAIModel. For datasets and experiments use phoenix-experiments; for checking a judge against human labels use phoenix-judge-alignment; for finding failure modes first use phoenix-error-analysis.
+description: Write and run evaluators with the Phoenix evals library (arize-phoenix-evals in Python, @arizeai/phoenix-evals in TypeScript), including code checks, LLM-as-a-judge and decision-model classifiers, and pre-built metrics such as faithfulness and retrieval relevance. Use when the user wants to score LLM or agent output, such as traces, spans, sessions, retrieved documents, or a dataframe of records, log the scores to Phoenix as annotations, write or fix a judge prompt, or find out why eval numbers look wrong. Also use for code that calls llm_classify, run_evals, or OpenAIModel.
 license: Apache-2.0
-compatibility: Requires a Phoenix server. Python needs arize-phoenix-evals and arize-phoenix-client plus your LLM provider's SDK. TypeScript needs @arizeai/phoenix-evals and @arizeai/phoenix-client, Node.js 22.12 or later, and an AI SDK v7 provider.
+compatibility: Python needs arize-phoenix-evals and the SDK for your model provider. TypeScript needs @arizeai/phoenix-evals, Node.js 22.12 or later, and an AI SDK v7 provider. Reading or annotating data in Phoenix also needs a Phoenix server and arize-phoenix-client or @arizeai/phoenix-client.
 metadata:
   targets: "agents mcp"
   author: oss@arize.com
@@ -12,39 +12,48 @@ metadata:
 
 # Phoenix evals
 
-An evaluator takes one record and returns a score, a label, and an explanation. A
-record holds an input, an output, and whatever else the check needs. This skill
-covers how to write evaluators with the Phoenix evals library and how to run them
-over data that's already in Phoenix.
+The Phoenix evals library scores any data. Each evaluator declares the inputs it
+reads, and an input mapping adapts whatever records you have to those inputs, so one
+evaluator runs on a dataframe, in an experiment, or over traces without changing its
+prompt or your data. Evaluators work with any supported model provider and run with
+or without a Phoenix server. With a server, the evaluators' own runs are traced, and
+you can log scores back onto spans, traces, sessions, and documents as annotations.
 
-Related skills:
+Other Phoenix skills cover the neighboring jobs:
 
-- **phoenix-experiments** runs evaluators against a dataset as an experiment, compares
+- **phoenix-experiments** runs evaluators on a dataset as an experiment, compares
   experiments, and gates CI.
-- **phoenix-judge-alignment** measures whether an LLM judge agrees with human labels and
-  improves it until it does.
+- **phoenix-judge-alignment** measures how well an LLM judge agrees with human labels
+  and improves it.
 - **phoenix-error-analysis** finds what's failing before you write any evaluator.
 - **phoenix-cli** reads traces, spans, annotations, datasets, and experiments from the
   terminal.
 
-## Choose the check
+## Workflows
+
+### Write an evaluator
 
 1. **Name one failure per evaluator.** "Cites a source that's in the retrieved
-   documents" is checkable; "good answer" isn't. If you don't know the failures yet,
-   do error analysis first.
+   documents" is checkable, and "good answer" isn't. If you don't know the failures
+   yet, start with error analysis.
 2. **Use code when code can decide.** Format, JSON validity, a required field, a
    regex, an exact or set match against a reference, a tool that must or must not be
-   called, a number within tolerance. Code is free, fast, and deterministic.
-3. **Use an LLM judge only for judgment calls.** Groundedness, relevance, tone,
-   whether a requirement in a spec was followed. Give the judge a binary label set
-   (`pass`/`fail`, `grounded`/`ungrounded`), not a 1 to 10 scale.
-4. **Start from a pre-built evaluator** when one matches the failure exactly. Read its
-   inputs and direction in [pre-built](references/pre-built.md) first, because some
-   score the bad outcome as 1.
-5. **Check every LLM judge against human labels** before anyone acts on its numbers.
-   See phoenix-judge-alignment.
+   called, or a number within tolerance. Code is free, fast, and deterministic.
+3. **Use a model for judgment calls,** such as groundedness, relevance, tone, or
+   whether a reply followed a spec. An LLM judge returns a label and an explanation. A
+   decision model returns a label and its probability, with no explanation, and costs
+   much less. Either one picks from named labels: two (`pass`/`fail`) or several
+   (`positive`/`neutral`/`negative`). Prefer labels with a meaning over a numeric
+   scale.
+4. **Start from a pre-built evaluator** when one is close to the failure you care
+   about. Use it as is, or copy its prompt and adapt the definitions, labels, and
+   inputs. Check its inputs and direction first, because some score the bad outcome
+   as 1. See [pre-built](references/pre-built.md).
+5. **Check a judge before people act on its numbers.** Human labels are the strongest
+   check (see phoenix-judge-alignment). When there are none yet, a small labeled set of
+   common and edge cases that you write yourself can be enough to start.
 
-## Score data in Phoenix
+### Score data in Phoenix
 
 The usual job is "score what's in this project and write the results back":
 
@@ -52,8 +61,8 @@ The usual job is "score what's in this project and write the results back":
    retrieval), a trace (one request, usually its root span), a session (a whole
    conversation), or a document (one retrieved chunk).
 2. Build the evaluator's inputs from those records, with the evidence a reviewer
-   would check: tool calls and results, retrieved documents, and earlier turns often
-   live on child spans of the same trace. Read the real attribute values; don't
+   would check. Tool calls and results, retrieved documents, and earlier turns often
+   live on child spans of the same trace. Read the real attribute values, and don't
    assume `output.value` is plain text.
 3. Run the evaluators.
 4. Log one annotation per record, with the name and labels the user asked for, on
@@ -77,23 +86,28 @@ change an evaluator, rescore everything it covers.
 | Replace `llm_classify`, `run_evals`, `OpenAIModel` | [legacy-python](references/legacy-python.md) | none |
 | Avoid known mistakes | [common-mistakes](references/common-mistakes.md) | [common-mistakes](references/common-mistakes.md) |
 
+The [Phoenix evals docs](https://arize.com/docs/phoenix/evaluation/llm-evals) have the
+full API and more examples. These references cover the choices and mistakes that
+matter most when you write evaluators.
+
 ## Rules
 
-- **One evaluator, one name, one annotation.** The annotation name is how people find
-  the result in Phoenix. Reuse the name on every rerun so results line up.
-- **Keep the score direction honest.** A higher score must mean better unless the
-  evaluator says `direction="minimize"`. Read the `direction` before thresholding.
-- **Report what the judge saw.** If a judge gets truncated text or the wrong field,
-  its rate measures nothing. Print one rendered input before running a batch.
-- **An app error isn't an eval error.** A trace whose app errored still produced
-  something to judge. Score it on its evidence; don't skip it or fail it
-  automatically.
-- **Debug a misleading eval like code.** When an eval's numbers look wrong, check
-  these before you touch the judge prompt: that it reads every record past paging
-  and limits, the right field and level, label names and case, how errors count,
-  and how IDs join.
-- **Count failures, not just averages.** Report the number of records scored, the
-  number that failed, and the number the evaluator couldn't score because of errors
-  or missing fields. An eval that silently skips records overstates quality.
-- **Don't let a judge grade itself.** Give it its own prompt. Using a different model
-  from the app is optional.
+- **Keep one name per evaluator.** People find results in Phoenix by annotation name,
+  so reuse the same name on every rerun.
+- **Check the direction.** A higher score means better unless the evaluator sets
+  `direction="minimize"`. Read it before you average or threshold scores.
+- **Print what the judge sees.** Render one input before you run a batch. A judge that
+  gets truncated text or the wrong field produces a rate that means nothing.
+- **Decide how to treat records where the app errored.** It depends on the check. If
+  the user still got something, such as a partial reply or an error message, score
+  it. If there's no output to judge, skip the record. Say which rule you used and how
+  many records it affected.
+- **Debug a wrong-looking eval like code.** Before you change the judge prompt, check
+  that the eval reads every record past paging limits, reads the right field at the
+  right level, matches label names and case, counts errors correctly, and joins on
+  the right IDs.
+- **Report counts, not only rates.** Give the number of records scored, the number
+  that failed the check, and the number the evaluator couldn't score. An eval that
+  skips records without saying so looks better than it is.
+- **Don't let a judge grade itself.** Give the judge its own prompt, separate from the
+  app's. Using a different model from the app is optional.

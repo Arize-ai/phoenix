@@ -80,7 +80,9 @@ label probabilities in `metadata.probabilities`. With OpenAI, use `@ai-sdk/opena
 Templates read keys by name. Inside `runExperiment`, the record is `{ input, output,
 expected, metadata }`, and `input` and `expected` are objects, so a template that
 reads `{{input}}` gets JSON. Read nested fields with a dotted path in the template,
-such as `{{input.question}}`, or map them with `inputMapping`:
+such as `{{input.question}}`, or map them with `inputMapping`. Templates support full
+Mustache, so a section such as `{{#turns}}{{role}}: {{content}}{{/turns}}` formats a
+list of turns as a transcript:
 
 ```typescript
 import { bindEvaluator } from "@arizeai/phoenix-evals";

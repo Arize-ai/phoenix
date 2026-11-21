@@ -35,6 +35,8 @@ The dataframe is indexed by `context.span_id`. Columns include `context.trace_id
   `client.spans.get_spans` and for `client.traces.get_traces`. Set `limit` above
   the project's size, or page by time windows that cover the whole project.
   Otherwise the evaluation silently covers only part of it.
+- Every read also has a 5-second timeout by default. Pass `timeout=60` or more for
+  large reads, or page by time window.
 - Don't add a narrow `start_time` unless the user asks for a window; historical
   traces can be days old.
 - `where` takes a span filter, such as `span_kind == 'LLM'` or `name == 'answer'`. The
@@ -63,7 +65,7 @@ their attributes, so use it to find traces, not to read evidence. It takes a tra
 ## Run evaluators over a dataframe
 
 Build a dataframe whose column names are the evaluator's input names, keeping the
-span ID index.
+span ID index so results can go back onto the spans:
 
 ```python
 import pandas as pd
@@ -77,35 +79,13 @@ eval_df = pd.DataFrame(
     },
     index=spans_df.index,
 )
-
 results_df = await async_evaluate_dataframe(
-    dataframe=eval_df,
-    evaluators=[grounded, has_citation],
-    concurrency=5,         # default 3
-    exit_on_error=False,   # default True stops at the first row that exhausts retries
+    dataframe=eval_df, evaluators=[grounded, has_citation], exit_on_error=False
 )
 ```
 
-`evaluate_dataframe` is the synchronous version, without `concurrency`. Both retry a
-failing row up to `max_retries` times (default 10).
-
-The result is a copy of the input with two columns per score:
-
-| Column | Holds |
-| ------ | ----- |
-| `{score_name}_score` | a dict: `{"name", "score", "label", "explanation", "direction", ...}` |
-| `{evaluator_name}_execution_details` | a dict: `{"status", "exceptions", "execution_seconds"}`; `status` is `COMPLETED`, `COMPLETED WITH RETRIES`, `FAILED`, or `DID NOT RUN` |
-
-The score columns hold dicts, so `results_df["grounded_score"].mean()` fails. Read
-fields out:
-
-```python
-labels = results_df["grounded_score"].apply(lambda s: s.get("label") if isinstance(s, dict) else None)
-failed = results_df[labels == "ungrounded"]
-errored = results_df[
-    results_df["grounded_execution_details"].apply(lambda d: d.get("status") in ("FAILED", "DID NOT RUN"))
-]
-```
+For the result columns, retries, and how to read scores and errors out of the
+result, see "Evaluate a dataframe" in [evaluators-python](evaluators-python.md).
 
 ## Log span annotations
 
@@ -170,36 +150,48 @@ client.traces.log_trace_annotations_dataframe(
 ## Score sessions
 
 A session is a conversation: the traces that share a `session.id`. A session-level
-judge needs the whole transcript in order.
+judge needs the whole transcript in order. Read every session's root spans in one
+query, then group them by session:
 
 ```python
-sessions_df = client.sessions.get_sessions_dataframe(project_name="my-app")
+sessions_roots = client.spans.get_spans_dataframe(
+    project_identifier="my-app",
+    query=SpanQuery().where("parent_id is None and session.id is not None"),
+    limit=10000,
+    timeout=60,
+).sort_values("start_time")
 
 rows = []
-for session_id in sessions_df["session_id"]:
-    turns = client.sessions.get_session_turns(session_id=session_id)
-    transcript = "\n".join(
-        f"User: {(turn.get('input') or {}).get('value', '')}\n"
-        f"Assistant: {(turn.get('output') or {}).get('value', '')}"
-        for turn in turns
-    )
-    rows.append({"session_id": session_id, "conversation": transcript})
+for session_id, session_spans in sessions_roots.groupby("attributes.session.id"):
+    turns = [
+        {"role": role, "content": text}
+        for _, span in session_spans.iterrows()
+        for role, text in (
+            ("user", span["attributes.input.value"]),
+            ("assistant", span["attributes.output.value"]),
+        )
+        if isinstance(text, str) and text
+    ]
+    rows.append({"session_id": session_id, "turns": turns})
 
 session_eval_df = pd.DataFrame(rows).set_index("session_id")
 session_results = await async_evaluate_dataframe(
-    dataframe=session_eval_df, evaluators=[resolved_judge]
+    dataframe=session_eval_df, evaluators=[resolved], exit_on_error=False
 )
-
 client.sessions.log_session_annotations_dataframe(
     dataframe=to_annotations(session_results, "resolved", "session_id"), sync=True
 )
 ```
 
-`get_session_turns` takes each turn's input and output from its root span, without
-tool calls. When the judge needs tool calls and results, or the history lives on an
-LLM span's message list, read each turn's spans with
-`client.spans.get_spans(trace_ids=[turn["trace_id"]])` and add them to the
-transcript.
+`resolved` is the transcript judge from "Format structured inputs in the template"
+in [evaluators-python](evaluators-python.md). A turn with no output, such as one
+where the app errored, appears with the user message only.
+
+Root spans hold each turn's input and output, without tool calls. When the judge
+needs tool calls and results, or the history lives on an LLM span's message list,
+read the turns' child spans by trace ID, as in "Read a trace's child spans", and add
+them to `turns`. To score one session, `client.sessions.get_session_turns(session_id=...)`
+returns the same turns in order, but it makes separate requests for every session.
 
 ## Score retrieved documents
 
