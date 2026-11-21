@@ -192,6 +192,17 @@ describe("Phoenix CLI", () => {
     );
   });
 
+  it("should register transfer subcommand for trace", () => {
+    const program = createProgram();
+    const traceCommand = program.commands.find(
+      (command) => command.name() === "trace"
+    );
+
+    expect(traceCommand?.commands.map((command) => command.name())).toContain(
+      "transfer"
+    );
+  });
+
   it("should register delete subcommand for experiment", () => {
     const program = createProgram();
     const experimentCommand = program.commands.find(
