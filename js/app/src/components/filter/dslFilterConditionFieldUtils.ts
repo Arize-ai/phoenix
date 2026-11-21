@@ -1,8 +1,9 @@
-import type {
-  Completion,
-  CompletionContext,
-  CompletionResult,
-  CompletionSource,
+import {
+  type Completion,
+  type CompletionContext,
+  type CompletionResult,
+  type CompletionSource,
+  insertCompletionText,
 } from "@codemirror/autocomplete";
 
 const quotedSubscriptPattern = String.raw`(?:"(?:\\.|[^"\\])*"?|'(?:\\.|[^'\\])*'?)`;
@@ -24,6 +25,19 @@ const dslFilterTokenPattern = new RegExp(
 const tokenBeforeCursorPattern = new RegExp(
   String.raw`${dslFilterTokenPattern.source}$`
 );
+
+/**
+ * The rest of the token after the cursor, which accepting a completion must
+ * replace too: identifier characters (`mo|del_name`) and, inside an unclosed
+ * subscript, the rest of the key up to its `]` (word, `.`, `:`, `/`, `-`
+ * characters) including the `']` that closeBrackets auto-inserts
+ * (`attributes['us|']`). Never whitespace, operators or values. Applied in
+ * `withTokenTailReplaced` at accept time; the dropdown still filters on the
+ * text up to the cursor.
+ */
+const identifierTailPattern = /^\w*/;
+const subscriptTailPattern = /^(?:[\w.:/-]*['"]?\]|\w*)/;
+const openSubscriptPattern = /\[[^\]]*$/;
 
 /**
  * CodeMirror's `validFor` guard for the token returned by
@@ -480,6 +494,36 @@ export type DSLFilterCompletionRequest = {
 };
 
 /**
+ * Makes accepting `completion` also replace the rest of the token after the
+ * cursor. Done at accept time from the live doc (typing may have changed it
+ * since the source ran) rather than via `to`, which would also make
+ * CodeMirror filter on text after the cursor. Options that bring their own
+ * `apply` (e.g. history entries that replace the whole condition) are kept.
+ */
+function withTokenTailReplaced(completion: Completion): Completion {
+  if (completion.apply !== undefined) return completion;
+  return {
+    ...completion,
+    apply: (view, picked, from, to) => {
+      const typed = view.state.doc.sliceString(from, to);
+      const tail =
+        typed === ""
+          ? ""
+          : (view.state.doc
+              .sliceString(to)
+              .match(
+                openSubscriptPattern.test(typed)
+                  ? subscriptTailPattern
+                  : identifierTailPattern
+              )?.[0] ?? "");
+      view.dispatch(
+        insertCompletionText(view.state, picked.label, from, to + tail.length)
+      );
+    },
+  };
+}
+
+/**
  * Builds a CodeMirror completion source over the given DSL vocabulary, with
  * the token and string-literal awareness the filter DSL needs. `getOptions`
  * may be async (e.g. real values fetched from the server); each source
@@ -525,7 +569,7 @@ export function createDSLFilterCompletionSource(
 
     return {
       from: word.from,
-      options,
+      options: options.map(withTokenTailReplaced),
       // A browse result may be a curated subset — force a fresh query on
       // the next keystroke rather than letting CodeMirror filter the subset
       // in place, so typing matches against the full vocabulary
