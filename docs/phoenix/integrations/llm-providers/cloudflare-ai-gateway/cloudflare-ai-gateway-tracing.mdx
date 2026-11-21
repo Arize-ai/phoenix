@@ -45,8 +45,9 @@ Destination**, and enter these values:
    Phoenix creates the project on the first span.
 
 <Warning>
-  Set **Content Type** to **Protobuf**, not the default **JSON**. Phoenix's trace endpoint accepts
-  only Protobuf, and a destination left on JSON is rejected before any spans arrive.
+  Set **Content Type** to **Protobuf**, not the default **JSON**. Every Phoenix version accepts
+  Protobuf. Older versions reject a destination left on JSON before any spans arrive; newer ones
+  accept OTLP/JSON sent with a `Content-Type` of exactly `application/json`.
 </Warning>
 
 <Note>
