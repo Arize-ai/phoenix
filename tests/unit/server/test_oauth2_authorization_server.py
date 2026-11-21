@@ -305,3 +305,136 @@ def test_public_origin_falls_back_to_request_base_url(monkeypatch: pytest.Monkey
     )
 
     assert public_origin(request) == "http://localhost:6006/phoenix"
+
+
+def test_public_origin_honors_x_forwarded_proto(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("PHOENIX_ROOT_URL", raising=False)
+    request = Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/",
+            "root_path": "/mcp",
+            "headers": [
+                (b"host", b"phoenix-devs.up.railway.app"),
+                (b"x-forwarded-proto", b"https"),
+            ],
+            "server": ("127.0.0.1", 6006),
+            "scheme": "http",
+            "client": ("10.0.0.1", 12345),
+        }
+    )
+
+    assert public_origin(request) == "https://phoenix-devs.up.railway.app/mcp"
+
+
+def test_public_origin_ignores_forwarded_host(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The origin feeds token issuance, so a header the client can set must not
+    # decide it: honoring X-Forwarded-Host would let a caller mint or present a
+    # token for an origin it picked, defeating the audience confinement between
+    # /mcp and /v1. Only the scheme is taken from the proxy headers.
+    monkeypatch.delenv("PHOENIX_ROOT_URL", raising=False)
+    request = Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/",
+            "headers": [
+                (b"host", b"phoenix.example.com"),
+                (b"x-forwarded-host", b"attacker.example.com"),
+                (b"x-forwarded-proto", b"https, http"),
+            ],
+            "server": ("phoenix.example.com", 443),
+            "scheme": "http",
+            "client": ("10.0.0.1", 12345),
+        }
+    )
+
+    assert public_origin(request) == "https://phoenix.example.com"
+
+
+def test_public_origin_honors_rfc7239_forwarded(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("PHOENIX_ROOT_URL", raising=False)
+    request = Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/",
+            "headers": [
+                (b"host", b"phoenix.example.com"),
+                (b"forwarded", b"proto=https;host=attacker.example.com"),
+            ],
+            "server": ("phoenix.example.com", 443),
+            "scheme": "http",
+            "client": ("10.0.0.1", 12345),
+        }
+    )
+
+    assert public_origin(request) == "https://phoenix.example.com"
+
+
+def test_public_origin_parses_forwarded_quoted_strings(monkeypatch: pytest.MonkeyPatch) -> None:
+    # RFC 7239 makes the separators inside a quoted-string literal. A proxy that
+    # appends its own element after the client's must still win, so scanning the
+    # whole header for "proto=" would let the client's value be picked instead.
+    monkeypatch.delenv("PHOENIX_ROOT_URL", raising=False)
+    request = Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/",
+            "headers": [
+                (b"host", b"phoenix.example.com"),
+                (b"forwarded", b'for="_x;proto=http", for=10.0.0.1;proto=https'),
+            ],
+            "server": ("phoenix.example.com", 443),
+            "scheme": "http",
+            "client": ("10.0.0.1", 12345),
+        }
+    )
+
+    assert public_origin(request) == "https://phoenix.example.com"
+
+
+def test_public_origin_parses_forwarded_extension_quoted_strings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PHOENIX_ROOT_URL", raising=False)
+    request = Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/",
+            "headers": [
+                (b"host", b"phoenix.example.com"),
+                (b"forwarded", b'ext="x;proto=http";proto=https'),
+            ],
+            "server": ("phoenix.example.com", 443),
+            "scheme": "http",
+            "client": ("10.0.0.1", 12345),
+        }
+    )
+
+    assert public_origin(request) == "https://phoenix.example.com"
+
+
+def test_public_origin_ignores_unsupported_forwarded_schemes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PHOENIX_ROOT_URL", raising=False)
+    request = Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/",
+            "headers": [
+                (b"host", b"localhost:6006"),
+                (b"x-forwarded-proto", b"ftp"),
+            ],
+            "server": ("localhost", 6006),
+            "scheme": "http",
+            "client": ("127.0.0.1", 12345),
+        }
+    )
+
+    assert public_origin(request) == "http://localhost:6006"
