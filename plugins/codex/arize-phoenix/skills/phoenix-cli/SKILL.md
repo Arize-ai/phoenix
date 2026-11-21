@@ -51,6 +51,7 @@ px experiment get <id>
 px experiment delete <experiment-id>
 px prompt list
 px prompt get <prompt-identifier>
+px prompt create --name <name> --template <text>
 px prompt-versions list <prompt-identifier>
 px prompt tag <prompt-version-id> --tag <name>
 px prompt delete <prompt-identifier>
@@ -402,6 +403,7 @@ px experiment list --dataset <name> --format raw --no-progress | jq '.[] | {id, 
 px experiment get <id> --format raw --no-progress | jq '.[] | select(.error != null) | {input, error}'
 px prompt list --format raw --no-progress | jq '.[].name'
 px prompt get <name> --format text --no-progress   # plain text, ideal for piping to AI
+px prompt get <name> --format json --no-progress | jq '.invocation_parameters[.invocation_parameters.type].temperature = 0' | px prompt create --name <name> --file - --format raw --no-progress | jq -r .id   # edit a prompt and save it as a new version
 px prompt-versions list <name-or-id> --limit 10 --format raw --no-progress | jq '.[].id'
 px prompt tag <version-id> --tag production --description "Current release" --format raw --no-progress
 ```
