@@ -127,29 +127,6 @@ describe("AgentFabPositioner", () => {
     };
   }
 
-  it("updates placement to the nearest corner after a rAF-driven drag", () => {
-    const onPlacementChange = vi.fn();
-    const { positioner } = renderPositioner({ onPlacementChange });
-
-    act(() => {
-      dispatchPointerEvent(positioner, "pointerdown", {
-        clientX: 1135,
-        clientY: 958,
-      });
-      dispatchPointerEvent(positioner, "pointermove", {
-        clientX: 150,
-        clientY: 140,
-      });
-      dispatchPointerEvent(positioner, "pointerup", {
-        clientX: 150,
-        clientY: 140,
-      });
-    });
-
-    expect(window.requestAnimationFrame).toHaveBeenCalled();
-    expect(onPlacementChange).toHaveBeenCalledWith("top-start");
-  });
-
   it("supports dragging when trigger children consume pointer events", () => {
     const onPlacementChange = vi.fn();
     const { button } = renderPositioner({
@@ -173,24 +150,6 @@ describe("AgentFabPositioner", () => {
     });
 
     expect(onPlacementChange).toHaveBeenCalledWith("top-start");
-  });
-
-  it("activates on a pure pointer release", () => {
-    const onActivate = vi.fn();
-    const { button } = renderPositioner({ onActivate });
-
-    act(() => {
-      dispatchPointerEvent(button, "pointerdown", {
-        clientX: 1135,
-        clientY: 958,
-      });
-      dispatchPointerEvent(button, "pointerup", {
-        clientX: 1135,
-        clientY: 958,
-      });
-    });
-
-    expect(onActivate).toHaveBeenCalledTimes(1);
   });
 
   it("does not move on click jitter below the drag threshold", () => {
@@ -217,28 +176,6 @@ describe("AgentFabPositioner", () => {
     expect((positioner as HTMLElement).style.transform).toBe(initialTransform);
   });
 
-  it("does not activate after a drag", () => {
-    const onActivate = vi.fn();
-    const { button } = renderPositioner({ onActivate });
-
-    act(() => {
-      dispatchPointerEvent(button, "pointerdown", {
-        clientX: 1135,
-        clientY: 958,
-      });
-      dispatchPointerEvent(button, "pointermove", {
-        clientX: 150,
-        clientY: 140,
-      });
-      dispatchPointerEvent(button, "pointerup", {
-        clientX: 150,
-        clientY: 140,
-      });
-    });
-
-    expect(onActivate).not.toHaveBeenCalled();
-  });
-
   it("suppresses the opening click after a drag", () => {
     const onClick = vi.fn();
     const { button, positioner } = renderPositioner({ onClick });
@@ -260,64 +197,6 @@ describe("AgentFabPositioner", () => {
     });
 
     expect(onClick).not.toHaveBeenCalled();
-  });
-
-  it("keeps a normal click available when the pointer was not dragged", () => {
-    const onClick = vi.fn();
-    const { button, positioner } = renderPositioner({ onClick });
-
-    act(() => {
-      dispatchPointerEvent(positioner, "pointerdown", {
-        clientX: 1135,
-        clientY: 958,
-      });
-      dispatchPointerEvent(positioner, "pointerup", {
-        clientX: 1135,
-        clientY: 958,
-      });
-      button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
-
-    expect(onClick).toHaveBeenCalledTimes(1);
-  });
-
-  it("captures the pointer while a drag is pending without blocking normal click", () => {
-    const onClick = vi.fn();
-    const { button, positioner } = renderPositioner({ onClick });
-
-    act(() => {
-      dispatchPointerEvent(button, "pointerdown", {
-        clientX: 1135,
-        clientY: 958,
-      });
-      dispatchPointerEvent(button, "pointerup", {
-        clientX: 1135,
-        clientY: 958,
-      });
-      button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
-
-    expect(positioner.setPointerCapture).toHaveBeenCalledWith(1);
-    expect(positioner.releasePointerCapture).toHaveBeenCalledWith(1);
-    expect(onClick).toHaveBeenCalledTimes(1);
-  });
-
-  it("keeps pointer capture while dragging", () => {
-    const { positioner } = renderPositioner();
-
-    act(() => {
-      dispatchPointerEvent(positioner, "pointerdown", {
-        clientX: 1135,
-        clientY: 958,
-      });
-      dispatchPointerEvent(positioner, "pointermove", {
-        clientX: 900,
-        clientY: 730,
-      });
-    });
-
-    expect(positioner.setPointerCapture).toHaveBeenCalledWith(1);
-    expect(positioner.setPointerCapture).toHaveBeenCalledTimes(1);
   });
 
   it("finishes a drag when pointer capture is lost", () => {

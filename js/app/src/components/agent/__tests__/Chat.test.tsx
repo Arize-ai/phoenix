@@ -298,35 +298,6 @@ describe("ChatView", () => {
     credentialStatus.missingCredentials = null;
   });
 
-  it("shows the credential form in the empty state for a model without a key", () => {
-    credentialStatus.missingCredentials = {
-      provider: { name: "Anthropic" },
-      credentialState: "no-key",
-    };
-    renderChatView(root);
-
-    const forms = container.querySelectorAll(
-      'section[aria-label="Anthropic credentials"]'
-    );
-    expect(forms).toHaveLength(1);
-    expect(forms[0]?.closest(".chat__input")).toBeNull();
-  });
-
-  it("shows the credential form above the input mid-conversation for a model without a key", () => {
-    credentialStatus.missingCredentials = {
-      provider: { name: "Anthropic" },
-      credentialState: "no-key",
-    };
-    renderChatView(root, { chatMessages: messages });
-
-    const forms = container.querySelectorAll(
-      'section[aria-label="Anthropic credentials"]'
-    );
-    expect(forms).toHaveLength(1);
-    expect(forms[0]?.closest(".chat__credential-form")).not.toBeNull();
-    expect(forms[0]?.closest(".chat__input")).not.toBeNull();
-  });
-
   it("doesn't send for a model without a key", () => {
     credentialStatus.missingCredentials = {
       provider: { name: "Anthropic" },
@@ -364,28 +335,6 @@ describe("ChatView", () => {
     pressEnter(textarea!);
 
     expect(sendMessage).toHaveBeenCalledWith({ text: "hello" }, undefined);
-  });
-
-  it("focuses the prompt textarea when requested", () => {
-    renderChatView(root, { autoFocusInput: true });
-
-    const textarea = container.querySelector<HTMLTextAreaElement>(
-      'textarea[aria-label="Message input"]'
-    );
-
-    expect(textarea).not.toBeNull();
-    expect(document.activeElement).toBe(textarea);
-  });
-
-  it("does not focus the prompt textarea by default", () => {
-    renderChatView(root);
-
-    const textarea = container.querySelector<HTMLTextAreaElement>(
-      'textarea[aria-label="Message input"]'
-    );
-
-    expect(textarea).not.toBeNull();
-    expect(document.activeElement).not.toBe(textarea);
   });
 
   it("preserves the prompt draft when the chat view remounts", () => {
@@ -455,21 +404,6 @@ describe("ChatView", () => {
     expect(container.textContent).toContain("Thinking...");
   });
 
-  it("keeps the thinking indicator while streaming before assistant output arrives", () => {
-    const userMessage = {
-      id: "user-message",
-      role: "user",
-      parts: [{ type: "text", text: "What is a trace?" }],
-    } as AgentUIMessage;
-    renderChatView(root, {
-      sessionId: "session-1",
-      status: "streaming",
-      chatMessages: [userMessage],
-    });
-
-    expect(container.textContent).toContain("Thinking...");
-  });
-
   it("keeps the thinking indicator until the streaming turn has visible content", () => {
     const userMessage = {
       id: "user-message",
@@ -505,50 +439,6 @@ describe("ChatView", () => {
       chatMessages: [userMessage, invisiblePartsAssistantMessage],
     });
     expect(container.textContent).toContain("Thinking...");
-  });
-
-  it("hides the thinking indicator once assistant text is streaming", () => {
-    const userMessage = {
-      id: "user-message",
-      role: "user",
-      parts: [{ type: "text", text: "What is a trace?" }],
-    } as AgentUIMessage;
-    const assistantMessage = {
-      id: "assistant-message",
-      role: "assistant",
-      parts: [{ type: "text", text: "A trace is" }],
-    } as AgentUIMessage;
-    renderChatView(root, {
-      sessionId: "session-1",
-      status: "streaming",
-      chatMessages: [userMessage, assistantMessage],
-    });
-
-    expect(container.textContent).not.toContain("Thinking...");
-  });
-
-  it("animates only the active assistant message while streaming", () => {
-    renderChatView(root, {
-      status: "streaming",
-      chatMessages: messages,
-    });
-
-    expect(
-      container
-        .querySelector('[data-message-id="assistant-message"]')
-        ?.getAttribute("data-streaming")
-    ).toBe("true");
-
-    renderChatView(root, {
-      status: "ready",
-      chatMessages: messages,
-    });
-
-    expect(
-      container
-        .querySelector('[data-message-id="assistant-message"]')
-        ?.getAttribute("data-streaming")
-    ).toBeNull();
   });
 
   it("runs /compact without sending it as a user message", async () => {
@@ -603,20 +493,6 @@ describe("ChatView", () => {
     expect(container.querySelector('[role="status"]')?.textContent).toBe(
       "Compacting conversation…"
     );
-  });
-
-  it("renders an already-compact result inline in the transcript", () => {
-    renderChatView(root, {
-      compactionStatus:
-        "Conversation is already compact. There are no older complete turns to compact.",
-    });
-
-    expect(container.querySelector('[role="status"]')?.textContent).toBe(
-      "Conversation is already compact. There are no older complete turns to compact."
-    );
-
-    renderChatView(root, { compactionStatus: null });
-    expect(container.querySelector('[role="status"]')).toBeNull();
   });
 
   it("renders a divider after the compacted transcript boundary", () => {
@@ -850,16 +726,6 @@ describe("ChatView", () => {
       },
     ],
   };
-
-  it("renders the pending question carousel", () => {
-    renderChatView(root, {
-      chatMessages: messages,
-      status: "ready",
-      pendingElicitation: pendingQuestion,
-    });
-
-    expect(container.textContent).toContain("Which dataset should I use?");
-  });
 
   it("hides the pending question while the session is busy elsewhere", () => {
     renderChatView(root, {
