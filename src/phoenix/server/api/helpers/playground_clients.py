@@ -2670,8 +2670,8 @@ class AnthropicClient(PlaygroundClient["AsyncAnthropic"]):
                 ToolUseBlockParam(
                     type="tool_use",
                     id=tc.get("id", ""),
-                    name=tc.get("function", {}).get("name", ""),
-                    input=tc.get("function", {}).get("arguments", {}),
+                    name=(tc.get("function") or {}).get("name", ""),
+                    input=(tc.get("function") or {}).get("arguments", {}),
                 )
                 for tc in tool_calls
             )
