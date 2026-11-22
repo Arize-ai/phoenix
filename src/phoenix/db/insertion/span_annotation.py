@@ -95,23 +95,35 @@ class SpanAnnotationQueueInserter(
                 if p.item.updated_at <= anno.updated_at:
                     to_discard.append(p)
                 else:
+                    insertable = p.item.as_insertable(span_rowid=anno.span_rowid)
+                    # Preserve retry state so _insert can eventually discard
+                    # a row that keeps failing instead of retrying forever.
+                    if isinstance(p, Postponed):
+                        to_insert.append(
+                            Postponed(
+                                received_at=p.received_at,
+                                item=insertable,
+                                retries_left=p.retries_left,
+                            )
+                        )
+                    else:
+                        to_insert.append(
+                            Received(received_at=p.received_at, item=insertable)
+                        )
+            elif (span := existing_spans.get(p.item.span_id)) is not None:
+                insertable = p.item.as_insertable(span_rowid=span.span_rowid)
+                if isinstance(p, Postponed):
                     to_insert.append(
-                        Received(
+                        Postponed(
                             received_at=p.received_at,
-                            item=p.item.as_insertable(
-                                span_rowid=anno.span_rowid,
-                            ),
+                            item=insertable,
+                            retries_left=p.retries_left,
                         )
                     )
-            elif (span := existing_spans.get(p.item.span_id)) is not None:
-                to_insert.append(
-                    Received(
-                        received_at=p.received_at,
-                        item=p.item.as_insertable(
-                            span_rowid=span.span_rowid,
-                        ),
+                else:
+                    to_insert.append(
+                        Received(received_at=p.received_at, item=insertable)
                     )
-                )
             elif isinstance(p, Postponed):
                 if p.retries_left > 1:
                     to_postpone.append(p.postpone(p.retries_left - 1))

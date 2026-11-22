@@ -653,11 +653,21 @@ def get_annotation_precursors_from_fixture(
 def _get_precursor_result(
     row: "pd.Series[str]",
 ) -> tuple[Optional[float], Optional[str], Optional[str]]:
-    return (
-        cast(Optional[float], row.get("score")),
-        row.get("label"),
-        row.get("explanation"),
-    )
+    import math
+
+    score = cast(Optional[float], row.get("score"))
+    label = row.get("label")
+    explanation = row.get("explanation")
+    # DataFrame cells with missing values become float('nan'), which is
+    # rejected by asyncpg when the column expects str (or None).  Coerce
+    # any NaN sentinel back to None so the database receives NULL instead.
+    if isinstance(score, float) and math.isnan(score):
+        score = None
+    if isinstance(label, float) and math.isnan(label):
+        label = None
+    if isinstance(explanation, float) and math.isnan(explanation):
+        explanation = None
+    return score, label, explanation
 
 
 def remap_precursor_ids(
