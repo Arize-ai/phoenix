@@ -31,6 +31,18 @@ export function formatEvaluationDelay(seconds: number): string {
   return `${minutes.toLocaleString()} minute${minutes === 1 ? "" : "s"}`;
 }
 
+/** Explains the delay field: what it waits for and when results first show. */
+export function formatEvaluationDelayHelp({
+  targetType,
+  delaySeconds,
+}: {
+  targetType: EvaluationTarget;
+  delaySeconds: number;
+}): string {
+  const delay = formatEvaluationDelay(delaySeconds);
+  return `${formatEvaluationTarget(targetType)}s are evaluated ${delay} after their last activity, so a new evaluator shows no results for at least ${delay}.`;
+}
+
 // Hoisted: Intl.NumberFormat construction does locale resolution, and the
 // evaluators table calls this per row per render.
 const samplingRateFormatter = new Intl.NumberFormat(undefined, {

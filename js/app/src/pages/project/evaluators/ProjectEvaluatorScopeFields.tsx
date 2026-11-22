@@ -12,7 +12,10 @@ import {
   Text,
 } from "@phoenix/components";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
-import { formatEvaluationTarget } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
+import {
+  formatEvaluationDelayHelp,
+  formatEvaluationTarget,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import {
   dropOtherRecordKindPathMappings,
   getDefaultProjectEvaluatorFilterCondition,
@@ -125,7 +128,10 @@ export const ProjectEvaluatorScopeFieldGroup = ({
       </Flex>
       {isDelayedTarget ? (
         <Text size="XS" color="text-500">
-          {`${formatEvaluationTarget(scope.targetType)}s are evaluated after this many seconds of inactivity.`}
+          {formatEvaluationDelayHelp({
+            targetType: scope.targetType,
+            delaySeconds: scope.evaluationDelaySeconds,
+          })}
         </Text>
       ) : null}
       {/* Remounted per target so the draft condition does not survive a switch
@@ -165,18 +171,23 @@ const ProjectEvaluatorEvaluationDelayField = ({
       </Text>
       {/* Stays at the default M size so it lines up with the segmented
           control, slider, and select sharing this row. */}
-      <NumberField
-        aria-label="Evaluation delay in seconds"
-        step={1}
-        minValue={MIN_EVALUATION_DELAY_SECONDS}
-        value={value}
-        onChange={onChange}
-        css={css`
-          width: 140px;
-        `}
-      >
-        <Input />
-      </NumberField>
+      <Flex direction="row" gap="size-100" alignItems="center">
+        <NumberField
+          aria-label="Evaluation delay in seconds"
+          step={1}
+          minValue={MIN_EVALUATION_DELAY_SECONDS}
+          value={value}
+          onChange={onChange}
+          css={css`
+            width: 100px;
+          `}
+        >
+          <Input />
+        </NumberField>
+        <Text size="S" color="text-700">
+          seconds
+        </Text>
+      </Flex>
     </Flex>
   );
 };
