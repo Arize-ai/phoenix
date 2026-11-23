@@ -13,7 +13,9 @@ import { useEvaluatorInputMappingControlsForm } from "@phoenix/components/evalua
 import { EvaluatorInputVariablesContext } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/evaluatorInputVariablesContext";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import { makeProjectEvaluatorFormLayout } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
+import { ProjectEvaluatorInputMapping } from "@phoenix/pages/project/evaluators/ProjectEvaluatorInputMapping";
 import type { ProjectEvaluatorScope } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import type { EvaluatorStoreInstance } from "@phoenix/store/evaluatorStore";
 
 const SPAN_SCOPE: ProjectEvaluatorScope = {
   targetType: "SPAN",
@@ -22,8 +24,6 @@ const SPAN_SCOPE: ProjectEvaluatorScope = {
   evaluationDelaySeconds: 0,
   tracingEnabled: true,
 };
-import { ProjectEvaluatorInputMapping } from "@phoenix/pages/project/evaluators/ProjectEvaluatorInputMapping";
-import type { EvaluatorStoreInstance } from "@phoenix/store/evaluatorStore";
 
 vi.mock("@phoenix/components/evaluators/EvaluatorPathField", () => ({
   EvaluatorPathField: ({ ariaLabel }: { ariaLabel: string }) => (

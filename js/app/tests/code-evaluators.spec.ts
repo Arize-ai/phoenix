@@ -656,11 +656,11 @@ test.describe.serial("Code Evaluators", () => {
       await selectSandbox(page, dialog, pythonSandboxName);
     }
 
-    // The "Test Evaluator" region is always rendered in the sidebar (no
-    // disclosure to expand), labeled by a section heading, so its contents
-    // are visible without any interaction.
+    // The test is always shown on the form's right side (no disclosure to
+    // expand), headed like every evaluator form's test, so its contents are
+    // visible without any interaction.
     await expect(
-      dialog.getByRole("heading", { name: "Test Evaluator" })
+      dialog.getByRole("heading", { name: "Test with an Example" })
     ).toBeVisible();
 
     const testButton = dialog.getByRole("button", {

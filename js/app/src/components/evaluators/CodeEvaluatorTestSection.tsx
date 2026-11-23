@@ -7,6 +7,7 @@ import {
   Alert,
   Button,
   Flex,
+  Heading,
   Icon,
   IconButton,
   Icons,
@@ -191,12 +192,12 @@ export const CodeEvaluatorTestSection = ({
         </Flex>
       )}
 
-      {/* Description and test button */}
+      {/* Headed like every other evaluator form's test (see
+          EvaluatorPreviewSection), with the description under it. */}
       <Flex justifyContent="space-between" alignItems="center" gap="size-200">
-        <Text color="text-500" size="XS">
-          Run your evaluator against the example data to verify it works
-          correctly before saving.
-        </Text>
+        <Heading weight="heavy" level={2}>
+          Test with an Example
+        </Heading>
         <Button
           size="S"
           onPress={onTestEvaluator}
@@ -209,6 +210,10 @@ export const CodeEvaluatorTestSection = ({
           {isLoading ? "Testing..." : "Test"}
         </Button>
       </Flex>
+      <Text color="text-500">
+        Run your evaluator against the example data to verify it works correctly
+        before saving.
+      </Text>
     </Flex>
   );
 };

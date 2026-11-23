@@ -98,10 +98,7 @@ export function EditProjectEvaluatorSlideover({
 } & Omit<ModalOverlayProps, "children">) {
   const title = getEditProjectEvaluatorTitle({ kind, name });
   return (
-    <ProjectEvaluatorSlideover
-      {...props}
-      title={title}
-    >
+    <ProjectEvaluatorSlideover {...props} title={title}>
       {(close, registerDirtyCheck) => (
         <EditProjectEvaluatorForm
           projectEvaluatorId={projectEvaluatorId}
