@@ -30,9 +30,20 @@ A 1,000+ line PR full of new features is very likely to be closed without review
 - Explain exactly what changed.
 - Explain exactly why the change should exist.
 - Do not mix unrelated fixes together.
-- If the PR makes anything resembling a UI change, include clear before/after images.
-- If the change depends on motion, timing, transitions, or interaction details, include a short video.
+- If the PR changes the UI, include image or video evidence. See [UI Changes](#ui-changes).
 - If we have to guess what changed, we are much less likely to review it.
+
+## UI Changes
+
+A PR that changes what a user sees or how they interact with the app must include image or video evidence in the PR description. Evidence is how maintainers come to trust work they did not watch being built. Without it, we have to check out your branch and reproduce the change ourselves before we can begin to review it.
+
+- Include before and after screenshots of every view the change affects.
+- Include a short video when the change depends on motion, timing, transitions, or interaction.
+- Capture the evidence from the app running on your branch. Mockups and design files do not count.
+- Show the states the change touches, such as empty, loading, and error states, and both the light and dark themes when colors change.
+- Add a caption to each image or video that says what to notice.
+
+A substantive UI change is one that adds or rearranges a view, changes a layout, changes a component's appearance, or changes an interaction. We do not review a substantive UI PR that has no visual evidence, and we may close it. A change with no visible effect, such as a refactor, does not need evidence, but the PR description must say that nothing visible changed.
 
 ## Issues First
 
@@ -48,6 +59,13 @@ Opening a PR does not create an obligation on our side. We may close it, ask you
 
 We know that can be frustrating. We would rather be upfront about it than waste your time with false encouragement.
 
+### PRs We Close Without Comment
+
+Maintainer time is the scarcest resource on this project, so we reserve the right to close a PR without comment in these cases:
+
+- **The PR will take longer to review than it took to produce.** A change that costs you minutes to generate and costs us hours to verify moves the work onto the maintainers.
+- **The PR looks like the unattended output of a coding agent.** You are welcome to use coding agents. You are responsible for what they produce. If a PR shows no sign that a person read the diff, ran the code, and cared about the result, and we judge it too sloppy, we close it. Common signs are changes unrelated to the stated goal, a description that does not match the diff, tests that do not test the change, and code that was never run.
+
 ## Code of Conduct
 
 This project has adopted the [Contributor Covenant Code of Conduct](./CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code and actions that violate it will not be tolerated.
@@ -55,6 +73,8 @@ This project has adopted the [Contributor Covenant Code of Conduct](./CODE_OF_CO
 ## Branch Organization
 
 Submit all changes to `main`.
+
+Feature branches, meaning any long-lived branch other than `main`, are owned by the core maintainers. Community PRs must not target a feature branch or change one. We close PRs that do.
 
 Code that lands in `main` must be compatible with the latest stable release. It may contain additional features but no breaking changes. We should be able to release a new minor version from the tip of `main` at any time.
 
@@ -66,7 +86,7 @@ We use GitHub issues to track bugs. We keep a close eye on this and try to make 
 
 Before submitting a pull request, please make sure the following is done:
 
-- Fork the repository and create your branch from `main`.
+- Fork the repository and create your branch from `main`. Open the PR against `main`, never against a feature branch.
 - Follow the [development guide](./DEVELOPMENT.md) to setup your local environment.
 - If you've fixed a bug or added code that should be tested, add tests!
 - Ensure test suite passes (`make test-python` and `npm run test` for app changes)
@@ -81,7 +101,7 @@ A PR description is a public record of what change is being made and why it was 
 - Title: The title must conform to [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/#summary) format and must sufficiently describe the change. Since PR titles are used to form release notes, titles with generic or non-descriptive content ("Fix build.", "Add patch.") are not allowed.
 - Issue: The first line of the description should contain a reference to the issue that the PR is solving. For example, `fixes #1234` or `resolves #1234`. While this is not required for urgent fixes, it is required for all other PRs so that the issue is clearly tracked and triaged by a core team member.
 - Description: The first line should be a short, focused summary, while the rest of the description should fill in the details and include any supplemental information a reader needs to understand the change holistically. It might include a brief description of the problem that's being solved, and why this is the best approach. If there are any shortcomings to the approach, they should be mentioned.
-- Videos and screenshots: Highlight the changes in the UI. These should be supplemental to the text description, not a replacement for it.
+- Videos and screenshots: Required for UI changes, as [UI Changes](#ui-changes) describes. These should be supplemental to the text description, not a replacement for it.
 - Code Snippets: If the PR is changing an API, include code snippets to highlight the changes. This will expedite a reader's ability to construct the right API calls if they are interested in doing so. These should be supplemental to the text description, not a replacement for it.
 
 ### Small Simple Pull Requests
@@ -112,6 +132,7 @@ A code review is a process where someone other than the author(s) of a piece of 
 - Comments: Are the comments clear and useful? Note that comments are most useful when they explain _why_ the code exists.
 - Style: Does the code follow our style guides? Note, in most cases, style nits should be avoided and be enforced entirely by automated tooling. However some stylistic decisions can be discussed if it impacts readability and complexity.
 - Documentation: Did the developer also update relevant documentation?
+- Visual evidence: For a substantive UI change, does the PR description show the change running, in every view and state it affects? A reviewer should not approve a substantive UI change they have only read as a diff.
 
 All of the above are grounds for a reviewer to request changes in a PR. Consensus should be reached to the best of the abilities of the author(s) and reviewer. However, if consensus cannot be reached between the two parties, the review should be escalated to the technical lead.
 
