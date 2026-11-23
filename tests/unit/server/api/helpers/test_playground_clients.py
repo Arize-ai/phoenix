@@ -949,6 +949,45 @@ class TestBedrockClient:
             {"role": "user", "content": [{"text": "third"}]},
         ]
 
+    @pytest.mark.parametrize(
+        "tools",
+        [
+            pytest.param(None, id="no-tools"),
+            pytest.param(
+                PromptTools(
+                    type="tools",
+                    tool_choice=PromptToolChoiceNone(type="none"),
+                    tools=[_function_tool()],
+                ),
+                id="tool-choice-none",
+            ),
+        ],
+    )
+    def test_tool_history_without_tool_config_is_sent_as_text(
+        self, tools: Optional[PromptTools]
+    ) -> None:
+        """Without a toolConfig, Converse rejects toolUse/toolResult blocks, so the
+        replayed calls and results are sent as text and no tools are offered."""
+        request = self._request_for(self._parallel_tool_call_history(), tools)
+        assert "toolConfig" not in request
+        assert request["messages"] == [
+            {"role": "user", "content": [{"text": "Weather in Paris and Rome?"}]},
+            {
+                "role": "assistant",
+                "content": [
+                    {"text": '[tool call call_1] get_weather({"city": "Paris"})'},
+                    {"text": '[tool call call_2] get_weather({"city": "Rome"})'},
+                ],
+            },
+            {
+                "role": "user",
+                "content": [
+                    {"text": '[tool result call_1] {"temp_c": 21}'},
+                    {"text": '[tool result call_2] {"temp_c": 25}'},
+                ],
+            },
+        ]
+
 
 class TestGetOpenAIClientClass:
     """Tests for the get_openai_client_class helper function."""

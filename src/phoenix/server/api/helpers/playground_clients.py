@@ -1623,9 +1623,8 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
             ToolTypeDef,
         )
 
-        request = ConverseStreamRequestTypeDef(modelId=self.model_name)
-
-        request["messages"] = self._build_converse_messages(messages)
+        # messages are filled in once it is known whether a toolConfig is sent
+        request = ConverseStreamRequestTypeDef(modelId=self.model_name, messages=[])
 
         system_prompt = self._extract_system_prompt(messages)
         if system_prompt:
@@ -1687,6 +1686,11 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
 
             if send_tools:
                 request["toolConfig"] = tool_config
+
+        # Converse rejects toolUse/toolResult blocks in a request without a toolConfig.
+        request["messages"] = self._build_converse_messages(
+            messages, tool_blocks_as_text="toolConfig" not in request
+        )
 
         if response_format:
             json_schema = JsonSchemaDefinitionTypeDef(
@@ -1906,6 +1910,8 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
     def _build_converse_messages(
         self,
         messages: Sequence[PlaygroundMessage],
+        *,
+        tool_blocks_as_text: bool = False,
     ) -> list[MessageTypeDef]:
         """
         Convert messages to Converse API format.
@@ -1915,6 +1921,10 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
         results of parallel tool calls become one user turn holding every
         `toolResult` block, right after the assistant turn with the `toolUse`
         blocks.
+
+        With `tool_blocks_as_text`, replayed tool calls and results are sent as
+        text blocks instead, for requests that have no toolConfig: Converse
+        rejects `toolUse`/`toolResult` blocks without one.
         """
         from types_aiobotocore_bedrock_runtime.type_defs import (
             ContentBlockTypeDef,
@@ -1939,6 +1949,12 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
             if role == ChatCompletionMessageRole.USER:
                 append("user", [ContentBlockTypeDef(text=content)])
             elif role == ChatCompletionMessageRole.TOOL:
+                if tool_blocks_as_text:
+                    append(
+                        "user",
+                        [ContentBlockTypeDef(text=f"[tool result {tool_call_id or ''}] {content}")],
+                    )
+                    continue
                 tool_result = ToolResultBlockTypeDef(
                     toolUseId=tool_call_id or "",
                     content=[ToolResultContentBlockTypeDef(text=content)],
@@ -1948,17 +1964,23 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
                 blocks: list[ContentBlockTypeDef] = []
                 if content:
                     blocks.append(ContentBlockTypeDef(text=content))
-                if tool_calls:
-                    blocks.extend(
-                        ContentBlockTypeDef(
-                            toolUse={
-                                "toolUseId": tc.get("id", ""),
-                                "name": tc.get("function", {}).get("name", ""),
-                                "input": tc.get("function", {}).get("arguments", {}),
-                            }
+                for tc in tool_calls or []:
+                    tool_use_id = tc.get("id", "")
+                    name = tc.get("function", {}).get("name", "")
+                    arguments = tc.get("function", {}).get("arguments", {})
+                    if tool_blocks_as_text:
+                        blocks.append(
+                            ContentBlockTypeDef(
+                                text=f"[tool call {tool_use_id}] {name}"
+                                f"({safe_json_dumps(arguments)})"
+                            )
                         )
-                        for tc in tool_calls
-                    )
+                    else:
+                        blocks.append(
+                            ContentBlockTypeDef(
+                                toolUse={"toolUseId": tool_use_id, "name": name, "input": arguments}
+                            )
+                        )
                 append("assistant", blocks)
         return converse_messages
 
