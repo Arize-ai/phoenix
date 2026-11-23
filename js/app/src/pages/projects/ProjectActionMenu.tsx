@@ -71,17 +71,9 @@ export function ProjectActionMenu({
     `);
   const [commitClear, isClearing] =
     useMutation<ProjectActionMenuClearMutation>(graphql`
-      mutation ProjectActionMenuClearMutation(
-        $input: ClearProjectInput!
-        $projectId: ID!
-      ) {
+      mutation ProjectActionMenuClearMutation($input: ClearProjectInput!) {
         clearProject(input: $input) {
-          node(id: $projectId) {
-            ... on Project {
-              id
-              isClearingTraces
-            }
-          }
+          __typename
         }
       }
     `);
@@ -113,7 +105,6 @@ export function ProjectActionMenu({
         input: {
           id: projectId,
         },
-        projectId,
       },
       onCompleted: (_response, errors) => {
         if (errors?.length) {

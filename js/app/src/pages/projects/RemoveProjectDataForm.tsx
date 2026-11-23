@@ -47,17 +47,9 @@ export function RemoveProjectDataForm({
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [commit, isCommitting] = useMutation<RemoveProjectDataFormMutation>(
     graphql`
-      mutation RemoveProjectDataFormMutation(
-        $input: ClearProjectInput!
-        $projectId: ID!
-      ) {
+      mutation RemoveProjectDataFormMutation($input: ClearProjectInput!) {
         clearProject(input: $input) {
-          node(id: $projectId) {
-            ... on Project {
-              id
-              isClearingTraces
-            }
-          }
+          __typename
         }
       }
     `
@@ -93,7 +85,6 @@ export function RemoveProjectDataForm({
             id: projectId,
             endTime: new Date(parsedDate).toISOString(),
           },
-          projectId,
         },
         onCompleted: (_response, errors) => {
           if (errors?.length) {

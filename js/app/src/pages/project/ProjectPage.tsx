@@ -38,7 +38,6 @@ import {
   useTimeRange,
 } from "@phoenix/components/datetime";
 import { TopNavActions } from "@phoenix/components/nav";
-import { ClearingTracesIndicator } from "@phoenix/components/project/ClearingTracesIndicator";
 import { TableSkeleton } from "@phoenix/components/table";
 import {
   SESSION_FILTER_CONDITION_PARAM,
@@ -63,7 +62,6 @@ import {
   readFilterConditionParam,
   withFilterConditionParam,
 } from "./filterConditionParam";
-import { MetricFetchKeyProvider } from "./metrics/types";
 import { ProjectOnboardingOverlay } from "./ProjectOnboardingOverlay";
 import {
   ProjectPageQueriesOnboardingQuery,
@@ -643,7 +641,6 @@ function useProjectPageQuery(projectId: string) {
             # to the error page now that the route loader does not wait.
             name
             evaluatorCount
-            isClearingTraces
             ...ProjectTimeRangeControls_data
           }
         }
@@ -656,13 +653,7 @@ function useProjectPageQuery(projectId: string) {
 
 function ProjectPageTimeRangeControls({ projectId }: { projectId: string }) {
   const data = useProjectPageQuery(projectId);
-  const isClearingTraces = data.project.isClearingTraces ?? false;
-  return (
-    <>
-      {isClearingTraces ? <ClearingTracesIndicator /> : null}
-      <ProjectTimeRangeControls project={data.project} />
-    </>
-  );
+  return <ProjectTimeRangeControls project={data.project} />;
 }
 
 function ProjectEvaluatorCount({ projectId }: { projectId: string }) {
@@ -674,7 +665,6 @@ function ProjectPageTabs({ projectId }: { projectId: string }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { rootPath, tab } = useProjectRootPath();
-  const { fetchKey } = useStreamState();
 
   const onTabChange = (index: number) => {
     startTransition(() => {
@@ -722,9 +712,7 @@ function ProjectPageTabs({ projectId }: { projectId: string }) {
         <StreamingTabPanel id="sessions" />
         <LazyTabPanel padded={false} id="metrics">
           <Suspense fallback={<ProjectPageSkeleton />}>
-            <MetricFetchKeyProvider value={fetchKey}>
-              <Outlet />
-            </MetricFetchKeyProvider>
+            <Outlet />
           </Suspense>
         </LazyTabPanel>
         <LazyTabPanel padded={false} id="config">

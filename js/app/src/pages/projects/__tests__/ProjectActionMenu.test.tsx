@@ -91,15 +91,8 @@ describe("ProjectActionMenu", () => {
     });
   }
 
-  it("keeps the Clear dialog open while in flight, formats GraphQL errors inline, clears on reopen, and sets isClearingTraces on completion", async () => {
-    const environment = createMockEnvironment();
-    environment.commitUpdate((store) => {
-      const projectRecord = store.create("project-1", "Project");
-      projectRecord.setValue("project-1", "id");
-      projectRecord.setValue(false, "isClearingTraces");
-    });
-
-    const { onProjectClear } = renderMenu({ environment });
+  it("keeps the Clear dialog open while in flight, formats GraphQL errors inline, clears on reopen", async () => {
+    const { environment, onProjectClear } = renderMenu();
     await openMenuAndSelect({ itemText: "Clear All Data" });
 
     const clearButton = findButtonByText({ text: "Clear" });
@@ -115,13 +108,13 @@ describe("ProjectActionMenu", () => {
     await act(async () => {
       environment.mock.rejectMostRecentOperation(
         new Error(
-          `Error fetching GraphQL query 'ProjectActionMenuClearMutation': [{"message":"Another trace clear is already in progress for this project"}]`
+          `Error fetching GraphQL query 'ProjectActionMenuClearMutation': [{"message":"Some traces are in use by another operation; run the clear again to finish."}]`
         )
       );
     });
 
     expect(document.body.textContent).toContain(
-      "Another trace clear is already in progress for this project"
+      "Some traces are in use by another operation; run the clear again to finish."
     );
     expect(document.body.textContent).not.toContain(
       "Error fetching GraphQL query"
@@ -135,7 +128,7 @@ describe("ProjectActionMenu", () => {
     });
     await openMenuAndSelect({ itemText: "Clear All Data" });
     expect(document.body.textContent).not.toContain(
-      "Another trace clear is already in progress for this project"
+      "Some traces are in use by another operation; run the clear again to finish."
     );
 
     await act(async () => {
@@ -144,21 +137,12 @@ describe("ProjectActionMenu", () => {
     await act(async () => {
       environment.mock.resolveMostRecentOperation({
         data: {
-          clearProject: {
-            node: {
-              __typename: "Project",
-              id: "project-1",
-              isClearingTraces: true,
-            },
-          },
+          clearProject: { __typename: "Query" },
         },
       });
     });
 
     expect(onProjectClear).toHaveBeenCalledTimes(1);
-    expect(
-      environment.getStore().getSource().get("project-1")?.isClearingTraces
-    ).toBe(true);
     expect(document.body.textContent).not.toContain("Clear Project");
   });
 
@@ -201,15 +185,8 @@ describe("ProjectActionMenu", () => {
     );
   });
 
-  it("displays formatted inline error in Remove Data dialog, clears on reopen, and sets isClearingTraces on completion", async () => {
-    const environment = createMockEnvironment();
-    environment.commitUpdate((store) => {
-      const projectRecord = store.create("project-1", "Project");
-      projectRecord.setValue("project-1", "id");
-      projectRecord.setValue(false, "isClearingTraces");
-    });
-
-    const { onProjectRemoveData } = renderMenu({ environment });
+  it("displays formatted inline error in Remove Data dialog, clears on reopen", async () => {
+    const { environment, onProjectRemoveData } = renderMenu();
     await openMenuAndSelect({ itemText: "Remove Data" });
 
     await act(async () => {
@@ -221,13 +198,13 @@ describe("ProjectActionMenu", () => {
     await act(async () => {
       environment.mock.rejectMostRecentOperation(
         new Error(
-          `Error fetching GraphQL query 'RemoveProjectDataFormMutation': [{"message":"Another trace clear is already in progress for this project"}]`
+          `Error fetching GraphQL query 'RemoveProjectDataFormMutation': [{"message":"Some traces are in use by another operation; run the clear again to finish."}]`
         )
       );
     });
 
     expect(document.body.textContent).toContain(
-      "Another trace clear is already in progress for this project"
+      "Some traces are in use by another operation; run the clear again to finish."
     );
     expect(document.body.textContent).not.toContain(
       "Error fetching GraphQL query"
@@ -244,7 +221,7 @@ describe("ProjectActionMenu", () => {
 
     await openMenuAndSelect({ itemText: "Remove Data" });
     expect(document.body.textContent).not.toContain(
-      "Another trace clear is already in progress for this project"
+      "Some traces are in use by another operation; run the clear again to finish."
     );
 
     await act(async () => {
@@ -255,20 +232,11 @@ describe("ProjectActionMenu", () => {
     await act(async () => {
       environment.mock.resolveMostRecentOperation({
         data: {
-          clearProject: {
-            node: {
-              __typename: "Project",
-              id: "project-1",
-              isClearingTraces: true,
-            },
-          },
+          clearProject: { __typename: "Query" },
         },
       });
     });
 
     expect(onProjectRemoveData).toHaveBeenCalledTimes(1);
-    expect(
-      environment.getStore().getSource().get("project-1")?.isClearingTraces
-    ).toBe(true);
   });
 });
