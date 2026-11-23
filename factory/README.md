@@ -327,6 +327,33 @@ cla_check.py     reminds the author of a PR whose CLA is unsigned, closes it a d
 
 `claude-lock.json` is state, not config: Factory Sync keeps it on the `factory-state` branch and pulls it before each plan, apply and dispatch. Don't commit it to `main`.
 
+## Issue target branches
+
+To target a feature branch, add one standalone line to the issue description:
+
+```text
+Target branch: version-online-evals
+```
+
+The issue's declaration takes precedence. Without one, dispatch follows GitHub's explicit parent relationships and uses the nearest ancestor's declaration.
+If no ancestor declares a target, dispatch reads the target repository's default branch from GitHub.
+Checklists, labels, titles, comments and prose mentions do not configure a target. Fenced examples, indented code and block quotes are ignored.
+
+Use the exact `Target branch: <branch-name>` syntax outside code blocks.
+Branch names must start with a letter or number and contain only letters, numbers, `.`, `_`, `/` or `-`.
+They must also be valid Git branch names and exist in the target repository.
+Malformed or multiple declarations in the selected issue or ancestor fail the run, including repeated declarations with the same value.
+Dispatch stops at the nearest declaration; an issue's override does not require reading its ancestors.
+Unreadable ancestry, cycles and ancestry beyond 50 issues also fail the run. Dispatch never falls back after a configuration error.
+
+Dispatch resolves the target after admission and before creating a coding session. `start --dry-run` also resolves and validates the target without creating a session.
+The session mounts that branch and records `target_branch` in its metadata and kickoff context.
+The lane creates its work branch from that mount, tests the unchanged target first, and gives reviewers the same comparison base.
+The resulting draft PR targets that branch. The watcher rejects a mismatched PR base before marking it ready or enabling auto-merge.
+Existing PR review and finishing sessions continue to use the PR's actual base.
+
+Run `make test-factory` to check branch resolution and session propagation. These tests stub GitHub and Managed Agents API calls.
+
 ## Bootstrap
 
 1. Create a dedicated Claude workspace for the factory, install `ant` (>= 1.40.0), and authenticate against it. Any API key in that workspace can start sessions that use the vault's GitHub credential, so keep the shared `ANTHROPIC_API_KEY` in a different workspace.

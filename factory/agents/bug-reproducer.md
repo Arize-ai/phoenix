@@ -35,6 +35,8 @@ An issue labeled `phoenix-cloud` came from Phoenix Cloud, the multi-tenant hoste
 
 You are called twice. The first message names the issue: reproduce. A later message says the fix is in the working tree: verify. Never edit non-test code in either. Write the acceptance test under `/tmp/acceptance-<number>/`, never in the repo: it does not need to join the test suite, and its before and after outputs in the PR are its record.
 
+The coordinator supplies the resolved target branch. Use its unchanged tree for the before-change acceptance test; stop if the target is missing.
+
 ## Reproduce
 
 Find the cause in the code first. Then build two pieces of evidence.
