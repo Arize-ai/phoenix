@@ -369,7 +369,6 @@ function EvaluatorFormSections({
                 color="danger"
                 role="img"
                 aria-label="Has errors"
-                className="evaluator-form__tab-error"
               />
             ) : null}
           </Tab>
@@ -574,8 +573,10 @@ const sectionTabsCSS = css`
   .react-aria-TabPanel[data-inert] {
     display: none;
   }
-  .evaluator-form__tab-error {
-    margin-inline-start: var(--global-dimension-size-50);
-    vertical-align: middle;
+  // The error mark sits beside the label, not under it.
+  .react-aria-Tab {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--global-dimension-size-50);
   }
 `;
