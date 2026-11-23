@@ -428,6 +428,27 @@ async def test_existing_project_resolution_queries_projects_once(db: DbSessionFa
             event.remove(bind, "before_cursor_execute", record_project_statement)
 
 
+async def test_span_for_name_with_only_a_tombstoned_project_creates_a_live_project(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        tombstone = models.Project(
+            name="reused-name", deleted_at=datetime(2026, 1, 1, tzinfo=timezone.utc)
+        )
+        session.add(tombstone)
+        await session.flush()
+        tombstone_id = tombstone.id
+
+    async with db() as session:
+        inserted = await insert_span(session, _span("root", "new-trace", "root"), "reused-name")
+        assert inserted is not None
+        assert inserted.project_rowid != tombstone_id
+        live_project = await session.get(models.Project, inserted.project_rowid)
+        assert live_project is not None
+        assert live_project.name == "reused-name"
+        assert live_project.deleted_at is None
+
+
 async def test_late_span_preserves_transferred_project_and_established_session(
     db: DbSessionFactory,
 ) -> None:

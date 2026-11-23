@@ -56,12 +56,9 @@ from typing_extensions import Self, TypeAlias, TypeAliasType
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db.cleanup_tasks import (
-    INTERNAL_PROJECT_KINDS,
-    ProjectKindName,
     claimed_cleanup_tasks_predicate,
     cleanup_task_kind_check,
     live_row_predicate,
-    project_kind_check,
     unclaimed_cleanup_tasks_predicate,
 )
 from phoenix.db.eval_work import (
@@ -931,13 +928,6 @@ class Project(HasId):
         nullable=True,
         index=True,
     )
-    kind: Mapped[ProjectKindName] = mapped_column(
-        String,
-        CheckConstraint(project_kind_check(), name="valid_project_kind"),
-        default="STANDARD",
-        server_default="STANDARD",
-        nullable=False,
-    )
     deleted_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
     trace_retention_policy: Mapped[Optional[ProjectTraceRetentionPolicy]] = relationship(
         "ProjectTraceRetentionPolicy",
@@ -951,27 +941,11 @@ class Project(HasId):
         uselist=True,
     )
 
-    @hybrid_property
-    def is_internal(self) -> bool:
-        return self.kind in INTERNAL_PROJECT_KINDS
-
-    @is_internal.inplace.expression
-    @classmethod
-    def _is_internal_expression(cls) -> ColumnElement[bool]:
-        return cls.kind.in_(INTERNAL_PROJECT_KINDS)
-
     __table_args__ = (
         Index(
             "ix_projects_live_name",
             "name",
             unique=True,
-            postgresql_where=text(live_row_predicate()),
-            sqlite_where=text(live_row_predicate()),
-        ),
-        Index(
-            "ix_projects_active_kind_id",
-            "kind",
-            "id",
             postgresql_where=text(live_row_predicate()),
             sqlite_where=text(live_row_predicate()),
         ),

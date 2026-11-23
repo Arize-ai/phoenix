@@ -1276,7 +1276,6 @@ async def projects_with_and_without_experiments(
             .returning(models.Project.id)
             .values(
                 name="experiment-project-name",
-                kind="EXPERIMENT",
                 description="experiment-project-description",
             )
         )
@@ -1319,7 +1318,6 @@ async def projects_with_and_without_dataset_evaluators(
         )
         dataset_evaluator_project = models.Project(
             name="dataset-evaluator-project-name",
-            kind="EVALUATOR",
             description="dataset-evaluator-project-description",
         )
         session.add(non_dataset_evaluator_project)
@@ -1361,7 +1359,7 @@ async def project_with_a_project_evaluator_trace_project(
     async with db() as session:
         evaluated_project = models.Project(name="evaluated-project-name")
         # An arbitrary name: the listing exclusion keys off the FK, not a name pattern.
-        trace_project = models.Project(name="trace-sink-name", kind="EVALUATOR")
+        trace_project = models.Project(name="trace-sink-name")
         session.add_all([evaluated_project, trace_project])
         await session.flush()
         evaluator = models.BuiltinEvaluator(
@@ -1414,7 +1412,7 @@ async def playground_project_with_an_experiment(
     db: DbSessionFactory,
 ) -> None:
     async with db() as session:
-        playground_project = models.Project(name=PLAYGROUND_PROJECT_NAME, kind="PLAYGROUND")
+        playground_project = models.Project(name=PLAYGROUND_PROJECT_NAME)
         session.add(playground_project)
         dataset = models.Dataset(name="playground-dataset-name", metadata_={})
         session.add(dataset)

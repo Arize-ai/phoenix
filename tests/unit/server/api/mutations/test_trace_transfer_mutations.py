@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Literal
 
 import pytest
 from sqlalchemy import insert, select, update
@@ -272,43 +271,6 @@ class TestTraceTransferMutationMixin:
             },
         )
         assert result.errors
-
-    @pytest.mark.parametrize("destination_kind", ["EVALUATOR", "EXPERIMENT"])
-    async def test_transfer_traces_rejected_for_non_standard_destination_project_kind(
-        self,
-        gql_client: AsyncGraphQLClient,
-        trace_transfer_fixture: dict[str, int],
-        db: DbSessionFactory,
-        destination_kind: Literal["EVALUATOR", "EXPERIMENT"],
-    ) -> None:
-        source_project_id = trace_transfer_fixture["source_project_id"]
-        trace1_id = trace_transfer_fixture["trace1_id"]
-        async with db() as session:
-            destination_project_id = await session.scalar(
-                insert(models.Project)
-                .values(
-                    name=f"dest-{destination_kind.lower()}-project",
-                    kind=destination_kind,
-                )
-                .returning(models.Project.id)
-            )
-            assert destination_project_id is not None
-
-        result = await gql_client.execute(
-            self.TRANSFER_TRACES_MUTATION,
-            variables={
-                "traceIds": [str(GlobalID("Trace", str(trace1_id)))],
-                "projectId": str(GlobalID("Project", str(destination_project_id))),
-            },
-        )
-        assert result.errors
-        assert "Cannot transfer traces into an evaluator or experiment trace project" in (
-            result.errors[0].message
-        )
-        async with db() as session:
-            trace = await session.get(models.Trace, trace1_id)
-            assert trace is not None
-            assert trace.project_rowid == source_project_id
 
 
 @pytest.fixture

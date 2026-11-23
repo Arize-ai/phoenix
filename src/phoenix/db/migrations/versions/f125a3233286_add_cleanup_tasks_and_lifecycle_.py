@@ -21,7 +21,6 @@ _Integer = sa.Integer().with_variant(
     "postgresql",
 )
 
-_PROJECT_KIND_CHECK = "kind IN ('STANDARD', 'PLAYGROUND', 'EXPERIMENT', 'EVALUATOR')"
 _CLEANUP_TASK_KIND_CHECK = (
     "kind IN ('DELETE_PROJECT', 'DELETE_PROJECT_EVALUATOR', 'DELETE_DATASET_EVALUATOR')"
 )
@@ -46,73 +45,14 @@ def _upgrade_projects() -> None:
     # A tombstoned project's id stays referenced by its cleanup task, so SQLite
     # must never hand that id to a new project.
     with op.batch_alter_table("projects", table_kwargs={"sqlite_autoincrement": True}) as batch_op:
-        batch_op.add_column(
-            sa.Column(
-                "kind",
-                sa.String(),
-                nullable=False,
-                server_default="STANDARD",
-            )
-        )
         batch_op.add_column(sa.Column("deleted_at", sa.TIMESTAMP(timezone=True), nullable=True))
-        batch_op.create_check_constraint("valid_project_kind", _PROJECT_KIND_CHECK)
         batch_op.drop_constraint("uq_projects_name", type_="unique")
-
-    op.execute("UPDATE projects SET kind = 'PLAYGROUND' WHERE name = 'playground'")
-    op.execute(
-        "UPDATE projects SET kind = 'EVALUATOR' "
-        "WHERE id IN ("
-        "SELECT project_id FROM dataset_evaluators "
-        "UNION "
-        "SELECT trace_project_id FROM project_evaluators"
-        ")"
-    )
-    is_sqlite = op.get_bind().dialect.name == "sqlite"
-    generated_experiment_name_pred = (
-        "(LENGTH(projects.name) = 35 "
-        "AND SUBSTR(projects.name, 1, 11) = 'Experiment-' "
-        "AND NOT SUBSTR(projects.name, 12) GLOB '*[^0-9a-f]*')"
-        if is_sqlite
-        else "projects.name ~ '^Experiment-[0-9a-f]{24}$'"
-    )
-    op.execute(
-        "UPDATE projects SET kind = 'EXPERIMENT' "
-        "WHERE kind = 'STANDARD' "
-        "AND name NOT IN ('default', 'playground') "
-        "AND EXISTS ("
-        "SELECT 1 FROM experiments "
-        "WHERE experiments.project_name = projects.name "
-        "AND ("
-        f"{generated_experiment_name_pred} "
-        "OR EXISTS ("
-        "SELECT 1 FROM experiment_runs er "
-        "JOIN traces t ON t.trace_id = er.trace_id "
-        "WHERE er.experiment_id = experiments.id AND t.project_rowid = projects.id"
-        ")"
-        ")"
-        ") "
-        "AND NOT EXISTS ("
-        "SELECT 1 FROM project_evaluators WHERE project_evaluators.project_id = projects.id"
-        ") "
-        "AND NOT EXISTS ("
-        "SELECT 1 FROM traces t "
-        "LEFT JOIN experiment_runs er ON er.trace_id = t.trace_id "
-        "WHERE t.project_rowid = projects.id AND er.id IS NULL"
-        ")"
-    )
 
     op.create_index(
         "ix_projects_live_name",
         "projects",
         ["name"],
         unique=True,
-        postgresql_where=sa.text(_LIVE_PREDICATE),
-        sqlite_where=sa.text(_LIVE_PREDICATE),
-    )
-    op.create_index(
-        "ix_projects_active_kind_id",
-        "projects",
-        ["kind", "id"],
         postgresql_where=sa.text(_LIVE_PREDICATE),
         sqlite_where=sa.text(_LIVE_PREDICATE),
     )
@@ -595,10 +535,7 @@ def downgrade() -> None:
             "uq_project_evaluators_project_id_name", ["project_id", "name"]
         )
 
-    op.drop_index("ix_projects_active_kind_id", table_name="projects")
     op.drop_index("ix_projects_live_name", table_name="projects")
     with op.batch_alter_table("projects") as batch_op:
-        batch_op.drop_constraint("valid_project_kind", type_="check")
         batch_op.drop_column("deleted_at")
-        batch_op.drop_column("kind")
         batch_op.create_unique_constraint("uq_projects_name", ["name"])

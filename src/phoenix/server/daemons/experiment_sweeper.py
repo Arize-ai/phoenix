@@ -14,6 +14,7 @@ from phoenix.db.helpers import SupportedSQLDialect, get_eval_trace_ids_for_exper
 from phoenix.server.cleanup.lifecycle import (
     admit_exclusive_experiment_projects_delete,
     delete_standalone_traces_by_trace_id,
+    resolve_experiment_project_delete_candidates,
 )
 from phoenix.server.cleanup.primitives import CLEANUP_BATCH_ROWS
 from phoenix.server.dml_event import (
@@ -83,13 +84,25 @@ class ExperimentSweeper(DaemonTask):
             if not candidate_experiment_ids:
                 return
 
-            candidate_project_names: set[str] = set()
+            candidate_project_ids: set[int] = set()
             for chunk_start in range(0, len(candidate_experiment_ids), CLEANUP_BATCH_ROWS):
                 chunk_ids = candidate_experiment_ids[chunk_start : chunk_start + CLEANUP_BATCH_ROWS]
                 chunk_eval_trace_ids = (
                     await session.scalars(get_eval_trace_ids_for_experiments(*chunk_ids))
                 ).all()
                 eval_trace_ids.extend(trace_id for trace_id in chunk_eval_trace_ids if trace_id)
+                candidate_project_ids.update(
+                    await resolve_experiment_project_delete_candidates(
+                        session,
+                        candidate_project_names=(
+                            await session.scalars(
+                                sa.select(models.Experiment.project_name).where(
+                                    models.Experiment.id.in_(chunk_ids)
+                                )
+                            )
+                        ).all(),
+                    )
+                )
                 deleted_rows = (
                     await session.execute(
                         sa.delete(models.Experiment)
@@ -98,19 +111,17 @@ class ExperimentSweeper(DaemonTask):
                             models.Experiment.is_ephemeral.is_(True),
                             models.Experiment.updated_at < cutoff,
                         )
-                        .returning(models.Experiment.id, models.Experiment.project_name)
+                        .returning(models.Experiment.id)
                     )
                 ).all()
                 for row in deleted_rows:
                     deleted_experiment_ids.append(int(row.id))
-                    if row.project_name is not None:
-                        candidate_project_names.add(row.project_name)
 
-            if candidate_project_names:
+            if candidate_project_ids:
                 enqueued_projects = await admit_exclusive_experiment_projects_delete(
                     session,
                     dialect=dialect,
-                    candidate_project_names=candidate_project_names,
+                    candidate_project_ids=candidate_project_ids,
                 )
         if enqueued_projects:
             if self._event_queue is not None:

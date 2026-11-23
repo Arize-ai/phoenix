@@ -103,10 +103,6 @@ class TraceMutationMixin:
             dest_project = await session.get(models.Project, dest_project_rowid)
             if dest_project is None or dest_project.deleted_at is not None:
                 raise BadRequest("Destination project does not exist")
-            if dest_project.is_internal:
-                raise BadRequest(
-                    "Cannot transfer traces into an evaluator or experiment trace project"
-                )
 
             traces = (
                 await session.scalars(select(models.Trace).where(models.Trace.id.in_(trace_rowids)))
@@ -134,7 +130,7 @@ class TraceMutationMixin:
 
             involved_project_ids = sorted({*source_project_ids, dest_project_rowid})
             live_projects_stmt = (
-                select(models.Project.id, models.Project.is_internal)
+                select(models.Project.id)
                 .where(
                     models.Project.id.in_(involved_project_ids),
                     models.Project.deleted_at.is_(None),
@@ -143,17 +139,10 @@ class TraceMutationMixin:
             )
             if dialect is SupportedSQLDialect.POSTGRESQL:
                 live_projects_stmt = live_projects_stmt.with_for_update(read=True)
-            live_projects = {
-                int(row.id): row.is_internal
-                for row in (await session.execute(live_projects_stmt)).all()
-            }
-            if dest_project_rowid not in live_projects:
+            live_project_ids = set(await session.scalars(live_projects_stmt))
+            if dest_project_rowid not in live_project_ids:
                 raise BadRequest("Destination project does not exist")
-            if live_projects[dest_project_rowid]:
-                raise BadRequest(
-                    "Cannot transfer traces into an evaluator or experiment trace project"
-                )
-            if not (source_project_ids <= set(live_projects)):
+            if not (source_project_ids <= live_project_ids):
                 raise BadRequest("Invalid trace IDs provided")
 
             await session.execute(

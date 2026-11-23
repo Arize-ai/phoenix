@@ -228,7 +228,7 @@ class TestTraceDataSweeper:
         5. Verifies that only recent traces remain in each project
         """
         # Test configuration
-        project_kinds = ("STANDARD", "PLAYGROUND", "EXPERIMENT", "EVALUATOR")
+        num_projects = 4
         max_days = 7  # Keep traces from last 7 days
         old_traces_count = 5  # Number of old traces (> max_days) per project
         recent_traces_count = 5  # Number of recent traces (< max_days) per project
@@ -241,7 +241,7 @@ class TestTraceDataSweeper:
 
         # Setup: Create projects and policy
         async with db() as session:
-            projects = [models.Project(name=token_hex(8), kind=kind) for kind in project_kinds]
+            projects = [models.Project(name=token_hex(8)) for _ in range(num_projects)]
             session.add_all(projects)
             await session.flush()
             project_ids = [p.id for p in projects]
@@ -1193,7 +1193,7 @@ async def test_retention_preserves_surviving_session_evaluation_work_units(
         session.add(evaluator)
         await session.flush()
         project_evaluator = models.ProjectEvaluator(
-            trace_project=models.Project(name=f"eval-sink-{token_hex(8)}", kind="EVALUATOR"),
+            trace_project=models.Project(name=f"eval-sink-{token_hex(8)}"),
             project_id=project.id,
             evaluator_id=evaluator.id,
             name=Identifier(root=f"session-criteria-{token_hex(4)}"),

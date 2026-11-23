@@ -1077,10 +1077,8 @@ async def test_delete_dataset_stops_running_experiments_and_deletes_only_sdk_eva
     async with db() as session:
         target_dataset = models.Dataset(name=f"target-ds-{token_hex(4)}", metadata_={})
         other_dataset = models.Dataset(name=f"other-ds-{token_hex(4)}", metadata_={})
-        sdk_evaluators_project = models.Project(name="evaluators", kind="STANDARD")
-        evaluator_sink_project = models.Project(
-            name=f"ds-eval-sink-{token_hex(4)}", kind="EVALUATOR"
-        )
+        sdk_evaluators_project = models.Project(name="evaluators")
+        evaluator_sink_project = models.Project(name=f"ds-eval-sink-{token_hex(4)}")
         evaluator = models.BuiltinEvaluator(
             name=Identifier(f"ds-builtin-{token_hex(4)}"),
             kind="BUILTIN",

@@ -1,4 +1,4 @@
-"""Migration tests for f125a3233286 (cleanup tasks, project kinds, and lifecycle tombstones)."""
+"""Migration tests for f125a3233286 (cleanup tasks and lifecycle tombstones)."""
 
 import json
 from datetime import datetime, timedelta, timezone
@@ -22,7 +22,7 @@ def _insert(conn: Connection, sql: str, **params: Any) -> int:
     return rowid
 
 
-async def test_f125a3233286_backfills_kinds_and_guards_downgrade(
+async def test_f125a3233286_tombstones_projects_and_guards_downgrade(
     _engine: AsyncEngine,
     _alembic_config: Config,
     _schema: str,
@@ -240,21 +240,6 @@ async def test_f125a3233286_backfills_kinds_and_guards_downgrade(
     await _up(_engine, _alembic_config, _UP, _schema)
 
     def _verify_upgrade_and_mark_deleted(conn: Connection) -> int:
-        kinds: dict[int, str] = {
-            int(row[0]): str(row[1])
-            for row in conn.execute(text("SELECT id, kind FROM projects")).all()
-        }
-        assert kinds[ids["default_proj"]] == "STANDARD"
-        assert kinds[ids["playground_proj"]] == "PLAYGROUND"
-        assert kinds[ids["standard_proj"]] == "STANDARD"
-        assert kinds[ids["exp_proj"]] == "EXPERIMENT"
-        assert kinds[ids["ds_eval_proj"]] == "EVALUATOR"
-        assert kinds[ids["pe_eval_proj"]] == "EVALUATOR"
-        assert kinds[ids["recreated_proj"]] == "STANDARD"
-        assert kinds[ids["shared_proj"]] == "STANDARD"
-        assert kinds[ids["user_proj"]] == "STANDARD"
-        assert kinds[ids["mixed_proj"]] == "STANDARD"
-
         # Mark standard_proj deleted and reuse its name 'prod-app' immediately.
         conn.execute(
             text("UPDATE projects SET deleted_at = :t WHERE id = :id"),
@@ -262,8 +247,7 @@ async def test_f125a3233286_backfills_kinds_and_guards_downgrade(
         )
         new_prod = _insert(
             conn,
-            "INSERT INTO projects (name, kind, created_at, updated_at) "
-            "VALUES ('prod-app', 'STANDARD', :t, :t)",
+            "INSERT INTO projects (name, created_at, updated_at) VALUES ('prod-app', :t, :t)",
             t=t0,
         )
         conn.commit()
@@ -582,107 +566,3 @@ async def test_f125a3233286_backfills_code_evaluator_snapshots_and_strips_or_gua
             assert set(payload.keys()) <= allowed_keys
 
     await _run_async(_engine, _verify_downgraded_definitions)
-
-
-async def test_f125a3233286_handles_sqlite_default_timestamps_and_empty_generated_experiments(
-    _engine: AsyncEngine,
-    _alembic_config: Config,
-    _schema: str,
-) -> None:
-    await _up(_engine, _alembic_config, _DOWN, _schema)
-    t0 = datetime(2026, 2, 1, 10, 0, 0, tzinfo=timezone.utc)
-    empty_generated_name = f"Experiment-{token_hex(12)}"
-    orphan_generated_name = f"Experiment-{token_hex(12)}"
-
-    def _seed(conn: Connection) -> dict[str, int]:
-        dataset = _insert(
-            conn,
-            "INSERT INTO datasets (name, metadata) VALUES ('ts-ds', :m)",
-            m=json.dumps({}),
-        )
-        dataset_version = _insert(
-            conn,
-            "INSERT INTO dataset_versions (dataset_id, metadata) VALUES (:d, :m)",
-            d=dataset,
-            m=json.dumps({}),
-        )
-        # Insert experiment relying on DB DEFAULT (CURRENT_TIMESTAMP) (19-char 'YYYY-MM-DD HH:MM:SS'
-        # on SQLite), then insert its generated project with microsecond '.000000' formatting as
-        # SQLAlchemy's TIMESTAMP processor wrote pre-upgrade, with 0 runs/traces!
-        exp_empty = _insert(
-            conn,
-            "INSERT INTO experiments "
-            "(dataset_id, dataset_version_id, name, repetitions, metadata, project_name) "
-            "VALUES (:d, :dv, 'exp-empty', 1, :m, :pn)",
-            d=dataset,
-            dv=dataset_version,
-            m=json.dumps({}),
-            pn=empty_generated_name,
-        )
-        if conn.dialect.name == "sqlite":
-            raw_exp_created_at = str(
-                conn.execute(
-                    text("SELECT created_at FROM experiments WHERE id = :id"), {"id": exp_empty}
-                ).scalar_one()
-            )
-            assert len(raw_exp_created_at) == 19
-            proj_created_str = f"{raw_exp_created_at}.000000"
-            empty_exp_proj = _insert(
-                conn,
-                "INSERT INTO projects (name, created_at, updated_at) VALUES (:n, :t, :t)",
-                n=empty_generated_name,
-                t=proj_created_str,
-            )
-        else:
-            exp_created_dt = conn.execute(
-                text("SELECT created_at FROM experiments WHERE id = :id"), {"id": exp_empty}
-            ).scalar_one()
-            empty_exp_proj = _insert(
-                conn,
-                "INSERT INTO projects (name, created_at, updated_at) VALUES (:n, :t, :t)",
-                n=empty_generated_name,
-                t=exp_created_dt,
-            )
-
-        # Generated-pattern name WITHOUT any experiments row stays STANDARD.
-        orphan_exp_proj = _insert(
-            conn,
-            "INSERT INTO projects (name, created_at, updated_at) VALUES (:n, :t, :t)",
-            n=orphan_generated_name,
-            t=t0,
-        )
-
-        conn.commit()
-        return {
-            "exp_empty": exp_empty,
-            "empty_exp_proj": empty_exp_proj,
-            "orphan_exp_proj": orphan_exp_proj,
-        }
-
-    ids = await _run_async(_engine, _seed)
-    await _up(_engine, _alembic_config, _UP, _schema)
-
-    def _verify(conn: Connection) -> None:
-        kinds = {
-            int(row[0]): str(row[1])
-            for row in conn.execute(text("SELECT id, kind FROM projects")).all()
-        }
-        assert kinds[ids["empty_exp_proj"]] == "EXPERIMENT"
-        assert kinds[ids["orphan_exp_proj"]] == "STANDARD"
-
-        if conn.dialect.name == "sqlite":
-            plan_rows = conn.execute(
-                text(
-                    "EXPLAIN QUERY PLAN "
-                    "SELECT id FROM projects "
-                    "WHERE NOT EXISTS ("
-                    "SELECT 1 FROM traces t "
-                    "LEFT JOIN experiment_runs er ON er.trace_id = t.trace_id "
-                    "WHERE t.project_rowid = projects.id AND er.id IS NULL"
-                    ")"
-                )
-            ).all()
-            plan_detail = "\n".join(str(row[-1]) for row in plan_rows)
-            assert "AUTOMATIC COVERING INDEX" in plan_detail
-
-    await _run_async(_engine, _verify)

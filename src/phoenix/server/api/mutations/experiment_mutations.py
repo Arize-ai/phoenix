@@ -28,7 +28,10 @@ from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
 from phoenix.server.api.types.ExperimentJob import ExperimentJob
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.utils import delete_traces
-from phoenix.server.cleanup.lifecycle import admit_exclusive_experiment_projects_delete
+from phoenix.server.cleanup.lifecycle import (
+    admit_exclusive_experiment_projects_delete,
+    resolve_experiment_project_delete_candidates,
+)
 from phoenix.server.dml_event import ExperimentDeleteEvent, ProjectDeleteEvent, SpanDeleteEvent
 
 
@@ -358,6 +361,17 @@ class ExperimentMutationMixin:
                 for trace_id in (await session.scalars(eval_trace_ids_stmt)).all()
                 if trace_id
             ]
+            candidate_project_ids = await resolve_experiment_project_delete_candidates(
+                session,
+                candidate_project_names=(
+                    await session.scalars(
+                        select(models.Experiment.project_name).where(
+                            models.Experiment.id.in_(experiment_ids),
+                            models.Experiment.project_name.is_not(None),
+                        )
+                    )
+                ).all(),
+            )
             savepoint = await session.begin_nested()
             experiments = {
                 experiment.id: experiment
@@ -381,14 +395,11 @@ class ExperimentMutationMixin:
                         ]
                     )
                 )
-            candidate_project_names = {
-                exp.project_name for exp in experiments.values() if exp.project_name is not None
-            }
-            if candidate_project_names:
+            if candidate_project_ids:
                 enqueued_projects = await admit_exclusive_experiment_projects_delete(
                     session,
                     dialect=dialect,
-                    candidate_project_names=candidate_project_names,
+                    candidate_project_ids=candidate_project_ids,
                 )
         if enqueued_projects:
             tombstoned_ids = tuple(enqueued_projects)

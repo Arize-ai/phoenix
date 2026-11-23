@@ -223,7 +223,7 @@ async def test_evaluator_bindings_autoincrement_at_head(
             {"name": token_hex(8)},
         ).scalar_one()
         trace_project_id = connection.execute(
-            sa.text("INSERT INTO projects (name, kind) VALUES (:name, 'EVALUATOR') RETURNING id"),
+            sa.text("INSERT INTO projects (name) VALUES (:name) RETURNING id"),
             {"name": f"eval-trace-{token_hex(8)}"},
         ).scalar_one()
         dataset_id = connection.execute(

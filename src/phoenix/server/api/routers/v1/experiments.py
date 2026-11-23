@@ -31,7 +31,7 @@ from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.cleanup.lifecycle import (
     admit_exclusive_experiment_projects_delete,
-    promote_retained_experiment_projects_to_standard,
+    resolve_experiment_project_delete_candidates,
 )
 from phoenix.server.dml_event import (
     ExperimentDeleteEvent,
@@ -221,7 +221,6 @@ async def create_experiment(
             insert_on_conflict(
                 dict(
                     name=project_name,
-                    kind="EXPERIMENT",
                     description=project_description,
                 ),
                 dialect=dialect,
@@ -613,23 +612,27 @@ async def delete_experiment(
         eval_trace_ids = [
             trace_id for trace_id in (await session.scalars(eval_trace_ids_stmt)).all() if trace_id
         ]
+        candidate_project_ids: list[int] = []
+        if delete_project:
+            candidate_project_ids = await resolve_experiment_project_delete_candidates(
+                session,
+                candidate_project_names=(
+                    await session.scalars(
+                        sa.select(models.Experiment.project_name).where(
+                            models.Experiment.id == experiment_rowid
+                        )
+                    )
+                ).all(),
+            )
         result = (await session.execute(stmt)).first()
         if result is None:
             raise HTTPException(detail="Experiment does not exist", status_code=404)
-        project_name = result.project_name
-        if project_name is not None:
-            if delete_project:
-                enqueued_projects = await admit_exclusive_experiment_projects_delete(
-                    session,
-                    dialect=dialect,
-                    candidate_project_names=[project_name],
-                )
-            else:
-                await promote_retained_experiment_projects_to_standard(
-                    session,
-                    dialect=dialect,
-                    candidate_project_names=[project_name],
-                )
+        if candidate_project_ids:
+            enqueued_projects = await admit_exclusive_experiment_projects_delete(
+                session,
+                dialect=dialect,
+                candidate_project_ids=candidate_project_ids,
+            )
     request.state.event_queue.put(ExperimentDeleteEvent((experiment_rowid,)))
     if enqueued_projects:
         tombstoned_ids = tuple(enqueued_projects)

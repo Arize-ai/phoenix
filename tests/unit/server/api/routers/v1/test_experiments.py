@@ -9,12 +9,17 @@ import pandas as pd
 import pytest
 from httpx2 import HTTPStatusError
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.helpers import project_kind_expression
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.types import DbSessionFactory
-from tests.unit._helpers import verify_experiment_examples_junction_table
+from tests.unit._helpers import (
+    _bind_evaluator_trace_project,
+    verify_experiment_examples_junction_table,
+)
 from tests.unit.server.api.conftest import ExperimentsWithIncompleteRuns
 
 
@@ -2046,7 +2051,6 @@ async def test_create_experiment_preserves_existing_live_project_on_name_collisi
     async with db() as session:
         existing_project = models.Project(
             name=colliding_project_name,
-            kind="STANDARD",
             description=existing_description,
             gradient_start_color=existing_start_color,
             gradient_end_color=existing_end_color,
@@ -2079,7 +2083,6 @@ async def test_create_experiment_preserves_existing_live_project_on_name_collisi
 
         project_row = await session.get(models.Project, existing_project_id)
         assert project_row is not None
-        assert project_row.kind == "STANDARD"
         assert project_row.description == existing_description
         assert project_row.gradient_start_color == existing_start_color
         assert project_row.gradient_end_color == existing_end_color
@@ -2102,12 +2105,11 @@ async def test_delete_experiment_deletes_sdk_eval_traces_while_preserving_evalua
     experiment_rowid = from_global_id_with_expected_type(experiment_gid, "Experiment")
 
     async with db() as session:
-        sdk_evaluators_project = models.Project(name="evaluators", kind="STANDARD")
-        evaluator_sink_project = models.Project(
-            name=f"rest-exp-eval-sink-{token_hex(4)}", kind="EVALUATOR"
-        )
+        sdk_evaluators_project = models.Project(name="evaluators")
+        evaluator_sink_project = models.Project(name=f"rest-exp-eval-sink-{token_hex(4)}")
         session.add_all([sdk_evaluators_project, evaluator_sink_project])
         await session.flush()
+        await _bind_evaluator_trace_project(session, evaluator_sink_project)
 
         sdk_trace = models.Trace(
             project_rowid=sdk_evaluators_project.id,
@@ -2170,7 +2172,15 @@ async def test_delete_experiment_deletes_sdk_eval_traces_while_preserving_evalua
         assert await session.get(models.Trace, sink_trace_rowid) is not None
 
 
-async def test_delete_experiment_without_delete_project_promotes_unreferenced_project_to_standard(
+async def _infer_project_kind(session: AsyncSession, project_id: int) -> str:
+    return str(
+        await session.scalar(
+            select(project_kind_expression()).where(models.Project.id == project_id)
+        )
+    )
+
+
+async def test_delete_experiment_without_delete_project_leaves_unreferenced_project_standard(
     httpx_client: httpx2.AsyncClient,
     simple_dataset: Any,
     db: DbSessionFactory,
@@ -2196,9 +2206,7 @@ async def test_delete_experiment_without_delete_project_promotes_unreferenced_pr
             )
         )
         assert shared_project_id is not None
-        shared_project = await session.get(models.Project, shared_project_id)
-        assert shared_project is not None
-        assert shared_project.kind == "EXPERIMENT"
+        assert await _infer_project_kind(session, shared_project_id) == "EXPERIMENT"
 
         second_experiment = models.Experiment(
             dataset_id=first_experiment.dataset_id,
@@ -2222,7 +2230,7 @@ async def test_delete_experiment_without_delete_project_promotes_unreferenced_pr
         retained_shared_project = await session.get(models.Project, shared_project_id)
         assert retained_shared_project is not None
         assert retained_shared_project.deleted_at is None
-        assert retained_shared_project.kind == "EXPERIMENT"
+        assert await _infer_project_kind(session, shared_project_id) == "EXPERIMENT"
 
     second_delete = await httpx_client.delete(
         f"v1/experiments/{second_experiment_gid}",
@@ -2234,4 +2242,93 @@ async def test_delete_experiment_without_delete_project_promotes_unreferenced_pr
         promoted_project = await session.get(models.Project, shared_project_id)
         assert promoted_project is not None
         assert promoted_project.deleted_at is None
-        assert promoted_project.kind == "STANDARD"
+        assert await _infer_project_kind(session, shared_project_id) == "STANDARD"
+
+
+async def _create_experiment_with_project(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+) -> tuple[GlobalID, int, models.Experiment]:
+    created = (
+        await httpx_client.post(
+            f"v1/datasets/{GlobalID('Dataset', '0')}/experiments",
+            json={"version_id": None, "repetitions": 1},
+        )
+    ).json()["data"]
+    experiment_gid = GlobalID.from_id(created["id"])
+    experiment_rowid = from_global_id_with_expected_type(experiment_gid, "Experiment")
+    async with db() as session:
+        experiment = await session.get(models.Experiment, experiment_rowid)
+        assert experiment is not None
+        assert experiment.project_name is not None
+        project_id = await session.scalar(
+            select(models.Project.id).where(models.Project.name == experiment.project_name)
+        )
+        assert project_id is not None
+    return experiment_gid, project_id, experiment
+
+
+async def test_delete_experiment_deletes_its_exclusive_project(
+    httpx_client: httpx2.AsyncClient,
+    simple_dataset: Any,
+    db: DbSessionFactory,
+) -> None:
+    experiment_gid, project_id, _ = await _create_experiment_with_project(httpx_client, db)
+
+    response = await httpx_client.delete(
+        f"v1/experiments/{experiment_gid}", params={"delete_project": "true"}
+    )
+    assert response.status_code == 204
+
+    async with db() as session:
+        project = await session.get(models.Project, project_id)
+        assert project is None or project.deleted_at is not None
+
+
+async def test_delete_experiment_keeps_project_named_by_another_experiment(
+    httpx_client: httpx2.AsyncClient,
+    simple_dataset: Any,
+    db: DbSessionFactory,
+) -> None:
+    experiment_gid, project_id, experiment = await _create_experiment_with_project(httpx_client, db)
+    async with db() as session:
+        session.add(
+            models.Experiment(
+                dataset_id=experiment.dataset_id,
+                dataset_version_id=experiment.dataset_version_id,
+                name="other-experiment-sharing-project",
+                repetitions=1,
+                metadata_={},
+                project_name=experiment.project_name,
+            )
+        )
+
+    response = await httpx_client.delete(
+        f"v1/experiments/{experiment_gid}", params={"delete_project": "true"}
+    )
+    assert response.status_code == 204
+
+    async with db() as session:
+        project = await session.get(models.Project, project_id)
+        assert project is not None and project.deleted_at is None
+
+
+async def test_delete_experiment_keeps_project_that_holds_evaluator_traces(
+    httpx_client: httpx2.AsyncClient,
+    simple_dataset: Any,
+    db: DbSessionFactory,
+) -> None:
+    experiment_gid, project_id, _ = await _create_experiment_with_project(httpx_client, db)
+    async with db() as session:
+        project = await session.get(models.Project, project_id)
+        assert project is not None
+        await _bind_evaluator_trace_project(session, project)
+
+    response = await httpx_client.delete(
+        f"v1/experiments/{experiment_gid}", params={"delete_project": "true"}
+    )
+    assert response.status_code == 204
+
+    async with db() as session:
+        project = await session.get(models.Project, project_id)
+        assert project is not None and project.deleted_at is None

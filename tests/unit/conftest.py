@@ -1522,7 +1522,6 @@ async def assign_exact_match_builtin_evaluator_to_dataset(
                 output_configs=resolved_output_configs,
                 project=models.Project(
                     name="exact-match-evaluator-project",
-                    kind="EVALUATOR",
                     description="Project for builtin evaluator",
                 ),
             )

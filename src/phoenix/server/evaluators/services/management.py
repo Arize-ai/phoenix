@@ -242,7 +242,6 @@ def get_project_for_dataset_evaluator(
     name = Identifier.model_validate(f"dataset-evaluator-{token_hex(12)}")
     return models.Project(
         name=name.root,
-        kind="EVALUATOR",
         description=(
             f"Traces for dataset evaluator: {dataset_evaluator_name} on dataset: {dataset_name}"
         ),
@@ -257,7 +256,6 @@ def get_trace_project_for_project_evaluator(
     name = Identifier.model_validate(f"project-evaluator-{token_hex(12)}")
     return models.Project(
         name=name.root,
-        kind="EVALUATOR",
         description=(
             f"Traces for project evaluator: {project_evaluator_name} on project: {project_name}"
         ),
@@ -380,8 +378,6 @@ async def validate_project_evaluator_project(
     )
     if project is None or project.deleted_at is not None:
         raise NotFound(f"Project not found: {project_global_id}")
-    if project.kind == "EVALUATOR":
-        raise BadRequest("This project holds evaluator traces and cannot be evaluated")
     holds_evaluator_traces = await session.scalar(
         select(models.ProjectEvaluator.id)
         .where(models.ProjectEvaluator.trace_project_id == project_id)

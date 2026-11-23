@@ -476,7 +476,6 @@ async def test_logical_delete_evaluators_ignores_binding_committed_after_discove
             async with db() as staging_session:
                 trace_project = models.Project(
                     name=f"disc-race-trace-{token_hex(4)}",
-                    kind="EVALUATOR",
                 )
                 staging_session.add(trace_project)
                 await staging_session.flush()
@@ -519,7 +518,6 @@ async def test_logical_delete_evaluators_ignores_binding_committed_after_discove
             async with db() as staging_session:
                 trace_project = models.Project(
                     name=f"disc-race-trace-{token_hex(4)}",
-                    kind="EVALUATOR",
                 )
                 staging_session.add(trace_project)
                 await staging_session.flush()
@@ -678,8 +676,8 @@ async def test_admit_exclusive_experiment_projects_delete_locks_evaluators_in_id
             name=Identifier(f"prompt-dl2-{token_hex(4)}"),
             prompt_versions=[_prompt_version()],
         )
-        first_exp_project = models.Project(name=f"exp-proj-1-{token_hex(4)}", kind="EXPERIMENT")
-        second_exp_project = models.Project(name=f"exp-proj-2-{token_hex(4)}", kind="EXPERIMENT")
+        first_exp_project = models.Project(name=f"exp-proj-1-{token_hex(4)}")
+        second_exp_project = models.Project(name=f"exp-proj-2-{token_hex(4)}")
         session.add_all([prompt, first_exp_project, second_exp_project])
         await session.flush()
         prompt_version_id = prompt.prompt_versions[0].id
@@ -740,10 +738,13 @@ async def test_admit_exclusive_experiment_projects_delete_locks_evaluators_in_id
     monkeypatch.setattr(lifecycle, "lock_evaluators", _record_lock_evaluators)
 
     async with db() as delete_session:
+        candidate_project_ids = await lifecycle.resolve_experiment_project_delete_candidates(
+            delete_session, candidate_project_names=exp_project_names
+        )
         tombstoned_ids = await lifecycle.admit_exclusive_experiment_projects_delete(
             delete_session,
             dialect=SupportedSQLDialect.POSTGRESQL,
-            candidate_project_names=exp_project_names,
+            candidate_project_ids=candidate_project_ids,
         )
 
     assert locked_evaluator_batches == [[lower_evaluator.id, higher_evaluator.id]]
@@ -1178,7 +1179,7 @@ async def test_delete_dataset_locks_experiment_projects_before_evaluators_and_em
     mapping = InputMapping(literal_mapping={}, path_mapping={"output": "$.output"})
     async with db() as session:
         dataset = models.Dataset(name=f"ds-del-order-{token_hex(4)}", metadata_={})
-        exp_project = models.Project(name=f"exp-proj-{token_hex(4)}", kind="EXPERIMENT")
+        exp_project = models.Project(name=f"exp-proj-{token_hex(4)}")
         session.add_all([dataset, exp_project])
         await session.flush()
         dataset_version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
@@ -1287,7 +1288,7 @@ async def test_delete_project_handles_lower_slipped_trace_project_and_emits_chil
     # Allocate lower_trace_project FIRST so lower_trace_project.id < existing_binding.trace_project_id!
     async with db() as session:
         owner_project = models.Project(name=f"owner-proj-{token_hex(4)}")
-        lower_trace_project = models.Project(name=f"lower-trace-{token_hex(4)}", kind="EVALUATOR")
+        lower_trace_project = models.Project(name=f"lower-trace-{token_hex(4)}")
         session.add_all([owner_project, lower_trace_project])
         await session.flush()
         owner_project_id = owner_project.id

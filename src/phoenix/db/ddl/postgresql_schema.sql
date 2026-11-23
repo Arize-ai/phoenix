@@ -201,24 +201,14 @@ CREATE TABLE public.projects (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     trace_retention_policy_id INTEGER,
-    kind VARCHAR NOT NULL DEFAULT 'STANDARD'::character varying,
     deleted_at TIMESTAMP WITH TIME ZONE,
     CONSTRAINT pk_projects PRIMARY KEY (id),
-    CONSTRAINT "ck_projects_`valid_project_kind`"
-        CHECK (((kind)::text = ANY ((ARRAY[
-            'STANDARD'::character varying,
-            'PLAYGROUND'::character varying,
-            'EXPERIMENT'::character varying,
-            'EVALUATOR'::character varying
-        ])::text[]))),
     CONSTRAINT fk_projects_trace_retention_policy_id_project_trace_ret_aa47
         FOREIGN KEY (trace_retention_policy_id)
         REFERENCES public.project_trace_retention_policies (id)
         ON DELETE SET NULL
 );
 
-CREATE INDEX ix_projects_active_kind_id ON public.projects
-    USING btree (kind, id) WHERE (deleted_at IS NULL);
 CREATE UNIQUE INDEX ix_projects_live_name ON public.projects
     USING btree (name) WHERE (deleted_at IS NULL);
 CREATE INDEX ix_projects_trace_retention_policy_id ON public.projects

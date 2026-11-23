@@ -40,6 +40,7 @@ from phoenix.server.cleanup.lifecycle import (
     clear_project_traces_in_batches,
     logical_delete_dataset_evaluators,
     logical_delete_project_evaluators,
+    resolve_experiment_project_delete_candidates,
 )
 from phoenix.server.cleanup.primitives import (
     PrimitiveResult,
@@ -72,7 +73,13 @@ from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.schemas import Span, SpanContext, SpanKind, SpanStatusCode
 from phoenix.tracers import Tracer
-from tests.unit._helpers import _add_project, _add_project_session, _add_span, _add_trace
+from tests.unit._helpers import (
+    _add_project,
+    _add_project_session,
+    _add_span,
+    _add_trace,
+    _bind_evaluator_trace_project,
+)
 from tests.unit.graphql import AsyncGraphQLClient
 
 
@@ -707,16 +714,6 @@ class TestImmediateNameReuseAndHistoricalReferences:
             assert agent_after is not None
             assert agent_after.project_name == shared_name
 
-            # Deleting the experiment must not delete the live project: it is STANDARD, not
-            # EXPERIMENT.
-            await session.delete(exp_after)
-            await session.flush()
-            dialect = SupportedSQLDialect(db.dialect.value)
-            deleted_by_exp = await admit_exclusive_experiment_projects_delete(
-                session, dialect=dialect, candidate_project_names=[shared_name]
-            )
-            assert deleted_by_exp == []
-
 
 class TestExperimentProjectsResolveByName:
     async def test_admit_exclusive_delete_targets_the_live_project_and_ignores_the_tombstone(
@@ -727,16 +724,18 @@ class TestExperimentProjectsResolveByName:
         async with db() as session:
             tombstone = models.Project(
                 name=shared_name,
-                kind="EXPERIMENT",
                 deleted_at=datetime(2026, 5, 1, tzinfo=timezone.utc),
             )
-            live_project = models.Project(name=shared_name, kind="EXPERIMENT")
+            live_project = models.Project(name=shared_name)
             session.add_all([tombstone, live_project])
             await session.flush()
             tombstone_id, live_project_id = tombstone.id, live_project.id
 
+            candidate_ids = await resolve_experiment_project_delete_candidates(
+                session, candidate_project_names=[shared_name]
+            )
             tombstoned_ids = await admit_exclusive_experiment_projects_delete(
-                session, dialect=dialect, candidate_project_names=[shared_name]
+                session, dialect=dialect, candidate_project_ids=candidate_ids
             )
 
             assert tombstoned_ids == [live_project_id]
@@ -754,7 +753,7 @@ class TestExperimentProjectsResolveByName:
             session.add(dataset)
             await session.flush()
             version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
-            project = models.Project(name=shared_name, kind="EXPERIMENT")
+            project = models.Project(name=shared_name)
             session.add_all([version, project])
             await session.flush()
             session.add(
@@ -769,8 +768,11 @@ class TestExperimentProjectsResolveByName:
             )
             await session.flush()
 
+            candidate_ids = await resolve_experiment_project_delete_candidates(
+                session, candidate_project_names=[shared_name]
+            )
             tombstoned_ids = await admit_exclusive_experiment_projects_delete(
-                session, dialect=dialect, candidate_project_names=[shared_name]
+                session, dialect=dialect, candidate_project_ids=candidate_ids
             )
 
             assert tombstoned_ids == []
@@ -786,7 +788,7 @@ class TestBatchedClear:
 
         async with db() as session:
             project = await _add_project(session, name=f"sess-clear-{token_hex(4)}")
-            trace_proj = models.Project(name=f"eval-sink-{token_hex(4)}", kind="EVALUATOR")
+            trace_proj = models.Project(name=f"eval-sink-{token_hex(4)}")
             evaluator = models.BuiltinEvaluator(
                 name=Identifier(root=f"builtin-{token_hex(4)}"),
                 kind="BUILTIN",
@@ -911,7 +913,7 @@ class TestBatchedClear:
 
         async with db() as session:
             project = await _add_project(session, name=f"sess-contract-clear-{token_hex(4)}")
-            trace_project = models.Project(name=f"eval-sink-{token_hex(4)}", kind="EVALUATOR")
+            trace_project = models.Project(name=f"eval-sink-{token_hex(4)}")
             evaluator = models.BuiltinEvaluator(
                 name=Identifier(root=f"builtin-{token_hex(4)}"),
                 kind="BUILTIN",
@@ -1153,7 +1155,7 @@ class TestBatchedClear:
 
         async with db() as session:
             project = await _add_project(session, name=f"sess-atomic-clear-{token_hex(4)}")
-            trace_project = models.Project(name=f"eval-sink-{token_hex(4)}", kind="EVALUATOR")
+            trace_project = models.Project(name=f"eval-sink-{token_hex(4)}")
             evaluator = models.BuiltinEvaluator(
                 name=Identifier(root=f"builtin-{token_hex(4)}"),
                 kind="BUILTIN",
@@ -1244,7 +1246,7 @@ class TestBatchedClear:
 
         async with db() as session:
             project = await _add_project(session, name=f"empty-range-clear-{token_hex(4)}")
-            trace_project = models.Project(name=f"eval-trace-{token_hex(4)}", kind="EVALUATOR")
+            trace_project = models.Project(name=f"eval-trace-{token_hex(4)}")
             evaluator = models.BuiltinEvaluator(
                 name=Identifier(root=f"bi-{token_hex(4)}"),
                 kind="BUILTIN",
@@ -1559,9 +1561,10 @@ class TestBatchedClear:
         dialect = SupportedSQLDialect(db.dialect.value)
         async with db() as session:
             tombstoned_project = await _add_project(session, name=f"gone-{token_hex(4)}")
-            evaluator_project = models.Project(name=f"eval-sink-{token_hex(4)}", kind="EVALUATOR")
+            evaluator_project = models.Project(name=f"eval-sink-{token_hex(4)}")
             session.add(evaluator_project)
             await session.flush()
+            await _bind_evaluator_trace_project(session, evaluator_project)
             await admit_project_delete(session, dialect=dialect, project_id=tombstoned_project.id)
             tombstoned_project_id = tombstoned_project.id
             evaluator_project_id = evaluator_project.id
@@ -1582,7 +1585,7 @@ class TestEvaluatorSnapshotsAndOnlineEvalFences:
         dialect = SupportedSQLDialect(db.dialect.value)
         async with db() as session:
             dataset = models.Dataset(name=f"snap-ds-{token_hex(4)}", metadata_={})
-            trace_proj = models.Project(name=f"snap-eval-proj-{token_hex(4)}", kind="EVALUATOR")
+            trace_proj = models.Project(name=f"snap-eval-proj-{token_hex(4)}")
             code_eval_name = f"code-{token_hex(4)}"
             code_eval = models.CodeEvaluator(
                 name=Identifier(root=code_eval_name),
@@ -1658,7 +1661,7 @@ class TestEvaluatorSnapshotsAndOnlineEvalFences:
         dialect = SupportedSQLDialect(db.dialect.value)
         async with db() as session:
             project = await _add_project(session, name=f"oe-{token_hex(4)}")
-            trace_proj = models.Project(name=f"oe-sink-{token_hex(4)}", kind="EVALUATOR")
+            trace_proj = models.Project(name=f"oe-sink-{token_hex(4)}")
             evaluator = models.BuiltinEvaluator(
                 name=Identifier(root=f"oe-bi-{token_hex(4)}"),
                 kind="BUILTIN",
@@ -1784,8 +1787,8 @@ class TestEvaluatorSnapshotsAndOnlineEvalFences:
             database_now = await current_database_time(session, dialect)
             lapsed_claimed_at = database_now - timedelta(seconds=CLAIM_LEASE_TTL_SECONDS + 1)
             project = await _add_project(session, name=f"oe-lapsed-{token_hex(4)}")
-            tombstoned_sink = models.Project(name=f"oe-tomb-sink-{token_hex(4)}", kind="EVALUATOR")
-            live_sink = models.Project(name=f"oe-live-sink-{token_hex(4)}", kind="EVALUATOR")
+            tombstoned_sink = models.Project(name=f"oe-tomb-sink-{token_hex(4)}")
+            live_sink = models.Project(name=f"oe-live-sink-{token_hex(4)}")
             evaluator = models.BuiltinEvaluator(
                 name=Identifier(root=f"oe-lapsed-bi-{token_hex(4)}"),
                 kind="BUILTIN",
@@ -1893,7 +1896,7 @@ class TestStorageLockoutExemptionsAndCleanupWorker:
             proj = await _add_project(session, name=f"locked-proj-{token_hex(4)}")
             tr = await _add_trace(session, proj, start_time=t0)
             sp = await _add_span(session, trace=tr, start_time=t0)
-            trace_proj = models.Project(name=f"locked-sink-{token_hex(4)}", kind="EVALUATOR")
+            trace_proj = models.Project(name=f"locked-sink-{token_hex(4)}")
             evaluator = models.BuiltinEvaluator(
                 name=Identifier(root=f"locked-bi-{token_hex(4)}"),
                 kind="BUILTIN",
@@ -2248,7 +2251,7 @@ class TestBuiltinSyncStaleBindings:
         from phoenix.server.evaluators.services.builtin_sync import sync_builtin_evaluators
 
         async with db() as session:
-            trace_proj = models.Project(name=f"stale-proj-{token_hex(4)}", kind="EVALUATOR")
+            trace_proj = models.Project(name=f"stale-proj-{token_hex(4)}")
             stale = models.BuiltinEvaluator(
                 name=Identifier(root=f"stale-{token_hex(4)}"),
                 description=None,
@@ -2449,10 +2452,8 @@ async def test_dataset_evaluator_delete_drains_eval_logs_and_links_in_batches(
 
     async with db() as session:
         dataset = models.Dataset(name=f"de-del-ds-{token_hex(4)}", metadata_={})
-        target_trace_project = models.Project(
-            name=f"de-target-proj-{token_hex(4)}", kind="EVALUATOR"
-        )
-        other_trace_project = models.Project(name=f"de-other-proj-{token_hex(4)}", kind="EVALUATOR")
+        target_trace_project = models.Project(name=f"de-target-proj-{token_hex(4)}")
+        other_trace_project = models.Project(name=f"de-other-proj-{token_hex(4)}")
         evaluator = models.BuiltinEvaluator(
             name=Identifier(root=f"de-builtin-{token_hex(4)}"),
             kind="BUILTIN",
@@ -2680,9 +2681,9 @@ async def test_sqlite_cleanup_primitives_use_fk_indexes_without_temp_btrees(
     base_time = datetime(2026, 8, 2, 0, 0, 0, tzinfo=timezone.utc)
     async with db() as session:
         project = await _add_project(session, name=f"eqp-proj-{token_hex(4)}")
-        trace_sink_a = models.Project(name=f"eqp-sink-a-{token_hex(4)}", kind="EVALUATOR")
-        trace_sink_b = models.Project(name=f"eqp-sink-b-{token_hex(4)}", kind="EVALUATOR")
-        dataset_trace_sink = models.Project(name=f"eqp-ds-sink-{token_hex(4)}", kind="EVALUATOR")
+        trace_sink_a = models.Project(name=f"eqp-sink-a-{token_hex(4)}")
+        trace_sink_b = models.Project(name=f"eqp-sink-b-{token_hex(4)}")
+        dataset_trace_sink = models.Project(name=f"eqp-ds-sink-{token_hex(4)}")
         dataset = models.Dataset(name=f"eqp-ds-{token_hex(4)}", metadata_={})
         evaluator = models.BuiltinEvaluator(
             name=Identifier(root=f"eqp-bi-{token_hex(4)}"),
@@ -3013,7 +3014,7 @@ async def test_postgres_dataset_evaluator_dependents_skip_locked_past_locked_pre
 
     async with db() as session:
         dataset = models.Dataset(name=f"pg-skip-ds-{token_hex(4)}", metadata_={})
-        trace_project = models.Project(name=f"pg-skip-proj-{token_hex(4)}", kind="EVALUATOR")
+        trace_project = models.Project(name=f"pg-skip-proj-{token_hex(4)}")
         evaluator = models.BuiltinEvaluator(
             name=Identifier(root=f"pg-skip-bi-{token_hex(4)}"),
             kind="BUILTIN",
@@ -3161,7 +3162,7 @@ async def test_late_spans_dropped_after_internal_projects_are_physically_purged(
 
     async with db() as session:
         dataset = models.Dataset(name=f"late-span-ds-{token_hex(4)}", metadata_={})
-        owner_project = models.Project(name=f"late-span-owner-{token_hex(4)}", kind="STANDARD")
+        owner_project = models.Project(name=f"late-span-owner-{token_hex(4)}")
         evaluator = models.BuiltinEvaluator(
             name=Identifier(root=f"late-span-bi-{token_hex(4)}"),
             kind="BUILTIN",
@@ -3169,18 +3170,10 @@ async def test_late_spans_dropped_after_internal_projects_are_physically_purged(
             input_schema={},
             output_configs=[],
         )
-        deleted_experiment_project = models.Project(
-            name=deleted_experiment_project_name, kind="EXPERIMENT"
-        )
-        retained_experiment_project = models.Project(
-            name=retained_experiment_project_name, kind="EXPERIMENT"
-        )
-        dataset_evaluator_project = models.Project(
-            name=dataset_evaluator_project_name, kind="EVALUATOR"
-        )
-        project_evaluator_project = models.Project(
-            name=project_evaluator_project_name, kind="EVALUATOR"
-        )
+        deleted_experiment_project = models.Project(name=deleted_experiment_project_name)
+        retained_experiment_project = models.Project(name=retained_experiment_project_name)
+        dataset_evaluator_project = models.Project(name=dataset_evaluator_project_name)
+        project_evaluator_project = models.Project(name=project_evaluator_project_name)
         session.add_all(
             [
                 dataset,
@@ -3307,7 +3300,6 @@ async def test_late_spans_dropped_after_internal_projects_are_physically_purged(
         recreated = await session.get(models.Project, inserted.project_rowid)
         assert recreated is not None
         assert recreated.name == retained_experiment_project_name
-        assert recreated.kind == "EXPERIMENT"
         assert recreated.deleted_at is None
 
     custom_span = Span(
@@ -3472,10 +3464,9 @@ async def test_delete_traces_handles_more_than_32767_trace_ids_without_bind_para
 
     base_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
     async with db() as session:
-        sdk_evaluators_project = models.Project(name="evaluators", kind="STANDARD")
+        sdk_evaluators_project = models.Project(name="evaluators")
         tombstoned_evaluator_sink = models.Project(
             name=f"tombstoned-eval-{token_hex(4)}",
-            kind="EVALUATOR",
             deleted_at=base_time,
         )
         session.add_all([sdk_evaluators_project, tombstoned_evaluator_sink])
@@ -3511,21 +3502,17 @@ async def test_delete_traces_chunks_above_bind_param_limit_skips_evaluator_proje
 
     base_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
     async with db() as session:
-        sdk_evaluators_project = models.Project(name="evaluators", kind="STANDARD")
-        live_evaluator_sink = models.Project(
-            name=f"live-eval-sink-{token_hex(4)}", kind="EVALUATOR"
-        )
+        sdk_evaluators_project = models.Project(name="evaluators")
+        live_evaluator_sink = models.Project(name=f"live-eval-sink-{token_hex(4)}")
         tombstoned_evaluator_sink = models.Project(
             name=f"tombstoned-eval-sink-{token_hex(4)}",
-            kind="EVALUATOR",
             deleted_at=base_time,
         )
         tombstoned_standard_project = models.Project(
             name=f"tombstoned-std-{token_hex(4)}",
-            kind="STANDARD",
             deleted_at=base_time,
         )
-        untouched_project = models.Project(name=f"untouched-{token_hex(4)}", kind="STANDARD")
+        untouched_project = models.Project(name=f"untouched-{token_hex(4)}")
         dataset = models.Dataset(name=f"eval-trace-ds-{token_hex(4)}", metadata_={})
         session.add_all(
             [
@@ -3538,6 +3525,8 @@ async def test_delete_traces_chunks_above_bind_param_limit_skips_evaluator_proje
             ]
         )
         await session.flush()
+        await _bind_evaluator_trace_project(session, live_evaluator_sink)
+        await _bind_evaluator_trace_project(session, tombstoned_evaluator_sink)
 
         sdk_trace_first = await _add_trace(session, sdk_evaluators_project, start_time=base_time)
         sdk_trace_second = await _add_trace(

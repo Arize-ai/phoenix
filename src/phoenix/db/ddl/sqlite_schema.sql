@@ -189,18 +189,13 @@ CREATE TABLE projects (
     created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
     updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
     trace_retention_policy_id INTEGER,
-    kind VARCHAR DEFAULT 'STANDARD' NOT NULL,
     deleted_at TIMESTAMP,
-    CONSTRAINT "ck_projects_`valid_project_kind`"
-        CHECK (kind IN ('STANDARD', 'PLAYGROUND', 'EXPERIMENT', 'EVALUATOR')),
     CONSTRAINT fk_projects_trace_retention_policy_id_project_trace_retention_policies
         FOREIGN KEY (trace_retention_policy_id)
         REFERENCES project_trace_retention_policies (id)
         ON DELETE SET NULL
 );
 
-CREATE INDEX ix_projects_active_kind_id ON projects (kind, id)
-    WHERE deleted_at IS NULL;
 CREATE UNIQUE INDEX ix_projects_live_name ON projects (name)
     WHERE deleted_at IS NULL;
 CREATE INDEX ix_projects_trace_retention_policy_id ON projects

@@ -133,11 +133,9 @@ async def get_projects(
     )
     if not include_experiment_projects:
         stmt = exclude_experiment_projects(stmt)
-    if not include_dataset_evaluator_projects and not include_project_evaluator_trace_projects:
-        stmt = stmt.where(models.Project.kind != "EVALUATOR")
-    elif not include_dataset_evaluator_projects:
+    if not include_dataset_evaluator_projects:
         stmt = exclude_dataset_evaluator_projects(stmt)
-    elif not include_project_evaluator_trace_projects:
+    if not include_project_evaluator_trace_projects:
         stmt = exclude_project_evaluator_trace_projects(stmt)
     if name_contains:
         stmt = stmt.where(models.CaseInsensitiveContains(models.Project.name, name_contains))

@@ -37,7 +37,6 @@ async def get_or_create_playground_project_id(session: AsyncSession) -> int:
                 {
                     "name": PLAYGROUND_PROJECT_NAME,
                     "description": PLAYGROUND_PROJECT_DESCRIPTION,
-                    "kind": "PLAYGROUND",
                 },
                 table=models.Project,
                 dialect=dialect,

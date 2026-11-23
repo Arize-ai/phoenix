@@ -1,6 +1,6 @@
 from asyncio import sleep
 from datetime import datetime, timezone
-from typing import Any, Literal
+from typing import Any
 from uuid import UUID
 
 import httpx2
@@ -26,6 +26,7 @@ from tests.unit._helpers import (
     _add_project_session,
     _add_span,
     _add_trace,
+    _bind_evaluator_trace_project,
 )
 
 
@@ -876,39 +877,6 @@ async def test_transfer_traces_unparseable_identifier(
     assert response.status_code == 404
 
 
-@pytest.mark.parametrize("destination_kind", ["EVALUATOR", "EXPERIMENT"])
-async def test_transfer_traces_rejects_evaluator_and_experiment_destinations(
-    db: DbSessionFactory,
-    httpx_client: httpx2.AsyncClient,
-    destination_kind: Literal["EVALUATOR", "EXPERIMENT"],
-) -> None:
-    source_rowid, trace_rowids = await _project_with_traces(
-        db, f"kind-src-{destination_kind.lower()}", 1, "8901"
-    )
-    async with db() as session:
-        destination_rowid = await session.scalar(
-            insert(models.Project)
-            .values(name=f"kind-dst-{destination_kind.lower()}", kind=destination_kind)
-            .returning(models.Project.id)
-        )
-        assert destination_rowid is not None
-
-    response = await httpx_client.post(
-        "v1/traces/transfer",
-        json={
-            "trace_identifiers": [str(GlobalID("Trace", str(trace_rowids[0])))],
-            "destination_project_identifier": str(GlobalID("Project", str(destination_rowid))),
-        },
-    )
-    assert response.status_code == 422
-    assert "evaluator or experiment" in response.text.lower()
-
-    async with db() as session:
-        trace = await session.get(models.Trace, trace_rowids[0])
-        assert trace is not None
-        assert trace.project_rowid == source_rowid
-
-
 # ---------------------------------------------------------------------------
 # DELETE /v1/projects/{project_identifier}/traces guards
 # ---------------------------------------------------------------------------
@@ -919,12 +887,11 @@ async def test_delete_project_traces_rejects_evaluator_trace_project(
     httpx_client: httpx2.AsyncClient,
 ) -> None:
     async with db() as session:
-        project_rowid = await session.scalar(
-            insert(models.Project)
-            .values(name="eval-trace-proj", kind="EVALUATOR")
-            .returning(models.Project.id)
-        )
-        assert project_rowid is not None
+        trace_project = models.Project(name="eval-trace-proj")
+        session.add(trace_project)
+        await session.flush()
+        await _bind_evaluator_trace_project(session, trace_project)
+        project_rowid = trace_project.id
         trace_rowid = await session.scalar(
             insert(models.Trace)
             .values(

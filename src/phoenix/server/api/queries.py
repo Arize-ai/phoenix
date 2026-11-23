@@ -31,6 +31,7 @@ from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.helpers import (
     SupportedSQLDialect,
     pg_table_sizes_stmt,
+    project_kind_expression,
 )
 from phoenix.db.models import LatencyMs
 from phoenix.db.types.annotation_configs import OptimizationDirection
@@ -634,7 +635,7 @@ class Query:
             kinds = filter.kinds
         projects_query = projects_query.where(
             models.Project.deleted_at.is_(None),
-            models.Project.kind.in_([kind.value for kind in kinds]),
+            project_kind_expression().in_([kind.value for kind in kinds]),
         )
         async with info.context.db.read() as session:
             projects = await session.stream_scalars(projects_query)
@@ -1455,7 +1456,7 @@ class Query:
             select(models.Project)
             .where(
                 models.Project.deleted_at.is_(None),
-                models.Project.kind.in_(DEFAULT_LISTED_PROJECT_KINDS),
+                project_kind_expression().in_(DEFAULT_LISTED_PROJECT_KINDS),
                 or_(
                     models.Project.name.icontains(search_term, autoescape=True),
                     models.Project.description.icontains(search_term, autoescape=True),
@@ -2273,7 +2274,7 @@ class Query:
     async def project_count(self, info: Info[Context, None]) -> int:
         stmt = select(func.count(models.Project.id)).where(
             models.Project.deleted_at.is_(None),
-            models.Project.kind.in_(DEFAULT_LISTED_PROJECT_KINDS),
+            project_kind_expression().in_(DEFAULT_LISTED_PROJECT_KINDS),
         )
         async with info.context.db.read() as session:
             return await session.scalar(stmt) or 0

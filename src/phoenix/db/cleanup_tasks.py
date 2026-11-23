@@ -20,13 +20,6 @@ CLEANUP_TASK_KINDS = (
 
 ProjectKindName: TypeAlias = Literal["STANDARD", "PLAYGROUND", "EXPERIMENT", "EVALUATOR"]
 
-PROJECT_KINDS: tuple[ProjectKindName, ...] = (
-    "STANDARD",
-    "PLAYGROUND",
-    "EXPERIMENT",
-    "EVALUATOR",
-)
-INTERNAL_PROJECT_KINDS: tuple[ProjectKindName, ...] = ("EXPERIMENT", "EVALUATOR")
 DEFAULT_LISTED_PROJECT_KINDS: tuple[ProjectKindName, ...] = ("STANDARD", "PLAYGROUND")
 
 
@@ -37,11 +30,6 @@ def _column_in(column: str, values: tuple[str, ...]) -> str:
 def cleanup_task_kind_check() -> str:
     """CHECK constraint text for ``cleanup_tasks.kind``."""
     return _column_in("kind", CLEANUP_TASK_KINDS)
-
-
-def project_kind_check() -> str:
-    """CHECK constraint text for ``projects.kind``."""
-    return _column_in("kind", PROJECT_KINDS)
 
 
 def live_row_predicate() -> str:

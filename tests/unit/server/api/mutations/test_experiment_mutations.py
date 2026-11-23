@@ -6,6 +6,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
+from tests.unit._helpers import _bind_evaluator_trace_project
 from tests.unit.graphql import AsyncGraphQLClient
 
 
@@ -98,12 +99,11 @@ class TestDeleteExperiment:
         now_time = datetime.now(timezone.utc)
         async with db() as session:
             dataset = models.Dataset(name=f"gql-exp-ds-{token_hex(4)}", metadata_={})
-            sdk_evaluators_project = models.Project(name="evaluators", kind="STANDARD")
-            evaluator_sink_project = models.Project(
-                name=f"gql-eval-sink-{token_hex(4)}", kind="EVALUATOR"
-            )
+            sdk_evaluators_project = models.Project(name="evaluators")
+            evaluator_sink_project = models.Project(name=f"gql-eval-sink-{token_hex(4)}")
             session.add_all([dataset, sdk_evaluators_project, evaluator_sink_project])
             await session.flush()
+            await _bind_evaluator_trace_project(session, evaluator_sink_project)
 
             dataset_version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
             dataset_example = models.DatasetExample(dataset_id=dataset.id)

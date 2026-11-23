@@ -11,6 +11,7 @@ from phoenix.db import models
 from phoenix.server.cleanup.coordinator import CleanupCoordinator
 from phoenix.server.daemons.experiment_sweeper import ExperimentSweeper
 from phoenix.server.types import DbSessionFactory
+from tests.unit._helpers import _bind_evaluator_trace_project
 
 
 class Rendezvous(NamedTuple):
@@ -127,7 +128,7 @@ class TestExperimentSweeper:
         # Case 1: expired ephemeral experiment with its own project → experiment and project deleted
         expired_project_name = "expired_ephemeral_project"
         async with db() as session:
-            session.add(models.Project(name=expired_project_name, kind="EXPERIMENT"))
+            session.add(models.Project(name=expired_project_name))
         expired_temp_id = await self._insert_experiment(
             db,
             name="eval run",
@@ -155,7 +156,7 @@ class TestExperimentSweeper:
         # Case 4: expired ephemeral + non-ephemeral share a project → ephemeral deleted, project kept
         shared_project_name = "shared_project"
         async with db() as session:
-            session.add(models.Project(name=shared_project_name, kind="EXPERIMENT"))
+            session.add(models.Project(name=shared_project_name))
         await self._insert_experiment(
             db,
             name="expired ephemeral",
@@ -233,13 +234,12 @@ class TestExperimentSweeper:
         recent_time = datetime.now(timezone.utc)
 
         async with db() as session:
-            sdk_evaluators_project = models.Project(name="evaluators", kind="STANDARD")
-            evaluator_sink_project = models.Project(
-                name=f"sweeper-eval-sink-{token_hex(4)}", kind="EVALUATOR"
-            )
+            sdk_evaluators_project = models.Project(name="evaluators")
+            evaluator_sink_project = models.Project(name=f"sweeper-eval-sink-{token_hex(4)}")
             dataset = models.Dataset(name=f"sweeper-ds-{token_hex(4)}", metadata_={})
             session.add_all([sdk_evaluators_project, evaluator_sink_project, dataset])
             await session.flush()
+            await _bind_evaluator_trace_project(session, evaluator_sink_project)
 
             dataset_version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
             dataset_example = models.DatasetExample(dataset_id=dataset.id)

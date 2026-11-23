@@ -773,7 +773,6 @@ class TestProjects:
             # Create a regular experiment project - this should be filtered by default
             experiment_project = models.Project(
                 name="experiment-project",
-                kind="EXPERIMENT",
                 description="A project created from an experiment - should be filtered by default",
             )
             session.add(experiment_project)
@@ -806,7 +805,6 @@ class TestProjects:
             # Create the playground project - this should always be visible
             playground_project = models.Project(
                 name=PLAYGROUND_PROJECT_NAME,
-                kind="PLAYGROUND",
                 description="Playground project - should always be visible",
             )
             session.add(playground_project)
@@ -900,7 +898,6 @@ class TestProjects:
         async with db() as session:
             dataset_evaluator_project = models.Project(
                 name="dataset-evaluator-project",
-                kind="EVALUATOR",
                 description="A project created from a dataset evaluator - should be filtered by default",
             )
             session.add(dataset_evaluator_project)

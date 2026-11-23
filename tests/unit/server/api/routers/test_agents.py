@@ -662,4 +662,3 @@ class TestEnsureProjectExists:
             assert project is not None
             assert project.name == name
             assert project.deleted_at is None
-            assert project.kind == "STANDARD"

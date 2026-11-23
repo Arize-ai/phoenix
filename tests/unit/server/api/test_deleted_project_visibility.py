@@ -566,7 +566,7 @@ class TestDeletedProjectVisibility:
             session.add_all([span_note, trace_note, session_note, evaluator])
             await session.flush()
             project_evaluator = models.ProjectEvaluator(
-                trace_project=models.Project(name=f"eval-traces-{token_hex(8)}", kind="EVALUATOR"),
+                trace_project=models.Project(name=f"eval-traces-{token_hex(8)}"),
                 project_id=project.id,
                 evaluator_id=evaluator.id,
                 name=Identifier(root=f"pe-{token_hex(4)}"),

@@ -14,7 +14,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.config import DEFAULT_PROJECT_NAME, PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect, get_eval_trace_ids_for_datasets
+from phoenix.db.helpers import (
+    SupportedSQLDialect,
+    get_eval_trace_ids_for_datasets,
+    is_evaluator_project_condition,
+    is_experiment_named_project_condition,
+)
 from phoenix.db.insertion.helpers import get_sqlstate
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.cleanup.primitives import (
@@ -551,17 +556,7 @@ async def admit_project_delete(
     if project.name == DEFAULT_PROJECT_NAME:
         raise BadRequest(f"Cannot delete the {DEFAULT_PROJECT_NAME} project")
 
-    holds_evaluator_traces = project.kind == "EVALUATOR" or (
-        await session.scalar(
-            select(
-                or_(
-                    exists().where(models.ProjectEvaluator.trace_project_id == project_id),
-                    exists().where(models.DatasetEvaluators.project_id == project_id),
-                )
-            )
-        )
-    )
-    if holds_evaluator_traces:
+    if await _project_holds_evaluator_traces(session, project):
         raise Conflict("This project holds an evaluator's traces; delete the evaluator instead")
     await _lock_projects(session, dialect, [project_id], key_share=False)
 
@@ -618,8 +613,6 @@ async def admit_project_delete(
 
 
 async def _project_holds_evaluator_traces(session: AsyncSession, project: models.Project) -> bool:
-    if project.kind == "EVALUATOR":
-        return True
     return bool(
         await session.scalar(
             select(
@@ -717,16 +710,49 @@ async def clear_project_traces_in_batches(
         await asyncio.sleep(min(0.25, _YIELD_RETRY_DELAY_SECONDS * 2**num_consecutive_yields))
 
 
+async def resolve_experiment_project_delete_candidates(
+    session: AsyncSession,
+    *,
+    candidate_project_names: Iterable[Optional[str]],
+) -> list[int]:
+    """Return the ids of the live projects named in ``candidate_project_names`` that an experiment
+    delete may take with it: not the playground project, not the default project, and not an
+    evaluator trace project.
+
+    Call this before the experiment rows are deleted. A project is only recognizable as an
+    experiment project while an experiment still names it, so the names must be resolved first.
+    The read takes no locks; ``admit_exclusive_experiment_projects_delete`` locks the ids and
+    re-verifies them.
+    """
+    names = sorted({project_name for project_name in candidate_project_names if project_name})
+    if not names:
+        return []
+    return [
+        int(project_id)
+        for project_id in await session.scalars(
+            select(models.Project.id)
+            .where(
+                models.Project.name.in_(names),
+                models.Project.deleted_at.is_(None),
+                models.Project.name != PLAYGROUND_PROJECT_NAME,
+                models.Project.name != DEFAULT_PROJECT_NAME,
+                ~is_evaluator_project_condition(),
+            )
+            .order_by(models.Project.id.asc())
+        )
+    ]
+
+
 async def admit_exclusive_experiment_projects_delete(
     session: AsyncSession,
     *,
     dialect: SupportedSQLDialect,
-    candidate_project_names: Iterable[Optional[str]],
+    candidate_project_ids: Iterable[int],
 ) -> list[int]:
-    """Tombstone and enqueue ``ProjectDeleteCleanupTask`` for the live ``EXPERIMENT`` projects
-    named in ``candidate_project_names`` that have zero remaining ``Experiment`` references after
-    the owning experiment/dataset rows were deleted in ``session``."""
-    ids = sorted(await resolve_live_project_ids_by_name(session, candidate_project_names))
+    """Tombstone and enqueue ``ProjectDeleteCleanupTask`` for the candidates from
+    ``resolve_experiment_project_delete_candidates`` that are still live and that no ``Experiment``
+    names after the owning experiment/dataset rows were deleted in ``session``."""
+    ids = sorted(set(candidate_project_ids))
     if not ids:
         return []
 
@@ -747,12 +773,8 @@ async def admit_exclusive_experiment_projects_delete(
             .where(
                 models.Project.id.in_(ids),
                 models.Project.deleted_at.is_(None),
-                models.Project.kind == "EXPERIMENT",
-                models.Project.name != PLAYGROUND_PROJECT_NAME,
-                models.Project.name != DEFAULT_PROJECT_NAME,
-                ~exists().where(models.Experiment.project_name == models.Project.name),
-                ~exists().where(models.ProjectEvaluator.trace_project_id == models.Project.id),
-                ~exists().where(models.DatasetEvaluators.project_id == models.Project.id),
+                ~is_experiment_named_project_condition(),
+                ~is_evaluator_project_condition(),
             )
             .order_by(models.Project.id.asc())
         )
@@ -814,35 +836,6 @@ async def admit_exclusive_experiment_projects_delete(
     return sorted({*eligible_ids, *tombstoned_trace_project_ids})
 
 
-async def promote_retained_experiment_projects_to_standard(
-    session: AsyncSession,
-    *,
-    dialect: SupportedSQLDialect,
-    candidate_project_names: Iterable[Optional[str]],
-) -> None:
-    """When an experiment is deleted without deleting its project, promote the live, unreferenced
-    ``EXPERIMENT`` projects named in ``candidate_project_names`` to ``STANDARD`` so they remain
-    visible in standard project listings."""
-    ids = sorted(await resolve_live_project_ids_by_name(session, candidate_project_names))
-    if not ids:
-        return
-
-    await _lock_projects(session, dialect, ids, key_share=True)
-    now = await current_database_time(session, dialect)
-    await session.execute(
-        update(models.Project)
-        .where(
-            models.Project.id.in_(ids),
-            models.Project.deleted_at.is_(None),
-            models.Project.kind == "EXPERIMENT",
-            models.Project.name != PLAYGROUND_PROJECT_NAME,
-            models.Project.name != DEFAULT_PROJECT_NAME,
-            ~exists().where(models.Experiment.project_name == models.Project.name),
-        )
-        .values(kind="STANDARD", updated_at=now)
-    )
-
-
 async def delete_standalone_traces_by_trace_id(
     db: DbSessionFactory,
     trace_ids: Iterable[str],
@@ -880,7 +873,7 @@ async def delete_standalone_traces_by_trace_id(
                     .where(
                         models.Trace.trace_id.in_(chunk_trace_ids),
                         models.Project.deleted_at.is_(None),
-                        models.Project.kind != "EVALUATOR",
+                        ~is_evaluator_project_condition(),
                     )
                 )
             ).all()
@@ -897,7 +890,7 @@ async def delete_standalone_traces_by_trace_id(
                 select(literal(1)).where(
                     models.Project.id == project_rowid,
                     models.Project.deleted_at.is_(None),
-                    models.Project.kind != "EVALUATOR",
+                    ~is_evaluator_project_condition(),
                 )
             )
             trace_condition = and_(
@@ -1002,17 +995,20 @@ async def admit_dataset_delete(
         enqueued_cleanup = enqueued_cleanup or bool(deleted_bindings.binding_ids)
         tombstoned_project_ids.update(deleted_bindings.tombstoned_project_ids)
 
+    candidate_project_ids = await resolve_experiment_project_delete_candidates(
+        session, candidate_project_names=candidate_project_names
+    )
     deleted_dataset = await session.scalar(
         delete(models.Dataset).where(models.Dataset.id == dataset_id).returning(models.Dataset)
     )
     if deleted_dataset is None:
         raise NotFound(f"Dataset with ID {dataset_id} not found")
 
-    if candidate_project_names:
+    if candidate_project_ids:
         deleted_projects = await admit_exclusive_experiment_projects_delete(
             session,
             dialect=dialect,
-            candidate_project_names=candidate_project_names,
+            candidate_project_ids=candidate_project_ids,
         )
         enqueued_cleanup = enqueued_cleanup or bool(deleted_projects)
         tombstoned_project_ids.update(deleted_projects)

@@ -6,6 +6,7 @@ from typing import Any, Literal, Optional, Sequence, TypeVar, TypeVarTuple, Unio
 
 import sqlalchemy as sa
 from sqlalchemy import (
+    ColumnElement,
     Insert,
     Select,
     SQLColumnExpression,
@@ -31,10 +32,12 @@ from sqlalchemy.sql.selectable import CTE, Subquery
 from typing_extensions import assert_never
 
 from phoenix.config import (
+    PLAYGROUND_PROJECT_NAME,
     get_env_database_schema,
 )
 from phoenix.datetime_utils import TimeBinUnit, multi_unit_time_bin_params
 from phoenix.db import models
+from phoenix.db.cleanup_tasks import ProjectKindName
 
 SupportedSQLDialectName = Literal["postgresql", "sqlite"]
 
@@ -166,7 +169,7 @@ def get_eval_trace_ids_for_datasets(*dataset_ids: int) -> Select[Optional[str]]:
             models.Experiment.dataset_id.in_(set(dataset_ids)),
             models.ExperimentRunAnnotation.trace_id.isnot(None),
             models.Project.deleted_at.is_(None),
-            models.Project.kind != "EVALUATOR",
+            ~is_evaluator_project_condition(),
         )
     )
 
@@ -185,7 +188,7 @@ def get_eval_trace_ids_for_experiments(*experiment_ids: int) -> Select[Optional[
             models.ExperimentRun.experiment_id.in_(set(experiment_ids)),
             models.ExperimentRunAnnotation.trace_id.isnot(None),
             models.Project.deleted_at.is_(None),
-            models.Project.kind != "EVALUATOR",
+            ~is_evaluator_project_condition(),
         )
     )
 
@@ -424,35 +427,78 @@ async def insert_experiment_with_examples_snapshot(
 _Ts = TypeVarTuple("_Ts")
 
 
+def is_dataset_evaluator_project_condition() -> ColumnElement[bool]:
+    """Correlated condition: the project holds the traces of a dataset evaluator."""
+    return (
+        select(models.DatasetEvaluators.id)
+        .where(models.DatasetEvaluators.project_id == models.Project.id)
+        .exists()
+    )
+
+
+def is_project_evaluator_trace_project_condition() -> ColumnElement[bool]:
+    """Correlated condition: the project holds the traces of a project evaluator."""
+    return (
+        select(models.ProjectEvaluator.id)
+        .where(models.ProjectEvaluator.trace_project_id == models.Project.id)
+        .exists()
+    )
+
+
+def is_evaluator_project_condition() -> ColumnElement[bool]:
+    """Correlated condition: the project holds the traces of any evaluator binding."""
+    return or_(
+        is_dataset_evaluator_project_condition(),
+        is_project_evaluator_trace_project_condition(),
+    )
+
+
+def is_experiment_named_project_condition() -> ColumnElement[bool]:
+    """Correlated condition: an experiment records its runs under the project's name."""
+    return (
+        select(models.Experiment.id)
+        .where(models.Experiment.project_name == models.Project.name)
+        .exists()
+    )
+
+
 def exclude_experiment_projects(
     stmt: Select[*_Ts],
 ) -> Select[*_Ts]:
-    return stmt.where(models.Project.kind != "EXPERIMENT")
+    return stmt.where(
+        or_(
+            models.Project.name == PLAYGROUND_PROJECT_NAME,
+            ~is_experiment_named_project_condition(),
+        )
+    )
 
 
 def exclude_dataset_evaluator_projects(
     stmt: Select[*_Ts],
 ) -> Select[*_Ts]:
-    return stmt.where(
-        or_(
-            models.Project.kind != "EVALUATOR",
-            select(models.ProjectEvaluator.id)
-            .where(models.ProjectEvaluator.trace_project_id == models.Project.id)
-            .exists(),
-        )
-    )
+    return stmt.where(~is_dataset_evaluator_project_condition())
 
 
 def exclude_project_evaluator_trace_projects(
     stmt: Select[*_Ts],
 ) -> Select[*_Ts]:
-    return stmt.where(
-        or_(
-            models.Project.kind != "EVALUATOR",
-            select(models.DatasetEvaluators.id)
-            .where(models.DatasetEvaluators.project_id == models.Project.id)
-            .exists(),
-        )
+    return stmt.where(~is_project_evaluator_trace_project_condition())
+
+
+def project_kind_expression() -> ColumnElement[ProjectKindName]:
+    """
+    A correlated expression that classifies each project by what writes its traces.
+
+    A project is PLAYGROUND when it is the prompt playground project, EVALUATOR when it holds
+    the traces of a dataset evaluator or a project evaluator, EXPERIMENT when an experiment
+    records its runs in it, and STANDARD otherwise. The first matching kind wins. Tombstoned
+    evaluator bindings still count until they are purged.
+    """
+    return case(
+        (models.Project.name == PLAYGROUND_PROJECT_NAME, literal("PLAYGROUND")),
+        (is_evaluator_project_condition(), literal("EVALUATOR")),
+        (is_experiment_named_project_condition(), literal("EXPERIMENT")),
+        else_=literal("STANDARD"),
     )
 
 
