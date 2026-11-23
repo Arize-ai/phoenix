@@ -314,6 +314,17 @@ describe("px setup doctor", () => {
     expect(exitSpy).not.toHaveBeenCalled();
   });
 
+  it("rejects an unknown --format instead of printing the pretty checklist", async () => {
+    const exitSpy = mockProcessExit();
+    const io = captureCliOutput();
+    vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+
+    await runDoctor(["--endpoint", DEFAULT_MOCK_BASE_URL, "--format", "yaml"]);
+
+    expect(io.stdout).not.toHaveBeenCalled();
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
+  });
+
   it("prints a checklist with fix hints in pretty format", async () => {
     mockProcessExit();
     mock.server.use(

@@ -13,8 +13,13 @@ import {
   parseSemanticVersion,
 } from "@arizeai/phoenix-client";
 import { assertUnreachable } from "@arizeai/phoenix-client/utils/assertUnreachable";
-import { Command } from "commander";
+import { Command, Option } from "commander";
 
+import {
+  type FetchViewerResult,
+  fetchViewerForStatus,
+  getExitCodeForViewerResult,
+} from "../auth/viewer";
 import { createPhoenixClient } from "../client";
 import {
   DEFAULT_PHOENIX_ENDPOINT,
@@ -31,11 +36,6 @@ import {
 } from "../settings";
 import { redactForDisplay } from "../setup/util/redact";
 import { ENDPOINT_REQUIREMENT, isEndpointUrl } from "../validation/endpoint";
-import {
-  type FetchViewerResult,
-  exitCodeForResult,
-  fetchViewerForStatus,
-} from "./auth";
 import {
   type DoctorCheck,
   type DoctorCheckName,
@@ -162,7 +162,7 @@ function checkConfig({
   };
 }
 
-const PROBE_TIMEOUT_MS = 10_000;
+const REQUEST_TIMEOUT_MS = 10_000;
 
 type ServerProbe =
   | { kind: "unreachable"; detail: string }
@@ -187,7 +187,7 @@ async function probeServer({
   try {
     const { data } = await client.GET("/arize_phoenix_version", {
       parseAs: "text",
-      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     const version = parseSemanticVersion(data ?? "");
     return version ? { kind: "phoenix", version } : { kind: "unexpectedBody" };
@@ -195,7 +195,18 @@ async function probeServer({
     if (error instanceof HttpError) {
       return { kind: "httpError", status: error.status };
     }
-    return { kind: "unreachable", detail: redactForDisplay(String(error)) };
+    // Node's fetch reports only "fetch failed"; the cause names the socket
+    // error (ECONNREFUSED, ENOTFOUND) that tells the user what to fix.
+    const cause =
+      error instanceof Error &&
+      error.cause instanceof Error &&
+      error.cause.message
+        ? `: ${error.cause.message}`
+        : "";
+    return {
+      kind: "unreachable",
+      detail: redactForDisplay(`${String(error)}${cause}`),
+    };
   }
 }
 
@@ -312,7 +323,7 @@ function describeAuthResult({
       return {
         name: "auth",
         status: "fail",
-        message: `Could not verify credentials: ${result.message}`,
+        message: `Could not verify credentials: ${redactForDisplay(result.message)}`,
       };
     default:
       return assertUnreachable(result);
@@ -324,10 +335,13 @@ async function checkAuth({
 }: {
   config: PhoenixConfig;
 }): Promise<DoctorCheckOutcome> {
-  const result = await fetchViewerForStatus(config);
+  const result = await fetchViewerForStatus({
+    config,
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
   return {
     check: describeAuthResult({ result, config }),
-    exitCode: exitCodeForResult(result),
+    exitCode: getExitCodeForViewerResult(result),
   };
 }
 
@@ -410,10 +424,10 @@ export function createSetupDoctorCommand(): Command {
     .option("--endpoint <url>", "Phoenix API endpoint")
     .option("--api-key <key>", "Phoenix API key for authentication")
     .option("--profile <name>", "Profile to check")
-    .option(
-      "--format <format>",
-      "Output format: pretty, json, or raw",
-      "pretty"
+    .addOption(
+      new Option("--format <format>", "Output format")
+        .choices(["pretty", "json", "raw"])
+        .default("pretty")
     )
     .action(setupDoctorHandler)
     .addHelpText(
