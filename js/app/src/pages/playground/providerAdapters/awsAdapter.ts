@@ -38,7 +38,6 @@ export type AwsPromotedPlaygroundFields = {
 export function getDefaultAwsConfig(): AwsConfig {
   return {
     maxTokens: 1024,
-    temperature: 1,
   };
 }
 
