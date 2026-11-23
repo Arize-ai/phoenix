@@ -1,5 +1,70 @@
 # Changelog
 
+## [3.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.9.5...arize-phoenix-evals-v3.10.0) (2026-11-10)
+
+
+### Features
+
+* **decision-models:** support OpenAI Decisions API in Python classification evaluators ([#17514](https://github.com/Arize-ai/phoenix/issues/17514)) ([f6dc888](https://github.com/Arize-ai/phoenix/commit/f6dc8889c45925a20900c566b72da39b8767a2bd))
+* **evals:** support TypeSafe Jev decision models in Python classification evaluators ([#16953](https://github.com/Arize-ai/phoenix/issues/16953)) ([9089efc](https://github.com/Arize-ai/phoenix/commit/9089efc2bdbd7d71286cd27a3b731b132f41fb79))
+* **evals:** use Anthropic native structured output in AnthropicAdapter ([#17476](https://github.com/Arize-ai/phoenix/issues/17476)) ([2fffecb](https://github.com/Arize-ai/phoenix/commit/2fffecb7f4b0a90055deb616e54086b7fc88b986))
+
+
+### Bug Fixes
+
+* **evals:** ask for the Anthropic tool call instead of forcing tool_choice ([#17366](https://github.com/Arize-ai/phoenix/issues/17366)) ([be808f6](https://github.com/Arize-ai/phoenix/commit/be808f6bef86a67437f6cddede9e424a17fe6fb9))
+* **evals:** drop hardcoded decision instructions ([#17372](https://github.com/Arize-ai/phoenix/issues/17372)) ([a600c71](https://github.com/Arize-ai/phoenix/commit/a600c715efc9251563104d38f33cb0622fa5efb8))
+* **evals:** keep metadata from dictionary results in create_evaluator ([#17484](https://github.com/Arize-ai/phoenix/issues/17484)) ([52a0b8c](https://github.com/Arize-ai/phoenix/commit/52a0b8c8059383082330e29efd914a9fdf75a411))
+* **evals:** raise a clear error when Google or LiteLLM tool calling returns no tool call ([#17313](https://github.com/Arize-ai/phoenix/issues/17313)) ([e886020](https://github.com/Arize-ai/phoenix/commit/e886020b57fa0ac2a339555010422dc3b8b6a9af))
+
+
+### Documentation
+
+* reference the current evals PromptTemplate API ([#17358](https://github.com/Arize-ai/phoenix/issues/17358)) ([a4373ea](https://github.com/Arize-ai/phoenix/commit/a4373ea4a096fe015119f659bdf81a2d8c568939))
+
+## [3.9.5](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.9.4...arize-phoenix-evals-v3.9.5) (2026-10-27)
+
+
+### Documentation
+
+* **evals:** fix PrecisionRecallFScore docstring examples that call the evaluator directly ([#17039](https://github.com/Arize-ai/phoenix/issues/17039)) ([e84f16b](https://github.com/Arize-ai/phoenix/commit/e84f16bd22379c8dd22721bc50e8be8e6ed369f4))
+
+## [3.9.4](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.9.3...arize-phoenix-evals-v3.9.4) (2026-10-24)
+
+
+### Bug Fixes
+
+* **evals:** apply template_format override when copying a PromptTemplate ([#17071](https://github.com/Arize-ai/phoenix/issues/17071)) ([7121ade](https://github.com/Arize-ai/phoenix/commit/7121ade62adcb4570f86edb818a1d6a5aefc74f4))
+* **evals:** let sync/async client kwargs override the shared LLM kwargs ([#17043](https://github.com/Arize-ai/phoenix/issues/17043)) ([27361d4](https://github.com/Arize-ai/phoenix/commit/27361d4eeebde583e929c8fa56179a798f47e50e))
+
+## [3.9.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.9.2...arize-phoenix-evals-v3.9.3) (2026-10-22)
+
+
+### Bug Fixes
+
+* **deps:** exclude compromised litellm 1.107.0 ([#17087](https://github.com/Arize-ai/phoenix/issues/17087)) ([f6a0231](https://github.com/Arize-ai/phoenix/commit/f6a023154da2c899e6937d49b37b2ebce8e8609b))
+* **deps:** require certifi 2026.10.18 to distrust the compromised emSign root ([#17093](https://github.com/Arize-ai/phoenix/issues/17093)) ([9056a4a](https://github.com/Arize-ai/phoenix/commit/9056a4a297476c646cfc6ed6851c1fcd96440674))
+* **evals:** typecheck JSONPath extraction against jsonpath-ng ([#16935](https://github.com/Arize-ai/phoenix/issues/16935)) ([aa4b05b](https://github.com/Arize-ai/phoenix/commit/aa4b05be651b3cd975da8e6edb3e0ea31c172407))
+
+
+### Documentation
+
+* fix dead Read the Docs links ([#16967](https://github.com/Arize-ai/phoenix/issues/16967)) ([0fed1f4](https://github.com/Arize-ai/phoenix/commit/0fed1f431c65cf24f52ca8153d5ffd63ce04a1b2))
+
+## [3.9.2](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.9.1...arize-phoenix-evals-v3.9.2) (2026-10-09)
+
+
+### Bug Fixes
+
+* **evals:** reject non-finite precision recall beta ([#16226](https://github.com/Arize-ai/phoenix/issues/16226)) ([a944a14](https://github.com/Arize-ai/phoenix/commit/a944a14963cde37f6b9e6d75612f331d5506ad3e))
+
+## [3.9.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.9.0...arize-phoenix-evals-v3.9.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* **evals:** retry RateLimitError in SyncExecutor instead of failing the whole run ([#16376](https://github.com/Arize-ai/phoenix/issues/16376)) ([56e9a89](https://github.com/Arize-ai/phoenix/commit/56e9a8994e9074eb9958dfe77e4552e7a8b6d38c))
+
 ## [3.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.8.0...arize-phoenix-evals-v3.9.0) (2026-09-21)
 
 

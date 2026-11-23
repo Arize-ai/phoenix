@@ -14,7 +14,6 @@ _extensions = {
     "stats",
     "text",
     "time",
-    "unicode",
     "uuid",
     "vsv",
 }

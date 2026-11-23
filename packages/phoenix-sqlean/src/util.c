@@ -146,17 +146,16 @@ int _pysqlite_seterror(sqlite3* db)
     return errorcode;
 }
 
-#ifdef WORDS_BIGENDIAN
-# define IS_LITTLE_ENDIAN 0
-#else
-# define IS_LITTLE_ENDIAN 1
-#endif
-
 sqlite_int64
 _pysqlite_long_as_int64(PyObject * py_val)
 {
     int overflow;
-    long long value = PyLong_AsLongLongAndOverflow(py_val, &overflow);
+    long long value;
+
+    /* An int that overflows long long overflows sqlite_int64 too. */
+    Py_BUILD_ASSERT(sizeof(long long) >= sizeof(sqlite_int64));
+
+    value = PyLong_AsLongLongAndOverflow(py_val, &overflow);
     if (value == -1 && PyErr_Occurred())
         return -1;
     if (!overflow) {
@@ -164,20 +163,6 @@ _pysqlite_long_as_int64(PyObject * py_val)
         if (-0x8000000000000000LL <= value && value <= 0x7FFFFFFFFFFFFFFFLL)
 # endif
             return value;
-    }
-    else if (sizeof(value) < sizeof(sqlite_int64)) {
-        sqlite_int64 int64val;
-#if PY_VERSION_HEX < 0x030D0000
-        if (_PyLong_AsByteArray((PyLongObject *)py_val,
-                                (unsigned char *)&int64val, sizeof(int64val),
-                                IS_LITTLE_ENDIAN, 1 /* signed */) >= 0) {
-#else
-        if (_PyLong_AsByteArray((PyLongObject *)py_val,
-                                (unsigned char *)&int64val, sizeof(int64val),
-                                IS_LITTLE_ENDIAN, 1 /* signed */, 1) >= 0) {
-#endif
-            return int64val;
-        }
     }
     PyErr_SetString(PyExc_OverflowError,
                     "Python int too large to convert to SQLite INTEGER");

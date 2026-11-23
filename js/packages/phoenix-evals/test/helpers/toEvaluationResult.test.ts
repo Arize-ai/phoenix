@@ -19,6 +19,7 @@ describe("toEvaluationResult", () => {
     expect(result).toEqual({ score: 0.8 });
     expect(result.label).toBeUndefined();
     expect(result.explanation).toBeUndefined();
+    expect(result).not.toHaveProperty("metadata");
   });
 
   it("should convert an object with label only", () => {
@@ -29,18 +30,36 @@ describe("toEvaluationResult", () => {
   });
 
   it("should convert an object with all properties", () => {
+    const metadata = {
+      probabilities: { correct: 0, incorrect: 1 },
+      confidence: false,
+      reason: "",
+    };
     const result = toEvaluationResult({
       score: 0.95,
       label: "excellent",
       explanation: "Perfect output quality",
+      metadata,
     });
 
     expect(result).toEqual({
       score: 0.95,
       label: "excellent",
       explanation: "Perfect output quality",
+      metadata,
     });
   });
+
+  it("should preserve empty metadata", () => {
+    expect(toEvaluationResult({ metadata: {} })).toEqual({ metadata: {} });
+  });
+
+  it.each([null, undefined, [], "invalid", 0, false])(
+    "should ignore invalid metadata %j",
+    (metadata) => {
+      expect(toEvaluationResult({ score: 0, metadata })).toEqual({ score: 0 });
+    }
+  );
 
   it("should ignore extra properties in object", () => {
     const result = toEvaluationResult({

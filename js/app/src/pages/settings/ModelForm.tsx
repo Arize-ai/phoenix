@@ -1,9 +1,10 @@
 import { parseAbsoluteToLocal } from "@internationalized/date";
 import { useMemo } from "react";
 import type { DateValue, Key } from "react-aria-components";
-import { Controller, useFieldArray, useForm } from "react-hook-form";
+import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 
 import {
+  Alert,
   Button,
   ComboBox,
   ComboBoxItem,
@@ -15,17 +16,28 @@ import {
   Form,
   Input,
   Label,
+  ListBox,
+  Popover,
+  Select,
+  SelectChevronUpDownIcon,
+  SelectItem,
+  SelectValue,
   Text,
   TextField,
   View,
 } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { RegexField } from "@phoenix/components/RegexField";
+import type { GenerativeModelType } from "@phoenix/constants/generativeConstants";
+import {
+  DEFAULT_GENERATIVE_MODEL_TYPE,
+  GENERATIVE_MODEL_TYPE_OPTIONS,
+} from "@phoenix/constants/generativeConstants";
 import { ModelTokenCostControlTable } from "@phoenix/pages/settings/ModelTokenCostControlTable";
 import type { ModelTokenKind } from "@phoenix/pages/settings/ModelTokenTypeComboBox";
 import {
-  DEFAULT_TOKEN_COMPLETION_OPTIONS,
-  DEFAULT_TOKEN_PROMPT_OPTIONS,
+  normalizeTokenType,
+  TOKEN_TYPE_OPTIONS_BY_MODEL_TYPE,
 } from "@phoenix/pages/settings/ModelTokenTypeComboBox";
 import {
   getProviderName,
@@ -40,6 +52,7 @@ export type TokenPrice = {
 
 export type ModelFormParams = {
   name: string;
+  modelType: GenerativeModelType;
   provider?: string;
   namePattern: string;
   promptCosts: TokenPrice[];
@@ -96,6 +109,35 @@ const PROVIDER_OPTIONS: { key: ModelProvider; value: string; label: string }[] =
     },
   ];
 
+function findProviderOption(provider: string) {
+  const lowered = provider.trim().toLowerCase();
+  return PROVIDER_OPTIONS.find(
+    (option) =>
+      option.value === lowered || option.label.toLowerCase() === lowered
+  );
+}
+
+// Normalized on submit rather than on input so that spaces can be typed mid-value
+function normalizeModelFormParams(params: ModelFormParams): ModelFormParams {
+  const provider = params.provider?.trim();
+  const normalizeTokenTypes = (costs: TokenPrice[]) =>
+    costs.map((cost) => ({
+      ...cost,
+      tokenType: normalizeTokenType(cost.tokenType),
+    }));
+  return {
+    ...params,
+    provider: provider && (findProviderOption(provider)?.value ?? provider),
+    promptCosts: normalizeTokenTypes(params.promptCosts),
+    // Embedding models have no completion side, so completion rows left over
+    // from another type are dropped
+    completionCosts:
+      params.modelType === "EMBEDDING"
+        ? []
+        : normalizeTokenTypes(params.completionCosts),
+  };
+}
+
 function ModelProviderComboBox({
   value,
   onChange,
@@ -114,9 +156,7 @@ function ModelProviderComboBox({
     <ComboBox
       label="Provider"
       placeholder="Choose or enter a provider"
-      selectedKey={
-        PROVIDER_OPTIONS.find((option) => option.value === value)?.key || ""
-      }
+      selectedKey={findProviderOption(value)?.key || ""}
       inputValue={value}
       onSelectionChange={(key) => {
         const provider = PROVIDER_OPTIONS.find((option) => option.key === key);
@@ -124,9 +164,7 @@ function ModelProviderComboBox({
           onChange(provider.value);
         }
       }}
-      onInputChange={(value) => {
-        onChange(value?.toLowerCase());
-      }}
+      onInputChange={onChange}
       onBlur={onBlur}
       isInvalid={invalid}
       size="M"
@@ -147,6 +185,7 @@ function ModelProviderComboBox({
 
 export function ModelForm({
   modelName,
+  modelType,
   modelProvider,
   modelNamePattern,
   modelCost,
@@ -157,6 +196,7 @@ export function ModelForm({
   startDate,
 }: {
   modelName?: string | null;
+  modelType?: GenerativeModelType | null;
   modelProvider?: string | null;
   modelNamePattern?: string | null;
   modelCost?: TokenPrice[] | null;
@@ -196,10 +236,14 @@ export function ModelForm({
   const {
     control,
     handleSubmit,
+    getValues,
+    getFieldState,
+    trigger,
     formState: { isDirty },
   } = useForm<ModelFormParams>({
     defaultValues: {
       name: modelName ?? "",
+      modelType: modelType ?? DEFAULT_GENERATIVE_MODEL_TYPE,
       provider: modelProvider || "",
       namePattern: modelNamePattern ?? "",
       promptCosts: defaultPromptCostFields,
@@ -226,8 +270,31 @@ export function ModelForm({
     name: "completionCosts",
   });
 
+  const selectedModelType = useWatch({ control, name: "modelType" });
+  const tokenTypeOptions = TOKEN_TYPE_OPTIONS_BY_MODEL_TYPE[selectedModelType];
+  const promptCosts = useWatch({ control, name: "promptCosts" });
+  // Embedding spans are priced on their input token count alone, so any other
+  // prompt price (e.g. cache_read left over from an LLM clone) never applies.
+  // The rows are kept, since token types are free-form, but flagged.
+  const unusedPromptTokenTypes =
+    selectedModelType === "EMBEDDING"
+      ? [
+          ...new Set(
+            promptCosts
+              .map((cost) => cost.tokenType.trim())
+              .filter(
+                (tokenType) => tokenType && tokenType.toLowerCase() !== "input"
+              )
+          ),
+        ]
+      : [];
+
   return (
-    <Form onSubmit={handleSubmit(onSubmit)}>
+    <Form
+      onSubmit={handleSubmit((params) =>
+        onSubmit(normalizeModelFormParams(params))
+      )}
+    >
       <View padding="size-200">
         <Flex direction="column" gap="size-200">
           <Controller
@@ -258,6 +325,58 @@ export function ModelForm({
             )}
           />
           <Controller
+            name="modelType"
+            control={control}
+            render={({ field }) => (
+              <Select
+                {...field}
+                size="S"
+                // The server fixes a model's type at creation
+                isDisabled={formMode === "edit"}
+                onChange={(key) => {
+                  if (key == null) {
+                    return;
+                  }
+                  field.onChange(key);
+                  // Every type but embedding needs an output price, so a model
+                  // that had no completion side gets an output row back
+                  if (
+                    key !== "EMBEDDING" &&
+                    getValues("completionCosts").length === 0
+                  ) {
+                    appendCompletionCost({
+                      kind: "COMPLETION",
+                      tokenType: "output",
+                      costPerMillionTokens: 0,
+                    });
+                  }
+                }}
+              >
+                <Label>Type</Label>
+                <Button>
+                  <SelectValue />
+                  <SelectChevronUpDownIcon />
+                </Button>
+                <Popover>
+                  <ListBox>
+                    {GENERATIVE_MODEL_TYPE_OPTIONS.map((option) => (
+                      <SelectItem
+                        key={option.id}
+                        id={option.id}
+                        textValue={option.label}
+                      >
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </ListBox>
+                </Popover>
+                <Text slot="description">
+                  Costs apply only to spans of this kind.
+                </Text>
+              </Select>
+            )}
+          />
+          <Controller
             name="namePattern"
             control={control}
             rules={{
@@ -275,7 +394,7 @@ export function ModelForm({
                 error={error?.message}
                 size="S"
                 placeholder="e.g. ^gpt-4$, ^claude-3-sonnet$"
-                description="Regular expression to match model names during trace ingestion."
+                description="Regex matched against span model names."
                 label="Name pattern*"
               />
             )}
@@ -294,7 +413,7 @@ export function ModelForm({
                   onBlur={onBlur}
                   error={error?.message}
                   invalid={invalid}
-                  description="Only models with this provider will be matched by the name pattern."
+                  description="Only match spans from this provider."
                 />
               );
             }}
@@ -326,8 +445,7 @@ export function ModelForm({
                   <FieldError>{error.message}</FieldError>
                 ) : (
                   <Text slot="description">
-                    Optional start date. If provided, traces ingested on or
-                    after this date will have this model&apos;s cost applied.
+                    Optional. Applies to traces ingested from this date.
                   </Text>
                 )}
               </DateField>
@@ -335,26 +453,38 @@ export function ModelForm({
           />
 
           <ModelTokenCostControlTable
-            title="Prompt tokens"
+            title="Input tokens"
             namePrefix="promptCosts"
             fields={promptCostFields}
             control={control}
-            tokenTypeOptions={DEFAULT_TOKEN_PROMPT_OPTIONS}
+            getFieldState={getFieldState}
+            trigger={trigger}
+            tokenTypeOptions={tokenTypeOptions.prompt}
             onAppend={appendPromptCost}
             onRemove={removePromptCost}
             appendKind="PROMPT"
           />
+          {unusedPromptTokenTypes.length > 0 && (
+            <Alert variant="warning">
+              Embedding models use input prices only;{" "}
+              {unusedPromptTokenTypes.join(", ")} will not be used.
+            </Alert>
+          )}
 
-          <ModelTokenCostControlTable
-            title="Completion tokens"
-            namePrefix="completionCosts"
-            fields={completionCostFields}
-            control={control}
-            tokenTypeOptions={DEFAULT_TOKEN_COMPLETION_OPTIONS}
-            onAppend={appendCompletionCost}
-            onRemove={removeCompletionCost}
-            appendKind="COMPLETION"
-          />
+          {selectedModelType !== "EMBEDDING" && (
+            <ModelTokenCostControlTable
+              title="Output tokens"
+              namePrefix="completionCosts"
+              fields={completionCostFields}
+              control={control}
+              getFieldState={getFieldState}
+              trigger={trigger}
+              tokenTypeOptions={tokenTypeOptions.completion}
+              onAppend={appendCompletionCost}
+              onRemove={removeCompletionCost}
+              appendKind="COMPLETION"
+            />
+          )}
         </Flex>
       </View>
 

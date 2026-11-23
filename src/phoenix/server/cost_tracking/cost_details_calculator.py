@@ -4,7 +4,11 @@ from typing import Any, Iterable, Mapping, Optional
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
-from phoenix.server.cost_tracking.helpers import get_aggregated_tokens
+from phoenix.server.cost_tracking.helpers import (
+    get_aggregated_tokens,
+    parse_token_count,
+    reads_token_count_details,
+)
 from phoenix.server.cost_tracking.token_cost_calculator import (
     TokenCostCalculator,
     create_token_cost_calculator,
@@ -16,7 +20,8 @@ _TokenType: TypeAlias = str
 
 class SpanCostDetailsCalculator:
     """
-    Calculates detailed cost breakdowns for LLM spans based on token usage and pricing.
+    Calculates detailed cost breakdowns for LLM, DECISION and EMBEDDING spans based on token
+    usage and pricing.
 
     This calculator processes both detailed token counts (from span attributes) and
     aggregated token totals to provide comprehensive cost analysis for prompt and
@@ -85,9 +90,15 @@ class SpanCostDetailsCalculator:
            and calculates costs for each token type found. Uses fallback behavior for
            token types without specific calculators.
 
+           DECISION spans that report `decision.token_count.*` skip this phase: the decision
+           attributes have no detail keys, and `llm.token_count.*_details` on such a span
+           would not add up against the decision counts. EMBEDDING spans skip it too: they
+           are priced on their input token count alone.
+
         2. **Aggregated token processing**: For default token types ("input"/"output") that
            weren't found in detailed processing, calculates remaining tokens by subtracting
-           detailed counts from total aggregated tokens.
+           detailed counts from total aggregated tokens (see `get_aggregated_tokens` for
+           the attributes each span kind reads).
 
         **Fallback Calculation Logic:**
         - For each token type in detailed processing:
@@ -107,8 +118,8 @@ class SpanCostDetailsCalculator:
         Note:
             - Token counts are validated and converted to non-negative integers
             - All token types receive cost calculations via fallback mechanism
-            - Cost-per-token is calculated only when both cost and token count are positive
-            - If cost is 0.0, cost-per-token will be None (not 0.0) due to falsy evaluation
+            - Cost-per-token is cost / tokens when a price applies and tokens > 0 (0.0 for a
+              $0 rate), and None when no price applies or tokens is 0
         """
         prompt_details: dict[_TokenType, models.SpanCostDetail] = {}
         completion_details: dict[_TokenType, models.SpanCostDetail] = {}
@@ -118,17 +129,19 @@ class SpanCostDetailsCalculator:
 
         # Phase 1: Process detailed token counts from span attributes
         for is_prompt, prefix, calculators, results in (
-            (True, "prompt", self._prompt, prompt_details),
-            (False, "completion", self._completion, completion_details),
+            (
+                (True, "prompt", self._prompt, prompt_details),
+                (False, "completion", self._completion, completion_details),
+            )
+            if reads_token_count_details(attributes)
+            else ()
         ):
             # Extract detailed token counts from span attributes
             details = get_attribute_value(attributes, f"llm.token_count.{prefix}_details")
             if isinstance(details, dict) and details:
                 for token_type, token_count in details.items():
-                    # Validate token count is numeric
-                    if not isinstance(token_count, (int, float)):
+                    if (tokens := parse_token_count(token_count)) is None:
                         continue
-                    tokens = max(0, int(token_count))
 
                     # Calculate cost using specific calculator or fallback to default
                     calculator = None
@@ -141,7 +154,7 @@ class SpanCostDetailsCalculator:
 
                     cost = None
                     cost_per_token = None
-                    if calculator:
+                    if calculator is not None:
                         cost = calculator.calculate_cost(attributes, tokens)
                         cost_per_token = cost / tokens if tokens else None
 

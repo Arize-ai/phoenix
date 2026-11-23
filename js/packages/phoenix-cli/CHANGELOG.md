@@ -1,5 +1,131 @@
 # @arizeai/phoenix-cli
 
+## 1.24.1
+
+### Patch Changes
+
+- Updated dependencies [ea5a688]
+  - @arizeai/phoenix-client@8.0.3
+
+## 1.24.0
+
+### Minor Changes
+
+- 0b821b2: Add `px dataset-labels list`, `add`, `remove`, and `replace` commands to manage existing label assignments by dataset name or GlobalID, including explicitly clearing all assignments.
+
+### Patch Changes
+
+- 4270bce: Limit PXI to two recommended models per provider: Claude Fable 5.2 and Opus 5.5, GPT-6.2 Sol and GPT-6.1 Terra, and Gemini 4 Carbon and Neon.
+- 02ed180: Remove Slack community links from the package README
+- Updated dependencies [02ed180]
+  - @arizeai/phoenix-client@8.0.2
+  - @arizeai/phoenix-config@0.5.2
+
+## 1.23.0
+
+### Minor Changes
+
+- 5160fd5: Add `px prompt tag <prompt-version-id> --tag <name> [--description <text>]` to create a prompt version tag or move an existing one. Omitting `--description` clears the tag's existing description.
+
+## 1.22.1
+
+### Patch Changes
+
+- @arizeai/phoenix-client@8.0.1
+
+## 1.22.0
+
+### Minor Changes
+
+- 80bac51: Move `@arizeai/phoenix-otel` to OpenTelemetry JS 3 (`@opentelemetry/sdk-trace` 3.x, `@opentelemetry/api` 1.10) so spans created by apps on OpenTelemetry JS 3 are recorded after `register()`. `register()` now returns the `@opentelemetry/sdk-trace` `TracerProvider` (still exported as the `NodeTracerProvider` type), which no longer has a `register()` method. Custom `spanProcessors` must come from `@opentelemetry/sdk-trace` and take an options object, e.g. `new BatchSpanProcessor({ exporter })`; `BatchSpanProcessor` and `SimpleSpanProcessor` are now re-exported from `@arizeai/phoenix-otel`. See the package's `MIGRATION.md`. A `tracerProvider` passed to `@arizeai/phoenix-client` `evaluateExperiment()` must now be an `@opentelemetry/sdk-trace` 3.x `TracerProvider`. `register()` no longer applies the `OTEL_TRACES_SAMPLER`, `OTEL_SPAN_*`, `OTEL_ATTRIBUTE_*`, or `OTEL_BSP_*` environment variables. Node.js 22.15 or newer is now required.
+
+### Patch Changes
+
+- Updated dependencies [80bac51]
+  - @arizeai/phoenix-client@8.0.0
+
+## 1.21.0
+
+### Minor Changes
+
+- 1e47750: Add `px dataset-versions list <dataset-identifier>` with cursor pagination, optional limits, and pretty, JSON, and raw output.
+
+## 1.20.1
+
+### Patch Changes
+
+- Updated dependencies [6e6e101]
+  - @arizeai/phoenix-client@7.18.2
+
+## 1.20.0
+
+### Minor Changes
+
+- 974be43: Add `px prompt-versions list <prompt-identifier>` with cursor pagination, optional limits, and pretty, JSON, and raw output. Show creation dates when supported by the server.
+
+## 1.19.2
+
+### Patch Changes
+
+- Updated dependencies [6a60c71]
+- Updated dependencies [491ae7a]
+  - @arizeai/phoenix-client@7.18.1
+
+## 1.19.1
+
+### Patch Changes
+
+- Updated dependencies [ead7dd8]
+  - @arizeai/phoenix-client@7.18.0
+
+## 1.19.0
+
+### Minor Changes
+
+- 9e7a797: Accept `DECISION` and `AGENT` as annotator kinds for span, document, trace, session and experiment run annotations. In `px`, `--annotator-kind` on `annotate` and the `*-annotations delete` commands accepts both. Phoenix servers that predate these kinds reject them.
+
+### Patch Changes
+
+- Updated dependencies [9e7a797]
+  - @arizeai/phoenix-client@7.17.0
+
+## 1.18.10
+
+### Patch Changes
+
+- Updated dependencies [86ab99c]
+  - @arizeai/phoenix-client@7.16.3
+
+## 1.18.9
+
+### Patch Changes
+
+- Updated dependencies [67cc379]
+  - @arizeai/phoenix-config@0.5.1
+  - @arizeai/phoenix-client@7.16.2
+
+## 1.18.8
+
+### Patch Changes
+
+- Updated dependencies [7b9f900]
+  - @arizeai/phoenix-client@7.16.1
+
+## 1.18.7
+
+### Patch Changes
+
+- Updated dependencies [f8ae2fc]
+  - @arizeai/phoenix-client@7.16.0
+
+## 1.18.6
+
+### Patch Changes
+
+- c72f77b: PXI slash-command hints now have a highlighted row: arrow keys move it (wrapping at either end), Tab completes it, and Enter runs it, so `/he` runs `/help`. A bare `/` lists every command, and `/help` is listed first so `/` + Enter is harmless.
+- Updated dependencies [5b37f12]
+  - @arizeai/phoenix-client@7.15.0
+
 ## 1.18.5
 
 ### Patch Changes

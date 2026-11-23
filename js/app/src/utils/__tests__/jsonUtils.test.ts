@@ -10,6 +10,7 @@ import {
   hasStringifiedJSON,
   isJSONObjectString,
   isPlainObject,
+  isWhitespaceOnlyReformat,
   jsonStringToFlatObject,
   safelyJSONStringify,
   safelyParseJSONObjectString,
@@ -1598,5 +1599,33 @@ describe("filterFlatJSONEntries", () => {
 
   it("returns nothing when nothing matches", () => {
     expect(filterFlatJSONEntries({ entries, query: "nope" })).toEqual([]);
+  });
+});
+
+describe("isWhitespaceOnlyReformat", () => {
+  it.each([
+    '{"text":"a  b","items":[null,false,0]}',
+    String.raw`{"quote":"a\" b","slash":"\\","newline":"a\nb"}`,
+    '  {"a": 1, "b": 2}  ',
+  ])("accepts whitespace-only formatting: %s", (original) => {
+    expect(
+      isWhitespaceOnlyReformat(
+        original,
+        JSON.stringify(JSON.parse(original), null, 2)
+      )
+    ).toBe(true);
+  });
+
+  it.each([
+    ['{"text":"a  b"}', '{"text":"a b"}'],
+    ['{"id":12345678901234567890}', '{"id":12345678901234567000}'],
+    ["1e999", "null"],
+    ['{"a":1,"a":2}', '{"a":2}'],
+    ["-0", "0"],
+    ["1.0", "1"],
+    [String.raw`{"text":"\u0061"}`, '{"text":"a"}'],
+    ['{"2":"second","1":"first"}', '{"1":"first","2":"second"}'],
+  ])("rejects content changes from %s to %s", (original, formatted) => {
+    expect(isWhitespaceOnlyReformat(original, formatted)).toBe(false);
   });
 });

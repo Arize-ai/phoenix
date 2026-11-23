@@ -10,13 +10,20 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Optional, Sequence, TypeAlias, TypeVar
 
 import openinference.instrumentation as oi
-from jsonpath_ng import parse as parse_jsonpath
+from jsonpath_ng.parser import JsonPathParser
 from jsonschema import ValidationError, validate
 from openinference.semconv.trace import (
     MessageAttributes,
 )
 from opentelemetry.context import Context
-from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer, format_trace_id
+from opentelemetry.trace import (
+    NoOpTracer,
+    Status,
+    StatusCode,
+    Tracer,
+    format_trace_id,
+    get_current_span,
+)
 from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -37,9 +44,15 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.prompts import (
+    PromptAnthropicInvocationParameters,
+    PromptAnthropicThinkingConfigEnabled,
     PromptChatTemplate,
     PromptInvocationParameters,
     PromptTemplateFormat,
+    PromptToolChoiceOneOrMore,
+    PromptToolChoiceSpecificFunctionTool,
+    PromptToolChoiceZeroOrMore,
+    PromptToolFunction,
     PromptTools,
     RoleConversion,
     TextContentPart,
@@ -67,6 +80,7 @@ from phoenix.server.sandbox import (  # noqa: E402
     SecretsContext,
     build_sandbox_backend,
 )
+from phoenix.server.sandbox.cancellation import run_cancel_once
 from phoenix.server.sandbox.result_protocol import (
     PHOENIX_RESULT_BEGIN,
     PHOENIX_RESULT_END,
@@ -204,6 +218,48 @@ class BaseEvaluator(ABC):
                    and retrieving any recorded spans after evaluation.
         """
         ...
+
+
+def _enables_extended_thinking(invocation_parameters: PromptInvocationParameters) -> bool:
+    """Checks whether Anthropic extended thinking is on, which rules out a forced tool choice.
+
+    Adaptive thinking allows a forced tool choice. A `thinking` key in `extra_body`
+    wins because the client merges `extra_body` into the request last.
+    """
+    if not isinstance(invocation_parameters, PromptAnthropicInvocationParameters):
+        return False
+    anthropic_params = invocation_parameters.anthropic
+    extra_body = anthropic_params.extra_body
+    if isinstance(extra_body, dict) and "thinking" in extra_body:
+        thinking = extra_body["thinking"]
+        return isinstance(thinking, dict) and thinking.get("type") == "enabled"
+    return isinstance(anthropic_params.thinking, PromptAnthropicThinkingConfigEnabled)
+
+
+def _request_tool_call_in_prompt(
+    tools: PromptTools,
+    messages: list[PlaygroundMessage],
+) -> tuple[PromptTools, list[PlaygroundMessage]]:
+    """Replaces a forced tool choice with `zero_or_more` and a system message naming the tools."""
+    tool_choice = tools.tool_choice
+    if isinstance(tool_choice, PromptToolChoiceSpecificFunctionTool):
+        tool_names = [tool_choice.function_name]
+    elif isinstance(tool_choice, PromptToolChoiceOneOrMore):
+        tool_names = [
+            tool.function.name for tool in tools.tools if isinstance(tool, PromptToolFunction)
+        ]
+    else:
+        return tools, messages
+    quoted_names = ", ".join(f"`{tool_name}`" for tool_name in tool_names)
+    instruction = (
+        f"Respond by calling the {quoted_names} tool."
+        if len(tool_names) == 1
+        else f"Respond by calling each of these tools: {quoted_names}."
+    )
+    return (
+        tools.model_copy(update={"tool_choice": PromptToolChoiceZeroOrMore(type="zero_or_more")}),
+        [*messages, create_playground_message(ChatCompletionMessageRole.SYSTEM, instruction)],
+    )
 
 
 class LLMEvaluator(BaseEvaluator):
@@ -397,11 +453,19 @@ class LLMEvaluator(BaseEvaluator):
                     )
                     prompt_span.set_status(Status(StatusCode.OK))
 
+                tools = self._tools
+                forced_tool_choice_allowed = (
+                    self._llm_client.supports_forced_tool_choice
+                    and not _enables_extended_thinking(self._invocation_parameters)
+                )
+                if not forced_tool_choice_allowed:
+                    tools, messages = _request_tool_call_in_prompt(tools, messages)
+
                 tool_call_by_id: dict[ToolCallId, ToolCall] = {}
 
                 async for chunk in self._llm_client.chat_completion_create(
                     messages=messages,
-                    tools=self._tools,
+                    tools=tools,
                     tracer=tracer_,
                     invocation_parameters=self._invocation_parameters,
                     stream_model_output=False,
@@ -1005,12 +1069,19 @@ def apply_input_mapping(
     input_mapping: InputMapping,
     context: dict[str, Any],
 ) -> dict[str, Any]:
+    declared_keys = input_schema.get("properties") or {}
+    accepts_any_key = not declared_keys or input_schema.get("additionalProperties") is True
+    ignored_keys: list[str] = []
     result: dict[str, Any] = {}
     # apply path mappings
     if input_mapping.path_mapping:
         for key, path_expr in input_mapping.path_mapping.items():
+            if not accepts_any_key and key not in declared_keys:
+                ignored_keys.append(key)
+                continue
             try:
-                jsonpath = parse_jsonpath(path_expr)
+                parser = JsonPathParser()
+                jsonpath = parser.parse(path_expr)
             except Exception as e:
                 raise ValueError(f"Invalid JSONPath expression '{path_expr}' for key '{key}': {e}")
             matches = jsonpath.find(context)
@@ -1027,11 +1098,17 @@ def apply_input_mapping(
     # literal mappings take priority over path mappings
     if input_mapping.literal_mapping:
         for key, value in input_mapping.literal_mapping.items():
+            if not accepts_any_key and key not in declared_keys:
+                ignored_keys.append(key)
+                continue
             result[key] = value
+
+    if ignored_keys:
+        get_current_span().set_attribute("input_mapping.ignored_keys", sorted(set(ignored_keys)))
 
     # for any key in the input schema that is still not in result,
     # set result[input_schema_key] to context[input_schema_key]
-    for key in input_schema.get("properties", {}).keys():
+    for key in declared_keys:
         if key not in result and key in context:
             result[key] = context[key]
 
@@ -2773,11 +2850,13 @@ class CodeEvaluatorRunner(BaseEvaluator):
                         # Ephemeral path: backend.execute owns the sandbox
                         # lifecycle (created and torn down inside the call).
                         execution = await asyncio.wait_for(
-                            self._sandbox_backend.execute_with_inputs(
-                                code,
-                                session_key=session_key,
-                                inputs={"_inputs": mapped_inputs},
-                                timeout=self._timeout,
+                            run_cancel_once(
+                                self._sandbox_backend.execute_with_inputs(
+                                    code,
+                                    session_key=session_key,
+                                    inputs={"_inputs": mapped_inputs},
+                                    timeout=self._timeout,
+                                )
                             ),
                             timeout=self._timeout,
                         )
@@ -2802,7 +2881,7 @@ class CodeEvaluatorRunner(BaseEvaluator):
                                     return await session.execute(code, timeout=self._timeout)
 
                         execution = await asyncio.wait_for(
-                            _managed_execute(), timeout=self._timeout
+                            run_cancel_once(_managed_execute()), timeout=self._timeout
                         )
                 except SessionLimitExceeded as exc:
                     err = SessionLimitExceeded.MESSAGE

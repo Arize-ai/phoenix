@@ -61,6 +61,15 @@ export function useViewerCanManageRetentionPolicy() {
 }
 
 /**
+ * Returns true if the viewer can see sandbox settings. Members can view
+ * sandbox providers and configs (and select them for evaluators) even though
+ * only admins can modify them.
+ */
+export function useViewerCanViewSandboxes() {
+  return useViewerCanModify();
+}
+
+/**
  * Returns true if the viewer can manage sandboxes
  */
 export function useViewerCanManageSandboxes() {

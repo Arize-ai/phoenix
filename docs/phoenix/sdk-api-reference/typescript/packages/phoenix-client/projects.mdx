@@ -1,16 +1,21 @@
 ---
 title: "Projects"
-description: "List projects and manage project retention-policy assignments"
+description: "List projects and manage project retention-policy and annotation-config assignments"
 ---
 
-The projects module lists Phoenix projects and assigns existing trace retention policies to them.
+The projects module lists Phoenix projects, assigns existing trace retention policies to them, and manages which annotation configs they use.
 
 <section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
   <h2>Relevant Source Files</h2>
   <ul>
     <li><code>src/projects/getProjects.ts</code></li>
     <li><code>src/projects/setProjectRetentionPolicy.ts</code></li>
+    <li><code>src/projects/listProjectAnnotationConfigs.ts</code></li>
+    <li><code>src/projects/assignProjectAnnotationConfig.ts</code></li>
+    <li><code>src/projects/unassignProjectAnnotationConfig.ts</code></li>
+    <li><code>src/projects/setProjectAnnotationConfigs.ts</code></li>
     <li><code>src/types/projects.ts</code></li>
+    <li><code>src/types/annotationConfigs.ts</code></li>
   </ul>
 </section>
 
@@ -60,12 +65,60 @@ await setProjectRetentionPolicy({
 
 Assigning or resetting a retention policy requires an admin when authentication is enabled. Invalid policy GlobalIDs produce a `422` response, while callers without permission receive `403`; both are surfaced as `HttpError` instances by the client.
 
+## Assign Annotation Configs
+
+Annotation configs define the annotations that can be recorded on a project's traces, spans, and sessions. These helpers change which existing configs a project uses. They don't create, update, or delete the configs themselves. All four require Phoenix server 17.16.0 or later.
+
+```ts
+import {
+  assignProjectAnnotationConfig,
+  listProjectAnnotationConfigs,
+  setProjectAnnotationConfigs,
+  unassignProjectAnnotationConfig,
+} from "@arizeai/phoenix-client/projects";
+
+// Assign a config by name or GlobalID. Assigning an already-assigned config is a no-op.
+const correctness = await assignProjectAnnotationConfig({
+  projectName: "support-bot",
+  configName: "correctness",
+});
+
+// Unassign a config. Unassigning a config that isn't assigned is a no-op.
+await unassignProjectAnnotationConfig({
+  projectName: "support-bot",
+  configId: correctness.id,
+});
+
+// List every assigned config (pagination is handled automatically)
+const configs = await listProjectAnnotationConfigs({ projectName: "support-bot" });
+
+// Replace the whole set, keeping only categorical configs; configs not listed are unassigned
+await setProjectAnnotationConfigs({
+  projectName: "support-bot",
+  configIds: configs
+    .filter((config) => config.type === "CATEGORICAL")
+    .map((config) => config.id),
+});
+
+// Clear every assignment
+await setProjectAnnotationConfigs({ projectName: "support-bot", configIds: [] });
+```
+
+Select the config with exactly one of `configName`, `configId`, or the shorthand `config`, which accepts either. Use `configId` if a config name contains `/`, because the server can't route it in the URL path.
+
+`setProjectAnnotationConfigs` takes config GlobalIDs only, because the server doesn't accept names for this operation. Unknown or invalid config IDs produce a `422` response, and a missing project produces a `404`. The single-config helpers return a `404` when the project or the config is missing. The client surfaces all of these as `HttpError` instances.
+
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">
   <h2>Source Map</h2>
   <ul>
     <li><code>src/projects/getProjects.ts</code></li>
     <li><code>src/projects/setProjectRetentionPolicy.ts</code></li>
+    <li><code>src/projects/listProjectAnnotationConfigs.ts</code></li>
+    <li><code>src/projects/assignProjectAnnotationConfig.ts</code></li>
+    <li><code>src/projects/unassignProjectAnnotationConfig.ts</code></li>
+    <li><code>src/projects/setProjectAnnotationConfigs.ts</code></li>
     <li><code>src/projects/index.ts</code></li>
     <li><code>src/types/projects.ts</code></li>
+    <li><code>src/types/annotationConfigs.ts</code></li>
   </ul>
 </section>

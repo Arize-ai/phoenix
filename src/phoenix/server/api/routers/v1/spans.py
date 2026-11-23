@@ -63,6 +63,7 @@ from .utils import (
     ResponseBody,
     add_errors_to_responses,
     get_project_by_identifier,
+    is_not_at_capacity,
 )
 
 DEFAULT_SPAN_LIMIT = 1000
@@ -1032,7 +1033,7 @@ async def span_search(
         default=None,
         description=(
             "Filter by span kind(s). Values: LLM, CHAIN, TOOL, RETRIEVER, "
-            "EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, UNKNOWN"
+            "EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, DECISION, UNKNOWN"
         ),
     ),
     status_code: Optional[list[str]] = Query(
@@ -1261,7 +1262,7 @@ async def annotate_spans(
                 status_code=404,
             )
         inserted_ids = []
-        dialect = SupportedSQLDialect(session.bind.dialect.name)
+        dialect = SupportedSQLDialect(session.get_bind().dialect.name)
         for p in precursors:
             values = dict(as_kv(p.as_insertable(existing_spans[p.span_id]).row))
             span_annotation_id = await session.scalar(
@@ -1383,7 +1384,7 @@ async def create_span_note(
         }
 
         if note_data.identifier:
-            dialect = SupportedSQLDialect(session.bind.dialect.name)
+            dialect = SupportedSQLDialect(session.get_bind().dialect.name)
             result = await session.execute(
                 insert_on_conflict(
                     values,
@@ -1419,14 +1420,16 @@ class CreateSpansResponseBody(V1RoutesBaseModel):
 
 @router.post(
     "/projects/{project_identifier}/spans",
-    dependencies=[Depends(is_not_locked)],
+    dependencies=[Depends(is_not_locked), Depends(is_not_at_capacity)],
     operation_id="createSpans",
     summary="Create spans",
     description=(
         "Submit spans to be inserted into a project. If any spans are invalid or "
         "duplicates, no spans will be inserted."
     ),
-    responses=add_errors_to_responses([404, 400]),
+    responses=add_errors_to_responses(
+        [404, 400, {"status_code": 503, "description": "Span ingestion queue is at capacity"}]
+    ),
     status_code=202,
 )
 async def create_spans(

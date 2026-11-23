@@ -25,7 +25,9 @@ export const toAnthropic = <PromptVariables extends Variables = Variables>({
   variables,
 }: ToAnthropicParams<PromptVariables>): MessageCreateParams | null => {
   try {
-    let invocationParameters: { max_tokens: number } | undefined;
+    let invocationParameters:
+      | { max_tokens: number; extra_body?: Record<string, unknown> }
+      | undefined;
     if (prompt.invocation_parameters.type === "anthropic") {
       invocationParameters = prompt.invocation_parameters.anthropic;
     } else {
@@ -35,10 +37,12 @@ export const toAnthropic = <PromptVariables extends Variables = Variables>({
       );
       invocationParameters = { max_tokens: 1024 };
     }
+    const { extra_body: extraBody, ...anthropicInvocationParameters } =
+      invocationParameters;
     // parts of the prompt that can be directly converted to Anthropic params
     const baseCompletionParams = {
       model: prompt.model_name,
-      ...invocationParameters,
+      ...anthropicInvocationParameters,
     } satisfies Partial<MessageCreateParams>;
 
     if (!("messages" in prompt.template)) {
@@ -55,13 +59,26 @@ export const toAnthropic = <PromptVariables extends Variables = Variables>({
       );
     }
 
-    const messages = formattedMessages.map((message) => {
+    const systemMessages: string[] = [];
+    const messages = formattedMessages.flatMap((message) => {
+      if (message.role === "system" || message.role === "developer") {
+        if (typeof message.content === "string") {
+          systemMessages.push(message.content);
+        } else {
+          for (const part of message.content) {
+            if (part.type === "text") {
+              systemMessages.push(part.text);
+            }
+          }
+        }
+        return [];
+      }
       const anthropicMessage = safelyConvertMessageToProvider({
         message,
         targetProvider: "ANTHROPIC",
       });
       invariant(anthropicMessage, "Message is not valid");
-      return anthropicMessage;
+      return [anthropicMessage];
     });
 
     const toolsList = prompt.tools?.tools ?? [];
@@ -94,9 +111,18 @@ export const toAnthropic = <PromptVariables extends Variables = Variables>({
     // combine base and computed params
     const completionParams = {
       ...baseCompletionParams,
+      ...(systemMessages.length > 0 && {
+        system:
+          systemMessages.length === 1
+            ? systemMessages[0]
+            : systemMessages
+                .filter((text) => text.length > 0)
+                .map((text) => ({ type: "text" as const, text })),
+      }),
       messages,
       tools,
       tool_choice,
+      ...extraBody,
     } satisfies Partial<MessageCreateParams>;
 
     return completionParams;

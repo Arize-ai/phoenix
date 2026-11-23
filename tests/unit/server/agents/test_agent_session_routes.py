@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-import httpx
+import httpx2
 from strawberry.relay import GlobalID
 
 from phoenix.config import EPHEMERAL_AGENT_SESSION_TIME_TO_LIVE_HOURS
@@ -44,7 +44,7 @@ async def _insert_agent_session(
 class TestListAgentSessions:
     async def test_lists_persisted_sessions_in_recent_order(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         now = datetime.now(timezone.utc)
@@ -84,7 +84,7 @@ class TestListAgentSessions:
 
     async def test_paginates_by_updated_at_and_id(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         now = datetime.now(timezone.utc)
@@ -113,7 +113,7 @@ class TestListAgentSessions:
         ]
         assert second_response.json()["next_cursor"] is None
 
-    async def test_rejects_invalid_cursor(self, httpx_client: httpx.AsyncClient) -> None:
+    async def test_rejects_invalid_cursor(self, httpx_client: httpx2.AsyncClient) -> None:
         response = await httpx_client.get("/v1/agent_sessions?cursor=invalid")
         assert response.status_code == 422
 
@@ -121,7 +121,7 @@ class TestListAgentSessions:
 class TestGetAgentSession:
     async def test_gets_session_metadata_with_transcript_tail(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         now = datetime.now(timezone.utc)
@@ -163,7 +163,7 @@ class TestGetAgentSession:
 
     async def test_reports_null_tail_for_empty_transcript(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         now = datetime.now(timezone.utc)
@@ -179,7 +179,7 @@ class TestGetAgentSession:
 
     async def test_gets_temporary_session(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         now = datetime.now(timezone.utc)
@@ -198,7 +198,7 @@ class TestGetAgentSession:
 
     async def test_serves_an_ephemeral_session_the_sweeper_has_not_reached_yet(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         """Past the TTL but not yet swept, the session is still readable.
@@ -222,7 +222,7 @@ class TestGetAgentSession:
         assert response.status_code == 200
         assert response.json()["data"]["is_ephemeral"] is True
 
-    async def test_rejects_invalid_id(self, httpx_client: httpx.AsyncClient) -> None:
+    async def test_rejects_invalid_id(self, httpx_client: httpx2.AsyncClient) -> None:
         response = await httpx_client.get("/v1/agent_sessions/invalid")
         assert response.status_code == 404
 
@@ -230,7 +230,7 @@ class TestGetAgentSession:
 class TestListAgentSessionMessages:
     async def test_returns_the_ordered_transcript(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         agent_session = await _insert_agent_session(
@@ -266,7 +266,7 @@ class TestListAgentSessionMessages:
 
     async def test_paginates_the_transcript_by_message_order(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         message_ids = [_message_uuid(f"message-{index}") for index in range(3)]
@@ -306,7 +306,7 @@ class TestListAgentSessionMessages:
 
     async def test_returns_empty_transcript(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         agent_session = await _insert_agent_session(
@@ -319,13 +319,13 @@ class TestListAgentSessionMessages:
         assert response.status_code == 200
         assert response.json() == {"data": [], "next_cursor": None}
 
-    async def test_rejects_invalid_session_id(self, httpx_client: httpx.AsyncClient) -> None:
+    async def test_rejects_invalid_session_id(self, httpx_client: httpx2.AsyncClient) -> None:
         response = await httpx_client.get("/v1/agent_sessions/invalid/messages")
         assert response.status_code == 404
 
     async def test_rejects_invalid_cursor(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         agent_session = await _insert_agent_session(
@@ -342,7 +342,7 @@ class TestListAgentSessionMessages:
 
     async def test_returns_not_found_for_nonexistent_session(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         session_id = str(GlobalID("AgentSession", "1000000"))
 

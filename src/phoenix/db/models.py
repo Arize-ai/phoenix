@@ -1,6 +1,6 @@
 import re
 from datetime import datetime, timezone
-from typing import Any, Iterable, Literal, Optional, Sequence, TypedDict, cast
+from typing import Any, Iterable, Literal, Optional, Sequence, TypedDict, cast, get_args
 
 import orjson
 import sqlalchemy as sa
@@ -96,6 +96,7 @@ from phoenix.trace.attributes import get_attribute_value
 
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE.split(".")
 INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")
+LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME.split(".")
 LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL.split(".")
 LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT.split(".")
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION.split(".")
@@ -177,9 +178,12 @@ UserRoleName: TypeAlias = Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
 AuthMethod: TypeAlias = Literal["LOCAL", "OAUTH2", "LDAP"]
 EvaluatorKind: TypeAlias = Literal["LLM", "CODE", "BUILTIN"]
 SandboxBackendType: TypeAlias = Literal[
-    "WASM", "E2B", "DAYTONA", "VERCEL", "DENO", "MODAL", "MONTY"
+    "WASM", "E2B", "DAYTONA", "VERCEL", "DENO", "MODAL", "MONTY", "DOCKER"
 ]
 LanguageName: TypeAlias = Literal["PYTHON", "TYPESCRIPT"]
+# The kind of span a generative model prices, named after the OpenInference span kinds.
+GenerativeModelType: TypeAlias = Literal["LLM", "DECISION", "EMBEDDING"]
+_GENERATIVE_MODEL_TYPES_SQL = ", ".join(f"'{t}'" for t in get_args(GenerativeModelType))
 GenerativeModelSDK: TypeAlias = Literal[
     "openai",
     "azure_openai",
@@ -786,10 +790,12 @@ class ProjectSession(HasId):
     )
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
+    # Deleting a session deletes its traces (ON DELETE CASCADE) rather than detaching them.
     traces: Mapped[list["Trace"]] = relationship(
         "Trace",
         back_populates="project_session",
         uselist=True,
+        passive_deletes="all",
     )
     __table_args__ = (
         Index(
@@ -977,6 +983,15 @@ class Span(HasId):
         return cls.attributes[USER_ID]
 
     @hybrid_property
+    def llm_model_name(self) -> Any:
+        return get_attribute_value(self.attributes, LLM_MODEL_NAME)
+
+    @llm_model_name.inplace.expression
+    @classmethod
+    def _llm_model_name_expression(cls) -> ColumnElement[Any]:
+        return cls.attributes[LLM_MODEL_NAME]
+
+    @hybrid_property
     def metadata_(self) -> Any:
         return get_attribute_value(self.attributes, METADATA)
 
@@ -1020,19 +1035,21 @@ class Span(HasId):
         )
 
     trace: Mapped["Trace"] = relationship("Trace", back_populates="spans")
-    span_annotations: Mapped[list["SpanAnnotation"]] = relationship(back_populates="span")
-    document_annotations: Mapped[list["DocumentAnnotation"]] = relationship(back_populates="span")
+    span_annotations: Mapped[list["SpanAnnotation"]] = relationship(
+        back_populates="span", passive_deletes="all"
+    )
+    document_annotations: Mapped[list["DocumentAnnotation"]] = relationship(
+        back_populates="span", passive_deletes="all"
+    )
     dataset_examples: Mapped[list["DatasetExample"]] = relationship(back_populates="span")
-    span_cost: Mapped[Optional["SpanCost"]] = relationship(back_populates="span")
+    span_cost: Mapped[Optional["SpanCost"]] = relationship(
+        back_populates="span", passive_deletes="all"
+    )
 
     __table_args__ = (
         UniqueConstraint(
             "span_id",
             sqlite_on_conflict="IGNORE",
-        ),
-        Index(
-            "ix_cumulative_llm_token_count_total",
-            text("(cumulative_llm_token_count_prompt + cumulative_llm_token_count_completion)"),
         ),
         Index(
             "ix_spans_session_id",
@@ -1282,8 +1299,11 @@ class SpanAnnotation(HasId):
     score: Mapped[Optional[float]]
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
-    annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
-        CheckConstraint("annotator_kind IN ('LLM', 'CODE', 'HUMAN')", name="valid_annotator_kind"),
+    annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = mapped_column(
+        CheckConstraint(
+            "annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION', 'AGENT')",
+            name="valid_annotator_kind",
+        ),
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -1324,8 +1344,11 @@ class TraceAnnotation(HasId):
     score: Mapped[Optional[float]]
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
-    annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
-        CheckConstraint("annotator_kind IN ('LLM', 'CODE', 'HUMAN')", name="valid_annotator_kind"),
+    annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = mapped_column(
+        CheckConstraint(
+            "annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION', 'AGENT')",
+            name="valid_annotator_kind",
+        ),
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -1364,8 +1387,11 @@ class DocumentAnnotation(HasId):
     score: Mapped[Optional[float]]
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
-    annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
-        CheckConstraint("annotator_kind IN ('LLM', 'CODE', 'HUMAN')", name="valid_annotator_kind"),
+    annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = mapped_column(
+        CheckConstraint(
+            "annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION', 'AGENT')",
+            name="valid_annotator_kind",
+        ),
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -1407,8 +1433,11 @@ class ProjectSessionAnnotation(HasId):
     score: Mapped[Optional[float]]
     explanation: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
-    annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
-        CheckConstraint("annotator_kind IN ('LLM', 'CODE', 'HUMAN')", name="valid_annotator_kind"),
+    annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = mapped_column(
+        CheckConstraint(
+            "annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION', 'AGENT')",
+            name="valid_annotator_kind",
+        ),
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -1449,10 +1478,10 @@ class Dataset(HasId):
     )
     user: Mapped[Optional["User"]] = relationship("User")
     experiment_tags: Mapped[list["ExperimentTag"]] = relationship(
-        "ExperimentTag", back_populates="dataset"
+        "ExperimentTag", back_populates="dataset", passive_deletes="all"
     )
     datasets_dataset_labels: Mapped[list["DatasetsDatasetLabel"]] = relationship(
-        "DatasetsDatasetLabel", back_populates="dataset"
+        "DatasetsDatasetLabel", back_populates="dataset", passive_deletes="all"
     )
     dataset_evaluators: Mapped[list["DatasetEvaluators"]] = relationship(
         "DatasetEvaluators", back_populates="dataset", cascade="all, delete-orphan", uselist=True
@@ -1513,7 +1542,7 @@ class DatasetLabel(HasId):
     description: Mapped[Optional[str]]
     color: Mapped[str] = mapped_column(_HexColor, nullable=False)
     datasets_dataset_labels: Mapped[list["DatasetsDatasetLabel"]] = relationship(
-        "DatasetsDatasetLabel", back_populates="dataset_label"
+        "DatasetsDatasetLabel", back_populates="dataset_label", passive_deletes="all"
     )
     user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
@@ -1585,10 +1614,12 @@ class DatasetExample(HasId):
     dataset_splits_dataset_examples: Mapped[list["DatasetSplitDatasetExample"]] = relationship(
         "DatasetSplitDatasetExample",
         back_populates="dataset_example",
+        passive_deletes="all",
     )
     experiment_dataset_examples: Mapped[list["ExperimentDatasetExample"]] = relationship(
         "ExperimentDatasetExample",
         back_populates="dataset_example",
+        passive_deletes="all",
     )
 
     __table_args__ = (UniqueConstraint("dataset_id", "external_id"),)
@@ -1618,6 +1649,7 @@ class DatasetExampleRevision(HasId):
     experiment_dataset_examples: Mapped[list["ExperimentDatasetExample"]] = relationship(
         "ExperimentDatasetExample",
         back_populates="dataset_example_revision",
+        passive_deletes="all",
     )
 
     __table_args__ = (
@@ -1647,10 +1679,12 @@ class DatasetSplit(HasId):
     dataset_splits_dataset_examples: Mapped[list["DatasetSplitDatasetExample"]] = relationship(
         "DatasetSplitDatasetExample",
         back_populates="dataset_split",
+        passive_deletes="all",
     )
     experiment_dataset_splits: Mapped[list["ExperimentDatasetSplit"]] = relationship(
         "ExperimentDatasetSplit",
         back_populates="dataset_split",
+        passive_deletes="all",
     )
 
 
@@ -1707,13 +1741,15 @@ class Experiment(HasId):
     experiment_dataset_splits: Mapped[list["ExperimentDatasetSplit"]] = relationship(
         "ExperimentDatasetSplit",
         back_populates="experiment",
+        passive_deletes="all",
     )
     experiment_dataset_examples: Mapped[list["ExperimentDatasetExample"]] = relationship(
         "ExperimentDatasetExample",
         back_populates="experiment",
+        passive_deletes="all",
     )
     experiment_tags: Mapped[list["ExperimentTag"]] = relationship(
-        "ExperimentTag", back_populates="experiment"
+        "ExperimentTag", back_populates="experiment", passive_deletes="all"
     )
     __table_args__ = (
         Index(
@@ -1810,7 +1846,7 @@ class ExperimentRun(HasId):
         back_populates="experiment_runs",
     )
     annotations: Mapped[list["ExperimentRunAnnotation"]] = relationship(
-        back_populates="experiment_run"
+        back_populates="experiment_run", passive_deletes="all"
     )
 
     __table_args__ = (
@@ -1828,8 +1864,11 @@ class ExperimentRunAnnotation(HasId):
         ForeignKey("experiment_runs.id", ondelete="CASCADE"),
     )
     name: Mapped[str]
-    annotator_kind: Mapped[str] = mapped_column(
-        CheckConstraint("annotator_kind IN ('LLM', 'CODE', 'HUMAN')", name="valid_annotator_kind"),
+    annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]] = mapped_column(
+        CheckConstraint(
+            "annotator_kind IN ('LLM', 'CODE', 'HUMAN', 'DECISION', 'AGENT')",
+            name="valid_annotator_kind",
+        ),
     )
     label: Mapped[Optional[str]]
     score: Mapped[Optional[float]]
@@ -1891,6 +1930,7 @@ class ExperimentJob(HasId):
 
     dataset_evaluator_links: Mapped[list["ExperimentDatasetEvaluator"]] = relationship(
         back_populates="execution_config",
+        passive_deletes="all",
     )
 
     # Experiment lifecycle status
@@ -1918,7 +1958,7 @@ class ExperimentJob(HasId):
     experiment: Mapped["Experiment"] = relationship("Experiment")
     logs: WriteOnlyMapped[list["ExperimentLog"]] = relationship(
         back_populates="execution_config",
-        passive_deletes=True,
+        passive_deletes="all",
     )
 
     __mapper_args__ = {
@@ -2169,6 +2209,8 @@ class ExperimentJobLog(ExperimentLog):
 class UserRole(HasId):
     __tablename__ = "user_roles"
     name: Mapped[UserRoleName] = mapped_column(unique=True, index=True)
+    # Left at the ORM default on purpose: users.user_role_id is ON DELETE CASCADE, so deferring
+    # to the database would delete every user in a deleted role.
     users: Mapped[list["User"]] = relationship("User", back_populates="role")
 
 
@@ -2201,12 +2243,17 @@ class User(HasId):
         "PasswordResetToken",
         back_populates="user",
         uselist=False,
+        passive_deletes="all",
     )
-    access_tokens: Mapped[list["AccessToken"]] = relationship("AccessToken", back_populates="user")
+    access_tokens: Mapped[list["AccessToken"]] = relationship(
+        "AccessToken", back_populates="user", passive_deletes="all"
+    )
     refresh_tokens: Mapped[list["RefreshToken"]] = relationship(
-        "RefreshToken", back_populates="user"
+        "RefreshToken", back_populates="user", passive_deletes="all"
     )
-    api_keys: Mapped[list["ApiKey"]] = relationship("ApiKey", back_populates="user")
+    api_keys: Mapped[list["ApiKey"]] = relationship(
+        "ApiKey", back_populates="user", passive_deletes="all"
+    )
 
     __mapper_args__ = {
         "polymorphic_on": "auth_method",
@@ -2276,6 +2323,18 @@ class User(HasId):
     )
 
 
+class DeploymentSecret(HasId):
+    """Immutable singleton seed for deployment keys.
+
+    Deleting this row invalidates derived keys. Never expose the seed in logs,
+    API responses, or telemetry.
+    """
+
+    __tablename__ = "deployment_secret"
+    seed: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    __table_args__ = (CheckConstraint("id = 1", name="singleton"),)
+
+
 class SystemSetting(Base):
     """Server-wide key/value settings (JSON object per key)."""
 
@@ -2293,6 +2352,15 @@ class SystemSetting(Base):
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
+
+
+class SystemState(Base):
+    """Server-wide key/value state (any JSON value per key)."""
+
+    __tablename__ = "system_state"
+
+    key: Mapped[str] = mapped_column(primary_key=True)
+    value: Mapped[Any] = mapped_column(JSON_, nullable=False)
 
 
 class LocalUser(User):
@@ -2396,6 +2464,7 @@ class PasswordResetToken(HasId):
     user: Mapped["User"] = relationship("User", back_populates="password_reset_token")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     expires_at: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False, index=True)
+    token_hash: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
 
@@ -2463,8 +2532,9 @@ class OAuth2Grant(HasId):
     expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
     last_used_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
     revoked_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
+    # Deleting a grant deletes its refresh tokens, and through them their access tokens.
     refresh_tokens: Mapped[list["RefreshToken"]] = relationship(
-        "RefreshToken", back_populates="oauth2_grant"
+        "RefreshToken", back_populates="oauth2_grant", passive_deletes="all"
     )
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
@@ -2525,6 +2595,7 @@ class RefreshToken(HasId):
     # recognizable as a replay rather than an unknown token. A consumed row must never
     # authenticate: every read path filters on consumed_at IS NULL.
     consumed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
+    token_hash: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
 
@@ -2544,6 +2615,7 @@ class AccessToken(HasId):
     )
     scopes: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
     audience: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
+    token_hash: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
 
@@ -2560,6 +2632,7 @@ class ApiKey(HasId):
     expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True, index=True)
     scopes: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
     audience: Mapped[Optional[list[str]]] = mapped_column(JSON_, nullable=True)
+    token_hash: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
     __table_args__ = (dict(sqlite_autoincrement=True),)
 
 
@@ -2575,6 +2648,11 @@ class GenerativeModel(HasId):
     is_built_in: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
+    )
+    type: Mapped[GenerativeModelType] = mapped_column(
+        CheckConstraint(f"type IN ({_GENERATIVE_MODEL_TYPES_SQL})", name="valid_type"),
+        default="LLM",
+        server_default="LLM",
     )
     created_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp,
@@ -2598,6 +2676,7 @@ class GenerativeModel(HasId):
     __table_args__ = (
         Index(
             "ix_generative_models_match_criteria",
+            "type",
             "name_pattern",
             "provider",
             "is_built_in",
@@ -2609,11 +2688,19 @@ class GenerativeModel(HasId):
             "ix_generative_models_name_is_built_in",
             "name",
             "is_built_in",
+            "type",
             postgresql_where=sa.text("deleted_at IS NULL"),
             sqlite_where=sa.text("deleted_at IS NULL"),
             unique=True,
         ),
     )
+
+
+@event.listens_for(GenerativeModel, "init")
+def _default_generative_model_type(_: Any, __: Any, kwargs: dict[str, Any]) -> None:
+    """Column defaults apply only on insert; unsaved models (e.g. in a `CostModelLookup`)
+    need a type too."""
+    kwargs.setdefault("type", "LLM")
 
 
 class TokenPrice(HasId):
@@ -2691,10 +2778,12 @@ class Prompt(HasId):
         uselist=True,
     )
 
+    # Deleting a prompt an evaluator runs is refused by the database, not nulled by the ORM.
     llm_evaluators: Mapped[list["LLMEvaluator"]] = relationship(
         "LLMEvaluator",
         back_populates="prompt",
         uselist=True,
+        passive_deletes="all",
     )
 
 
@@ -2792,6 +2881,7 @@ class PromptVersion(HasId):
             and self.tools == other.tools
             and self.response_format == other.response_format
             and self.model_provider == other.model_provider
+            and self.custom_provider_id == other.custom_provider_id
             and self.model_name == other.model_name
             and self.metadata_ == other.metadata_
         )
@@ -2881,7 +2971,9 @@ class SpanCost(HasId):
 
     @hybrid_property
     def total_cost_per_token(self) -> Optional[float]:
-        return ((self.total_cost or 0) / self.total_tokens) if self.total_tokens else None
+        if self.total_cost is None or not self.total_tokens:
+            return None
+        return self.total_cost / self.total_tokens
 
     @total_cost_per_token.inplace.expression
     @classmethod
@@ -2898,7 +2990,9 @@ class SpanCost(HasId):
 
     @hybrid_property
     def prompt_cost_per_token(self) -> Optional[float]:
-        return ((self.prompt_cost or 0) / self.prompt_tokens) if self.prompt_tokens else None
+        if self.prompt_cost is None or not self.prompt_tokens:
+            return None
+        return self.prompt_cost / self.prompt_tokens
 
     @prompt_cost_per_token.inplace.expression
     @classmethod
@@ -2915,11 +3009,9 @@ class SpanCost(HasId):
 
     @hybrid_property
     def completion_cost_per_token(self) -> Optional[float]:
-        return (
-            ((self.completion_cost or 0) / self.completion_tokens)
-            if self.completion_tokens
-            else None
-        )
+        if self.completion_cost is None or not self.completion_tokens:
+            return None
+        return self.completion_cost / self.completion_tokens
 
     @completion_cost_per_token.inplace.expression
     @classmethod
@@ -2950,7 +3042,7 @@ class SpanCost(HasId):
 
     def append_detail(self, detail: "SpanCostDetail") -> None:
         self.span_cost_details.append(detail)
-        if cost := detail.cost:
+        if (cost := detail.cost) is not None:
             if detail.is_prompt:
                 self.prompt_cost = (self.prompt_cost or 0) + cost
             else:
@@ -3423,6 +3515,7 @@ class AgentSession(HasId):
         "AgentSessionSnapshot",
         back_populates="agent_session",
         uselist=False,
+        passive_deletes="all",
     )
     messages: Mapped[list["AgentSessionMessage"]] = relationship(
         "AgentSessionMessage",

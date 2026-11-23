@@ -8,6 +8,8 @@ import {
   useState,
 } from "react";
 
+import { THEME_STORAGE_KEY } from "@phoenix/constants/storageConstants";
+
 export type ProviderTheme = "light" | "dark";
 /**
  * The theme mode selected by the user.
@@ -32,14 +34,11 @@ export type ThemeContextType = {
   setThemeMode: (themeMode: ProviderThemeMode) => void;
 };
 
-export const LOCAL_STORAGE_THEME_KEY = "arize-phoenix-theme";
 const DEFAULT_THEME: ProviderTheme = "dark";
 const IS_DARK_SYSTEM_THEME_MEDIA_QUERY_STRING = "(prefers-color-scheme: dark)";
 
 export function getCurrentTheme(): ProviderTheme {
-  const themeModeFromLocalStorage = localStorage.getItem(
-    LOCAL_STORAGE_THEME_KEY
-  );
+  const themeModeFromLocalStorage = localStorage.getItem(THEME_STORAGE_KEY);
   switch (themeModeFromLocalStorage) {
     case "light":
       return "light";
@@ -53,9 +52,7 @@ export function getCurrentTheme(): ProviderTheme {
 }
 
 export function getCurrentThemeMode(): ProviderThemeMode {
-  const themeModeFromLocalStorage = localStorage.getItem(
-    LOCAL_STORAGE_THEME_KEY
-  );
+  const themeModeFromLocalStorage = localStorage.getItem(THEME_STORAGE_KEY);
   if (isProviderThemeMode(themeModeFromLocalStorage)) {
     return themeModeFromLocalStorage;
   }
@@ -96,7 +93,7 @@ export function ThemeProvider(
     () => props.themeMode || getCurrentThemeMode()
   );
   const setThemeMode = useCallback((themeMode: ProviderThemeMode) => {
-    localStorage.setItem(LOCAL_STORAGE_THEME_KEY, themeMode);
+    localStorage.setItem(THEME_STORAGE_KEY, themeMode);
     _setThemeMode(themeMode);
   }, []);
 

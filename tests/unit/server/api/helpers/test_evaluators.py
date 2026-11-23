@@ -6,6 +6,7 @@ from typing import Any, Callable, Optional
 
 import httpx2
 import pytest
+from anthropic import AsyncAnthropic
 from openai import AsyncOpenAI
 from openinference.semconv.trace import (
     MessageAttributes,
@@ -29,9 +30,15 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import (
     LLMClientFactory,
     ModelProvider,
+    anthropic_rate_limit_key,
     openai_rate_limit_key,
 )
 from phoenix.db.types.prompts import (
+    PromptAnthropicInvocationParameters,
+    PromptAnthropicInvocationParametersContent,
+    PromptAnthropicThinkingConfigAdaptive,
+    PromptAnthropicThinkingConfigDisabled,
+    PromptAnthropicThinkingConfigEnabled,
     PromptChatTemplate,
     PromptMessage,
     PromptOpenAIInvocationParameters,
@@ -53,6 +60,7 @@ from phoenix.db.types.prompts import (
 from phoenix.server.api.evaluators import (
     BuiltInEvaluator,
     LLMEvaluator,
+    _request_tool_call_in_prompt,
     apply_input_mapping,
     cast_template_variable_types,
     get_evaluators,
@@ -68,10 +76,14 @@ from phoenix.server.api.helpers.evaluators import (
     _LLMEvaluatorPromptErrorMessage,
     validate_evaluator_prompt_and_configs,
 )
-from phoenix.server.api.helpers.playground_clients import OpenAIChatCompletionsClient
+from phoenix.server.api.helpers.playground_clients import (
+    AnthropicClient,
+    OpenAIChatCompletionsClient,
+)
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
+from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
+from phoenix.server.cost_tracking.span_cost_calculator import SpanCostCalculator
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
-from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import flatten
@@ -822,6 +834,54 @@ class TestApplyInputMapping:
                 input_mapping=input_mapping.to_orm(),
                 context=context,
             )
+
+    def test_ignores_mapping_keys_not_declared_in_schema(self) -> None:
+        input_schema = {
+            "type": "object",
+            "properties": {"output": {"type": "string"}},
+            "required": ["output"],
+        }
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping=JSON({"output": "$.response", "removed": "$.nonexistent.path"}),
+            literal_mapping=JSON({"also_removed": "literal"}),
+        )
+        context = {"response": "Hello, world!"}
+        result = apply_input_mapping(
+            input_schema=input_schema,
+            input_mapping=input_mapping.to_orm(),
+            context=context,
+        )
+        assert result == {"output": "Hello, world!"}
+
+    @pytest.mark.parametrize(
+        "input_schema",
+        [
+            pytest.param({"type": "object"}, id="no-properties"),
+            pytest.param({"type": "object", "properties": {}}, id="empty-properties"),
+            pytest.param(
+                {
+                    "type": "object",
+                    "properties": {"output": {"type": "string"}},
+                    "additionalProperties": True,
+                },
+                id="additional-properties",
+            ),
+        ],
+    )
+    def test_schema_open_to_any_key_keeps_every_mapping_key(
+        self, input_schema: dict[str, Any]
+    ) -> None:
+        input_mapping = EvaluatorInputMappingInput(
+            path_mapping=JSON({"output": "$.response", "extra": "$.detail"}),
+            literal_mapping=JSON({"label": "literal"}),
+        )
+        context = {"response": "Hello, world!", "detail": "more"}
+        result = apply_input_mapping(
+            input_schema=input_schema,
+            input_mapping=input_mapping.to_orm(),
+            context=context,
+        )
+        assert result == {"output": "Hello, world!", "extra": "more", "label": "literal"}
 
     def test_with_empty_mappings_uses_context_fallback(self) -> None:
         input_schema = {
@@ -2303,10 +2363,9 @@ class TestLLMEvaluator:
     @pytest.fixture
     def span_cost_calculator(
         self,
-        db: DbSessionFactory,
         generative_model_store: GenerativeModelStore,
     ) -> SpanCostCalculator:
-        return SpanCostCalculator(db=db, model_store=generative_model_store)
+        return SpanCostCalculator(model_store=generative_model_store)
 
     @pytest.fixture
     def tracer(self, span_cost_calculator: SpanCostCalculator) -> Tracer:
@@ -3080,7 +3139,7 @@ class TestLLMEvaluator:
         error = result.pop("error")
         assert isinstance(error, str)
         assert "401" in error
-        assert "invalid_api_key" in error
+        assert "Incorrect API key provided" in error
         assert result.pop("label") is None
         assert result.pop("score") is None
         assert result.pop("explanation") is None
@@ -3183,7 +3242,7 @@ class TestLLMEvaluator:
         assert evaluator_span.name == "Evaluator: correctness"
         assert evaluator_span.status_code == "ERROR"
         assert "401" in evaluator_span.status_message
-        assert "invalid_api_key" in evaluator_span.status_message
+        assert "Incorrect API key provided" in evaluator_span.status_message
         assert len(evaluator_span.events) == 1
         exception_event = dict(evaluator_span.events[0])
         assert exception_event.pop("name") == "exception"
@@ -3192,7 +3251,7 @@ class TestLLMEvaluator:
         assert event_attributes.pop("exception.type") == "openai.AuthenticationError"
         exception_message = event_attributes.pop("exception.message")
         assert "401" in exception_message
-        assert "invalid_api_key" in exception_message
+        assert "Incorrect API key provided" in exception_message
         assert event_attributes.pop("exception.escaped") == "False"
         assert "Traceback" in event_attributes.pop("exception.stacktrace")
         assert not event_attributes
@@ -3214,7 +3273,7 @@ class TestLLMEvaluator:
         assert event_attributes.pop("exception.type") == "openai.AuthenticationError"
         exception_message = event_attributes.pop("exception.message")
         assert "401" in exception_message
-        assert "invalid_api_key" in exception_message
+        assert "Incorrect API key provided" in exception_message
         assert event_attributes.pop("exception.escaped") == "False"
         assert "Traceback" in event_attributes.pop("exception.stacktrace")
         assert not event_attributes
@@ -3617,6 +3676,323 @@ class TestLLMEvaluator:
         }
         assert attributes.pop(OUTPUT_MIME_TYPE) == "application/json"
         assert not attributes
+
+
+class TestLLMEvaluatorWithoutForcedToolChoice:
+    """Evaluators on models that reject forced tool use (#17480)."""
+
+    @pytest.fixture
+    def input_mapping(self) -> InputMapping:
+        return InputMapping(path_mapping={}, literal_mapping={})
+
+    @staticmethod
+    def _tools(tool_choice: Any) -> PromptTools:
+        return PromptTools(
+            type="tools",
+            tools=[
+                PromptToolFunction(
+                    type="function",
+                    function=PromptToolFunctionDefinition(
+                        name="correctness",
+                        description=UNDEFINED,
+                        parameters={
+                            "type": "object",
+                            "properties": {
+                                "label": {
+                                    "type": "string",
+                                    "enum": ["correct", "incorrect"],
+                                    "description": "correctness",
+                                }
+                            },
+                            "required": ["label"],
+                        },
+                    ),
+                )
+            ],
+            tool_choice=tool_choice,
+        )
+
+    @staticmethod
+    def _anthropic_response(content: list[dict[str, Any]]) -> dict[str, Any]:
+        return {
+            "id": "msg_mock",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-opus-5-5",
+            "content": content,
+            "stop_reason": "tool_use" if content[0]["type"] == "tool_use" else "end_turn",
+            "stop_sequence": None,
+            "usage": {"input_tokens": 10, "output_tokens": 5},
+        }
+
+    async def _evaluate(
+        self,
+        *,
+        model_name: str,
+        tools: PromptTools,
+        response_content: list[dict[str, Any]],
+        output_config: CategoricalOutputConfig,
+        input_mapping: InputMapping,
+        anthropic_params: Optional[PromptAnthropicInvocationParametersContent] = None,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Runs an evaluator against a mocked Anthropic API.
+
+        Returns:
+            The request body sent to Anthropic and the single evaluation result.
+        """
+        request_bodies: list[dict[str, Any]] = []
+
+        def handler(request: httpx2.Request) -> httpx2.Response:
+            request_bodies.append(json.loads(request.content))
+            return httpx2.Response(200, json=self._anthropic_response(response_content))
+
+        async with httpx2.AsyncClient(transport=httpx2.MockTransport(handler)) as http_client:
+
+            @asynccontextmanager
+            async def create_anthropic_client() -> Any:
+                yield AsyncAnthropic(api_key="sk-ant-test", max_retries=0, http_client=http_client)
+
+            llm_client = AnthropicClient(
+                client_factory=LLMClientFactory(
+                    create_anthropic_client, anthropic_rate_limit_key("sk-ant-test", None)
+                ),
+                model_name=model_name,
+            )
+            evaluator = LLMEvaluator(
+                name="correctness",
+                description=None,
+                template=PromptChatTemplate(
+                    type="chat",
+                    messages=[
+                        PromptMessage(role="system", content="You are an evaluator."),
+                        PromptMessage(role="user", content="Is {{output}} correct?"),
+                    ],
+                ),
+                template_format=PromptTemplateFormat.MUSTACHE,
+                tools=tools,
+                invocation_parameters=PromptAnthropicInvocationParameters(
+                    type="anthropic",
+                    anthropic=anthropic_params
+                    or PromptAnthropicInvocationParametersContent(max_tokens=2000),
+                ),
+                model_provider=ModelProvider.ANTHROPIC,
+                llm_client=llm_client,
+                output_configs=[output_config],
+                prompt_name="test-prompt",
+            )
+            results = await evaluator.evaluate(
+                context={"output": "4"},
+                input_mapping=input_mapping,
+                name="correctness",
+                output_configs=[output_config],
+            )
+        assert len(results) == 1
+        assert len(request_bodies) == 1, results[0]["error"]
+        return request_bodies[0], dict(results[0])
+
+    @pytest.mark.parametrize(
+        "model_name, tool_choice, expected_tool_choice, expected_system",
+        [
+            pytest.param(
+                "claude-opus-5-5",
+                PromptToolChoiceOneOrMore(type="one_or_more"),
+                {"type": "auto"},
+                "You are an evaluator.\nRespond by calling the `correctness` tool.",
+                id="opus-5-5-one-or-more",
+            ),
+            pytest.param(
+                "claude-sonnet-5-5",
+                PromptToolChoiceOneOrMore(type="one_or_more"),
+                {"type": "auto"},
+                "You are an evaluator.\nRespond by calling the `correctness` tool.",
+                id="sonnet-5-5-one-or-more",
+            ),
+            pytest.param(
+                "claude-fable-5-1",
+                PromptToolChoiceSpecificFunctionTool(
+                    type="specific_function", function_name="correctness"
+                ),
+                {"type": "auto"},
+                "You are an evaluator.\nRespond by calling the `correctness` tool.",
+                id="fable-5-1-specific-function",
+            ),
+            pytest.param(
+                "claude-opus-5",
+                PromptToolChoiceOneOrMore(type="one_or_more"),
+                {"type": "any"},
+                "You are an evaluator.",
+                id="opus-5-keeps-any",
+            ),
+            pytest.param(
+                "claude-opus-5",
+                PromptToolChoiceSpecificFunctionTool(
+                    type="specific_function", function_name="correctness"
+                ),
+                {"type": "tool", "name": "correctness"},
+                "You are an evaluator.",
+                id="opus-5-keeps-specific-tool",
+            ),
+        ],
+    )
+    async def test_tool_choice_sent_to_anthropic(
+        self,
+        model_name: str,
+        tool_choice: Any,
+        expected_tool_choice: dict[str, Any],
+        expected_system: str,
+        output_config: CategoricalOutputConfig,
+        input_mapping: InputMapping,
+    ) -> None:
+        request_body, result = await self._evaluate(
+            model_name=model_name,
+            tools=self._tools(tool_choice),
+            response_content=[
+                {
+                    "type": "tool_use",
+                    "id": "toolu_mock",
+                    "name": "correctness",
+                    "input": {"label": "correct"},
+                }
+            ],
+            output_config=output_config,
+            input_mapping=input_mapping,
+        )
+        assert request_body["tool_choice"] == expected_tool_choice
+        assert request_body["system"].strip() == expected_system
+        assert result["error"] is None
+        assert result["label"] == "correct"
+        assert result["score"] == 1.0
+
+    @pytest.mark.parametrize(
+        "anthropic_params, expected_tool_choice, expected_system",
+        [
+            pytest.param(
+                PromptAnthropicInvocationParametersContent(
+                    max_tokens=2000,
+                    thinking=PromptAnthropicThinkingConfigEnabled(
+                        type="enabled", budget_tokens=1024
+                    ),
+                ),
+                {"type": "auto"},
+                "You are an evaluator.\nRespond by calling the `correctness` tool.",
+                id="extended-thinking",
+            ),
+            pytest.param(
+                PromptAnthropicInvocationParametersContent(
+                    max_tokens=2000,
+                    extra_body={"thinking": {"type": "enabled", "budget_tokens": 1024}},
+                ),
+                {"type": "auto"},
+                "You are an evaluator.\nRespond by calling the `correctness` tool.",
+                id="extended-thinking-in-extra-body",
+            ),
+            pytest.param(
+                PromptAnthropicInvocationParametersContent(
+                    max_tokens=2000,
+                    thinking=PromptAnthropicThinkingConfigEnabled(
+                        type="enabled", budget_tokens=1024
+                    ),
+                    extra_body={"thinking": {"type": "disabled"}},
+                ),
+                {"type": "any"},
+                "You are an evaluator.",
+                id="extra-body-disables-thinking",
+            ),
+            pytest.param(
+                PromptAnthropicInvocationParametersContent(
+                    max_tokens=2000,
+                    thinking=PromptAnthropicThinkingConfigAdaptive(type="adaptive"),
+                ),
+                {"type": "any"},
+                "You are an evaluator.",
+                id="adaptive-thinking-keeps-any",
+            ),
+            pytest.param(
+                PromptAnthropicInvocationParametersContent(
+                    max_tokens=2000,
+                    thinking=PromptAnthropicThinkingConfigDisabled(type="disabled"),
+                ),
+                {"type": "any"},
+                "You are an evaluator.",
+                id="disabled-thinking-keeps-any",
+            ),
+        ],
+    )
+    async def test_tool_choice_sent_to_anthropic_with_thinking(
+        self,
+        anthropic_params: PromptAnthropicInvocationParametersContent,
+        expected_tool_choice: dict[str, Any],
+        expected_system: str,
+        output_config: CategoricalOutputConfig,
+        input_mapping: InputMapping,
+    ) -> None:
+        request_body, result = await self._evaluate(
+            model_name="claude-sonnet-4-6",
+            tools=self._tools(PromptToolChoiceOneOrMore(type="one_or_more")),
+            response_content=[
+                {
+                    "type": "tool_use",
+                    "id": "toolu_mock",
+                    "name": "correctness",
+                    "input": {"label": "correct"},
+                }
+            ],
+            output_config=output_config,
+            input_mapping=input_mapping,
+            anthropic_params=anthropic_params,
+        )
+        assert request_body["tool_choice"] == expected_tool_choice
+        assert request_body["system"].strip() == expected_system
+        assert result["error"] is None
+        assert result["label"] == "correct"
+
+    def test_instruction_names_every_tool_for_multiple_outputs(self) -> None:
+        tools = self._tools(PromptToolChoiceOneOrMore(type="one_or_more"))
+        tools = tools.model_copy(
+            update={
+                "tools": [
+                    *tools.tools,
+                    PromptToolFunction(
+                        type="function",
+                        function=PromptToolFunctionDefinition(name="relevance"),
+                    ),
+                ],
+                "disable_parallel_tool_calls": False,
+            }
+        )
+        new_tools, messages = _request_tool_call_in_prompt(tools, [])
+        assert new_tools.tool_choice == PromptToolChoiceZeroOrMore(type="zero_or_more")
+        assert new_tools.tools == tools.tools
+        assert new_tools.disable_parallel_tool_calls is False
+        assert messages == [
+            {
+                "role": ChatCompletionMessageRole.SYSTEM,
+                "content": "Respond by calling each of these tools: `correctness`, `relevance`.",
+            }
+        ]
+
+    def test_tool_choice_that_does_not_force_a_call_is_unchanged(self) -> None:
+        tools = self._tools(PromptToolChoiceZeroOrMore(type="zero_or_more"))
+        assert _request_tool_call_in_prompt(tools, []) == (tools, [])
+
+    async def test_text_response_without_tool_call_returns_error_result(
+        self,
+        output_config: CategoricalOutputConfig,
+        input_mapping: InputMapping,
+    ) -> None:
+        """With `auto`, a model can answer in text, which returns an evaluator error result."""
+        request_body, result = await self._evaluate(
+            model_name="claude-opus-5-5",
+            tools=self._tools(PromptToolChoiceOneOrMore(type="one_or_more")),
+            response_content=[{"type": "text", "text": "The output is correct."}],
+            output_config=output_config,
+            input_mapping=input_mapping,
+        )
+        assert request_body["tool_choice"] == {"type": "auto"}
+        assert isinstance(result["error"], str)
+        assert "No tool calls received from LLM" in result["error"]
+        assert result["label"] is None
+        assert result["score"] is None
 
 
 class TestGetEvaluators:

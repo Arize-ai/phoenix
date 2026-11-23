@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
@@ -17,7 +17,7 @@ from typing import Any, cast
 
 import pytest
 
-pytest.importorskip("harbor", reason="Harbor requires Python >=3.12")
+pytest.importorskip("harbor", reason="Harbor requires Python >=3.12 and <3.15")
 
 from harbor.job import Job
 from harbor.models.job.config import JobConfig, RetryConfig
@@ -169,7 +169,7 @@ def wired(monkeypatch: pytest.MonkeyPatch) -> FakeClient:
     )
 
     @contextlib.asynccontextmanager
-    async def _open_client(self: PhoenixJobPlugin) -> AsyncIterator[Any]:
+    async def _open_client(self: PhoenixJobPlugin) -> AsyncGenerator[Any, None]:
         del self
         yield client
 
@@ -369,14 +369,23 @@ class TestJobStart:
             del kwargs
             raise AssertionError("trace builder called")
 
+        def extract_output(result: TrialResult) -> dict[str, Any]:
+            return {"messages": [{"role": "assistant", "content": f"Done: {result.task_name}"}]}
+
         monkeypatch.setattr("phoenix.client.harbor._plugin.build_harbor_trace", fail_if_called)
+        monkeypatch.setattr(
+            "phoenix.client.harbor._plugin.extract_harbor_run_output",
+            extract_output,
+        )
         plugin = PhoenixJobPlugin(trace_mode=None)
         job = FakeJob()
         await plugin.on_job_start(job)
 
         await require_hook(job.ended_hook)(hook_event(trial_result()))
 
-        assert len(wired.experiments.logged_runs) == 1
+        assert wired.experiments.logged_runs[0]["output"] == {
+            "messages": [{"role": "assistant", "content": "Done: task-a"}]
+        }
 
     async def test_atif_mode_confirms_trace_before_linking_run(
         self, monkeypatch: pytest.MonkeyPatch, wired: FakeClient

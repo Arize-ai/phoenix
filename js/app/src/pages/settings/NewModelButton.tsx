@@ -94,11 +94,11 @@ export function NewModelButton({
               <ModelForm
                 onSubmit={(params) => {
                   setError(null);
-                  setIsOpen(false);
                   commit({
                     variables: {
                       input: {
                         name: params.name,
+                        modelType: params.modelType,
                         provider: params.provider,
                         namePattern: params.namePattern,
                         startTime: params.startTime
@@ -118,6 +118,7 @@ export function NewModelButton({
                       connectionId,
                     },
                     onCompleted: () => {
+                      setIsOpen(false);
                       if (onModelCreated) {
                         onModelCreated(params);
                       }
@@ -133,7 +134,7 @@ export function NewModelButton({
                     },
                   });
                 }}
-                isSubmitting={false}
+                isSubmitting={isCommitting}
                 submitButtonText="Create Model"
                 formMode="create"
               />

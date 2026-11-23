@@ -7,7 +7,7 @@ import random
 import traceback
 import uuid
 from binascii import hexlify
-from collections.abc import Awaitable, Callable, Iterator, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Generator, Iterable, Iterator, Mapping, Sequence
 from contextlib import ExitStack, contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, replace
@@ -57,6 +57,7 @@ from phoenix.client.resources.experiments.types import (
     ExampleProxy,
     Experiment,
     ExperimentEvaluationRun,
+    ExperimentEvaluator,
     ExperimentEvaluators,
     ExperimentRun,
     ExperimentTask,
@@ -110,7 +111,7 @@ def _patched_span_init(self: ReadableSpan, *args: Any, **kwargs: Any) -> None:
 
 
 @contextmanager
-def _monkey_patch_span_init() -> Iterator[None]:
+def _monkey_patch_span_init() -> Generator[None, None, None]:
     """Context manager that monkey patches ReadableSpan.__init__ with reference counting."""
     global _span_init_monkey_patch_count, _original_span_init
 
@@ -134,7 +135,7 @@ def _monkey_patch_span_init() -> Iterator[None]:
 
 
 @contextmanager
-def capture_spans(resource: Resource) -> Iterator[SpanModifier]:
+def capture_spans(resource: Resource) -> Generator[SpanModifier, None, None]:
     """A context manager that captures spans and modifies them with the specified resources.
 
     Args:
@@ -157,7 +158,7 @@ class _NoOpProcessor(trace_sdk.SpanProcessor):
 
 @dataclass(frozen=True)
 class _TracerBundle:
-    tracer: Tracer
+    tracer: OITracer
     resource: Resource
     provider: Any
 
@@ -216,7 +217,7 @@ class _RoutingTracer(Tracer):
 
 
 @contextmanager
-def _attach_global_tracer_provider(provider: Any) -> Iterator[None]:
+def _attach_global_tracer_provider(provider: Any) -> Generator[None, None, None]:
     """Temporarily mount a provider while preserving OpenTelemetry's exact prior state."""
     global _evaluator_provider_mount_count
 
@@ -285,7 +286,7 @@ def _get_tracer(
     project_name: Optional[str] = None,
     base_url: Optional[str] = None,
     headers: Optional[dict[str, str]] = None,
-) -> tuple[Tracer, Resource]:
+) -> tuple[OITracer, Resource]:
     bundle = _get_tracer_bundle(project_name, base_url, headers)
     return bundle.tracer, bundle.resource
 
@@ -339,6 +340,42 @@ def jsonify(obj: Any) -> Any:
         return str(obj)
 
 
+def _evaluation_run_request_body(eval_run: ExperimentEvaluationRun) -> dict[str, Any]:
+    """Build the ``POST v1/experiment_evaluations`` body for an evaluation run.
+
+    Evaluators return ``metadata`` (and ``name``) alongside score/label/explanation,
+    but the endpoint reads ``metadata`` from the top level and ignores any extra keys
+    under ``result``, so the body is assembled field by field rather than from
+    ``eval_run.__dict__``.
+    """
+    result: Any = eval_run.result
+    metadata: dict[str, Any] = dict(eval_run.metadata)
+    if isinstance(result, Mapping):
+        evaluation = cast(Mapping[str, Any], result)
+        result_metadata = evaluation.get("metadata")
+        if isinstance(result_metadata, Mapping):
+            metadata = {**cast(Mapping[str, Any], result_metadata), **metadata}
+        result = {
+            key: evaluation[key] for key in ("score", "label", "explanation") if key in evaluation
+        }
+    return cast(
+        dict[str, Any],
+        jsonify(
+            {
+                "experiment_run_id": eval_run.experiment_run_id,
+                "name": eval_run.name,
+                "annotator_kind": eval_run.annotator_kind,
+                "start_time": eval_run.start_time,
+                "end_time": eval_run.end_time,
+                "result": result,
+                "error": eval_run.error,
+                "metadata": metadata,
+                "trace_id": eval_run.trace_id,
+            }
+        ),
+    )
+
+
 def _str_trace_id(trace_id: Union[int, str]) -> str:
     if isinstance(trace_id, int):
         return hexlify(trace_id.to_bytes(16, "big")).decode()
@@ -352,11 +389,11 @@ def _evaluators_by_name(obj: Optional[ExperimentEvaluators]) -> Mapping[Evaluato
         return evaluators_by_name
 
     elif isinstance(obj, Mapping):
-        for name, value in obj.items():
+        for name, value in cast(Iterable[tuple[EvaluatorName, ExperimentEvaluator]], obj.items()):
             evaluator = create_evaluator(name=name)(value)
             evaluators_by_name[evaluator.name] = evaluator
     elif isinstance(obj, Sequence):
-        for value in obj:
+        for value in cast(Iterable[ExperimentEvaluator], obj):
             evaluator = create_evaluator()(value)
             evaluators_by_name[evaluator.name] = evaluator
     else:
@@ -1756,7 +1793,7 @@ class Experiments:
         task: ExperimentTask,
         task_signature: inspect.Signature,
         experiment: Experiment,
-        tracer: Tracer,
+        tracer: OITracer,
         resource: Resource,
         root_span_name: str,
         dry_run: Union[bool, int],
@@ -1855,7 +1892,7 @@ class Experiments:
         if span.end_time is not None:
             end_time = _decode_unix_nano(span.end_time)
         span_context = span.get_span_context()
-        if span_context is not None and span_context.trace_id != 0:
+        if span_context.trace_id != 0:
             trace_id = _str_trace_id(span_context.trace_id)
 
         exp_run: ExperimentRun = {
@@ -1904,7 +1941,7 @@ class Experiments:
     def _run_evaluations(
         self,
         evaluation_tasks: list[tuple[v1.DatasetExample, ExperimentRun, Evaluator]],
-        tracer: Tracer,
+        tracer: OITracer,
         resource: Resource,
         dry_run: bool,
         timeout: Optional[int],
@@ -1972,7 +2009,7 @@ class Experiments:
         example: v1.DatasetExample,
         experiment_run: ExperimentRun,
         evaluator: Evaluator,
-        tracer: Tracer,
+        tracer: OITracer,
         resource: Resource,
         dry_run: bool,
         timeout: Optional[int],
@@ -2044,7 +2081,7 @@ class Experiments:
         if span.end_time is not None:
             end_time = _decode_unix_nano(span.end_time)
         span_context = span.get_span_context()
-        if span_context is not None and span_context.trace_id != 0:
+        if span_context.trace_id != 0:
             trace_id = _str_trace_id(span_context.trace_id)
 
         results_to_submit: list[Optional[EvaluationResult]]
@@ -2089,7 +2126,7 @@ class Experiments:
                 try:
                     resp = self._client.post(
                         "v1/experiment_evaluations",
-                        json=jsonify(eval_run.__dict__),
+                        json=_evaluation_run_request_body(eval_run),
                         timeout=timeout,
                     )
                     resp.raise_for_status()
@@ -2267,7 +2304,8 @@ class Experiments:
         Args:
             experiment_run_id (str): The ID of the run being evaluated.
             name (str): The annotation name. One run carries many annotations keyed by name.
-            annotator_kind (str): One of "CODE", "LLM", "HUMAN". Defaults to "CODE".
+            annotator_kind (str): One of "CODE", "LLM", "HUMAN", "DECISION", "AGENT".
+                Defaults to "CODE".
             start_time (Optional[datetime]): Evaluation start. Defaults to now.
             end_time (Optional[datetime]): Evaluation end. Defaults to ``start_time``.
             score (Optional[float]): Numeric score.
@@ -3613,7 +3651,7 @@ class AsyncExperiments:
         task: ExperimentTask,
         task_signature: inspect.Signature,
         experiment: Experiment,
-        tracer: Tracer,
+        tracer: OITracer,
         resource: Resource,
         root_span_name: str,
         dry_run: Union[bool, int],
@@ -3709,7 +3747,7 @@ class AsyncExperiments:
         if span.end_time is not None:
             end_time = _decode_unix_nano(span.end_time)
         span_context = span.get_span_context()
-        if span_context is not None and span_context.trace_id != 0:
+        if span_context.trace_id != 0:
             trace_id = _str_trace_id(span_context.trace_id)
 
         exp_run: ExperimentRun = {
@@ -3758,7 +3796,7 @@ class AsyncExperiments:
     async def _run_evaluations(
         self,
         evaluation_tasks: list[tuple[v1.DatasetExample, ExperimentRun, Evaluator]],
-        tracer: Tracer,
+        tracer: OITracer,
         resource: Resource,
         dry_run: bool,
         timeout: Optional[int],
@@ -3831,7 +3869,7 @@ class AsyncExperiments:
         example: v1.DatasetExample,
         experiment_run: ExperimentRun,
         evaluator: Evaluator,
-        tracer: Tracer,
+        tracer: OITracer,
         resource: Resource,
         dry_run: bool,
         timeout: Optional[int],
@@ -3903,7 +3941,7 @@ class AsyncExperiments:
         if span.end_time is not None:
             end_time = _decode_unix_nano(span.end_time)
         span_context = span.get_span_context()
-        if span_context is not None and span_context.trace_id != 0:
+        if span_context.trace_id != 0:
             trace_id = _str_trace_id(span_context.trace_id)
 
         results_to_submit: list[Optional[EvaluationResult]]
@@ -3948,7 +3986,7 @@ class AsyncExperiments:
                 try:
                     resp = await self._client.post(
                         "v1/experiment_evaluations",
-                        json=jsonify(eval_run.__dict__),
+                        json=_evaluation_run_request_body(eval_run),
                         timeout=timeout,
                     )
                     resp.raise_for_status()

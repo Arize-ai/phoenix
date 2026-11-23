@@ -1,0 +1,604 @@
+---
+title: "Qdrant"
+description: "Trace staged Qdrant hybrid search with Phoenix to isolate retrieval and selection issues across dense, sparse, and RRF fusion."
+---
+
+[**Qdrant**](https://qdrant.tech/) is an open-source vector search engine. This guide instruments a staged Qdrant hybrid search with Phoenix and OpenTelemetry so you can see which stage of the search to fix when results look wrong.
+
+You index 200 [AG News](https://huggingface.co/datasets/fancyzhx/ag_news) documents in [Qdrant Cloud](https://qdrant.tech/cloud/) with dense and sparse vectors via [Qdrant Cloud Inference](https://qdrant.tech/documentation/cloud/inference/). Then you run hybrid retrieval and send a trace tree to Phoenix. The tree shows what Qdrant returned and what your code kept.
+
+## Why Trace Hybrid Search
+
+Hybrid search does not always make results more relevant. It helps when dense and sparse retrieval complement each other, and only when they are tuned well. Qdrant returns a fused set of candidates, and your code then selects the final results. Without observability, both stages look like one call.
+
+Hybrid search runs two queries and merges them into one ranking. A dense query matches documents by meaning. A sparse query matches documents by exact words. Qdrant fuses the two lists with [Reciprocal Rank Fusion (RRF)](https://qdrant.tech/documentation/search/hybrid-queries/#reciprocal-rank-fusion-rrf). When a document appears near the top of either list, it ranks higher.
+
+<Frame>
+  <img src="/docs/phoenix/integrations/vector-databases/images/fusion-idea.png" alt="Fusing results from multiple queries" />
+</Frame>
+
+The fused list is the candidate set that this guide traces.
+
+### One Search, Two Stages
+
+A hybrid search makes two decisions that usually run as one block of code:
+
+1. **Retrieval.** Qdrant fuses the dense and sparse results and returns a candidate set (`candidate_limit` documents).
+2. **Selection.** Your code keeps a smaller slice (`result_limit` documents), or reranks and filters them.
+
+When the final answer is wrong, the fault can sit in either stage. Qdrant can fail to return the right document, or your selection logic can drop it after Qdrant returns it. In a single log line or one Qdrant call, the two failures look the same.
+
+Each search in this guide emits three nested spans:
+
+```text
+search
+|- qdrant_hybrid_retrieval
+`- select_results
+```
+
+`qdrant_hybrid_retrieval` records what Qdrant returned. `select_results` records what your code kept. Compare the document IDs of the two spans to find the stage to fix.
+
+<Note>
+Qdrant's Query API returns only the final fused results, not the raw dense and sparse prefetch candidates. This guide traces the stages you can observe: the fused candidates and the final selected results.
+</Note>
+
+## Prerequisites
+
+### Qdrant Cloud with Cloud Inference
+
+This guide uses Qdrant Cloud Inference so you don't need a local embedding server. [Create a Qdrant Cloud cluster](https://qdrant.tech/documentation/cloud/create-cluster/) and enable Cloud Inference.
+
+Once the cluster is ready, store the URL and API key as environment variables:
+
+```bash
+export QDRANT_URL="https://your-cluster.cloud.qdrant.io"
+export QDRANT_API_KEY="your-api-key"
+```
+
+### Install
+
+Install Python 3.11 or later, then install the packages:
+
+```bash
+pip install arize-phoenix-otel datasets qdrant-client
+```
+
+### Launch Phoenix
+
+Start Phoenix in a separate terminal:
+
+```bash
+docker run --rm -p 6006:6006 arizephoenix/phoenix:latest
+```
+
+Open the UI at `http://localhost:6006`. The script exports OTLP traces to `http://localhost:6006/v1/traces`.
+
+## Implementation
+
+The full script is at the end of this section.
+
+### Set Up Tracing and Constants
+
+Define the collection and the inference models. All spans use [OpenInference](https://github.com/Arize-ai/openinference) attributes so Phoenix renders them the same way.
+
+```python
+import json
+import os
+
+from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
+from phoenix.otel import register
+from qdrant_client import QdrantClient
+
+COLLECTION = "ag-news-hybrid-tracing"
+EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+SPARSE_MODEL = "Qdrant/bm25"
+EMBEDDING_DIMENSION = 384
+PROJECT_NAME = "qdrant-staged-retrieval"
+```
+
+In `main()`, register a tracer provider that points at the Phoenix OTLP endpoint, and create a Qdrant client with Cloud Inference enabled:
+
+```python
+def main():
+    tracer_provider = register(
+        project_name=PROJECT_NAME,
+        endpoint="http://localhost:6006/v1/traces",
+    )
+    tracer = tracer_provider.get_tracer(__name__)
+    client = QdrantClient(
+        url=os.environ["QDRANT_URL"],
+        api_key=os.environ["QDRANT_API_KEY"],
+        cloud_inference=True,
+    )
+```
+
+- `register` creates a `TracerProvider` that batches and exports spans to Phoenix.
+- `cloud_inference=True` delegates embedding generation to Qdrant Cloud Inference.
+
+### Define the Span Helper
+
+A small context manager sets status, attributes, and error handling consistently, so `search`, `qdrant_hybrid_retrieval`, and `select_results` stay uniform.
+
+```python
+from contextlib import contextmanager
+from opentelemetry.trace import Status, StatusCode
+
+@contextmanager
+def span(tracer, name, **attributes):
+    with tracer.start_as_current_span(name) as current:
+        for key, value in attributes.items():
+            if value is not None:
+                current.set_attribute(key, value)
+        try:
+            yield current
+        except Exception as error:
+            current.set_status(Status(StatusCode.ERROR, str(error)))
+            raise
+        else:
+            current.set_status(Status(StatusCode.OK))
+```
+
+- **Status:** marks a span `OK` on success. On failure, marks it `ERROR` with the exception message.
+- **Attributes:** sets `SpanAttributes.INPUT_VALUE`, `OUTPUT_VALUE`, and custom keys such as `search.candidate_limit` when the span starts.
+
+### Load AG News
+
+Load 200 documents with stable IDs. The `id` is stored in the payload for later diagnosis.
+
+```python
+from datasets import load_dataset
+
+def load_documents():
+    dataset = load_dataset("fancyzhx/ag_news", split="train[:200]")
+    documents = []
+    for index, row in enumerate(dataset):
+        documents.append(
+            {
+                "id": str(index),
+                "text": row["text"],
+            }
+        )
+    return documents
+```
+
+### Index Documents with Dense and Sparse Vectors
+
+Create one collection with a dense vector and a sparse vector. Then upsert with `models.Document` so Qdrant Cloud Inference embeds the text server-side. The span records `document.count`.
+
+```python
+from qdrant_client import models
+
+def index_documents(client, tracer, documents):
+    with span(
+        tracer,
+        "index_documents",
+        **{
+            SpanAttributes.OPENINFERENCE_SPAN_KIND: OpenInferenceSpanKindValues.CHAIN.value,
+            "document.count": len(documents),
+        },
+    ):
+        if client.collection_exists(COLLECTION):
+            client.delete_collection(COLLECTION)
+        client.create_collection(
+            collection_name=COLLECTION,
+            vectors_config={
+                "text-dense": models.VectorParams(
+                    size=EMBEDDING_DIMENSION,
+                    distance=models.Distance.COSINE,
+                ),
+            },
+            sparse_vectors_config={
+                "text-sparse": models.SparseVectorParams(
+                    index=models.SparseIndexParams(on_disk=False),
+                ),
+            },
+        )
+        client.upsert(
+            collection_name=COLLECTION,
+            points=[
+                models.PointStruct(
+                    id=index,
+                    vector={
+                        "text-dense": models.Document(
+                            text=document["text"],
+                            model=EMBEDDING_MODEL,
+                        ),
+                        "text-sparse": models.Document(
+                            text=document["text"],
+                            model=SPARSE_MODEL,
+                        ),
+                    },
+                    payload=document,
+                )
+                for index, document in enumerate(documents)
+            ],
+        )
+```
+
+- **Vectors:** `text-dense` (384 dimensions, cosine) and `text-sparse` (BM25).
+- **Document API:** `models.Document(text=..., model=...)` triggers Cloud Inference, so you don't download embedding models locally.
+
+### Run Staged Hybrid Retrieval
+
+The `search` function creates three nested spans. `qdrant_hybrid_retrieval` fuses dense and sparse prefetch results with RRF. `select_results` slices the fused list to `result_limit`.
+
+```python
+def search(client, tracer, query, candidate_limit, result_limit):
+    with span(
+        tracer,
+        "search",
+        **{
+            SpanAttributes.OPENINFERENCE_SPAN_KIND: OpenInferenceSpanKindValues.CHAIN.value,
+            SpanAttributes.INPUT_VALUE: query,
+            SpanAttributes.INPUT_MIME_TYPE: "text/plain",
+            "search.candidate_limit": candidate_limit,
+            "search.result_limit": result_limit,
+        },
+    ) as search_span:
+        with span(
+            tracer,
+            "qdrant_hybrid_retrieval",
+            **{
+                SpanAttributes.OPENINFERENCE_SPAN_KIND: OpenInferenceSpanKindValues.RETRIEVER.value,
+                SpanAttributes.INPUT_VALUE: query,
+                SpanAttributes.INPUT_MIME_TYPE: "text/plain",
+                "retrieval.candidate_limit": candidate_limit,
+            },
+        ) as retrieval_span:
+            points = client.query_points(
+                collection_name=COLLECTION,
+                prefetch=[
+                    models.Prefetch(
+                        query=models.Document(text=query, model=EMBEDDING_MODEL),
+                        using="text-dense",
+                        limit=candidate_limit,
+                    ),
+                    models.Prefetch(
+                        query=models.Document(text=query, model=SPARSE_MODEL),
+                        using="text-sparse",
+                        limit=candidate_limit,
+                    ),
+                ],
+                query=models.FusionQuery(fusion=models.Fusion.RRF),
+                limit=candidate_limit,
+                with_payload=True,
+            ).points
+            candidates = [point.payload for point in points]
+            candidate_ids = [document["id"] for document in candidates]
+            retrieval_span.set_attribute(SpanAttributes.OUTPUT_VALUE, json.dumps(candidates))
+            retrieval_span.set_attribute(SpanAttributes.OUTPUT_MIME_TYPE, "application/json")
+            retrieval_span.set_attribute("retrieval.document_ids", candidate_ids)
+
+        with span(
+            tracer,
+            "select_results",
+            **{
+                SpanAttributes.OPENINFERENCE_SPAN_KIND: OpenInferenceSpanKindValues.CHAIN.value,
+                SpanAttributes.INPUT_VALUE: json.dumps(candidates),
+                SpanAttributes.INPUT_MIME_TYPE: "application/json",
+                "selection.result_limit": result_limit,
+            },
+        ) as selection_span:
+            results = candidates[:result_limit]
+            result_ids = [document["id"] for document in results]
+            selection_span.set_attribute(SpanAttributes.OUTPUT_VALUE, json.dumps(results))
+            selection_span.set_attribute(SpanAttributes.OUTPUT_MIME_TYPE, "application/json")
+            selection_span.set_attribute("selection.document_ids", result_ids)
+
+        response = {
+            "query": query,
+            "candidate_ids": candidate_ids,
+            "result_ids": result_ids,
+        }
+        search_span.set_attribute(SpanAttributes.OUTPUT_VALUE, json.dumps(response))
+        search_span.set_attribute(SpanAttributes.OUTPUT_MIME_TYPE, "application/json")
+        return response
+```
+
+- **Prefetch + RRF:** each `Prefetch` retrieves `candidate_limit` hits from one vector type. `Fusion.RRF` merges them without additional scoring logic.
+- **`candidate_limit` vs. `result_limit`:** `candidate_limit` controls how many fused candidates Qdrant returns. `result_limit` controls how many documents remain after selection.
+- **Span attributes:** `retrieval.document_ids` and `selection.document_ids` let you compare the two stages in Phoenix. `INPUT_VALUE` and `OUTPUT_VALUE` follow OpenInference conventions and populate the Phoenix detail panes.
+
+### Full Script
+
+<Accordion title="qdrant_trace.py">
+
+```python
+import json
+import os
+from contextlib import contextmanager
+
+from datasets import load_dataset
+from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
+from opentelemetry.trace import Status, StatusCode
+from phoenix.otel import register
+from qdrant_client import QdrantClient, models
+
+COLLECTION = "ag-news-hybrid-tracing"
+EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+SPARSE_MODEL = "Qdrant/bm25"
+EMBEDDING_DIMENSION = 384
+PROJECT_NAME = "qdrant-staged-retrieval"
+
+
+@contextmanager
+def span(tracer, name, **attributes):
+    with tracer.start_as_current_span(name) as current:
+        for key, value in attributes.items():
+            if value is not None:
+                current.set_attribute(key, value)
+        try:
+            yield current
+        except Exception as error:
+            current.set_status(Status(StatusCode.ERROR, str(error)))
+            raise
+        else:
+            current.set_status(Status(StatusCode.OK))
+
+
+def load_documents():
+    dataset = load_dataset("fancyzhx/ag_news", split="train[:200]")
+    documents = []
+    for index, row in enumerate(dataset):
+        documents.append(
+            {
+                "id": str(index),
+                "text": row["text"],
+            }
+        )
+    return documents
+
+
+def index_documents(client, tracer, documents):
+    with span(
+        tracer,
+        "index_documents",
+        **{
+            SpanAttributes.OPENINFERENCE_SPAN_KIND: OpenInferenceSpanKindValues.CHAIN.value,
+            "document.count": len(documents),
+        },
+    ):
+        if client.collection_exists(COLLECTION):
+            client.delete_collection(COLLECTION)
+        client.create_collection(
+            collection_name=COLLECTION,
+            vectors_config={
+                "text-dense": models.VectorParams(
+                    size=EMBEDDING_DIMENSION,
+                    distance=models.Distance.COSINE,
+                ),
+            },
+            sparse_vectors_config={
+                "text-sparse": models.SparseVectorParams(
+                    index=models.SparseIndexParams(on_disk=False),
+                ),
+            },
+        )
+        client.upsert(
+            collection_name=COLLECTION,
+            points=[
+                models.PointStruct(
+                    id=index,
+                    vector={
+                        "text-dense": models.Document(
+                            text=document["text"],
+                            model=EMBEDDING_MODEL,
+                        ),
+                        "text-sparse": models.Document(
+                            text=document["text"],
+                            model=SPARSE_MODEL,
+                        ),
+                    },
+                    payload=document,
+                )
+                for index, document in enumerate(documents)
+            ],
+        )
+
+
+def search(client, tracer, query, candidate_limit, result_limit):
+    with span(
+        tracer,
+        "search",
+        **{
+            SpanAttributes.OPENINFERENCE_SPAN_KIND: OpenInferenceSpanKindValues.CHAIN.value,
+            SpanAttributes.INPUT_VALUE: query,
+            SpanAttributes.INPUT_MIME_TYPE: "text/plain",
+            "search.candidate_limit": candidate_limit,
+            "search.result_limit": result_limit,
+        },
+    ) as search_span:
+        with span(
+            tracer,
+            "qdrant_hybrid_retrieval",
+            **{
+                SpanAttributes.OPENINFERENCE_SPAN_KIND: OpenInferenceSpanKindValues.RETRIEVER.value,
+                SpanAttributes.INPUT_VALUE: query,
+                SpanAttributes.INPUT_MIME_TYPE: "text/plain",
+                "retrieval.candidate_limit": candidate_limit,
+            },
+        ) as retrieval_span:
+            points = client.query_points(
+                collection_name=COLLECTION,
+                prefetch=[
+                    models.Prefetch(
+                        query=models.Document(text=query, model=EMBEDDING_MODEL),
+                        using="text-dense",
+                        limit=candidate_limit,
+                    ),
+                    models.Prefetch(
+                        query=models.Document(text=query, model=SPARSE_MODEL),
+                        using="text-sparse",
+                        limit=candidate_limit,
+                    ),
+                ],
+                query=models.FusionQuery(fusion=models.Fusion.RRF),
+                limit=candidate_limit,
+                with_payload=True,
+            ).points
+            candidates = [point.payload for point in points]
+            candidate_ids = [document["id"] for document in candidates]
+            retrieval_span.set_attribute(SpanAttributes.OUTPUT_VALUE, json.dumps(candidates))
+            retrieval_span.set_attribute(SpanAttributes.OUTPUT_MIME_TYPE, "application/json")
+            retrieval_span.set_attribute("retrieval.document_ids", candidate_ids)
+
+        with span(
+            tracer,
+            "select_results",
+            **{
+                SpanAttributes.OPENINFERENCE_SPAN_KIND: OpenInferenceSpanKindValues.CHAIN.value,
+                SpanAttributes.INPUT_VALUE: json.dumps(candidates),
+                SpanAttributes.INPUT_MIME_TYPE: "application/json",
+                "selection.result_limit": result_limit,
+            },
+        ) as selection_span:
+            results = candidates[:result_limit]
+            result_ids = [document["id"] for document in results]
+            selection_span.set_attribute(SpanAttributes.OUTPUT_VALUE, json.dumps(results))
+            selection_span.set_attribute(SpanAttributes.OUTPUT_MIME_TYPE, "application/json")
+            selection_span.set_attribute("selection.document_ids", result_ids)
+
+        response = {
+            "query": query,
+            "candidate_ids": candidate_ids,
+            "result_ids": result_ids,
+        }
+        search_span.set_attribute(SpanAttributes.OUTPUT_VALUE, json.dumps(response))
+        search_span.set_attribute(SpanAttributes.OUTPUT_MIME_TYPE, "application/json")
+        return response
+
+
+def main():
+    tracer_provider = register(
+        project_name=PROJECT_NAME,
+        endpoint="http://localhost:6006/v1/traces",
+    )
+    tracer = tracer_provider.get_tracer(__name__)
+    client = QdrantClient(
+        url=os.environ["QDRANT_URL"],
+        api_key=os.environ["QDRANT_API_KEY"],
+        cloud_inference=True,
+    )
+
+    documents = load_documents()
+    index_documents(client, tracer, documents)
+
+    response = search(client, tracer, "sports", 12, 6)
+    print(json.dumps(response, indent=2))
+
+    tracer_provider.force_flush()
+    tracer_provider.shutdown()
+
+
+if __name__ == "__main__":
+    main()
+```
+
+</Accordion>
+
+### Run
+
+Run the script with the Qdrant environment variables set:
+
+```bash
+python qdrant_trace.py
+```
+
+The script downloads 200 AG News records, creates the `ag-news-hybrid-tracing` collection, and runs a `sports` query with `candidate_limit=12` and `result_limit=6`. It prints a JSON object with the two ID lists:
+
+```json
+{
+  "query": "sports",
+  "candidate_ids": ["99", "33", "157", "..."],
+  "result_ids": ["99", "33", "157", "90", "66", "68"]
+}
+```
+
+`candidate_ids` holds the fused RRF candidates. `result_ids` is the slice after selection.
+
+## Observe
+
+Open `http://localhost:6006`. Every span from this guide is in the `qdrant-staged-retrieval` project.
+
+### Locate a Trace
+
+Select the `qdrant-staged-retrieval` project, then open the **Spans** view.
+
+<Frame>
+  <img src="/docs/phoenix/integrations/vector-databases/images/phoenix-trace-list.png" alt="Phoenix Spans view showing the qdrant-staged-retrieval project with the root search span" />
+</Frame>
+
+The Spans view lists every span as a row with its name, latency, and start time. Each run makes two root spans:
+
+- `index_documents`: records the indexing step.
+- `search`: the root of the search trace, with input `sports`.
+
+Filter by name (`search`) or by input (`sports`) to find these spans.
+
+### Read the Span Tree
+
+Select the root `search` span. Phoenix shows the span tree on one side and a detail pane on the other.
+
+<Frame>
+  <img src="/docs/phoenix/integrations/vector-databases/images/phoenix-trace-detail.png" alt="Expanded Phoenix trace showing the search parent with qdrant_hybrid_retrieval and select_results children" />
+</Frame>
+
+The tree shows the parent-child order and a timing waterfall:
+
+```text
+search                     <- CHAIN, the root
+|- qdrant_hybrid_retrieval <- RETRIEVER, the Qdrant call
+`- select_results          <- CHAIN, the slice
+```
+
+`qdrant_hybrid_retrieval` runs the dense and sparse prefetch queries and the RRF fusion, so it is usually the slowest span. `select_results` only slices a list and has almost no latency.
+
+### Read a Span's Attributes
+
+Select a span to open its detail pane. Phoenix lists the attributes the code set, along with the OpenInference input and output.
+
+Select `qdrant_hybrid_retrieval` first. Its detail pane shows a `RETRIEVER` span kind and these attributes:
+
+- `retrieval.document_ids`: IDs Qdrant returned after RRF
+- `retrieval.candidate_limit`: the prefetch and fused limit sent to Qdrant
+- `input.value`: the query text (`sports`)
+- `output.value`: the full candidate payloads (JSON)
+
+Then select `select_results`. Its detail pane shows a `CHAIN` span kind and these attributes:
+
+- `selection.document_ids`: IDs kept after `candidates[:result_limit]`
+- `selection.result_limit`: the slice limit
+- `input.value`: the candidate list that entered selection
+- `output.value`: the final result payloads (JSON)
+
+The input of `select_results` matches the output of `qdrant_hybrid_retrieval`, which links the two stages into one flow.
+
+Every span also carries a status. `OK` means success. `ERROR` means failure and includes the exception message, so a red `ERROR` badge shows which span failed.
+
+### Find the Stage to Fix
+
+The retrieval span shows what Qdrant found. The selection span shows what you kept. For the `sports` query:
+
+- `retrieval.document_ids` holds up to `candidate_limit` (12) IDs in RRF order.
+- `selection.document_ids` holds up to `result_limit` (6) IDs: the first six of the fused list.
+
+Now find the document you expected to see:
+
+- If it is in `retrieval.document_ids` but not in `selection.document_ids`, raise `result_limit` or add a reranker instead of a hard slice.
+- If it is in neither list, raise `candidate_limit` or tune the dense and sparse queries (a different embedding model, BM25 parameters, or fusion).
+
+To tune these settings step by step, see Qdrant's [series on tuning retrieval](https://qdrant.tech/blog/tuning-retrieval-which-knob-first/).
+
+## Next Steps
+
+You now have a minimal staged tracing pattern for Qdrant hybrid search. Extend it by:
+
+- Adding a reranking span between retrieval and selection.
+- Recording scores as `retrieval.scores`.
+- Wrapping the inference calls in spans.
+
+## Resources
+
+- [Qdrant hybrid queries](https://qdrant.tech/documentation/search/hybrid-queries/)
+- [Qdrant Cloud Inference](https://qdrant.tech/documentation/cloud/inference/)
+- [Phoenix manual instrumentation](/docs/phoenix/tracing/how-to-tracing/setup-tracing/instrument)

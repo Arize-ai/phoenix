@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<567f28be2759a6ff27694d7aac720189>>
+ * @generated SignedSource<<cd929d55e908c948d9ea8e3731f72d76>>
  * @lightSyntaxTransform
  */
 
@@ -9,9 +9,11 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
+export type GenerativeModelType = "DECISION" | "EMBEDDING" | "LLM";
 export type TokenKind = "COMPLETION" | "PROMPT";
 export type CreateModelMutationInput = {
   costs: ReadonlyArray<TokenPriceInput>;
+  modelType?: GenerativeModelType;
   name: string;
   namePattern: string;
   provider?: string | null;
@@ -189,6 +191,13 @@ return {
                             "args": null,
                             "kind": "ScalarField",
                             "name": "name",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "modelType",
                             "storageKey": null
                           },
                           {
@@ -373,12 +382,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b7d1c660aba19c0f139e98bc064ac017",
+    "cacheID": "7a8d9c1e596b4878077fd7f32dfbbb21",
     "id": null,
     "metadata": {},
     "name": "NewModelButtonCreateModelMutation",
     "operationKind": "mutation",
-    "text": "mutation NewModelButtonCreateModelMutation(\n  $input: CreateModelMutationInput!\n) {\n  createModel(input: $input) {\n    query {\n      ...ModelsTable_generativeModels\n    }\n    model {\n      id\n    }\n  }\n}\n\nfragment ModelsTable_generativeModels on Query {\n  generativeModels(first: 1000) {\n    edges {\n      generativeModel: node {\n        id\n        name\n        provider\n        namePattern\n        providerKey\n        startTime\n        createdAt\n        updatedAt\n        lastUsedAt\n        kind\n        tokenPrices {\n          tokenType\n          kind\n          costPerMillionTokens\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "mutation NewModelButtonCreateModelMutation(\n  $input: CreateModelMutationInput!\n) {\n  createModel(input: $input) {\n    query {\n      ...ModelsTable_generativeModels\n    }\n    model {\n      id\n    }\n  }\n}\n\nfragment ModelsTable_generativeModels on Query {\n  generativeModels(first: 1000) {\n    edges {\n      generativeModel: node {\n        id\n        name\n        modelType\n        provider\n        namePattern\n        providerKey\n        startTime\n        createdAt\n        updatedAt\n        lastUsedAt\n        kind\n        tokenPrices {\n          tokenType\n          kind\n          costPerMillionTokens\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

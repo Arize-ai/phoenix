@@ -182,6 +182,13 @@ export function NewAnnotationButton(props: NewAnnotationButtonProps) {
             }
           ) {
             query {
+              # Keeps annotation colors in the trace tree and tables current
+              projectNode: node(id: $projectId) {
+                ... on Project {
+                  id
+                  ...ProjectAnnotationConfigsByNameFragment
+                }
+              }
               node(id: $spanId) {
                 ... on Span {
                   id

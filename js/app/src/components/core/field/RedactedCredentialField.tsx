@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { FieldError, Input as AriaInput, Label } from "react-aria-components";
 
 import { Text } from "@phoenix/components/core/content";
@@ -44,19 +43,11 @@ export function RedactedCredentialField({
   errorMessage,
   size = "M",
 }: RedactedCredentialFieldProps) {
-  const [hasEdited, setHasEdited] = useState(false);
-  const showRedactedPlaceholder = !hasEdited && isRedacted(value);
+  const showRedactedPlaceholder = isRedacted(value);
   const displayValue = showRedactedPlaceholder ? "" : (value ?? "");
   const inputPlaceholder = showRedactedPlaceholder
     ? (redactedPreviewText(value) ?? "••••••••")
     : placeholder;
-
-  const handleChange = (next: string) => {
-    if (!hasEdited) {
-      setHasEdited(true);
-    }
-    onChange(next);
-  };
 
   return (
     <TextField
@@ -64,11 +55,12 @@ export function RedactedCredentialField({
       size={size}
       name={name}
       value={displayValue}
-      onChange={handleChange}
+      onChange={onChange}
       onBlur={onBlur}
       isDisabled={isDisabled}
       isRequired={isRequired}
       isInvalid={Boolean(errorMessage)}
+      validationBehavior="aria"
       autoComplete="off"
     >
       <Label>{label}</Label>

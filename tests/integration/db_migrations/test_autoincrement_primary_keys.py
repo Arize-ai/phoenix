@@ -27,7 +27,7 @@ from . import _down, _run_async, _up
 
 
 def _create_user_role(connection: sa.Connection) -> int:
-    role_id = connection.execute(
+    role_id: int = connection.execute(
         sa.text("INSERT INTO user_roles (name) VALUES ('MEMBER') RETURNING id")
     ).scalar_one()
     assert isinstance(role_id, int)
@@ -46,7 +46,9 @@ def _insert_user(connection: sa.Connection, role_id: int) -> int:
     }
     if "auth_method" in users.c:
         values["auth_method"] = "LOCAL"
-    user_id = connection.execute(users.insert().values(**values).returning(users.c.id)).scalar_one()
+    user_id: int = connection.execute(
+        users.insert().values(**values).returning(users.c.id)
+    ).scalar_one()
     assert isinstance(user_id, int)
     return user_id
 
@@ -61,7 +63,14 @@ def _insert_token(connection: sa.Connection, table_name: str, user_id: int) -> i
         values["name"] = token_hex(8)
     elif table_name == "access_tokens":
         values["refresh_token_id"] = _insert_token(connection, "refresh_tokens", user_id)
-    token_id = connection.execute(
+    elif table_name == "password_reset_tokens":
+        role_id: int = connection.execute(
+            sa.text("SELECT user_role_id FROM users WHERE id = :user_id"),
+            {"user_id": user_id},
+        ).scalar_one()
+        assert isinstance(role_id, int)
+        values["user_id"] = _insert_user(connection, role_id)
+    token_id: int = connection.execute(
         table.insert().values(**values).returning(table.c.id)
     ).scalar_one()
     assert isinstance(token_id, int)
@@ -160,6 +169,12 @@ async def test_prompt_versions_autoincrement_at_head(
         ("132d988c5bef", "eaf1907ae453", "refresh_tokens"),
         ("132d988c5bef", "eaf1907ae453", "access_tokens"),
         ("132d988c5bef", "eaf1907ae453", "api_keys"),
+        ("52e79887a7e3", "45c1d8813138", "api_keys"),
+        ("52e79887a7e3", "45c1d8813138", "password_reset_tokens"),
+        ("ac59da3e4035", "52e79887a7e3", "api_keys"),
+        ("ac59da3e4035", "52e79887a7e3", "access_tokens"),
+        ("ac59da3e4035", "52e79887a7e3", "refresh_tokens"),
+        ("ac59da3e4035", "52e79887a7e3", "password_reset_tokens"),
     ],
 )
 @pytest.mark.parametrize("direction", ["upgrade", "downgrade"])

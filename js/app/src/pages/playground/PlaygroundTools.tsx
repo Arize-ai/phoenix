@@ -51,12 +51,8 @@ export function PlaygroundTools(props: PlaygroundToolsProps) {
 
   return (
     <Card
-      title={
-        <Flex direction="row" gap="size-100" alignItems="center">
-          Tools
-          <Counter>{tools.length}</Counter>
-        </Flex>
-      }
+      title="Tools"
+      titleExtra={<Counter variant="quiet" count={tools.length} />}
       collapsible
     >
       <View padding="size-200">

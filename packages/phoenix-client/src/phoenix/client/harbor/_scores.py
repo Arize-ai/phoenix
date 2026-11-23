@@ -88,7 +88,7 @@ class ExtractedEvaluation:
     end_time: datetime
     label: str | None = None
     explanation: str | None = None
-    metadata: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict[str, Any])
 
 
 def extract_evaluations(

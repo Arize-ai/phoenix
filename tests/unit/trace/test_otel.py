@@ -469,6 +469,8 @@ def test_coerce_otlp_span_attributes() -> None:
         ("llm.token_count.prompt", "123"),
         ("llm.token_count.completion", "456"),
         ("llm.token_count.total", "579"),
+        ("decision.token_count.input", "1000"),
+        ("decision.token_count.output", "3"),
         # Test attributes that should not be modified
         ("other.number", "789"),
         ("some.string", "hello"),
@@ -481,6 +483,8 @@ def test_coerce_otlp_span_attributes() -> None:
         ("llm.token_count.prompt", 123),
         ("llm.token_count.completion", 456),
         ("llm.token_count.total", 579),
+        ("decision.token_count.input", 1000),
+        ("decision.token_count.output", 3),
         ("other.number", "789"),
         ("some.string", "hello"),
         ("llm.other.field", "world"),
@@ -493,6 +497,8 @@ def test_coerce_otlp_span_attributes() -> None:
         ("llm.token_count.prompt", "not_a_number"),
         ("llm.token_count.completion", "invalid"),
         ("llm.token_count.total", ""),
+        ("decision.token_count.input", "many"),
+        ("decision.token_count.output", ""),
     ]
 
     result = list(coerce_otlp_span_attributes(invalid_attrs))
@@ -565,6 +571,48 @@ def test_decode_otlp_span_existing_oi_attrs_win_over_gen_ai() -> None:
     decoded = decode_otlp_span(otlp_span)
 
     assert decoded.attributes["llm"]["model_name"] == "gpt-4-from-oi"
+
+
+def test_decode_otlp_span_keeps_partial_client_messages_over_gen_ai_synthesis() -> None:
+    """The client's ``llm.input_messages`` mapping wins whole, even when it is
+    missing a message the ``gen_ai.*`` synthesis would have added."""
+    system_instructions = json.dumps([{"type": "text", "content": "You are a helpful assistant."}])
+    input_messages = json.dumps(
+        [{"role": "user", "parts": [{"type": "text", "content": "only root spans"}]}]
+    )
+    otlp_span = otlp.Span(
+        name="chat",
+        trace_id=token_bytes(16),
+        span_id=token_bytes(8),
+        attributes=[
+            KeyValue(
+                key="gen_ai.system_instructions",
+                value=AnyValue(string_value=system_instructions),
+            ),
+            KeyValue(key="gen_ai.input.messages", value=AnyValue(string_value=input_messages)),
+            # Like `@arizeai/openinference-genai` 0.2.0, the client mapped the user
+            # turn but not the system instructions, so the user turn sits at index 0.
+            KeyValue(
+                key="llm.input_messages.0.message.role",
+                value=AnyValue(string_value="user"),
+            ),
+            KeyValue(
+                key="llm.input_messages.0.message.contents.0.message_content.text",
+                value=AnyValue(string_value="only root spans"),
+            ),
+        ],
+    )
+
+    decoded = decode_otlp_span(otlp_span)
+
+    assert decoded.attributes["llm"]["input_messages"] == [
+        {
+            "message": {
+                "role": "user",
+                "contents": [{"message_content": {"text": "only root spans"}}],
+            }
+        }
+    ]
 
 
 @pytest.fixture

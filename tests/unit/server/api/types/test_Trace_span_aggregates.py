@@ -39,7 +39,7 @@ async def trace_with_mixed_spans(db: DbSessionFactory) -> int:
         project_id = await session.scalar(
             insert(models.Project).values(name="trace_aggregates").returning(models.Project.id)
         )
-        trace_rowid = await session.scalar(
+        trace_rowid: int | None = await session.scalar(
             insert(models.Trace)
             .values(
                 trace_id="trace_aggregates",
@@ -264,7 +264,7 @@ async def trace_with_non_canonical_kinds(db: DbSessionFactory) -> int:
             .values(name="trace_non_canonical_kinds")
             .returning(models.Project.id)
         )
-        trace_rowid = await session.scalar(
+        trace_rowid: int | None = await session.scalar(
             insert(models.Trace)
             .values(
                 trace_id="trace_non_canonical",
@@ -340,7 +340,7 @@ async def trace_with_hierarchy(db: DbSessionFactory) -> int:
         project_id = await session.scalar(
             insert(models.Project).values(name="trace_hierarchy").returning(models.Project.id)
         )
-        trace_rowid = await session.scalar(
+        trace_rowid: int | None = await session.scalar(
             insert(models.Trace)
             .values(
                 trace_id="trace_hierarchy",

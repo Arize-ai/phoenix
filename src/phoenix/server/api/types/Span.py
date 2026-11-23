@@ -71,6 +71,7 @@ class SpanKind(Enum):
     reranker = "RERANKER"
     evaluator = "EVALUATOR"
     guardrail = "GUARDRAIL"
+    decision = "DECISION"
     unknown = "UNKNOWN"
 
     @classmethod
@@ -323,6 +324,24 @@ class Span(Node):
         else:
             value = await info.context.data_loaders.span_fields.load(
                 (self.id, models.Span.user_id),
+            )
+        if value is None or isinstance(value, str):
+            return value
+        return json.dumps(value)
+
+    @strawberry.field(
+        description='The "llm.model_name" attribute of the span, identifying the model '
+        "invoked. Typically populated on LLM spans.",
+    )  # type: ignore
+    async def model_name(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[str]:
+        if self.db_record:
+            value = self.db_record.llm_model_name
+        else:
+            value = await info.context.data_loaders.span_fields.load(
+                (self.id, models.Span.llm_model_name),
             )
         if value is None or isinstance(value, str):
             return value
@@ -656,8 +675,10 @@ class Span(Node):
             metrics.score_sum += annotation.score or 0
             metrics.score_count += int(annotation.score is not None)
 
+        # Summaries have no id, so clients cache them by position; a stable
+        # order keeps fields from different queries on the same summary.
         result: list[AnnotationSummary] = []
-        for name, label_metrics in summaries.items():
+        for name, label_metrics in sorted(summaries.items()):
             rows = [{"label": label, **asdict(metrics)} for label, metrics in label_metrics.items()]
             result.append(AnnotationSummary(name=name, df=pd.DataFrame(rows), simple_avg=True))
         return result

@@ -123,6 +123,23 @@ export function createShortDateTimeFormatter(
 }
 
 /**
+ * Creates a date formatter with an abbreviated month and no time, e.g. "Jan 1, 2099"
+ * @param displayOptions - The display options to use for the formatter
+ * @returns A date formatter
+ */
+export function createDateFormatter(
+  displayOptions: TimeDisplayOptions
+): TimeFormatter {
+  const { locale, timeZone } = displayOptions;
+  return createTimeFormatter(locale, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    timeZone,
+  });
+}
+
+/**
  * Creates a time range formatter
  * @param displayOptions - The display options to use for the formatter
  * @returns A time range formatter

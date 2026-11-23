@@ -108,18 +108,19 @@ import re
 from typing import Annotated, Any
 
 from jsonpath_ng import JSONPath as JSONPathAST
-from jsonpath_ng import parse as parse_jsonpath
-from jsonpath_ng.exceptions import (  # type: ignore[import-untyped]
+from jsonpath_ng.exceptions import (
     JsonPathLexerError,
     JsonPathParserError,
 )
-from jsonpath_ng.jsonpath import (  # type: ignore[import-untyped]
+from jsonpath_ng.jsonpath import (
     Child,
     Fields,
     Index,
     Root,
     Slice,
+    Wildcard,
 )
+from jsonpath_ng.parser import JsonPathParser
 from pydantic import AfterValidator
 
 from .db_helper_types import DBBaseModel
@@ -165,7 +166,8 @@ _INVALID_IDENTIFIER_PATTERN = re.compile(
 #   - Child (.field)
 #   - Fields (field names)
 #   - Index ([n] or [-n])
-#   - Slice ([start:end:step], also used for wildcard [*])
+#   - Slice ([start:end:step])
+#   - Wildcard ([*] or .*)
 #
 # NOT allowed:
 #   - Descendants (..) - too complex
@@ -175,6 +177,7 @@ _ALLOWED_JSONPATH_NODES = (
     Fields,
     Index,
     Slice,
+    Wildcard,
 )
 
 
@@ -187,7 +190,7 @@ def _walk_jsonpath_ast(node: JSONPathAST) -> None:
         Child(left=Fields('foo'), right=Fields('bar'))
 
     Node types fall into two categories:
-      - Leaf nodes (Fields, Index, Slice): no children to recurse into
+      - Leaf nodes (Fields, Index, Slice, Wildcard): no children to recurse into
       - Binary nodes (Child): have 'left' and 'right' subtrees
     """
     if not isinstance(node, _ALLOWED_JSONPATH_NODES):
@@ -236,7 +239,8 @@ def validate_jsonpath(value: str) -> str:
         )
 
     try:
-        ast = parse_jsonpath(value)
+        parser = JsonPathParser()
+        ast = parser.parse(value)
     except (JsonPathLexerError, JsonPathParserError) as e:
         raise ValueError(f"Invalid JSONPath syntax: {e}")
 

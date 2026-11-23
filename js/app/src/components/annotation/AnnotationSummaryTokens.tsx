@@ -11,7 +11,11 @@ import {
 
 import { hasAnnotationValue } from "./annotationUtils";
 import type { AnnotationOptimizationConfig } from "./optimizationUtils";
-import type { Annotation, AnnotationTargetType } from "./types";
+import type {
+  Annotation,
+  AnnotationSummary,
+  AnnotationTargetType,
+} from "./types";
 
 /* Keeps a value-less token the same height as one with a score/label chart. */
 const tokenMinHeight = "var(--global-dimension-size-250)";
@@ -29,12 +33,6 @@ const annotationValueCSS = css`
   display: flex;
   align-items: center;
 `;
-
-export type AnnotationSummary = {
-  name: string;
-  meanScore?: number | null;
-  labelFractions: readonly { label: string; fraction: number }[];
-};
 
 type AnnotationSummaryTokenProps = {
   summary: AnnotationSummary;

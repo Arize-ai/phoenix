@@ -9,6 +9,7 @@ from phoenix.server.api.input_types.ReferenceInputs import (
     SpanReferenceInput,
     TraceReferenceInput,
 )
+from phoenix.server.api.redaction import Redacted
 from phoenix.server.api.types.AnnotationSource import AnnotationSource
 from phoenix.server.api.types.AnnotatorKind import AnnotatorKind
 
@@ -29,7 +30,7 @@ def _trim_identifier(identifier: Optional[str]) -> Optional[str]:
 @strawberry.input
 class CreateSpanNoteInput:
     span: SpanReferenceInput
-    note: str
+    note: Redacted[str]
     annotator_kind: AnnotatorKind
     source: AnnotationSource
     identifier: Optional[str] = UNSET
@@ -42,7 +43,7 @@ class CreateSpanNoteInput:
 @strawberry.input
 class CreateTraceNoteInput:
     trace: TraceReferenceInput
-    note: str
+    note: Redacted[str]
     annotator_kind: AnnotatorKind
     source: AnnotationSource
     identifier: Optional[str] = UNSET
@@ -55,7 +56,7 @@ class CreateTraceNoteInput:
 @strawberry.input
 class CreateProjectSessionNoteInput:
     session: ProjectSessionReferenceInput
-    note: str
+    note: Redacted[str]
     annotator_kind: AnnotatorKind
     source: AnnotationSource
     identifier: Optional[str] = UNSET

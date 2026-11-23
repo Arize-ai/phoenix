@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any, NamedTuple
 
-import httpx
+import httpx2
 import pytest
 from strawberry.relay import GlobalID
 
@@ -31,7 +31,7 @@ class TestProjectSession:
     async def _node(
         field: str,
         project_session: models.ProjectSession,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> Any:
         return await _node(
             field,
@@ -161,7 +161,7 @@ class TestProjectSession:
     async def test_num_traces(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         project_session = _data.project_sessions[0]
         field = "numTraces"
@@ -170,7 +170,7 @@ class TestProjectSession:
     async def test_num_traces_with_error(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         project_session = _data.project_sessions[0]
         field = "numTracesWithError"
@@ -179,7 +179,7 @@ class TestProjectSession:
     async def test_first_input(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         project_session = _data.project_sessions[0]
         field = "firstInput{value truncatedValue mimeType}"
@@ -192,7 +192,7 @@ class TestProjectSession:
     async def test_last_output(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         project_session = _data.project_sessions[0]
         field = "lastOutput{value truncatedValue mimeType}"
@@ -205,7 +205,7 @@ class TestProjectSession:
     async def test_traces(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         project_session = _data.project_sessions[0]
         field = "traces(first: 50){edges{node{id traceId}}}"
@@ -218,7 +218,7 @@ class TestProjectSession:
     async def test_user_id(
         self,
         db: DbSessionFactory,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         async with db() as session:
             project = await _add_project(session)
@@ -267,7 +267,7 @@ class TestProjectSession:
     async def test_token_usage(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         project_sessions = _data.project_sessions
         field = "tokenUsage{prompt completion total}"
@@ -280,7 +280,7 @@ class TestProjectSession:
     async def test_trace_latency_ms_quantile(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         project_sessions = _data.project_sessions
         field = "traceLatencyMsQuantile(probability: 0.5)"
@@ -289,7 +289,7 @@ class TestProjectSession:
     async def test_project(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         project_session = _data.project_sessions[0]
         project = _data.projects[0]
@@ -304,7 +304,7 @@ class TestProjectSession:
     async def test_session_annotations(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         project_session = _data.project_sessions[0]
         field = (
@@ -341,7 +341,7 @@ class TestProjectSession:
     async def test_session_annotation_summaries(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         project_session = _data.project_sessions[0]
         field = "sessionAnnotationSummaries{name meanScore labelFractions{label fraction}}"
@@ -377,7 +377,7 @@ class TestProjectSession:
     async def test_session_annotations_empty_for_second_session(
         self,
         _data: _Data,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         # Test that the second session (no annotations) returns empty results
         project_session = _data.project_sessions[1]
@@ -428,7 +428,7 @@ async def test_project_session_traces_require_first(
     assert len(response.errors) == 1
     assert (
         response.errors[0].message
-        == "Field 'traces' argument 'first' of type 'Int!' is required, but it was not provided."
+        == "Argument 'ProjectSession.traces(first:)' of type 'Int!' is required, but it was not provided."
     )
 
 

@@ -1,10 +1,5 @@
 import { css } from "@emotion/react";
-import type { ColumnDef } from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import { startTransition, useCallback, useMemo, useState } from "react";
 import { graphql, useMutation, useRefetchableFragment } from "react-relay";
 
@@ -16,6 +11,8 @@ import {
   getCommonPinningStyles,
   tableCSS,
 } from "@phoenix/components/table/styles";
+import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -41,7 +38,6 @@ export function SystemAPIKeysTable({
 }: {
   query: SystemAPIKeysTableFragment$key;
 }) {
-  "use no memo";
   const [data, refetch] = useRefetchableFragment<
     SystemAPIKeysTableQuery,
     SystemAPIKeysTableFragment$key
@@ -160,16 +156,19 @@ export function SystemAPIKeysTable({
     ];
     return cols;
   }, [handleDelete]);
-  // eslint-disable-next-line react/incompatible-library
-  const table = useReactTable<TableRow>({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data: tableData,
     state: {
       columnPinning: {
-        right: ["actions"],
+        start: [],
+        end: ["actions"],
       },
     },
-    getCoreRowModel: getCoreRowModel(),
+    // the keys are listed in the order the server returns them; with no
+    // sorted row model a sortable header would toggle state and do nothing
+    enableSorting: false,
   });
   const rows = table.getRowModel().rows;
   const isEmpty = table.getRowModel().rows.length === 0;

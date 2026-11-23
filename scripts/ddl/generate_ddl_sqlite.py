@@ -45,12 +45,13 @@ from dataclasses import dataclass, field
 from io import StringIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import Any, Iterator
+from typing import Any, Generator, Iterator
 
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import URL, create_engine
 from sqlalchemy.exc import SAWarning
+from sqlean import dbapi2 as sqlean_dbapi2
 
 import phoenix.db
 
@@ -1174,14 +1175,14 @@ def _report_first_difference(generated_sql: str, replayed_sql: str) -> None:
 
 
 @contextmanager
-def ephemeral_sqlite() -> Iterator[Path]:
+def ephemeral_sqlite() -> Generator[Path]:
     """Yield a database path inside a temporary directory removed on exit."""
     with TemporaryDirectory() as temporary_directory:
         yield Path(temporary_directory) / EPHEMERAL_DATABASE_NAME
 
 
 @contextmanager
-def connect_read_only(database: Path) -> Iterator[sqlite3.Connection]:
+def connect_read_only(database: Path) -> Generator[sqlite3.Connection]:
     """Open a SQLite database read-only, so extraction cannot modify it."""
     if not database.is_file():
         raise FileNotFoundError(f"SQLite database not found: {database}")
@@ -1215,7 +1216,10 @@ def run_alembic_migrations(database: Path, skip_if_failed: bool = False) -> bool
         config = Config(str(alembic_ini))
         config.set_main_option("script_location", str(phoenix_db_path / "migrations"))
 
-        engine = create_engine(URL.create(drivername="sqlite", database=str(database)))
+        engine = create_engine(
+            URL.create(drivername="sqlite", database=str(database)),
+            module=sqlean_dbapi2,
+        )
 
         print("Running Alembic migrations...")
         with engine.connect() as conn:

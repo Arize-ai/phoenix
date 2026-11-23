@@ -102,6 +102,25 @@ async def test_select_count_projects_postgresql(db: DbSessionFactory) -> None:
     assert "c" in result.envelope.columns
 
 
+@pytest.mark.postgres_only
+@pytest.mark.parametrize("validate_only", [False, True])
+async def test_analytics_sql_with_read_only_database_role(
+    analytics_postgres_read_only_db: DbSessionFactory,
+    validate_only: bool,
+) -> None:
+    result = await execute_analytics_sql(
+        analytics_postgres_read_only_db,
+        ExecuteParams(sql="SELECT name FROM projects", validate_only=validate_only),
+    )
+    assert result.envelope.backend_validated is True
+    if validate_only:
+        assert result.envelope.columns == []
+        assert result.envelope.rows == []
+    else:
+        assert result.envelope.columns == ["name"]
+        assert result.envelope.rows == [["demo"]]
+
+
 async def test_denied_table(analytics_sqlite_db: tuple[DbSessionFactory, str]) -> None:
     db, db_path = analytics_sqlite_db
     with pytest.raises(AnalyticsSqlError) as exc:

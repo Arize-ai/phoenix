@@ -11,17 +11,19 @@ export const CHECKBOX_COLUMN_ID = "select";
 export const ACTIONS_COLUMN_ID = "actions";
 
 /**
- * Pins the checkbox column to the left so it stays visible while a table's
- * other columns scroll horizontally.
+ * Pins the checkbox column to the start (left) so it stays visible while a
+ * table's other columns scroll horizontally.
  */
 export const CHECKBOX_COLUMN_PINNING = {
-  left: [CHECKBOX_COLUMN_ID],
+  start: [CHECKBOX_COLUMN_ID],
+  end: [],
 } satisfies ColumnPinningState;
 
 /**
- * Pins the row-actions column to the right so it stays visible while a
+ * Pins the row-actions column to the end (right) so it stays visible while a
  * table's other columns scroll horizontally.
  */
 export const ACTIONS_COLUMN_PINNING = {
-  right: [ACTIONS_COLUMN_ID],
+  start: [],
+  end: [ACTIONS_COLUMN_ID],
 } satisfies ColumnPinningState;

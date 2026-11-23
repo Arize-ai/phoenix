@@ -3,6 +3,7 @@ import binascii
 import hashlib
 import json
 import logging
+import re
 from collections.abc import (
     AsyncGenerator,
     AsyncIterator,
@@ -501,6 +502,12 @@ class ChatRequestCredential(_CamelBaseModel):
     value: SecretStr
 
 
+# Mirrors the ``valid_message_id`` check constraint on ``agent_session_messages``.
+_UUID_PATTERN = re.compile(
+    r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+)
+
+
 class ChatRequestBody(_CamelBaseModel):
     """Assistant chat submit request payload."""
 
@@ -602,6 +609,8 @@ class ChatRequestBody(_CamelBaseModel):
         _validate_submitted_tool_approvals(self.tool_approvals)
         if self.message is not None and self.message.role != "user":
             raise ValueError("Only user messages can be submitted")
+        if self.message is not None and not _UUID_PATTERN.fullmatch(self.message.id):
+            raise ValueError("The submitted message id must be a UUID")
         if (
             self.message is not None
             and self.message.metadata is not None
@@ -1658,7 +1667,7 @@ async def _upsert_project_sessions(
     if not project_sessions_by_session_id:
         return {}
 
-    dialect = SupportedSQLDialect(session.bind.dialect.name)
+    dialect = SupportedSQLDialect(session.get_bind().dialect.name)
     records = [
         {
             "session_id": project_session.session_id,
@@ -2246,7 +2255,7 @@ async def _refresh_and_load_agent_session(
     if await session.scalar(statement) is None:
         raise HTTPException(status_code=404, detail="Session not found")
     # Bumping updated_at slides an ephemeral session's TTL window.
-    refreshed_agent_session = await session.scalar(
+    refreshed_agent_session: models.AgentSession | None = await session.scalar(
         update(models.AgentSession)
         .where(models.AgentSession.id == agent_session_rowid)
         .values(updated_at=func.now())
@@ -2506,7 +2515,7 @@ async def _upsert_agent_session_snapshot(
                 "bashkit_snapshot": bashkit_snapshot,
             },
             table=models.AgentSessionSnapshot,
-            dialect=SupportedSQLDialect(session.bind.dialect.name),
+            dialect=SupportedSQLDialect(session.get_bind().dialect.name),
             unique_by=("agent_session_id",),
             on_conflict=OnConflict.DO_UPDATE,
             set_={"bashkit_snapshot": bashkit_snapshot, "updated_at": func.now()},
@@ -3697,7 +3706,11 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         yield transcript_persisted_chunk
                 except Exception as exc:
                     stream_error = exc
-                    logger.exception("Agent chat stream failed for session %s", session_id)
+                    logger.error(
+                        "Agent chat stream failed for session %s (%s)",
+                        session_id,
+                        type(exc).__name__,
+                    )
                     yield ErrorChunk(error_text=str(exc).strip() or type(exc).__name__)
                 except (asyncio.CancelledError, GeneratorExit) as exc:
                     # A client disconnect (e.g., the UI stop button, a CLI interrupt,

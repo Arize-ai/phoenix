@@ -50,7 +50,7 @@ async def experiment_filter_data(db: DbSessionFactory) -> int:
             .values(dataset_id=dataset_id, metadata_={})
             .returning(models.DatasetVersion.id)
         )
-        experiment_id = await session.scalar(
+        experiment_id: int | None = await session.scalar(
             insert(models.Experiment)
             .values(
                 dataset_id=dataset_id,

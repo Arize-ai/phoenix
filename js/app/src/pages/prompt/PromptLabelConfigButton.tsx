@@ -264,6 +264,8 @@ function PromptLabelList({
               aria-label="labels"
               items={labels}
               selectionMode="multiple"
+              // Clearing the selection would unassign every label
+              escapeKeyBehavior="none"
               selectedKeys={selected}
               onSelectionChange={onSelectionChange}
               renderEmptyState={() => (

@@ -9,6 +9,8 @@
 # allow docs tree
 !docs
 !docs/**
+# README translations are GitHub-only, not docs pages
+docs/i18n
 
 # allow schemas
 !schemas

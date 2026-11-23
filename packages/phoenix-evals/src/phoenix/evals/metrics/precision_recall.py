@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import isfinite
 from typing import (
     Any,
     Dict,
@@ -104,7 +105,7 @@ class PrecisionRecallFScore(Evaluator):
             evaluator = PrecisionRecallFScore(beta=1.0, average="macro")
             eval_input = {"expected": ["cat", "dog", "cat", "bird"],
                           "output": ["cat", "cat", "cat", "bird"]}
-            scores = evaluator(eval_input)
+            scores = evaluator.evaluate(eval_input)
             [s.name for s in scores]
             ['precision', 'recall', 'f1']
 
@@ -113,7 +114,7 @@ class PrecisionRecallFScore(Evaluator):
             evaluator = PrecisionRecallFScore(beta=0.5, positive_label="spam")
             eval_input = {"expected": ["spam", "ham", "spam"],
                           "output": ["spam", "spam", "ham"]}
-            scores = evaluator(eval_input)
+            scores = evaluator.evaluate(eval_input)
             [s.name for s in scores]
             ['precision', 'recall', 'f0_5']
     """
@@ -136,8 +137,8 @@ class PrecisionRecallFScore(Evaluator):
             input_schema=self.InputSchema,
             direction="maximize",
         )
-        if beta <= 0:
-            raise ValueError("beta must be > 0")
+        if not isfinite(beta) or beta <= 0:
+            raise ValueError("beta must be finite and > 0")
         if average not in ("macro", "micro", "weighted"):
             raise ValueError("average must be one of {'macro','micro','weighted'}")
         self.beta = float(beta)

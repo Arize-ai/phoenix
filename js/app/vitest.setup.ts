@@ -1,4 +1,12 @@
+import { vi } from "vitest";
+
 import "vitest-canvas-mock";
+
+// relay-test-utils' createMockEnvironment wraps the environment's methods in
+// `jest.fn()`; Vitest's `vi.fn` is API-compatible for that use
+(globalThis as typeof globalThis & { jest: { fn: typeof vi.fn } }).jest = {
+  fn: vi.fn,
+};
 
 (
   globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }
@@ -57,6 +65,7 @@ export const baseWindowConfig = {
   basename: "/",
   platformVersion: "1.0.0",
   passwordResetEmailEnabled: false,
+  allowExternalResources: true,
   agentAssistantDisabled: false,
   agentBashDisabled: false,
   mcpServerEnabled: true,

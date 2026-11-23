@@ -65,9 +65,11 @@ class _BoundedTextSink:
         return value
 
 
-def _resource_limits(max_duration_secs: float) -> "ResourceLimits":
+def _resource_limits(duration_secs: float) -> "ResourceLimits":
+    # Monty's feed clock stops during `time.sleep`, and sleep is unlimited unless capped.
     return {
-        "max_duration_secs": max_duration_secs,
+        "max_feed_duration_secs": duration_secs,
+        "max_total_sleep_secs": duration_secs,
         "max_memory": DEFAULT_GUEST_MAX_MEMORY_BYTES,
         "max_recursion_depth": DEFAULT_GUEST_MAX_RECURSION_DEPTH,
     }

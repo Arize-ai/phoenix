@@ -1,10 +1,13 @@
 import { graphql, readInlineData, useLazyLoadQuery } from "react-relay";
 
-import { EXPERIMENT_METRICS_EXPERIMENT_COUNT } from "@phoenix/pages/dataset/constants";
-
 import type { ExperimentAnnotationMetric_experiment$key } from "./__generated__/ExperimentAnnotationMetric_experiment.graphql";
 import type { ExperimentAnnotationMetricQuery } from "./__generated__/ExperimentAnnotationMetricQuery.graphql";
 import type { useExperimentAnnotationMetricDataBaselineQuery } from "./__generated__/useExperimentAnnotationMetricDataBaselineQuery.graphql";
+import {
+  getExperimentMetricsQueryVariables,
+  orderByComparedSelection,
+} from "./experimentSelection";
+import type { ExperimentSelection } from "./types";
 
 const experimentAnnotationMetricFragment = graphql`
   fragment ExperimentAnnotationMetric_experiment on Experiment
@@ -29,17 +32,24 @@ const experimentAnnotationMetricQuery = graphql`
   query ExperimentAnnotationMetricQuery(
     $id: ID!
     $count: Int!
+    $filterIds: [ID!]
+    $isComparedSelection: Boolean!
     $annotationName: String!
   ) {
     dataset: node(id: $id) {
       ... on Dataset {
         # Query the same baseline field written by the baseline mutation so
         # set, replace, and clear operations update this chart through Relay.
-        baselineExperiment {
+        # A comparison's base experiment is its reference instead.
+        baselineExperiment @skip(if: $isComparedSelection) {
           ...ExperimentAnnotationMetric_experiment
             @arguments(annotationName: $annotationName)
         }
-        metricsExperiments: experiments(first: $count) {
+        metricsExperiments: experiments(
+          first: $count
+          filterIds: $filterIds
+          includeEphemeral: $isComparedSelection
+        ) {
           edges {
             experiment: node {
               ...ExperimentAnnotationMetric_experiment
@@ -82,38 +92,74 @@ export type ExperimentAnnotationMetricDatum = {
 export function useExperimentAnnotationMetricData({
   datasetId,
   annotationName,
+  experimentSelection,
 }: {
   datasetId: string;
   annotationName: string;
+  /**
+   * Which experiments to load. A compared selection loads exactly the compared
+   * experiments, base experiment first and as the reference.
+   */
+  experimentSelection: ExperimentSelection;
 }): {
   experiments: ExperimentAnnotationMetricDatum[];
   baselineExperiment: ExperimentAnnotationMetricDatum | null;
 } {
   // The baseline mutation cannot refetch these runtime-argument summaries,
   // so key the query by the linked baseline to refetch them when it changes.
+  // A compared selection's reference is its base experiment, so it never
+  // fetches the
+  // dataset baseline.
   const baselineData =
     useLazyLoadQuery<useExperimentAnnotationMetricDataBaselineQuery>(
       experimentAnnotationMetricBaselineQuery,
       { id: datasetId },
-      { fetchPolicy: "store-or-network" }
+      {
+        fetchPolicy:
+          experimentSelection.type === "recent"
+            ? "store-or-network"
+            : "store-only",
+      }
     );
   const data = useLazyLoadQuery<ExperimentAnnotationMetricQuery>(
     experimentAnnotationMetricQuery,
     {
-      id: datasetId,
-      count: EXPERIMENT_METRICS_EXPERIMENT_COUNT,
+      ...getExperimentMetricsQueryVariables({ datasetId, experimentSelection }),
       annotationName,
     },
     {
-      fetchKey: baselineData.dataset.baselineExperiment?.id ?? "no-baseline",
+      fetchKey:
+        experimentSelection.type === "recent"
+          ? (baselineData.dataset?.baselineExperiment?.id ?? "no-baseline")
+          : "compared",
       fetchPolicy: "store-or-network",
     }
   );
+  const edges = data.dataset.metricsExperiments?.edges ?? [];
+
+  if (experimentSelection.type === "compared") {
+    const experiments = orderByComparedSelection({
+      experiments: edges.map(({ experiment }) => {
+        const datum = readExperimentAnnotationMetricDatum(experiment);
+        return {
+          ...datum,
+          isBaseline: datum.id === experimentSelection.baseExperimentId,
+        };
+      }),
+      experimentSelection,
+    });
+    return {
+      experiments,
+      baselineExperiment:
+        experiments.find((experiment) => experiment.isBaseline) ?? null,
+    };
+  }
+
   const baselineExperiment =
     data.dataset.baselineExperiment == null
       ? null
       : readExperimentAnnotationMetricDatum(data.dataset.baselineExperiment);
-  const experiments = (data.dataset.metricsExperiments?.edges ?? [])
+  const experiments = edges
     .map(({ experiment }) => readExperimentAnnotationMetricDatum(experiment))
     .sort((left, right) => left.sequenceNumber - right.sequenceNumber);
   return { experiments, baselineExperiment };

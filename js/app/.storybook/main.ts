@@ -3,15 +3,21 @@ import type { StorybookConfig } from "@storybook/react-vite";
 import { mergeConfig } from "vite";
 
 const config: StorybookConfig = {
-  stories: ["../stories/*.mdx", "../stories/*.stories.@(js|jsx|mjs|ts|tsx)"],
+  // Recursive: stories live in directories mirroring their title.
+  // `stories/_meta` and `stories/constants|utils` hold helpers, not stories,
+  // and are not matched because they contain no `*.stories.*` or `*.mdx`.
+  // @see app/stories/_meta/taxonomy.ts
+  stories: [
+    "../stories/**/*.mdx",
+    "../stories/**/*.stories.@(js|jsx|mjs|ts|tsx)",
+  ],
   core: {
     disableWhatsNewNotifications: true,
   },
-  addons: [
-    "@storybook/addon-docs",
-    "@storybook/addon-designs",
-    "@storybook/addon-vitest",
-  ],
+  // `@storybook/addon-vitest` is installed but deliberately not registered:
+  // no Vitest project runs stories (vite.config.mts has no `storybookTest`
+  // plugin), so its "Run tests" sidebar widget had nothing to run.
+  addons: ["@storybook/addon-docs", "@storybook/addon-designs"],
   framework: {
     name: "@storybook/react-vite",
     options: {},
@@ -29,22 +35,6 @@ const config: StorybookConfig = {
       resolve: {
         alias: {
           "@phoenix": resolve(import.meta.dirname, "../src"),
-        },
-      },
-      build: {
-        rolldownOptions: {
-          experimental: {
-            // Rolldown's `lazyBarrel` optimization (on by default in the
-            // rolldown 1.1.3 that vite 8.1.0 locks) miscompiles shiki's
-            // deeply-nested `export *` re-export chains: emitted chunks call
-            // the `__reExport` helper with no definition in scope, which
-            // crashes the published Storybook build.
-            // Shiki is pulled in via @streamdown/code and @pierre/diffs.
-            // Remove once the lockfile resolves rolldown >= 1.1.4, which
-            // turns the experiment off by default; see
-            // https://github.com/rolldown/rolldown/issues/9806.
-            lazyBarrel: false,
-          },
         },
       },
     });

@@ -196,7 +196,7 @@ class DbDiskUsageMonitor(DaemonTask):
                     notification_threshold_percentage=notification_threshold_percentage,
                 )
             except Exception:
-                logger.exception(f"Failed to send database usage warning email to {email}")
+                logger.exception("Failed to send database usage warning email")
                 # Count email send errors
                 DB_DISK_USAGE_WARNING_EMAIL_ERRORS.inc()
             else:

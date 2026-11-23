@@ -43,3 +43,15 @@ def test_span_with_exception() -> None:
     )
     assert span.name == "exception-span"
     assert span.events[0].name == "exception"
+
+
+def test_span_kind_covers_every_openinference_span_kind() -> None:
+    # Phoenix keeps its own SpanKind enum, so a kind added upstream (e.g. DECISION)
+    # silently degrades to UNKNOWN unless it is mirrored here.
+    from openinference.semconv.trace import OpenInferenceSpanKindValues
+
+    missing = {kind.value for kind in OpenInferenceSpanKindValues} - {
+        kind.value for kind in SpanKind
+    }
+    assert not missing
+    assert SpanKind("decision") is SpanKind.DECISION

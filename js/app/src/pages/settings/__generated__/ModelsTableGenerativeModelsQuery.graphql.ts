@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3eea245f16aabb5c7374b1edb0be45c0>>
+ * @generated SignedSource<<581c96af1d30270900fcbb60c23ef1f4>>
  * @lightSyntaxTransform
  */
 
@@ -112,6 +112,13 @@ return {
                     "args": null,
                     "kind": "ScalarField",
                     "name": "name",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "modelType",
                     "storageKey": null
                   },
                   {
@@ -262,16 +269,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d2c39f2a952d3a47ca39883bdff49cc4",
+    "cacheID": "30d401e7da9dd17a050ba918a8b0c70f",
     "id": null,
     "metadata": {},
     "name": "ModelsTableGenerativeModelsQuery",
     "operationKind": "query",
-    "text": "query ModelsTableGenerativeModelsQuery(\n  $after: String = null\n  $first: Int = 1000\n) {\n  ...ModelsTable_generativeModels_2HEEH6\n}\n\nfragment ModelsTable_generativeModels_2HEEH6 on Query {\n  generativeModels(first: $first, after: $after) {\n    edges {\n      generativeModel: node {\n        id\n        name\n        provider\n        namePattern\n        providerKey\n        startTime\n        createdAt\n        updatedAt\n        lastUsedAt\n        kind\n        tokenPrices {\n          tokenType\n          kind\n          costPerMillionTokens\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ModelsTableGenerativeModelsQuery(\n  $after: String = null\n  $first: Int = 1000\n) {\n  ...ModelsTable_generativeModels_2HEEH6\n}\n\nfragment ModelsTable_generativeModels_2HEEH6 on Query {\n  generativeModels(first: $first, after: $after) {\n    edges {\n      generativeModel: node {\n        id\n        name\n        modelType\n        provider\n        namePattern\n        providerKey\n        startTime\n        createdAt\n        updatedAt\n        lastUsedAt\n        kind\n        tokenPrices {\n          tokenType\n          kind\n          costPerMillionTokens\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e067fb55e7a09f7237e0cc8eb1eb4c75";
+(node as any).hash = "c7e2c9eb9b5469ab5c2c16260aabaa59";
 
 export default node;

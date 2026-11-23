@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { CHAT_PARAMETERS_STORAGE_BASE_KEY } from "@phoenix/constants/storageConstants";
 import { createScopedStorageItem } from "@phoenix/utils/storageUtils";
 
 import type { ChatParameters } from "./chatParameters";
@@ -22,7 +23,7 @@ export const {
   get: getStoredChatParameters,
   set: storeChatParameters,
 } = createScopedStorageItem({
-  baseKey: "arize-phoenix-chat-parameters",
+  baseKey: CHAT_PARAMETERS_STORAGE_BASE_KEY,
   schema: CHAT_PARAMETERS_SCHEMA,
   fallback: DEFAULT_CHAT_PARAMETERS,
 });

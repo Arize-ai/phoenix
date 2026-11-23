@@ -48,6 +48,7 @@ class SpanCostDetailSummaryEntriesByProjectSessionDataLoader(DataLoader[Key, Res
                 cost,
                 tokens,
             ) in data:
+                assert id_ is not None
                 entry = SpanCostDetailSummaryEntry(
                     token_type=token_type,
                     is_prompt=is_prompt,

@@ -3,7 +3,7 @@ title: "Sandboxes"
 description: "Configure the sandbox backends that execute code evaluators and other server-side code workloads."
 ---
 
-![Sandboxes](https://storage.googleapis.com/arize-phoenix-assets/assets/images/sandboxes_banner.png)
+![Sandboxes](https://storage.googleapis.com/arize-phoenix-assets/assets/images/docs-cards/banners/settings-sandboxes.avif)
 
 A **sandbox** is an isolated runtime that executes a snippet of code on demand. It's fast enough to run on every evaluation, but locked down enough that the code can't read the host filesystem, exfiltrate secrets, or make arbitrary network calls. Phoenix uses sandboxes to run [code evaluators](/docs/phoenix/evaluation/server-evals/code-evaluators) — short Python or TypeScript functions that you write to score or judge your LLM outputs server-side, without exposing the rest of your deployment.
 
@@ -13,7 +13,9 @@ The **Settings → Sandboxes** page is where administrators pick which sandbox p
 - **Sandbox Configurations** — named runtime profiles you create once and re-use. Each one bundles a provider with a timeout and, for hosted providers, environment variables, optional internet access, and any dependencies that should be pre-installed.
 
 <Note>
-Only users with the **Admin** role can view or edit this page. Non-admin users are routed away from the tab.
+When authentication is enabled, users with the **Member** role can view this page, but only **Admins** can manage providers, credentials, and configurations. Users with the **Viewer** role cannot access this page.
+
+When authentication is disabled, users can view and manage sandbox settings.
 </Note>
 
 ## Local vs. hosted sandboxes
@@ -108,7 +110,7 @@ A **provider** is a sandbox runtime that Phoenix can run code on — for example
 The **Enabled** switch above is a per-deployment, admin-facing control. Self-hosted deployments can also restrict providers at the *server* level with the `PHOENIX_ALLOWED_SANDBOX_PROVIDERS` environment variable, which is set before Phoenix starts and cannot be overridden from this page.
 
 - **Leave it unset** to allow every supported provider (the default).
-- **Set it to a comma-separated list** — e.g. `PHOENIX_ALLOWED_SANDBOX_PROVIDERS=WASM,DENO` — to allow only those providers. Accepted values are `WASM`, `DENO`, `E2B`, `DAYTONA`, `VERCEL`, and `MODAL` (case-insensitive).
+- **Set it to a comma-separated list** — e.g. `PHOENIX_ALLOWED_SANDBOX_PROVIDERS=WASM,DENO` — to allow only those providers. Accepted values are `WASM`, `DENO`, `E2B`, `DAYTONA`, `VERCEL`, `MODAL`, and `DOCKER` (case-insensitive).
 - **Set it to `NONE`** to disable every sandbox provider.
 
 A provider that isn't on the allowlist shows the status **Disabled** with the tooltip "Disabled on the server," and its **Enabled** switch is unavailable. See [Sandbox Backends](/docs/phoenix/self-hosting/features/sandbox-runtimes#restricting-which-providers-are-allowed) for the full details.
@@ -121,6 +123,7 @@ Click the gear icon next to a provider to open the credentials dialog. The dialo
 - **Daytona** — `DAYTONA_API_KEY`
 - **Modal** — `MODAL_TOKEN_ID`, `MODAL_TOKEN_SECRET`
 - **Vercel Sandbox** — `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, `VERCEL_TEAM_ID`
+- **Docker Sandboxes** — `DOCKER_ID`, `DOCKER_PAT`
 
 Values are stored encrypted at rest using the server's `PHOENIX_SECRET`. The dialog shows each field's environment-variable name and a short description; required fields are marked. Local backends (Deno, WebAssembly) have no credentials, and the gear button is disabled for them.
 

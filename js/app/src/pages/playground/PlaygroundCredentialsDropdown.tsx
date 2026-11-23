@@ -19,10 +19,12 @@ import {
   SegmentedControl,
   SegmentedControlItem,
   Skeleton,
+  StatusIndicator,
   Text,
   View,
 } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
+import { getMissingCredentialsStatus } from "@phoenix/components/generative/modelProviderUtils";
 import { ProviderToCredentialsConfigMap } from "@phoenix/constants/generativeConstants";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
@@ -131,18 +133,18 @@ export function PlaygroundCredentialsDropdown() {
 function ServerCredentialsSkeleton() {
   return (
     <View paddingY="size-100">
-      <Skeleton width="100%" height={20} animation="wave" />
+      <Skeleton width="100%" height={20} />
       <View paddingTop="size-100">
         <Flex direction="column" gap="size-100">
           <View paddingY="size-50">
             <Flex direction="row" gap="size-100" alignItems="center">
-              <Skeleton width={24} height={24} borderRadius="circle" />
-              <Skeleton width={120} height={20} animation="wave" />
+              <Skeleton width={24} height={24} borderRadius="full" />
+              <Skeleton width={120} height={20} />
             </Flex>
             <View paddingTop="size-100">
               <Flex direction="column" gap="size-50">
-                <Skeleton width="80%" height={16} animation="wave" />
-                <Skeleton width="70%" height={16} animation="wave" />
+                <Skeleton width="80%" height={16} />
+                <Skeleton width="70%" height={16} />
               </Flex>
             </View>
           </View>
@@ -243,19 +245,13 @@ function ServerCredentialsView({ providers }: { providers: ModelProvider[] }) {
                     </Heading>
                   </Flex>
                   {credentialsSet ? (
-                    <Flex direction="row" gap="size-50" alignItems="center">
-                      <Text color="success" size="S">
-                        Configured
-                      </Text>
-                      <Icon color="success" svg={<Icons.CheckmarkCircle />} />
-                    </Flex>
+                    <StatusIndicator category="succeeded" label="Configured" />
                   ) : (
-                    <Flex direction="row" gap="size-50" alignItems="center">
-                      <Text color="text-700" size="S">
-                        Not Configured
-                      </Text>
-                      <Icon svg={<Icons.MinusCircle />} />
-                    </Flex>
+                    <StatusIndicator
+                      {...getMissingCredentialsStatus({
+                        providerKey: provider,
+                      })}
+                    />
                   )}
                 </Flex>
                 <View paddingTop="size-100">

@@ -1,5 +1,19 @@
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 
+const JSON_TOKENS = /"(?:\\.|[^"\\])*"|[^\s]/g;
+
+/**
+ * Checks whether two valid JSON strings differ only in whitespace outside strings.
+ * Parsing can round numbers or drop duplicate keys; keep quoted strings intact
+ * when comparing non-whitespace. This does not validate JSON syntax.
+ */
+export function isWhitespaceOnlyReformat(original: string, formatted: string) {
+  return (
+    original.match(JSON_TOKENS)?.join("") ===
+    formatted.match(JSON_TOKENS)?.join("")
+  );
+}
+
 /**
  * Type guard for plain objects (excludes arrays and null).
  * Use this when you need to check if a value is a "dictionary-like" object.

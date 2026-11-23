@@ -1,6 +1,7 @@
 import type { FocusManagerOptions } from "react-aria";
 import { useFocusManager } from "react-aria";
-import { useHotkeys } from "react-hotkeys-hook";
+
+import { useScopedHotkeys } from "@phoenix/hooks/useScopedHotkeys";
 
 /**
  * Place this component inside of a FocusScope, give it a hotkey, and it will
@@ -15,7 +16,7 @@ export const FocusHotkey = ({
 }) => {
   const focus = useFocusManager();
 
-  useHotkeys(
+  useScopedHotkeys(
     hotkey,
     () => {
       focus?.focusFirst({

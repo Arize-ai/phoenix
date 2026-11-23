@@ -88,12 +88,11 @@ This table is exhaustive. Every identifier not in it is read as an attribute pat
 | --- | --- | --- |
 | `span_id`, `trace_id`, `parent_id` | string | OpenTelemetry hex ids |
 | `name` | string | span name |
-| `span_kind` | enum | `'CHAIN'`, `'LLM'`, `'RETRIEVER'`, `'EMBEDDING'`, `'TOOL'`, `'AGENT'`, `'RERANKER'`, `'GUARDRAIL'`, `'EVALUATOR'`, `'PROMPT'`, `'UNKNOWN'`; literals are uppercased for you |
+| `span_kind` | enum | `'CHAIN'`, `'LLM'`, `'RETRIEVER'`, `'EMBEDDING'`, `'TOOL'`, `'AGENT'`, `'RERANKER'`, `'GUARDRAIL'`, `'EVALUATOR'`, `'PROMPT'`, `'DECISION'`, `'UNKNOWN'`; literals are uppercased for you |
 | `status_code` | enum | `'OK'`, `'ERROR'`, `'UNSET'`; literals are uppercased for you |
 | `status_message` | string | error text |
 | `latency_ms` | number | |
 | `start_time`, `end_time` | datetime | |
-| `cumulative_llm_token_count_prompt`, `cumulative_llm_token_count_completion`, `cumulative_llm_token_count_total` | number | this span plus its descendants |
 | `llm.token_count.prompt`, `llm.token_count.completion`, `llm.token_count.total` | number | this span alone |
 | `total_cost`, `prompt_cost`, `completion_cost` | number | `0` when the span has no cost row |
 | `cost_details` | collection | iterable only; elements have `token_type` (string), `is_prompt` (boolean), `cost`, `tokens`, `cost_per_token` (number) |
@@ -102,9 +101,7 @@ This table is exhaustive. Every identifier not in it is read as an attribute pat
 | `trace_annotations['name']` | annotation | on the span's containing trace |
 | `attributes[...]`, `metadata[...]`, any other dotted name | attribute | JSON attribute path; type unknown until read |
 
-Legacy spellings still accepted: `context.span_id`, `context.trace_id`,
-`cumulative_token_count.prompt`, `cumulative_token_count.completion`,
-`cumulative_token_count.total`.
+Legacy spellings still accepted: `context.span_id`, `context.trace_id`.
 
 ### Attributes
 
@@ -177,7 +174,6 @@ float(metadata["retry_count"]) > 1
 attributes["tags"][0] == "urgent"
 start_time > "2026-09-01T00:00:00Z" and end_time < "2026-09-02T00:00:00Z"
 500 < latency_ms <= 2000
-cumulative_llm_token_count_total > 10000
 llm.token_count.total > 4000
 total_cost > 0.01
 any(d.token_type == "input" and d.tokens > 1000 for d in cost_details)
@@ -215,7 +211,7 @@ unknown here. Ask span-level questions with a comprehension over `spans`.
 | `user.id` | string | the root span's user id; the only dotted name |
 | `metadata['k']`, `attributes['k']` | attribute | read from the root span; `attributes["input.value"]` for any other root attribute |
 | `trace_annotations['name']` | annotation | `annotations[...]` is rejected here |
-| `spans` | collection | element fields: `name`, `parent_id`, `span_kind`, `status_code`, `start_time`, `end_time`, `latency_ms`, `llm_token_count_prompt`, `llm_token_count_completion`, `llm_token_count_total`, `cumulative_error_count`, `cumulative_llm_token_count_prompt`, `cumulative_llm_token_count_completion`, `cumulative_llm_token_count_total`; relations `parent_span` (traversable), `children`, `siblings`, `annotations`, `cost_details` |
+| `spans` | collection | element fields: `name`, `parent_id`, `span_kind`, `status_code`, `start_time`, `end_time`, `latency_ms`, `llm_token_count_prompt`, `llm_token_count_completion`, `llm_token_count_total`; relations `parent_span` (traversable), `children`, `siblings`, `annotations`, `cost_details` |
 | `trace_annotations`, `span_annotations` | collection | elements have `name`, `label`, `score`, `identifier` |
 | `span_cost_details` | collection | elements have `token_type`, `is_prompt`, `cost`, `tokens`, `cost_per_token` |
 

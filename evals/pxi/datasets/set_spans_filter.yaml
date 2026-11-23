@@ -44,12 +44,12 @@ examples:
             /**
              * Set the spans table filter. The filter is applied declaratively as a complete state: the freeform `condition` (Phoenix span filter DSL) describes the entire view, and the table is updated to exactly that state. There is no notion of leaving part of the filter unchanged — always send the whole condition. Pass an empty string to clear it.
 
-            ROOT SPANS ARE PART OF THE CONDITION: restrict to root spans -- spans with no parent -- with the predicate `parent_id is None`; omit it to search every span. This is usually the top-level span of each trace, but nothing enforces one root per trace: a fragmented or partially ingested trace can have several, so do not treat the row count as a trace count. Do NOT restrict to root spans when narrowing to a `span_kind` other than CHAIN or AGENT (i.e. LLM, TOOL, RETRIEVER, EMBEDDING, RERANKER, EVALUATOR, GUARDRAIL) — those kinds are almost always nested under a CHAIN/AGENT root, so combining them with a root predicate yields zero results even when matching spans exist. The same applies to anything that targets nested spans (specific tool names, status_code == 'ERROR' on inner calls, annotations attached to leaf spans). Trace annotations apply to every span in the annotated trace: combine a trace-annotation condition with `parent_id is None` to show only root spans from matching traces, or omit the root predicate to inspect every span belonging to those traces. The spans table starts at `parent_id is None`, so dropping that predicate is how you widen the view to every span.
+            ROOT SPANS ARE PART OF THE CONDITION: restrict to root spans -- spans with no parent -- with the predicate `parent_id is None`; omit it to search every span. This is usually the top-level span of each trace, but nothing enforces one root per trace: a fragmented or partially ingested trace can have several, so do not treat the row count as a trace count. Do NOT restrict to root spans when narrowing to a `span_kind` other than CHAIN or AGENT (i.e. LLM, TOOL, RETRIEVER, EMBEDDING, RERANKER, EVALUATOR, GUARDRAIL, DECISION) — those kinds are almost always nested under a CHAIN/AGENT root, so combining them with a root predicate yields zero results even when matching spans exist. The same applies to anything that targets nested spans (specific tool names, status_code == 'ERROR' on inner calls, annotations attached to leaf spans). Trace annotations apply to every span in the annotated trace: combine a trace-annotation condition with `parent_id is None` to show only root spans from matching traces, or omit the root predicate to inspect every span belonging to those traces. The spans table starts at `parent_id is None`, so dropping that predicate is how you widen the view to every span.
 
             DSL FIELDS:
               - Root spans: `parent_id is None` matches spans with no parent pointer, and is the table's default. `parent_span is None` is the wider form that also matches orphans -- spans whose parent was never ingested -- and is what to use when the user asks about orphans.
               - String: `span_kind`, `name` (the span name, NOT span_name), `status_code`, `status_message`, `span_id`, `trace_id`, `parent_id`. Compare with `==`, `!=`, or membership via `in`.
-              - Numeric: `latency_ms`, `cumulative_token_count.{prompt,completion,total}`, `llm.token_count.{prompt,completion,total}`. Compare with `<`, `<=`, `>`, `>=`.
+              - Numeric: `latency_ms`, `llm.token_count.{prompt,completion,total}`. Compare with `<`, `<=`, `>`, `>=`.
               - Datetime: `start_time`, `end_time`.
               - Attribute access: `attributes['key.path']`, `input.value`, `output.value`, `metadata['key']`.
               - Annotations: `annotations['Name'].label`, `annotations['Name'].score`.
@@ -57,7 +57,7 @@ examples:
               - Combine clauses with `and`, `or`, `not`.
 
             VALUE CONVENTIONS:
-              - `span_kind` values are UPPERCASE string literals: 'LLM', 'TOOL', 'CHAIN', 'AGENT', 'RETRIEVER', 'EMBEDDING', 'RERANKER', 'EVALUATOR', 'GUARDRAIL', 'UNKNOWN'. Lowercase ('llm') will not match.
+              - `span_kind` values are UPPERCASE string literals: 'LLM', 'TOOL', 'CHAIN', 'AGENT', 'RETRIEVER', 'EMBEDDING', 'RERANKER', 'EVALUATOR', 'GUARDRAIL', 'DECISION', 'UNKNOWN'. Lowercase ('llm') will not match.
               - `status_code` values are UPPERCASE: 'OK', 'ERROR', 'UNSET'.
               - Always wrap string literals in single or double quotes.
 
@@ -521,13 +521,13 @@ examples:
       annotation:
         agreement: high
         n_opinions: 3
-  - id: cumulative-tokens-roots
+  - id: slow-traces-roots
     splits: [regression]
     input:
       contexts: *project_context
       messages:
         - role: user
-          content: Show traces that burned over 50k tokens in total.
+          content: Show traces taking over 30 seconds.
         - role: assistant
           tool_calls:
             - id: search-ops
@@ -543,9 +543,9 @@ examples:
       ui_operation_args:
         spansFilter.set:
           - condition:
-              filter_equals: parent_id is None and cumulative_token_count.total > 50000
+              filter_equals: parent_id is None and latency_ms > 30000
           - condition:
-              filter_equals: parent_id is None and cumulative_token_count.total >= 50000
+              filter_equals: parent_id is None and latency_ms >= 30000
     metadata:
       annotation:
         agreement: high

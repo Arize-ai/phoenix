@@ -5,8 +5,12 @@ import {
 } from "@phoenix/constants/timeConstants";
 
 import {
+  errorRateFormatter,
   formatFloat,
   formatInt,
+  formatIntCompact,
+  formatIntGrouped,
+  formatCost,
   formatCostPrecise,
   formatLatencyMs,
   formatPercentShort,
@@ -19,6 +23,24 @@ describe("formatInt", () => {
     expect(formatInt(12379)).toEqual("12,379");
     expect(formatInt(-12379)).toEqual("−12,379");
     expect(formatInt(123)).toEqual("123");
+  });
+});
+
+describe("formatIntGrouped", () => {
+  it("formats integers in full with separators", () => {
+    expect(formatIntGrouped(1234567)).toEqual("1,234,567");
+    expect(formatIntGrouped(12)).toEqual("12");
+  });
+});
+
+describe("formatIntCompact", () => {
+  it("abbreviates to three significant digits with app suffixes", () => {
+    expect(formatIntCompact(42)).toEqual("42");
+    expect(formatIntCompact(999)).toEqual("999");
+    expect(formatIntCompact(1000)).toEqual("1K");
+    expect(formatIntCompact(1234)).toEqual("1.23K");
+    expect(formatIntCompact(12345678)).toEqual("12.3M");
+    expect(formatIntCompact(1_200_000_000)).toEqual("1.2B");
   });
 });
 
@@ -71,6 +93,23 @@ describe("formatPercentShort", () => {
   });
 });
 
+describe("formatCost", () => {
+  it("rounds to cents below ten thousand dollars", () => {
+    expect(formatCost(0)).toEqual("$0");
+    expect(formatCost(0.004)).toEqual("<$0.01");
+    expect(formatCost(42.5)).toEqual("$42.50");
+    expect(formatCost(99.999)).toEqual("$100.00");
+    expect(formatCost(308.71602198)).toEqual("$308.72");
+    expect(formatCost(1234.56789)).toEqual("$1,234.57");
+    expect(formatCost(2500)).toEqual("$2,500.00");
+  });
+
+  it("abbreviates from ten thousand dollars", () => {
+    expect(formatCost(12345.678)).toEqual("$12K");
+    expect(formatCost(1234234.2)).toEqual("$1.2M");
+  });
+});
+
 describe("formatCostPrecise", () => {
   it("keeps the parts of a cent under a dollar", () => {
     expect(formatCostPrecise(0)).toEqual("$0");
@@ -80,5 +119,13 @@ describe("formatCostPrecise", () => {
     // Rounds up to a dollar and is shown like a dollar is
     expect(formatCostPrecise(0.99996)).toEqual("$1.00");
     expect(formatCostPrecise(27.09)).toEqual("$27.09");
+  });
+});
+
+describe("errorRateFormatter", () => {
+  it("formats a fraction as a percentage and tolerates missing values", () => {
+    expect(errorRateFormatter(0.125)).toEqual("12.50%");
+    expect(errorRateFormatter(0)).toEqual("0.00%");
+    expect(errorRateFormatter(null)).toEqual("--");
   });
 });

@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
 """The TypeError recorded on PageDownTool error spans."""
 
-import sys
-
-sys.path.insert(0, "/opt/verifier")
-
 import re
 
-from evals.harbor.verifiers.phoenix_api import project_spans, write_answer
+from harbor_verifiers.phoenix_api import project_spans, write_answer
 
 messages = [
     span.get("status_message", "")

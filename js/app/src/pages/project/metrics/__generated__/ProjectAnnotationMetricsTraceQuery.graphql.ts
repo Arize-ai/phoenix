@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ec6575b1e36009c2315fcff0ee55be6f>>
+ * @generated SignedSource<<9bea040cb1deaa2e71983af1439e2f55>>
  * @lightSyntaxTransform
  */
 
@@ -289,7 +289,7 @@ return {
             "kind": "InlineFragment",
             "selections": [
               {
-                "alias": null,
+                "alias": "configsByName",
                 "args": [
                   (v5/*:: as any*/),
                   {
@@ -424,12 +424,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "99f29d3e84637131542ccf7df43c3cdb",
+    "cacheID": "9f765ac363d2a986ee7ca2b07caa399a",
     "id": null,
     "metadata": {},
     "name": "ProjectAnnotationMetricsTraceQuery",
     "operationKind": "query",
-    "text": "query ProjectAnnotationMetricsTraceQuery(\n  $projectId: ID!\n  $annotationName: String!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      ...ProjectAnnotationConfigsByNameFragment_3DyRD9\n      traceAnnotationMetricsTimeSeries(annotationName: $annotationName, timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          annotationSummaries {\n            name\n            meanScore\n            labelFractions {\n              label\n              fraction\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment_3DyRD9 on Project {\n  annotationConfigs(first: 1, names: [$annotationName]) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query ProjectAnnotationMetricsTraceQuery(\n  $projectId: ID!\n  $annotationName: String!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      ...ProjectAnnotationConfigsByNameFragment_3DyRD9\n      traceAnnotationMetricsTimeSeries(annotationName: $annotationName, timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          annotationSummaries {\n            name\n            meanScore\n            labelFractions {\n              label\n              fraction\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment_3DyRD9 on Project {\n  configsByName: annotationConfigs(first: 1, names: [$annotationName]) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3754079def46bbb676fe3917614686f1>>
+ * @generated SignedSource<<dbddd1502fbcd2ea7b9c4e426ac9339d>>
  * @lightSyntaxTransform
  */
 
@@ -236,7 +236,7 @@ return {
             "kind": "InlineFragment",
             "selections": [
               {
-                "alias": null,
+                "alias": "configsByName",
                 "args": [
                   {
                     "kind": "Literal",
@@ -361,12 +361,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "14dd47c618923099664cce642b4ac61a",
+    "cacheID": "c4fa74a890573e524c82f6ef9701a23c",
     "id": null,
     "metadata": {},
     "name": "SessionAnnotationScoreTimeSeriesQuery",
     "operationKind": "query",
-    "text": "query SessionAnnotationScoreTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      ...ProjectAnnotationConfigsByNameFragment\n      sessionAnnotationScoreTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          scoresWithLabels {\n            label\n            score\n          }\n        }\n        names\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query SessionAnnotationScoreTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      ...ProjectAnnotationConfigsByNameFragment\n      sessionAnnotationScoreTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          scoresWithLabels {\n            label\n            score\n          }\n        }\n        names\n      }\n    }\n    id\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  configsByName: annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          optimizationDirection\n          threshold\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();

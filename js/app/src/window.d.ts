@@ -25,6 +25,8 @@ declare global {
       managementUrl?: string | null;
       supportEmail?: string | null;
       hasDbThreshold: boolean;
+      /** Mirrors the server's PHOENIX_ALLOW_EXTERNAL_RESOURCES. */
+      allowExternalResources: boolean;
       agentAssistantDisabled: boolean;
       /**
        * Whether the server-side bash tool is disabled

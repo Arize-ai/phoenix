@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import shlex
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 from harbor.agents.installed.base import BaseInstalledAgent, EnvVar
 from harbor.agents.installed.claude_code import ClaudeCode
@@ -17,6 +17,22 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 _CLI_ARCHIVE = _REPO_ROOT / "dist" / "phoenix-cli" / "phoenix-cli.tar.gz"
 _CLI_INSTALL_SCRIPT = Path(__file__).with_name("install_phoenix_cli.sh")
 _CLI_UPLOAD_DIR = "/installed-agent/phoenix-cli"
+
+
+class PreinstalledAgentMixin(BaseInstalledAgent):
+    PREINSTALLED_PACKAGE_DIR: ClassVar[str]
+
+    async def install(self, environment: BaseEnvironment) -> None:
+        await self.exec_as_root(environment, f"chmod 755 {self.PREINSTALLED_PACKAGE_DIR}")
+        await super().install(environment)
+
+
+class PreinstalledClaudeCode(PreinstalledAgentMixin, ClaudeCode):
+    PREINSTALLED_PACKAGE_DIR = "/usr/local/lib/node_modules/@anthropic-ai"
+
+
+class PreinstalledCodex(PreinstalledAgentMixin, Codex):
+    PREINSTALLED_PACKAGE_DIR = "/usr/local/lib/node_modules/@openai"
 
 
 class PhoenixMcpMixin(BaseInstalledAgent):
@@ -72,13 +88,13 @@ class AgentLogsOwnershipMixin(BaseInstalledAgent):
         await super().run(instruction, environment, context)
 
 
-class ClaudeCodeMcpAgent(AgentLogsOwnershipMixin, PhoenixMcpMixin, ClaudeCode):
+class ClaudeCodeMcpAgent(AgentLogsOwnershipMixin, PhoenixMcpMixin, PreinstalledClaudeCode):
     @staticmethod
     def name() -> str:
         return "claude-code-mcp"
 
 
-class ClaudeCodeCliAgent(AgentLogsOwnershipMixin, PhoenixCliMixin, ClaudeCode):
+class ClaudeCodeCliAgent(AgentLogsOwnershipMixin, PhoenixCliMixin, PreinstalledClaudeCode):
     ENV_VARS = [
         *ClaudeCode.ENV_VARS,
         EnvVar("phoenix_endpoint", env="PHOENIX_ENDPOINT", type="str", default=PHOENIX_URL),
@@ -89,13 +105,13 @@ class ClaudeCodeCliAgent(AgentLogsOwnershipMixin, PhoenixCliMixin, ClaudeCode):
         return "claude-code-cli"
 
 
-class CodexMcpAgent(PhoenixMcpMixin, Codex):
+class CodexMcpAgent(PhoenixMcpMixin, PreinstalledCodex):
     @staticmethod
     def name() -> str:
         return "codex-mcp"
 
 
-class CodexCliAgent(PhoenixCliMixin, Codex):
+class CodexCliAgent(PhoenixCliMixin, PreinstalledCodex):
     @staticmethod
     def name() -> str:
         return "codex-cli"

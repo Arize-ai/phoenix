@@ -1,5 +1,6 @@
 import { graphql } from "react-relay";
 
+import { emitAgentDataChange } from "@phoenix/agent/shared/agentDataChanges";
 import {
   runDatasetMutation,
   type DatasetWriteApplyResult,
@@ -27,6 +28,8 @@ const mutation = graphql`
       dataset {
         id
         name
+        exampleCount
+        updatedAt
       }
     }
   }
@@ -69,6 +72,12 @@ export function commitPatchDatasetExamples({
         ...(versionDescription != null ? { versionDescription } : {}),
       },
     },
-    onSuccess: () => `Edited ${patches.length} row(s).`,
+    onSuccess: (response) => {
+      emitAgentDataChange({
+        entity: "datasetExamples",
+        datasetId: response.patchDatasetExamples.dataset.id,
+      });
+      return `Edited ${patches.length} row(s).`;
+    },
   });
 }

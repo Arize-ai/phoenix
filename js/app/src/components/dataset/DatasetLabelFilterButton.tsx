@@ -22,6 +22,7 @@ import {
 } from "@phoenix/components";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
+import { useAgentDataChangeFetchKey } from "@phoenix/hooks";
 
 import type { DatasetLabelFilterButtonQuery } from "./__generated__/DatasetLabelFilterButtonQuery.graphql";
 
@@ -29,6 +30,8 @@ type DatasetLabelFilterButtonProps = {
   selectedLabelIds: string[];
   onSelectionChange: (labelIds: string[]) => void;
 };
+
+const REFRESH_ON = ["datasetLabels"] as const;
 
 export function DatasetLabelFilterButton(props: DatasetLabelFilterButtonProps) {
   const { selectedLabelIds, onSelectionChange } = props;
@@ -40,9 +43,7 @@ export function DatasetLabelFilterButton(props: DatasetLabelFilterButtonProps) {
         size="M"
         leadingVisual={<Icon svg={<Icons.PriceTags />} />}
         trailingVisual={
-          selectedLabelIds.length > 0 ? (
-            <Counter>{selectedLabelIds.length}</Counter>
-          ) : undefined
+          <Counter count={selectedLabelIds.length} showZero={false} />
         }
       >
         Labels
@@ -67,6 +68,7 @@ function DatasetLabelFilterContent({
   onSelectionChange: (labelIds: string[]) => void;
 }) {
   const { contains } = useFilter({ sensitivity: "base" });
+  const fetchKey = useAgentDataChangeFetchKey(REFRESH_ON);
   const labelData = useLazyLoadQuery<DatasetLabelFilterButtonQuery>(
     graphql`
       query DatasetLabelFilterButtonQuery {
@@ -83,7 +85,7 @@ function DatasetLabelFilterContent({
       }
     `,
     {},
-    { fetchPolicy: "store-and-network" }
+    { fetchKey, fetchPolicy: "store-and-network" }
   );
 
   const labels = useMemo(

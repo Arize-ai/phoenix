@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import type { ReactNode } from "react";
 
 import { Divider, Text, TextSkeleton } from "@phoenix/components";
 import type {
@@ -107,6 +108,12 @@ export const TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH = 380;
  * " prompt → " and " completion".
  */
 const SPLIT_SUMMARY_FIXED_CHARS = " prompt → ".length + " completion".length;
+
+/** Runs to the edges of an enclosing rich tooltip; spans the breakdown elsewhere. */
+const breakdownDividerCSS = css`
+  width: auto;
+  margin-inline: calc(-1 * var(--rich-tooltip-padding-x, 0px));
+`;
 
 const tokenDetailsBreakdownCSS = css`
   display: flex;
@@ -394,7 +401,7 @@ export function TokenDetailsBreakdown({
       <BreakdownBars segments={segments} dimensions={dimensions} />
       {segments.length > 0 ? (
         <>
-          <Divider />
+          <Divider css={breakdownDividerCSS} />
           <BreakdownTable segments={segments} dimensions={dimensions} />
         </>
       ) : null}
@@ -469,8 +476,39 @@ export function TokenDetailsBreakdownSkeleton({
         />
       </header>
       <BreakdownBarsSkeleton dimensions={dimensions} />
-      <Divider />
+      <Divider css={breakdownDividerCSS} />
       <BreakdownTableSkeleton dimensions={dimensions} rows={rows} />
+    </div>
+  );
+}
+
+export interface TokenDetailsBreakdownErrorProps extends TokenDetailsBreakdownProps {
+  /** What failed, shown in place of the breakdown. */
+  error: ReactNode;
+}
+
+/**
+ * The breakdown when its split failed to load: the heading, drawn from the
+ * totals as the skeleton's is, so the reader can tell what failed, then
+ * `error` in place of the rest.
+ */
+export function TokenDetailsBreakdownError({
+  tokens,
+  costs,
+  totalLabel,
+  error,
+}: TokenDetailsBreakdownErrorProps) {
+  const measures = getMeasures({ tokens, costs });
+  return (
+    <div className="token-details-breakdown" css={tokenDetailsBreakdownCSS}>
+      {measures.length > 0 ? (
+        <header className="token-details-breakdown__header">
+          <Text size="S" weight="heavy">
+            {getHeading(measures, totalLabel)}
+          </Text>
+        </header>
+      ) : null}
+      <div>{error}</div>
     </div>
   );
 }

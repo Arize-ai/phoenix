@@ -872,12 +872,6 @@ async def _execute_postgres(
         await session.execute(text("SET LOCAL TimeZone = 'UTC'"))
         await session.execute(text(f"SET LOCAL statement_timeout = '{PG_STATEMENT_TIMEOUT_MS}'"))
         await session.execute(text("SET LOCAL work_mem = '64MB'"))
-        try:
-            await session.execute(text("SET LOCAL temp_file_limit = '512MB'"))
-        except SQLAlchemyError:
-            # Not every role can set this. The statement still runs under the
-            # server default rather than failing before it starts.
-            logger.debug("analytics sql: temp_file_limit could not be set", exc_info=True)
         deadline = time.monotonic() + PG_STATEMENT_TIMEOUT_MS / 1000
 
         # EXPLAIN resolves names, so a name error surfaces here rather than at
@@ -968,7 +962,7 @@ async def _execute_postgres(
             if (attributed := _rewrite_attribution(exc, ctx)) is not None:
                 logger.error("analytics sql: rewrite produced an unresolvable column - %s", exc)
                 raise attributed from exc
-            logger.error("analytics sql: postgres execution failed - %s", exc)
+            logger.error("analytics sql: postgres execution failed (%s)", type(exc).__name__)
             raise AnalyticsSqlError(
                 code=ErrorCode.EXECUTION_ERROR,
                 message=_postgres_execution_error_message(exc),
@@ -1290,7 +1284,7 @@ async def _execute_sqlite_file(
         # corruption errors, and those must not be reported as though the caller
         # mistyped a column. Logged at error so a malformed database or a bug of
         # ours leaves a trace rather than being answered as bad SQL.
-        logger.error("analytics sql: unclassified database error - %s", exc)
+        logger.error("analytics sql: unclassified database error (%s)", type(exc).__name__)
         # SQLite's own words, as PostgreSQL's are already passed through. The
         # commonest arrival here is an unqualified column two joined tables both
         # offer, which admission cannot refuse and whose message names only the

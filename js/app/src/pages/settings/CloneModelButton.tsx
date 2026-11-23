@@ -41,6 +41,7 @@ const ModelQuery = graphql`
       ... on GenerativeModel {
         id
         name
+        modelType
         provider
         namePattern
         providerKey
@@ -87,6 +88,7 @@ function CloneModelDialogContent({
             ) {
             id
             name
+            modelType
             provider
             namePattern
             providerKey
@@ -117,6 +119,7 @@ function CloneModelDialogContent({
       {error && <Alert variant="danger">{error}</Alert>}
       <ModelForm
         modelName={`${modelData.name} (override)`}
+        modelType={modelData.modelType}
         modelProvider={modelData.provider}
         modelNamePattern={modelData.namePattern}
         modelCost={
@@ -128,6 +131,7 @@ function CloneModelDialogContent({
             variables: {
               input: {
                 name: params.name,
+                modelType: params.modelType,
                 provider: params.provider,
                 namePattern: params.namePattern,
                 startTime: params.startTime

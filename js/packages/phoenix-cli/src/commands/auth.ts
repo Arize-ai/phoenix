@@ -1,7 +1,13 @@
-import { type componentsV1, HttpError } from "@arizeai/phoenix-client";
 import { Command } from "commander";
 
-import { createPhoenixClient } from "../client";
+import { obscureApiKey } from "../auth/apiKey";
+import {
+  type FetchViewerResult,
+  type ViewerUser,
+  fetchViewer,
+  fetchViewerForStatus,
+  getExitCodeForViewerResult,
+} from "../auth/viewer";
 import { type PhoenixConfig, resolveConfig } from "../config";
 import {
   AuthRequiredError,
@@ -31,8 +37,6 @@ import {
 } from "../settings";
 import type { OutputFormat } from "./formatProfiles";
 import type { ConnectionOptions } from "./options";
-
-type ViewerUser = componentsV1["schemas"]["GetViewerResponseBody"]["data"];
 
 /**
  * Options for `px auth status`.
@@ -64,86 +68,6 @@ interface AuthOutput {
   expiresAt?: string;
   user?: ViewerUser;
   status: "authenticated" | "anonymous" | "unverified" | "logged_out";
-}
-
-/**
- * Obscure an API key for display using asterisks.
- * Shows a fixed number of asterisks regardless of key length for security.
- */
-export function obscureApiKey(apiKey: string): string {
-  if (!apiKey) {
-    return "";
-  }
-  return "************************************";
-}
-
-interface FetchViewerSuccess {
-  status: "success";
-  user: ViewerUser;
-}
-
-interface FetchViewerError {
-  status: "network_error" | "auth_error" | "not_found" | "unknown_error";
-  message: string;
-}
-
-export type FetchViewerResult = FetchViewerSuccess | FetchViewerError;
-
-/**
- * Fetch the authenticated viewer from the Phoenix server.
- * Gracefully handles network errors, auth failures, and missing endpoints.
- */
-async function fetchViewer(config: PhoenixConfig): Promise<FetchViewerResult> {
-  try {
-    const client = createPhoenixClient({ config });
-    const response = await client.GET("/v1/user");
-    return { status: "success", user: response.data!.data };
-  } catch (error: unknown) {
-    if (error instanceof TypeError) {
-      return { status: "network_error", message: error.message };
-    }
-    if (error instanceof AuthRequiredError) {
-      return { status: "auth_error", message: error.message };
-    }
-    if (error instanceof HttpError) {
-      if (error.status === 401 || error.status === 403) {
-        return { status: "auth_error", message: error.message };
-      }
-      if (error.status === 404) {
-        return { status: "not_found", message: error.message };
-      }
-    }
-    if (error instanceof Error) {
-      return { status: "unknown_error", message: error.message };
-    }
-    return { status: "unknown_error", message: String(error) };
-  }
-}
-
-/**
- * Fetch the viewer for `auth status`, accounting for deployments that changed
- * from OAuth authentication to anonymous access. An expired profile token can
- * fail during refresh before `/v1/user` is requested, so retry without
- * credentials and accept the result only when the server explicitly reports
- * anonymous access.
- */
-async function fetchViewerForStatus(
-  config: PhoenixConfig
-): Promise<FetchViewerResult> {
-  const viewerResult = await fetchViewer(config);
-  const canCheckAnonymousAccess =
-    config.credentialSource === "oauth" &&
-    (viewerResult.status === "auth_error" ||
-      viewerResult.status === "unknown_error");
-  if (!canCheckAnonymousAccess) {
-    return viewerResult;
-  }
-
-  const anonymousResult = await fetchViewer({ endpoint: config.endpoint });
-  const isAnonymous =
-    anonymousResult.status === "success" &&
-    anonymousResult.user.auth_method === "ANONYMOUS";
-  return isAnonymous ? anonymousResult : viewerResult;
 }
 
 /**
@@ -306,26 +230,8 @@ function formatAuthOutput(
   return lines.join("\n");
 }
 
-function exitCodeForResult(result: FetchViewerResult): ExitCode {
-  switch (result.status) {
-    case "success":
-    // 404 means the server is an older version without /v1/user — the token
-    // may still be valid, we just can't verify it. Not a failure.
-    case "not_found":
-      return ExitCode.SUCCESS;
-    case "auth_error":
-      return ExitCode.AUTH_REQUIRED;
-    case "network_error":
-      return ExitCode.NETWORK_ERROR;
-    case "unknown_error":
-      return ExitCode.FAILURE;
-    default:
-      return assertNever(result);
-  }
-}
-
 async function verifyViewerOrExit(config: PhoenixConfig): Promise<ViewerUser> {
-  const result = await fetchViewer(config);
+  const result = await fetchViewer({ config });
   if (result.status === "success") {
     return result.user;
   }
@@ -377,7 +283,7 @@ async function authStatusHandler(options: AuthStatusOptions): Promise<void> {
       ? getProfileByName(settingsFile, options.profile)?.name
       : getStoredActiveProfile(settingsFile)?.name;
 
-  const result = await fetchViewerForStatus(config);
+  const result = await fetchViewerForStatus({ config });
   const oauthTokens = loadCurrentOAuthTokens({
     config,
     profileName: activeProfileName,
@@ -393,7 +299,7 @@ async function authStatusHandler(options: AuthStatusOptions): Promise<void> {
   );
   writeOutput({ message: output });
 
-  const code = exitCodeForResult(result);
+  const code = getExitCodeForViewerResult(result);
   if (code !== ExitCode.SUCCESS) {
     process.exit(code);
   }

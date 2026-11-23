@@ -1,13 +1,13 @@
 import { css } from "@emotion/react";
-import { useMemo } from "react";
 
 import { Flex, ProgressBar, Text } from "@phoenix/components";
 import {
   AnnotationColorSwatch,
   type AnnotationConfig,
   AnnotationScoreText,
+  getAnnotationScoreColorProps,
   getOptimizationBounds,
-  getPositiveOptimizationFromConfig,
+  getOptimizationValueFromConfig,
 } from "@phoenix/components/annotation";
 import { Skeleton } from "@phoenix/components/core/loading";
 import type { ExecutionState } from "@phoenix/components/core/types";
@@ -15,6 +15,9 @@ import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useWordColor } from "@phoenix/hooks";
 import { calculateAnnotationScorePercentile } from "@phoenix/pages/experiment/utils";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
+
+import { indexSummariesByAnnotationName } from "./experimentDeltaUtils";
+import { ExperimentAnnotationMeanDelta } from "./ExperimentMetricDelta";
 
 /**
  * The shape of annotation summary data needed to render aggregates.
@@ -46,6 +49,11 @@ type ExperimentAnnotationAggregatesProps = {
    * When true, renders with reduced opacity.
    */
   isPlaceholder?: boolean;
+  /**
+   * The base experiment's annotation summaries to show deltas against.
+   * Omitted on the base column and when deltas are hidden.
+   */
+  baseAnnotationSummaries?: readonly AnnotationSummary[];
 };
 
 const listCSS = css`
@@ -77,19 +85,13 @@ export function ExperimentAnnotationAggregates({
   annotationConfigs,
   annotationSummaries,
   isPlaceholder = false,
+  baseAnnotationSummaries,
 }: ExperimentAnnotationAggregatesProps) {
-  // Build a map for quick lookup of summaries by name
-  const summaryByName = useMemo(() => {
-    return (
-      annotationSummaries?.reduce(
-        (acc, summary) => {
-          acc[summary.annotationName] = summary;
-          return acc;
-        },
-        {} as Record<string, AnnotationSummary>
-      ) ?? {}
-    );
-  }, [annotationSummaries]);
+  const summaryByName = indexSummariesByAnnotationName(annotationSummaries);
+  const baseSummaryByName =
+    baseAnnotationSummaries != null
+      ? indexSummariesByAnnotationName(baseAnnotationSummaries)
+      : null;
 
   // Don't render if there are no annotation configs
   if (annotationConfigs.length === 0) {
@@ -108,6 +110,11 @@ export function ExperimentAnnotationAggregates({
             config={config}
             meanScore={meanScore}
             executionState={executionState}
+            baseMeanScore={
+              baseSummaryByName
+                ? (baseSummaryByName[config.name]?.meanScore ?? null)
+                : undefined
+            }
           />
         );
       })}
@@ -123,10 +130,16 @@ function ExperimentAnnotationAggregateItem({
   config,
   meanScore,
   executionState,
+  baseMeanScore,
 }: {
   config: AnnotationConfig;
   meanScore: number | null | undefined;
   executionState: ExecutionState;
+  /**
+   * The base experiment's mean score; `null` when the base has none and
+   * `undefined` when no delta is shown.
+   */
+  baseMeanScore?: number | null;
 }) {
   const annotationColor = useWordColor(config.name);
   const { lowerBound, upperBound } = getOptimizationBounds(config);
@@ -134,10 +147,12 @@ function ExperimentAnnotationAggregateItem({
   const min = lowerBound ?? 0;
   const max = upperBound ?? 1;
 
-  const positiveOptimization = getPositiveOptimizationFromConfig({
+  const optimizationValue = getOptimizationValueFromConfig({
     config,
     score: meanScore,
   });
+  const { "data-direction": direction, css: scoreColorCSS } =
+    getAnnotationScoreColorProps(optimizationValue);
 
   const scorePercentile = calculateAnnotationScorePercentile(
     meanScore ?? 0,
@@ -193,10 +208,19 @@ function ExperimentAnnotationAggregateItem({
           <AnnotationScoreText
             size="S"
             fontFamily="mono"
-            positiveOptimization={positiveOptimization}
+            optimizationValue={optimizationValue}
           >
             <Truncate maxWidth="100%">{floatFormatter(meanScore)}</Truncate>
           </AnnotationScoreText>
+          {baseMeanScore !== undefined && meanScore != null && (
+            <ExperimentAnnotationMeanDelta
+              annotationName={config.name}
+              meanScore={meanScore}
+              baseMeanScore={baseMeanScore}
+              config={config}
+              tooltipPlacement="top"
+            />
+          )}
         </Flex>
       )}
 
@@ -222,10 +246,17 @@ function ExperimentAnnotationAggregateItem({
         />
       ) : (
         <ProgressBar
-          css={css`
-            align-self: center;
-            --mod-barloader-fill-color: ${annotationColor};
-          `}
+          data-direction={direction}
+          css={css(
+            scoreColorCSS,
+            css`
+              align-self: center;
+              --mod-barloader-fill-color: var(
+                --annotation-score-color,
+                ${annotationColor}
+              );
+            `
+          )}
           value={meanScore != null ? scorePercentile : 0}
           height="var(--global-dimension-size-50)"
           width="100%"

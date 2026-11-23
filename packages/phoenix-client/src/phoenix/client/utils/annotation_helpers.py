@@ -22,7 +22,7 @@ from phoenix.client.__generated__ import v1
 if TYPE_CHECKING:
     import pandas as pd
 
-_AnnotatorKind: TypeAlias = Literal["LLM", "CODE", "HUMAN"]
+_AnnotatorKind: TypeAlias = Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]
 _VALID_ANNOTATOR_KINDS: frozenset[_AnnotatorKind] = frozenset(get_args(_AnnotatorKind))
 _DATAFRAME_CHUNK_SIZE = 100
 
@@ -279,7 +279,7 @@ def _validate_annotations_dataframe(
     annotation_name_required: bool = False,
     annotator_kind_required: bool = False,
     id_config: _IdConfig = _SPAN_ID_CONFIG,
-    valid_annotator_kinds: frozenset[str] = frozenset(["LLM", "CODE", "HUMAN"]),
+    valid_annotator_kinds: frozenset[str] = _VALID_ANNOTATOR_KINDS,
 ) -> None:
     """Validate DataFrame structure and content for annotation processing.
 
@@ -526,19 +526,20 @@ def _chunk_annotations_dataframe(
     """
 
     annotations = []
-    for idx, row in dataframe.iterrows():  # pyright: ignore[reportUnknownVariableType,reportUnknownMemberType]
+    for idx, raw_row in dataframe.iterrows():  # pyright: ignore[reportUnknownVariableType,reportUnknownMemberType]
         try:
+            row: "pd.Series[Any]" = raw_row.dropna()  # pyright: ignore[reportUnknownMemberType]
             row_name = annotation_name
             if row_name is None:
-                if "name" in row and bool(row.loc["name"]):  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
-                    row_name = str(row.loc["name"]).strip()  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
-                elif "annotation_name" in row and bool(row.loc["annotation_name"]):  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
-                    row_name = str(row.loc["annotation_name"]).strip()  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
+                if "name" in row and bool(row.loc["name"]):
+                    row_name = str(row.loc["name"]).strip()
+                elif "annotation_name" in row and bool(row.loc["annotation_name"]):
+                    row_name = str(row.loc["annotation_name"]).strip()
             assert row_name
 
             row_annotator_kind = annotator_kind or (
-                str(row.loc["annotator_kind"]).strip()  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
-                if "annotator_kind" in row and bool(row.loc["annotator_kind"])  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
+                str(row.loc["annotator_kind"]).strip()
+                if "annotator_kind" in row and bool(row.loc["annotator_kind"])
                 else None
             )
 
@@ -572,31 +573,32 @@ def _chunk_annotations_dataframe(
                 else:
                     raise ValueError(f"Row {idx}: Missing required ID columns: {missing_ids}")
 
-            label = (
-                str(row.loc["label"]).strip() if "label" in row and bool(row.loc["label"]) else None  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
-            )
+            # Stringify before testing for emptiness: a label whose value is falsy
+            # but meaningful (e.g. the integer 0, common in labelled eval data) must
+            # still be reported, so only a blank string counts as "no label".
+            label = (str(row.loc["label"]).strip() or None) if "label" in row else None
             score = None
-            if "score" in row and row.loc["score"] is not None:  # pyright: ignore[reportUnknownMemberType]
+            if "score" in row and row.loc["score"] is not None:
                 try:
-                    score = float(row.loc["score"])  # pyright: ignore[reportUnknownArgumentType,reportArgumentType,reportUnknownMemberType]
+                    score = float(row.loc["score"])
                 except (ValueError, TypeError):
                     raise TypeError(
-                        f"Score value '{row.loc['score']}' cannot be converted to float"  # pyright: ignore[reportUnknownMemberType]
+                        f"Score value '{row.loc['score']}' cannot be converted to float"
                     )
             explanation = (
-                str(row.loc["explanation"]).strip()  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
-                if "explanation" in row and bool(row.loc["explanation"])  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
+                str(row.loc["explanation"]).strip()
+                if "explanation" in row and bool(row.loc["explanation"])
                 else None
             )
             metadata = cast(
                 dict[str, Any],
-                dict(row.loc["metadata"])  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
-                if "metadata" in row and bool(row.loc["metadata"])  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
+                dict(row.loc["metadata"])
+                if "metadata" in row and bool(row.loc["metadata"])
                 else None,
             )
             identifier = (
-                str(row.loc["identifier"]).strip()  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
-                if "identifier" in row and bool(row.loc["identifier"])  # pyright: ignore[reportUnknownArgumentType,reportUnknownMemberType]
+                str(row.loc["identifier"]).strip()
+                if "identifier" in row and bool(row.loc["identifier"])
                 else None
             )
 
@@ -681,7 +683,7 @@ def _create_session_annotation(
     Args:
         session_id (str): The ID of the session to annotate.
         annotation_name (str): The name of the annotation.
-        annotator_kind (Literal["LLM", "CODE", "HUMAN"]): The kind of annotator used for the annotation. Must be one of "LLM", "CODE", or "HUMAN".
+        annotator_kind (Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]): The kind of annotator used for the annotation. Must be one of "LLM", "CODE", "HUMAN", "DECISION", or "AGENT".
             Defaults to "HUMAN".
         label (Optional[str]): The label assigned by the annotation.
         score (Optional[float]): The score assigned by the annotation.
@@ -738,7 +740,7 @@ def _create_trace_annotation(
     Args:
         trace_id (str): The ID of the trace to annotate.
         annotation_name (str): The name of the annotation.
-        annotator_kind (Literal["LLM", "CODE", "HUMAN"]): The kind of annotator used for the annotation. Must be one of "LLM", "CODE", or "HUMAN".
+        annotator_kind (Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]): The kind of annotator used for the annotation. Must be one of "LLM", "CODE", "HUMAN", "DECISION", or "AGENT".
             Defaults to "HUMAN".
         label (Optional[str]): The label assigned by the annotation.
         score (Optional[float]): The score assigned by the annotation.

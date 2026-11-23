@@ -150,6 +150,41 @@ describe("runExperiment tracing", () => {
     );
   });
 
+  it.each([
+    ["success", false, phoenixOtel.SpanStatusCode.OK],
+    ["task failed", true, phoenixOtel.SpanStatusCode.ERROR],
+    ["", true, phoenixOtel.SpanStatusCode.ERROR],
+  ])("exports the task span status for %j", async (message, fails, code) => {
+    const statuses: { code: number }[] = [];
+    const { register } = await vi.importActual<typeof PhoenixOtel>(
+      "@arizeai/phoenix-otel"
+    );
+    const provider = register({
+      global: false,
+      spanProcessors: [
+        {
+          onStart: vi.fn(),
+          onEnd: (span) => statuses.push(span.status),
+          forceFlush: async () => {},
+          shutdown: async () => {},
+        },
+      ],
+    });
+    vi.mocked(phoenixOtel.register).mockReturnValueOnce(provider);
+
+    await runExperiment({
+      client: createTestClient(),
+      dataset: { datasetId: mockDataset.id },
+      task: async () => {
+        if (fails) throw new Error(message);
+        return "output";
+      },
+      setGlobalTracerProvider: false,
+    });
+
+    expect(statuses).toEqual([{ code }]);
+  });
+
   it("uses separate tracer providers for task and evaluation tracing", async () => {
     const evaluator = asEvaluator({
       name: "correctness",
@@ -194,6 +229,50 @@ describe("runExperiment tracing", () => {
     for (const registration of globalRegistrations) {
       expect(registration.detach).toHaveBeenCalledTimes(1);
     }
+  });
+
+  it("posts evaluator metadata at top level of request body", async () => {
+    let resolveEvaluation: (body: unknown) => void;
+    const evaluationPromise = new Promise((resolve) => {
+      resolveEvaluation = resolve;
+    });
+    server.use(
+      http.post("/v1/experiment_evaluations", async ({ request, response }) => {
+        const body = await request.json();
+        resolveEvaluation(body);
+        return response(200).json({ data: { id: "eval-1" } });
+      })
+    );
+
+    const evaluator = asEvaluator({
+      name: "length",
+      kind: "CODE",
+      evaluate: async () => ({
+        score: 1,
+        label: "valid",
+        explanation: "good length",
+        metadata: { min: 10, max: 100 },
+      }),
+    });
+
+    await runExperiment({
+      client: createTestClient(),
+      dataset: { datasetId: mockDataset.id },
+      task: async ({ input }) => input,
+      evaluators: [evaluator],
+    });
+
+    const evaluationBody = await evaluationPromise;
+    expect(evaluationBody).toEqual(
+      expect.objectContaining({
+        metadata: { min: 10, max: 100 },
+        result: {
+          score: 1,
+          label: "valid",
+          explanation: "good length",
+        },
+      })
+    );
   });
 
   // Explicit code-level configuration outranks the ambient environment, and an

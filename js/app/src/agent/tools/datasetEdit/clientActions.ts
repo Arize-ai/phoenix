@@ -44,11 +44,18 @@ export function createPatchDatasetClientAction({
  * Handler for the `dataset.delete` operation: resolves the target from the
  * advertised dataset context, then stages the destructive delete (the card
  * carries the permanence warning) for the user's decision.
+ *
+ * The target is always the dataset the user is viewing, so a successful
+ * delete leaves them on a page for a dataset that no longer exists.
+ * `onDatasetDeleted` lets the registering surface navigate away (the UI's own
+ * delete lives on the datasets list, which never has this problem).
  */
 export function createDeleteDatasetClientAction({
   agentStore,
+  onDatasetDeleted,
 }: {
   agentStore: AgentStore;
+  onDatasetDeleted?: (datasetId: string) => void;
 }): UIOperationHandler<DeleteDatasetInput> {
   return async (_input, context) => {
     const datasetContext = getActiveContext(agentStore.getState(), "dataset");
@@ -63,7 +70,13 @@ export function createDeleteDatasetClientAction({
         toolName: deleteDatasetOperation.name,
         preview: { kind: "delete-dataset", datasetName },
       },
-      apply: () => commitDeleteDataset({ datasetId }),
+      apply: async () => {
+        const result = await commitDeleteDataset({ datasetId });
+        if (result.ok) {
+          onDatasetDeleted?.(datasetId);
+        }
+        return result;
+      },
       agentStore,
     });
   };

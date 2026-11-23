@@ -1,5 +1,6 @@
 import { graphql } from "react-relay";
 
+import { emitAgentDataChange } from "@phoenix/agent/shared/agentDataChanges";
 import {
   runDatasetMutation,
   type DatasetWriteApplyResult,
@@ -8,12 +9,24 @@ import {
 import type { patchDatasetToolMutation } from "./__generated__/patchDatasetToolMutation.graphql";
 import type { PatchDatasetInput } from "./types";
 
+/**
+ * Returns the editable fields plus the audit fields the datasets table row
+ * and the dataset page header render, so both update from the normalized
+ * store without a reload (the UI's `EditDatasetForm` returns the same set).
+ */
 const mutation = graphql`
   mutation patchDatasetToolMutation($input: PatchDatasetInput!) {
     patchDataset(input: $input) {
       dataset {
         id
         name
+        description
+        metadata
+        updatedAt
+        updatedBy {
+          username
+          profilePictureUrl
+        }
       }
     }
   }
@@ -42,7 +55,9 @@ export function commitPatchDataset({
         ...(metadata !== undefined ? { metadata } : {}),
       },
     },
-    onSuccess: (response) =>
-      `Updated dataset "${response.patchDataset.dataset.name}".`,
+    onSuccess: (response) => {
+      emitAgentDataChange({ entity: "datasets" });
+      return `Updated dataset "${response.patchDataset.dataset.name}".`;
+    },
   });
 }

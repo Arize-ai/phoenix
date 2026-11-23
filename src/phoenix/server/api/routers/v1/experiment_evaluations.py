@@ -31,7 +31,7 @@ class ExperimentEvaluationResult(V1RoutesBaseModel):
 class UpsertExperimentEvaluationRequestBody(V1RoutesBaseModel):
     experiment_run_id: str = Field(description="The ID of the experiment run being evaluated")
     name: str = Field(description="The name of the evaluation")
-    annotator_kind: Literal["LLM", "CODE", "HUMAN"] = Field(
+    annotator_kind: Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"] = Field(
         description="The kind of annotator used for the evaluation"
     )
     start_time: IsoDatetime = Field(description="The start time of the evaluation in ISO format")
@@ -94,6 +94,13 @@ async def upsert_experiment_evaluation(
     explanation = result.explanation if result else None
     error = request_body.error
     metadata = request_body.metadata or {}
+    # Older clients nested `metadata` under `result`, which the model above
+    # silently drops. Recover it from the raw payload; top-level keys win.
+    raw_result = payload.get("result")
+    if isinstance(raw_result, dict) and isinstance(
+        legacy_metadata := raw_result.get("metadata"), dict
+    ):
+        metadata = {**legacy_metadata, **metadata}
     start_time = payload["start_time"]
     end_time = payload["end_time"]
     async with request.app.state.db() as session:
@@ -110,7 +117,7 @@ async def upsert_experiment_evaluation(
             end_time=isoparse(end_time),
             trace_id=payload.get("trace_id"),
         )
-        dialect = SupportedSQLDialect(session.bind.dialect.name)
+        dialect = SupportedSQLDialect(session.get_bind().dialect.name)
         exp_eval_run = await session.scalar(
             insert_on_conflict(
                 values,

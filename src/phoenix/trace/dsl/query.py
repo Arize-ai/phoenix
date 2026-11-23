@@ -349,7 +349,7 @@ class Concatenation(_HasTmpSuffix, Projection):
                     )
                 )
                 .add_columns(*columns)
-                .group_by(*stmt.columns.keys())
+                .group_by(*stmt.selected_columns.keys())
             )
             return stmt
         else:
@@ -580,8 +580,7 @@ class SpanQuery(_HasTmpSuffix):
                 root_spans_only=root_spans_only,
                 orphan_span_as_root_span=orphan_span_as_root_span,
             )
-        assert session.bind is not None
-        dialect = SupportedSQLDialect(session.bind.dialect.name)
+        dialect = SupportedSQLDialect(session.get_bind().dialect.name)
         row_id = models.Span.id.label(self._pk_tmp_col_label)
         stmt: Select[Any] = (
             # We do not allow `group_by` anything other than `row_id` because otherwise
@@ -892,7 +891,12 @@ def _outer_join(left: pd.DataFrame, right: pd.DataFrame) -> pd.DataFrame:
     else:
         df = left.join(right, how="outer", lsuffix="_L", rsuffix="_R")
         for col in columns_intersection:
-            df.loc[:, col] = df.loc[:, f"{col}_L"].fillna(df.loc[:, f"{col}_R"])
+            if left.empty:
+                df.loc[:, col] = df.loc[:, f"{col}_R"]
+            elif right.empty:
+                df.loc[:, col] = df.loc[:, f"{col}_L"]
+            else:
+                df.loc[:, col] = df.loc[:, f"{col}_L"].fillna(df.loc[:, f"{col}_R"])
             df = df.drop([f"{col}_L", f"{col}_R"], axis=1)
     return df
 

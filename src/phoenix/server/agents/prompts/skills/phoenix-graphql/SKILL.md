@@ -52,7 +52,7 @@ These apply to every entity:
 - **Do not run full schema introspection.** Read the relevant `Schema map` resource instead; it covers the fields and arguments for that entity. Only when a resource does not cover a field you need, introspect a single type: `{ __type(name: "Project") { fields { name args { name type { name kind } } } } }`.
 - **Batch independent lookups with aliases** in one query instead of multiple round trips, e.g. `p50: latencyMsQuantile(probability: 0.5) p99: latencyMsQuantile(probability: 0.99)`.
 - Select only the fields you need; keep page sizes small (10–50) and paginate only when necessary.
-- Pass values via query variables, never string interpolation.
+- Pass values via query variables, never string interpolation. A document may be at most 2 KiB of UTF-8, and variable values do not count toward it.
 - Span `input`/`output` payloads can be huge — request `input { truncatedValue }` (first 100 chars) when surveying; fetch `input { value }` (full payload) only for spans you intend to read closely.
 
 ### Patterns

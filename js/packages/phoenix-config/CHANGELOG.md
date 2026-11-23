@@ -1,5 +1,17 @@
 # @arizeai/phoenix-config
 
+## 0.5.2
+
+### Patch Changes
+
+- 02ed180: Remove Slack community links from the package README
+
+## 0.5.1
+
+### Patch Changes
+
+- 67cc379: fix(phoenix-config): treat a lone carriage return as a line break in `.env.phoenix`, matching the Python SDKs
+
 ## 0.5.0
 
 ### Minor Changes

@@ -1,5 +1,96 @@
 # @arizeai/phoenix-client
 
+## 8.0.3
+
+### Patch Changes
+
+- ea5a688: Acceptance criteria results now report `eligibleRunCount` (non-skipped runs in the suite) next to `sampleCount` (runs that logged the criterion's annotation), and the reporter shows coverage as `70 of 100 runs`. Pass/fail semantics are unchanged: a criterion is computed over the runs that logged its annotation.
+
+## 8.0.2
+
+### Patch Changes
+
+- 02ed180: Remove Slack community links from the package README
+- Updated dependencies [02ed180]
+  - @arizeai/phoenix-config@0.5.2
+  - @arizeai/phoenix-otel@3.1.1
+
+## 8.0.1
+
+### Patch Changes
+
+- Updated dependencies [f35755b]
+  - @arizeai/phoenix-otel@3.1.0
+
+## 8.0.0
+
+### Major Changes
+
+- 80bac51: Move `@arizeai/phoenix-otel` to OpenTelemetry JS 3 (`@opentelemetry/sdk-trace` 3.x, `@opentelemetry/api` 1.10) so spans created by apps on OpenTelemetry JS 3 are recorded after `register()`. `register()` now returns the `@opentelemetry/sdk-trace` `TracerProvider` (still exported as the `NodeTracerProvider` type), which no longer has a `register()` method. Custom `spanProcessors` must come from `@opentelemetry/sdk-trace` and take an options object, e.g. `new BatchSpanProcessor({ exporter })`; `BatchSpanProcessor` and `SimpleSpanProcessor` are now re-exported from `@arizeai/phoenix-otel`. See the package's `MIGRATION.md`. A `tracerProvider` passed to `@arizeai/phoenix-client` `evaluateExperiment()` must now be an `@opentelemetry/sdk-trace` 3.x `TracerProvider`. `register()` no longer applies the `OTEL_TRACES_SAMPLER`, `OTEL_SPAN_*`, `OTEL_ATTRIBUTE_*`, or `OTEL_BSP_*` environment variables. Node.js 22.15 or newer is now required.
+
+### Patch Changes
+
+- Updated dependencies [80bac51]
+  - @arizeai/phoenix-otel@3.0.0
+
+## 7.18.2
+
+### Patch Changes
+
+- 6e6e101: fix(phoenix-client): preserve literal dollar sequences in prompt variables
+
+## 7.18.1
+
+### Patch Changes
+
+- 6a60c71: fix(phoenix-client): preserve the error status of failed experiment task spans
+- 491ae7a: fix(phoenix-client): preserve system and developer instructions when converting prompts to Anthropic, omitting empty text blocks from the system array
+
+## 7.18.0
+
+### Minor Changes
+
+- ead7dd8: Add typed dataset-label resource and assignment helpers to the existing `@arizeai/phoenix-client/datasets` scope. Callers can manage reusable global labels, list them with cursor pagination, and assign or replace labels on datasets selected by name or GlobalID.
+
+## 7.17.0
+
+### Minor Changes
+
+- 9e7a797: Accept `DECISION` and `AGENT` as annotator kinds for span, document, trace, session and experiment run annotations. In `px`, `--annotator-kind` on `annotate` and the `*-annotations delete` commands accepts both. Phoenix servers that predate these kinds reject them.
+
+## 7.16.3
+
+### Patch Changes
+
+- 86ab99c: fix(client): keep `description`, `default` and other keywords next to `anyOf` when converting prompt tool and response-format schemas with `toSDK`
+
+## 7.16.2
+
+### Patch Changes
+
+- Updated dependencies [67cc379]
+- Updated dependencies [188ce28]
+  - @arizeai/phoenix-config@0.5.1
+  - @arizeai/phoenix-otel@2.3.0
+
+## 7.16.1
+
+### Patch Changes
+
+- 7b9f900: Move evaluator metadata to top level of experiment evaluation request body
+
+## 7.16.0
+
+### Minor Changes
+
+- f8ae2fc: Add `listProjectAnnotationConfigs`, `assignProjectAnnotationConfig`, `unassignProjectAnnotationConfig`, and `setProjectAnnotationConfigs` helpers to the `projects` subpath for managing which annotation configs a project uses.
+
+## 7.15.0
+
+### Minor Changes
+
+- 5b37f12: Add `upsertPromptVersionTag` and `deletePromptVersionTag` helpers to the `prompts` subpath for creating, moving, and deleting prompt-scoped version tags.
+
 ## 7.14.0
 
 ### Minor Changes

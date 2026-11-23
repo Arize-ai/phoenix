@@ -24,9 +24,9 @@ from opentelemetry.semconv._incubating.attributes.gen_ai_attributes import (
     GenAiOutputTypeValues,
     GenAiProviderNameValues,
 )
-from opentelemetry.util.types import AttributeValue
 from pydantic import RootModel, ValidationError
 
+from phoenix.trace.attributes import AttributeValue
 from phoenix.trace.gen_ai.__generated__.models import (
     BlobPart,
     ChatMessage,
@@ -53,6 +53,15 @@ from phoenix.trace.gen_ai.__generated__.models import (
 _GEN_AI_REQUEST_STREAM = "gen_ai.request.stream"
 """Attribute: whether the GenAI request was made in streaming mode. Added in
 semconv v1.41; not yet exposed in opentelemetry-semantic-conventions."""
+
+_GEN_AI_USAGE_REASONING_OUTPUT_TOKENS = "gen_ai.usage.reasoning.output_tokens"
+"""Attribute: output tokens used for reasoning, included in output_tokens. Added in
+semconv v1.41; exposed in opentelemetry-semantic-conventions only from 0.63b0."""
+
+_GEN_AI_USAGE_CACHE_WRITE_INPUT_TOKENS = "gen_ai.usage.cache_write.input_tokens"
+"""Attribute: input tokens written to a provider-managed cache. The GenAI semconv
+renamed ``gen_ai.usage.cache_creation.input_tokens`` to this (semantic-conventions-genai
+#440); opentelemetry-util-genai emits it from 1.2b0. Not in any semconv release yet."""
 
 
 def get_openinference_attributes(
@@ -132,7 +141,11 @@ def get_openinference_usage_attributes(
     input_tokens = _coerce_int(attributes.get(gen_ai.GEN_AI_USAGE_INPUT_TOKENS))
     output_tokens = _coerce_int(attributes.get(gen_ai.GEN_AI_USAGE_OUTPUT_TOKENS))
     cache_read = _coerce_int(attributes.get(gen_ai.GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS))
-    cache_write = _coerce_int(attributes.get(gen_ai.GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS))
+    cache_write = _coerce_int(attributes.get(_GEN_AI_USAGE_CACHE_WRITE_INPUT_TOKENS))
+    if cache_write is None:
+        # Producers on older semconv versions still emit the pre-rename key.
+        cache_write = _coerce_int(attributes.get(gen_ai.GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS))
+    reasoning = _coerce_int(attributes.get(_GEN_AI_USAGE_REASONING_OUTPUT_TOKENS))
 
     if input_tokens is not None:
         oi_attributes[SpanAttributes.LLM_TOKEN_COUNT_PROMPT] = input_tokens
@@ -144,6 +157,8 @@ def get_openinference_usage_attributes(
         oi_attributes[SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ] = cache_read
     if cache_write is not None:
         oi_attributes[SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE] = cache_write
+    if reasoning is not None:
+        oi_attributes[SpanAttributes.LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING] = reasoning
 
     return oi_attributes
 
@@ -443,21 +458,6 @@ def _build_invocation_parameters(
     return parameters
 
 
-# TODO: handle OTel GenAI semconv drift between producers.
-# Our generated models target semconv v1.41.1 (BlobPart has ``content: bytes`` and a
-# required ``modality`` field; UriPart/FilePart similarly renamed). Some producers
-# emit older drafts — notably opentelemetry-instrumentation-google-genai uses the
-# v1.30-era shape: ``data`` instead of ``content``, no ``modality``. Pydantic union
-# validation falls through to GenericPart for those parts, and ``_flatten_message``
-# below drops them silently (e.g. images vanish from llm.input_messages).
-# Three options when we get to this:
-#   1. Loosen the generated models (accept ``data``/``content`` aliases, optional
-#      ``modality``). Most permissive but modifies generated code.
-#   2. Pre-normalize part dicts in ``_validate_root_list`` (rename ``data`` ->
-#      ``content``, default ``modality`` from ``mime_type``). Contained.
-#   3. Sniff GenericPart for known ``type`` values (``blob``/``uri``/``file``) in
-#      ``_flatten_message`` and pull image fields from ``model_extra``. Most
-#      defensive — covers future drift too.
 def _flatten_message(
     message: ChatMessage | OutputMessage,
     prefix: str,

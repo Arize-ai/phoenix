@@ -921,8 +921,8 @@ def _cast_json_value(compiled_operand: Any, cast_type: SQLAlchemyDataType) -> An
     Text is a different failure. Casting a JSON value to text renders it *as
     JSON*, so a stored string keeps its quotes and `input['x'] == 'yes'`
     compares `"yes"` against `yes` -- false on both backends, for every row.
-    Extracting as text instead (`->>` on PostgreSQL, a plain `json_extract` on
-    SQLite) yields the string itself.
+    Extracting as text instead (`->>` on PostgreSQL, `json_extract` cast to
+    text on SQLite) yields the string itself.
     """
     if isinstance(cast_type, Boolean):
         return SafeJsonBoolean(compiled_operand)
@@ -1122,8 +1122,8 @@ def _as_json_scalar(compiled_operand: Any) -> Any:
     A JSON accessor keeps its operand encoded: the string `yes` comes back as
     `"yes"`, and a missing key comes back as SQLite's text `'null'` instead of
     SQL NULL. Both make a comparison silently false for every row. `as_string()`
-    picks the extracting accessor on each backend -- `->>` on PostgreSQL, a bare
-    `json_extract` on SQLite.
+    picks the extracting accessor on each backend -- `->>` on PostgreSQL,
+    `json_extract` cast to text on SQLite.
 
     Neither backend can then tell a stored JSON null from an absent key, since
     `json_extract` returns SQL NULL for both. Conflating them is the only

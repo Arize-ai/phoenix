@@ -59,6 +59,27 @@ class SqliteTypeTests(unittest.TestCase):
         row = self.cur.fetchone()
         self.assertEqual(row[0], num)
 
+    def test_Int64Bounds(self):
+        for num in (2**63 - 1, -2**63):
+            with self.subTest(num=num):
+                self.cur.execute("select ?", (num,))
+                self.assertEqual(self.cur.fetchone()[0], num)
+
+    def test_IntParamOverflow(self):
+        for num in (2**63, -2**63 - 1, 2**100):
+            with self.subTest(num=num):
+                with self.assertRaises(OverflowError):
+                    self.cur.execute("select ?", (num,))
+
+    def test_IntResultOverflow(self):
+        # Same conversion as a parameter, but SQLite reports the failure as
+        # a function error.
+        self.con.create_function("toobig", 0, lambda: 2**63)
+        with self.assertRaises(sqlite.OperationalError) as cm:
+            self.cur.execute("select toobig()")
+            self.cur.fetchone()
+        self.assertEqual(str(cm.exception), "user-defined function raised exception")
+
     def test_Float(self):
         val = 3.14
         self.cur.execute("insert into test(f) values (?)", (val,))

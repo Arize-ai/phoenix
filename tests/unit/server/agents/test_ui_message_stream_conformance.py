@@ -17,6 +17,9 @@ from phoenix.server.agents.vercel_ui_message_stream import (
 _FIXTURES_PATH = Path(__file__).parent / "fixtures" / "ui_message_stream" / "fixtures.json"
 
 UNSUPPORTED_BY_PYDANTIC_AI = {
+    (
+        "processUIMessageStream > should apply output chunk tool metadata to static and dynamic tool parts"
+    ): "pydantic-ai tool chunks do not model toolMetadata",
     "processUIMessageStream > file parts with providerMetadata": (
         "pydantic-ai FileChunk does not model providerMetadata"
     ),
@@ -154,7 +157,7 @@ def test_unsupported_case_list_is_explicit_and_current() -> None:
     fixture_names = {fixture["name"] for fixture in _FIXTURES}
     unsupported_names = set(UNSUPPORTED_BY_PYDANTIC_AI) | set(UNSUPPORTED_APPROVAL_CHUNKS)
 
-    assert len(UNSUPPORTED_BY_PYDANTIC_AI) == 11
+    assert len(UNSUPPORTED_BY_PYDANTIC_AI) == 12
     assert len(UNSUPPORTED_APPROVAL_CHUNKS) == 6
     assert unsupported_names <= fixture_names
 

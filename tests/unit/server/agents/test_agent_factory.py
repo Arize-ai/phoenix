@@ -19,7 +19,6 @@ from anthropic.types.beta import (
 )
 from anthropic.types.beta.message_create_params import MessageCreateParams
 from fastapi import FastAPI
-from opentelemetry.trace import NoOpTracerProvider
 from pydantic import SecretStr
 from pydantic_ai import Agent, UserError
 from pydantic_ai.capabilities import AbstractCapability, CombinedCapability
@@ -43,6 +42,7 @@ from phoenix.db.types.data_stream_protocol.ui_state_types import (
     ProjectUIContext,
 )
 from phoenix.server.agents.agent_factory import build_agent as _build_agent
+from phoenix.server.agents.agent_factory import build_agent_tracer
 from phoenix.server.agents.capabilities import (
     GitHubMCPCapability,
     build_anthropic_prompt_cache_capability,
@@ -195,6 +195,45 @@ def captured_request() -> CapturedRequest:
     return CapturedRequest()
 
 
+def _sse_event(event: dict[str, Any]) -> str:
+    return f"event: {event['type']}\ndata: {json.dumps(event)}\n\n"
+
+
+_ANTHROPIC_STUB_EVENTS: list[dict[str, Any]] = [
+    {
+        "type": "message_start",
+        "message": {
+            "id": "msg_test",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-haiku-4-5",
+            "content": [],
+            "stop_reason": None,
+            "stop_sequence": None,
+            "usage": {"input_tokens": 1, "output_tokens": 0},
+        },
+    },
+    {
+        "type": "content_block_start",
+        "index": 0,
+        "content_block": {"type": "text", "text": ""},
+    },
+    {
+        "type": "content_block_delta",
+        "index": 0,
+        "delta": {"type": "text_delta", "text": "ok"},
+    },
+    {"type": "content_block_stop", "index": 0},
+    {
+        "type": "message_delta",
+        "delta": {"stop_reason": "end_turn", "stop_sequence": None},
+        "usage": {"output_tokens": 1},
+    },
+    {"type": "message_stop"},
+]
+_ANTHROPIC_STUB_EVENT_STREAM = "".join(_sse_event(event) for event in _ANTHROPIC_STUB_EVENTS)
+
+
 @pytest.fixture
 def anthropic_model(
     anthropic_api_key: str,
@@ -204,7 +243,16 @@ def anthropic_model(
     ``httpx2.MockTransport``."""
 
     def handler(request: httpx2.Request) -> httpx2.Response:
-        captured_request.bodies.append(json.loads(request.read()))
+        body = json.loads(request.read())
+        captured_request.bodies.append(body)
+        if body.get("stream"):
+            # pydantic-ai streams a non-streaming request when its default max_tokens
+            # exceeds the SDK's non-streaming limit.
+            return httpx2.Response(
+                200,
+                headers={"content-type": "text/event-stream"},
+                content=_ANTHROPIC_STUB_EVENT_STREAM,
+            )
         stub_response = BetaMessage(
             id="msg_test",
             type="message",
@@ -230,7 +278,7 @@ def wrapped_anthropic_model(
     always returns an ``OpenInferenceModelWrapper``."""
     return OpenInferenceModelWrapper(
         anthropic_model,
-        tracer=NoOpTracerProvider().get_tracer("test"),
+        tracer=build_agent_tracer(None),
     )
 
 
@@ -251,9 +299,7 @@ class TestPromptCacheCapabilityMounting:
         assert build_anthropic_prompt_cache_capability(TestModel()) is None
 
     def test_builder_returns_none_for_wrapped_non_anthropic_model(self) -> None:
-        wrapped = OpenInferenceModelWrapper(
-            TestModel(), tracer=NoOpTracerProvider().get_tracer("test")
-        )
+        wrapped = OpenInferenceModelWrapper(TestModel(), tracer=build_agent_tracer(None))
         assert build_anthropic_prompt_cache_capability(wrapped) is None
 
     async def test_wrapped_model_emits_cache_breakpoint_end_to_end(
@@ -1295,6 +1341,25 @@ class TestGitHubMCPCapabilityRegistration:
         agent = build_agent(
             model=model,
             enable_subagents=True,
+            github_mcp_config=self._github_config(),
+        )
+        call_subagent = _find_capability(agent, CallSubAgentCapability)
+        subagent = call_subagent.subagent.wrapped
+        matches = [
+            capability
+            for capability in _iter_capabilities(subagent.root_capability)
+            if isinstance(capability, GitHubMCPCapability)
+        ]
+        assert len(matches) == 1
+        assert not self._write_tools_visible(matches[0])
+
+    def test_subagent_stays_read_only_under_bypass(self, model: TestModel) -> None:
+        # "bypass" removes the approval gate for the main thread, but filing
+        # still stays in the main thread: the subagent must not see write tools.
+        agent = build_agent(
+            model=model,
+            enable_subagents=True,
+            edit_permission="bypass",
             github_mcp_config=self._github_config(),
         )
         call_subagent = _find_capability(agent, CallSubAgentCapability)

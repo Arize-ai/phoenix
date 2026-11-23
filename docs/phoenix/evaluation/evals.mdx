@@ -63,7 +63,7 @@ from phoenix.evals import LLM, async_evaluate_dataframe
 from phoenix.evals.metrics import FaithfulnessEvaluator, CorrectnessEvaluator
 
 # Create an LLM instance
-llm = LLM(provider="openai", model="gpt-4o")
+llm = LLM(provider="openai", model="gpt-6-luna")
 
 # Define your evaluators
 # FaithfulnessEvaluator checks if the output is grounded in the context
@@ -84,11 +84,13 @@ results_df = await async_evaluate_dataframe(
 
 ### Key concepts
 
-* **`LLM`** — A unified wrapper over LLM providers (OpenAI, Anthropic, Google, LiteLLM, etc.). Use `LLM(provider="openai", model="gpt-4o")` to create an evaluation model.
+* **`LLM`** — A unified wrapper over LLM providers (OpenAI, Anthropic, Google, LiteLLM, etc.). Use `LLM(provider="openai", model="gpt-6-luna")` to create an evaluation model.
+
+* **`DecisionModel`** — An alternative judge that answers through a typed choices API, returning a label with per-label probabilities (and a confidence when the provider reports one) but no explanation. Built-in evaluators accept either an `LLM` or a `DecisionModel` as their judge — the `llm` argument takes both. Use `DecisionModel(provider="openai", model="gpt-6-luna")` for the decision-model variant.
 
 * **`evaluate_dataframe` / `async_evaluate_dataframe`** — Runs a list of evaluators over every row of a DataFrame and returns a new DataFrame with score columns. Use the async variant for concurrent evaluation with a configurable `concurrency` parameter.
 
-* **Built-in evaluators** — `phoenix.evals.metrics` provides ready-to-use evaluators like `FaithfulnessEvaluator`, `CorrectnessEvaluator`, `RetrievalRelevanceEvaluator`, `ConcisenessEvaluator`, and more. Each takes an `LLM` instance and returns `Score` objects with a label, numeric score, and explanation.
+* **Built-in evaluators** — `phoenix.evals.metrics` provides ready-to-use evaluators like `FaithfulnessEvaluator`, `CorrectnessEvaluator`, `RetrievalRelevanceEvaluator`, `ConcisenessEvaluator`, and more. Each takes an `LLM` or a `DecisionModel` and returns `Score` objects with a label and numeric score, plus an explanation when backed by an `LLM`.
 
 ## Analyze Your Evaluations
 

@@ -72,12 +72,6 @@ function renderChatScroll(isRequestActive = false): ChatScroll {
   return renderedChatScroll;
 }
 
-function rerenderChatScroll(isRequestActive: boolean): void {
-  act(() =>
-    root.render(<ChatScrollHarness isRequestActive={isRequestActive} />)
-  );
-}
-
 function runAnimationFrames(count = 1): void {
   for (let index = 0; index < count; index++) {
     runNextAnimationFrame();
@@ -165,77 +159,6 @@ function attachScrollElements(
 }
 
 describe("useChatScroll", () => {
-  it("smoothly places a new user turn near the top with a viewport spacer", () => {
-    const scroll = renderChatScroll();
-    const scroller = createScroller();
-    scroller.addUserMessage({ documentTop: 800 });
-    attachScrollElements(scroll, scroller);
-
-    expect(scroller.scrollElement.scrollTop).toBe(500);
-    expect(scroller.turnSpacerElement.style.height).toBe("0px");
-
-    scroll.startTurn();
-    scroller.addUserMessage({ documentTop: 980 });
-    scroller.setContentHeight(1020);
-    scroller.fireResize();
-    rerenderChatScroll(true);
-
-    expect(scroller.turnSpacerElement.style.height).toBe("318px");
-    expect(scroller.scrollElement.scrollTop).toBe(500);
-    expect(animationFrames.size).toBe(1);
-
-    runAnimationFrames();
-    expect(scroller.scrollElement.scrollTop).toBeGreaterThan(500);
-    expect(scroller.scrollElement.scrollTop).toBeLessThan(830);
-    scroller.scrollElement.dispatchEvent(new Event("scroll"));
-    for (let renderIndex = 0; renderIndex < 30; renderIndex++) {
-      scroll.scrollRef(null);
-      scroll.scrollRef(scroller.scrollElement);
-      runNextAnimationFrame(32);
-    }
-    expect(scroller.scrollElement.scrollTop).toBeCloseTo(830, 0);
-    expect(animationFrames.size).toBe(0);
-  });
-
-  it("removes the turn spacer at the viewport bottom, then follows", () => {
-    const scroll = renderChatScroll();
-    const scroller = createScroller();
-    scroller.addUserMessage({ documentTop: 800 });
-    attachScrollElements(scroll, scroller);
-    scroll.startTurn();
-    scroller.addUserMessage({ documentTop: 980 });
-    scroller.setContentHeight(1020);
-    scroller.fireResize();
-    runAnimationFrames(80);
-    const anchoredScrollTop = scroller.scrollElement.scrollTop;
-
-    scroller.setContentHeight(anchoredScrollTop + 300);
-    scroller.fireResize();
-    expect(scroller.scrollElement.scrollTop).toBe(anchoredScrollTop);
-    expect(scroller.turnSpacerElement.style.height).toBe("318px");
-    expect(animationFrames.size).toBe(0);
-
-    scroller.setContentHeight(anchoredScrollTop + 420);
-    scroller.fireResize();
-    expect(scroller.turnSpacerElement.style.height).toBe("318px");
-    expect(animationFrames.size).toBe(0);
-
-    scroller.setContentHeight(anchoredScrollTop + 500);
-    scroller.fireResize();
-    expect(scroller.turnSpacerElement.style.height).toBe("0px");
-    expect(animationFrames.size).toBe(1);
-    runAnimationFrames(2);
-    expect(scroller.scrollElement.scrollTop).toBe(anchoredScrollTop);
-
-    scroller.setContentHeight(anchoredScrollTop + 560);
-    scroller.fireResize();
-    runAnimationFrames(80);
-    expect(scroller.scrollElement.scrollTop).toBeCloseTo(
-      anchoredScrollTop + 60,
-      0
-    );
-  });
-
   it("finishes easing when the browser quantizes away the remaining step", () => {
     const scroll = renderChatScroll();
     const scroller = createScroller();
@@ -278,61 +201,6 @@ describe("useChatScroll", () => {
 
     expect(animationFrames.size).toBe(0);
     expect(scroller.scrollElement.scrollTop).toBe(anchoredScrollTop);
-  });
-
-  it("keeps following across a layout-driven upward scroll correction", () => {
-    const scroll = renderChatScroll();
-    const scroller = createScroller();
-    scroller.addUserMessage({ documentTop: 800 });
-    attachScrollElements(scroll, scroller);
-    scroll.startTurn();
-    scroller.addUserMessage({ documentTop: 980 });
-    scroller.setContentHeight(1020);
-    scroller.fireResize();
-    runAnimationFrames(80);
-    const anchoredScrollTop = scroller.scrollElement.scrollTop;
-
-    scroller.setContentHeight(anchoredScrollTop + 500);
-    scroller.fireResize();
-    runAnimationFrames(2);
-    scroller.setContentHeight(anchoredScrollTop + 560);
-    scroller.fireResize();
-    runAnimationFrames(80);
-    expect(scroller.scrollElement.scrollTop).toBeCloseTo(
-      anchoredScrollTop + 60,
-      0
-    );
-
-    // Streamdown can replace a block shell when highlighting completes. The
-    // resulting height correction emits a trusted scroll event even though the
-    // user did not interact with the transcript.
-    scroller.setContentHeight(anchoredScrollTop + 540);
-    scroller.scrollElement.scrollTop = anchoredScrollTop + 40;
-    scroller.scrollElement.dispatchEvent(new Event("scroll"));
-
-    scroller.setContentHeight(anchoredScrollTop + 620);
-    scroller.fireResize();
-    runAnimationFrames(80);
-    expect(scroller.scrollElement.scrollTop).toBeCloseTo(
-      anchoredScrollTop + 120,
-      0
-    );
-  });
-
-  it("routes expanding-content anchoring through the scroll authority", () => {
-    const scroll = renderChatScroll();
-    const scroller = createScroller();
-    attachScrollElements(scroll, scroller);
-    const anchoredElement = scroller.addUserMessage({ documentTop: 700 });
-
-    scroll.captureAnchor(anchoredElement);
-    scroller.setContentHeight(1200);
-    vi.spyOn(anchoredElement, "getBoundingClientRect").mockReturnValue({
-      top: 260,
-    } as DOMRect);
-    scroll.restoreAnchor(anchoredElement);
-
-    expect(scroller.scrollElement.scrollTop).toBe(560);
   });
 
   it("restores turn placement when an active draft remounts as a session", () => {

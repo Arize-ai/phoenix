@@ -15,7 +15,7 @@ Existing flex and view layout primitives SHOULD be used for consistent spacing a
 
 ## Storybook
 
-New core components MUST include minimal Storybook stories showing primary variants and states. Explore `js/app/stories/` for the existing convention.
+New core components MUST include Storybook stories. Load the `phoenix-storybook` skill before writing or changing any story; it defines placement, tags, and how to show a component's options and states.
 
 ## File convention
 
@@ -23,7 +23,7 @@ Explore a few existing components to match the established file structure (compo
 
 ## Memoization
 
-React Compiler is enabled — do NOT use `useMemo`, `useCallback`, or `React.memo`. The compiler handles memoization automatically. This includes callback props passed to children; define them inline without wrapping in `useCallback`.
+React Compiler is enabled and memoizes most components and hooks, so most new code needs no manual memoization. `useMemo` and `useCallback` remain valid where a value's identity matters, as [React recommends](https://react.dev/learn/react-compiler/introduction#what-should-i-do-about-usememo-usecallback-and-reactmemo): effect dependencies, values passed to code the compiler doesn't compile, and components the compiler skips. The build runs with `panicThreshold: "none"`, so a component the compiler can't compile is skipped without a build error. Don't remove existing memoization without testing the behavior that depends on it.
 
 ## Conditional class names
 
