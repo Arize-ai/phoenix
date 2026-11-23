@@ -4,6 +4,8 @@ import asyncio
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
+import pytest
+
 from phoenix.client.resources.experiments import _evaluators_by_name  # pyright: ignore[reportPrivateUsage]
 from phoenix.client.resources.experiments.types import EvaluationScore
 
@@ -63,3 +65,12 @@ def test_single_score_evals_evaluator_still_returns_one_evaluation() -> None:
 
     assert wrapped.evaluate(output="x") == expected
     assert asyncio.run(wrapped.async_evaluate(output="x")) == expected
+
+
+def test_empty_score_list_raises_so_the_evaluation_is_recorded_as_errored() -> None:
+    wrapped = _wrap([])
+
+    with pytest.raises(ValueError, match="precision_recall_fscore"):
+        wrapped.evaluate(output="x")
+    with pytest.raises(ValueError, match="precision_recall_fscore"):
+        asyncio.run(wrapped.async_evaluate(output="x"))

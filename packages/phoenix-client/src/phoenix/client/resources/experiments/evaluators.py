@@ -43,9 +43,14 @@ def _score_result_to_evaluation_result(score: ScoreResult) -> EvaluationResult:
         return [_score_to_experiment_evaluation(s) for s in score]
 
 
-def _evals_scores_to_evaluation_result(scores: ScoreResult) -> EvaluationResult:
-    if not isinstance(scores, EvaluationScore) and len(scores) == 1:
-        return _score_to_experiment_evaluation(scores[0])
+def _evals_scores_to_evaluation_result(
+    scores: ScoreResult, evaluator_name: str
+) -> EvaluationResult:
+    if not isinstance(scores, EvaluationScore):
+        if not scores:
+            raise ValueError(f"Evaluator {evaluator_name!r} returned no scores")
+        if len(scores) == 1:
+            return _score_to_experiment_evaluation(scores[0])
     return _score_result_to_evaluation_result(scores)
 
 
@@ -268,10 +273,11 @@ def wrap_phoenix_evals_evaluator(evaluator: EvalsEvaluator) -> Evaluator:
                 self._kind = AnnotatorKind.CODE
 
         def evaluate(self, **kwargs: Any) -> EvaluationResult:
-            return _evals_scores_to_evaluation_result(evaluator.evaluate(kwargs))
+            return _evals_scores_to_evaluation_result(evaluator.evaluate(kwargs), self._name)
 
         async def async_evaluate(self, **kwargs: Any) -> EvaluationResult:
-            return _evals_scores_to_evaluation_result(await evaluator.async_evaluate(kwargs))
+            scores = await evaluator.async_evaluate(kwargs)
+            return _evals_scores_to_evaluation_result(scores, self._name)
 
     return PhoenixEvalsEvaluator()
 
