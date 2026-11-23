@@ -33,7 +33,7 @@ export type EvaluatorFormSection = {
 };
 
 /** The input mapping, docked under the definition. */
-export type EvaluatorFormInputs = {
+type EvaluatorFormInputs = {
   title: string;
   /** Shown after the title, e.g. how many variables have nothing to read. */
   badge?: ReactNode;
