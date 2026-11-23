@@ -147,15 +147,17 @@ export function ComboBoxItem(props: ListBoxItemProps) {
   const { children, ...rest } = props;
   return (
     <ListBoxItem {...rest} css={comboBoxItemCSS}>
-      {({ isSelected }) => {
+      {(renderProps) => {
+        const content =
+          typeof children === "function" ? children(renderProps) : children;
         return (
           <>
             <div className="combobox-item__content">
-              {typeof children === "string"
-                ? insertWordBreakOpportunities(children)
-                : children}
+              {typeof content === "string"
+                ? insertWordBreakOpportunities(content)
+                : content}
             </div>
-            {isSelected && (
+            {renderProps.isSelected && (
               <Icon
                 svg={<Icons.Checkmark />}
                 className="menu-item__selected-checkmark"
