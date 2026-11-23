@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { startTransition, useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
 import {
@@ -20,7 +20,6 @@ import {
 import {
   DialogCloseButton,
   DialogContent,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
@@ -57,7 +56,6 @@ export function ProjectActionMenu({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [showRemoveDataDialog, setShowRemoveDataDialog] = useState(false);
-  const [removeDataOpenGeneration, setRemoveDataOpenGeneration] = useState(0);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [clearError, setClearError] = useState<string | null>(null);
   const canDelete = projectName !== "default";
@@ -77,46 +75,49 @@ export function ProjectActionMenu({
         }
       }
     `);
-
   const handleDelete = useCallback(() => {
     setDeleteError(null);
-    commitDelete({
-      variables: {
-        projectId,
-      },
-      onCompleted: (_response, errors) => {
-        if (errors?.length) {
-          setDeleteError(errors.map(({ message }) => message).join("\n"));
-          return;
-        }
-        setShowDeleteDialog(false);
-        onProjectDelete();
-      },
-      onError: (error) => {
-        setDeleteError(getMutationErrorMessage(error));
-      },
+    startTransition(() => {
+      commitDelete({
+        variables: {
+          projectId: projectId,
+        },
+        onCompleted: (_response, errors) => {
+          if (errors?.length) {
+            setDeleteError(errors.map(({ message }) => message).join("\n"));
+            return;
+          }
+          setShowDeleteDialog(false);
+          onProjectDelete();
+        },
+        onError: (error) => {
+          setDeleteError(getMutationErrorMessage(error));
+        },
+      });
     });
   }, [commitDelete, projectId, onProjectDelete]);
 
   const handleClear = useCallback(() => {
     setClearError(null);
-    commitClear({
-      variables: {
-        input: {
-          id: projectId,
+    startTransition(() => {
+      commitClear({
+        variables: {
+          input: {
+            id: projectId,
+          },
         },
-      },
-      onCompleted: (_response, errors) => {
-        if (errors?.length) {
-          setClearError(errors.map(({ message }) => message).join("\n"));
-          return;
-        }
-        setShowClearDialog(false);
-        onProjectClear();
-      },
-      onError: (error) => {
-        setClearError(getMutationErrorMessage(error));
-      },
+        onCompleted: (_response, errors) => {
+          if (errors?.length) {
+            setClearError(errors.map(({ message }) => message).join("\n"));
+            return;
+          }
+          setShowClearDialog(false);
+          onProjectClear();
+        },
+        onError: (error) => {
+          setClearError(getMutationErrorMessage(error));
+        },
+      });
     });
   }, [commitClear, projectId, onProjectClear]);
 
@@ -131,7 +132,6 @@ export function ProjectActionMenu({
   }, []);
 
   const onRemoveData = useCallback(() => {
-    setRemoveDataOpenGeneration((generation) => generation + 1);
     setShowRemoveDataDialog(true);
   }, []);
 
@@ -218,46 +218,38 @@ export function ProjectActionMenu({
       </MenuTrigger>
       <ModalOverlay
         isOpen={showDeleteDialog}
-        onOpenChange={(nextIsOpen) => {
-          if (nextIsOpen) {
-            setDeleteError(null);
-          }
-          setShowDeleteDialog(nextIsOpen);
-        }}
+        onOpenChange={setShowDeleteDialog}
       >
         <Modal size="S">
           <Dialog>
-            {({ close }) => (
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Delete Project</DialogTitle>
-                  <DialogTitleExtra>
-                    <DialogCloseButton />
-                  </DialogTitleExtra>
-                </DialogHeader>
-                {deleteError ? (
-                  <View paddingX="size-200" paddingTop="size-100">
-                    <Alert variant="danger" banner>
-                      {deleteError}
-                    </Alert>
-                  </View>
-                ) : null}
-                <View padding="size-200">
-                  <Text color="danger">
-                    {`Are you sure you want to delete project ${projectName}? This cannot be undone.`}
-                  </Text>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Delete Project</DialogTitle>
+                <DialogTitleExtra>
+                  <DialogCloseButton />
+                </DialogTitleExtra>
+              </DialogHeader>
+              {deleteError ? (
+                <View paddingX="size-200" paddingTop="size-100">
+                  <Alert variant="danger" banner>
+                    {deleteError}
+                  </Alert>
                 </View>
-                <DialogFooter>
+              ) : null}
+              <View padding="size-200">
+                <Text color="danger">
+                  {`Are you sure you want to delete project ${projectName}? This cannot be undone.`}
+                </Text>
+              </View>
+              <View
+                paddingEnd="size-200"
+                paddingTop="size-100"
+                paddingBottom="size-100"
+                borderTopColor="default"
+                borderTopWidth="thin"
+              >
+                <Flex direction="row" justifyContent="end">
                   <Button
-                    size="S"
-                    variant="default"
-                    onPress={close}
-                    isDisabled={isDeleting}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    size="S"
                     variant="danger"
                     isDisabled={isDeleting}
                     leadingVisual={
@@ -267,54 +259,43 @@ export function ProjectActionMenu({
                   >
                     Delete Project
                   </Button>
-                </DialogFooter>
-              </DialogContent>
-            )}
+                </Flex>
+              </View>
+            </DialogContent>
           </Dialog>
         </Modal>
       </ModalOverlay>
-      <ModalOverlay
-        isOpen={showClearDialog}
-        onOpenChange={(nextIsOpen) => {
-          if (nextIsOpen) {
-            setClearError(null);
-          }
-          setShowClearDialog(nextIsOpen);
-        }}
-      >
+      <ModalOverlay isOpen={showClearDialog} onOpenChange={setShowClearDialog}>
         <Modal size="S">
           <Dialog>
-            {({ close }) => (
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Clear Project</DialogTitle>
-                  <DialogTitleExtra>
-                    <DialogCloseButton />
-                  </DialogTitleExtra>
-                </DialogHeader>
-                {clearError ? (
-                  <View paddingX="size-200" paddingTop="size-100">
-                    <Alert variant="danger" banner>
-                      {clearError}
-                    </Alert>
-                  </View>
-                ) : null}
-                <View padding="size-200">
-                  <Text color="danger">
-                    {`Are you sure you want to clear project ${projectName}? All traces and evaluations for this project will be deleted. This cannot be undone.`}
-                  </Text>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Clear Project</DialogTitle>
+                <DialogTitleExtra>
+                  <DialogCloseButton />
+                </DialogTitleExtra>
+              </DialogHeader>
+              {clearError ? (
+                <View paddingX="size-200" paddingTop="size-100">
+                  <Alert variant="danger" banner>
+                    {clearError}
+                  </Alert>
                 </View>
-                <DialogFooter>
+              ) : null}
+              <View padding="size-200">
+                <Text color="danger">
+                  {`Are you sure you want to clear project ${projectName}? All traces and evaluations for this project will be deleted. This cannot be undone.`}
+                </Text>
+              </View>
+              <View
+                paddingEnd="size-200"
+                paddingTop="size-100"
+                paddingBottom="size-100"
+                borderTopColor="default"
+                borderTopWidth="thin"
+              >
+                <Flex direction="row" justifyContent="end">
                   <Button
-                    size="S"
-                    variant="default"
-                    onPress={close}
-                    isDisabled={isClearing}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    size="S"
                     variant="danger"
                     isDisabled={isClearing}
                     leadingVisual={
@@ -324,9 +305,9 @@ export function ProjectActionMenu({
                   >
                     Clear
                   </Button>
-                </DialogFooter>
-              </DialogContent>
-            )}
+                </Flex>
+              </View>
+            </DialogContent>
           </Dialog>
         </Modal>
       </ModalOverlay>
@@ -336,24 +317,21 @@ export function ProjectActionMenu({
       >
         <Modal size="S">
           <Dialog>
-            {({ close }) => (
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Remove Data</DialogTitle>
-                  <DialogTitleExtra>
-                    <DialogCloseButton />
-                  </DialogTitleExtra>
-                </DialogHeader>
-                <RemoveProjectDataForm
-                  key={`${projectId}:${removeDataOpenGeneration}`}
-                  projectId={projectId}
-                  onComplete={() => {
-                    onProjectRemoveData();
-                    close();
-                  }}
-                />
-              </DialogContent>
-            )}
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Remove Data</DialogTitle>
+                <DialogTitleExtra>
+                  <DialogCloseButton />
+                </DialogTitleExtra>
+              </DialogHeader>
+              <RemoveProjectDataForm
+                projectId={projectId}
+                onComplete={() => {
+                  onProjectRemoveData();
+                  setShowRemoveDataDialog(false);
+                }}
+              />
+            </DialogContent>
           </Dialog>
         </Modal>
       </ModalOverlay>

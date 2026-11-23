@@ -4,7 +4,7 @@ import {
   parseAbsoluteToLocal,
 } from "@internationalized/date";
 import { isValid as dateIsValid } from "date-fns";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 
@@ -38,12 +38,11 @@ type RemoveProjectDataFormParams = {
   endDate: DateValue;
 };
 
-export function RemoveProjectDataForm({
-  projectId,
-  onComplete,
-}: RemoveProjectDataFormProps) {
+export function RemoveProjectDataForm(props: RemoveProjectDataFormProps) {
   const { nowEpochMs } = useCurrentTime();
+  const { projectId } = props;
   const dateFormatPattern = useLocalTimeFormatPattern();
+  const formRef = useRef<HTMLFormElement>(null);
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [commit, isCommitting] = useMutation<RemoveProjectDataFormMutation>(
     graphql`
@@ -72,6 +71,7 @@ export function RemoveProjectDataForm({
   const onSubmit = useCallback(
     (params: RemoveProjectDataFormParams) => {
       setMutationError(null);
+      // Validate date is a valid date
       const parsedDate = params.endDate.toDate(getLocalTimeZone());
       if (!dateIsValid(parsedDate)) {
         return setError("endDate", {
@@ -91,18 +91,17 @@ export function RemoveProjectDataForm({
             setMutationError(errors.map(({ message }) => message).join("\n"));
             return;
           }
-          onComplete();
+          props.onComplete();
         },
         onError: (error) => {
           setMutationError(getMutationErrorMessage(error));
         },
       });
     },
-    [commit, projectId, onComplete, setError]
+    [commit, projectId, props, setError]
   );
-
   return (
-    <form onSubmit={handleSubmit(onSubmit)}>
+    <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
       {mutationError ? (
         <View paddingX="size-200" paddingTop="size-100">
           <Alert variant="danger" banner>
@@ -169,6 +168,11 @@ export function RemoveProjectDataForm({
             leadingVisual={
               isCommitting ? <Icon svg={<Icons.Loading />} /> : undefined
             }
+            onPress={() => {
+              // TODO: This is a bit of a hack as the form is not working in a dialog for some reason
+              // It probably has to do with the nested DOM structure under which it is being mounted
+              formRef.current?.requestSubmit();
+            }}
           >
             {isCommitting ? "Removing..." : "Remove Data"}
           </Button>

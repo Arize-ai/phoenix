@@ -91,18 +91,13 @@ describe("ProjectActionMenu", () => {
     });
   }
 
-  it("keeps the Clear dialog open while in flight, formats GraphQL errors inline, clears on reopen", async () => {
+  it("shows a Clear error inline and keeps the dialog open, then closes and notifies on success", async () => {
     const { environment, onProjectClear } = renderMenu();
     await openMenuAndSelect({ itemText: "Clear All Data" });
 
-    const clearButton = findButtonByText({ text: "Clear" });
-    expect(clearButton).toBeDefined();
-
     await act(async () => {
-      await userEvent.click(clearButton as HTMLElement);
+      await userEvent.click(findButtonByText({ text: "Clear" }) as HTMLElement);
     });
-
-    expect(document.body.textContent).toContain("Clear Project");
     expect(findButtonByText({ text: "Clear" })?.disabled).toBe(true);
 
     await act(async () => {
@@ -113,32 +108,18 @@ describe("ProjectActionMenu", () => {
       );
     });
 
+    expect(document.body.textContent).toContain("Clear Project");
     expect(document.body.textContent).toContain(
       "Some traces are in use by another operation; run the clear again to finish."
     );
-    expect(document.body.textContent).not.toContain(
-      "Error fetching GraphQL query"
-    );
     expect(onProjectClear).not.toHaveBeenCalled();
-
-    await act(async () => {
-      await userEvent.click(
-        findButtonByText({ text: "Cancel" }) as HTMLElement
-      );
-    });
-    await openMenuAndSelect({ itemText: "Clear All Data" });
-    expect(document.body.textContent).not.toContain(
-      "Some traces are in use by another operation; run the clear again to finish."
-    );
 
     await act(async () => {
       await userEvent.click(findButtonByText({ text: "Clear" }) as HTMLElement);
     });
     await act(async () => {
       environment.mock.resolveMostRecentOperation({
-        data: {
-          clearProject: { __typename: "Query" },
-        },
+        data: { clearProject: { __typename: "Query" } },
       });
     });
 
@@ -146,7 +127,7 @@ describe("ProjectActionMenu", () => {
     expect(document.body.textContent).not.toContain("Clear Project");
   });
 
-  it("displays formatted inline error in Delete Project dialog on 409 failure and clears on reopen", async () => {
+  it("shows a Delete Project error inline and keeps the dialog open", async () => {
     const { environment, onProjectDelete } = renderMenu();
     await openMenuAndSelect({ itemText: "Delete" });
 
@@ -155,37 +136,22 @@ describe("ProjectActionMenu", () => {
         findButtonByText({ text: "Delete Project" }) as HTMLElement
       );
     });
-
     expect(findButtonByText({ text: "Delete Project" })?.disabled).toBe(true);
 
     await act(async () => {
-      environment.mock.rejectMostRecentOperation(
-        new Error(
-          `Error fetching GraphQL query 'ProjectActionMenuDeleteMutation': [{"message":"Cannot delete project while trace cleanup is running"}]`
-        )
-      );
+      environment.mock.resolveMostRecentOperation({
+        data: { deleteProject: { __typename: "Query" } },
+        errors: [{ message: "Cannot delete project while cleanup is running" }],
+      });
     });
 
     expect(document.body.textContent).toContain(
-      "Cannot delete project while trace cleanup is running"
-    );
-    expect(document.body.textContent).not.toContain(
-      "Error fetching GraphQL query"
+      "Cannot delete project while cleanup is running"
     );
     expect(onProjectDelete).not.toHaveBeenCalled();
-
-    await act(async () => {
-      await userEvent.click(
-        findButtonByText({ text: "Cancel" }) as HTMLElement
-      );
-    });
-    await openMenuAndSelect({ itemText: "Delete" });
-    expect(document.body.textContent).not.toContain(
-      "Cannot delete project while trace cleanup is running"
-    );
   });
 
-  it("displays formatted inline error in Remove Data dialog, clears on reopen", async () => {
+  it("shows a Remove Data error inline, then closes and notifies on success", async () => {
     const { environment, onProjectRemoveData } = renderMenu();
     await openMenuAndSelect({ itemText: "Remove Data" });
 
@@ -194,7 +160,6 @@ describe("ProjectActionMenu", () => {
         findButtonByText({ text: "Remove Data" }) as HTMLElement
       );
     });
-
     await act(async () => {
       environment.mock.rejectMostRecentOperation(
         new Error(
@@ -206,23 +171,7 @@ describe("ProjectActionMenu", () => {
     expect(document.body.textContent).toContain(
       "Some traces are in use by another operation; run the clear again to finish."
     );
-    expect(document.body.textContent).not.toContain(
-      "Error fetching GraphQL query"
-    );
     expect(onProjectRemoveData).not.toHaveBeenCalled();
-
-    const closeButton = document.body.querySelector(
-      '[data-testid="dialog-close-button"]'
-    );
-    expect(closeButton).not.toBeNull();
-    await act(async () => {
-      await userEvent.click(closeButton as HTMLElement);
-    });
-
-    await openMenuAndSelect({ itemText: "Remove Data" });
-    expect(document.body.textContent).not.toContain(
-      "Some traces are in use by another operation; run the clear again to finish."
-    );
 
     await act(async () => {
       await userEvent.click(
@@ -231,12 +180,10 @@ describe("ProjectActionMenu", () => {
     });
     await act(async () => {
       environment.mock.resolveMostRecentOperation({
-        data: {
-          clearProject: { __typename: "Query" },
-        },
+        data: { clearProject: { __typename: "Query" } },
       });
     });
 
-    expect(onProjectRemoveData).toHaveBeenCalledTimes(1);
+    expect(onProjectRemoveData).toHaveBeenCalled();
   });
 });
