@@ -3,23 +3,45 @@
 Run a retriever or an LLM application several times on the same input and measure how much
 the runs agree. ``1.0`` means every run agreed; lower values mean less repeatable behavior.
 
-The pair sampling, set/n-gram similarities, judge prompt, and judge-output parsing are adapted
-from ``repeatability_evals`` by Krishna Gogineni (MIT License,
-https://github.com/krishna-gogineni-765/repeatability-evals).
+The pair sampling (``sample_run_pairs``), the ID-set and word n-gram similarities
+(``chunk_id_jaccard``, ``ngram_jaccard`` and their helpers), and the judge prompt with its 1-5
+rating scale (``SEMANTIC_EQUIVALENCE_PROMPT``) are adapted from ``repeatability_evals``
+(https://github.com/krishna-gogineni-765/repeatability-evals). Those portions are used under
+its MIT License:
+
+    MIT License
+
+    Copyright (c) 2026 Krishna Gogineni
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
 """
 
 from __future__ import annotations
 
 import asyncio
 import itertools
-import json
 import random
 import re
 from typing import (
     Any,
     Hashable,
     Iterable,
-    Iterator,
     List,
     Literal,
     Mapping,
@@ -194,15 +216,12 @@ two equally wrong responses that say the same thing score 5.
 - Extra detail in one response lowers the score only when it adds or changes substantive \
 information that the other lacks or contradicts.
 
-Reply with JSON only: {"reason": "<one or two sentences>", "score": <integer 1-5>}
+Give the rating as the label, and explain it in one or two sentences.
 """
 
 _PLACEHOLDER = re.compile(r"\{(query|item_a|item_b)\}")
-# "1-5", "1 to 5", "out of 5", "/5" describe the scale, not the score: drop them before searching.
-_SCALE_TEXT = re.compile(
-    r"\(?\b\d+(?:\.\d+)?\s*(?:-|–|to)\s*\d+(?:\.\d+)?\b\)?|\bout\s+of\s+\d+(?:\.\d+)?|/\s*\d+(?:\.\d+)?",
-    re.I,
-)
+# The judge answers through structured output, choosing one of these labels.
+_LABELS = ("1", "2", "3", "4", "5")
 _MIN_SCORE, _MAX_SCORE = 1.0, 5.0
 
 
@@ -212,48 +231,20 @@ def _render_prompt(query: Optional[str], item_a: str, item_b: str) -> str:
     return _PLACEHOLDER.sub(lambda m: values[m.group(1)], SEMANTIC_EQUIVALENCE_PROMPT)
 
 
-def _json_objects(text: str) -> Iterator[Mapping[str, Any]]:
-    """Yield every JSON object embedded in ``text`` (tolerates prose and code fences)."""
-    decoder = json.JSONDecoder()
-    start = text.find("{")
-    while start != -1:
-        try:
-            obj, end = decoder.raw_decode(text, start)
-        except ValueError:
-            start = text.find("{", start + 1)
-            continue
-        if isinstance(obj, dict):
-            yield obj
-        start = text.find("{", end)
+def _parse_judge_rating(response: object) -> Tuple[float, Optional[str]]:
+    """Validate a ``generate_classification`` reply and return ``(rating, explanation)``.
 
-
-def _parse_judge_output(text: str) -> Tuple[float, Optional[str]]:
-    """Extract ``(score, reason)`` from a judge reply; the score is clamped to 1-5.
-
-    Tries a JSON object with a numeric ``score``, then ``score: N`` / ``rating: N``, then the
-    last number in range. Scale descriptions such as ``1-5`` or ``out of 5`` are ignored.
+    The label must be one of ``"1"`` to ``"5"``; surrounding whitespace is ignored. Anything
+    else, such as a missing label, ``"N/A"``, ``"10"``, ``"NaN"``, a refusal, or a non-string,
+    raises ``ValueError``, so a reply without a usable rating fails instead of becoming a score.
     """
-    raw: Optional[float] = None
-    reason: Optional[str] = None
-    for obj in _json_objects(text):
-        try:
-            raw = float(obj["score"])
-        except (KeyError, TypeError, ValueError):
-            continue
-        reason = None if obj.get("reason") is None else str(obj["reason"])
-        break
-    if raw is None:
-        cleaned = _SCALE_TEXT.sub(" ", text)
-        match = re.search(r"(?i)\b(?:score|rating)\b[^\d\-]{0,12}(-?\d+(?:\.\d+)?)", cleaned)
-        if match:
-            raw = float(match.group(1))
-        else:
-            numbers = [float(x) for x in re.findall(r"(?<![\w.])\d+(?:\.\d+)?(?!\w)", cleaned)]
-            in_range = [x for x in numbers if _MIN_SCORE <= x <= _MAX_SCORE]
-            if not in_range:
-                raise ValueError(f"No score found in judge reply: {text[:200]!r}")
-            raw = in_range[-1]
-    return min(max(raw, _MIN_SCORE), _MAX_SCORE), reason
+    if not isinstance(response, Mapping):
+        raise ValueError(f"Expected a classification dict from the judge, got {response!r:.200}")
+    label = response.get("label")
+    if not isinstance(label, str) or label.strip() not in _LABELS:
+        raise ValueError(f"Expected a judge rating label in {list(_LABELS)}, got {label!r:.200}")
+    explanation = response.get("explanation")
+    return float(label.strip()), None if explanation is None else str(explanation)
 
 
 # (normalized score, judge reason, skipped because the outputs are identical)
@@ -261,9 +252,9 @@ _PairResult = Tuple[float, Optional[str], bool]
 _IDENTICAL: _PairResult = (1.0, "identical", True)
 
 
-def _judge_result(reply: str) -> _PairResult:
-    raw, reason = _parse_judge_output(reply)
-    return (raw - _MIN_SCORE) / (_MAX_SCORE - _MIN_SCORE), reason, False
+def _judge_result(response: object) -> _PairResult:
+    rating, reason = _parse_judge_rating(response)
+    return (rating - _MIN_SCORE) / (_MAX_SCORE - _MIN_SCORE), reason, False
 
 
 def _mean(values: Iterable[float]) -> float:
@@ -359,11 +350,19 @@ class AnswerConsistencyEvaluator(Evaluator):
     whitespace normalization score 1.0 without an LLM call. The final score is the mean over
     the sampled pairs.
 
+    The judge rates each pair through structured output, as a label from ``"1"`` to ``"5"``
+    with an explanation. Any other reply, such as a refusal or an out-of-range rating, raises
+    ``ValueError`` and fails the evaluation instead of producing a score.
+
     Parameters:
-        - llm: The LLM used as the equivalence judge (uses ``generate_text``).
+        - llm: The LLM used as the equivalence judge (uses ``generate_classification``, so it
+          must support tool calling or structured output).
         - budget: Number of pairs to judge. Defaults to the number of outputs; pass
           ``n * (n - 1) // 2`` or more to judge every pair.
         - seed: Seed for pair sampling.
+        - **kwargs: Invocation parameters forwarded to every judge call, e.g.
+          ``temperature=0.0`` so that judge sampling noise does not read as run-to-run
+          inconsistency.
 
     Args:
         eval_input (Mapping[str, Any]):
@@ -372,13 +371,17 @@ class AnswerConsistencyEvaluator(Evaluator):
 
     Returns:
         List[Score]: One Score named ``answer_consistency`` in ``[0, 1]`` (1.0 when fewer than
-        two outputs). Metadata holds ``n_runs``, ``n_pairs``, and ``pairs``: one entry per
-        sampled pair with its indices, normalized score, and the judge's reason.
+        two outputs). Metadata holds the judge ``model``, ``n_runs``, ``n_pairs``, and
+        ``pairs``: one entry per sampled pair with its indices, normalized score, and the
+        judge's explanation as ``reason``.
+
+    Raises:
+        ValueError: If the judge's label for a judged pair is not one of ``"1"`` to ``"5"``.
 
     Examples::
 
         llm = LLM(provider="openai", model="gpt-4o-mini")
-        evaluator = AnswerConsistencyEvaluator(llm)
+        evaluator = AnswerConsistencyEvaluator(llm, temperature=0.0)
         scores = evaluator.evaluate({
             "input": "What is the capital of France?",
             "outputs": ["Paris.", "The capital is Paris.", "Lyon."],
@@ -389,7 +392,9 @@ class AnswerConsistencyEvaluator(Evaluator):
         outputs: List[str] = Field(..., description="Outputs of repeated runs for one input.")
         input: Optional[str] = Field(default=None, description="The input the outputs answer.")
 
-    def __init__(self, llm: LLM, *, budget: Optional[int] = None, seed: int = 0) -> None:
+    def __init__(
+        self, llm: LLM, *, budget: Optional[int] = None, seed: int = 0, **kwargs: Any
+    ) -> None:
         super().__init__(
             name="answer_consistency",
             kind="llm",
@@ -401,6 +406,7 @@ class AnswerConsistencyEvaluator(Evaluator):
         self.llm = llm
         self.budget = budget
         self.seed = seed
+        self.invocation_parameters = kwargs
 
     def _evaluate(self, eval_input: EvalInput) -> List[Score]:
         outputs: List[str] = eval_input["outputs"]
@@ -412,8 +418,13 @@ class AnswerConsistencyEvaluator(Evaluator):
             if _normalize(a) == _normalize(b):
                 results.append(_IDENTICAL)
             else:
-                reply = self.llm.generate_text(_render_prompt(query, a, b))
-                results.append(_judge_result(reply))
+                response = self.llm.generate_classification(
+                    prompt=_render_prompt(query, a, b),
+                    labels=list(_LABELS),
+                    include_explanation=True,
+                    **self.invocation_parameters,
+                )
+                results.append(_judge_result(response))
         return self._to_scores(outputs, pairs, results)
 
     async def _async_evaluate(self, eval_input: EvalInput) -> List[Score]:
@@ -424,8 +435,13 @@ class AnswerConsistencyEvaluator(Evaluator):
         async def judge(a: str, b: str) -> _PairResult:
             if _normalize(a) == _normalize(b):
                 return _IDENTICAL
-            reply = await self.llm.async_generate_text(_render_prompt(query, a, b))
-            return _judge_result(reply)
+            response = await self.llm.async_generate_classification(
+                prompt=_render_prompt(query, a, b),
+                labels=list(_LABELS),
+                include_explanation=True,
+                **self.invocation_parameters,
+            )
+            return _judge_result(response)
 
         results = await asyncio.gather(*(judge(outputs[i], outputs[j]) for i, j in pairs))
         return self._to_scores(outputs, pairs, list(results))
@@ -449,6 +465,7 @@ class AnswerConsistencyEvaluator(Evaluator):
                 kind=self.kind,
                 direction=self.direction,
                 metadata={
+                    "model": self.llm.model,
                     "n_runs": len(outputs),
                     "n_pairs": len(pairs),
                     "pairs": [
