@@ -129,5 +129,3 @@ TSDoc on exported symbols in `js/packages/` is public API, not an inline comment
 ## Reuse
 
 Existing shared utilities must be checked before writing inline helpers. Duplicated logic should be extracted to a shared module. When working in `js/packages/`, check sibling packages for existing utilities before adding new dependencies or reimplementing.
-
-Shared code has one home, and every consumer imports it from there. When a second module needs code that lives inside another, move that code to a module named for what it does and import it from both. A module exports only what it owns: do not export internals for a sibling to use, and do not re-export another module's symbols.
