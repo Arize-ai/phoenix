@@ -14,6 +14,7 @@ from typing import (
     Generic,
     Hashable,
     Iterable,
+    Literal,
     Mapping,
     NamedTuple,
     Optional,
@@ -1626,9 +1627,8 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
             ToolTypeDef,
         )
 
-        request = ConverseStreamRequestTypeDef(modelId=self.model_name)
-
-        request["messages"] = self._build_converse_messages(messages)
+        # messages are filled in once it is known whether a toolConfig is sent
+        request = ConverseStreamRequestTypeDef(modelId=self.model_name, messages=[])
 
         system_prompt = self._extract_system_prompt(messages)
         if system_prompt:
@@ -1690,6 +1690,11 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
 
             if send_tools:
                 request["toolConfig"] = tool_config
+
+        # Converse rejects toolUse/toolResult blocks in a request without a toolConfig.
+        request["messages"] = self._build_converse_messages(
+            messages, tool_blocks_as_text="toolConfig" not in request
+        )
 
         if response_format:
             json_schema = JsonSchemaDefinitionTypeDef(
@@ -1909,8 +1914,22 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
     def _build_converse_messages(
         self,
         messages: Sequence[PlaygroundMessage],
+        *,
+        tool_blocks_as_text: bool = False,
     ) -> list[MessageTypeDef]:
-        """Convert messages to Converse API format."""
+        """
+        Convert messages to Converse API format.
+
+        Converse requires user and assistant turns to alternate, so consecutive
+        messages with the same role are merged into one turn. In particular, the
+        results of parallel tool calls become one user turn holding every
+        `toolResult` block, right after the assistant turn with the `toolUse`
+        blocks.
+
+        With `tool_blocks_as_text`, replayed tool calls and results are sent as
+        text blocks instead, for requests that have no toolConfig: Converse
+        rejects `toolUse`/`toolResult` blocks without one.
+        """
         from types_aiobotocore_bedrock_runtime.type_defs import (
             ContentBlockTypeDef,
             MessageTypeDef,
@@ -1919,37 +1938,54 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
         )
 
         converse_messages: list[MessageTypeDef] = []
+
+        def append(role: Literal["user", "assistant"], blocks: list[ContentBlockTypeDef]) -> None:
+            if converse_messages and converse_messages[-1]["role"] == role:
+                converse_messages[-1]["content"] = [*converse_messages[-1]["content"], *blocks]
+            else:
+                converse_messages.append(MessageTypeDef(role=role, content=blocks))
+
         for msg in messages:
             role = msg["role"]
             content = msg["content"]
             tool_call_id = msg.get("tool_call_id")
             tool_calls = msg.get("tool_calls")
             if role == ChatCompletionMessageRole.USER:
-                converse_messages.append(
-                    MessageTypeDef(
-                        role="user",
-                        content=[ContentBlockTypeDef(text=content)],
-                    )
-                )
+                append("user", [ContentBlockTypeDef(text=content)])
             elif role == ChatCompletionMessageRole.TOOL:
+                if tool_blocks_as_text:
+                    append(
+                        "user",
+                        [ContentBlockTypeDef(text=f"[tool result {tool_call_id or ''}] {content}")],
+                    )
+                    continue
                 tool_result = ToolResultBlockTypeDef(
                     toolUseId=tool_call_id or "",
                     content=[ToolResultContentBlockTypeDef(text=content)],
                 )
-                converse_messages.append(
-                    MessageTypeDef(
-                        role="user", content=[ContentBlockTypeDef(toolResult=tool_result)]
-                    )
-                )
+                append("user", [ContentBlockTypeDef(toolResult=tool_result)])
             elif role == ChatCompletionMessageRole.AI:
                 blocks: list[ContentBlockTypeDef] = []
                 if content:
                     blocks.append(ContentBlockTypeDef(text=content))
-                if tool_calls:
-                    # tool_calls are already in Bedrock ContentBlock format
-                    # ({"toolUse": {...}}) from prior AI responses
-                    blocks.extend(cast(Any, tool_calls))
-                converse_messages.append(MessageTypeDef(role="assistant", content=blocks))
+                for tc in tool_calls or []:
+                    tool_use_id = tc.get("id", "")
+                    name = tc.get("function", {}).get("name", "")
+                    arguments = tc.get("function", {}).get("arguments", {})
+                    if tool_blocks_as_text:
+                        blocks.append(
+                            ContentBlockTypeDef(
+                                text=f"[tool call {tool_use_id}] {name}"
+                                f"({safe_json_dumps(arguments)})"
+                            )
+                        )
+                    else:
+                        blocks.append(
+                            ContentBlockTypeDef(
+                                toolUse={"toolUseId": tool_use_id, "name": name, "input": arguments}
+                            )
+                        )
+                append("assistant", blocks)
         return converse_messages
 
 
