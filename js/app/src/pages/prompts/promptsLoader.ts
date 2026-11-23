@@ -20,8 +20,7 @@ export function promptsLoader() {
   return loadQuery<promptsLoaderQuery, promptsLoaderQuery$variables>(
     RelayEnvironment,
     promptsLoaderGql,
-    {},
-    { fetchPolicy: "store-and-network" }
+    {}
   );
 }
 
