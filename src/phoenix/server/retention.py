@@ -23,6 +23,7 @@ from phoenix.utilities import hour_of_week
 logger = logging.getLogger(__name__)
 
 _ORPHAN_SESSION_DELETE_BATCH_SIZE = 1000
+_TRACE_DELETE_BATCH_SIZE = 1000
 _ORPHAN_SESSION_GRACE_PERIOD = timedelta(hours=1)
 
 
@@ -95,11 +96,32 @@ class TraceDataSweeper(DaemonTask):
                 if policy.id == DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
                 else [project.id for project in policy.projects if project.deleted_at is None]
             )
-            if affected_project_ids := await policy.rule.delete_traces_in_batches(
-                self._db, project_rowids
-            ):
-                self._dml_event_handler.put(SpanDeleteEvent(tuple(sorted(affected_project_ids))))
-            RETENTION_POLICY_EXECUTIONS.labels(status="success").inc()
+            # For max_count rules the filter's row_number() window is re-evaluated per batch
+            # over all of the policy's traces. The batch limit bounds deletions, not the
+            # ranking work, which can still exceed the statement timeout.
+            deletion_filter = policy.rule.deletion_filter(project_rowids)
+            while self._running:
+                candidate_ids = (
+                    sa.select(Trace.id).where(deletion_filter).limit(_TRACE_DELETE_BATCH_SIZE)
+                )
+                if self._db.dialect is SupportedSQLDialect.POSTGRESQL:
+                    candidate_ids = candidate_ids.with_for_update(skip_locked=True)
+                stmt = (
+                    sa.delete(Trace)
+                    .where(Trace.id.in_(candidate_ids))
+                    .returning(Trace.project_rowid)
+                )
+                async with self._db() as session:
+                    deleted_project_rowids = (await session.scalars(stmt)).all()
+                # Publish only committed changes, including batches before a later failure.
+                # RETURNING is bounded by the batch size even for a large backlog.
+                if deleted_project_rowids:
+                    self._dml_event_handler.put(
+                        SpanDeleteEvent(tuple(sorted(set(deleted_project_rowids))))
+                    )
+                if len(deleted_project_rowids) < _TRACE_DELETE_BATCH_SIZE:
+                    RETENTION_POLICY_EXECUTIONS.labels(status="success").inc()
+                    break
         except Exception:
             logger.exception(f"Failed to apply retention policy '{policy.name}' (id={policy.id})")
             RETENTION_POLICY_EXECUTIONS.labels(status="error").inc()

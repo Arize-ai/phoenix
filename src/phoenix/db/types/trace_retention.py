@@ -1,93 +1,14 @@
 from __future__ import annotations
 
-import asyncio
 from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING, Annotated, Iterable, Literal, Optional, Union
+from typing import Annotated, Iterable, Literal, Optional, Union
 
 import sqlalchemy as sa
 from pydantic import AfterValidator, BaseModel, Field, RootModel
-from sqlalchemy.exc import DBAPIError
+from sqlalchemy import func
 from sqlalchemy.sql.roles import InElementRole
 
 from phoenix.utilities import hour_of_week
-
-if TYPE_CHECKING:
-    from phoenix.server.types import DbSessionFactory
-
-_STATEMENT_TIMEOUT_MS = 60_000
-_LOCK_TIMEOUT_MS = 5_000
-_TRANSIENT_CONTENTION_SQLSTATES = frozenset({"55P03", "40P01"})
-
-
-async def _resolve_project_rowids(
-    *,
-    db: DbSessionFactory,
-    project_rowids: Union[Iterable[int], InElementRole],
-) -> list[int]:
-    if isinstance(project_rowids, InElementRole):
-        from phoenix.db.helpers import SupportedSQLDialect
-        from phoenix.db.models import Project
-
-        stmt = (
-            sa.select(Project.id).where(Project.id.in_(project_rowids)).order_by(Project.id.asc())
-        )
-        async with db() as session:
-            if db.dialect is SupportedSQLDialect.POSTGRESQL:
-                await session.execute(
-                    sa.text(f"SET LOCAL statement_timeout = {_STATEMENT_TIMEOUT_MS}")
-                )
-                await session.execute(sa.text(f"SET LOCAL lock_timeout = {_LOCK_TIMEOUT_MS}"))
-            return [int(project_id) for project_id in (await session.scalars(stmt)).all()]
-    return sorted({int(project_id) for project_id in project_rowids})
-
-
-async def _delete_matching_traces_in_batches(
-    db: DbSessionFactory,
-    project_rowids: Union[Iterable[int], InElementRole],
-    trace_filter: sa.ColumnElement[bool],
-    *,
-    batch_size: int = 1_000,
-) -> set[int]:
-    resolved_project_rowids = await _resolve_project_rowids(db=db, project_rowids=project_rowids)
-    if not resolved_project_rowids:
-        return set()
-    from phoenix.db.helpers import SupportedSQLDialect
-    from phoenix.db.insertion.helpers import get_sqlstate
-    from phoenix.db.models import Trace
-    from phoenix.server.cleanup.primitives import PrimitiveStatus, drain_traces_step
-
-    dialect = db.dialect
-    affected_project_ids: set[int] = set()
-    for project_rowid in resolved_project_rowids:
-        condition = sa.and_(Trace.project_rowid == project_rowid, trace_filter)
-        while True:
-            try:
-                async with db() as session:
-                    if dialect is SupportedSQLDialect.POSTGRESQL:
-                        await session.execute(
-                            sa.text(f"SET LOCAL statement_timeout = {_STATEMENT_TIMEOUT_MS}")
-                        )
-                        await session.execute(
-                            sa.text(f"SET LOCAL lock_timeout = {_LOCK_TIMEOUT_MS}")
-                        )
-                    step_result = await drain_traces_step(
-                        session,
-                        dialect=dialect,
-                        trace_cond=condition,
-                        batch_limit=batch_size,
-                        reset_session_evaluations=False,
-                    )
-            except DBAPIError as exc:
-                if get_sqlstate(exc) in _TRANSIENT_CONTENTION_SQLSTATES:
-                    await asyncio.sleep(0)
-                    break
-                raise
-            await asyncio.sleep(0)
-            if step_result.status is PrimitiveStatus.PROGRESS:
-                affected_project_ids.add(project_rowid)
-                continue
-            break
-    return affected_project_ids
 
 
 class _MaxDays(BaseModel):
@@ -105,67 +26,25 @@ class _MaxDays(BaseModel):
 class _MaxCount(BaseModel):
     max_count: Annotated[int, Field(ge=0)]
 
-    async def _delete_count_excess_in_batches(
+    def max_count_filter(
         self,
-        db: DbSessionFactory,
         project_rowids: Union[Iterable[int], InElementRole],
-        *,
-        batch_size: int = 1_000,
-    ) -> set[int]:
+    ) -> sa.ColumnElement[bool]:
         if self.max_count <= 0:
-            return set()
-        resolved_project_rowids = await _resolve_project_rowids(
-            db=db, project_rowids=project_rowids
-        )
-        if not resolved_project_rowids:
-            return set()
-        from phoenix.db.helpers import SupportedSQLDialect
-        from phoenix.db.insertion.helpers import get_sqlstate
+            return sa.literal(False)
         from phoenix.db.models import Trace
 
-        dialect = db.dialect
-        affected_project_ids: set[int] = set()
-        for project_rowid in resolved_project_rowids:
-            cutoff_stmt = (
-                sa.select(Trace.start_time, Trace.id)
-                .where(Trace.project_rowid == project_rowid)
-                .order_by(Trace.start_time.desc(), Trace.id.desc())
-                .offset(self.max_count)
-                .limit(1)
+        ranked = (
+            sa.select(
+                Trace.id,
+                func.row_number()
+                .over(partition_by=Trace.project_rowid, order_by=Trace.start_time.desc())
+                .label("rn"),
             )
-            try:
-                async with db() as session:
-                    if dialect is SupportedSQLDialect.POSTGRESQL:
-                        await session.execute(
-                            sa.text(f"SET LOCAL statement_timeout = {_STATEMENT_TIMEOUT_MS}")
-                        )
-                        await session.execute(
-                            sa.text(f"SET LOCAL lock_timeout = {_LOCK_TIMEOUT_MS}")
-                        )
-                    cutoff_row = (await session.execute(cutoff_stmt)).first()
-            except DBAPIError as exc:
-                if get_sqlstate(exc) in _TRANSIENT_CONTENTION_SQLSTATES:
-                    await asyncio.sleep(0)
-                    continue
-                raise
-            await asyncio.sleep(0)
-            if cutoff_row is None:
-                continue
-            cutoff_start_time, cutoff_id = cutoff_row
-            cutoff_filter = sa.and_(
-                Trace.start_time <= cutoff_start_time,
-                sa.or_(
-                    Trace.start_time < cutoff_start_time,
-                    Trace.id <= cutoff_id,
-                ),
-            )
-            affected_project_ids |= await _delete_matching_traces_in_batches(
-                db,
-                (project_rowid,),
-                cutoff_filter,
-                batch_size=batch_size,
-            )
-        return affected_project_ids
+            .where(Trace.project_rowid.in_(project_rowids))
+            .cte("ranked")
+        )
+        return Trace.id.in_(sa.select(ranked.c.id).where(ranked.c.rn > self.max_count))
 
 
 class MaxDaysRule(_MaxDays, BaseModel):
@@ -174,18 +53,13 @@ class MaxDaysRule(_MaxDays, BaseModel):
     def __bool__(self) -> bool:
         return self.max_days > 0
 
-    async def delete_traces_in_batches(
+    def deletion_filter(
         self,
-        db: DbSessionFactory,
         project_rowids: Union[Iterable[int], InElementRole],
-        *,
-        batch_size: int = 1_000,
-    ) -> set[int]:
-        if self.max_days <= 0:
-            return set()
-        return await _delete_matching_traces_in_batches(
-            db, project_rowids, self.max_days_filter, batch_size=batch_size
-        )
+    ) -> sa.ColumnElement[bool]:
+        from phoenix.db.models import Trace
+
+        return sa.and_(Trace.project_rowid.in_(project_rowids), self.max_days_filter)
 
 
 class MaxCountRule(_MaxCount, BaseModel):
@@ -194,16 +68,11 @@ class MaxCountRule(_MaxCount, BaseModel):
     def __bool__(self) -> bool:
         return self.max_count > 0
 
-    async def delete_traces_in_batches(
+    def deletion_filter(
         self,
-        db: DbSessionFactory,
         project_rowids: Union[Iterable[int], InElementRole],
-        *,
-        batch_size: int = 1_000,
-    ) -> set[int]:
-        if self.max_count <= 0:
-            return set()
-        return await self._delete_count_excess_in_batches(db, project_rowids, batch_size=batch_size)
+    ) -> sa.ColumnElement[bool]:
+        return self.max_count_filter(project_rowids)
 
 
 class MaxDaysOrCountRule(_MaxDays, _MaxCount, BaseModel):
@@ -212,30 +81,16 @@ class MaxDaysOrCountRule(_MaxDays, _MaxCount, BaseModel):
     def __bool__(self) -> bool:
         return self.max_days > 0 or self.max_count > 0
 
-    async def delete_traces_in_batches(
+    def deletion_filter(
         self,
-        db: DbSessionFactory,
         project_rowids: Union[Iterable[int], InElementRole],
-        *,
-        batch_size: int = 1_000,
-    ) -> set[int]:
-        if self.max_days <= 0 and self.max_count <= 0:
-            return set()
-        resolved_project_rowids = await _resolve_project_rowids(
-            db=db, project_rowids=project_rowids
+    ) -> sa.ColumnElement[bool]:
+        from phoenix.db.models import Trace
+
+        return sa.and_(
+            Trace.project_rowid.in_(project_rowids),
+            sa.or_(self.max_days_filter, self.max_count_filter(project_rowids)),
         )
-        if not resolved_project_rowids:
-            return set()
-        affected_project_ids: set[int] = set()
-        if self.max_days > 0:
-            affected_project_ids |= await _delete_matching_traces_in_batches(
-                db, resolved_project_rowids, self.max_days_filter, batch_size=batch_size
-            )
-        if self.max_count > 0:
-            affected_project_ids |= await self._delete_count_excess_in_batches(
-                db, resolved_project_rowids, batch_size=batch_size
-            )
-        return affected_project_ids
 
 
 class TraceRetentionRule(RootModel[Union[MaxDaysRule, MaxCountRule, MaxDaysOrCountRule]]):
@@ -246,14 +101,15 @@ class TraceRetentionRule(RootModel[Union[MaxDaysRule, MaxCountRule, MaxDaysOrCou
     def __bool__(self) -> bool:
         return bool(self.root)
 
-    async def delete_traces_in_batches(
+    def deletion_filter(
         self,
-        db: DbSessionFactory,
         project_rowids: Union[Iterable[int], InElementRole],
-        *,
-        batch_size: int = 1_000,
-    ) -> set[int]:
-        return await self.root.delete_traces_in_batches(db, project_rowids, batch_size=batch_size)
+    ) -> sa.ColumnElement[bool]:
+        """Return a deletion filter restricted to the specified projects.
+
+        A no-op rule (e.g. max_days == 0) matches no trace.
+        """
+        return self.root.deletion_filter(project_rowids)
 
 
 def _time_of_next_run(
