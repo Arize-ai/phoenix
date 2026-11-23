@@ -198,6 +198,7 @@ class Subscription:
     async def chat_completion(
         self, info: Info[Context, None], input: ChatCompletionInput
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
+        timeout_in_seconds = get_env_playground_timeout_seconds()
         model_provider = input.prompt_version.model_provider.to_model_provider()
         custom_provider_id = input.prompt_version.resolved_custom_provider_id
         connection = (
@@ -262,9 +263,7 @@ class Subscription:
             while not_started or in_progress:
                 while not_started and len(in_progress) < max_in_progress:
                     rep_num, stream = not_started.popleft()
-                    task = _create_task_with_timeout(
-                        stream, timeout_in_seconds=get_env_playground_timeout_seconds()
-                    )
+                    task = _create_task_with_timeout(stream, timeout_in_seconds=timeout_in_seconds)
                     in_progress.append((rep_num, stream, task))
                 async_tasks_to_run = [task for _, _, task in in_progress]
                 completed_tasks, _ = await asyncio.wait(
@@ -292,7 +291,7 @@ class Subscription:
                         logger.exception(error)
                     else:
                         task = _create_task_with_timeout(
-                            stream, timeout_in_seconds=get_env_playground_timeout_seconds()
+                            stream, timeout_in_seconds=timeout_in_seconds
                         )
                         in_progress[idx] = (repetition_number, stream, task)
         finally:
