@@ -14,7 +14,6 @@ from phoenix.server.api.helpers.decision_clients import (
     RefusalAnswer,
     TypeSafeDecisionClient,
 )
-from phoenix.server.cleanup.coordinator import CleanupCoordinator
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient, GraphQLExecutionResult
 
@@ -234,59 +233,19 @@ async def test_unbound_repin_carries_the_judges_policy_to_the_new_questions(
     assert await move_to([added]) == [{"name": "angry", "threshold": 0.5}]
 
 
-DELETE_BINDINGS = (
-    "mutation($input:DeleteDatasetEvaluatorsInput!)"
-    "{deleteDatasetEvaluators(input:$input){query{__typename}}}"
-)
-
-
-async def delete_bindings_and_purge(
-    gql_client: AsyncGraphQLClient,
-    db: DbSessionFactory,
-    binding_ids: list[str],
-    *,
-    delete_unused_evaluator: bool = True,
-    delete_unused_prompt_or_decision: bool | None = False,
-) -> None:
-    """Passing None omits ``deleteUnusedPromptOrDecision`` so the schema default applies."""
-    delete_input: dict[str, Any] = {
-        "datasetEvaluatorIds": binding_ids,
-        "deleteUnusedEvaluator": delete_unused_evaluator,
-    }
-    if delete_unused_prompt_or_decision is not None:
-        delete_input["deleteUnusedPromptOrDecision"] = delete_unused_prompt_or_decision
-    result = await gql_client.execute(DELETE_BINDINGS, variables={"input": delete_input})
-    assert result.data and not result.errors, result.errors
-    coordinator = CleanupCoordinator(db)
-    while (await coordinator.step_or_next_delay())[0]:
-        pass
-
-
-def row_id(global_id: str) -> int:
-    return int(GlobalID.from_id(global_id).node_id)
-
-
-async def judge_tag_id(db: DbSessionFactory, evaluator: dict[str, Any]) -> int:
-    async with db() as session:
-        judge = await session.get(models.DecisionEvaluator, row_id(evaluator["id"]))
-        assert judge is not None and judge.decision_version_tag_id is not None
-        return judge.decision_version_tag_id
-
-
-async def test_detaching_last_binding_with_delete_unused_evaluator_false_keeps_standalone_judge(
+async def test_detaching_last_binding_keeps_the_standalone_judge(
     gql_client: AsyncGraphQLClient,
     empty_dataset: None,
     db: DbSessionFactory,
 ) -> None:
     _, evaluator = await saved_evaluator(gql_client)
     binding_id = await bind(gql_client, evaluator)
-    await delete_bindings_and_purge(
-        gql_client,
-        db,
-        [binding_id],
-        delete_unused_evaluator=False,
+    result = await gql_client.execute(
+        "mutation($input:DeleteDatasetEvaluatorsInput!){deleteDatasetEvaluators(input:$input){query{__typename}}}",
+        variables={"input": {"datasetEvaluatorIds": [binding_id]}},
     )
-    judge_id = row_id(evaluator["id"])
+    assert result.data and not result.errors, result.errors
+    judge_id = int(GlobalID.from_id(evaluator["id"]).node_id)
     async with db() as session:
         assert await session.get(models.Evaluator, judge_id) is not None
     result = await gql_client.execute(
@@ -298,94 +257,26 @@ async def test_detaching_last_binding_with_delete_unused_evaluator_false_keeps_s
         assert await session.get(models.Evaluator, judge_id) is None
 
 
-async def test_deleting_the_last_binding_collects_the_judge_and_its_tag(
-    gql_client: AsyncGraphQLClient,
-    empty_dataset: None,
-    db: DbSessionFactory,
-) -> None:
-    decision, evaluator = await saved_evaluator(gql_client)
-    tag_id = await judge_tag_id(db, evaluator)
-    first = await bind(gql_client, evaluator, name="judge")
-    second = await bind(gql_client, evaluator, name="judge_again")
-
-    await delete_bindings_and_purge(gql_client, db, [first])
-    async with db() as session:
-        assert await session.get(models.DecisionEvaluator, row_id(evaluator["id"])) is not None
-
-    await delete_bindings_and_purge(gql_client, db, [second])
-    async with db() as session:
-        assert await session.get(models.DecisionEvaluator, row_id(evaluator["id"])) is None
-        assert await session.get(models.DecisionVersionTag, tag_id) is None
-        assert await session.get(models.Decision, row_id(decision["id"])) is not None
-
-
-async def test_delete_unused_prompt_or_decision_deletes_the_decision_once_no_judge_uses_it(
-    gql_client: AsyncGraphQLClient,
-    empty_dataset: None,
-    db: DbSessionFactory,
-) -> None:
-    decision, evaluator = await saved_evaluator(gql_client)
-    other = await gql_client.execute(
-        CREATE_EVALUATOR,
-        variables={
-            "input": {
-                "name": "other-judge",
-                "decisionVersionId": decision["version"]["id"],
-                "scoringPolicy": {"questions": [{"predicate": {"name": "urgent"}}]},
-            }
-        },
-    )
-    assert other.data and not other.errors, other.errors
-    other_evaluator = other.data["createDecisionEvaluator"]["evaluator"]
-    binding = await bind(gql_client, evaluator, name="judge")
-    other_binding = await bind(gql_client, other_evaluator, name="other_judge")
-
-    await delete_bindings_and_purge(
-        gql_client, db, [binding], delete_unused_prompt_or_decision=None
-    )
-    async with db() as session:
-        assert await session.get(models.DecisionEvaluator, row_id(evaluator["id"])) is None
-        assert await session.get(models.Decision, row_id(decision["id"])) is not None
-
-    await delete_bindings_and_purge(
-        gql_client, db, [other_binding], delete_unused_prompt_or_decision=None
-    )
-    async with db() as session:
-        assert await session.get(models.DecisionEvaluator, row_id(other_evaluator["id"])) is None
-        assert await session.get(models.Decision, row_id(decision["id"])) is None
-
-
-async def test_deleting_bindings_deletes_an_unused_decision_by_default(
-    gql_client: AsyncGraphQLClient,
-    empty_dataset: None,
-    db: DbSessionFactory,
-) -> None:
-    decision, evaluator = await saved_evaluator(gql_client)
-    binding = await bind(gql_client, evaluator, name="judge")
-
-    await delete_bindings_and_purge(
-        gql_client, db, [binding], delete_unused_prompt_or_decision=None
-    )
-    async with db() as session:
-        assert await session.get(models.DecisionEvaluator, row_id(evaluator["id"])) is None
-        assert await session.get(models.Decision, row_id(decision["id"])) is None
-
-
 async def test_deleting_an_unbound_judge_releases_its_tag_and_keeps_the_decision(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
 ) -> None:
     decision, evaluator = await saved_evaluator(gql_client)
-    tag_id = await judge_tag_id(db, evaluator)
+    judge_id = int(GlobalID.from_id(evaluator["id"]).node_id)
+    decision_id = int(GlobalID.from_id(decision["id"]).node_id)
+    async with db() as session:
+        judge = await session.get(models.DecisionEvaluator, judge_id)
+        assert judge is not None and judge.decision_version_tag_id is not None
+        tag_id = judge.decision_version_tag_id
     result = await gql_client.execute(
         "mutation($input:DeleteDecisionEvaluatorInput!){deleteDecisionEvaluator(input:$input){query{__typename}}}",
         variables={"input": {"evaluatorId": evaluator["id"]}},
     )
     assert result.data and not result.errors, result.errors
     async with db() as session:
-        assert await session.get(models.DecisionEvaluator, row_id(evaluator["id"])) is None
+        assert await session.get(models.DecisionEvaluator, judge_id) is None
         assert await session.get(models.DecisionVersionTag, tag_id) is None
-        assert await session.get(models.Decision, row_id(decision["id"])) is not None
+        assert await session.get(models.Decision, decision_id) is not None
 
 
 async def bind(

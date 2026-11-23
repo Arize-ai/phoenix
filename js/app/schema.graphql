@@ -2434,14 +2434,9 @@ input DeleteDatasetEvaluatorsInput {
   datasetEvaluatorIds: [ID!]!
 
   """
-  Delete each binding's underlying evaluator definition when no live binding still references it. Set to false to detach the bindings while keeping shared definitions.
+  Also delete each LLM evaluator's prompt when no other evaluator references it. Off by default so that a prompt adopted from the prompt hub survives the binding.
   """
-  deleteUnusedEvaluator: Boolean! = true
-
-  """
-  Also delete each LLM evaluator's prompt or decision evaluator's decision when no other evaluator references it. A prompt or decision still used by another evaluator is always kept. Set to false to keep unused ones too.
-  """
-  deleteUnusedPromptOrDecision: Boolean! = true
+  deleteAssociatedPrompt: Boolean! = false
 }
 
 type DeleteDatasetEvaluatorsPayload {
@@ -2551,14 +2546,9 @@ input DeleteProjectEvaluatorsInput {
   projectEvaluatorIds: [ID!]!
 
   """
-  Delete each binding's underlying evaluator definition when no live binding still references it. Set to false to detach the bindings while keeping shared definitions.
+  Also delete each LLM evaluator's prompt when no other evaluator references it. Off by default so that a prompt adopted from the prompt hub survives the binding.
   """
-  deleteUnusedEvaluator: Boolean! = true
-
-  """
-  Also delete each LLM evaluator's prompt or decision evaluator's decision when no other evaluator references it. A prompt or decision still used by another evaluator is always kept. Set to false to keep unused ones too.
-  """
-  deleteUnusedPromptOrDecision: Boolean! = true
+  deleteAssociatedPrompt: Boolean! = false
 }
 
 type DeleteProjectEvaluatorsPayload {

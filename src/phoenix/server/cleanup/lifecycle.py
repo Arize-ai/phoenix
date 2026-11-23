@@ -166,7 +166,7 @@ async def logical_delete_project_evaluators(
     dialect: SupportedSQLDialect,
     binding_ids: Iterable[int],
     collect_unused_evaluator: bool,
-    collect_unused_prompt_or_decision: bool,
+    delete_associated_prompt: bool,
 ) -> LogicalEvaluatorDeleteResult:
     """Tombstone live project evaluator bindings under canonical lock order, optionally run
     synchronous shared-definition GC; the tombstones are what the cleanup worker drains."""
@@ -266,7 +266,7 @@ async def logical_delete_project_evaluators(
             session,
             dialect=dialect,
             evaluator_ids=candidate_evaluator_ids,
-            delete_unused_prompt_or_decision=collect_unused_prompt_or_decision,
+            delete_associated_prompt=delete_associated_prompt,
         )
 
     return LogicalEvaluatorDeleteResult(
@@ -281,7 +281,7 @@ async def logical_delete_dataset_evaluators(
     dialect: SupportedSQLDialect,
     binding_ids: Iterable[int],
     collect_unused_evaluator: bool,
-    collect_unused_prompt_or_decision: bool,
+    delete_associated_prompt: bool,
 ) -> LogicalEvaluatorDeleteResult:
     """Tombstone live dataset evaluator bindings under canonical lock order, optionally run
     synchronous shared-definition GC; the tombstones are what the cleanup worker drains."""
@@ -388,7 +388,7 @@ async def logical_delete_dataset_evaluators(
             session,
             dialect=dialect,
             evaluator_ids=candidate_evaluator_ids,
-            delete_unused_prompt_or_decision=collect_unused_prompt_or_decision,
+            delete_associated_prompt=delete_associated_prompt,
         )
 
     return LogicalEvaluatorDeleteResult(
@@ -533,7 +533,7 @@ async def admit_project_delete(
             dialect=dialect,
             binding_ids=[int(row.id) for row in current_live_bindings],
             collect_unused_evaluator=False,
-            collect_unused_prompt_or_decision=False,
+            delete_associated_prompt=False,
         )
         tombstoned_trace_project_ids = binding_delete_result.tombstoned_project_ids
 
@@ -741,7 +741,7 @@ async def admit_exclusive_experiment_projects_delete(
             dialect=dialect,
             binding_ids=[int(row.id) for row in current_live_bindings],
             collect_unused_evaluator=False,
-            collect_unused_prompt_or_decision=False,
+            delete_associated_prompt=False,
         )
         tombstoned_trace_project_ids = binding_delete_result.tombstoned_project_ids
 
@@ -908,7 +908,7 @@ async def admit_dataset_delete(
             dialect=dialect,
             binding_ids=live_binding_ids,
             collect_unused_evaluator=False,
-            collect_unused_prompt_or_decision=False,
+            delete_associated_prompt=False,
         )
         enqueued_cleanup = enqueued_cleanup or bool(deleted_bindings.binding_ids)
         tombstoned_project_ids.update(deleted_bindings.tombstoned_project_ids)

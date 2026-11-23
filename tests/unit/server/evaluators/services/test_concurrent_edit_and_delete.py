@@ -556,7 +556,7 @@ async def test_logical_delete_evaluators_ignores_binding_committed_after_discove
                 dialect=SupportedSQLDialect.POSTGRESQL,
                 binding_ids=[first_binding_id, second_binding_id],
                 collect_unused_evaluator=False,
-                collect_unused_prompt_or_decision=False,
+                delete_associated_prompt=False,
             )
         else:
             await lifecycle.logical_delete_dataset_evaluators(
@@ -564,7 +564,7 @@ async def test_logical_delete_evaluators_ignores_binding_committed_after_discove
                 dialect=SupportedSQLDialect.POSTGRESQL,
                 binding_ids=[first_binding_id, second_binding_id],
                 collect_unused_evaluator=False,
-                collect_unused_prompt_or_decision=False,
+                delete_associated_prompt=False,
             )
     await asyncio.wait_for(stager_task, 5)
 
@@ -876,7 +876,7 @@ async def test_experiment_runner_persist_traces_does_not_deadlock_with_dataset_e
                 dialect=SupportedSQLDialect.POSTGRESQL,
                 binding_ids=[dataset_binding.id],
                 collect_unused_evaluator=False,
-                collect_unused_prompt_or_decision=False,
+                delete_associated_prompt=False,
             )
 
     async def _run_persist() -> None:
@@ -1082,8 +1082,7 @@ async def test_delete_project_evaluator_skips_surviving_prompt_lock(
                         GlobalID("ProjectEvaluator", str(sole_binding.id)),
                         GlobalID("ProjectEvaluator", str(first_shared_binding.id)),
                     ],
-                    delete_unused_evaluator=True,
-                    delete_unused_prompt_or_decision=True,
+                    delete_associated_prompt=True,
                 ),
             ),
             timeout=1.5,

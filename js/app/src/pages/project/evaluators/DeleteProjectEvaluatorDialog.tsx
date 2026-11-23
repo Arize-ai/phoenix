@@ -42,13 +42,13 @@ export function DeleteProjectEvaluatorDialog({
       isOpen={isOpen}
       onOpenChange={onOpenChange}
       isDeleting={isDeleting}
-      onDelete={({ deleteUnusedPromptOrDecision }) =>
+      onDelete={({ deleteAssociatedPrompt }) =>
         new Promise<void>((resolve, reject) => {
           commitDelete({
             variables: {
               input: {
                 projectEvaluatorIds: [projectEvaluatorId],
-                deleteUnusedPromptOrDecision,
+                deleteAssociatedPrompt,
               },
             },
             onCompleted: (_response, errors) => {

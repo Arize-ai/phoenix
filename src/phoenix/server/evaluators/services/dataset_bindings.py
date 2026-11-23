@@ -122,8 +122,7 @@ class UpdateDatasetCodeEvaluatorInput:
 @dataclass(kw_only=True)
 class DeleteDatasetEvaluatorsInput:
     dataset_evaluator_ids: list[GlobalID]
-    delete_unused_evaluator: bool = True
-    delete_unused_prompt_or_decision: bool = False
+    delete_associated_prompt: bool = False
 
 
 async def create_dataset_llm_evaluator(
@@ -305,10 +304,8 @@ async def delete_dataset_evaluators(
             session,
             dialect=dialect,
             binding_ids=dataset_evaluator_rowids,
-            collect_unused_evaluator=input.delete_unused_evaluator,
-            collect_unused_prompt_or_decision=(
-                input.delete_unused_evaluator and input.delete_unused_prompt_or_decision
-            ),
+            collect_unused_evaluator=True,
+            delete_associated_prompt=input.delete_associated_prompt,
         )
     if delete_result.tombstoned_project_ids and context.event_queue is not None:
         tombstoned_ids = tuple(delete_result.tombstoned_project_ids)
@@ -861,7 +858,7 @@ async def detach_dataset_evaluators(
             dialect=dialect,
             binding_ids=rowids,
             collect_unused_evaluator=False,
-            collect_unused_prompt_or_decision=False,
+            delete_associated_prompt=False,
         )
     if delete_result.tombstoned_project_ids and context.event_queue is not None:
         tombstoned_ids = tuple(delete_result.tombstoned_project_ids)

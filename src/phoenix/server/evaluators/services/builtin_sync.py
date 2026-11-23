@@ -149,14 +149,14 @@ async def sync_builtin_evaluators(db: DbSessionFactory) -> None:
                     dialect=dialect,
                     binding_ids=[int(row.id) for row in dataset_binding_rows],
                     collect_unused_evaluator=False,
-                    collect_unused_prompt_or_decision=False,
+                    delete_associated_prompt=False,
                 )
                 await logical_delete_project_evaluators(
                     session,
                     dialect=dialect,
                     binding_ids=[int(row.id) for row in project_binding_rows],
                     collect_unused_evaluator=False,
-                    collect_unused_prompt_or_decision=False,
+                    delete_associated_prompt=False,
                 )
                 delete_stmt = delete(models.Evaluator).where(
                     models.Evaluator.kind == "BUILTIN",

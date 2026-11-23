@@ -1548,7 +1548,7 @@ class TestOnlineEvalFences:
                 dialect=dialect,
                 binding_ids=[pe.id],
                 collect_unused_evaluator=False,
-                collect_unused_prompt_or_decision=False,
+                delete_associated_prompt=False,
             )
 
         # 1. Hydration returns HydrationFailure(terminal_status='DROPPED') so consumer clears it.
@@ -1692,7 +1692,7 @@ class TestOnlineEvalFences:
                 dialect=dialect,
                 binding_ids=[tombstoned_binding_id],
                 collect_unused_evaluator=False,
-                collect_unused_prompt_or_decision=False,
+                delete_associated_prompt=False,
             )
 
         work_coordinator = EvalWorkCoordinator(db, evaluation_target="SPAN")
@@ -2395,7 +2395,7 @@ async def test_dataset_evaluator_delete_drains_eval_logs_and_links_in_batches(
             dialect=dialect,
             binding_ids=[target_binding_id],
             collect_unused_evaluator=False,
-            collect_unused_prompt_or_decision=False,
+            delete_associated_prompt=False,
         )
 
     coordinator = CleanupCoordinator(db, batch_limit=2)
@@ -3047,14 +3047,14 @@ async def test_late_spans_dropped_after_internal_projects_are_physically_purged(
             dialect=dialect,
             binding_ids=[dataset_binding.id],
             collect_unused_evaluator=False,
-            collect_unused_prompt_or_decision=False,
+            delete_associated_prompt=False,
         )
         await logical_delete_project_evaluators(
             session,
             dialect=dialect,
             binding_ids=[project_binding.id],
             collect_unused_evaluator=False,
-            collect_unused_prompt_or_decision=False,
+            delete_associated_prompt=False,
         )
 
     coordinator = CleanupCoordinator(db, batch_limit=10)

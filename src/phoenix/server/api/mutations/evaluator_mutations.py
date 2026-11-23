@@ -179,19 +179,11 @@ class DeleteEvaluatorsPayload:
 @strawberry.input
 class DeleteDatasetEvaluatorsInput:
     dataset_evaluator_ids: list[GlobalID]
-    delete_unused_evaluator: bool = strawberry.field(
-        default=True,
+    delete_associated_prompt: bool = strawberry.field(
+        default=False,
         description=(
-            "Delete each binding's underlying evaluator definition when no live binding still "
-            "references it. Set to false to detach the bindings while keeping shared definitions."
-        ),
-    )
-    delete_unused_prompt_or_decision: bool = strawberry.field(
-        default=True,
-        description=(
-            "Also delete each LLM evaluator's prompt or decision evaluator's decision when no "
-            "other evaluator references it. A prompt or decision still used by another evaluator "
-            "is always kept. Set to false to keep unused ones too."
+            "Also delete each LLM evaluator's prompt when no other evaluator references it. "
+            "Off by default so that a prompt adopted from the prompt hub survives the binding."
         ),
     )
 
@@ -431,19 +423,11 @@ class ClearAllQueuedEvaluationsPayload:
 @strawberry.input
 class DeleteProjectEvaluatorsInput:
     project_evaluator_ids: list[GlobalID]
-    delete_unused_evaluator: bool = strawberry.field(
-        default=True,
+    delete_associated_prompt: bool = strawberry.field(
+        default=False,
         description=(
-            "Delete each binding's underlying evaluator definition when no live binding still "
-            "references it. Set to false to detach the bindings while keeping shared definitions."
-        ),
-    )
-    delete_unused_prompt_or_decision: bool = strawberry.field(
-        default=True,
-        description=(
-            "Also delete each LLM evaluator's prompt or decision evaluator's decision when no "
-            "other evaluator references it. A prompt or decision still used by another evaluator "
-            "is always kept. Set to false to keep unused ones too."
+            "Also delete each LLM evaluator's prompt when no other evaluator references it. "
+            "Off by default so that a prompt adopted from the prompt hub survives the binding."
         ),
     )
 
@@ -774,8 +758,7 @@ class EvaluatorMutationMixin:
     ) -> DeleteProjectEvaluatorsPayload:
         command = project_bindings.DeleteProjectEvaluatorsInput(
             project_evaluator_ids=input.project_evaluator_ids,
-            delete_unused_evaluator=input.delete_unused_evaluator,
-            delete_unused_prompt_or_decision=input.delete_unused_prompt_or_decision,
+            delete_associated_prompt=input.delete_associated_prompt,
         )
         context = _evaluator_service_context(info.context)
         result = await project_bindings.delete_project_evaluators(context, command)
@@ -846,8 +829,7 @@ class EvaluatorMutationMixin:
     ) -> DeleteDatasetEvaluatorsPayload:
         command = dataset_bindings.DeleteDatasetEvaluatorsInput(
             dataset_evaluator_ids=input.dataset_evaluator_ids,
-            delete_unused_evaluator=input.delete_unused_evaluator,
-            delete_unused_prompt_or_decision=input.delete_unused_prompt_or_decision,
+            delete_associated_prompt=input.delete_associated_prompt,
         )
         result = await dataset_bindings.delete_dataset_evaluators(
             _evaluator_service_context(info.context), command

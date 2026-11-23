@@ -767,7 +767,7 @@ async def test_delete_last_binding_removes_the_tag_and_label_when_prompt_is_kept
 
     delete_result = await gql_client.execute(
         _DELETE,
-        {"input": {"projectEvaluatorIds": [created["id"]], "deleteUnusedPromptOrDecision": False}},
+        {"input": {"projectEvaluatorIds": [created["id"]], "deleteAssociatedPrompt": False}},
     )
     assert delete_result.data and not delete_result.errors
 
@@ -813,7 +813,7 @@ async def test_delete_binding_keeps_the_label_when_another_evaluator_shares_the_
 
     delete_result = await gql_client.execute(
         _DELETE,
-        {"input": {"projectEvaluatorIds": [first["id"]], "deleteUnusedPromptOrDecision": False}},
+        {"input": {"projectEvaluatorIds": [first["id"]], "deleteAssociatedPrompt": False}},
     )
     assert delete_result.data and not delete_result.errors
 
@@ -846,7 +846,7 @@ async def test_delete_last_binding_with_associated_prompt_deletes_it_without_err
 
     delete_result = await gql_client.execute(
         _DELETE,
-        {"input": {"projectEvaluatorIds": [created["id"]], "deleteUnusedPromptOrDecision": True}},
+        {"input": {"projectEvaluatorIds": [created["id"]], "deleteAssociatedPrompt": True}},
     )
     assert delete_result.data and not delete_result.errors
 
@@ -854,7 +854,7 @@ async def test_delete_last_binding_with_associated_prompt_deletes_it_without_err
         assert await session.get(models.Prompt, prompt_id) is None
 
 
-async def test_delete_binding_deletes_an_unused_prompt_by_default_but_keeps_a_shared_one(
+async def test_delete_binding_deletes_an_unused_prompt_when_asked_but_keeps_a_shared_one(
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
 ) -> None:
@@ -877,14 +877,14 @@ async def test_delete_binding_deletes_an_unused_prompt_by_default_but_keeps_a_sh
         prompt_id = first_evaluator.prompt_id
 
     shared_result = await gql_client.execute(
-        _DELETE, {"input": {"projectEvaluatorIds": [first["id"]]}}
+        _DELETE, {"input": {"projectEvaluatorIds": [first["id"]], "deleteAssociatedPrompt": True}}
     )
     assert shared_result.data and not shared_result.errors
     async with db() as session:
         assert await session.get(models.Prompt, prompt_id) is not None
 
     unused_result = await gql_client.execute(
-        _DELETE, {"input": {"projectEvaluatorIds": [second["id"]]}}
+        _DELETE, {"input": {"projectEvaluatorIds": [second["id"]], "deleteAssociatedPrompt": True}}
     )
     assert unused_result.data and not unused_result.errors
     async with db() as session:
@@ -2319,7 +2319,7 @@ async def test_create_mints_a_dedicated_trace_project_and_delete_removes_it(
 
     delete_result = await gql_client.execute(
         _DELETE,
-        {"input": {"projectEvaluatorIds": [created["id"]], "deleteUnusedPromptOrDecision": True}},
+        {"input": {"projectEvaluatorIds": [created["id"]], "deleteAssociatedPrompt": True}},
     )
     assert delete_result.data and not delete_result.errors
 
