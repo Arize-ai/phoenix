@@ -10,7 +10,7 @@ description: >
 license: Apache-2.0
 metadata:
   author: oss@arize.com
-  version: "2.1.0"
+  version: "2.2.0"
   internal: true
 ---
 
@@ -244,6 +244,10 @@ Each resource type SHOULD have formatting modules in `src/commands/format*.ts`. 
 - `formatProjectsOutput()`, `formatTracesOutput()`, etc. — Resource-specific formatters
 
 Formatters MUST accept a `format` option and return a string.
+
+### Shared logic
+
+A command module in `src/commands/` exports its `create<Resource>Command()` factory and the formatters and types its own tests need — nothing another command imports. Logic that more than one command needs lives in a domain directory under `src/` and each command imports it from there. For example, `src/auth/viewer.ts` holds the viewer lookup that both `px auth status` and `px setup doctor` call. A command MUST NOT import from another command module; when it needs something one exports, move that code out first (see the phoenix-typescript skill, § Reuse).
 
 ### I/O functions
 
