@@ -9,7 +9,9 @@ import { createDefaultFreeformOutputConfig } from "@phoenix/components/evaluator
 import type { DecisionEvaluatorData } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
 import { getSpanEvaluatorDefaultMessages } from "@phoenix/components/evaluators/EvaluatorChatTemplate/utils";
 import { useLLMEvaluatorVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useLLMEvaluatorVariables";
+import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
+import { makeLLMEvaluatorSections } from "@phoenix/components/evaluators/LLMEvaluatorForm";
 import {
   buildInputSchemaInput,
   createLLMEvaluatorPayload,
@@ -33,7 +35,8 @@ import {
   AttachProjectDecisionEvaluatorDialogContent,
   CreateProjectDecisionEvaluatorDialogContent,
 } from "@phoenix/pages/project/evaluators/ProjectDecisionEvaluatorDialogContent";
-import { ProjectLlmEvaluatorWorkspace } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
+import { makeProjectEvaluatorFormLayout } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
+import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideover";
 import {
   DEFAULT_EVALUATION_DELAY_SECONDS,
@@ -44,7 +47,6 @@ import {
   type ProjectEvaluatorScope,
   type ProjectEvaluatorTarget,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
-import { PROJECT_LLM_EVALUATOR_WORKSPACE_LAYOUT } from "@phoenix/pages/project/evaluators/projectEvaluatorWorkspaceLayout";
 import { ProjectLlmEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectLlmEvaluatorDialogContent";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
 import { useAttachProjectEvaluator } from "@phoenix/pages/project/evaluators/useAttachProjectEvaluator";
@@ -188,8 +190,6 @@ export const CreateProjectEvaluatorSlideover = ({
   <ProjectEvaluatorSlideover
     {...props}
     title={getProjectEvaluatorCreationTitle(creationMode)}
-    // The LLM form is laid out as a workspace, which fills the viewport.
-    size={isLlmCreationMode(creationMode) ? "viewport" : "fullscreen"}
   >
     {(close, registerDirtyCheck) => (
       <CreateProjectEvaluatorDialogForMode
@@ -704,18 +704,18 @@ const ScratchLlmDialogContent = ({
       isSubmitting={isSubmitting}
       mode="create"
       error={error}
-      workspace={{
-        layout: PROJECT_LLM_EVALUATOR_WORKSPACE_LAYOUT,
-        content: (
-          <ProjectLlmEvaluatorWorkspace
-            projectId={projectId}
-            scope={scope}
-            onScopeChange={onScopeChange}
-            onFilterValidityChange={onFilterValidityChange}
-            isFilterValid={isFilterValid}
-          />
+      form={makeProjectEvaluatorFormLayout({
+        evaluatorKind: "prompt",
+        identity: <EvaluatorNameAndDescriptionFields />,
+        sections: makeLLMEvaluatorSections(),
+        tryIt: (
+          <ProjectEvaluatorScopePanel projectId={projectId} scope={scope} />
         ),
-      }}
+        projectId: projectId,
+        scope,
+        onScopeChange: onScopeChange,
+        onFilterValidityChange: onFilterValidityChange,
+      })}
     />
   );
 };

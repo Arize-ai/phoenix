@@ -136,11 +136,8 @@ test.describe.serial("Server Evaluators", () => {
       page.getByRole("heading", { name: "Create LLM Evaluator" })
     ).toBeVisible();
 
-    // Update the name, on the workspace's Details tab, to our unique test name
-    await page.getByRole("tab", { name: "Details" }).click();
-    const nameInput = page
-      .getByRole("tabpanel", { name: "Details" })
-      .getByRole("textbox", { name: "Name" });
+    // Update the name to our unique test name
+    const nameInput = page.getByRole("textbox", { name: "Name" }).first();
     await nameInput.clear();
     await nameInput.fill(prebuiltLLMEvaluatorName);
 
@@ -289,18 +286,16 @@ test.describe.serial("Server Evaluators", () => {
       page.getByRole("heading", { name: "Create LLM Evaluator" })
     ).toBeVisible();
 
-    // Fill in the evaluator name and description, on the Details tab
-    await page.getByRole("tab", { name: "Details" }).click();
-    const detailsPanel = page.getByRole("tabpanel", { name: "Details" });
-    await detailsPanel
+    // Fill in the evaluator name
+    await page
       .getByRole("textbox", { name: "Name" })
+      .first()
       .fill(customEvaluatorName);
-    await detailsPanel
+
+    // Fill in the description
+    await page
       .getByRole("textbox", { name: /Description/i })
       .fill("Initial description for custom evaluator");
-
-    // The messages are on the Prompt tab
-    await page.getByRole("tab", { name: "Prompt" }).click();
 
     // Fill in the System message - each message card's collapse toggle is
     // labeled "<role> message", so scope to the card that contains it
@@ -358,11 +353,10 @@ test.describe.serial("Server Evaluators", () => {
       page.getByRole("heading", { name: "Edit LLM Evaluator" })
     ).toBeVisible();
 
-    // Update the description, on the workspace's Details tab
-    await page.getByRole("tab", { name: "Details" }).click();
-    const descriptionInput = page
-      .getByRole("tabpanel", { name: "Details" })
-      .getByRole("textbox", { name: /Description/i });
+    // Update the description
+    const descriptionInput = page.getByRole("textbox", {
+      name: /Description/i,
+    });
     await descriptionInput.clear();
     await descriptionInput.fill(updatedDescription);
 
@@ -408,10 +402,9 @@ test.describe.serial("Server Evaluators", () => {
     ).toBeVisible();
 
     // Verify the updated description is present
-    await page.getByRole("tab", { name: "Details" }).click();
-    const descriptionInput = page
-      .getByRole("tabpanel", { name: "Details" })
-      .getByRole("textbox", { name: /Description/i });
+    const descriptionInput = page.getByRole("textbox", {
+      name: /Description/i,
+    });
     await expect(descriptionInput).toHaveValue(updatedDescription);
 
     // Close the dialog

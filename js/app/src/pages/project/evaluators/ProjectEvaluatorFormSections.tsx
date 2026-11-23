@@ -1,14 +1,9 @@
-import { css } from "@emotion/react";
 import type { ReactNode } from "react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId } from "react";
 
 import {
   Card,
   Counter,
-  Disclosure,
-  DisclosureGroup,
-  DisclosurePanel,
-  DisclosureTrigger,
   Flex,
   Icon,
   Icons,
@@ -19,27 +14,24 @@ import {
   View,
 } from "@phoenix/components";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
-import { DecisionEvaluatorForm } from "@phoenix/components/evaluators/decision/DecisionEvaluatorForm";
-import type { DecisionEvaluatorData } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
-import type { DecisionEvaluatorDraft } from "@phoenix/components/evaluators/decision/useDecisionEvaluatorDraft";
+import type {
+  EvaluatorFormLayoutProps,
+  EvaluatorFormSection,
+} from "@phoenix/components/evaluators/EvaluatorFormLayout";
+import { useExpandInputsWhen } from "@phoenix/components/evaluators/EvaluatorFormLayout";
 import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorInputVariables";
-import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
 import { EvaluatorSectionHeader } from "@phoenix/components/evaluators/EvaluatorSectionHeader";
-import { LLMEvaluatorForm } from "@phoenix/components/evaluators/LLMEvaluatorForm";
-import { EvaluatorWorkspace } from "@phoenix/components/evaluators/workspace/EvaluatorWorkspace";
 import { formatEvaluationTargetPlural } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import { ProjectEvaluatorInputMapping } from "@phoenix/pages/project/evaluators/ProjectEvaluatorInputMapping";
 import { ProjectEvaluatorScopeFieldGroup } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopeFields";
-import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import { useUnboundRequiredVariables } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSubmitHint";
 import type {
   ProjectEvaluatorRecordKind,
   ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { toEvaluatorRecordKind } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
-import type { ProjectEvaluatorWorkspacePanelId } from "@phoenix/pages/project/evaluators/projectEvaluatorWorkspaceLayout";
 
-/** Scope-editing props shared by every left definition panel. */
+/** Scope-editing props shared by every project evaluator form. */
 type ProjectEvaluatorScopeProps = {
   /** The record filter autocompletes against this project's records. */
   projectId: string;
@@ -51,8 +43,8 @@ type ProjectEvaluatorScopeProps = {
 };
 
 /**
- * The "Evaluator Scope" section every project evaluator form renders under
- * the name and description: target, sampling, and the record filter.
+ * The "Evaluator Scope" section of every project evaluator form's Scope tab:
+ * target, sampling, and the record filter.
  */
 const ProjectEvaluatorScopeSection = ({
   projectId,
@@ -81,7 +73,7 @@ const ProjectEvaluatorScopeSection = ({
 };
 
 /**
- * The "Advanced" card every project evaluator form ends with: settings that
+ * The "Advanced" card that ends every project evaluator form's Scope tab: settings that
  * change what an evaluation stores, not what it evaluates. It starts
  * collapsed, and its header says whether tracing is on, to sight and to
  * screen readers, so a closed card never hides that an evaluator has stopped
@@ -130,148 +122,102 @@ export const ProjectEvaluatorAdvancedSection = ({
   );
 };
 
+/** The project scope props, plus what decides the form's mapping panel. */
+type ProjectEvaluatorFormLayoutInput = ProjectEvaluatorScopeProps & {
+  /** Which kind of evaluator, which names the stored panel sizes too. */
+  evaluatorKind: ProjectEvaluatorKind;
+  /** The name and description, or the attach summary. */
+  identity: ReactNode;
+  /** What the evaluator is; the Scope tab is added after them. */
+  sections: EvaluatorFormSection[];
+  /** Variables the evaluator requires; by default every declared one. */
+  requiredVariables?: readonly string[];
+  /** See {@link ProjectEvaluatorInputMapping}; defaults to true. */
+  canDescribeInputs?: boolean;
+  /** The records in scope, run through this evaluator. */
+  tryIt: ReactNode;
+};
+
+type ProjectEvaluatorKind = "prompt" | "code" | "decision";
+
 /**
- * The panels of the LLM project evaluator form, laid out by
- * `PROJECT_LLM_EVALUATOR_WORKSPACE_LAYOUT`: the prompt, its
- * annotation, the scope, and the name and settings on the left; the
- * variable mapping docked under them; the records in scope and the focused
- * record's inspector on the right.
+ * A project evaluator form, as {@link EvaluatorFormLayout} lays it out: the
+ * evaluator's own sections, then a Scope tab (target, sampling, the record
+ * filter, and the advanced settings); the mapping from the evaluator's
+ * variables to record paths docked under them; and the records in scope on
+ * the right.
  */
-export const ProjectLlmEvaluatorWorkspace = ({
-  isFilterValid,
+export function makeProjectEvaluatorFormLayout({
+  evaluatorKind,
+  identity,
+  sections,
+  requiredVariables,
+  canDescribeInputs,
+  tryIt,
   ...scopeProps
-}: ProjectEvaluatorScopeProps & { isFilterValid: boolean }) => {
-  const { projectId, scope } = scopeProps;
-  const recordKind = toEvaluatorRecordKind(scope.targetType);
-  const variables = useEvaluatorInputVariables();
-  const unboundVariables = useUnboundRequiredVariables({ variables });
-  return (
-    <EvaluatorWorkspace<ProjectEvaluatorWorkspacePanelId>
-      badges={{
-        variables:
-          unboundVariables.length > 0 ? (
-            <Counter variant="danger" count={unboundVariables.length} />
-          ) : variables.length > 0 ? (
-            <Counter variant="quiet" count={variables.length} />
-          ) : null,
-        scope: isFilterValid ? null : (
-          <Icon
-            svg={<Icons.AlertCircleFilled />}
-            color="danger"
-            role="img"
-            aria-label="Invalid filter"
-          />
-        ),
-      }}
-      panels={{
-        prompt: <LLMEvaluatorForm showAnnotationConfig={false} />,
-        annotation: <LLMEvaluatorForm showPrompt={false} />,
-        scope: <ProjectEvaluatorScopeSection {...scopeProps} />,
-        details: (
+}: ProjectEvaluatorFormLayoutInput): EvaluatorFormLayoutProps {
+  const recordKind = toEvaluatorRecordKind(scopeProps.scope.targetType);
+  return {
+    layoutId: `project-${evaluatorKind}`,
+    identity,
+    sections: [
+      ...sections,
+      {
+        id: "scope",
+        title: "Scope",
+        content: (
           <>
-            <EvaluatorNameAndDescriptionFields />
+            <ProjectEvaluatorScopeSection {...scopeProps} />
             <ProjectEvaluatorAdvancedSection {...scopeProps} />
           </>
         ),
-        variables: (
-          <Flex direction="column" gap="size-200">
-            <ProjectEvaluatorInputMappingBody
-              recordKind={recordKind}
-              evaluatorKind="prompt"
-            />
-          </Flex>
-        ),
-        records: (
-          <ProjectEvaluatorScopePanel projectId={projectId} scope={scope} />
-        ),
-        inspector: null,
-      }}
-    />
-  );
-};
+      },
+    ],
+    inputs: {
+      title: evaluatorKind === "prompt" ? "Variables" : "Inputs",
+      badge: (
+        <ProjectEvaluatorInputsBadge requiredVariables={requiredVariables} />
+      ),
+      content: (
+        <ProjectEvaluatorInputMappingBody
+          recordKind={recordKind}
+          requiredVariables={requiredVariables}
+          evaluatorKind={evaluatorKind}
+          canDescribeInputs={canDescribeInputs}
+        />
+      ),
+    },
+    tryIt,
+  };
+}
 
 /**
- * Where each declared variable is read from on the record, docked to the
- * bottom of the left panel so it stays in view while the prompt or code above
- * it scrolls. Review found the section hard to discover at the end of the
- * scroll, and the mapping is what most often blocks a save.
- *
- * It starts open and only the author collapses it; a collapsed dock opens
- * again on its own the moment a variable has nothing to read. Open, it grows
- * with its rows up to half the panel and scrolls past that; it is not
- * dragged to a size. With no variables declared it says what the section is
- * for instead. It is drawn as an accordion item, the design system's pattern
- * for a section that collapses.
+ * How many variables there are to map, or, in red, how many have nothing to
+ * read on the record and so block a save.
  */
-export const ProjectEvaluatorInputMappingDock = ({
-  recordKind,
+const ProjectEvaluatorInputsBadge = ({
   requiredVariables,
-  evaluatorKind,
-  canDescribeInputs,
 }: {
-  recordKind: ProjectEvaluatorRecordKind;
   requiredVariables?: readonly string[];
-  evaluatorKind: "prompt" | "code" | "decision";
-  /** See {@link ProjectEvaluatorInputMapping}; defaults to true. */
-  canDescribeInputs?: boolean;
 }) => {
   const variables = useEvaluatorInputVariables();
   const unboundVariables = useUnboundRequiredVariables({
     variables,
     requiredVariables,
   });
-  const [isExpanded, setIsExpanded] = useState(true);
-  // Reopen a dock the author closed when the first unbound variable appears,
-  // and leave it alone until the count goes back to zero and climbs again.
-  const previousUnboundCount = useRef(unboundVariables.length);
-  useEffect(() => {
-    if (previousUnboundCount.current === 0 && unboundVariables.length > 0) {
-      setIsExpanded(true);
-    }
-    previousUnboundCount.current = unboundVariables.length;
-  }, [unboundVariables.length]);
-  const title =
-    evaluatorKind === "prompt" ? "Map Prompt Variables" : "Input Mapping";
-  return (
-    <div css={mappingDockCSS} data-testid="project-evaluator-mapping-dock">
-      {/* A one-item accordion, so the dock is drawn by the design system's
-          own disclosure: its trigger bar, chevron, rule and hover. The group
-          drops the rule a collapsed last item would draw against the footer. */}
-      <DisclosureGroup
-        expandedKeys={isExpanded ? [MAPPING_DOCK_KEY] : []}
-        onExpandedChange={(keys) => setIsExpanded(keys.has(MAPPING_DOCK_KEY))}
-      >
-        <Disclosure id={MAPPING_DOCK_KEY}>
-          <DisclosureTrigger arrowPosition="end">
-            <Flex direction="row" alignItems="center" gap="size-100">
-              {title}
-              {unboundVariables.length > 0 ? (
-                <Counter variant="danger" count={unboundVariables.length} />
-              ) : null}
-            </Flex>
-          </DisclosureTrigger>
-          <DisclosurePanel>
-            <div className="mapping-dock__body">
-              {/* The trigger is a button, so the description lives here rather
-                  than as a help popover inside it: a button cannot hold one. */}
-              <ProjectEvaluatorInputMappingBody
-                recordKind={recordKind}
-                requiredVariables={requiredVariables}
-                evaluatorKind={evaluatorKind}
-                canDescribeInputs={canDescribeInputs}
-              />
-            </div>
-          </DisclosurePanel>
-        </Disclosure>
-      </DisclosureGroup>
-    </div>
-  );
+  if (unboundVariables.length > 0) {
+    return <Counter variant="danger" count={unboundVariables.length} />;
+  }
+  return variables.length > 0 ? (
+    <Counter variant="quiet" count={variables.length} />
+  ) : null;
 };
 
 /**
- * What the input mapping section holds wherever it is shown: a line on what
- * the mapping does, then one row per declared variable, or an empty state
- * that says what the section is for when nothing is declared.
+ * The mapping panel's content: a line on what the mapping does, then one
+ * row per declared variable, or an empty state that says what the panel is
+ * for when nothing is declared. A collapsed panel opens again on its own the
+ * moment a variable has nothing to read.
  */
 const ProjectEvaluatorInputMappingBody = ({
   recordKind,
@@ -281,11 +227,15 @@ const ProjectEvaluatorInputMappingBody = ({
 }: {
   recordKind: ProjectEvaluatorRecordKind;
   requiredVariables?: readonly string[];
-  evaluatorKind: "prompt" | "code" | "decision";
-  /** See {@link ProjectEvaluatorInputMapping}; defaults to true. */
+  evaluatorKind: ProjectEvaluatorKind;
   canDescribeInputs?: boolean;
 }) => {
   const variables = useEvaluatorInputVariables();
+  const unboundVariables = useUnboundRequiredVariables({
+    variables,
+    requiredVariables,
+  });
+  useExpandInputsWhen(unboundVariables.length > 0);
   return (
     <>
       {variables.length > 0 ? (
@@ -317,117 +267,11 @@ const ProjectEvaluatorInputMappingBody = ({
   );
 };
 
-const MAPPING_DOCK_KEY = "mapping";
-
-const mappingDockCSS = css`
-  // The dock scrolls as a whole (see EvaluatorForm), so the trigger sticks
-  // to its top while the rows pass under it. Scrolling one region rather
-  // than the body alone keeps a single scrollbar gutter, the same width as
-  // the form's, beside both the trigger and the rows.
-  .disclosure__trigger {
-    position: sticky;
-    top: 0;
-    z-index: 1;
-    background-color: var(--global-background-color-default);
-  }
-  .mapping-dock__body {
-    display: flex;
-    flex-direction: column;
-    // Description to fields, as in the sections above.
-    gap: var(--global-dimension-size-200);
-    padding: var(--global-dimension-size-200);
-  }
-`;
-
 /**
- * The left definition panel for a code project evaluator. When authoring code
- * (`codeDefinition` given) it holds the name and description, then the
- * scope, then the code authoring fields. When attaching an existing evaluator
- * there is no name to edit, so a summary card of that evaluator stands in for
- * the name, and the scope follows it. The input mapping is docked under
- * either layout by {@link ProjectEvaluatorInputMappingDock}.
+ * Stands in for the name and description when attaching an existing
+ * evaluator, which has no name of its own to edit here.
  */
-export const ProjectCodeEvaluatorFormSections = ({
-  codeEvaluatorName,
-  codeDefinition,
-  onFieldChange,
-  ...scopeProps
-}: ProjectEvaluatorScopeProps & {
-  codeEvaluatorName?: string;
-  /** Rendered as the definition section for an editable code evaluator. */
-  codeDefinition?: ReactNode;
-  /** Fires when the name or description changes. */
-  onFieldChange?: () => void;
-}) => {
-  if (codeDefinition == null) {
-    return (
-      <>
-        <ProjectEvaluatorAttachSummary
-          evaluatorKind="code"
-          evaluatorName={codeEvaluatorName}
-        />
-        <ProjectEvaluatorScopeSection {...scopeProps} />
-        <ProjectEvaluatorAdvancedSection {...scopeProps} />
-      </>
-    );
-  }
-  return (
-    <>
-      <EvaluatorNameAndDescriptionFields
-        onValueChange={onFieldChange}
-        isNameRequired
-        descriptionPlaceholder="e.g. code evaluator description"
-      />
-      <ProjectEvaluatorScopeSection {...scopeProps} />
-      {codeDefinition}
-      <ProjectEvaluatorAdvancedSection {...scopeProps} />
-    </>
-  );
-};
-
-/**
- * The left definition panel for a decision project evaluator, laid out like
- * {@link ProjectCodeEvaluatorFormSections}: a draft gets the name, scope, and
- * decision definition; an attached evaluator gets its summary card and scope.
- */
-export const ProjectDecisionEvaluatorFormSections = (
-  props: ProjectEvaluatorScopeProps &
-    (
-      | { draft: DecisionEvaluatorDraft; isDisabled?: boolean }
-      | { attachedEvaluator: DecisionEvaluatorData }
-    )
-) => {
-  if ("attachedEvaluator" in props) {
-    const { attachedEvaluator, ...scopeProps } = props;
-    return (
-      <>
-        <ProjectEvaluatorAttachSummary
-          evaluatorKind="decision"
-          evaluatorName={attachedEvaluator.name}
-          subtitle={attachedEvaluator.decisionVersion.decision.name}
-        />
-        <ProjectEvaluatorScopeSection {...scopeProps} />
-        <ProjectEvaluatorAdvancedSection {...scopeProps} />
-      </>
-    );
-  }
-  const { draft, isDisabled, ...scopeProps } = props;
-  return (
-    <>
-      <EvaluatorNameAndDescriptionFields isNameRequired />
-      <ProjectEvaluatorScopeSection {...scopeProps} />
-      <DecisionEvaluatorForm
-        draft={draft}
-        isDisabled={isDisabled}
-        scoringDescription="Turn each answer into the score this evaluator records, and which answers are good."
-        showInputMapping={false}
-      />
-      <ProjectEvaluatorAdvancedSection {...scopeProps} />
-    </>
-  );
-};
-
-const ProjectEvaluatorAttachSummary = ({
+export const ProjectEvaluatorAttachSummary = ({
   evaluatorKind,
   evaluatorName,
   subtitle,
@@ -437,28 +281,26 @@ const ProjectEvaluatorAttachSummary = ({
   subtitle?: string;
 }) => {
   return (
-    <View marginBottom="size-200" flex="none">
-      <Flex direction="column" gap="size-100">
-        <EvaluatorSectionHeader
-          title="Evaluator"
-          description={`Attach the selected ${evaluatorKind} evaluator to this project.`}
-        />
-        <View
-          borderRadius="medium"
-          borderWidth="thin"
-          borderColor="default"
-          padding="size-200"
-        >
-          <Flex direction="column" gap="size-50">
-            <Heading level={3}>{evaluatorName}</Heading>
-            {subtitle ? (
-              <Text size="S" color="text-500">
-                {subtitle}
-              </Text>
-            ) : null}
-          </Flex>
-        </View>
-      </Flex>
-    </View>
+    <Flex direction="column" gap="size-100">
+      <EvaluatorSectionHeader
+        title="Evaluator"
+        description={`Attach the selected ${evaluatorKind} evaluator to this project.`}
+      />
+      <View
+        borderRadius="medium"
+        borderWidth="thin"
+        borderColor="default"
+        padding="size-200"
+      >
+        <Flex direction="column" gap="size-50">
+          <Heading level={3}>{evaluatorName}</Heading>
+          {subtitle ? (
+            <Text size="S" color="text-500">
+              {subtitle}
+            </Text>
+          ) : null}
+        </Flex>
+      </View>
+    </Flex>
   );
 };

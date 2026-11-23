@@ -79,7 +79,8 @@ export const CreateCodeDatasetEvaluatorSlideover = ({
       isOpen={isOpen}
       onOpenChange={handleOpenChange}
     >
-      <ViewportModal size="fullscreen">
+      {/* Evaluator forms fill the viewport: see EvaluatorFormLayout. */}
+      <ViewportModal size="viewport">
         <Dialog>
           {({ close }) => (
             <Suspense fallback={<Loading />}>

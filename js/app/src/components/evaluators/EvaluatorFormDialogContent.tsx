@@ -12,31 +12,52 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
-import { EvaluatorForm } from "@phoenix/components/evaluators/EvaluatorForm";
+import type { EvaluatorFormLayoutProps } from "@phoenix/components/evaluators/EvaluatorFormLayout";
+import {
+  EvaluatorFormLayout,
+  RevealInvalidFieldProvider,
+  useRevealInvalidField,
+} from "@phoenix/components/evaluators/EvaluatorFormLayout";
+
+type EvaluatorFormDialogContentProps = {
+  title: string;
+  submitLabel: string;
+  cancelLabel?: string;
+  /**
+   * Replaces closing on Cancel and the close button, e.g. to confirm
+   * discarding unsaved changes first.
+   */
+  onCancel?: () => void;
+  /** After it settles, the first field left invalid is brought into view. */
+  onSubmit: () => unknown;
+  isSubmitting: boolean;
+  isSubmitDisabled?: boolean;
+  submitHint?: ReactNode;
+  error?: string;
+  errorTitle: string;
+  banner?: ReactNode;
+  renderInputVariables: (form: ReactNode) => ReactNode;
+  submitButtonProps?: { [key: `data-${string}`]: string };
+  contentGap?: string;
+} & EvaluatorFormLayoutProps;
 
 /**
- * The form's body: the two-panel {@link EvaluatorForm}, or a workspace the
- * caller lays out (see `EvaluatorWorkspace`).
+ * An evaluator form's dialog: the header, the form laid out by
+ * {@link EvaluatorFormLayout}, and the footer with its submit button.
  */
-type EvaluatorFormLayoutProps =
-  | {
-      left: ReactNode;
-      /** Pinned under the left panel's scroll region. */
-      leftDock?: ReactNode;
-      right: ReactNode;
-      workspace?: never;
-    }
-  | {
-      workspace: ReactNode;
-      left?: never;
-      leftDock?: never;
-      right?: never;
-    };
+export const EvaluatorFormDialogContent = (
+  props: EvaluatorFormDialogContentProps
+) => (
+  <RevealInvalidFieldProvider>
+    <EvaluatorFormDialogBody {...props} />
+  </RevealInvalidFieldProvider>
+);
 
-export const EvaluatorFormDialogContent = ({
+const EvaluatorFormDialogBody = ({
   title,
   submitLabel,
   cancelLabel = "Cancel",
+  onCancel,
   onSubmit,
   isSubmitting,
   isSubmitDisabled = false,
@@ -44,38 +65,22 @@ export const EvaluatorFormDialogContent = ({
   error,
   errorTitle,
   banner,
-  left,
-  leftDock,
-  right,
-  workspace,
-  headerExtra,
   renderInputVariables,
   submitButtonProps,
   contentGap = "var(--global-dimension-size-200)",
-}: {
-  title: string;
-  submitLabel: string;
-  cancelLabel?: string;
-  onSubmit: () => void;
-  isSubmitting: boolean;
-  isSubmitDisabled?: boolean;
-  submitHint?: ReactNode;
-  error?: string;
-  errorTitle: string;
-  banner?: ReactNode;
-  /** Rendered in the header, before the close button. */
-  headerExtra?: ReactNode;
-  renderInputVariables: (form: ReactNode) => ReactNode;
-  submitButtonProps?: { [key: `data-${string}`]: string };
-  contentGap?: string;
-} & EvaluatorFormLayoutProps) => {
+  ...layoutProps
+}: EvaluatorFormDialogContentProps) => {
+  const revealInvalidField = useRevealInvalidField();
   return (
     <DialogContent>
       <DialogHeader>
         <DialogTitle>{title}</DialogTitle>
         <DialogTitleExtra>
-          {headerExtra}
-          <DialogCloseButton isDisabled={isSubmitting} />
+          {onCancel ? (
+            <DialogCloseButton isDisabled={isSubmitting} onPress={onCancel} />
+          ) : (
+            <DialogCloseButton isDisabled={isSubmitting} />
+          )}
         </DialogTitleExtra>
       </DialogHeader>
       <fieldset
@@ -96,11 +101,7 @@ export const EvaluatorFormDialogContent = ({
             {error}
           </Alert>
         ) : null}
-        {renderInputVariables(
-          workspace ?? (
-            <EvaluatorForm left={left} leftDock={leftDock} right={right} />
-          )
-        )}
+        {renderInputVariables(<EvaluatorFormLayout {...layoutProps} />)}
       </fieldset>
       <DialogFooter>
         {submitHint ? (
@@ -108,15 +109,24 @@ export const EvaluatorFormDialogContent = ({
             {submitHint}
           </Text>
         ) : null}
-        <Button slot="close" isDisabled={isSubmitting}>
-          {cancelLabel}
-        </Button>
+        {onCancel ? (
+          <Button isDisabled={isSubmitting} onPress={onCancel}>
+            {cancelLabel}
+          </Button>
+        ) : (
+          <Button slot="close" isDisabled={isSubmitting}>
+            {cancelLabel}
+          </Button>
+        )}
         <Button
           {...submitButtonProps}
           variant="primary"
           isPending={isSubmitting}
           isDisabled={isSubmitting || isSubmitDisabled}
-          onPress={onSubmit}
+          onPress={async () => {
+            await onSubmit();
+            revealInvalidField();
+          }}
         >
           {submitLabel}
         </Button>

@@ -14,7 +14,7 @@ import { DecisionMenu } from "@phoenix/components/evaluators/decision/DecisionMe
 import { DecisionScoringPolicyEditor } from "@phoenix/components/evaluators/decision/DecisionScoringPolicyEditor";
 import { DecisionVersionPicker } from "@phoenix/components/evaluators/decision/DecisionVersionPicker";
 import type { DecisionEvaluatorDraft } from "@phoenix/components/evaluators/decision/useDecisionEvaluatorDraft";
-import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
+import type { EvaluatorFormSection } from "@phoenix/components/evaluators/EvaluatorFormLayout";
 import { EvaluatorSectionHeader } from "@phoenix/components/evaluators/EvaluatorSectionHeader";
 import {
   createDecisionDraft,
@@ -29,23 +29,59 @@ import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { selectPlaygroundInstanceDecisionPrompt } from "@phoenix/store/playground/selectors";
 
 /**
- * A decision evaluator's definition, laid out like the LLM evaluator form: a
- * section header, then a row with the saved decision and its version on the
- * left and the judge model on the right, then the state and questions, the
- * scoring, and the dataset input mapping unless `showInputMapping` is off.
+ * A decision evaluator's definition, as the tabs of an evaluator form: the
+ * decision, then how its answers are scored.
  */
-export function DecisionEvaluatorForm({
+export function makeDecisionEvaluatorSections({
   draft,
   isDisabled,
   scoringDescription,
   sharedEvaluatorNote,
-  showInputMapping = true,
 }: {
   draft: DecisionEvaluatorDraft;
   isDisabled?: boolean;
   scoringDescription: string;
   sharedEvaluatorNote?: string;
-  showInputMapping?: boolean;
+}): EvaluatorFormSection[] {
+  return [
+    {
+      id: "decision",
+      title: "Decision",
+      content: (
+        <DecisionEvaluatorForm
+          draft={draft}
+          isDisabled={isDisabled}
+          sharedEvaluatorNote={sharedEvaluatorNote}
+        />
+      ),
+    },
+    {
+      id: "scoring",
+      title: "Scoring",
+      content: (
+        <DecisionEvaluatorScoring
+          draft={draft}
+          isDisabled={isDisabled}
+          scoringDescription={scoringDescription}
+        />
+      ),
+    },
+  ];
+}
+
+/**
+ * A decision evaluator's decision, laid out like the LLM evaluator form: a
+ * section header, then a row with the saved decision and its version on the
+ * left and the judge model on the right, then the state and questions.
+ */
+function DecisionEvaluatorForm({
+  draft,
+  isDisabled,
+  sharedEvaluatorNote,
+}: {
+  draft: DecisionEvaluatorDraft;
+  isDisabled?: boolean;
+  sharedEvaluatorNote?: string;
 }) {
   const { initialEvaluator } = draft;
   const evaluatorStore = useEvaluatorStoreInstance();
@@ -141,46 +177,42 @@ export function DecisionEvaluatorForm({
       {draft.isLoading ? (
         <Loading />
       ) : (
-        <>
-          <View paddingY="size-100" marginBottom="size-200" flex="none">
-            <DecisionPromptEditor
-              playgroundInstanceId={DECISION_EVALUATOR_DRAFT_INSTANCE_ID}
-              showAllErrors={showAllDecisionErrors}
-            />
-          </View>
-          <View marginBottom="size-200" flex="none">
-            <Flex direction="column" gap="size-100">
-              <EvaluatorSectionHeader
-                title="Scoring"
-                description={scoringDescription}
-              />
-              <DecisionScoringPolicyEditor
-                questions={draft.questions}
-                value={draft.policy}
-                onChange={draft.setPolicy}
-                isDisabled={isDisabled}
-              />
-            </Flex>
-          </View>
-        </>
-      )}
-      {showInputMapping ? (
-        <Flex direction="column" gap="size-100">
-          <EvaluatorSectionHeader
-            title="Input Mapping"
-            description="Inputs named input, output, reference, or metadata fill from the example when left blank."
+        <View paddingY="size-100" marginBottom="size-200" flex="none">
+          <DecisionPromptEditor
+            playgroundInstanceId={DECISION_EVALUATOR_DRAFT_INSTANCE_ID}
+            showAllErrors={showAllDecisionErrors}
           />
-          <View
-            borderRadius="medium"
-            borderWidth="thin"
-            padding="size-200"
-            marginTop="size-50"
-            borderColor="default"
-          >
-            <EvaluatorInputMapping />
-          </View>
-        </Flex>
-      ) : null}
+        </View>
+      )}
     </>
+  );
+}
+
+/** How a decision's answers become the score the evaluator records. */
+function DecisionEvaluatorScoring({
+  draft,
+  isDisabled,
+  scoringDescription,
+}: {
+  draft: DecisionEvaluatorDraft;
+  isDisabled?: boolean;
+  scoringDescription: string;
+}) {
+  if (draft.isLoading) {
+    return <Loading />;
+  }
+  return (
+    <Flex direction="column" gap="size-100">
+      <EvaluatorSectionHeader
+        title="Scoring"
+        description={scoringDescription}
+      />
+      <DecisionScoringPolicyEditor
+        questions={draft.questions}
+        value={draft.policy}
+        onChange={draft.setPolicy}
+        isDisabled={isDisabled}
+      />
+    </Flex>
   );
 }

@@ -415,13 +415,9 @@ test.describe.serial("Projects", () => {
     await expect(page).toHaveURL(EVALUATORS_URL);
     await page.goForward();
     await expect(createDialog).toBeVisible();
-    // The evaluator's name lives on the workspace's Details tab; the
-    // annotation output on the Annotation tab has a "Name" field too.
-    await createDialog.getByRole("tab", { name: "Details" }).click();
-    await createDialog
-      .getByRole("tabpanel", { name: "Details" })
-      .getByLabel("Name")
-      .fill(evaluatorName);
+    // The annotation output has a "Name" field too; the evaluator's own name is
+    // the first one.
+    await createDialog.getByLabel("Name").first().fill(evaluatorName);
     await createDialog
       .getByRole("button", { name: "Create", exact: true })
       .click();
@@ -467,11 +463,7 @@ test.describe.serial("Projects", () => {
       name: `Edit LLM evaluator “${evaluatorName}”`,
     });
     await expect(editDialog).toBeVisible();
-    await editDialog.getByRole("tab", { name: "Details" }).click();
-    await editDialog
-      .getByRole("tabpanel", { name: "Details" })
-      .getByLabel("Name")
-      .fill(updatedEvaluatorName);
+    await editDialog.getByLabel("Name").first().fill(updatedEvaluatorName);
     await editDialog.getByRole("button", { name: "Update" }).click();
     await expect(editDialog).not.toBeVisible();
 
@@ -576,11 +568,7 @@ test.describe.serial("Projects", () => {
       .getByRole("button", { name: "Customize this evaluator" })
       .click();
     await expect(createDialog).toBeVisible();
-    await createDialog.getByRole("tab", { name: "Details" }).click();
-    await createDialog
-      .getByRole("tabpanel", { name: "Details" })
-      .getByLabel("Name")
-      .fill(evaluatorName);
+    await createDialog.getByLabel("Name").first().fill(evaluatorName);
     // Every template here declares such a variable, and ships a default path
     // for it, so at least one field arrives filled in.
     expect(await fillDeclaredVariablePaths(page, createDialog)).toBeGreaterThan(
@@ -610,10 +598,7 @@ test.describe.serial("Projects", () => {
       name: /^Copy LLM evaluator/,
     });
     await expect(copyDialog).toBeVisible();
-    await copyDialog.getByRole("tab", { name: "Details" }).click();
-    await expect(
-      copyDialog.getByRole("tabpanel", { name: "Details" }).getByLabel("Name")
-    ).toHaveValue(copyName);
+    await expect(copyDialog.getByLabel("Name").first()).toHaveValue(copyName);
     await fillDeclaredVariablePaths(page, copyDialog);
     await copyDialog
       .getByRole("button", { name: "Create", exact: true })

@@ -18,12 +18,11 @@ import {
 import type { EditLLMDatasetEvaluatorSlideover_evaluator$key } from "@phoenix/components/dataset/__generated__/EditLLMDatasetEvaluatorSlideover_evaluator.graphql";
 import type { EditLLMDatasetEvaluatorSlideover_evaluatorQuery } from "@phoenix/components/dataset/__generated__/EditLLMDatasetEvaluatorSlideover_evaluatorQuery.graphql";
 import type { EditLLMDatasetEvaluatorSlideover_updateLLMEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditLLMDatasetEvaluatorSlideover_updateLLMEvaluatorMutation.graphql";
-import {
-  DATASET_LLM_EVALUATOR_WORKSPACE_LAYOUT,
-  DatasetLLMEvaluatorWorkspace,
-} from "@phoenix/components/evaluators/DatasetLLMEvaluatorWorkspace";
+import { makeDatasetEvaluatorFormLayout } from "@phoenix/components/evaluators/datasetEvaluatorFormLayout";
 import { EditLLMEvaluatorDialogContent } from "@phoenix/components/evaluators/EditLLMEvaluatorDialogContent";
+import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
+import { makeLLMEvaluatorSections } from "@phoenix/components/evaluators/LLMEvaluatorForm";
 import {
   getOutputConfigValidationErrors,
   inferIncludeExplanationFromPrompt,
@@ -60,7 +59,7 @@ export const EditLLMDatasetEvaluatorSlideover = ({
 }: EditLLMDatasetEvaluatorSlideoverProps) => {
   return (
     <ViewportModalOverlay {...props}>
-      {/* The form is laid out as a workspace, which fills the viewport. */}
+      {/* Evaluator forms fill the viewport: see EvaluatorFormLayout. */}
       <ViewportModal size="viewport">
         <Dialog aria-label="Edit LLM evaluator">
           {({ close }) => (
@@ -393,10 +392,11 @@ const EditEvaluatorDialog = ({
           isSubmitting={isUpdating}
           mode="update"
           error={error}
-          workspace={{
-            layout: DATASET_LLM_EVALUATOR_WORKSPACE_LAYOUT,
-            content: <DatasetLLMEvaluatorWorkspace />,
-          }}
+          form={makeDatasetEvaluatorFormLayout({
+            evaluatorKind: "prompt",
+            identity: <EvaluatorNameAndDescriptionFields />,
+            sections: makeLLMEvaluatorSections(),
+          })}
           llmEvaluatorNodeId={datasetEvaluator.evaluator.id}
         />
       )}

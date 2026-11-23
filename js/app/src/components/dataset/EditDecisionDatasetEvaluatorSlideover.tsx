@@ -34,7 +34,8 @@ export const EditDecisionDatasetEvaluatorSlideover = ({
 }: EditDecisionDatasetEvaluatorSlideoverProps) => {
   return (
     <ViewportModalOverlay {...props}>
-      <ViewportModal size="fullscreen">
+      {/* Evaluator forms fill the viewport: see EvaluatorFormLayout. */}
+      <ViewportModal size="viewport">
         <Dialog aria-label="Edit decision evaluator">
           {({ close }) => (
             <Suspense fallback={<Loading />}>

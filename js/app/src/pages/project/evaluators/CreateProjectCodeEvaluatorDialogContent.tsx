@@ -17,6 +17,7 @@ import {
 } from "@phoenix/components/evaluators/codeEvaluatorUtils";
 import { EvaluatorFormDialogContent } from "@phoenix/components/evaluators/EvaluatorFormDialogContent";
 import { CodeEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/CodeEvaluatorInputVariablesProvider";
+import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
 import {
   buildInputSchemaInput,
   buildOutputConfigsInput,
@@ -25,10 +26,7 @@ import {
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 import type { CreateProjectCodeEvaluatorDialogContentMutation } from "@phoenix/pages/project/evaluators/__generated__/CreateProjectCodeEvaluatorDialogContentMutation.graphql";
 import type { CreateProjectCodeEvaluatorDialogContentQuery } from "@phoenix/pages/project/evaluators/__generated__/CreateProjectCodeEvaluatorDialogContentQuery.graphql";
-import {
-  ProjectCodeEvaluatorFormSections,
-  ProjectEvaluatorInputMappingDock,
-} from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
+import { makeProjectEvaluatorFormLayout } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import {
   formatUnboundVariablesHint,
@@ -299,55 +297,60 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
           {form}
         </CodeEvaluatorInputVariablesProvider>
       )}
-      left={
-        <ProjectCodeEvaluatorFormSections
-          projectId={projectId}
-          scope={scope}
-          onScopeChange={onScopeChange}
-          onFilterValidityChange={setIsFilterValid}
-          onFieldChange={clearValidationMessage}
-          codeDefinition={
-            <CodeAuthoringFields
-              language={language}
-              onLanguageChange={setLanguage}
-              sandboxConfigs={sandboxConfigs}
-              selectedSandboxConfigId={selectedSandboxConfigId}
-              onSandboxChange={setSandboxConfigId}
-              sourceCode={sourceCode}
-              onSourceCodeChange={setSourceCode}
-              onFieldChange={clearValidationMessage}
-              resetSource={
-                initialValues
-                  ? {
-                      language: initialValues.language,
-                      sourceCode: initialValues.sourceCode,
-                      kind: "copied",
-                    }
-                  : null
-              }
-            />
-          }
-        />
-      }
-      leftDock={
-        <ProjectEvaluatorInputMappingDock
-          recordKind={toEvaluatorRecordKind(scope.targetType)}
-          requiredVariables={requiredVariables}
-          evaluatorKind="code"
-        />
-      }
-      right={
-        <ProjectEvaluatorScopePanel
-          projectId={projectId}
-          scope={scope}
-          inlineCode={{
-            language,
-            sourceCode,
-            sandboxConfigId: selectedSandboxConfigId,
-          }}
-          requiredVariables={requiredVariables}
-        />
-      }
+      {...makeProjectEvaluatorFormLayout({
+        evaluatorKind: "code",
+        identity: (
+          <EvaluatorNameAndDescriptionFields
+            onValueChange={clearValidationMessage}
+            isNameRequired
+            descriptionPlaceholder="e.g. code evaluator description"
+          />
+        ),
+        sections: [
+          {
+            id: "code",
+            title: "Code",
+            content: (
+              <CodeAuthoringFields
+                language={language}
+                onLanguageChange={setLanguage}
+                sandboxConfigs={sandboxConfigs}
+                selectedSandboxConfigId={selectedSandboxConfigId}
+                onSandboxChange={setSandboxConfigId}
+                sourceCode={sourceCode}
+                onSourceCodeChange={setSourceCode}
+                onFieldChange={clearValidationMessage}
+                resetSource={
+                  initialValues
+                    ? {
+                        language: initialValues.language,
+                        sourceCode: initialValues.sourceCode,
+                        kind: "copied",
+                      }
+                    : null
+                }
+              />
+            ),
+          },
+        ],
+        requiredVariables,
+        tryIt: (
+          <ProjectEvaluatorScopePanel
+            projectId={projectId}
+            scope={scope}
+            inlineCode={{
+              language,
+              sourceCode,
+              sandboxConfigId: selectedSandboxConfigId,
+            }}
+            requiredVariables={requiredVariables}
+          />
+        ),
+        projectId,
+        scope,
+        onScopeChange,
+        onFilterValidityChange: setIsFilterValid,
+      })}
     />
   );
 };

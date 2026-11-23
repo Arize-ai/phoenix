@@ -1,4 +1,3 @@
-import { css } from "@emotion/react";
 import {
   useCallback,
   useEffect,
@@ -7,7 +6,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { Group, Panel, Separator } from "react-resizable-panels";
 
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import { createEvaluatorHostSubmit } from "@phoenix/agent/tools/approval";
@@ -32,34 +30,23 @@ import {
 } from "@phoenix/agent/uiOperations/operations/codeEvaluatorDraft";
 import {
   Alert,
-  Button,
   Flex,
   LinkButton,
   List,
   ListItem,
-  SectionHeading,
   Text,
   View,
 } from "@phoenix/components";
-import {
-  DialogCloseButton,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTitleExtra,
-} from "@phoenix/components/core/dialog";
 import { CodeAuthoringFields } from "@phoenix/components/evaluators/CodeAuthoringFields";
 import type { SandboxConfigOption } from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
 import { CodeEvaluatorTestSection } from "@phoenix/components/evaluators/CodeEvaluatorTestSection";
 import { extractCodeEvaluatorVariables } from "@phoenix/components/evaluators/codeEvaluatorUtils";
-import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/EvaluatorExampleDataset";
-import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
-import { EvaluatorInputPreview } from "@phoenix/components/evaluators/EvaluatorInputPreview";
+import { makeDatasetEvaluatorFormLayout } from "@phoenix/components/evaluators/datasetEvaluatorFormLayout";
+import { EvaluatorFormDialogContent } from "@phoenix/components/evaluators/EvaluatorFormDialogContent";
 import { CodeEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/CodeEvaluatorInputVariablesProvider";
 import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
 import { EvaluatorSectionHeader } from "@phoenix/components/evaluators/EvaluatorSectionHeader";
-import { compactResizeHandleCSS } from "@phoenix/components/resize";
+import { EvaluatorValidationBanner } from "@phoenix/components/evaluators/EvaluatorValidationBanner";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
@@ -457,78 +444,71 @@ export const EditCodeEvaluatorDialogContent = ({
   handleSubmitRef.current = handleSubmit;
 
   return (
-    <DialogContent>
-      <DialogHeader>
-        <DialogTitle>
-          {mode === "create" ? "Create Code Evaluator" : "Edit Code Evaluator"}
-        </DialogTitle>
-        <DialogTitleExtra>
-          {onCancel ? (
-            <DialogCloseButton
-              isDisabled={isSubmitting}
-              onPress={handleCancel}
-            />
-          ) : (
-            <DialogCloseButton isDisabled={isSubmitting} />
-          )}
-        </DialogTitleExtra>
-      </DialogHeader>
-
-      <fieldset disabled={isSubmitting} css={fieldsetCSS}>
-        {/* Error alerts */}
-        {showValidationError && (
-          <Alert
-            variant="danger"
-            title="Please fix the highlighted errors before submitting."
-          />
-        )}
-        {localValidationError && (
-          <Alert variant="danger" title="Invalid code evaluator configuration">
-            {localValidationError}
-          </Alert>
-        )}
-        {error && (
-          <Alert
-            variant="danger"
-            title={
-              mode === "create"
-                ? "Failed to create evaluator"
-                : "Failed to update evaluator"
-            }
-          >
-            {error}
-          </Alert>
-        )}
-        {hasNoSandboxConfigs ? (
-          <Alert
-            variant="warning"
-            banner
-            extra={
-              <LinkButton size="S" to="/settings/sandboxes">
-                Configure a sandbox
-              </LinkButton>
-            }
-          >
-            No sandboxes configured. Configure a sandbox before creating,
-            testing, or executing a code evaluator.
-          </Alert>
-        ) : null}
-
-        {unavailableSandboxSelectionMessage ? (
-          <Alert variant="warning" banner>
-            {unavailableSandboxSelectionMessage}
-          </Alert>
-        ) : null}
-
+    <EvaluatorFormDialogContent
+      title={
+        mode === "create" ? "Create Code Evaluator" : "Edit Code Evaluator"
+      }
+      submitLabel={mode === "create" ? "Create" : "Update"}
+      onCancel={onCancel ? handleCancel : undefined}
+      onSubmit={handleSubmit}
+      isSubmitting={isSubmitting}
+      error={error}
+      errorTitle={
+        mode === "create"
+          ? "Failed to create evaluator"
+          : "Failed to update evaluator"
+      }
+      banner={
+        <>
+          {showValidationError ? <EvaluatorValidationBanner /> : null}
+          {localValidationError ? (
+            <Alert
+              variant="danger"
+              title="Invalid code evaluator configuration"
+            >
+              {localValidationError}
+            </Alert>
+          ) : null}
+          {hasNoSandboxConfigs ? (
+            <Alert
+              variant="warning"
+              banner
+              extra={
+                <LinkButton size="S" to="/settings/sandboxes">
+                  Configure a sandbox
+                </LinkButton>
+              }
+            >
+              No sandboxes configured. Configure a sandbox before creating,
+              testing, or executing a code evaluator.
+            </Alert>
+          ) : null}
+          {unavailableSandboxSelectionMessage ? (
+            <Alert variant="warning" banner>
+              {unavailableSandboxSelectionMessage}
+            </Alert>
+          ) : null}
+        </>
+      }
+      renderInputVariables={(body) => (
         <CodeEvaluatorInputVariablesProvider variables={variables}>
-          <Group orientation="horizontal" style={{ flex: 1, minHeight: 0 }}>
-            {/* Left panel: Code Editor (60%) */}
-            <Panel defaultSize="60%" minSize="40%" style={panelStyle}>
-              <div css={editorPanelCSS}>
-                <EvaluatorNameAndDescriptionFields
-                  isNameRequired
-                  descriptionPlaceholder="e.g. code evaluator description"
-                />
+          {body}
+        </CodeEvaluatorInputVariablesProvider>
+      )}
+      {...makeDatasetEvaluatorFormLayout({
+        evaluatorKind: "code",
+        identity: (
+          <EvaluatorNameAndDescriptionFields
+            isNameRequired
+            descriptionPlaceholder="e.g. code evaluator description"
+          />
+        ),
+        sections: [
+          {
+            id: "code",
+            title: "Code",
+            content: (
+              <>
                 <CodeAuthoringFields
                   language={language}
                   onLanguageChange={setLanguage}
@@ -549,102 +529,42 @@ export const EditCodeEvaluatorDialogContent = ({
                       : null
                   }
                 />
-                <InputMappingSection />
-              </div>
-            </Panel>
-
-            <Separator css={compactResizeHandleCSS} />
-
-            {/* Right panel: Collapsible Sidebar (40%) */}
-            <Panel defaultSize="40%" minSize="25%" style={panelStyle}>
-              <div css={sidebarPanelCSS}>
-                <ConfiguratorSidebar
+                <SandboxConfigSection
                   selectedSandboxConfig={selectedSandboxConfig}
-                  selectedSandboxConfigId={selectedSandboxConfigId}
-                  sourceCode={sourceCode}
-                  language={language}
-                  isDraftMounted={isDraftMounted}
                 />
-              </div>
-            </Panel>
-          </Group>
-        </CodeEvaluatorInputVariablesProvider>
-      </fieldset>
-      <DialogFooter>
-        {onCancel ? (
-          <Button isDisabled={isSubmitting} onPress={handleCancel}>
-            Cancel
-          </Button>
-        ) : (
-          <Button slot="close" isDisabled={isSubmitting}>
-            Cancel
-          </Button>
-        )}
-        <Button
-          variant="primary"
-          isDisabled={isSubmitting}
-          isPending={isSubmitting}
-          onPress={handleSubmit}
-        >
-          {mode === "create" ? "Create" : "Update"}
-        </Button>
-      </DialogFooter>
-    </DialogContent>
+              </>
+            ),
+          },
+        ],
+        testSection: (
+          <CodeEvaluatorTestSection
+            sourceCode={sourceCode}
+            language={language}
+            sandboxConfigId={selectedSandboxConfigId}
+            isDraftMounted={isDraftMounted}
+          />
+        ),
+      })}
+    />
   );
 };
 
-const ConfiguratorSidebar = ({
+/** The selected sandbox's execution settings, to review before saving. */
+const SandboxConfigSection = ({
   selectedSandboxConfig,
-  selectedSandboxConfigId,
-  sourceCode,
-  language,
-  isDraftMounted,
 }: {
   selectedSandboxConfig: SandboxConfigOption | null;
-  selectedSandboxConfigId: string | null;
-  sourceCode: string;
-  language: CodeEvaluatorLanguage;
-  isDraftMounted: () => boolean;
-}) => {
-  return (
-    <>
-      {/* Scrollable "Test Evaluator" region */}
-      <div css={sidebarScrollAreaCSS}>
-        <SectionHeading bordered={false}>
-          <Text weight="heavy" size="S">
-            Test Evaluator
-          </Text>
-        </SectionHeading>
-        <div css={sectionContentCSS}>
-          <View marginY="size-100" paddingX="size-200">
-            <CodeEvaluatorTestSection
-              sourceCode={sourceCode}
-              language={language}
-              sandboxConfigId={selectedSandboxConfigId}
-              isDraftMounted={isDraftMounted}
-            />
-          </View>
-          <View paddingX="size-200" paddingTop="size-50">
-            <EvaluatorExampleDataset />
-          </View>
-          <View marginTop="size-100">
-            <EvaluatorInputPreview />
-          </View>
-        </div>
-      </div>
-
-      {/* "Sandbox Config" pinned to the bottom and always visible */}
-      <div css={sidebarFooterCSS}>
-        <SectionHeading bordered={false}>
-          <Text weight="heavy" size="M">
-            Sandbox Config
-          </Text>
-        </SectionHeading>
-        <SandboxConfigSummary selectedSandboxConfig={selectedSandboxConfig} />
-      </div>
-    </>
-  );
-};
+}) => (
+  <View marginTop="size-200">
+    <Flex direction="column" gap="size-100">
+      <EvaluatorSectionHeader
+        title="Sandbox Config"
+        description="How the selected sandbox runs this evaluator."
+      />
+      <SandboxConfigSummary selectedSandboxConfig={selectedSandboxConfig} />
+    </Flex>
+  </View>
+);
 
 const SandboxConfigSummary = ({
   selectedSandboxConfig,
@@ -733,28 +653,6 @@ function getSandboxDependenciesConfigLabel(config: SandboxConfigForLabels) {
 /**
  * Heading + bordered card for mapping evaluator arguments to dataset fields.
  */
-const InputMappingSection = () => {
-  return (
-    <View flex="none">
-      <Flex direction="column" gap="size-100">
-        <EvaluatorSectionHeader
-          title="Input Mapping (optional)"
-          description="Map evaluator arguments to dataset fields. Arguments are auto-detected from your code."
-        />
-        <View
-          borderRadius="medium"
-          borderWidth="thin"
-          padding="size-200"
-          marginTop="size-50"
-          borderColor="default"
-        >
-          <EvaluatorInputMapping />
-        </View>
-      </Flex>
-    </View>
-  );
-};
-
 // Validation helper
 const getCodeEvaluatorValidationError = ({
   outputConfigs,
@@ -779,72 +677,3 @@ const getCodeEvaluatorValidationError = ({
   }
   return undefined;
 };
-
-// Styles
-const fieldsetCSS = css`
-  all: unset;
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-`;
-
-const panelStyle = {
-  height: "100%",
-  display: "flex",
-  flexDirection: "column" as const,
-  minHeight: 0,
-  overflow: "hidden" as const,
-};
-
-const editorPanelCSS = css`
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  padding: var(--global-dimension-size-150);
-  padding-top: var(--global-dimension-size-100);
-  box-sizing: border-box;
-  overflow-y: auto;
-  // keep trackpad overscroll from chaining to the dialog and
-  // dragging the header/footer with it
-  overscroll-behavior: contain;
-  gap: var(--global-dimension-size-150);
-`;
-
-const sidebarPanelCSS = css`
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  padding: 0;
-  box-sizing: border-box;
-  overflow: hidden;
-  border-left: 1px solid var(--global-border-color-default);
-`;
-
-// The "Test Evaluator" region grows to fill the panel and scrolls on overflow.
-const sidebarScrollAreaCSS = css`
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  // keep trackpad overscroll from chaining to the dialog and
-  // dragging the header/footer with it
-  overscroll-behavior: contain;
-`;
-
-// The "Sandbox Config" region is pinned to the bottom of the panel and stays
-// visible. It scrolls internally if its content gets tall, but is capped so the
-// test region always keeps room.
-const sidebarFooterCSS = css`
-  flex: 0 0 auto;
-  max-height: 50%;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  border-top: 1px solid var(--global-border-color-default);
-`;
-
-const sectionContentCSS = css`
-  padding: var(--global-dimension-size-50) 0;
-  padding-bottom: var(--global-dimension-size-150);
-`;

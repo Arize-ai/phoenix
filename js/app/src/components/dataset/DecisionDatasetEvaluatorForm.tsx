@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
+import { makeDatasetEvaluatorFormLayout } from "@phoenix/components/evaluators/datasetEvaluatorFormLayout";
 import { DecisionEvaluatorDraftProvider } from "@phoenix/components/evaluators/decision/DecisionEvaluatorDraftProvider";
-import { DecisionEvaluatorForm } from "@phoenix/components/evaluators/decision/DecisionEvaluatorForm";
+import { makeDecisionEvaluatorSections } from "@phoenix/components/evaluators/decision/DecisionEvaluatorForm";
 import {
   commitAsync,
   type DecisionEvaluatorData,
@@ -13,7 +14,6 @@ import {
   DecisionEvaluatorValidationError,
   useDecisionEvaluatorSave,
 } from "@phoenix/components/evaluators/decision/useDecisionEvaluatorSave";
-import { EvaluatorDatasetTestPanel } from "@phoenix/components/evaluators/EvaluatorDatasetTestPanel";
 import { EvaluatorFormDialogContent } from "@phoenix/components/evaluators/EvaluatorFormDialogContent";
 import { EvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/EvaluatorInputVariablesProvider";
 import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
@@ -189,29 +189,25 @@ function DecisionDatasetEvaluatorFormContent({
             : "Failed to create evaluator"
         }
         banner={showValidationError ? <EvaluatorValidationBanner /> : null}
-        left={
-          <>
-            <EvaluatorNameAndDescriptionFields isNameRequired />
-            <DecisionEvaluatorForm
-              draft={draft}
-              isDisabled={isSubmitting}
-              scoringDescription="Turn each answer into the score this dataset records, and which answers are good."
-              sharedEvaluatorNote={`${otherBindingCount > 0 ? `${otherBindingCount} other dataset evaluators use it. ` : ""}Input mappings apply only to this dataset.`}
+        {...makeDatasetEvaluatorFormLayout({
+          evaluatorKind: "decision",
+          identity: <EvaluatorNameAndDescriptionFields isNameRequired />,
+          sections: makeDecisionEvaluatorSections({
+            draft,
+            isDisabled: isSubmitting,
+            scoringDescription:
+              "Turn each answer into the score this dataset records, and which answers are good.",
+            sharedEvaluatorNote: `${otherBindingCount > 0 ? `${otherBindingCount} other dataset evaluators use it. ` : ""}Input mappings apply only to this dataset.`,
+          }),
+          testSection: (
+            <EvaluatorPreviewSection
+              preview={preview}
+              onTest={onTest}
+              helpText={getEvaluatorPreviewHelpText("DECISION")}
+              isDisabled={!isDraftReady || isSubmitting}
             />
-          </>
-        }
-        right={
-          <EvaluatorDatasetTestPanel
-            testSection={
-              <EvaluatorPreviewSection
-                preview={preview}
-                onTest={onTest}
-                helpText={getEvaluatorPreviewHelpText("DECISION")}
-                isDisabled={!isDraftReady || isSubmitting}
-              />
-            }
-          />
-        }
+          ),
+        })}
         renderInputVariables={(form) => (
           <EvaluatorInputVariablesProvider variables={draft.variables}>
             {form}

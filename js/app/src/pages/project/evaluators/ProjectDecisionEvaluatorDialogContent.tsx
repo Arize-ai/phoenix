@@ -5,6 +5,7 @@ import { useRevalidator } from "react-router";
 import type { AnnotationConfig } from "@phoenix/components/annotation/types";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { DecisionEvaluatorDraftProvider } from "@phoenix/components/evaluators/decision/DecisionEvaluatorDraftProvider";
+import { makeDecisionEvaluatorSections } from "@phoenix/components/evaluators/decision/DecisionEvaluatorForm";
 import {
   commitAsync,
   type DecisionEvaluatorData,
@@ -21,7 +22,9 @@ import {
   useDeclaredInputMapping,
 } from "@phoenix/components/evaluators/decision/useDecisionEvaluatorSave";
 import { EvaluatorFormDialogContent } from "@phoenix/components/evaluators/EvaluatorFormDialogContent";
+import type { EvaluatorFormSection } from "@phoenix/components/evaluators/EvaluatorFormLayout";
 import { EvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/EvaluatorInputVariablesProvider";
+import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
 import { EvaluatorPreviewOutputConfigsProvider } from "@phoenix/components/evaluators/EvaluatorPreviewOutputConfigsContext";
 import { EvaluatorValidationBanner } from "@phoenix/components/evaluators/EvaluatorValidationBanner";
 import {
@@ -32,8 +35,8 @@ import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
 import type { ProjectDecisionEvaluatorDialogContentCreateMutation } from "@phoenix/pages/project/evaluators/__generated__/ProjectDecisionEvaluatorDialogContentCreateMutation.graphql";
 import type { ProjectDecisionEvaluatorDialogContentUpdateMutation } from "@phoenix/pages/project/evaluators/__generated__/ProjectDecisionEvaluatorDialogContentUpdateMutation.graphql";
 import {
-  ProjectDecisionEvaluatorFormSections,
-  ProjectEvaluatorInputMappingDock,
+  makeProjectEvaluatorFormLayout,
+  ProjectEvaluatorAttachSummary,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import {
   type ProjectEvaluatorDecisionPreview,
@@ -46,7 +49,6 @@ import {
 import { selectPreviewEvaluatorName } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTestBench";
 import {
   toEvaluationDelayInput,
-  toEvaluatorRecordKind,
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
@@ -130,7 +132,11 @@ function ProjectDecisionEvaluatorLayout({
   projectId,
   scope,
   variables,
-  definition,
+  identity,
+  sections,
+  onScopeChange,
+  onFilterValidityChange,
+  isTargetDisabled,
   decision,
   outputConfigs,
   isSubmitting,
@@ -145,7 +151,13 @@ function ProjectDecisionEvaluatorLayout({
   projectId: string;
   scope: ProjectEvaluatorScope;
   variables: readonly string[];
-  definition: ReactNode;
+  /** The name and description, or the attach summary. */
+  identity: ReactNode;
+  /** The decision and its scoring; none when attaching. */
+  sections: EvaluatorFormSection[];
+  onScopeChange: (scope: ProjectEvaluatorScope) => void;
+  onFilterValidityChange: (isValid: boolean) => void;
+  isTargetDisabled?: boolean;
   decision: ProjectEvaluatorDecisionPreview;
   /** What the bench colours results against: the draft's derived outputs. */
   outputConfigs: AnnotationConfig[];
@@ -163,7 +175,6 @@ function ProjectDecisionEvaluatorLayout({
     unboundVariables,
     submitLabel,
   });
-  const recordKind = toEvaluatorRecordKind(scope.targetType);
   // The bench names a draft's results the way it names its preview runs.
   const evaluatorName = useEvaluatorStore(selectPreviewEvaluatorName);
   return (
@@ -188,21 +199,24 @@ function ProjectDecisionEvaluatorLayout({
             {form}
           </EvaluatorInputVariablesProvider>
         )}
-        left={definition}
-        leftDock={
-          <ProjectEvaluatorInputMappingDock
-            recordKind={recordKind}
-            evaluatorKind="decision"
-            canDescribeInputs={false}
-          />
-        }
-        right={
-          <ProjectEvaluatorScopePanel
-            projectId={projectId}
-            scope={scope}
-            decision={decision}
-          />
-        }
+        {...makeProjectEvaluatorFormLayout({
+          evaluatorKind: "decision",
+          identity,
+          sections,
+          canDescribeInputs: false,
+          tryIt: (
+            <ProjectEvaluatorScopePanel
+              projectId={projectId}
+              scope={scope}
+              decision={decision}
+            />
+          ),
+          projectId,
+          scope,
+          onScopeChange,
+          onFilterValidityChange,
+          isTargetDisabled,
+        })}
       />
     </EvaluatorPreviewOutputConfigsProvider>
   );
@@ -294,16 +308,15 @@ function CreateProjectDecisionEvaluatorForm({
       error={submitError ?? draft.loadError}
       showValidationError={showValidationError}
       onSubmit={() => void onSubmit()}
-      definition={
-        <ProjectDecisionEvaluatorFormSections
-          projectId={projectId}
-          scope={scope}
-          onScopeChange={onScopeChange}
-          onFilterValidityChange={setIsFilterValid}
-          draft={draft}
-          isDisabled={isSubmitting}
-        />
-      }
+      onScopeChange={onScopeChange}
+      onFilterValidityChange={setIsFilterValid}
+      identity={<EvaluatorNameAndDescriptionFields isNameRequired />}
+      sections={makeDecisionEvaluatorSections({
+        draft,
+        isDisabled: isSubmitting,
+        scoringDescription:
+          "Turn each answer into the score this evaluator records, and which answers are good.",
+      })}
     />
   );
 }
@@ -363,15 +376,16 @@ export function AttachProjectDecisionEvaluatorDialogContent({
       isFilterValid={isFilterValid}
       error={error}
       onSubmit={onSubmit}
-      definition={
-        <ProjectDecisionEvaluatorFormSections
-          projectId={projectId}
-          scope={scope}
-          onScopeChange={onScopeChange}
-          onFilterValidityChange={setIsFilterValid}
-          attachedEvaluator={evaluator}
+      onScopeChange={onScopeChange}
+      onFilterValidityChange={setIsFilterValid}
+      identity={
+        <ProjectEvaluatorAttachSummary
+          evaluatorKind="decision"
+          evaluatorName={evaluator.name}
+          subtitle={evaluator.decisionVersion.decision.name}
         />
       }
+      sections={[]}
     />
   );
 }
@@ -505,17 +519,16 @@ function EditProjectDecisionEvaluatorForm({
         error={submitError ?? draft.loadError}
         showValidationError={showValidationError}
         onSubmit={() => void onSubmit()}
-        definition={
-          <ProjectDecisionEvaluatorFormSections
-            projectId={projectId}
-            scope={scope}
-            onScopeChange={onScopeChange}
-            onFilterValidityChange={setIsFilterValid}
-            isTargetDisabled
-            draft={draft}
-            isDisabled={isSubmitting}
-          />
-        }
+        onScopeChange={onScopeChange}
+        onFilterValidityChange={setIsFilterValid}
+        isTargetDisabled
+        identity={<EvaluatorNameAndDescriptionFields isNameRequired />}
+        sections={makeDecisionEvaluatorSections({
+          draft,
+          isDisabled: isSubmitting,
+          scoringDescription:
+            "Turn each answer into the score this evaluator records, and which answers are good.",
+        })}
       />
     </>
   );

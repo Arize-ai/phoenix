@@ -12,7 +12,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useEvaluatorInputMappingControlsForm } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { EvaluatorInputVariablesContext } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/evaluatorInputVariablesContext";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
-import { ProjectEvaluatorInputMappingDock } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
+import { makeProjectEvaluatorFormLayout } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
+import type { ProjectEvaluatorScope } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+
+const SPAN_SCOPE: ProjectEvaluatorScope = {
+  targetType: "SPAN",
+  filterCondition: "",
+  samplingRate: 1,
+  evaluationDelaySeconds: 0,
+  tracingEnabled: true,
+};
 import { ProjectEvaluatorInputMapping } from "@phoenix/pages/project/evaluators/ProjectEvaluatorInputMapping";
 import type { EvaluatorStoreInstance } from "@phoenix/store/evaluatorStore";
 
@@ -163,10 +172,19 @@ describe("a project evaluator's mapping as its variables change", () => {
               <EvaluatorInputVariablesContext.Provider
                 value={declaredVariables}
               >
-                <ProjectEvaluatorInputMappingDock
-                  recordKind="span"
-                  evaluatorKind={evaluatorKind}
-                />
+                <div data-testid="mapping-panel">
+                  {
+                    makeProjectEvaluatorFormLayout({
+                      evaluatorKind,
+                      identity: null,
+                      sections: [],
+                      tryIt: null,
+                      projectId: "project",
+                      scope: SPAN_SCOPE,
+                      onScopeChange: () => undefined,
+                    }).inputs?.content
+                  }
+                </div>
               </EvaluatorInputVariablesContext.Provider>
             );
           }}
@@ -174,13 +192,11 @@ describe("a project evaluator's mapping as its variables change", () => {
       );
     });
 
-  const dockBody = () => container.querySelector(".mapping-dock__body");
+  const dockBody = () =>
+    container.querySelector('[data-testid="mapping-panel"]');
 
-  it("opens the dock even when every variable already reads something", async () => {
+  it("says what the mapping does when variables are declared", async () => {
     await renderDock(["input"]);
-    expect(
-      container.querySelector(".disclosure")?.getAttribute("data-expanded")
-    ).toBe("true");
     expect(dockBody()?.textContent).toContain("Map evaluator variables");
   });
 

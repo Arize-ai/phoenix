@@ -14,7 +14,9 @@ import {
 } from "@phoenix/components/evaluators/codeEvaluatorUtils";
 import { readDecisionEvaluatorData } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
 import { useLLMEvaluatorVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useLLMEvaluatorVariables";
+import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
+import { makeLLMEvaluatorSections } from "@phoenix/components/evaluators/LLMEvaluatorForm";
 import {
   buildInputSchemaInput,
   buildOutputConfigsInput,
@@ -34,8 +36,9 @@ import type { EditProjectEvaluatorSlideoverUpdateCodeMutation } from "@phoenix/p
 import type { EditProjectEvaluatorSlideoverUpdateLlmMutation } from "@phoenix/pages/project/evaluators/__generated__/EditProjectEvaluatorSlideoverUpdateLlmMutation.graphql";
 import { ProjectCodeEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectCodeEvaluatorDialogContent";
 import { EditProjectDecisionEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectDecisionEvaluatorDialogContent";
-import { ProjectLlmEvaluatorWorkspace } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
+import { makeProjectEvaluatorFormLayout } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import { convertProjectEvaluatorOutputConfigs } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
+import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideover";
 import {
   isSameInputMapping,
@@ -43,7 +46,6 @@ import {
   toEvaluatorRecordKind,
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
-import { PROJECT_LLM_EVALUATOR_WORKSPACE_LAYOUT } from "@phoenix/pages/project/evaluators/projectEvaluatorWorkspaceLayout";
 import { ProjectLlmEvaluatorDialogContent } from "@phoenix/pages/project/evaluators/ProjectLlmEvaluatorDialogContent";
 import {
   useEvaluatorFormDirtyCheck,
@@ -99,8 +101,6 @@ export function EditProjectEvaluatorSlideover({
     <ProjectEvaluatorSlideover
       {...props}
       title={title}
-      // The LLM form is laid out as a workspace, which fills the viewport.
-      size={kind === "LLM" ? "viewport" : "fullscreen"}
     >
       {(close, registerDirtyCheck) => (
         <EditProjectEvaluatorForm
@@ -566,19 +566,22 @@ function EditLlmProjectEvaluatorContent({
             mode="update"
             error={error}
             llmEvaluatorNodeId={evaluator.evaluator.id}
-            workspace={{
-              layout: PROJECT_LLM_EVALUATOR_WORKSPACE_LAYOUT,
-              content: (
-                <ProjectLlmEvaluatorWorkspace
+            form={makeProjectEvaluatorFormLayout({
+              evaluatorKind: "prompt",
+              identity: <EvaluatorNameAndDescriptionFields />,
+              sections: makeLLMEvaluatorSections(),
+              tryIt: (
+                <ProjectEvaluatorScopePanel
                   projectId={evaluator.project.id}
                   scope={scope}
-                  onScopeChange={setScope}
-                  onFilterValidityChange={setIsFilterValid}
-                  isFilterValid={isFilterValid}
-                  isTargetDisabled
                 />
               ),
-            }}
+              projectId: evaluator.project.id,
+              scope,
+              onScopeChange: setScope,
+              onFilterValidityChange: setIsFilterValid,
+              isTargetDisabled: true,
+            })}
           />
         );
       }}

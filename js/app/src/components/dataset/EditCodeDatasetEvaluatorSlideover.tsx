@@ -86,7 +86,8 @@ export function EditCodeDatasetEvaluatorSlideover({
       isOpen={isOpen}
       onOpenChange={handleOpenChange}
     >
-      <ViewportModal size="fullscreen">
+      {/* Evaluator forms fill the viewport: see EvaluatorFormLayout. */}
+      <ViewportModal size="viewport">
         <Dialog aria-label="Edit code evaluator on dataset">
           {({ close }) => (
             <Suspense

@@ -48,7 +48,8 @@ export function CreateBuiltInDatasetEvaluatorSlideover({
 } & Omit<ViewportModalOverlayProps, "children">) {
   return (
     <ViewportModalOverlay {...props}>
-      <ViewportModal size="fullscreen">
+      {/* Evaluator forms fill the viewport: see EvaluatorFormLayout. */}
+      <ViewportModal size="viewport">
         <Dialog aria-label="Add evaluator to dataset">
           {({ close }) => (
             <DialogContent

@@ -27,7 +27,8 @@ export const CreateDecisionDatasetEvaluatorSlideover = ({
 } & Omit<ViewportModalOverlayProps, "children">) => {
   return (
     <ViewportModalOverlay {...props}>
-      <ViewportModal size="fullscreen">
+      {/* Evaluator forms fill the viewport: see EvaluatorFormLayout. */}
+      <ViewportModal size="viewport">
         <Dialog aria-label="Create decision evaluator">
           {({ close }) => (
             <Suspense fallback={<Loading />}>

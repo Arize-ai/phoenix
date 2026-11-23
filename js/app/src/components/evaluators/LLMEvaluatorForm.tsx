@@ -4,14 +4,16 @@ import { useShallow } from "zustand/react/shallow";
 import { Flex, Label, Switch, View } from "@phoenix/components";
 import { EvaluatorCategoricalChoiceConfig } from "@phoenix/components/evaluators/EvaluatorCategoricalChoiceConfig";
 import { EvaluatorChatTemplate } from "@phoenix/components/evaluators/EvaluatorChatTemplate";
+import type { EvaluatorFormSection } from "@phoenix/components/evaluators/EvaluatorFormLayout";
 import { EvaluatorPromptPreview } from "@phoenix/components/evaluators/EvaluatorPromptPreview";
 import { EvaluatorSectionHeader } from "@phoenix/components/evaluators/EvaluatorSectionHeader";
 import { TemplateFormatRadioGroup } from "@phoenix/components/playground/TemplateFormatRadioGroup";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 
 /**
- * The prompt and the annotation it produces. Each evaluator workspace shows
- * them in their own tabs, so either can be left out.
+ * The prompt and the annotation it produces. Evaluator forms show them in
+ * tabs of their own (see {@link makeLLMEvaluatorSections}), so either can be
+ * left out.
  */
 export const LLMEvaluatorForm = ({
   showPrompt = true,
@@ -82,3 +84,19 @@ export const LLMEvaluatorForm = ({
     </>
   );
 };
+
+/** An LLM evaluator's definition, as the tabs of an evaluator form. */
+export function makeLLMEvaluatorSections(): EvaluatorFormSection[] {
+  return [
+    {
+      id: "prompt",
+      title: "Prompt",
+      content: <LLMEvaluatorForm showAnnotationConfig={false} />,
+    },
+    {
+      id: "annotation",
+      title: "Annotation",
+      content: <LLMEvaluatorForm showPrompt={false} />,
+    },
+  ];
+}

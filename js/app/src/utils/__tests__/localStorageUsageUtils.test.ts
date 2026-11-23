@@ -13,8 +13,6 @@ import {
   PROJECT_STORAGE_KEY_PREFIX,
   THEME_STORAGE_KEY,
   TRACING_TABLE_STORAGE_KEY_PREFIX,
-  DATASET_EVALUATOR_WORKSPACE_STORAGE_KEY,
-  PROJECT_EVALUATOR_WORKSPACE_STORAGE_KEY,
 } from "@phoenix/constants/storageConstants";
 
 import {
@@ -84,14 +82,6 @@ describe("getLocalStorageStoreIdForKey", () => {
       getLocalStorageStoreIdForKey(
         `${PANEL_LAYOUT_STORAGE_KEY_PREFIX}trace-details-layout`
       )
-    ).toBe("layout");
-    // Evaluator workspace arrangements are layout, not table views, even
-    // though their names mention a project or dataset.
-    expect(
-      getLocalStorageStoreIdForKey(PROJECT_EVALUATOR_WORKSPACE_STORAGE_KEY)
-    ).toBe("layout");
-    expect(
-      getLocalStorageStoreIdForKey(DATASET_EVALUATOR_WORKSPACE_STORAGE_KEY)
     ).toBe("layout");
     expect(
       getLocalStorageStoreIdForKey(`${FILTER_HISTORY_STORAGE_KEY_PREFIX}spans`)

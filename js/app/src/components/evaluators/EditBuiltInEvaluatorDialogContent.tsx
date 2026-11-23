@@ -1,21 +1,11 @@
-import { css } from "@emotion/react";
 import { useState } from "react";
 
-import { Alert } from "@phoenix/components/core/alert";
-import { Button } from "@phoenix/components/core/button";
-import {
-  DialogCloseButton,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTitleExtra,
-} from "@phoenix/components/core/dialog";
 import { CodeEvaluatorForm } from "@phoenix/components/evaluators/CodeEvaluatorForm";
-import { EvaluatorDatasetTestPanel } from "@phoenix/components/evaluators/EvaluatorDatasetTestPanel";
-import { EvaluatorForm } from "@phoenix/components/evaluators/EvaluatorForm";
+import { makeDatasetEvaluatorFormLayout } from "@phoenix/components/evaluators/datasetEvaluatorFormLayout";
+import { EvaluatorFormDialogContent } from "@phoenix/components/evaluators/EvaluatorFormDialogContent";
 import { CodeEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/CodeEvaluatorInputVariablesProvider";
 import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
+import { EvaluatorValidationBanner } from "@phoenix/components/evaluators/EvaluatorValidationBanner";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 
 export const EditBuiltInEvaluatorDialogContent = ({
@@ -44,79 +34,44 @@ export const EditBuiltInEvaluatorDialogContent = ({
     onSubmit();
   };
   return (
-    <DialogContent>
-      <DialogHeader>
-        <DialogTitle>
-          {mode === "create"
-            ? "Create Built-in Code Evaluator"
-            : "Edit Built-in Code Evaluator"}
-        </DialogTitle>
-        <DialogTitleExtra>
-          <DialogCloseButton isDisabled={isSubmitting} />
-        </DialogTitleExtra>
-      </DialogHeader>
-      <fieldset
-        disabled={isSubmitting}
-        css={css`
-          all: unset;
-          display: flex;
-          flex-direction: column;
-          flex: 1;
-          min-height: 0;
-          gap: var(--global-dimension-size-200);
-          overflow: auto;
-          // keep trackpad overscroll from chaining to the dialog and
-          // dragging the header/footer with it
-          overscroll-behavior: contain;
-        `}
-      >
-        {showValidationError && (
-          <Alert
-            variant="danger"
-            title="Please fix the highlighted errors before submitting."
-          />
-        )}
-        {error && (
-          <Alert
-            variant="danger"
-            title={
-              mode === "create"
-                ? "Failed to create evaluator"
-                : "Failed to update evaluator"
-            }
-          >
-            {error}
-          </Alert>
-        )}
+    <EvaluatorFormDialogContent
+      title={
+        mode === "create"
+          ? "Create Built-in Code Evaluator"
+          : "Edit Built-in Code Evaluator"
+      }
+      submitLabel={mode === "create" ? "Create" : "Update"}
+      onSubmit={handleSubmit}
+      isSubmitting={isSubmitting}
+      error={error}
+      errorTitle={
+        mode === "create"
+          ? "Failed to create evaluator"
+          : "Failed to update evaluator"
+      }
+      banner={showValidationError ? <EvaluatorValidationBanner /> : null}
+      submitButtonProps={{
+        "data-testid": "builtin-evaluator-form-submit-button",
+        "data-mode": mode,
+      }}
+      renderInputVariables={(body) => (
         <CodeEvaluatorInputVariablesProvider
           evaluatorInputSchema={evaluatorInputSchema}
         >
-          <EvaluatorForm
-            left={
-              <>
-                <EvaluatorNameAndDescriptionFields />
-                <CodeEvaluatorForm />
-              </>
-            }
-            right={<EvaluatorDatasetTestPanel />}
-          />
+          {body}
         </CodeEvaluatorInputVariablesProvider>
-      </fieldset>
-      <DialogFooter>
-        <Button slot="close" isDisabled={isSubmitting}>
-          Cancel
-        </Button>
-        <Button
-          data-testid="builtin-evaluator-form-submit-button"
-          data-mode={mode}
-          variant="primary"
-          isDisabled={isSubmitting}
-          isPending={isSubmitting}
-          onPress={handleSubmit}
-        >
-          {mode === "create" ? "Create" : "Update"}
-        </Button>
-      </DialogFooter>
-    </DialogContent>
+      )}
+      {...makeDatasetEvaluatorFormLayout({
+        evaluatorKind: "builtin",
+        identity: <EvaluatorNameAndDescriptionFields />,
+        sections: [
+          {
+            id: "configuration",
+            title: "Configuration",
+            content: <CodeEvaluatorForm />,
+          },
+        ],
+      })}
+    />
   );
 };

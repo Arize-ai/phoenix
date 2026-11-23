@@ -48,9 +48,13 @@ vi.mock(
   "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections",
   async (importOriginal) => ({
     ...(await importOriginal<object>()),
-    ProjectLlmEvaluatorWorkspace: () => null,
-    ProjectCodeEvaluatorFormSections: () => null,
-    ProjectEvaluatorInputMappingDock: () => null,
+    // The form's panels need their own queries; these tests are about what
+    // a failed create shows around them.
+    makeProjectEvaluatorFormLayout: () => ({
+      layoutId: "test",
+      sections: [],
+      tryIt: null,
+    }),
   })
 );
 vi.mock("@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel", () => ({

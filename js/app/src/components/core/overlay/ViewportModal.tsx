@@ -83,7 +83,7 @@ const viewportModalCSS = css`
   }
 
   // Fills its region edge to edge: no margin, rounding, border, or shadow,
-  // for workspaces that need every pixel. It fades in rather than zooming,
+  // for dense forms that need every pixel. It fades in rather than zooming,
   // since it has no edges to grow from.
   &[data-size="viewport"] .react-aria-Dialog {
     inset: 0;

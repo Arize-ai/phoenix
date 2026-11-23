@@ -11,12 +11,11 @@ import {
   ViewportModalOverlay,
 } from "@phoenix/components/core/overlay";
 import type { CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation } from "@phoenix/components/dataset/__generated__/CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation.graphql";
-import {
-  DATASET_LLM_EVALUATOR_WORKSPACE_LAYOUT,
-  DatasetLLMEvaluatorWorkspace,
-} from "@phoenix/components/evaluators/DatasetLLMEvaluatorWorkspace";
+import { makeDatasetEvaluatorFormLayout } from "@phoenix/components/evaluators/datasetEvaluatorFormLayout";
 import { EditLLMEvaluatorDialogContent } from "@phoenix/components/evaluators/EditLLMEvaluatorDialogContent";
+import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
+import { makeLLMEvaluatorSections } from "@phoenix/components/evaluators/LLMEvaluatorForm";
 import {
   createLLMEvaluatorPayload,
   getOutputConfigValidationErrors,
@@ -68,7 +67,7 @@ export const CreateLLMDatasetEvaluatorSlideover = ({
   }, [initialState]);
   return (
     <ViewportModalOverlay {...props}>
-      {/* The form is laid out as a workspace, which fills the viewport. */}
+      {/* Evaluator forms fill the viewport: see EvaluatorFormLayout. */}
       <ViewportModal size="viewport">
         <Dialog aria-label="Create LLM evaluator">
           {({ close }) => (
@@ -264,10 +263,11 @@ const CreateEvaluatorDialog = ({
           isSubmitting={isCreating}
           mode="create"
           error={error}
-          workspace={{
-            layout: DATASET_LLM_EVALUATOR_WORKSPACE_LAYOUT,
-            content: <DatasetLLMEvaluatorWorkspace />,
-          }}
+          form={makeDatasetEvaluatorFormLayout({
+            evaluatorKind: "prompt",
+            identity: <EvaluatorNameAndDescriptionFields />,
+            sections: makeLLMEvaluatorSections(),
+          })}
         />
       )}
     </EvaluatorStoreProvider>

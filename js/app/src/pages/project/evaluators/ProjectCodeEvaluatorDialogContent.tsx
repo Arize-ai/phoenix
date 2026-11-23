@@ -3,9 +3,10 @@ import type { ReactNode } from "react";
 
 import { EvaluatorFormDialogContent } from "@phoenix/components/evaluators/EvaluatorFormDialogContent";
 import { EvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/EvaluatorInputVariablesProvider";
+import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
 import {
-  ProjectCodeEvaluatorFormSections,
-  ProjectEvaluatorInputMappingDock,
+  makeProjectEvaluatorFormLayout,
+  ProjectEvaluatorAttachSummary,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import {
   ProjectEvaluatorScopePanel,
@@ -15,10 +16,7 @@ import {
   formatUnboundVariablesHint,
   useUnboundRequiredVariables,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSubmitHint";
-import {
-  type ProjectEvaluatorScope,
-  toEvaluatorRecordKind,
-} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import type { ProjectEvaluatorScope } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 
 export const ProjectCodeEvaluatorDialogContent = ({
   title,
@@ -90,35 +88,43 @@ export const ProjectCodeEvaluatorDialogContent = ({
           {form}
         </EvaluatorInputVariablesProvider>
       )}
-      left={
-        <ProjectCodeEvaluatorFormSections
-          projectId={projectId}
-          scope={scope}
-          onScopeChange={onScopeChange}
-          onFilterValidityChange={setIsFilterValid}
-          isTargetDisabled={mode === "update"}
-          codeEvaluatorName={evaluatorName}
-          codeDefinition={codeDefinition}
-          onFieldChange={onFieldChange}
-        />
-      }
-      leftDock={
-        <ProjectEvaluatorInputMappingDock
-          recordKind={toEvaluatorRecordKind(scope.targetType)}
-          requiredVariables={requiredVariables}
-          evaluatorKind="code"
-          canDescribeInputs={canDescribeInputs}
-        />
-      }
-      right={
-        <ProjectEvaluatorScopePanel
-          projectId={projectId}
-          scope={scope}
-          codeEvaluatorId={inlineCode ? undefined : evaluatorId}
-          inlineCode={inlineCode}
-          requiredVariables={requiredVariables}
-        />
-      }
+      {...makeProjectEvaluatorFormLayout({
+        evaluatorKind: "code",
+        // Authoring code names the evaluator; attaching one shows its summary.
+        identity:
+          codeDefinition != null ? (
+            <EvaluatorNameAndDescriptionFields
+              onValueChange={onFieldChange}
+              isNameRequired
+              descriptionPlaceholder="e.g. code evaluator description"
+            />
+          ) : (
+            <ProjectEvaluatorAttachSummary
+              evaluatorKind="code"
+              evaluatorName={evaluatorName}
+            />
+          ),
+        sections:
+          codeDefinition != null
+            ? [{ id: "code", title: "Code", content: codeDefinition }]
+            : [],
+        requiredVariables,
+        canDescribeInputs,
+        tryIt: (
+          <ProjectEvaluatorScopePanel
+            projectId={projectId}
+            scope={scope}
+            codeEvaluatorId={inlineCode ? undefined : evaluatorId}
+            inlineCode={inlineCode}
+            requiredVariables={requiredVariables}
+          />
+        ),
+        projectId,
+        scope,
+        onScopeChange,
+        onFilterValidityChange: setIsFilterValid,
+        isTargetDisabled: mode === "update",
+      })}
     />
   );
 };
