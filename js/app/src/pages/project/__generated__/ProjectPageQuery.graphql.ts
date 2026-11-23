@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<24cc5c7ad968b6f9e0169dc60bc4bb33>>
+ * @generated SignedSource<<7f6b11d548f75d9e6b5e5263694c7da1>>
  * @lightSyntaxTransform
  */
 
@@ -15,6 +15,7 @@ export type ProjectPageQuery$variables = {
 export type ProjectPageQuery$data = {
   readonly project: {
     readonly evaluatorCount?: number;
+    readonly name?: string;
     readonly " $fragmentSpreads": FragmentRefs<"ProjectTimeRangeControls_data">;
   };
 };
@@ -42,6 +43,13 @@ v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "evaluatorCount",
   "storageKey": null
 };
@@ -64,6 +72,7 @@ return {
             "kind": "InlineFragment",
             "selections": [
               (v2/*:: as any*/),
+              (v3/*:: as any*/),
               {
                 "args": null,
                 "kind": "FragmentSpread",
@@ -112,6 +121,7 @@ return {
             "kind": "InlineFragment",
             "selections": [
               (v2/*:: as any*/),
+              (v3/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -129,16 +139,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d991765e7dc808d02cb14baaa512d3f4",
+    "cacheID": "3713de301f1ca7016f37f625c4a86b82",
     "id": null,
     "metadata": {},
     "name": "ProjectPageQuery",
     "operationKind": "query",
-    "text": "query ProjectPageQuery(\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      evaluatorCount\n      ...ProjectTimeRangeControls_data\n    }\n    id\n  }\n}\n\nfragment ProjectTimeRangeControls_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n"
+    "text": "query ProjectPageQuery(\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      name\n      evaluatorCount\n      ...ProjectTimeRangeControls_data\n    }\n    id\n  }\n}\n\nfragment ProjectTimeRangeControls_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "220455e609fcf856f75fd16354af4265";
+(node as any).hash = "17b0430cbb7a0b6ad24363e0985e35ee";
 
 export default node;

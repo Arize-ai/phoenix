@@ -13,6 +13,7 @@ import {
   createDataRouterNavigationStateSource,
   registerRouterNavigationStateSource,
 } from "@phoenix/agent/tools/navigation/routerStateRegistry";
+import type { CopyFn } from "@phoenix/hooks/useMatchesWithCrumb";
 import type { DatasetEvaluatorDetailsLoaderData } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { datasetEvaluatorDetailsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { DatasetEvaluatorDetailsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorDetailsPage";
@@ -537,18 +538,18 @@ export const appRouteObjects = createRoutesFromElements(
                 description:
                   "Open a project's default overview, project home, and summary page.",
               },
-              copy: (data: ProjectLoaderData, crumb: string) => [
+              copy: (({ data, crumb }) => [
                 {
                   name: "Project Name",
                   value: crumb,
-                  iconKey: "Text" as const,
+                  iconKey: "Text",
                 },
                 {
                   name: "Project ID",
                   value: data.projectId,
-                  iconKey: "ID" as const,
+                  iconKey: "ID",
                 },
-              ],
+              ]) satisfies CopyFn<ProjectLoaderData>,
             }}
             element={<ProjectRoot />}
           >
@@ -897,7 +898,7 @@ export const appRouteObjects = createRoutesFromElements(
                 description:
                   "View dataset experiments, experiment runs, and evaluation results.",
               },
-              copy: (data: DatasetLoaderData) => [
+              copy: ({ data }: { data: DatasetLoaderData }) => [
                 {
                   name: "Dataset Name",
                   value: data?.dataset?.name,
@@ -1226,7 +1227,7 @@ export const appRouteObjects = createRoutesFromElements(
                   data?.decision?.__typename === "Decision"
                     ? data.decision.name
                     : "Decision unknown",
-                copy: (data: DecisionLoaderData) =>
+                copy: ({ data }: { data: DecisionLoaderData }) =>
                   data?.decision?.__typename === "Decision"
                     ? [
                         {
@@ -1293,7 +1294,7 @@ export const appRouteObjects = createRoutesFromElements(
                 description:
                   "View prompt details for a saved prompt, prompt versions, and prompt history.",
               },
-              copy: (data: PromptLoaderData) => {
+              copy: ({ data }: { data: PromptLoaderData }) => {
                 if (data?.prompt?.__typename === "Prompt") {
                   return [
                     {

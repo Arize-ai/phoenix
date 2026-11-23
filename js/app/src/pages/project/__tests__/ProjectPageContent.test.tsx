@@ -12,6 +12,7 @@ import { createMockEnvironment } from "relay-test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
+import { ErrorBoundary } from "@phoenix/components/exception";
 import { TopNavActionsProvider } from "@phoenix/components/nav";
 import { ThemeProvider } from "@phoenix/contexts";
 import { PreferencesProvider } from "@phoenix/contexts/PreferencesContext";
@@ -45,6 +46,10 @@ const TIME_RANGE = {
   end: "2026-07-02T00:00:00.000Z",
 };
 
+function ProjectErrorFallback() {
+  return <p role="alert">The project could not be loaded</p>;
+}
+
 function runProjectLoader() {
   const url = new URL(`http://localhost/projects/${PROJECT_ID}`);
   return projectLoader({
@@ -74,7 +79,7 @@ describe("ProjectPageContent", () => {
     container.remove();
   });
 
-  async function renderProjectPage() {
+  async function renderProjectPage({ tab = "spans" }: { tab?: string } = {}) {
     const { onboardingQueryReference } = runProjectLoader();
     await act(async () => {
       root.render(
@@ -87,18 +92,20 @@ describe("ProjectPageContent", () => {
                 >
                   <TopNavActionsProvider>
                     <MemoryRouter
-                      initialEntries={[`/projects/${PROJECT_ID}/spans`]}
+                      initialEntries={[`/projects/${PROJECT_ID}/${tab}`]}
                     >
                       <Routes>
                         <Route
                           path="/projects/:projectId/*"
                           element={
-                            <Suspense fallback={null}>
-                              <ProjectPageContent
-                                projectId={PROJECT_ID}
-                                timeRangeISOStrings={TIME_RANGE}
-                              />
-                            </Suspense>
+                            <ErrorBoundary fallback={ProjectErrorFallback}>
+                              <Suspense fallback={null}>
+                                <ProjectPageContent
+                                  projectId={PROJECT_ID}
+                                  timeRangeISOStrings={TIME_RANGE}
+                                />
+                              </Suspense>
+                            </ErrorBoundary>
                           }
                         />
                       </Routes>
@@ -249,5 +256,25 @@ describe("ProjectPageContent", () => {
     });
 
     expect(runProjectLoader().projectName).toBe("support-chatbot");
+  });
+
+  it("shows the error state on a tab without the onboarding guide when the page query fails", async () => {
+    await renderProjectPage({ tab: "metrics" });
+    const pageOperation = environment.mock
+      .getAllOperations()
+      .find(
+        (operation) => operation.request.node.params.name === "ProjectPageQuery"
+      );
+    if (!pageOperation) {
+      throw new Error("Expected a pending page query");
+    }
+
+    await act(async () => {
+      environment.mock.reject(pageOperation, new Error("Project not found"));
+    });
+
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+      "The project could not be loaded"
+    );
   });
 });

@@ -35,7 +35,7 @@ export function NavBreadcrumb() {
       key: match.id,
       crumb: match.handle.crumb(match.loaderData),
       listCopyableItems: (crumb) =>
-        match.handle.copy?.(match.loaderData, crumb) ?? [],
+        match.handle.copy?.({ data: match.loaderData, crumb }) ?? [],
       to:
         nextMatch?.handle.parentCrumbTo?.({
           parentPathname: match.pathname,

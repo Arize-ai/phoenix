@@ -637,6 +637,9 @@ function useProjectPageQuery(projectId: string) {
       query ProjectPageQuery($id: ID!) {
         project: node(id: $id) {
           ... on Project {
+            # Errors for a project that does not exist, which takes every tab
+            # to the error page now that the route loader does not wait.
+            name
             evaluatorCount
             ...ProjectTimeRangeControls_data
           }
