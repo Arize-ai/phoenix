@@ -16,7 +16,6 @@ from typing import Any, Optional
 import seed_log
 from gh import run_gh
 
-DOCKERHUB_API_URL = "https://hub.docker.com/v2"
 RAILWAY_API_URL = "https://backboard.railway.com/graphql/v2"
 PREVIEW_LABEL = "factory-preview"
 PHOENIX_PORT = 6006
@@ -270,22 +269,9 @@ def wait_for_seed(deployment_id: str) -> tuple[str, str]:
     return SEED_NOT_FINISHED_LINE, ""
 
 
-def dockerhub_repository(image: str) -> str:
-    return image.removeprefix("docker.io/").partition(":")[0]
-
-
 def preview_wanted(pr_number: int) -> bool:
     pr = json.loads(run_gh("pr", "view", str(pr_number), "--json", "state,labels"))
     return pr["state"] == "OPEN" and any(label["name"] == PREVIEW_LABEL for label in pr["labels"])
-
-
-def image_visibility(*, image: str) -> str:
-    namespace, _, repository = dockerhub_repository(image).partition("/")
-    with urllib.request.urlopen(
-        f"{DOCKERHUB_API_URL}/namespaces/{namespace}/repositories/{repository}", timeout=60
-    ) as response:
-        payload = json.load(response)
-    return "private" if payload["is_private"] else "public"
 
 
 def find_comment(*, pr_number: int) -> Optional[str]:
@@ -400,29 +386,6 @@ def format_deploy_comment(
 
 def run_deploy(args: argparse.Namespace) -> int:
     try:
-        visibility = image_visibility(image=args.image)
-    except (urllib.error.URLError, TimeoutError) as error:
-        upsert_comment(
-            pr_number=args.pr,
-            body=(
-                f"### Preview of {args.head_sha[:7]}\n\n"
-                "Docker Hub could not be reached to check the image, so the deploy did not"
-                f" start. See the [run]({args.run_url}) and re-add the preview label to retry."
-            ),
-        )
-        print(f"::error::Docker Hub visibility check failed: {error}", file=sys.stderr)
-        return 1
-    if visibility != "public":
-        upsert_comment(
-            pr_number=args.pr,
-            body=(
-                f"The image for this preview was pushed, but `{args.image}` is private on"
-                " Docker Hub, so Railway can't pull it."
-            ),
-        )
-        print("::error::The preview image's Docker Hub repository is private; see the PR comment.")
-        return 1
-    try:
         project_id, environment_id = read_token_scope()
         name = f"pr-{args.pr}"
         service_id = find_service(project_id=project_id, name=name)
@@ -507,9 +470,6 @@ def main() -> int:
         return int(args.run(args))
     except RailwayError as error:
         print(f"::error::Railway API: {error}", file=sys.stderr)
-        return 1
-    except (urllib.error.URLError, TimeoutError) as error:
-        print(f"::error::Docker Hub request failed: {error}", file=sys.stderr)
         return 1
 
 
