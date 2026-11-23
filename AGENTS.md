@@ -88,6 +88,8 @@ Load these skills before writing code in affected areas, and read the references
 
 ## Before You Open a Pull Request
 
+Choose PR title and commit types by shipped user or package impact per [CONTRIBUTING.md](./CONTRIBUTING.md#choosing-a-conventional-commit-type). Internal Factory automation uses `chore(factory)`; Factory-authored product features and bug fixes still use `feat` and `fix`.
+
 Review runs these steps on every PR. Run them first so review finds only what they can't:
 
 1. Rebase on `main` (or applicable base branch for stacked work), and drop any commits that are already there.

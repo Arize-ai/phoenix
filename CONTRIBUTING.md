@@ -104,6 +104,16 @@ A PR description is a public record of what change is being made and why it was 
 - Videos and screenshots: Required for UI changes, as [UI Changes](#ui-changes) describes. These should be supplemental to the text description, not a replacement for it.
 - Code Snippets: If the PR is changing an API, include code snippets to highlight the changes. This will expedite a reader's ability to construct the right API calls if they are interested in doing so. These should be supplemental to the text description, not a replacement for it.
 
+### Choosing a Conventional Commit Type
+
+Choose the PR title and commit type by the change's shipped user or package impact, regardless of whether a person or an agent wrote it:
+
+- Use `feat` for shipped features and `fix` for shipped bug fixes that warrant a package release and changelog entry. Factory-authored changes to Phoenix behavior still use these types, for example `fix(server): handle empty trace exports`.
+- Use `chore(factory)` for internal Factory automation, prompts, rubrics, or maintenance, for example `chore(factory): clarify reviewer instructions`. Use another appropriate non-release type, such as `ci` or `test`, for other internal work. An internal automation feature or bug fix does not by itself warrant `feat(factory)` or `fix(factory)`.
+- Reserve other changelog-visible types (`perf`, `deps`, `revert`, and `docs` for the Python packages) for changes that warrant user-facing release notes. Use `chore` for internal process documentation. Reserve `!`, `BREAKING CHANGE`, and `Release-As` for intentional package release changes, including when the type is otherwise non-release.
+
+The [release configuration](./release-please-config.json) uses release-please's [Python strategy](https://github.com/googleapis/release-please/blob/v17.6.0/src/strategies/python.ts): `feat` requests a minor bump; `fix`, `perf`, `deps`, `revert`, and `docs` can produce a patch release when their changed paths belong to a package. Ordinary `chore`, `ci`, `test`, `build`, `style`, and `refactor` commits are hidden from its changelog. Scopes describe the affected area; `(factory)` does not opt out of releases. In particular, `factory/` is not excluded from the root package's release paths. Type selection complements path filtering; it does not replace the changesets required for TypeScript packages.
+
 ### Small Simple Pull Requests
 
 Small, simple pull requests are important because they are:
