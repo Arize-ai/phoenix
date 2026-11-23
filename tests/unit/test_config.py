@@ -26,6 +26,7 @@ from phoenix.config import (
     get_env_root_url,
     get_env_tls_enabled_for_grpc,
     get_env_tls_enabled_for_http,
+    verify_server_environment_variables,
 )
 from phoenix.db.models import UserRoleName
 from phoenix.server.cost_tracking.manifest import DEFAULT_MANIFEST_URL
@@ -2884,14 +2885,37 @@ class TestGetEnvPlaygroundTimeoutSeconds:
     def test_non_positive_values_raise(self, monkeypatch: pytest.MonkeyPatch, value: str) -> None:
         """Test that zero and negative values are rejected."""
         monkeypatch.setenv("PHOENIX_PLAYGROUND_TIMEOUT_SECONDS", value)
-        with pytest.raises(ValueError, match="must be positive"):
+        with pytest.raises(
+            ValueError,
+            match=r"PHOENIX_PLAYGROUND_TIMEOUT_SECONDS: -?\d+\. Value must be a positive integer",
+        ):
             get_env_playground_timeout_seconds()
 
-    def test_non_numeric_value_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Test that a non-numeric value is rejected."""
-        monkeypatch.setenv("PHOENIX_PLAYGROUND_TIMEOUT_SECONDS", "not-a-number")
-        with pytest.raises(ValueError):
+    @pytest.mark.parametrize("value", ["not-a-number", "", "   ", "1.5"])
+    def test_non_integer_values_raise(self, monkeypatch: pytest.MonkeyPatch, value: str) -> None:
+        """Test that non-numeric, empty (e.g. an unconditional Helm key) and fractional values
+        are rejected."""
+        monkeypatch.setenv("PHOENIX_PLAYGROUND_TIMEOUT_SECONDS", value)
+        with pytest.raises(
+            ValueError,
+            match="PHOENIX_PLAYGROUND_TIMEOUT_SECONDS: .*Value must be an integer",
+        ):
             get_env_playground_timeout_seconds()
+
+    @pytest.mark.parametrize("value", ["abc", "0", ""])
+    def test_invalid_value_fails_server_startup_verification(
+        self, monkeypatch: pytest.MonkeyPatch, value: str
+    ) -> None:
+        """Test that an invalid value fails the startup check instead of the first run."""
+        monkeypatch.setenv("PHOENIX_PLAYGROUND_TIMEOUT_SECONDS", value)
+        with pytest.raises(ValueError, match="PHOENIX_PLAYGROUND_TIMEOUT_SECONDS"):
+            verify_server_environment_variables()
+
+    def test_valid_value_passes_server_startup_verification(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("PHOENIX_PLAYGROUND_TIMEOUT_SECONDS", "3")
+        verify_server_environment_variables()
 
 
 class TestGetEnvModelCostManifestUrl:

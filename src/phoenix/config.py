@@ -894,7 +894,11 @@ The default retention policy for traces in days.
 """
 ENV_PHOENIX_PLAYGROUND_TIMEOUT_SECONDS = "PHOENIX_PLAYGROUND_TIMEOUT_SECONDS"
 """
-The timeout in seconds for individual playground task runs.
+How long, in seconds, a prompt playground run waits for the next streamed chunk from the model
+before the repetition fails with "Playground task timed out". The wait restarts with every chunk,
+so this is not a limit on the run's total duration. Must be a positive integer; defaults to 90.
+Playground runs over a dataset are executed by the experiment runner, which uses its own
+per-task timeout and ignores this setting.
 """
 
 ENV_PHOENIX_ALLOWED_SANDBOX_PROVIDERS = "PHOENIX_ALLOWED_SANDBOX_PROVIDERS"
@@ -1091,17 +1095,22 @@ DEFAULT_PLAYGROUND_TIMEOUT_SECONDS = 90
 
 def get_env_playground_timeout_seconds() -> int:
     """
-    Returns the playground task timeout in seconds as set by the
-    PHOENIX_PLAYGROUND_TIMEOUT_SECONDS environment variable, defaulting to
-    DEFAULT_PLAYGROUND_TIMEOUT_SECONDS if not set.
+    Gets how long a prompt playground run waits for the next streamed chunk, from the
+    PHOENIX_PLAYGROUND_TIMEOUT_SECONDS environment variable.
 
     Returns:
-        int: Playground task timeout in seconds. Defaults to DEFAULT_PLAYGROUND_TIMEOUT_SECONDS
-        if the environment variable is not set.
-    """  # noqa: E501
+        int: Seconds to wait for each chunk. Defaults to DEFAULT_PLAYGROUND_TIMEOUT_SECONDS if
+        not set.
+
+    Raises:
+        ValueError: If the value is not a positive integer.
+    """
     seconds = _int_val(ENV_PHOENIX_PLAYGROUND_TIMEOUT_SECONDS, DEFAULT_PLAYGROUND_TIMEOUT_SECONDS)
     if seconds <= 0:
-        raise ValueError("PHOENIX_PLAYGROUND_TIMEOUT_SECONDS must be positive")
+        raise ValueError(
+            f"Invalid value for environment variable {ENV_PHOENIX_PLAYGROUND_TIMEOUT_SECONDS}: "
+            f"{seconds}. Value must be a positive integer."
+        )
     return seconds
 
 
@@ -3906,6 +3915,7 @@ def verify_server_environment_variables() -> None:
     get_env_database_usage_email_warning_threshold_percentage()
     get_env_database_usage_insertion_blocking_threshold_percentage()
     get_env_max_spans_queue_size()
+    get_env_playground_timeout_seconds()
     validate_env_support_email()
     validate_env_allowed_providers()
     validate_env_allowed_sandbox_providers()
