@@ -126,8 +126,32 @@ TSDoc on exported symbols in `js/packages/` is public API, not an inline comment
 
 - Import lodash utilities via path imports so bundles only carry what's used: `import debounce from "lodash/debounce"`, not `import { debounce } from "lodash"` — the barrel import defeats tree shaking.
 
-## Reuse
+## Modules
 
-Existing shared utilities must be checked before writing inline helpers. Duplicated logic should be extracted to a shared module. When working in `js/packages/`, check sibling packages for existing utilities before adding new dependencies or reimplementing.
+A module owns one thing, its name says what that thing is, and every consumer imports it from that one place. Clean scoping is what makes code reusable: a module that owns one thing can be imported anywhere without pulling in the code around it.
 
-Shared code has one home, and every consumer imports it from there. When a second module needs code that lives inside another, move that code to a module named for what it does and import it from both. A module exports only what it owns: do not export internals for a sibling to use, and do not re-export another module's symbols.
+- **Look before you write.** Existing shared modules must be checked before writing an inline helper. In `js/packages/`, check sibling packages before adding a dependency or reimplementing.
+- **One responsibility, named for it.** A module must be named for what it does (`retry.ts`, `searchTerm.ts`), not for who uses it or where it sits (`helpers.ts`, `shared.ts`, `commandUtils.ts`). A module you cannot name without "and" or "utils" holds more than one thing: split it. Names are relative to their directory: `auth/storage.ts`, not `auth/authStorage.ts`.
+- **One home for shared code.** Shared code has one home, and every consumer imports it from there. When a second module needs code that lives inside another, move that code to its own module, named for what it does, and import it from both. Do not import it out of the first consumer, and do not copy it.
+- **Export only what you own.** A module must not export internals for a sibling to use; needing to is the signal that the code wants its own module. A module must not re-export another module's symbols to give them a second import path. An `index.ts` may gather the modules of its own directory, and one local module may wrap a third-party package; neither forwards code owned elsewhere in the repo.
+- **Imports flow one way.** Dependencies point from specific to general: features import shared modules, shared modules never import features, and `utils` imports nothing app-specific. Circular imports must not be introduced. A cycle means two modules share something neither owns: extract that piece into a module both import. Do not break a cycle with a lazy import, a type-only import, or by merging the two files.
+- **Group by domain.** Once a directory holds several modules about one domain, move them into a subdirectory named for it (`auth/login.ts`, `auth/token.ts`) instead of growing a flat directory of prefixed files (`authLogin.ts`, `authToken.ts`).
+
+```ts
+// Bad — SpanSearch.tsx exports an internal so TraceSearch.tsx can use it
+// SpanSearch.tsx
+export function parseSearchTerm(raw: string): SearchTerm { ... }
+// TraceSearch.tsx
+import { parseSearchTerm } from "./SpanSearch";
+
+// Bad — re-exporting gives the helper a second home
+// TraceSearch.tsx
+export { parseSearchTerm } from "./SpanSearch";
+
+// Good — the helper has one home, named for what it does; neither
+// component imports the other
+// utils/searchTerm.ts
+export function parseSearchTerm(raw: string): SearchTerm { ... }
+// SpanSearch.tsx, TraceSearch.tsx
+import { parseSearchTerm } from "@phoenix/utils/searchTerm";
+```
