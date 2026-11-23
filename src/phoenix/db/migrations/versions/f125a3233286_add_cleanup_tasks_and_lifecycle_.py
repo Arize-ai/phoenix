@@ -42,7 +42,6 @@ _CLAIM_CHECK = (
     "(claimed_at IS NULL AND claimed_by IS NULL) "
     "OR (claimed_at IS NOT NULL AND claimed_by IS NOT NULL)"
 )
-_SQLITE_TRACE_ROWID_STATE_KEY = "traces.sqlite_max_rowid"
 
 
 @contextmanager
@@ -634,20 +633,6 @@ def upgrade() -> None:
     _upgrade_evaluator_bindings()
     _backfill_code_evaluator_task_snapshots()
     _create_cleanup_task_tables()
-    connection = op.get_bind()
-    if connection.dialect.name == "sqlite":
-        max_trace_id = int(
-            connection.scalar(sa.text("SELECT COALESCE(MAX(id), 0) FROM traces")) or 0
-        )
-        if max_trace_id > 0:
-            connection.execute(
-                sa.text(
-                    "INSERT INTO system_state (key, value) "
-                    "VALUES (:key, json_object('max_id', :max_id)) "
-                    "ON CONFLICT (key) DO UPDATE SET value = json_object('max_id', :max_id)"
-                ),
-                {"key": _SQLITE_TRACE_ROWID_STATE_KEY, "max_id": max_trace_id},
-            )
 
 
 def downgrade() -> None:
@@ -682,11 +667,6 @@ def downgrade() -> None:
             "code_evaluators definition that was already garbage-collected."
         )
     _strip_code_evaluator_task_snapshots()
-    if connection.dialect.name == "sqlite":
-        connection.execute(
-            sa.text("DELETE FROM system_state WHERE key = :key"),
-            {"key": _SQLITE_TRACE_ROWID_STATE_KEY},
-        )
 
     op.drop_table("dataset_evaluator_cleanup_tasks")
     op.drop_table("project_evaluator_cleanup_tasks")

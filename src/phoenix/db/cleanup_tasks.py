@@ -24,8 +24,6 @@ PROJECT_KINDS = (
     "EVALUATOR",
 )
 
-SQLITE_TRACE_ROWID_STATE_KEY = "traces.sqlite_max_rowid"
-
 
 def _column_in(column: str, values: tuple[str, ...]) -> str:
     return f"{column} IN (" + ", ".join(f"'{value}'" for value in values) + ")"

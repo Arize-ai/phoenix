@@ -34,7 +34,6 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.dialects.sqlite.base import SQLiteCompiler, SQLiteDialect
 from sqlalchemy.engine.default import DefaultExecutionContext
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
@@ -43,7 +42,6 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
-    Session,
     WriteOnlyMapped,
     foreign,
     mapped_column,
@@ -58,7 +56,6 @@ from typing_extensions import Self, TypeAlias, TypeAliasType
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db.cleanup_tasks import (
-    SQLITE_TRACE_ROWID_STATE_KEY,
     claimed_cleanup_tasks_predicate,
     cleanup_task_kind_check,
     live_row_predicate,
@@ -4888,79 +4885,3 @@ class DatasetEvaluatorCleanupTask(CleanupTask):
             ondelete="CASCADE",
         ),
     )
-
-
-def _advance_sqlite_trace_rowid_floor(
-    conn: sa.Connection,
-    *,
-    count: int = 0,
-    floor: int = 0,
-) -> int:
-    table_floor = select(func.coalesce(func.max(Trace.id), 0)).scalar_subquery()
-    stored_floor = func.coalesce(func.json_extract(SystemState.value, "$.max_id"), 0)
-    insert_base = func.max(table_floor, floor)
-    update_base = func.max(table_floor, stored_floor, floor)
-    stmt = (
-        sqlite_insert(SystemState)
-        .values(
-            key=SQLITE_TRACE_ROWID_STATE_KEY,
-            value=func.json_object("max_id", insert_base + count),
-        )
-        .on_conflict_do_update(
-            index_elements=["key"],
-            set_={"value": func.json_object("max_id", update_base + count)},
-        )
-        .returning(func.json_extract(SystemState.value, "$.max_id"))
-    )
-    new_max = conn.scalar(stmt)
-    assert isinstance(new_max, int)
-    return new_max
-
-
-def allocate_sqlite_trace_rowids_sync(conn: sa.Connection, count: int) -> list[int]:
-    """Allocate ``count`` monotonic SQLite ``traces.id`` values inside ``conn``'s transaction."""
-    if count <= 0:
-        return []
-    new_max = _advance_sqlite_trace_rowid_floor(conn, count=count)
-    return list(range(new_max - count + 1, new_max + 1))
-
-
-async def allocate_sqlite_trace_rowid(session: AsyncSession) -> int:
-    """Allocate one monotonic SQLite ``traces.id`` inside ``session``'s active transaction."""
-    conn = await session.connection()
-    (allocated,) = await conn.run_sync(allocate_sqlite_trace_rowids_sync, 1)
-    return allocated
-
-
-async def capture_trace_max_rowid(session: AsyncSession) -> int:
-    """Capture the current global ``traces.id`` watermark, pinning SQLite's monotonic floor."""
-    conn = await session.connection()
-    if conn.dialect.name == "sqlite":
-        return await conn.run_sync(_advance_sqlite_trace_rowid_floor)
-    return int((await session.scalar(select(func.coalesce(func.max(Trace.id), 0)))) or 0)
-
-
-@event.listens_for(Session, "before_flush")
-def _assign_sqlite_trace_rowids_on_flush(
-    session: Session,
-    _flush_context: Any,
-    _instances: Any,
-) -> None:
-    new_traces = [obj for obj in session.new if isinstance(obj, Trace)]
-    if not new_traces:
-        return
-    conn = session.connection()
-    if conn.dialect.name != "sqlite":
-        return
-    unassigned = [trace for trace in new_traces if trace.id is None]
-    explicit_max = max((trace.id for trace in new_traces if trace.id is not None), default=0)
-    if not unassigned and explicit_max <= 0:
-        return
-    new_max = _advance_sqlite_trace_rowid_floor(
-        conn,
-        count=len(unassigned),
-        floor=explicit_max,
-    )
-    base = new_max - len(unassigned)
-    for offset, trace in enumerate(unassigned, start=1):
-        trace.id = base + offset

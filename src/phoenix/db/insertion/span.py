@@ -293,8 +293,6 @@ async def insert_span(
             start_time=span.start_time,
             end_time=span.end_time,
         )
-        if dialect is SupportedSQLDialect.SQLITE:
-            trace_values["id"] = await models.allocate_sqlite_trace_rowid(session)
         trace = await _get_or_create(
             session,
             models.Trace,
