@@ -1,7 +1,7 @@
 import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import Any, Optional
 
 import pytest
 from openai import AsyncOpenAI, AuthenticationError
@@ -869,6 +869,84 @@ class TestBedrockClient:
                     }
                 ],
             }
+        ]
+
+    @staticmethod
+    def _parallel_tool_call_history() -> list[PlaygroundMessage]:
+        return [
+            create_playground_message(ChatCompletionMessageRole.USER, "Weather in Paris and Rome?"),
+            create_playground_message(
+                ChatCompletionMessageRole.AI,
+                "",
+                tool_calls=[
+                    {
+                        "id": "call_1",
+                        "function": {"name": "get_weather", "arguments": {"city": "Paris"}},
+                    },
+                    {
+                        "id": "call_2",
+                        "function": {"name": "get_weather", "arguments": {"city": "Rome"}},
+                    },
+                ],
+            ),
+            create_playground_message(
+                ChatCompletionMessageRole.TOOL, '{"temp_c": 21}', tool_call_id="call_1"
+            ),
+            create_playground_message(
+                ChatCompletionMessageRole.TOOL, '{"temp_c": 25}', tool_call_id="call_2"
+            ),
+        ]
+
+    def _request_for(
+        self, messages: list[PlaygroundMessage], tools: Optional[PromptTools]
+    ) -> dict[str, Any]:
+        client: Any = BedrockClient(
+            client_factory=_null_client_factory("aws"),
+            model_name="anthropic.claude-3-5-sonnet-20240620-v1:0",
+            provider="aws",
+        )
+        return dict(
+            client._converse_build_request(
+                messages=messages,
+                tools=tools,
+                response_format=None,
+                invocation_parameters=None,
+                span=INVALID_SPAN,
+            )
+        )
+
+    def test_parallel_tool_results_are_sent_in_one_user_turn(self) -> None:
+        """Converse needs every toolResult for an assistant turn in the next user turn."""
+        request = self._request_for(
+            self._parallel_tool_call_history(),
+            PromptTools(type="tools", tools=[_function_tool()]),
+        )
+        assert [message["role"] for message in request["messages"]] == [
+            "user",
+            "assistant",
+            "user",
+        ]
+        assert request["messages"][2]["content"] == [
+            {"toolResult": {"toolUseId": "call_1", "content": [{"text": '{"temp_c": 21}'}]}},
+            {"toolResult": {"toolUseId": "call_2", "content": [{"text": '{"temp_c": 25}'}]}},
+        ]
+
+    def test_consecutive_same_role_messages_are_merged(self) -> None:
+        """Converse requires alternating roles, so adjacent same-role turns become one."""
+        request = self._request_for(
+            [
+                create_playground_message(ChatCompletionMessageRole.USER, "first"),
+                create_playground_message(ChatCompletionMessageRole.USER, "second"),
+                create_playground_message(ChatCompletionMessageRole.AI, "one"),
+                create_playground_message(ChatCompletionMessageRole.AI, "two"),
+                create_playground_message(ChatCompletionMessageRole.USER, "third"),
+            ],
+            None,
+        )
+        assert request["messages"] == [
+            {"role": "user", "content": [{"text": "first"}, {"text": "second"}]},
+            {"role": "assistant", "content": [{"text": "one"}, {"text": "two"}]},
+            {"role": "user", "content": [{"text": "third"}]},
         ]
 
 
