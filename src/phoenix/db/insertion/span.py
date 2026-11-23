@@ -19,16 +19,16 @@ from sqlalchemy import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
-from phoenix.db.cleanup_tasks import (
-    is_generated_evaluator_trace_project_name,
-    is_generated_experiment_project_name,
-    live_row_predicate,
-)
 from phoenix.db.helpers import (
     SupportedSQLDialect,
     random_project_gradient,
 )
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.db.lifecycle import (
+    is_generated_evaluator_trace_project_name,
+    is_generated_experiment_project_name,
+    live_row_predicate,
+)
 from phoenix.trace.attributes import get_attribute_value
 from phoenix.trace.schemas import Span, SpanEvent, SpanKind, SpanStatusCode
 

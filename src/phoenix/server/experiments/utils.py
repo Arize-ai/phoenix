@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from secrets import token_hex
 
-from phoenix.db.cleanup_tasks import (
+from phoenix.db.lifecycle import (
     EXPERIMENT_PROJECT_NAME_PATTERN,
     is_generated_experiment_project_name,
 )

@@ -14,7 +14,6 @@ from starlette.responses import PlainTextResponse
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.cleanup_tasks import live_row_predicate
 from phoenix.db.helpers import (
     SupportedSQLDialect,
     get_eval_trace_ids_for_experiments,
@@ -22,6 +21,7 @@ from phoenix.db.helpers import (
     insert_experiment_with_examples_snapshot,
 )
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.db.lifecycle import live_row_predicate
 from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.server.api.routers.v1.datasets import DatasetExample
 from phoenix.server.api.routers.v1.models import IsoDatetime

@@ -3279,15 +3279,6 @@ async def empty_dataset(db: DbSessionFactory) -> AsyncIterator[models.Dataset]:
     yield dataset
     async with db() as session:
         await session.execute(
-            sa.delete(models.DatasetEvaluatorCleanupTask).where(
-                models.DatasetEvaluatorCleanupTask.dataset_evaluator_id.in_(
-                    select(models.DatasetEvaluators.id).where(
-                        models.DatasetEvaluators.dataset_id == dataset.id
-                    )
-                )
-            )
-        )
-        await session.execute(
             sa.delete(models.DatasetEvaluators).where(
                 models.DatasetEvaluators.dataset_id == dataset.id
             )
@@ -3403,15 +3394,6 @@ async def llm_evaluator(
 
     yield evaluator
     async with db() as session:
-        await session.execute(
-            sa.delete(models.DatasetEvaluatorCleanupTask).where(
-                models.DatasetEvaluatorCleanupTask.dataset_evaluator_id.in_(
-                    select(models.DatasetEvaluators.id).where(
-                        models.DatasetEvaluators.evaluator_id == evaluator.id
-                    )
-                )
-            )
-        )
         await session.execute(
             sa.delete(models.DatasetEvaluators).where(
                 models.DatasetEvaluators.evaluator_id == evaluator.id

@@ -32,7 +32,7 @@ from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import Conflict, NotFound
 from phoenix.server.app import _db
-from phoenix.server.cleanup.coordinator import ClaimedCleanupTask, CleanupCoordinator
+from phoenix.server.cleanup.coordinator import _CLEANUP_ADMISSION_LOCK_ID, CleanupCoordinator
 from phoenix.server.cleanup.lifecycle import (
     TraceClearBatchResult,
     admit_exclusive_experiment_projects_delete,
@@ -174,162 +174,94 @@ def cleanup_worker_controller(monkeypatch: pytest.MonkeyPatch) -> _DaemonControl
     return controller
 
 
-class TestCleanupQueueSchedulingAndFencing:
-    async def test_single_concurrency_lapsed_claim_recovery_and_error_retry_delay(
-        self, db: DbSessionFactory
-    ) -> None:
-        dialect = SupportedSQLDialect(db.dialect.value)
-        async with db() as session:
-            p1 = await _add_project(session, name=f"p1-{token_hex(4)}")
-            p2 = await _add_project(session, name=f"p2-{token_hex(4)}")
-            await admit_project_delete(session, dialect=dialect, project_id=p1.id)
-            await admit_project_delete(session, dialect=dialect, project_id=p2.id)
+async def _get_failure(
+    db: DbSessionFactory, kind: models.CleanupTargetKind, target_id: int
+) -> Optional[models.CleanupFailure]:
+    async with db() as session:
+        return await session.get(models.CleanupFailure, (kind, target_id))
 
-        coord_a = CleanupCoordinator(
-            db,
-            batch_limit=1,
-            lease_ttl_seconds=30.0,
-            error_retry_delay_seconds=15.0,
-        )
-        coord_b = CleanupCoordinator(
-            db,
-            batch_limit=1,
-            lease_ttl_seconds=30.0,
-            error_retry_delay_seconds=15.0,
-        )
 
-        # Replica A claims the first task; Replica B sees global concurrency = 1 and gets None.
-        claimed_a = await coord_a.claim_next()
-        assert claimed_a is not None
-        assert await coord_b.claim_next() is None
+async def _expire_retries(db: DbSessionFactory) -> None:
+    async with db() as session:
+        now = await current_database_time(session, SupportedSQLDialect(db.dialect.value))
+        await session.execute(update(models.CleanupFailure).values(retry_at=now))
 
-        # Simulate lease expiry by moving claimed_at into the past.
-        async with db() as session:
-            now = await current_database_time(session, dialect)
-            await session.execute(
-                update(models.CleanupTask)
-                .where(models.CleanupTask.id == claimed_a.task_id)
-                .values(claimed_at=now - timedelta(seconds=31.0))
-            )
 
-        # Replica B recovers the lapsed claim onto the 15s error retry delay and immediately claims
-        # the second eligible task instead.
-        claimed_b = await coord_b.claim_next()
-        assert claimed_b is not None
-        assert claimed_b.task_id != claimed_a.task_id
-
-        # Stale token from Replica A cannot execute or release the lapsed task.
-        stale_res = await coord_a.execute_claimed_step(claimed_a)
-        assert stale_res.outcome == "claim_lost"
-
-        # Replica B finishes p2.
-        res_b = await coord_b.execute_claimed_step(claimed_b)
-        assert res_b.outcome == "completed"
-
-        # Task 1 is still cooling down on available_at (> now); claim_next returns None until ready.
-        assert await coord_a.claim_next() is None
-        async with db() as session:
-            now = await current_database_time(session, dialect)
-            await session.execute(
-                update(models.CleanupTask)
-                .where(models.CleanupTask.id == claimed_a.task_id)
-                .values(available_at=now)
-            )
-        reclaimed = await coord_a.claim_next()
-        assert reclaimed is not None and reclaimed.task_id == claimed_a.task_id
-        assert (await coord_a.execute_claimed_step(reclaimed)).outcome == "completed"
-
-        async with db() as session:
-            assert await session.get(models.Project, p1.id) is None
-            assert await session.get(models.Project, p2.id) is None
-
-    async def test_stale_claim_cannot_release_or_modify_reclaimed_task(
-        self, db: DbSessionFactory
-    ) -> None:
-        dialect = SupportedSQLDialect(db.dialect.value)
-        async with db() as session:
-            project = await _add_project(session, name=f"stale-{token_hex(4)}")
-            await admit_project_delete(session, dialect=dialect, project_id=project.id)
-        coord_a = CleanupCoordinator(db, batch_limit=1, lease_ttl_seconds=30.0)
-        coord_b = CleanupCoordinator(db, batch_limit=1, lease_ttl_seconds=30.0)
-        stale = await coord_a.claim_next()
-        assert stale is not None
-        async with db() as session:
-            now = await current_database_time(session, dialect)
-            await session.execute(
-                update(models.CleanupTask).values(
-                    claimed_at=now - timedelta(seconds=31.0), available_at=now
-                )
-            )
-        assert await coord_b.claim_next() is None  # recovery reschedules onto the retry delay
-        async with db() as session:
-            now = await current_database_time(session, dialect)
-            await session.execute(update(models.CleanupTask).values(available_at=now))
-        fresh = await coord_b.claim_next()
-        assert fresh is not None and fresh.task_id == stale.task_id
-        assert fresh.claimed_by != stale.claimed_by
-
-        assert (await coord_a.execute_claimed_step(stale)).outcome == "claim_lost"
-        async with db() as session:
-            claimed_by = await session.scalar(
-                select(models.CleanupTask.claimed_by).where(models.CleanupTask.id == stale.task_id)
-            )
-        assert claimed_by == fresh.claimed_by
-
-    def test_postgres_claim_locks_use_for_no_key_update(self) -> None:
-        from sqlalchemy.dialects import postgresql
-
-        stmt = (
-            select(models.CleanupTask.id)
-            .with_for_update(key_share=True, nowait=True)
-            .compile(dialect=postgresql.dialect())  # type: ignore[no-untyped-call]
-        )
-        assert "FOR NO KEY UPDATE" in str(stmt)
-
-    async def test_failed_step_schedules_durable_error_backoff_without_dropping_task(
-        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        dialect = SupportedSQLDialect(db.dialect.value)
-        async with db() as session:
-            project = await _add_project(session, name=f"fail-retry-{token_hex(4)}")
-            await admit_project_delete(session, dialect=dialect, project_id=project.id)
-
-        coordinator = CleanupCoordinator(db, error_retry_delay_seconds=10.0)
-        claimed = await coordinator.claim_next()
-        assert claimed is not None
-
-        async def _boom(*args: object, **kwargs: object) -> object:
-            raise OperationalError("SELECT 1", {}, Exception("injected step failure"))
-
-        monkeypatch.setattr(coordinator, "_run_domain_step", _boom)
-        result = await coordinator.execute_claimed_step(claimed)
-        assert result.outcome == "error"
-
-        async with db() as session:
-            now = await current_database_time(session, dialect)
-            task = await session.get(models.CleanupTask, claimed.task_id)
-            assert task is not None
-            assert task.claimed_at is None
-            assert task.claimed_by is None
-            assert task.available_at > now + timedelta(seconds=5.0)
-            await session.execute(
-                update(models.CleanupTask)
-                .where(models.CleanupTask.id == claimed.task_id)
-                .values(available_at=now)
-            )
-
-        monkeypatch.undo()
-        assert await _drain_all(coordinator) >= 1
-        async with db() as session:
-            assert await session.get(models.Project, project.id) is None
-
-    async def test_repeated_failures_double_the_retry_delay_and_lock_timeouts_yield(
+class TestCleanupSchedulingAndBackoff:
+    async def test_error_backs_target_off_exponentially_and_progress_clears_failure(
         self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         dialect = SupportedSQLDialect(db.dialect.value)
         async with db() as session:
             project = await _add_project(session, name=f"poison-{token_hex(4)}")
-            await admit_project_delete(session, dialect=dialect, project_id=project.id)
+            project_id = project.id
+            await admit_project_delete(session, dialect=dialect, project_id=project_id)
+
+        coordinator = CleanupCoordinator(db, error_retry_delay_seconds=10.0)
+
+        async def _boom(*args: object, **kwargs: object) -> object:
+            raise OperationalError("SELECT 1", {}, Exception("injected step failure"))
+
+        monkeypatch.setattr(coordinator, "_run_domain_step", _boom)
+
+        recorded: list[tuple[int, float]] = []
+        for _ in range(3):
+            assert (await coordinator.step()).outcome == "error"
+            async with db() as session:
+                now = await current_database_time(session, dialect)
+                failure = await session.get(models.CleanupFailure, ("PROJECT", project_id))
+                assert failure is not None
+                recorded.append((failure.failure_count, (failure.retry_at - now).total_seconds()))
+            await _expire_retries(db)
+            # Until retry_at passes, the backed-off target is skipped and nothing else is due.
+        assert [count for count, _ in recorded] == [1, 2, 3]
+        assert 5.0 < recorded[0][1] <= 10.0
+        assert 15.0 < recorded[1][1] <= 20.0
+        assert 30.0 < recorded[2][1] <= 40.0
+
+        monkeypatch.undo()
+        assert await _drain_all(coordinator) >= 1
+        async with db() as session:
+            assert await session.get(models.Project, project_id) is None
+        assert await _get_failure(db, "PROJECT", project_id) is None
+
+    async def test_target_is_skipped_until_retry_at_and_worker_learns_the_delay(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        dialect = SupportedSQLDialect(db.dialect.value)
+        async with db() as session:
+            project = await _add_project(session, name=f"skip-{token_hex(4)}")
+            project_id = project.id
+            await admit_project_delete(session, dialect=dialect, project_id=project_id)
+
+        coordinator = CleanupCoordinator(db, error_retry_delay_seconds=60.0)
+
+        async def _boom(*args: object, **kwargs: object) -> object:
+            raise OperationalError("SELECT 1", {}, Exception("injected step failure"))
+
+        monkeypatch.setattr(coordinator, "_run_domain_step", _boom)
+        assert (await coordinator.step()).outcome == "error"
+        monkeypatch.undo()
+
+        ran_step, next_delay_seconds = await coordinator.step_or_next_delay()
+        assert ran_step is False
+        assert next_delay_seconds is not None and 30.0 < next_delay_seconds <= 60.0
+        async with db() as session:
+            assert await session.get(models.Project, project_id) is not None
+
+        await _expire_retries(db)
+        assert (await coordinator.step()).outcome == "completed"
+        async with db() as session:
+            assert await session.get(models.Project, project_id) is None
+
+    async def test_lock_timeout_deadlock_and_yield_retry_shortly_without_counting_failure(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        dialect = SupportedSQLDialect(db.dialect.value)
+        async with db() as session:
+            project = await _add_project(session, name=f"contend-{token_hex(4)}")
+            project_id = project.id
+            await admit_project_delete(session, dialect=dialect, project_id=project_id)
 
         coordinator = CleanupCoordinator(
             db, error_retry_delay_seconds=10.0, yield_delay_seconds=1.0
@@ -341,49 +273,40 @@ class TestCleanupQueueSchedulingAndFencing:
         class _DeadlockDetected(Exception):
             sqlstate = "40P01"
 
-        failure: Exception = OperationalError("SELECT 1", {}, Exception("injected step failure"))
+        raised: Exception = OperationalError("SELECT 1", {}, Exception("injected step failure"))
 
         async def _boom(*args: object, **kwargs: object) -> object:
-            raise failure
+            raise raised
 
         monkeypatch.setattr(coordinator, "_run_domain_step", _boom)
+        assert (await coordinator.step()).outcome == "error"
+        await _expire_retries(db)
 
-        async def _fail_once() -> tuple[str, int, float]:
-            claimed = await coordinator.claim_next()
-            assert claimed is not None
-            result = await coordinator.execute_claimed_step(claimed)
+        async def _retry_state() -> tuple[int, float]:
             async with db() as session:
                 now = await current_database_time(session, dialect)
-                task = await session.get(models.CleanupTask, claimed.task_id)
-                assert task is not None
-                delay = (task.available_at - now).total_seconds()
-                num_failures = task.failure_count
-                await session.execute(
-                    update(models.CleanupTask)
-                    .where(models.CleanupTask.id == claimed.task_id)
-                    .values(available_at=now)
-                )
-            return result.outcome, num_failures, delay
+                failure = await session.get(models.CleanupFailure, ("PROJECT", project_id))
+                assert failure is not None
+                return failure.failure_count, (failure.retry_at - now).total_seconds()
 
-        outcomes = [await _fail_once() for _ in range(3)]
-        assert [(outcome, count) for outcome, count, _ in outcomes] == [
-            ("error", 1),
-            ("error", 2),
-            ("error", 3),
-        ]
-        assert 5.0 < outcomes[0][2] <= 10.0
-        assert 15.0 < outcomes[1][2] <= 20.0
-        assert 30.0 < outcomes[2][2] <= 40.0
+        for raised in (
+            DBAPIError("stmt", {}, _LockNotAvailable()),
+            DBAPIError("stmt", {}, _DeadlockDetected()),
+        ):
+            assert (await coordinator.step()).outcome == "yield"
+            num_failures, delay_seconds = await _retry_state()
+            assert num_failures == 1
+            assert delay_seconds <= 1.0
+            await _expire_retries(db)
 
-        failure = DBAPIError("stmt", {}, _LockNotAvailable())
-        outcome, num_failures, delay = await _fail_once()
-        assert (outcome, num_failures) == ("yield", 3)
-        assert delay <= 1.0
+        async def _yield(*args: object, **kwargs: object) -> PrimitiveResult:
+            return PrimitiveResult(PrimitiveStatus.YIELD, 0)
 
-        failure = DBAPIError("stmt", {}, _DeadlockDetected())
-        outcome, num_failures, delay = await _fail_once()
-        assert (outcome, num_failures) == ("yield", 3)
-        assert delay <= 1.0
+        monkeypatch.setattr(coordinator, "_run_domain_step", _yield)
+        assert (await coordinator.step()).outcome == "yield"
+        num_failures, delay_seconds = await _retry_state()
+        assert num_failures == 1
+        assert delay_seconds <= 1.0
 
     async def test_non_sqlalchemy_programming_error_propagates_immediately(
         self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
@@ -391,26 +314,26 @@ class TestCleanupQueueSchedulingAndFencing:
         dialect = SupportedSQLDialect(db.dialect.value)
         async with db() as session:
             project = await _add_project(session, name=f"prog-bug-{token_hex(4)}")
-            await admit_project_delete(session, dialect=dialect, project_id=project.id)
+            project_id = project.id
+            await admit_project_delete(session, dialect=dialect, project_id=project_id)
 
         coordinator = CleanupCoordinator(db)
-        claimed = await coordinator.claim_next()
-        assert claimed is not None
 
         async def _programming_bug(*args: object, **kwargs: object) -> object:
             raise TypeError("unexpected programming bug")
 
         monkeypatch.setattr(coordinator, "_run_domain_step", _programming_bug)
         with pytest.raises(TypeError, match="unexpected programming bug"):
-            await coordinator.execute_claimed_step(claimed)
+            await coordinator.step()
+        assert await _get_failure(db, "PROJECT", project_id) is None
 
-    async def test_mid_step_claim_loss_rolls_back_batch_and_returns_claim_lost(
+    async def test_failed_step_rolls_back_its_batch_and_emits_no_events(
         self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         dialect = SupportedSQLDialect(db.dialect.value)
         marker_name = f"rolled-back-{token_hex(4)}"
         async with db() as session:
-            project = await _add_project(session, name=f"claim-lost-{token_hex(4)}")
+            project = await _add_project(session, name=f"rollback-{token_hex(4)}")
             project_id = project.id
             await admit_project_delete(session, dialect=dialect, project_id=project_id)
 
@@ -418,170 +341,174 @@ class TestCleanupQueueSchedulingAndFencing:
         event_queue = MagicMock()
         event_queue.put.side_effect = emitted_events.append
         coordinator = CleanupCoordinator(db, event_queue=event_queue)
-        claimed = await coordinator.claim_next()
-        assert claimed is not None
 
-        async def _lose_claim_mid_step(
+        async def _fail_after_writing(
             session: Any,
             *,
             dialect: SupportedSQLDialect,
-            task: models.CleanupTask,
+            target: Any,
             events_after_commit: list[DmlEvent],
         ) -> PrimitiveResult:
             session.add(models.Project(name=marker_name))
             await session.flush()
             events_after_commit.append(SpanDeleteEvent((project_id,)))
-            await session.execute(
-                update(models.CleanupTask)
-                .where(models.CleanupTask.id == task.id)
-                .values(claimed_by="reassigned-worker-token")
-            )
-            return PrimitiveResult(PrimitiveStatus.PROGRESS, 1)
+            raise OperationalError("SELECT 1", {}, Exception("injected step failure"))
 
-        monkeypatch.setattr(coordinator, "_run_domain_step", _lose_claim_mid_step)
-        result = await coordinator.execute_claimed_step(claimed)
-        assert result.outcome == "claim_lost"
-        assert result.affected_rows == 0
+        monkeypatch.setattr(coordinator, "_run_domain_step", _fail_after_writing)
+        assert (await coordinator.step()).outcome == "error"
         assert emitted_events == []
-
         async with db() as session:
             marker_project = await session.scalar(
                 select(models.Project.id).where(models.Project.name == marker_name)
             )
             assert marker_project is None
-            still_claimed_by = await session.scalar(
-                select(models.CleanupTask.claimed_by).where(
-                    models.CleanupTask.id == claimed.task_id
-                )
-            )
-            assert still_claimed_by == claimed.claimed_by
 
-    async def test_cancelled_step_shields_immediate_claim_release_and_reraises(
+    async def test_cancelled_step_rolls_back_and_leaves_the_target_pending(
         self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         dialect = SupportedSQLDialect(db.dialect.value)
         async with db() as session:
-            first_project = await _add_project(session, name=f"cancel-1-{token_hex(4)}")
-            second_project = await _add_project(session, name=f"cancel-2-{token_hex(4)}")
-            await admit_project_delete(session, dialect=dialect, project_id=first_project.id)
-            await admit_project_delete(session, dialect=dialect, project_id=second_project.id)
-            first_project_id = first_project.id
-            second_project_id = second_project.id
+            project = await _add_project(session, name=f"cancel-{token_hex(4)}")
+            project_id = project.id
+            await admit_project_delete(session, dialect=dialect, project_id=project_id)
 
-        coord_cancelled = CleanupCoordinator(db, lease_ttl_seconds=90.0)
-        coord_peer = CleanupCoordinator(db, lease_ttl_seconds=90.0)
-        claimed_first = await coord_cancelled.claim_next()
-        assert claimed_first is not None
-
+        coordinator = CleanupCoordinator(db)
         step_started = asyncio.Event()
-        release_entered = asyncio.Event()
-        allow_release_finish = asyncio.Event()
-        release_completed = asyncio.Event()
-        original_release_on_cancel = coord_cancelled._release_claim_on_cancel
 
         async def _hang_in_step(*args: object, **kwargs: object) -> PrimitiveResult:
             step_started.set()
             await asyncio.Event().wait()
             return PrimitiveResult(PrimitiveStatus.EMPTY, 0)
 
-        async def _gated_release_on_cancel(claimed_task: ClaimedCleanupTask) -> None:
-            release_entered.set()
-            await allow_release_finish.wait()
-            await original_release_on_cancel(claimed_task)
-            release_completed.set()
-
-        monkeypatch.setattr(coord_cancelled, "_run_domain_step", _hang_in_step)
-        monkeypatch.setattr(coord_cancelled, "_release_claim_on_cancel", _gated_release_on_cancel)
-        step_task = asyncio.create_task(coord_cancelled.execute_claimed_step(claimed_first))
+        monkeypatch.setattr(coordinator, "_run_domain_step", _hang_in_step)
+        step_task = asyncio.create_task(coordinator.step())
         await asyncio.wait_for(step_started.wait(), timeout=5.0)
         step_task.cancel()
-        await asyncio.wait_for(release_entered.wait(), timeout=5.0)
-        # Cancel a second time while claim release is in-flight to verify asyncio.shield protects it.
-        step_task.cancel()
-        allow_release_finish.set()
         with pytest.raises(asyncio.CancelledError):
             await step_task
-        await asyncio.wait_for(release_completed.wait(), timeout=5.0)
+        monkeypatch.undo()
 
+        assert await _get_failure(db, "PROJECT", project_id) is None
+        assert (await coordinator.step()).outcome == "completed"
         async with db() as session:
-            now = await current_database_time(session, dialect)
-            released_task = await session.get(models.CleanupTask, claimed_first.task_id)
-            assert released_task is not None
-            assert released_task.claimed_at is None
-            assert released_task.claimed_by is None
-            assert released_task.failure_count == 0
-            assert released_task.available_at <= now
+            assert await session.get(models.Project, project_id) is None
 
-        next_claimed = await coord_peer.claim_next()
-        assert next_claimed is not None
-        await coord_peer.execute_claimed_step(next_claimed)
-        await _drain_all(coord_peer)
-
+    async def test_oldest_tombstone_goes_first(self, db: DbSessionFactory) -> None:
+        dialect = SupportedSQLDialect(db.dialect.value)
         async with db() as session:
-            assert await session.get(models.Project, first_project_id) is None
-            assert await session.get(models.Project, second_project_id) is None
+            newer = await _add_project(session, name=f"newer-{token_hex(4)}")
+            older = await _add_project(session, name=f"older-{token_hex(4)}")
+            newer_id, older_id = newer.id, older.id
+            await admit_project_delete(session, dialect=dialect, project_id=older_id)
+        async with db() as session:
+            await admit_project_delete(session, dialect=dialect, project_id=newer_id)
 
-    async def test_lapsed_claim_recovery_increments_failure_count_with_exponential_backoff(
+        coordinator = CleanupCoordinator(db)
+        assert (await coordinator.step()).outcome == "completed"
+        async with db() as session:
+            assert await session.get(models.Project, older_id) is None
+            assert await session.get(models.Project, newer_id) is not None
+
+    async def test_project_is_not_selected_while_any_binding_references_it(
         self, db: DbSessionFactory
     ) -> None:
         dialect = SupportedSQLDialect(db.dialect.value)
         async with db() as session:
-            project = await _add_project(session, name=f"crash-loop-{token_hex(4)}")
-            await admit_project_delete(session, dialect=dialect, project_id=project.id)
+            trace_project = await _add_project(session, name=f"trace-{token_hex(4)}")
+            binding = await _bind_evaluator_trace_project(session, trace_project)
+            binding_id, host_id, trace_project_id = (
+                binding.id,
+                binding.project_id,
+                trace_project.id,
+            )
+            now = await current_database_time(session, dialect)
+            await session.execute(
+                update(models.Project)
+                .where(models.Project.id == trace_project_id)
+                .values(deleted_at=now)
+            )
 
-        coordinator = CleanupCoordinator(
-            db,
-            lease_ttl_seconds=30.0,
-            error_retry_delay_seconds=10.0,
+        coordinator = CleanupCoordinator(db)
+        assert (await coordinator.step()).outcome == "idle"
+        async with db() as session:
+            assert await session.get(models.Project, trace_project_id) is not None
+
+        async with db() as session:
+            await admit_project_delete(session, dialect=dialect, project_id=host_id)
+        selected: list[tuple[str, int]] = []
+        original_run = coordinator._run_domain_step
+
+        async def _record(
+            session: Any,
+            *,
+            dialect: SupportedSQLDialect,
+            target: Any,
+            events_after_commit: list[DmlEvent],
+        ) -> PrimitiveResult:
+            selected.append((target.kind, target.id))
+            return await original_run(
+                session, dialect=dialect, target=target, events_after_commit=events_after_commit
+            )
+
+        coordinator._run_domain_step = _record  # type: ignore[method-assign]
+        await _drain_all(coordinator)
+
+        assert ("PROJECT_EVALUATOR", binding_id) in selected
+        assert ("PROJECT", trace_project_id) not in selected
+        last_binding_step = max(
+            index for index, target in enumerate(selected) if target[0] == "PROJECT_EVALUATOR"
         )
+        first_host_step = min(
+            index for index, target in enumerate(selected) if target == ("PROJECT", host_id)
+        )
+        assert first_host_step > last_binding_step
+        async with db() as session:
+            assert await session.get(models.Project, host_id) is None
+            assert await session.get(models.Project, trace_project_id) is None
+            assert await session.get(models.ProjectEvaluator, binding_id) is None
 
-        recorded_recoveries: list[tuple[int, float]] = []
-        for _ in range(3):
-            claimed = await coordinator.claim_next()
-            assert claimed is not None
-            async with db() as session:
-                now = await current_database_time(session, dialect)
-                await session.execute(
-                    update(models.CleanupTask)
-                    .where(models.CleanupTask.id == claimed.task_id)
-                    .values(claimed_at=now - timedelta(seconds=31.0))
-                )
-            assert await coordinator.claim_next() is None
-            async with db() as session:
-                now = await current_database_time(session, dialect)
-                task = await session.get(models.CleanupTask, claimed.task_id)
-                assert task is not None
-                assert task.claimed_at is None
-                assert task.claimed_by is None
-                delay_seconds = (task.available_at - now).total_seconds()
-                recorded_recoveries.append((task.failure_count, delay_seconds))
-                await session.execute(
-                    update(models.CleanupTask)
-                    .where(models.CleanupTask.id == claimed.task_id)
-                    .values(available_at=now)
-                )
+    async def test_purging_a_target_deletes_its_failure_row(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        dialect = SupportedSQLDialect(db.dialect.value)
+        async with db() as session:
+            project = await _add_project(session, name=f"purge-{token_hex(4)}")
+            project_id = project.id
+            await admit_project_delete(session, dialect=dialect, project_id=project_id)
 
-        assert [count for count, _ in recorded_recoveries] == [1, 2, 3]
-        assert 5.0 < recorded_recoveries[0][1] <= 10.0
-        assert 15.0 < recorded_recoveries[1][1] <= 20.0
-        assert 30.0 < recorded_recoveries[2][1] <= 40.0
+        coordinator = CleanupCoordinator(db)
+        original_run = coordinator._run_domain_step
+        calls = 0
 
-    async def test_task_ids_are_monotonic_across_completions(self, db: DbSessionFactory) -> None:
+        async def _fail_first(*args: object, **kwargs: Any) -> PrimitiveResult:
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise OperationalError("SELECT 1", {}, Exception("injected step failure"))
+            return await original_run(*args, **kwargs)  # type: ignore[arg-type]
+
+        monkeypatch.setattr(coordinator, "_run_domain_step", _fail_first)
+        assert (await coordinator.step()).outcome == "error"
+        assert await _get_failure(db, "PROJECT", project_id) is not None
+        await _expire_retries(db)
+        await _drain_all(coordinator)
+        async with db() as session:
+            assert await session.get(models.Project, project_id) is None
+        assert await _get_failure(db, "PROJECT", project_id) is None
+
+    async def test_ids_of_purged_targets_are_never_reused(self, db: DbSessionFactory) -> None:
         dialect = SupportedSQLDialect(db.dialect.value)
         coordinator = CleanupCoordinator(db)
 
         async with db() as session:
-            p1 = await _add_project(session, name=f"seq-1-{token_hex(4)}")
-            await admit_project_delete(session, dialect=dialect, project_id=p1.id)
-            t1 = await session.scalar(select(func.max(models.CleanupTask.id)))
+            first = await _add_project(session, name=f"seq-1-{token_hex(4)}")
+            first_id = first.id
+            await admit_project_delete(session, dialect=dialect, project_id=first_id)
         await _drain_all(coordinator)
 
         async with db() as session:
-            p2 = await _add_project(session, name=f"seq-2-{token_hex(4)}")
-            await admit_project_delete(session, dialect=dialect, project_id=p2.id)
-            t2 = await session.scalar(select(func.max(models.CleanupTask.id)))
-        assert t1 is not None and t2 is not None and t2 > t1
-        await _drain_all(coordinator)
+            second = await _add_project(session, name=f"seq-2-{token_hex(4)}")
+            assert second.id > first_id
 
 
 class TestImmediateNameReuseAndHistoricalReferences:
@@ -1990,12 +1917,6 @@ class TestStorageLockoutExemptionsAndCleanupWorker:
             await _add_span(session, trace=trace)
             project_id = project.id
             await admit_project_delete(session, dialect=dialect, project_id=project_id)
-            task_id = await session.scalar(
-                select(models.ProjectDeleteCleanupTask.id).where(
-                    models.ProjectDeleteCleanupTask.project_id == project_id
-                )
-            )
-            assert task_id is not None
 
         worker = CleanupWorker(db, idle_poll_seconds=30.0)
         original_run_domain_step = worker.coordinator._run_domain_step
@@ -2017,13 +1938,7 @@ class TestStorageLockoutExemptionsAndCleanupWorker:
             assert first_delay is not None
             assert 0.0 < first_delay <= 0.5
 
-            async with db() as session:
-                now = await current_database_time(session, dialect)
-                await session.execute(
-                    update(models.CleanupTask)
-                    .where(models.CleanupTask.id == task_id)
-                    .values(available_at=now)
-                )
+            await _expire_retries(db)
 
             await cleanup_worker_controller.run_once()
             assert len(cleanup_worker_controller.sleep_delays) == 2
@@ -2310,12 +2225,6 @@ class TestBuiltinSyncStaleBindings:
                     tombstoned_ds_binding.deleted_at is not None
                     and tombstoned_ds_binding.evaluator_id is None
                 )
-                ds_task_ids = await session.scalars(
-                    select(models.DatasetEvaluatorCleanupTask.id).where(
-                        models.DatasetEvaluatorCleanupTask.dataset_evaluator_id == binding_id
-                    )
-                )
-                assert len(list(ds_task_ids)) == 1
             else:
                 tombstoned_proj_binding = await session.get(models.ProjectEvaluator, binding_id)
                 assert tombstoned_proj_binding is not None
@@ -2323,12 +2232,6 @@ class TestBuiltinSyncStaleBindings:
                     tombstoned_proj_binding.deleted_at is not None
                     and tombstoned_proj_binding.evaluator_id is None
                 )
-                proj_task_ids = await session.scalars(
-                    select(models.ProjectEvaluatorCleanupTask.id).where(
-                        models.ProjectEvaluatorCleanupTask.project_evaluator_id == binding_id
-                    )
-                )
-                assert len(list(proj_task_ids)) == 1
 
 
 async def test_cleanup_batches_cost_details_before_deleting_their_parent(
@@ -2585,9 +2488,7 @@ async def test_dataset_evaluator_delete_drains_eval_logs_and_links_in_batches(
     coordinator = CleanupCoordinator(db, batch_limit=2)
     step_counts: list[int] = []
     for _ in range(3):
-        claimed = await coordinator.claim_next()
-        assert claimed is not None
-        step_result = await coordinator.execute_claimed_step(claimed)
+        step_result = await coordinator.step()
         assert step_result.outcome == "progress"
         step_counts.append(step_result.affected_rows)
     assert step_counts == [2, 2, 1]
@@ -2608,9 +2509,7 @@ async def test_dataset_evaluator_delete_drains_eval_logs_and_links_in_batches(
 
     link_step_counts: list[int] = []
     for _ in range(3):
-        claimed = await coordinator.claim_next()
-        assert claimed is not None
-        step_result = await coordinator.execute_claimed_step(claimed)
+        step_result = await coordinator.step()
         assert step_result.outcome == "progress"
         link_step_counts.append(step_result.affected_rows)
     assert link_step_counts == [2, 2, 1]
@@ -3321,54 +3220,33 @@ async def test_late_spans_dropped_after_internal_projects_are_physically_purged(
 
 
 @pytest.mark.postgres_only
-async def test_postgres_live_for_no_key_update_prevents_expired_lease_stealing(
+async def test_postgres_only_one_coordinator_steps_while_the_advisory_lock_is_held(
     postgresql_engine: Any,
 ) -> None:
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
     async with db() as session:
-        first_project = await _add_project(session, name=f"pg-lease-first-{token_hex(4)}")
-        second_project = await _add_project(session, name=f"pg-lease-second-{token_hex(4)}")
+        project = await _add_project(session, name=f"pg-excl-{token_hex(4)}")
+        project_id = project.id
         await admit_project_delete(
-            session, dialect=SupportedSQLDialect.POSTGRESQL, project_id=first_project.id
-        )
-        await admit_project_delete(
-            session, dialect=SupportedSQLDialect.POSTGRESQL, project_id=second_project.id
+            session, dialect=SupportedSQLDialect.POSTGRESQL, project_id=project_id
         )
 
-    coordinator_a = CleanupCoordinator(db, batch_limit=1, lease_ttl_seconds=30.0)
-    coordinator_b = CleanupCoordinator(db, batch_limit=1, lease_ttl_seconds=30.0)
+    coordinator_a = CleanupCoordinator(db)
+    coordinator_b = CleanupCoordinator(db)
 
-    claimed_a = await coordinator_a.claim_next()
-    assert claimed_a is not None
-
-    async with db() as session:
-        now = await current_database_time(session, SupportedSQLDialect.POSTGRESQL)
-        await session.execute(
-            update(models.CleanupTask)
-            .where(models.CleanupTask.id == claimed_a.task_id)
-            .values(claimed_at=now - timedelta(seconds=31.0))
+    async with db() as stepping_session:
+        acquired = await stepping_session.scalar(
+            select(func.pg_try_advisory_xact_lock(_CLEANUP_ADMISSION_LOCK_ID))
         )
-
-    async with db() as active_step_session:
-        locked_task_id = await active_step_session.scalar(
-            select(models.CleanupTask.id)
-            .where(models.CleanupTask.id == claimed_a.task_id)
-            .with_for_update(key_share=True, nowait=True)
-        )
-        assert locked_task_id == claimed_a.task_id
-
-        assert await coordinator_b.claim_next() is None
-
+        assert acquired is True
+        assert (await coordinator_b.step()).outcome == "busy"
+        assert await coordinator_b.step_or_next_delay() == (False, None)
         async with db() as inspector:
-            task_row = await inspector.get(models.CleanupTask, claimed_a.task_id)
-            assert task_row is not None
-            assert task_row.claimed_by == claimed_a.claimed_by
-            assert task_row.claimed_at is not None
-            assert task_row.failure_count == 0
+            assert await inspector.get(models.Project, project_id) is not None
 
-    claimed_b = await coordinator_b.claim_next()
-    assert claimed_b is not None
-    assert claimed_b.task_id != claimed_a.task_id
+    assert (await coordinator_a.step()).outcome == "completed"
+    async with db() as session:
+        assert await session.get(models.Project, project_id) is None
 
 
 @pytest.mark.postgres_only

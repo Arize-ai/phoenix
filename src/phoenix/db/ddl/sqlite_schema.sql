@@ -19,34 +19,17 @@ CREATE TABLE annotation_configs (
 );
 
 
--- Table: cleanup_tasks
--- --------------------
-CREATE TABLE cleanup_tasks (
-    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    kind VARCHAR NOT NULL
-        CONSTRAINT "ck_cleanup_tasks_`valid_cleanup_task_kind`"
-CHECK (kind IN (
-            'DELETE_PROJECT',
-            'DELETE_PROJECT_EVALUATOR',
-            'DELETE_DATASET_EVALUATOR'
-        )),
-    claimed_at TIMESTAMP,
-    claimed_by VARCHAR,
-    available_at TIMESTAMP NOT NULL,
+-- Table: cleanup_failures
+-- -----------------------
+CREATE TABLE cleanup_failures (
+    target_kind VARCHAR NOT NULL
+        CONSTRAINT "ck_cleanup_failures_`valid_cleanup_target_kind`"
+        CHECK (target_kind IN ('PROJECT', 'PROJECT_EVALUATOR', 'DATASET_EVALUATOR')),
+    target_id INTEGER NOT NULL,
     failure_count INTEGER DEFAULT '0' NOT NULL,
-    created_at TIMESTAMP NOT NULL,
-    CONSTRAINT uq_cleanup_tasks_kind_id UNIQUE (kind, id),
-    CONSTRAINT "ck_cleanup_tasks_`valid_claim`"
-        CHECK (
-            (claimed_at IS NULL AND claimed_by IS NULL)
-            OR (claimed_at IS NOT NULL AND claimed_by IS NOT NULL)
-        )
+    retry_at TIMESTAMP NOT NULL,
+    CONSTRAINT pk_cleanup_failures PRIMARY KEY (target_kind, target_id)
 );
-
-CREATE INDEX ix_cleanup_tasks_claimed ON cleanup_tasks (claimed_at, id)
-    WHERE claimed_at IS NOT NULL;
-CREATE INDEX ix_cleanup_tasks_eligible ON cleanup_tasks (available_at, id)
-    WHERE claimed_at IS NULL;
 
 
 -- Table: decision_labels
@@ -198,6 +181,8 @@ CREATE TABLE projects (
 
 CREATE UNIQUE INDEX ix_projects_live_name ON projects (name)
     WHERE deleted_at IS NULL;
+CREATE INDEX ix_projects_tombstoned ON projects (deleted_at, id)
+    WHERE deleted_at IS NOT NULL;
 CREATE INDEX ix_projects_trace_retention_policy_id ON projects
     (trace_retention_policy_id);
 
@@ -223,27 +208,6 @@ CREATE TABLE project_annotation_configs (
 
 CREATE INDEX ix_project_annotation_configs_annotation_config_id ON project_annotation_configs
     (annotation_config_id);
-
-
--- Table: project_delete_cleanup_tasks
--- -----------------------------------
-CREATE TABLE project_delete_cleanup_tasks (
-    id INTEGER NOT NULL,
-    kind VARCHAR DEFAULT 'DELETE_PROJECT' NOT NULL
-        CONSTRAINT "ck_project_delete_cleanup_tasks_`valid_cleanup_task_kind`"
-        CHECK (kind = 'DELETE_PROJECT'),
-    project_id INTEGER NOT NULL,
-    CONSTRAINT pk_project_delete_cleanup_tasks PRIMARY KEY (id),
-    CONSTRAINT uq_project_delete_cleanup_tasks_project_id UNIQUE (project_id),
-    CONSTRAINT fk_project_delete_cleanup_tasks_kind_cleanup_tasks
-        FOREIGN KEY (kind, id)
-        REFERENCES cleanup_tasks (kind, id)
-        ON DELETE CASCADE,
-    CONSTRAINT fk_project_delete_cleanup_tasks_project_id_projects
-        FOREIGN KEY (project_id)
-        REFERENCES projects (id)
-        ON DELETE RESTRICT
-);
 
 
 -- Table: project_sessions
@@ -934,29 +898,9 @@ CREATE UNIQUE INDEX ix_dataset_evaluators_live_name ON dataset_evaluators
     (dataset_id, name)
     WHERE deleted_at IS NULL;
 CREATE INDEX ix_dataset_evaluators_project_id ON dataset_evaluators (project_id);
+CREATE INDEX ix_dataset_evaluators_tombstoned ON dataset_evaluators (deleted_at, id)
+    WHERE deleted_at IS NOT NULL;
 CREATE INDEX ix_dataset_evaluators_user_id ON dataset_evaluators (user_id);
-
-
--- Table: dataset_evaluator_cleanup_tasks
--- --------------------------------------
-CREATE TABLE dataset_evaluator_cleanup_tasks (
-    id INTEGER NOT NULL,
-    kind VARCHAR DEFAULT 'DELETE_DATASET_EVALUATOR' NOT NULL
-        CONSTRAINT "ck_dataset_evaluator_cleanup_tasks_`valid_cleanup_task_kind`"
-        CHECK (kind = 'DELETE_DATASET_EVALUATOR'),
-    dataset_evaluator_id INTEGER NOT NULL,
-    CONSTRAINT pk_dataset_evaluator_cleanup_tasks PRIMARY KEY (id),
-    CONSTRAINT uq_dataset_evaluator_cleanup_tasks_dataset_evaluator_id
-        UNIQUE (dataset_evaluator_id),
-    CONSTRAINT fk_dataset_evaluator_cleanup_tasks_dataset_evaluator_id_dataset_evaluators
-        FOREIGN KEY (dataset_evaluator_id)
-        REFERENCES dataset_evaluators (id)
-        ON DELETE RESTRICT,
-    CONSTRAINT fk_dataset_evaluator_cleanup_tasks_kind_cleanup_tasks
-        FOREIGN KEY (kind, id)
-        REFERENCES cleanup_tasks (kind, id)
-        ON DELETE CASCADE
-);
 
 
 -- Table: experiments
@@ -1682,6 +1626,8 @@ CREATE UNIQUE INDEX ix_project_evaluators_live_name ON project_evaluators
     (project_id, name)
     WHERE deleted_at IS NULL;
 CREATE INDEX ix_project_evaluators_project_id ON project_evaluators (project_id);
+CREATE INDEX ix_project_evaluators_tombstoned ON project_evaluators (deleted_at, id)
+    WHERE deleted_at IS NOT NULL;
 CREATE INDEX ix_project_evaluators_trace_project_id ON project_evaluators
     (trace_project_id);
 
@@ -1859,28 +1805,6 @@ CREATE INDEX ix_eval_work_units_project_evaluator_live ON eval_work_units
     WHERE status IN ('PENDING', 'RUNNING', 'ERROR');
 CREATE INDEX ix_eval_work_units_terminal ON eval_work_units (updated_at)
     WHERE status IN ('DONE', 'FAILED', 'EXPIRED', 'DROPPED', 'CONTENT_LOST');
-
-
--- Table: project_evaluator_cleanup_tasks
--- --------------------------------------
-CREATE TABLE project_evaluator_cleanup_tasks (
-    id INTEGER NOT NULL,
-    kind VARCHAR DEFAULT 'DELETE_PROJECT_EVALUATOR' NOT NULL
-        CONSTRAINT "ck_project_evaluator_cleanup_tasks_`valid_cleanup_task_kind`"
-        CHECK (kind = 'DELETE_PROJECT_EVALUATOR'),
-    project_evaluator_id INTEGER NOT NULL,
-    CONSTRAINT pk_project_evaluator_cleanup_tasks PRIMARY KEY (id),
-    CONSTRAINT uq_project_evaluator_cleanup_tasks_project_evaluator_id
-        UNIQUE (project_evaluator_id),
-    CONSTRAINT fk_project_evaluator_cleanup_tasks_kind_cleanup_tasks
-        FOREIGN KEY (kind, id)
-        REFERENCES cleanup_tasks (kind, id)
-        ON DELETE CASCADE,
-    CONSTRAINT fk_project_evaluator_cleanup_tasks_project_evaluator_id_project_evaluators
-        FOREIGN KEY (project_evaluator_id)
-        REFERENCES project_evaluators (id)
-        ON DELETE RESTRICT
-);
 
 
 -- Table: project_evaluator_state

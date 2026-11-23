@@ -37,7 +37,7 @@ from phoenix.config import (
 )
 from phoenix.datetime_utils import TimeBinUnit, multi_unit_time_bin_params
 from phoenix.db import models
-from phoenix.db.cleanup_tasks import ProjectKindName
+from phoenix.db.lifecycle import ProjectKindName
 
 SupportedSQLDialectName = Literal["postgresql", "sqlite"]
 

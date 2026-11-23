@@ -7,7 +7,6 @@ from sqlalchemy import insert, select
 from sqlalchemy.exc import DBAPIError, EmulatedDBAPIException
 
 from phoenix.db import models
-from phoenix.db.cleanup_tasks import live_row_predicate
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import (
     OnConflict,
@@ -15,6 +14,7 @@ from phoenix.db.insertion.helpers import (
     insert_on_conflict,
     should_calculate_span_cost,
 )
+from phoenix.db.lifecycle import live_row_predicate
 from phoenix.server.types import DbSessionFactory
 
 

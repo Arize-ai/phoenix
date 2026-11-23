@@ -21,12 +21,9 @@ _Integer = sa.Integer().with_variant(
     "postgresql",
 )
 
-_CLEANUP_TASK_KIND_CHECK = (
-    "kind IN ('DELETE_PROJECT', 'DELETE_PROJECT_EVALUATOR', 'DELETE_DATASET_EVALUATOR')"
-)
+_CLEANUP_TARGET_KIND_CHECK = "target_kind IN ('PROJECT', 'PROJECT_EVALUATOR', 'DATASET_EVALUATOR')"
 _LIVE_PREDICATE = "deleted_at IS NULL"
-_UNCLAIMED_PREDICATE = "claimed_at IS NULL"
-_CLAIMED_PREDICATE = "claimed_at IS NOT NULL"
+_TOMBSTONED_PREDICATE = "deleted_at IS NOT NULL"
 _PROJECT_EVALUATOR_LIFECYCLE_CHECK = (
     "(deleted_at IS NULL AND evaluator_id IS NOT NULL) "
     "OR (deleted_at IS NOT NULL AND evaluator_id IS NULL)"
@@ -35,14 +32,10 @@ _DATASET_EVALUATOR_LIFECYCLE_CHECK = (
     "(deleted_at IS NULL AND dataset_id IS NOT NULL AND evaluator_id IS NOT NULL) "
     "OR (deleted_at IS NOT NULL AND evaluator_id IS NULL)"
 )
-_CLAIM_CHECK = (
-    "(claimed_at IS NULL AND claimed_by IS NULL) "
-    "OR (claimed_at IS NOT NULL AND claimed_by IS NOT NULL)"
-)
 
 
 def _upgrade_projects() -> None:
-    # A tombstoned project's id stays referenced by its cleanup task, so SQLite
+    # A tombstoned project's id stays referenced by its cleanup state, so SQLite
     # must never hand that id to a new project.
     with op.batch_alter_table("projects", table_kwargs={"sqlite_autoincrement": True}) as batch_op:
         batch_op.add_column(sa.Column("deleted_at", sa.TIMESTAMP(timezone=True), nullable=True))
@@ -126,110 +119,27 @@ def _upgrade_evaluator_bindings() -> None:
     )
 
 
-def _create_cleanup_task_tables() -> None:
+def _create_tombstone_indexes_and_cleanup_failures() -> None:
+    for table in ("projects", "project_evaluators", "dataset_evaluators"):
+        op.create_index(
+            f"ix_{table}_tombstoned",
+            table,
+            ["deleted_at", "id"],
+            postgresql_where=sa.text(_TOMBSTONED_PREDICATE),
+            sqlite_where=sa.text(_TOMBSTONED_PREDICATE),
+        )
+
     op.create_table(
-        "cleanup_tasks",
-        sa.Column("id", _Integer, primary_key=True),
+        "cleanup_failures",
         sa.Column(
-            "kind",
+            "target_kind",
             sa.String(),
-            sa.CheckConstraint(_CLEANUP_TASK_KIND_CHECK, name="valid_cleanup_task_kind"),
-            nullable=False,
+            sa.CheckConstraint(_CLEANUP_TARGET_KIND_CHECK, name="valid_cleanup_target_kind"),
+            primary_key=True,
         ),
-        sa.Column("claimed_at", sa.TIMESTAMP(timezone=True), nullable=True),
-        sa.Column("claimed_by", sa.String(), nullable=True),
-        sa.Column("available_at", sa.TIMESTAMP(timezone=True), nullable=False),
+        sa.Column("target_id", _Integer, primary_key=True, autoincrement=False),
         sa.Column("failure_count", _Integer, nullable=False, server_default="0"),
-        sa.Column("created_at", sa.TIMESTAMP(timezone=True), nullable=False),
-        sa.UniqueConstraint("kind", "id"),
-        sa.CheckConstraint(_CLAIM_CHECK, name="valid_claim"),
-        sqlite_autoincrement=True,
-    )
-    op.create_index(
-        "ix_cleanup_tasks_eligible",
-        "cleanup_tasks",
-        ["available_at", "id"],
-        postgresql_where=sa.text(_UNCLAIMED_PREDICATE),
-        sqlite_where=sa.text(_UNCLAIMED_PREDICATE),
-    )
-    op.create_index(
-        "ix_cleanup_tasks_claimed",
-        "cleanup_tasks",
-        ["claimed_at", "id"],
-        postgresql_where=sa.text(_CLAIMED_PREDICATE),
-        sqlite_where=sa.text(_CLAIMED_PREDICATE),
-    )
-
-    op.create_table(
-        "project_delete_cleanup_tasks",
-        sa.Column("id", _Integer, primary_key=True),
-        sa.Column(
-            "kind",
-            sa.String(),
-            sa.CheckConstraint("kind = 'DELETE_PROJECT'", name="valid_cleanup_task_kind"),
-            server_default="DELETE_PROJECT",
-            nullable=False,
-        ),
-        sa.Column(
-            "project_id",
-            _Integer,
-            sa.ForeignKey("projects.id", ondelete="RESTRICT"),
-            nullable=False,
-            unique=True,
-        ),
-        sa.ForeignKeyConstraint(
-            ["kind", "id"],
-            ["cleanup_tasks.kind", "cleanup_tasks.id"],
-            ondelete="CASCADE",
-        ),
-    )
-
-    op.create_table(
-        "project_evaluator_cleanup_tasks",
-        sa.Column("id", _Integer, primary_key=True),
-        sa.Column(
-            "kind",
-            sa.String(),
-            sa.CheckConstraint("kind = 'DELETE_PROJECT_EVALUATOR'", name="valid_cleanup_task_kind"),
-            server_default="DELETE_PROJECT_EVALUATOR",
-            nullable=False,
-        ),
-        sa.Column(
-            "project_evaluator_id",
-            _Integer,
-            sa.ForeignKey("project_evaluators.id", ondelete="RESTRICT"),
-            nullable=False,
-            unique=True,
-        ),
-        sa.ForeignKeyConstraint(
-            ["kind", "id"],
-            ["cleanup_tasks.kind", "cleanup_tasks.id"],
-            ondelete="CASCADE",
-        ),
-    )
-
-    op.create_table(
-        "dataset_evaluator_cleanup_tasks",
-        sa.Column("id", _Integer, primary_key=True),
-        sa.Column(
-            "kind",
-            sa.String(),
-            sa.CheckConstraint("kind = 'DELETE_DATASET_EVALUATOR'", name="valid_cleanup_task_kind"),
-            server_default="DELETE_DATASET_EVALUATOR",
-            nullable=False,
-        ),
-        sa.Column(
-            "dataset_evaluator_id",
-            _Integer,
-            sa.ForeignKey("dataset_evaluators.id", ondelete="RESTRICT"),
-            nullable=False,
-            unique=True,
-        ),
-        sa.ForeignKeyConstraint(
-            ["kind", "id"],
-            ["cleanup_tasks.kind", "cleanup_tasks.id"],
-            ondelete="CASCADE",
-        ),
+        sa.Column("retry_at", sa.TIMESTAMP(timezone=True), nullable=False),
     )
 
 
@@ -444,7 +354,7 @@ def upgrade() -> None:
     _upgrade_projects()
     _upgrade_evaluator_bindings()
     _backfill_code_evaluator_task_snapshots()
-    _create_cleanup_task_tables()
+    _create_tombstone_indexes_and_cleanup_failures()
 
 
 def downgrade() -> None:
@@ -453,13 +363,8 @@ def downgrade() -> None:
         if connection.scalar(sa.text(f"SELECT COUNT(*) FROM {table} WHERE deleted_at IS NOT NULL")):
             raise ValueError(
                 f"Cannot downgrade while {table} has deleted rows awaiting background cleanup; "
-                "run the server until cleanup tasks drain first."
+                "run the server until background cleanup drains first."
             )
-    if connection.scalar(sa.text("SELECT COUNT(*) FROM cleanup_tasks")):
-        raise ValueError(
-            "Cannot downgrade while cleanup_tasks has pending rows; "
-            "run the server until cleanup tasks drain first."
-        )
     missing_code_evaluator_sql = (
         "SELECT COUNT(*) "
         "FROM experiment_evaluator_tasks t "
@@ -480,12 +385,9 @@ def downgrade() -> None:
         )
     _strip_code_evaluator_task_snapshots()
 
-    op.drop_table("dataset_evaluator_cleanup_tasks")
-    op.drop_table("project_evaluator_cleanup_tasks")
-    op.drop_table("project_delete_cleanup_tasks")
-    op.drop_index("ix_cleanup_tasks_claimed", table_name="cleanup_tasks")
-    op.drop_index("ix_cleanup_tasks_eligible", table_name="cleanup_tasks")
-    op.drop_table("cleanup_tasks")
+    op.drop_table("cleanup_failures")
+    for table in ("dataset_evaluators", "project_evaluators", "projects"):
+        op.drop_index(f"ix_{table}_tombstoned", table_name=table)
 
     op.drop_index("ix_dataset_evaluators_live_name", table_name="dataset_evaluators")
     op.drop_index("ix_dataset_evaluators_dataset_id", table_name="dataset_evaluators")

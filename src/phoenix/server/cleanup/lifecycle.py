@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Literal, Optional, Protocol
 
-from sqlalchemy import and_, delete, exists, insert, literal, or_, select, text, update
+from sqlalchemy import and_, delete, exists, literal, or_, select, text, update
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -160,27 +160,6 @@ async def _lock_additional_projects(
     locked_project_ids.update(missing_ids)
 
 
-async def _insert_cleanup_task(
-    session: AsyncSession,
-    *,
-    kind: models.CleanupTaskKind,
-    now: datetime,
-) -> int:
-    task_id = await session.scalar(
-        insert(models.CleanupTask)
-        .values(
-            kind=kind,
-            claimed_at=None,
-            claimed_by=None,
-            available_at=now,
-            created_at=now,
-        )
-        .returning(models.CleanupTask.id)
-    )
-    assert isinstance(task_id, int)
-    return task_id
-
-
 async def logical_delete_project_evaluators(
     session: AsyncSession,
     *,
@@ -190,8 +169,7 @@ async def logical_delete_project_evaluators(
     collect_unused_prompt_or_decision: bool,
 ) -> LogicalEvaluatorDeleteResult:
     """Tombstone live project evaluator bindings under canonical lock order, optionally run
-    synchronous shared-definition GC, and enqueue one ``ProjectEvaluatorCleanupTask`` per
-    deleted binding."""
+    synchronous shared-definition GC; the tombstones are what the cleanup worker drains."""
     requested_ids = sorted(set(binding_ids))
     if not requested_ids:
         return LogicalEvaluatorDeleteResult(binding_ids=[], tombstoned_project_ids=[])
@@ -283,20 +261,6 @@ async def logical_delete_project_evaluators(
         )
     )
 
-    for binding_id in marked_ids:
-        task_id = await _insert_cleanup_task(
-            session,
-            kind="DELETE_PROJECT_EVALUATOR",
-            now=now,
-        )
-        await session.execute(
-            insert(models.ProjectEvaluatorCleanupTask).values(
-                id=task_id,
-                kind="DELETE_PROJECT_EVALUATOR",
-                project_evaluator_id=binding_id,
-            )
-        )
-
     if collect_unused_evaluator and candidate_evaluator_ids:
         await garbage_collect_evaluators(
             session,
@@ -320,8 +284,7 @@ async def logical_delete_dataset_evaluators(
     collect_unused_prompt_or_decision: bool,
 ) -> LogicalEvaluatorDeleteResult:
     """Tombstone live dataset evaluator bindings under canonical lock order, optionally run
-    synchronous shared-definition GC, and enqueue one ``DatasetEvaluatorCleanupTask`` per
-    deleted binding."""
+    synchronous shared-definition GC; the tombstones are what the cleanup worker drains."""
     requested_ids = sorted(set(binding_ids))
     if not requested_ids:
         return LogicalEvaluatorDeleteResult(binding_ids=[], tombstoned_project_ids=[])
@@ -419,20 +382,6 @@ async def logical_delete_dataset_evaluators(
             )
         )
     )
-
-    for binding_id in marked_ids:
-        task_id = await _insert_cleanup_task(
-            session,
-            kind="DELETE_DATASET_EVALUATOR",
-            now=now,
-        )
-        await session.execute(
-            insert(models.DatasetEvaluatorCleanupTask).values(
-                id=task_id,
-                kind="DELETE_DATASET_EVALUATOR",
-                dataset_evaluator_id=binding_id,
-            )
-        )
 
     if collect_unused_evaluator and candidate_evaluator_ids:
         await garbage_collect_evaluators(
@@ -534,8 +483,8 @@ async def admit_project_delete(
     dialect: SupportedSQLDialect,
     project_id: int,
 ) -> AdmittedProjectDelete:
-    """Tombstone a live non-evaluator project, detach its live bindings, and enqueue its
-    ``ProjectDeleteCleanupTask``."""
+    """Tombstone a live non-evaluator project, and detach its live bindings; the
+    tombstone is what the cleanup worker drains."""
     initial_trace_project_ids = list(
         await session.scalars(
             select(models.ProjectEvaluator.trace_project_id).where(
@@ -592,20 +541,6 @@ async def admit_project_delete(
     project.deleted_at = now
     project.updated_at = now
 
-    existing_delete_task = await session.scalar(
-        select(models.ProjectDeleteCleanupTask.id).where(
-            models.ProjectDeleteCleanupTask.project_id == project_id
-        )
-    )
-    if existing_delete_task is None:
-        task_id = await _insert_cleanup_task(session, kind="DELETE_PROJECT", now=now)
-        await session.execute(
-            insert(models.ProjectDeleteCleanupTask).values(
-                id=task_id,
-                kind="DELETE_PROJECT",
-                project_id=project_id,
-            )
-        )
     return AdmittedProjectDelete(
         project=project,
         tombstoned_project_ids=sorted({project_id, *tombstoned_trace_project_ids}),
@@ -749,7 +684,7 @@ async def admit_exclusive_experiment_projects_delete(
     dialect: SupportedSQLDialect,
     candidate_project_ids: Iterable[int],
 ) -> list[int]:
-    """Tombstone and enqueue ``ProjectDeleteCleanupTask`` for the candidates from
+    """Tombstone the candidates from
     ``resolve_experiment_project_delete_candidates`` that are still live and that no ``Experiment``
     names after the owning experiment/dataset rows were deleted in ``session``."""
     ids = sorted(set(candidate_project_ids))
@@ -816,23 +751,6 @@ async def admit_exclusive_experiment_projects_delete(
         .where(models.Project.id.in_(eligible_ids))
         .values(deleted_at=now, updated_at=now)
     )
-    existing_delete_project_ids = set(
-        await session.scalars(
-            select(models.ProjectDeleteCleanupTask.project_id).where(
-                models.ProjectDeleteCleanupTask.project_id.in_(eligible_ids)
-            )
-        )
-    )
-    for project_id in eligible_ids:
-        if project_id not in existing_delete_project_ids:
-            task_id = await _insert_cleanup_task(session, kind="DELETE_PROJECT", now=now)
-            await session.execute(
-                insert(models.ProjectDeleteCleanupTask).values(
-                    id=task_id,
-                    kind="DELETE_PROJECT",
-                    project_id=project_id,
-                )
-            )
     return sorted({*eligible_ids, *tombstoned_trace_project_ids})
 
 

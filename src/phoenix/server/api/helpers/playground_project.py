@@ -5,9 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
-from phoenix.db.cleanup_tasks import live_row_predicate
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.db.lifecycle import live_row_predicate
 
 PLAYGROUND_PROJECT_DESCRIPTION = "Traces from prompt playground"
 

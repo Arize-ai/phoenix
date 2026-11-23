@@ -264,24 +264,16 @@ async def test_f125a3233286_tombstones_projects_and_guards_downgrade(
         conn.execute(text("DELETE FROM projects WHERE id = :id"), {"id": ids["standard_proj"]})
         conn.execute(
             text(
-                "INSERT INTO cleanup_tasks (kind, available_at, created_at) "
-                "VALUES ('DELETE_PROJECT', :t, :t)"
+                "INSERT INTO cleanup_failures (target_kind, target_id, failure_count, retry_at) "
+                "VALUES ('PROJECT', :id, 1, :t)"
             ),
-            {"t": t0},
+            {"id": ids["standard_proj"], "t": t0},
         )
         conn.commit()
 
     await _run_async(_engine, _finish_purge)
 
-    # Downgrade also refuses while any cleanup task is still queued.
-    with pytest.raises(ValueError, match="Cannot downgrade while cleanup_tasks has pending rows"):
-        await _down(_engine, _alembic_config, _DOWN, _schema)
-
-    def _drain_tasks(conn: Connection) -> None:
-        conn.execute(text("DELETE FROM cleanup_tasks"))
-        conn.commit()
-
-    await _run_async(_engine, _drain_tasks)
+    # Retry state alone does not block the downgrade; it is dropped with its table.
     await _down(_engine, _alembic_config, _DOWN, _schema)
 
 

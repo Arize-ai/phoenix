@@ -1,47 +1,40 @@
-"""Coordinator for the specialized polymorphic ``cleanup_tasks`` queue.
+"""Coordinator that drains tombstoned projects and evaluator bindings in bounded steps.
 
-Coordinates bounded single-batch data-reclamation steps across replicas:
-- At most one claimed cleanup task deployment-wide (gated on PostgreSQL by a transaction-scoped
-  advisory lock during the ~1 ms claim transaction, and on SQLite by its single writer pool).
-- Each claimed step locks its ``cleanup_tasks`` row through the batch commit (``FOR NO KEY
-  UPDATE NOWAIT`` on PostgreSQL; immediate conditional fencing write on SQLite), so claim
-  recovery never reassigns an active database step even if its lease expires mid-batch.
-- Completed tasks are deleted inside the finalization transaction alongside their target
-  tombstone; failed or temporarily contended steps reschedule via durable ``available_at``.
+The tombstones (``deleted_at IS NOT NULL`` on ``projects``, ``project_evaluators``, and
+``dataset_evaluators``) are the work list. Each step is one transaction that takes a
+transaction-scoped advisory lock on PostgreSQL (SQLite serializes writers), picks the oldest
+target that is not backing off, drains one bounded batch of it, and deletes the target rows
+once nothing is left. ``cleanup_failures`` holds retry state only, for targets that yielded
+or failed; it is neither a queue nor a lease.
 """
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from secrets import token_hex
 from typing import Literal, Optional
 
 from sqlalchemy import (
-    ColumnElement,
+    Select,
     and_,
     delete,
     exists,
     func,
     literal,
-    not_,
     or_,
     select,
     text,
+    union_all,
     update,
 )
+from sqlalchemy.dialects.postgresql import insert as insert_postgresql
+from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.exc import DBAPIError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased, with_polymorphic
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
-from phoenix.db.cleanup_tasks import (
-    claimed_cleanup_tasks_predicate,
-    unclaimed_cleanup_tasks_predicate,
-)
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import get_sqlstate
 from phoenix.server.cleanup.primitives import (
@@ -62,7 +55,6 @@ logger = logging.getLogger(__name__)
 # Distinct from ModelCostManifest's 0x70686F656E6978 ("phoenix").
 _CLEANUP_ADMISSION_LOCK_ID = 0x636C6E705F717565  # "clnp_que"
 
-CLAIM_LEASE_TTL_SECONDS = 90.0
 YIELD_DELAY_SECONDS = 0.25
 ERROR_RETRY_DELAY_SECONDS = 15.0
 MAX_ERROR_RETRY_DELAY_SECONDS = 3600.0
@@ -71,53 +63,62 @@ LOCK_TIMEOUT_MS = 5_000
 _TRANSIENT_CONTENTION_SQLSTATES = frozenset({"55P03", "40P01"})
 
 
-class _ClaimLostError(Exception):
-    """Raised when a cleanup step loses ownership of its claimed task row before commit."""
-
-
 @dataclass(frozen=True)
-class ClaimedCleanupTask:
-    task_id: int
-    kind: models.CleanupTaskKind
-    claimed_by: str
+class CleanupTarget:
+    kind: models.CleanupTargetKind
+    id: int
 
 
-StepOutcome: TypeAlias = Literal["progress", "yield", "completed", "claim_lost", "error"]
+StepOutcome: TypeAlias = Literal["progress", "yield", "completed", "error", "busy", "idle"]
 
 
 @dataclass(frozen=True)
 class StepExecutionResult:
     outcome: StepOutcome
     affected_rows: int = 0
+    next_delay_seconds: Optional[float] = None
 
 
-def _ineligible_waiting_delete_predicate() -> ColumnElement[bool]:
-    """Fixed ordering rule:
-    - Exclude ``DELETE_PROJECT`` while any ``project_evaluators`` row still references that
-      owner project.
+def _eligible_targets() -> Select[tuple[str, int, datetime]]:
+    """Every tombstoned row that cleanup may work on now, as ``(kind, id, deleted_at)``.
+
+    A project is eligible only once no binding references it as owner or trace project; a
+    binding's trace project is tombstoned with the binding and removed by the binding's own
+    final step.
     """
-    project_delete_task = aliased(models.ProjectDeleteCleanupTask)
-    project_evaluator = aliased(models.ProjectEvaluator)
-
-    return and_(
-        models.CleanupTask.kind == "DELETE_PROJECT",
-        exists(
-            select(literal(1))
-            .select_from(project_delete_task)
-            .where(
-                project_delete_task.id == models.CleanupTask.id,
-                exists(
-                    select(literal(1)).where(
-                        project_evaluator.project_id == project_delete_task.project_id
-                    )
-                ),
-            )
+    project = models.Project
+    project_evaluator = models.ProjectEvaluator
+    dataset_evaluator = models.DatasetEvaluators
+    return union_all(
+        select(
+            literal("PROJECT").label("kind"),
+            project.id.label("id"),
+            project.deleted_at.label("deleted_at"),
+        ).where(
+            project.deleted_at.is_not(None),
+            ~exists().where(
+                or_(
+                    project_evaluator.project_id == project.id,
+                    project_evaluator.trace_project_id == project.id,
+                )
+            ),
+            ~exists().where(dataset_evaluator.project_id == project.id),
         ),
-    )
+        select(
+            literal("PROJECT_EVALUATOR"),
+            project_evaluator.id,
+            project_evaluator.deleted_at,
+        ).where(project_evaluator.deleted_at.is_not(None)),
+        select(
+            literal("DATASET_EVALUATOR"),
+            dataset_evaluator.id,
+            dataset_evaluator.deleted_at,
+        ).where(dataset_evaluator.deleted_at.is_not(None)),
+    )  # type: ignore[return-value]
 
 
 class CleanupCoordinator:
-    """Coordinates ``cleanup_tasks`` claims, bounded batch execution, and recovery."""
+    """Selects the next tombstoned target and runs one bounded cleanup step on it."""
 
     def __init__(
         self,
@@ -125,21 +126,14 @@ class CleanupCoordinator:
         *,
         event_queue: Optional[CanPutItem[DmlEvent]] = None,
         batch_limit: int = CLEANUP_BATCH_ROWS,
-        lease_ttl_seconds: float = CLAIM_LEASE_TTL_SECONDS,
         yield_delay_seconds: float = YIELD_DELAY_SECONDS,
         error_retry_delay_seconds: float = ERROR_RETRY_DELAY_SECONDS,
-        worker_prefix: str = "cleanup-worker",
     ) -> None:
         self._db = db
         self._event_queue = event_queue
         self._batch_limit = batch_limit
-        self._lease_ttl_seconds = lease_ttl_seconds
         self._yield_delay_seconds = yield_delay_seconds
         self._error_retry_delay_seconds = error_retry_delay_seconds
-        self._worker_prefix = worker_prefix
-
-    def _new_claim_token(self) -> str:
-        return f"{self._worker_prefix}-{token_hex(8)}"
 
     def _compute_error_retry_delay_seconds(self, *, num_prior_failures: int) -> float:
         return float(
@@ -149,402 +143,229 @@ class CleanupCoordinator:
             )
         )
 
-    async def _next_eligible_delay_seconds(
+    async def _acquire_step_lock(
+        self, session: AsyncSession, *, dialect: SupportedSQLDialect
+    ) -> bool:
+        """Make this transaction the only stepping one; ``False`` means another replica is."""
+        if dialect is SupportedSQLDialect.POSTGRESQL:
+            await session.execute(text(f"SET LOCAL statement_timeout = {STATEMENT_TIMEOUT_MS}"))
+            await session.execute(text(f"SET LOCAL lock_timeout = {LOCK_TIMEOUT_MS}"))
+            return bool(
+                await session.scalar(
+                    select(func.pg_try_advisory_xact_lock(_CLEANUP_ADMISSION_LOCK_ID))
+                )
+            )
+        # A conditional write that matches nothing still takes SQLite's writer lock, so the
+        # reads below never start from a snapshot that a later write would have to upgrade.
+        await session.execute(
+            update(models.CleanupFailure)
+            .where(models.CleanupFailure.target_id == -1)
+            .values(failure_count=0)
+        )
+        return True
+
+    async def _select_next_target(
+        self, session: AsyncSession, *, now: datetime
+    ) -> tuple[Optional[CleanupTarget], Optional[float]]:
+        """The oldest target not backing off, or else the delay until the earliest retry."""
+        eligible = _eligible_targets().subquery("eligible")
+        failure = models.CleanupFailure
+        backing_off_join = and_(
+            failure.target_kind == eligible.c.kind,
+            failure.target_id == eligible.c.id,
+        )
+        row = (
+            await session.execute(
+                select(eligible.c.kind, eligible.c.id)
+                .outerjoin(failure, backing_off_join)
+                .where(or_(failure.retry_at.is_(None), failure.retry_at <= now))
+                .order_by(eligible.c.deleted_at.asc(), eligible.c.kind.asc(), eligible.c.id.asc())
+                .limit(1)
+            )
+        ).first()
+        if row is not None:
+            return CleanupTarget(kind=row.kind, id=int(row.id)), None
+        next_retry_at = await session.scalar(
+            select(func.min(failure.retry_at))
+            .select_from(eligible)
+            .join(failure, backing_off_join)
+            .where(failure.retry_at > now)
+        )
+        if next_retry_at is None:
+            return None, None
+        return None, max(0.0, (next_retry_at - now).total_seconds())
+
+    async def _delete_failure(
+        self, session: AsyncSession, *, kind: models.CleanupTargetKind, target_id: int
+    ) -> None:
+        await session.execute(
+            delete(models.CleanupFailure).where(
+                models.CleanupFailure.target_kind == kind,
+                models.CleanupFailure.target_id == target_id,
+            )
+        )
+
+    async def _record_retry(
         self,
         session: AsyncSession,
         *,
-        now: datetime,
-    ) -> Optional[float]:
-        next_available_at = await session.scalar(
-            select(models.CleanupTask.available_at)
-            .where(
-                text(unclaimed_cleanup_tasks_predicate()),
-                not_(_ineligible_waiting_delete_predicate()),
+        target: CleanupTarget,
+        retry_at: datetime,
+        failure_count: Optional[int],
+    ) -> None:
+        """Back ``target`` off until ``retry_at``; ``None`` keeps the stored failure count."""
+        values = {
+            "target_kind": target.kind,
+            "target_id": target.id,
+            "failure_count": failure_count or 0,
+            "retry_at": retry_at,
+        }
+        update_columns: dict[str, object] = {"retry_at": retry_at}
+        if failure_count is not None:
+            update_columns["failure_count"] = failure_count
+        if self._db.dialect is SupportedSQLDialect.POSTGRESQL:
+            statement = insert_postgresql(models.CleanupFailure).values(values)
+            await session.execute(
+                statement.on_conflict_do_update(
+                    index_elements=["target_kind", "target_id"], set_=update_columns
+                )
             )
-            .order_by(models.CleanupTask.available_at.asc(), models.CleanupTask.id.asc())
-            .limit(1)
-        )
-        if next_available_at is None:
-            return None
-        return max(0.0, (next_available_at - now).total_seconds())
+        else:
+            sqlite_statement = insert_sqlite(models.CleanupFailure).values(values)
+            await session.execute(
+                sqlite_statement.on_conflict_do_update(
+                    index_elements=["target_kind", "target_id"], set_=update_columns
+                )
+            )
 
-    async def claim_next(self) -> Optional[ClaimedCleanupTask]:
-        """Recover unlocked lapsed claims and claim at most one eligible task deployment-wide."""
-        claimed, _ = await self._claim_next_or_delay()
-        return claimed
-
-    async def _claim_next_or_delay(
-        self,
-    ) -> tuple[Optional[ClaimedCleanupTask], Optional[float]]:
-        dialect = self._db.dialect
-        token = self._new_claim_token()
-
+    async def _record_short_retry(self, target: CleanupTarget) -> None:
         async with self._db() as session:
-            if dialect is SupportedSQLDialect.POSTGRESQL:
-                await session.execute(
-                    select(func.pg_advisory_xact_lock(_CLEANUP_ADMISSION_LOCK_ID))
-                )
-            else:
-                # Acquire SQLite's writer lock before reading claim state so a cross-connection
-                # test or tool never attempts a stale WAL read-to-write snapshot upgrade.
-                await session.execute(
-                    update(models.CleanupTask)
-                    .where(models.CleanupTask.id == -1)
-                    .values(claimed_by=None)
-                )
-
-            now = await current_database_time(session, dialect)
-            lapsed_cutoff = now - timedelta(seconds=self._lease_ttl_seconds)
-
-            lapsed_stmt = (
-                select(models.CleanupTask.id, models.CleanupTask.failure_count)
-                .where(
-                    text(claimed_cleanup_tasks_predicate()),
-                    models.CleanupTask.claimed_at <= lapsed_cutoff,
-                )
-                .order_by(models.CleanupTask.claimed_at.asc(), models.CleanupTask.id.asc())
+            now = await current_database_time(session, self._db.dialect)
+            await self._record_retry(
+                session,
+                target=target,
+                retry_at=now + timedelta(seconds=self._yield_delay_seconds),
+                failure_count=None,
             )
-            if dialect is SupportedSQLDialect.POSTGRESQL:
-                lapsed_stmt = lapsed_stmt.with_for_update(key_share=True, skip_locked=True)
-            lapsed_rows = (await session.execute(lapsed_stmt)).all()
-            if lapsed_rows:
-                recovered_task_ids: list[int] = []
-                for lapsed_row in lapsed_rows:
-                    lapsed_task_id = int(lapsed_row.id)
-                    num_failures = int(lapsed_row.failure_count)
-                    retry_delay_seconds = self._compute_error_retry_delay_seconds(
-                        num_prior_failures=num_failures
-                    )
-                    recovered = await session.execute(
-                        update(models.CleanupTask)
-                        .where(
-                            models.CleanupTask.id == lapsed_task_id,
-                            text(claimed_cleanup_tasks_predicate()),
-                            models.CleanupTask.claimed_at <= lapsed_cutoff,
-                        )
-                        .values(
-                            claimed_at=None,
-                            claimed_by=None,
-                            available_at=now + timedelta(seconds=retry_delay_seconds),
-                            failure_count=num_failures + 1,
-                        )
-                    )
-                    if getattr(recovered, "rowcount", 0) == 1:
-                        recovered_task_ids.append(lapsed_task_id)
-                if recovered_task_ids:
-                    logger.warning(
-                        "Recovered %d expired cleanup task claim(s): %s",
-                        len(recovered_task_ids),
-                        recovered_task_ids,
-                    )
 
-            active_claimed = int(
-                (
-                    await session.scalar(
-                        select(func.count(models.CleanupTask.id)).where(
-                            text(claimed_cleanup_tasks_predicate())
-                        )
-                    )
-                )
-                or 0
-            )
-            if active_claimed >= 1:
-                return None, None
-
-            candidate_stmt = (
-                select(models.CleanupTask.id, models.CleanupTask.kind)
-                .where(
-                    text(unclaimed_cleanup_tasks_predicate()),
-                    models.CleanupTask.available_at <= now,
-                    not_(_ineligible_waiting_delete_predicate()),
-                )
-                .order_by(models.CleanupTask.available_at.asc(), models.CleanupTask.id.asc())
-                .limit(1)
-            )
-            if dialect is SupportedSQLDialect.POSTGRESQL:
-                candidate_stmt = candidate_stmt.with_for_update(key_share=True, skip_locked=True)
-                row = (await session.execute(candidate_stmt)).first()
-                if row is None:
-                    next_delay = await self._next_eligible_delay_seconds(session, now=now)
-                    return None, next_delay
-                task_id, kind = int(row.id), row.kind
-                await session.execute(
-                    update(models.CleanupTask)
-                    .where(models.CleanupTask.id == task_id)
-                    .values(claimed_at=now, claimed_by=token)
-                )
-                return ClaimedCleanupTask(task_id=task_id, kind=kind, claimed_by=token), None
-
-            row = (await session.execute(candidate_stmt)).first()
-            if row is None:
-                next_delay = await self._next_eligible_delay_seconds(session, now=now)
-                return None, next_delay
-            task_id, kind = int(row.id), row.kind
-            cas = await session.execute(
-                update(models.CleanupTask)
-                .where(
-                    models.CleanupTask.id == task_id,
-                    text(unclaimed_cleanup_tasks_predicate()),
-                    models.CleanupTask.available_at <= now,
-                )
-                .values(claimed_at=now, claimed_by=token)
-            )
-            if getattr(cas, "rowcount", 0) != 1:
-                return None, None
-            return ClaimedCleanupTask(task_id=task_id, kind=kind, claimed_by=token), None
-
-    async def execute_claimed_step(self, claimed: ClaimedCleanupTask) -> StepExecutionResult:
-        """Execute one protected batch transaction for ``claimed``."""
-        dialect = self._db.dialect
-        events_after_commit: list[DmlEvent] = []
-        was_cancelled = False
+    async def _record_failure(self, target: CleanupTarget) -> None:
+        """Back a failed target off, doubling the delay per consecutive failure."""
         try:
             async with self._db() as session:
-                try:
-                    if dialect is SupportedSQLDialect.POSTGRESQL:
-                        await session.execute(
-                            text(f"SET LOCAL statement_timeout = {STATEMENT_TIMEOUT_MS}")
+                now = await current_database_time(session, self._db.dialect)
+                num_prior_failures = (
+                    await session.scalar(
+                        select(models.CleanupFailure.failure_count).where(
+                            models.CleanupFailure.target_kind == target.kind,
+                            models.CleanupFailure.target_id == target.id,
                         )
-                        await session.execute(text(f"SET LOCAL lock_timeout = {LOCK_TIMEOUT_MS}"))
-                        now = await current_database_time(session, dialect)
-                        lease_floor = now - timedelta(seconds=self._lease_ttl_seconds)
-                        try:
-                            locked_id = await session.scalar(
-                                select(models.CleanupTask.id)
-                                .where(
-                                    models.CleanupTask.id == claimed.task_id,
-                                    models.CleanupTask.claimed_by == claimed.claimed_by,
-                                    models.CleanupTask.claimed_at > lease_floor,
-                                )
-                                .with_for_update(key_share=True, nowait=True)
-                            )
-                        except DBAPIError as exc:
-                            if get_sqlstate(exc) == "55P03":  # lock_not_available
-                                return StepExecutionResult("claim_lost")
-                            raise
-                        if locked_id is None:
-                            return StepExecutionResult("claim_lost")
-                    else:
-                        now = await current_database_time(session, dialect)
-                        lease_floor = now - timedelta(seconds=self._lease_ttl_seconds)
-                        # Conditional write first so SQLite acquires RESERVED/IMMEDIATE lock
-                        # before any SELECT touches a table B-tree.
-                        fenced = await session.execute(
-                            update(models.CleanupTask)
-                            .where(
-                                models.CleanupTask.id == claimed.task_id,
-                                models.CleanupTask.claimed_by == claimed.claimed_by,
-                                models.CleanupTask.claimed_at > lease_floor,
-                            )
-                            .values(claimed_at=now)
-                        )
-                        if getattr(fenced, "rowcount", 0) != 1:
-                            return StepExecutionResult("claim_lost")
-
-                    poly = with_polymorphic(models.CleanupTask, "*")
-                    task = await session.scalar(
-                        select(poly).where(models.CleanupTask.id == claimed.task_id)
                     )
-                    if task is None:
-                        return StepExecutionResult("claim_lost")
-
-                    step_result = await self._run_domain_step(
-                        session,
-                        dialect=dialect,
-                        task=task,
-                        events_after_commit=events_after_commit,
-                    )
-                    step_done_now = await current_database_time(session, dialect)
-                    if step_result.status is PrimitiveStatus.PROGRESS:
-                        await self._release_claim(
-                            session, claimed, available_at=step_done_now, reset_failures=True
-                        )
-                        outcome = StepExecutionResult("progress", step_result.affected_rows)
-                    elif step_result.status is PrimitiveStatus.YIELD:
-                        await self._release_claim(
-                            session,
-                            claimed,
-                            available_at=step_done_now
-                            + timedelta(seconds=self._yield_delay_seconds),
-                        )
-                        outcome = StepExecutionResult("yield", 0)
-                    elif step_result.status is PrimitiveStatus.EMPTY:
-                        outcome = StepExecutionResult("completed", step_result.affected_rows)
-                    else:
-                        assert_never(step_result.status)
-                except asyncio.CancelledError:
-                    was_cancelled = True
-                    raise
-        except asyncio.CancelledError:
-            await asyncio.shield(self._release_claim_on_cancel(claimed))
-            raise
-        except _ClaimLostError:
-            return StepExecutionResult("claim_lost", 0)
-        except SQLAlchemyError as exc:
-            if was_cancelled:
-                await asyncio.shield(self._release_claim_on_cancel(claimed))
-                raise asyncio.CancelledError from exc
-            if isinstance(exc, DBAPIError) and get_sqlstate(exc) in _TRANSIENT_CONTENTION_SQLSTATES:
-                # A writer holds or deadlocked on the rows this step needs; retry shortly without
-                # counting a failure.
-                await self._record_step_yield(claimed)
-                return StepExecutionResult("yield", 0)
+                    or 0
+                )
+                retry_delay_seconds = self._compute_error_retry_delay_seconds(
+                    num_prior_failures=int(num_prior_failures)
+                )
+                await self._record_retry(
+                    session,
+                    target=target,
+                    retry_at=now + timedelta(seconds=retry_delay_seconds),
+                    failure_count=int(num_prior_failures) + 1,
+                )
+        except SQLAlchemyError:
             logger.exception(
-                "Cleanup task %s (kind=%s, claim=%s) batch failed; scheduling retry",
-                claimed.task_id,
-                claimed.kind,
-                claimed.claimed_by,
+                "Failed to record retry delay for cleanup target %s %s", target.kind, target.id
             )
-            await self._record_step_failure(claimed)
-            return StepExecutionResult("error", 0)
 
+    async def step(self) -> StepExecutionResult:
+        """Run one bounded step on the oldest eligible target in a single transaction."""
+        dialect = self._db.dialect
+        events_after_commit: list[DmlEvent] = []
+        target: Optional[CleanupTarget] = None
+        try:
+            async with self._db() as session:
+                if not await self._acquire_step_lock(session, dialect=dialect):
+                    return StepExecutionResult("busy")
+                now = await current_database_time(session, dialect)
+                target, next_delay_seconds = await self._select_next_target(session, now=now)
+                if target is None:
+                    return StepExecutionResult("idle", next_delay_seconds=next_delay_seconds)
+                step_result = await self._run_domain_step(
+                    session,
+                    dialect=dialect,
+                    target=target,
+                    events_after_commit=events_after_commit,
+                )
+                if step_result.status is PrimitiveStatus.PROGRESS:
+                    await self._delete_failure(session, kind=target.kind, target_id=target.id)
+                    outcome = StepExecutionResult("progress", step_result.affected_rows)
+                elif step_result.status is PrimitiveStatus.YIELD:
+                    now = await current_database_time(session, dialect)
+                    await self._record_retry(
+                        session,
+                        target=target,
+                        retry_at=now + timedelta(seconds=self._yield_delay_seconds),
+                        failure_count=None,
+                    )
+                    outcome = StepExecutionResult("yield", 0)
+                elif step_result.status is PrimitiveStatus.EMPTY:
+                    outcome = StepExecutionResult("completed", step_result.affected_rows)
+                else:
+                    assert_never(step_result.status)
+        except SQLAlchemyError as exc:
+            if target is None:
+                raise
+            if isinstance(exc, DBAPIError) and get_sqlstate(exc) in _TRANSIENT_CONTENTION_SQLSTATES:
+                # A writer holds or deadlocked on the rows this step needs; retry shortly
+                # without counting a failure.
+                await self._record_short_retry(target)
+                return StepExecutionResult("yield", 0)
+            logger.exception("Cleanup of %s %s failed; scheduling retry", target.kind, target.id)
+            await self._record_failure(target)
+            return StepExecutionResult("error", 0)
         if self._event_queue is not None:
             for event in events_after_commit:
                 self._event_queue.put(event)
         return outcome
-
-    async def _release_claim(
-        self,
-        session: AsyncSession,
-        claimed: ClaimedCleanupTask,
-        *,
-        available_at: datetime,
-        reset_failures: bool = False,
-    ) -> None:
-        """Release ``claimed`` only if it is still held by this claim token."""
-        released = await session.execute(
-            update(models.CleanupTask)
-            .where(
-                models.CleanupTask.id == claimed.task_id,
-                models.CleanupTask.claimed_by == claimed.claimed_by,
-            )
-            .values(
-                claimed_at=None,
-                claimed_by=None,
-                available_at=available_at,
-                **({"failure_count": 0} if reset_failures else {}),
-            )
-        )
-        if getattr(released, "rowcount", 0) != 1:
-            raise _ClaimLostError(f"cleanup task {claimed.task_id} claim was lost mid-step")
-
-    async def _release_claim_on_cancel(self, claimed: ClaimedCleanupTask) -> None:
-        try:
-            async with self._db() as session:
-                now = await current_database_time(session, self._db.dialect)
-                await self._release_claim(
-                    session,
-                    claimed,
-                    available_at=now,
-                )
-        except _ClaimLostError:
-            return
-        except SQLAlchemyError:
-            logger.warning(
-                "Failed to release claim for cancelled cleanup task %s (claim=%s); "
-                "lease recovery will reschedule it",
-                claimed.task_id,
-                claimed.claimed_by,
-                exc_info=True,
-            )
-
-    async def _record_step_yield(self, claimed: ClaimedCleanupTask) -> None:
-        try:
-            async with self._db() as session:
-                now = await current_database_time(session, self._db.dialect)
-                await self._release_claim(
-                    session,
-                    claimed,
-                    available_at=now + timedelta(seconds=self._yield_delay_seconds),
-                )
-        except _ClaimLostError:
-            return
-        except SQLAlchemyError:
-            logger.exception(
-                "Failed to record yield for cleanup task %s (claim=%s); "
-                "lease recovery will reschedule it",
-                claimed.task_id,
-                claimed.claimed_by,
-            )
-
-    async def _record_step_failure(self, claimed: ClaimedCleanupTask) -> None:
-        """Reschedule a failed step with a delay that doubles per consecutive failure."""
-        dialect = self._db.dialect
-        try:
-            async with self._db() as session:
-                now = await current_database_time(session, dialect)
-                num_failures = await session.scalar(
-                    select(models.CleanupTask.failure_count).where(
-                        models.CleanupTask.id == claimed.task_id,
-                        models.CleanupTask.claimed_by == claimed.claimed_by,
-                    )
-                )
-                if num_failures is None:
-                    return
-                retry_delay_seconds = self._compute_error_retry_delay_seconds(
-                    num_prior_failures=int(num_failures)
-                )
-                await session.execute(
-                    update(models.CleanupTask)
-                    .where(
-                        models.CleanupTask.id == claimed.task_id,
-                        models.CleanupTask.claimed_by == claimed.claimed_by,
-                    )
-                    .values(
-                        claimed_at=None,
-                        claimed_by=None,
-                        available_at=now + timedelta(seconds=retry_delay_seconds),
-                        failure_count=int(num_failures) + 1,
-                    )
-                )
-        except SQLAlchemyError:
-            logger.exception(
-                "Failed to record retry delay for cleanup task %s (claim=%s); "
-                "lease recovery will reschedule it",
-                claimed.task_id,
-                claimed.claimed_by,
-            )
 
     async def _run_domain_step(
         self,
         session: AsyncSession,
         *,
         dialect: SupportedSQLDialect,
-        task: models.CleanupTask,
+        target: CleanupTarget,
         events_after_commit: list[DmlEvent],
     ) -> PrimitiveResult:
-        if isinstance(task, models.ProjectDeleteCleanupTask):
+        if target.kind == "PROJECT":
             return await self._step_project_delete(
                 session,
                 dialect=dialect,
-                task=task,
+                project_id=target.id,
                 events_after_commit=events_after_commit,
             )
-        if isinstance(task, models.ProjectEvaluatorCleanupTask):
+        if target.kind == "PROJECT_EVALUATOR":
             return await self._step_project_evaluator_delete(
                 session,
                 dialect=dialect,
-                task=task,
+                binding_id=target.id,
                 events_after_commit=events_after_commit,
             )
-        if isinstance(task, models.DatasetEvaluatorCleanupTask):
+        if target.kind == "DATASET_EVALUATOR":
             return await self._step_dataset_evaluator_delete(
                 session,
                 dialect=dialect,
-                task=task,
+                binding_id=target.id,
                 events_after_commit=events_after_commit,
             )
-        raise RuntimeError(f"Unsupported cleanup task instance: {type(task)!r}")
+        assert_never(target.kind)
 
     async def _step_project_delete(
         self,
         session: AsyncSession,
         *,
         dialect: SupportedSQLDialect,
-        task: models.ProjectDeleteCleanupTask,
+        project_id: int,
         events_after_commit: list[DmlEvent],
     ) -> PrimitiveResult:
-        project_id = task.project_id
         # Recheck fixed ordering invariants before draining/finalizing.
         has_bindings = bool(
             await session.scalar(
@@ -597,9 +418,7 @@ class CleanupCoordinator:
         if residual:
             return PrimitiveResult(PrimitiveStatus.YIELD, 0)
 
-        # Delete the base cleanup task first (cascading to project_delete_cleanup_tasks and
-        # releasing its RESTRICT FK on projects.id), then delete the project row.
-        await session.execute(delete(models.CleanupTask).where(models.CleanupTask.id == task.id))
+        await self._delete_failure(session, kind="PROJECT", target_id=project_id)
         await session.execute(delete(models.Project).where(models.Project.id == project_id))
         events_after_commit.append(SpanDeleteEvent((project_id,)))
         events_after_commit.append(ProjectDeleteEvent((project_id,)))
@@ -610,19 +429,15 @@ class CleanupCoordinator:
         session: AsyncSession,
         *,
         dialect: SupportedSQLDialect,
-        task: models.ProjectEvaluatorCleanupTask,
+        binding_id: int,
         events_after_commit: list[DmlEvent],
     ) -> PrimitiveResult:
-        binding_id = task.project_evaluator_id
         trace_project_id = await session.scalar(
             select(models.ProjectEvaluator.trace_project_id).where(
                 models.ProjectEvaluator.id == binding_id
             )
         )
         if trace_project_id is None:
-            await session.execute(
-                delete(models.CleanupTask).where(models.CleanupTask.id == task.id)
-            )
             return PrimitiveResult(PrimitiveStatus.EMPTY, 0)
 
         work_res = await drain_eval_work_units_step(
@@ -682,7 +497,7 @@ class CleanupCoordinator:
         if residual:
             return PrimitiveResult(PrimitiveStatus.YIELD, 0)
 
-        await session.execute(delete(models.CleanupTask).where(models.CleanupTask.id == task.id))
+        await self._delete_failure(session, kind="PROJECT_EVALUATOR", target_id=binding_id)
         await session.execute(
             delete(models.ProjectEvaluator).where(models.ProjectEvaluator.id == binding_id)
         )
@@ -696,19 +511,15 @@ class CleanupCoordinator:
         session: AsyncSession,
         *,
         dialect: SupportedSQLDialect,
-        task: models.DatasetEvaluatorCleanupTask,
+        binding_id: int,
         events_after_commit: list[DmlEvent],
     ) -> PrimitiveResult:
-        binding_id = task.dataset_evaluator_id
         trace_project_id = await session.scalar(
             select(models.DatasetEvaluators.project_id).where(
                 models.DatasetEvaluators.id == binding_id
             )
         )
         if trace_project_id is None:
-            await session.execute(
-                delete(models.CleanupTask).where(models.CleanupTask.id == task.id)
-            )
             return PrimitiveResult(PrimitiveStatus.EMPTY, 0)
 
         dep_res = await drain_dataset_evaluator_dependents_step(
@@ -767,7 +578,7 @@ class CleanupCoordinator:
         if residual:
             return PrimitiveResult(PrimitiveStatus.YIELD, 0)
 
-        await session.execute(delete(models.CleanupTask).where(models.CleanupTask.id == task.id))
+        await self._delete_failure(session, kind="DATASET_EVALUATOR", target_id=binding_id)
         await session.execute(
             delete(models.DatasetEvaluators).where(models.DatasetEvaluators.id == binding_id)
         )
@@ -777,9 +588,8 @@ class CleanupCoordinator:
         return PrimitiveResult(PrimitiveStatus.EMPTY, 1)
 
     async def step_or_next_delay(self) -> tuple[bool, Optional[float]]:
-        """Claim and execute one due step, or return seconds until the earliest eligible task."""
-        claimed, next_delay_seconds = await self._claim_next_or_delay()
-        if claimed is None:
-            return False, next_delay_seconds
-        await self.execute_claimed_step(claimed)
+        """Run one step, or return seconds until the earliest backed-off target retries."""
+        result = await self.step()
+        if result.outcome in ("busy", "idle"):
+            return False, result.next_delay_seconds
         return True, None

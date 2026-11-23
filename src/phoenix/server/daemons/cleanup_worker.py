@@ -1,4 +1,4 @@
-"""Background daemon that drains ``cleanup_tasks`` in bounded batches."""
+"""Background daemon that drains tombstoned rows in bounded batches."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ _JITTER_SECONDS = 0.5
 
 
 class CleanupWorker(DaemonTask):
-    """Claims and executes bounded ``cleanup_tasks`` steps, including during storage lockout."""
+    """Executes bounded cleanup steps on tombstoned rows, including during storage lockout."""
 
     def __init__(
         self,
@@ -39,7 +39,7 @@ class CleanupWorker(DaemonTask):
         return self._coordinator
 
     def wake(self) -> None:
-        """Prompt the worker to check for eligible cleanup tasks immediately."""
+        """Prompt the worker to check for tombstoned rows to clean up immediately."""
         self._woken.set()
 
     async def _run(self) -> None:

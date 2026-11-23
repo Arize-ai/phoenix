@@ -26,13 +26,13 @@ from phoenix.config import (
     get_env_database_allocated_storage_capacity_gibibytes,
 )
 from phoenix.db import models
-from phoenix.db.cleanup_tasks import DEFAULT_LISTED_PROJECT_KINDS
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.helpers import (
     SupportedSQLDialect,
     pg_table_sizes_stmt,
     project_kind_expression,
 )
+from phoenix.db.lifecycle import DEFAULT_LISTED_PROJECT_KINDS
 from phoenix.db.models import LatencyMs
 from phoenix.db.types.annotation_configs import OptimizationDirection
 from phoenix.db.types.model_provider import MODEL_TYPES

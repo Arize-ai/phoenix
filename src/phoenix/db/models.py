@@ -55,12 +55,6 @@ from typing_extensions import Self, TypeAlias, TypeAliasType
 
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
-from phoenix.db.cleanup_tasks import (
-    claimed_cleanup_tasks_predicate,
-    cleanup_task_kind_check,
-    live_row_predicate,
-    unclaimed_cleanup_tasks_predicate,
-)
 from phoenix.db.eval_work import (
     done_index_predicate,
     eval_work_status_check,
@@ -68,6 +62,7 @@ from phoenix.db.eval_work import (
     queued_index_predicate,
     terminal_index_predicate,
 )
+from phoenix.db.lifecycle import live_row_predicate, tombstoned_row_predicate
 from phoenix.db.types.annotation_configs import (
     AnnotationConfig as AnnotationConfigModel,
 )
@@ -238,11 +233,7 @@ EvalWorkStatus: TypeAlias = Literal[
     "SAMPLED_OUT",
 ]
 EvaluationTarget = TypeAliasType("EvaluationTarget", Literal["SPAN", "TRACE", "SESSION"])
-CleanupTaskKind: TypeAlias = Literal[
-    "DELETE_PROJECT",
-    "DELETE_PROJECT_EVALUATOR",
-    "DELETE_DATASET_EVALUATOR",
-]
+CleanupTargetKind: TypeAlias = Literal["PROJECT", "PROJECT_EVALUATOR", "DATASET_EVALUATOR"]
 
 # Quiet period before a trace or session is evaluated. Spans are evaluated as they arrive
 # and store 0; the check constraint on project_evaluators enforces both rules.
@@ -948,6 +939,13 @@ class Project(HasId):
             unique=True,
             postgresql_where=text(live_row_predicate()),
             sqlite_where=text(live_row_predicate()),
+        ),
+        Index(
+            "ix_projects_tombstoned",
+            "deleted_at",
+            "id",
+            postgresql_where=text(tombstoned_row_predicate()),
+            sqlite_where=text(tombstoned_row_predicate()),
         ),
         dict(sqlite_autoincrement=True),
     )
@@ -3963,6 +3961,13 @@ class DatasetEvaluators(HasId):
             postgresql_where=text(live_row_predicate()),
             sqlite_where=text(live_row_predicate()),
         ),
+        Index(
+            "ix_dataset_evaluators_tombstoned",
+            "deleted_at",
+            "id",
+            postgresql_where=text(tombstoned_row_predicate()),
+            sqlite_where=text(tombstoned_row_predicate()),
+        ),
         dict(sqlite_autoincrement=True),
     )
 
@@ -4418,6 +4423,13 @@ class ProjectEvaluator(HasId):
             postgresql_where=text(live_row_predicate()),
             sqlite_where=text(live_row_predicate()),
         ),
+        Index(
+            "ix_project_evaluators_tombstoned",
+            "deleted_at",
+            "id",
+            postgresql_where=text(tombstoned_row_predicate()),
+            sqlite_where=text(tombstoned_row_predicate()),
+        ),
         dict(sqlite_autoincrement=True),
     )
 
@@ -4713,136 +4725,22 @@ class EvalTraceWorkUnit(HasId):
     )
 
 
-class CleanupTask(Base):
-    """Active background data-reclamation obligation; deleted when its target scope is drained."""
+class CleanupFailure(Base):
+    """Retry state for a tombstoned row whose cleanup is backing off.
 
-    __tablename__ = "cleanup_tasks"
-    id: Mapped[int] = mapped_column(_Integer, primary_key=True)
-    kind: Mapped[CleanupTaskKind] = mapped_column(
+    The tombstones are the work list; a row exists here only while its target waits for
+    ``retry_at``. There is no foreign key because the target tables never reuse ids.
+    """
+
+    __tablename__ = "cleanup_failures"
+    target_kind: Mapped[CleanupTargetKind] = mapped_column(
         String,
-        CheckConstraint(cleanup_task_kind_check(), name="valid_cleanup_task_kind"),
-        nullable=False,
-    )
-    claimed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
-    claimed_by: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    available_at: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
-    failure_count: Mapped[int] = mapped_column(_Integer, nullable=False, server_default="0")
-    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
-
-    __mapper_args__ = {
-        "polymorphic_on": "kind",
-        "polymorphic_identity": None,
-    }
-    __table_args__ = (
-        UniqueConstraint("kind", "id"),
         CheckConstraint(
-            "(claimed_at IS NULL AND claimed_by IS NULL) "
-            "OR (claimed_at IS NOT NULL AND claimed_by IS NOT NULL)",
-            name="valid_claim",
+            "target_kind IN ('PROJECT', 'PROJECT_EVALUATOR', 'DATASET_EVALUATOR')",
+            name="valid_cleanup_target_kind",
         ),
-        Index(
-            "ix_cleanup_tasks_eligible",
-            "available_at",
-            "id",
-            postgresql_where=text(unclaimed_cleanup_tasks_predicate()),
-            sqlite_where=text(unclaimed_cleanup_tasks_predicate()),
-        ),
-        Index(
-            "ix_cleanup_tasks_claimed",
-            "claimed_at",
-            "id",
-            postgresql_where=text(claimed_cleanup_tasks_predicate()),
-            sqlite_where=text(claimed_cleanup_tasks_predicate()),
-        ),
-        dict(sqlite_autoincrement=True),
+        primary_key=True,
     )
-
-
-class ProjectDeleteCleanupTask(CleanupTask):
-    """Obligation to drain and physically remove a logically deleted project."""
-
-    __tablename__ = "project_delete_cleanup_tasks"
-    id: Mapped[int] = mapped_column(_Integer, primary_key=True)
-    kind: Mapped[Literal["DELETE_PROJECT"]] = mapped_column(
-        String,
-        CheckConstraint("kind = 'DELETE_PROJECT'", name="valid_cleanup_task_kind"),
-        server_default="DELETE_PROJECT",
-        nullable=False,
-    )
-    project_id: Mapped[int] = mapped_column(
-        _Integer,
-        ForeignKey("projects.id", ondelete="RESTRICT"),
-        nullable=False,
-        unique=True,
-    )
-
-    __mapper_args__ = {
-        "polymorphic_identity": "DELETE_PROJECT",
-    }
-    __table_args__ = (  # type: ignore[assignment]
-        ForeignKeyConstraint(
-            ["kind", "id"],
-            ["cleanup_tasks.kind", "cleanup_tasks.id"],
-            ondelete="CASCADE",
-        ),
-    )
-
-
-class ProjectEvaluatorCleanupTask(CleanupTask):
-    """Obligation to drain a deleted project evaluator's work units and trace project."""
-
-    __tablename__ = "project_evaluator_cleanup_tasks"
-    id: Mapped[int] = mapped_column(_Integer, primary_key=True)
-    kind: Mapped[Literal["DELETE_PROJECT_EVALUATOR"]] = mapped_column(
-        String,
-        CheckConstraint("kind = 'DELETE_PROJECT_EVALUATOR'", name="valid_cleanup_task_kind"),
-        server_default="DELETE_PROJECT_EVALUATOR",
-        nullable=False,
-    )
-    project_evaluator_id: Mapped[int] = mapped_column(
-        _Integer,
-        ForeignKey("project_evaluators.id", ondelete="RESTRICT"),
-        nullable=False,
-        unique=True,
-    )
-
-    __mapper_args__ = {
-        "polymorphic_identity": "DELETE_PROJECT_EVALUATOR",
-    }
-    __table_args__ = (  # type: ignore[assignment]
-        ForeignKeyConstraint(
-            ["kind", "id"],
-            ["cleanup_tasks.kind", "cleanup_tasks.id"],
-            ondelete="CASCADE",
-        ),
-    )
-
-
-class DatasetEvaluatorCleanupTask(CleanupTask):
-    """Obligation to drain a deleted dataset evaluator's experiment logs and trace project."""
-
-    __tablename__ = "dataset_evaluator_cleanup_tasks"
-    id: Mapped[int] = mapped_column(_Integer, primary_key=True)
-    kind: Mapped[Literal["DELETE_DATASET_EVALUATOR"]] = mapped_column(
-        String,
-        CheckConstraint("kind = 'DELETE_DATASET_EVALUATOR'", name="valid_cleanup_task_kind"),
-        server_default="DELETE_DATASET_EVALUATOR",
-        nullable=False,
-    )
-    dataset_evaluator_id: Mapped[int] = mapped_column(
-        _Integer,
-        ForeignKey("dataset_evaluators.id", ondelete="RESTRICT"),
-        nullable=False,
-        unique=True,
-    )
-
-    __mapper_args__ = {
-        "polymorphic_identity": "DELETE_DATASET_EVALUATOR",
-    }
-    __table_args__ = (  # type: ignore[assignment]
-        ForeignKeyConstraint(
-            ["kind", "id"],
-            ["cleanup_tasks.kind", "cleanup_tasks.id"],
-            ondelete="CASCADE",
-        ),
-    )
+    target_id: Mapped[int] = mapped_column(_Integer, primary_key=True, autoincrement=False)
+    failure_count: Mapped[int] = mapped_column(_Integer, nullable=False, server_default="0")
+    retry_at: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
