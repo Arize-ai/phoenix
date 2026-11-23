@@ -44,9 +44,9 @@ from phoenix.server.cleanup.lifecycle import (
 from phoenix.server.cleanup.primitives import (
     PrimitiveResult,
     PrimitiveStatus,
-    clear_project_historical_references_step,
     drain_dataset_evaluator_dependents_step,
     drain_eval_work_units_step,
+    drain_project_annotation_config_links_step,
     drain_trace_scope_step,
 )
 from phoenix.server.daemons.cleanup_worker import CleanupWorker
@@ -610,7 +610,6 @@ class TestImmediateNameReuseAndHistoricalReferences:
             agent = models.AgentSession(
                 title="hist-agent",
                 project_name=shared_name,
-                project_id=old_project_id,
                 model_provider="OPENAI",
                 model_name="gpt-4o",
             )
@@ -690,7 +689,7 @@ class TestImmediateNameReuseAndHistoricalReferences:
         assert steps >= 3
 
         # Verify old_project and its traces are purged, new_project and its trace survive,
-        # and historical Experiment / AgentSession rows survive with project_id = NULL.
+        # and historical Experiment / AgentSession rows survive linked by name.
         async with db() as session:
             assert await session.get(models.Project, old_project_id) is None
             surviving_new = await session.get(models.Project, new_project_id)
@@ -705,7 +704,7 @@ class TestImmediateNameReuseAndHistoricalReferences:
             agent_after = await session.get(models.AgentSession, agent_id)
             assert exp_after is not None
             assert exp_after.project_name == shared_name
-            assert agent_after is not None and agent_after.project_id is None
+            assert agent_after is not None
             assert agent_after.project_name == shared_name
 
             # Deleting the experiment must not delete the live project: it is STANDARD, not
@@ -2855,7 +2854,6 @@ async def test_sqlite_cleanup_primitives_use_fk_indexes_without_temp_btrees(
             models.AgentSession(
                 title="eqp-agent",
                 project_name=project.name,
-                project_id=project.id,
                 model_provider="OPENAI",
                 model_name="gpt-4o",
             )
@@ -2903,7 +2901,7 @@ async def test_sqlite_cleanup_primitives_use_fk_indexes_without_temp_btrees(
             ).status is not PrimitiveStatus.EMPTY:
                 pass
             while (
-                await clear_project_historical_references_step(
+                await drain_project_annotation_config_links_step(
                     session,
                     dialect=SupportedSQLDialect.SQLITE,
                     project_id=project_id,

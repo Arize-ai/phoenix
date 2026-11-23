@@ -287,23 +287,6 @@ async def test_evaluator_bindings_autoincrement_at_head(
     await _run_async(_engine, verify)
 
 
-def _insert_agent_session(connection: sa.Connection) -> int:
-    table = sa.Table("agent_sessions", sa.MetaData(), autoload_with=connection)
-    session_id: int = connection.execute(
-        table.insert()
-        .values(
-            project_name="assistant",
-            title=token_hex(8),
-            model_provider="OPENAI",
-            model_name="gpt-4o",
-            is_ephemeral=False,
-        )
-        .returning(table.c.id)
-    ).scalar_one()
-    assert isinstance(session_id, int)
-    return session_id
-
-
 @pytest.mark.parametrize(
     "revision,down_revision,table_name",
     [
@@ -318,7 +301,6 @@ def _insert_agent_session(connection: sa.Connection) -> int:
         ("ac59da3e4035", "52e79887a7e3", "access_tokens"),
         ("ac59da3e4035", "52e79887a7e3", "refresh_tokens"),
         ("ac59da3e4035", "52e79887a7e3", "password_reset_tokens"),
-        ("f125a3233286", "e724eb2ee5cf", "agent_sessions"),
     ],
 )
 @pytest.mark.parametrize("direction", ["upgrade", "downgrade"])
@@ -340,25 +322,18 @@ async def test_autoincrement_across_migration(
         _schema,
     )
 
-    def insert_row(connection: sa.Connection, role_id: int, user_id: int) -> int:
-        if table_name == "users":
-            return _insert_user(connection, role_id)
-        if table_name == "agent_sessions":
-            return _insert_agent_session(connection)
-        return _insert_token(connection, table_name, user_id)
-
     def seed(connection: sa.Connection) -> tuple[int, int, int, list[int]]:
-        role_id = _create_user_role(connection) if table_name != "agent_sessions" else 0
-        user_id = (
-            _insert_user(connection, role_id)
-            if table_name not in ("users", "agent_sessions")
-            else 0
-        )
+        role_id = _create_user_role(connection)
+        user_id = _insert_user(connection, role_id) if table_name != "users" else 0
         previous_id = 0
         surviving_ids = []
         if rows != "unused":
             for _ in range(3):
-                previous_id = insert_row(connection, role_id, user_id)
+                previous_id = (
+                    _insert_user(connection, role_id)
+                    if table_name == "users"
+                    else _insert_token(connection, table_name, user_id)
+                )
                 surviving_ids.append(previous_id)
             table = sa.Table(table_name, sa.MetaData(), autoload_with=connection)
             if rows == "deleted_all":
@@ -382,7 +357,11 @@ async def test_autoincrement_across_migration(
         _assert_autoincrement_preserved(
             connection,
             table_name,
-            lambda: insert_row(connection, role_id, user_id),
+            lambda: (
+                _insert_user(connection, role_id)
+                if table_name == "users"
+                else _insert_token(connection, table_name, user_id)
+            ),
             previous_id,
         )
         connection.commit()

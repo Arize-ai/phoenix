@@ -22,7 +22,7 @@ def _insert(conn: Connection, sql: str, **params: Any) -> int:
     return rowid
 
 
-async def test_f125a3233286_backfills_kinds_and_historical_references_and_guards_downgrade(
+async def test_f125a3233286_backfills_kinds_and_guards_downgrade(
     _engine: AsyncEngine,
     _alembic_config: Config,
     _schema: str,
@@ -72,11 +72,6 @@ async def test_f125a3233286_backfills_kinds_and_historical_references_and_guards
         shared_proj = _insert(
             conn,
             "INSERT INTO projects (name, created_at, updated_at) VALUES ('shared-app', :t, :t)",
-            t=t0,
-        )
-        assistant_proj = _insert(
-            conn,
-            "INSERT INTO projects (name, created_at, updated_at) VALUES ('assistant_agent', :t, :t)",
             t=t0,
         )
 
@@ -152,22 +147,6 @@ async def test_f125a3233286_backfills_kinds_and_historical_references_and_guards
             dv=dataset_version,
             m=json.dumps({}),
             t=t0 + timedelta(minutes=1),
-        )
-        agent_resolved = _insert(
-            conn,
-            "INSERT INTO agent_sessions "
-            "(project_name, title, model_provider, model_name, is_ephemeral, created_at, updated_at) "
-            "VALUES ('assistant_agent', 'chat', 'OPENAI', 'gpt-4o', :ephemeral, :t, :t)",
-            ephemeral=False,
-            t=t0 + timedelta(minutes=5),
-        )
-        agent_unresolved = _insert(
-            conn,
-            "INSERT INTO agent_sessions "
-            "(project_name, title, model_provider, model_name, is_ephemeral, created_at, updated_at) "
-            "VALUES ('never-created-assistant', 'chat2', 'OPENAI', 'gpt-4o', :ephemeral, :t, :t)",
-            ephemeral=False,
-            t=t0 + timedelta(minutes=5),
         )
         trace_id = _insert(
             conn,
@@ -247,14 +226,11 @@ async def test_f125a3233286_backfills_kinds_and_historical_references_and_guards
             "pe_eval_proj": pe_eval_proj,
             "recreated_proj": recreated_proj,
             "shared_proj": shared_proj,
-            "assistant_proj": assistant_proj,
             "ds_binding": ds_binding,
             "pe_binding": pe_binding,
             "exp_owned": exp_owned,
             "exp_ambiguous": exp_ambiguous,
             "exp_shared": exp_shared,
-            "agent_resolved": agent_resolved,
-            "agent_unresolved": agent_unresolved,
             "trace_id": trace_id,
             "user_proj": user_proj,
             "mixed_proj": mixed_proj,
@@ -278,13 +254,6 @@ async def test_f125a3233286_backfills_kinds_and_historical_references_and_guards
         assert kinds[ids["shared_proj"]] == "STANDARD"
         assert kinds[ids["user_proj"]] == "STANDARD"
         assert kinds[ids["mixed_proj"]] == "STANDARD"
-
-        agent_refs: dict[int, int | None] = {
-            int(row[0]): (int(row[1]) if row[1] is not None else None)
-            for row in conn.execute(text("SELECT id, project_id FROM agent_sessions")).all()
-        }
-        assert agent_refs[ids["agent_resolved"]] == ids["assistant_proj"]
-        assert agent_refs[ids["agent_unresolved"]] is None
 
         # Mark standard_proj deleted and reuse its name 'prod-app' immediately.
         conn.execute(
@@ -615,7 +584,7 @@ async def test_f125a3233286_backfills_code_evaluator_snapshots_and_strips_or_gua
     await _run_async(_engine, _verify_downgraded_definitions)
 
 
-async def test_f125a3233286_handles_sqlite_default_timestamps_empty_generated_experiments_and_grace_window(
+async def test_f125a3233286_handles_sqlite_default_timestamps_and_empty_generated_experiments(
     _engine: AsyncEngine,
     _alembic_config: Config,
     _schema: str,
@@ -683,46 +652,11 @@ async def test_f125a3233286_handles_sqlite_default_timestamps_empty_generated_ex
             t=t0,
         )
 
-        # First-turn agent session: _persist_turn wrote updated_at at t0, and finally: created
-        # the assistant project 250ms later.
-        first_turn_proj = _insert(
-            conn,
-            "INSERT INTO projects (name, created_at, updated_at) "
-            "VALUES ('assistant_first_turn', :t, :t)",
-            t=t0 + timedelta(milliseconds=250),
-        )
-        agent_first_turn = _insert(
-            conn,
-            "INSERT INTO agent_sessions "
-            "(project_name, title, model_provider, model_name, is_ephemeral, created_at, updated_at) "
-            "VALUES ('assistant_first_turn', 'first', 'OPENAI', 'gpt-4o', :ephemeral, :t, :t)",
-            ephemeral=False,
-            t=t0,
-        )
-
-        # Recreated assistant project 10 minutes after an older session's updated_at must NOT bind.
-        _insert(
-            conn,
-            "INSERT INTO projects (name, created_at, updated_at) "
-            "VALUES ('assistant_recreated', :t, :t)",
-            t=t0 + timedelta(minutes=10),
-        )
-        agent_recreated = _insert(
-            conn,
-            "INSERT INTO agent_sessions "
-            "(project_name, title, model_provider, model_name, is_ephemeral, created_at, updated_at) "
-            "VALUES ('assistant_recreated', 'old', 'OPENAI', 'gpt-4o', :ephemeral, :t, :t)",
-            ephemeral=False,
-            t=t0,
-        )
         conn.commit()
         return {
             "exp_empty": exp_empty,
             "empty_exp_proj": empty_exp_proj,
             "orphan_exp_proj": orphan_exp_proj,
-            "first_turn_proj": first_turn_proj,
-            "agent_first_turn": agent_first_turn,
-            "agent_recreated": agent_recreated,
         }
 
     ids = await _run_async(_engine, _seed)
@@ -735,18 +669,6 @@ async def test_f125a3233286_handles_sqlite_default_timestamps_empty_generated_ex
         }
         assert kinds[ids["empty_exp_proj"]] == "EXPERIMENT"
         assert kinds[ids["orphan_exp_proj"]] == "STANDARD"
-
-        agent_rows = {
-            int(row[0]): (
-                int(row[1]) if row[1] is not None else None,
-                bool(row[2]),
-            )
-            for row in conn.execute(
-                text("SELECT id, project_id, project_was_bound FROM agent_sessions")
-            ).all()
-        }
-        assert agent_rows[ids["agent_first_turn"]] == (ids["first_turn_proj"], True)
-        assert agent_rows[ids["agent_recreated"]] == (None, False)
 
         if conn.dialect.name == "sqlite":
             plan_rows = conn.execute(

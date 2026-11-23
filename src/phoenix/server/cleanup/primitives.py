@@ -549,34 +549,15 @@ async def drain_trace_scope_step(
     return PrimitiveResult(PrimitiveStatus.EMPTY, 0)
 
 
-async def clear_project_historical_references_step(
+async def drain_project_annotation_config_links_step(
     session: AsyncSession,
     *,
     dialect: SupportedSQLDialect,
     project_id: int,
     batch_limit: int = CLEANUP_BATCH_ROWS,
 ) -> PrimitiveResult:
-    """Clear ``agent_sessions.project_id`` in bounded batches before physically deleting
-    ``projects(id = project_id)``."""
-    for model in (models.AgentSession,):
-        cond = model.project_id == project_id
-        ids_stmt = select(model.id).where(cond).limit(batch_limit)
-        if dialect is SupportedSQLDialect.POSTGRESQL:
-            ids_stmt = ids_stmt.with_for_update(skip_locked=True)
-        ids = list(await session.scalars(ids_stmt))
-        if ids:
-            ids.sort()
-            values: dict[str, object] = {"project_id": None}
-            if model is models.AgentSession:
-                values["project_was_bound"] = True
-            cleared = _rowcount(
-                await session.execute(update(model).where(model.id.in_(ids)).values(**values))
-            )
-            if cleared > 0:
-                return PrimitiveResult(PrimitiveStatus.PROGRESS, cleared)
-        if await _has_any(session, cond):
-            return PrimitiveResult(PrimitiveStatus.YIELD, 0)
-
+    """Delete ``project_annotation_configs`` links in bounded batches before physically
+    deleting ``projects(id = project_id)``."""
     overflow_result = await _drain_overflow_by_ids(
         session,
         dialect=dialect,

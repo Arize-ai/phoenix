@@ -1323,17 +1323,11 @@ CREATE TABLE agent_sessions (
     custom_provider_id INTEGER,
     is_ephemeral BOOLEAN NOT NULL,
     heartbeat_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
-    updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
-    project_id INTEGER,
-    project_was_bound BOOLEAN DEFAULT 0 NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT fk_agent_sessions_custom_provider_id_generative_model_custom_providers
         FOREIGN KEY (custom_provider_id)
         REFERENCES generative_model_custom_providers (id)
-        ON DELETE SET NULL,
-    CONSTRAINT fk_agent_sessions_project_id_projects
-        FOREIGN KEY (project_id)
-        REFERENCES projects (id)
         ON DELETE SET NULL,
     CONSTRAINT fk_agent_sessions_user_id_users
         FOREIGN KEY (user_id)
@@ -1345,7 +1339,6 @@ CREATE INDEX ix_agent_sessions_custom_provider_id ON agent_sessions
     (custom_provider_id);
 CREATE INDEX ix_agent_sessions_ephemeral_updated_at ON agent_sessions (updated_at)
     WHERE is_ephemeral IS TRUE;
-CREATE INDEX ix_agent_sessions_project_id ON agent_sessions (project_id);
 CREATE INDEX ix_agent_sessions_updated_at_id ON agent_sessions (updated_at, id);
 CREATE INDEX ix_agent_sessions_user_id_updated_at ON agent_sessions
     (user_id, updated_at DESC);

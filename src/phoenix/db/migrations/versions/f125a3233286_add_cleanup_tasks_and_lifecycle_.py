@@ -6,8 +6,6 @@ Create Date: 2026-11-16 00:24:34.041181
 
 """
 
-from collections.abc import Iterator
-from contextlib import contextmanager
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -42,34 +40,6 @@ _CLAIM_CHECK = (
     "(claimed_at IS NULL AND claimed_by IS NULL) "
     "OR (claimed_at IS NOT NULL AND claimed_by IS NOT NULL)"
 )
-
-
-@contextmanager
-def _preserve_sqlite_sequence(table_name: str) -> Iterator[None]:
-    """Keep the AUTOINCREMENT high-water mark across a SQLite table rebuild."""
-    connection = op.get_bind()
-    if connection.dialect.name != "sqlite":
-        yield
-        return
-    sequence = connection.execute(
-        sa.text("SELECT seq FROM sqlite_sequence WHERE name = :name"),
-        {"name": table_name},
-    ).scalar()
-    yield
-    if sequence is None:
-        return
-    parameters = {"name": table_name, "sequence": sequence}
-    result = connection.execute(
-        sa.text(
-            "UPDATE sqlite_sequence SET seq = MAX(COALESCE(seq, 0), :sequence) WHERE name = :name"
-        ),
-        parameters,
-    )
-    if not result.rowcount:
-        connection.execute(
-            sa.text("INSERT INTO sqlite_sequence (name, seq) VALUES (:name, :sequence)"),
-            parameters,
-        )
 
 
 def _upgrade_projects() -> None:
@@ -146,62 +116,6 @@ def _upgrade_projects() -> None:
         postgresql_where=sa.text(_LIVE_PREDICATE),
         sqlite_where=sa.text(_LIVE_PREDICATE),
     )
-
-
-def _upgrade_historical_project_references() -> None:
-    is_sqlite = op.get_bind().dialect.name == "sqlite"
-    agent_session_time_pred = (
-        "julianday(p.created_at) <= julianday(agent_sessions.updated_at) + (5.0 / 86400.0)"
-        if is_sqlite
-        else "p.created_at <= agent_sessions.updated_at + INTERVAL '5 seconds'"
-    )
-
-    op.drop_index("ix_agent_sessions_user_id_updated_at", table_name="agent_sessions")
-    op.drop_index("ix_agent_sessions_ephemeral_updated_at", table_name="agent_sessions")
-    with (
-        _preserve_sqlite_sequence("agent_sessions"),
-        op.batch_alter_table(
-            "agent_sessions", table_kwargs={"sqlite_autoincrement": True}
-        ) as batch_op,
-    ):
-        batch_op.add_column(
-            sa.Column(
-                "project_id",
-                _Integer,
-                sa.ForeignKey("projects.id", ondelete="SET NULL"),
-                nullable=True,
-            )
-        )
-        batch_op.add_column(
-            sa.Column(
-                "project_was_bound",
-                sa.Boolean(),
-                nullable=False,
-                server_default=sa.false(),
-            )
-        )
-    op.create_index(
-        "ix_agent_sessions_user_id_updated_at",
-        "agent_sessions",
-        ["user_id", sa.column("updated_at").desc()],
-    )
-    op.create_index(
-        "ix_agent_sessions_ephemeral_updated_at",
-        "agent_sessions",
-        ["updated_at"],
-        postgresql_where=sa.text("is_ephemeral IS TRUE"),
-        sqlite_where=sa.text("is_ephemeral IS TRUE"),
-    )
-    op.create_index("ix_agent_sessions_project_id", "agent_sessions", ["project_id"])
-    op.execute(
-        "UPDATE agent_sessions "
-        "SET project_id = ("
-        "SELECT p.id FROM projects p "
-        "WHERE p.name = agent_sessions.project_name "
-        f"AND {agent_session_time_pred}"
-        ")"
-    )
-    op.execute("UPDATE agent_sessions SET project_was_bound = TRUE WHERE project_id IS NOT NULL")
 
 
 def _upgrade_evaluator_bindings() -> None:
@@ -588,7 +502,6 @@ def _strip_code_evaluator_task_snapshots() -> None:
 
 def upgrade() -> None:
     _upgrade_projects()
-    _upgrade_historical_project_references()
     _upgrade_evaluator_bindings()
     _backfill_code_evaluator_task_snapshots()
     _create_cleanup_task_tables()
@@ -681,30 +594,6 @@ def downgrade() -> None:
         batch_op.create_unique_constraint(
             "uq_project_evaluators_project_id_name", ["project_id", "name"]
         )
-
-    op.drop_index("ix_agent_sessions_project_id", table_name="agent_sessions")
-    op.drop_index("ix_agent_sessions_user_id_updated_at", table_name="agent_sessions")
-    op.drop_index("ix_agent_sessions_ephemeral_updated_at", table_name="agent_sessions")
-    with (
-        _preserve_sqlite_sequence("agent_sessions"),
-        op.batch_alter_table(
-            "agent_sessions", table_kwargs={"sqlite_autoincrement": True}
-        ) as batch_op,
-    ):
-        batch_op.drop_column("project_was_bound")
-        batch_op.drop_column("project_id")
-    op.create_index(
-        "ix_agent_sessions_user_id_updated_at",
-        "agent_sessions",
-        ["user_id", sa.column("updated_at").desc()],
-    )
-    op.create_index(
-        "ix_agent_sessions_ephemeral_updated_at",
-        "agent_sessions",
-        ["updated_at"],
-        postgresql_where=sa.text("is_ephemeral IS TRUE"),
-        sqlite_where=sa.text("is_ephemeral IS TRUE"),
-    )
 
     op.drop_index("ix_projects_active_kind_id", table_name="projects")
     op.drop_index("ix_projects_live_name", table_name="projects")

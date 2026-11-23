@@ -1665,88 +1665,6 @@ async def _ensure_project_exists(db: DbSessionFactory, project_name: str) -> int
         return project_id
 
 
-async def _resolve_agent_session_trace_project_id(
-    db: DbSessionFactory,
-    *,
-    agent_session_rowid: int,
-    project_name: str,
-) -> int | None:
-    """Return the bound live project ID for ``agent_session_rowid``, or None if its target
-    project was deleted."""
-    async with db() as session:
-        row = (
-            await session.execute(
-                select(
-                    models.AgentSession.project_id,
-                    models.AgentSession.project_was_bound,
-                    models.AgentSession.created_at,
-                ).where(models.AgentSession.id == agent_session_rowid)
-            )
-        ).one_or_none()
-        if row is None:
-            return None
-        bound_project_id, project_was_bound, session_created_at = row
-        if bound_project_id is not None:
-            live_id = await session.scalar(
-                select(models.Project.id).where(
-                    models.Project.id == bound_project_id,
-                    models.Project.deleted_at.is_(None),
-                )
-            )
-            if live_id is None and not project_was_bound:
-                await session.execute(
-                    update(models.AgentSession)
-                    .where(models.AgentSession.id == agent_session_rowid)
-                    .values(project_was_bound=True)
-                )
-            return live_id
-        if project_was_bound:
-            return None
-        # Never rebind an agent session whose original project was deleted (SET NULL).
-        deleted_prior = await session.scalar(
-            select(models.Project.id)
-            .where(
-                models.Project.name == project_name,
-                models.Project.deleted_at.is_not(None),
-                models.Project.deleted_at >= session_created_at,
-            )
-            .limit(1)
-        )
-        if deleted_prior is not None:
-            await session.execute(
-                update(models.AgentSession)
-                .where(models.AgentSession.id == agent_session_rowid)
-                .values(project_was_bound=True)
-            )
-            return None
-    project_id = await _ensure_project_exists(db, project_name)
-    async with db() as session:
-        bound_result = await session.execute(
-            update(models.AgentSession)
-            .where(
-                models.AgentSession.id == agent_session_rowid,
-                models.AgentSession.project_id.is_(None),
-                models.AgentSession.project_was_bound.is_(False),
-            )
-            .values(project_id=project_id, project_was_bound=True)
-        )
-        if getattr(bound_result, "rowcount", 0) == 1:
-            return project_id
-        current_project_id = await session.scalar(
-            select(models.AgentSession.project_id).where(
-                models.AgentSession.id == agent_session_rowid
-            )
-        )
-        if current_project_id is None:
-            return None
-        return await session.scalar(
-            select(models.Project.id).where(
-                models.Project.id == current_project_id,
-                models.Project.deleted_at.is_(None),
-            )
-        )
-
-
 async def _upsert_project_sessions(
     session: AsyncSession,
     project_sessions: Iterable[models.ProjectSession],
@@ -2846,19 +2764,10 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         try:
             async with request.app.state.db() as session:
                 routing = await resolve_model_routing(session, request_body.model)
-                assistant_project_name = get_env_phoenix_agents_assistant_project_name()
-                existing_project_id = await session.scalar(
-                    select(models.Project.id).where(
-                        models.Project.name == assistant_project_name,
-                        models.Project.deleted_at.is_(None),
-                    )
-                )
                 agent_session = models.AgentSession(
                     user_id=int(phoenix_user.identity) if phoenix_user is not None else None,
                     title=title,
-                    project_name=assistant_project_name,
-                    project_id=existing_project_id,
-                    project_was_bound=existing_project_id is not None,
+                    project_name=get_env_phoenix_agents_assistant_project_name(),
                     is_ephemeral=request_body.is_ephemeral,
                     model_provider=routing.model_provider,
                     model_name=routing.model_name,
@@ -3873,18 +3782,15 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                                 )
                             tracer.tracer_provider.force_flush()
                             if record_local_traces:
-                                project_id = await _resolve_agent_session_trace_project_id(
-                                    request.app.state.db,
-                                    agent_session_rowid=agent_session_rowid,
-                                    project_name=project_name,
+                                project_id = await _ensure_project_exists(
+                                    request.app.state.db, project_name
                                 )
-                                if project_id is not None:
-                                    db_traces = tracer.get_db_traces(project_id=project_id)
-                                    await _persist_db_traces_and_emit_event(
-                                        db=request.app.state.db,
-                                        event_queue=request.state.event_queue,
-                                        db_traces=db_traces,
-                                    )
+                                db_traces = tracer.get_db_traces(project_id=project_id)
+                                await _persist_db_traces_and_emit_event(
+                                    db=request.app.state.db,
+                                    event_queue=request.state.event_queue,
+                                    db_traces=db_traces,
+                                )
                             tracer.tracer_provider.shutdown()
 
             return adapter.streaming_response(_stream_with_session())

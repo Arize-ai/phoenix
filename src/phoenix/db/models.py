@@ -4227,10 +4227,6 @@ def _compile_matches_uuid_format_postgresql(
     return f"{compiler.preparer.quote(element.column_name)} ~ '{_UUID_REGEX}'"
 
 
-def _default_agent_session_project_was_bound(context: DefaultExecutionContext) -> bool:
-    return context.get_current_parameters().get("project_id") is not None  # type: ignore[no-untyped-call]
-
-
 class AgentSession(HasId):
     __tablename__ = "agent_sessions"
     project_name: Mapped[str] = mapped_column(String, nullable=False)
@@ -4254,20 +4250,7 @@ class AgentSession(HasId):
     )
     is_ephemeral: Mapped[bool] = mapped_column(default=False)
     heartbeat_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
-    project_id: Mapped[Optional[int]] = mapped_column(
-        _Integer,
-        ForeignKey("projects.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
-    project_was_bound: Mapped[bool] = mapped_column(
-        Boolean,
-        nullable=False,
-        default=_default_agent_session_project_was_bound,
-        server_default=sa.false(),
-    )
     user: Mapped[Optional["User"]] = relationship("User")
-    project: Mapped[Optional["Project"]] = relationship("Project")
     custom_provider: Mapped[Optional["GenerativeModelCustomProvider"]] = relationship(
         "GenerativeModelCustomProvider"
     )

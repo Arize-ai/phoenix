@@ -48,9 +48,9 @@ from phoenix.server.cleanup.primitives import (
     CLEANUP_BATCH_ROWS,
     PrimitiveResult,
     PrimitiveStatus,
-    clear_project_historical_references_step,
     drain_dataset_evaluator_dependents_step,
     drain_eval_work_units_step,
+    drain_project_annotation_config_links_step,
     drain_trace_scope_step,
 )
 from phoenix.server.dml_event import DmlEvent, ProjectDeleteEvent, SpanDeleteEvent
@@ -554,14 +554,14 @@ class CleanupCoordinator:
         if has_bindings:
             return PrimitiveResult(PrimitiveStatus.YIELD, 0)
 
-        refs_res = await clear_project_historical_references_step(
+        annotation_config_res = await drain_project_annotation_config_links_step(
             session,
             dialect=dialect,
             project_id=project_id,
             batch_limit=self._batch_limit,
         )
-        if refs_res.status is not PrimitiveStatus.EMPTY:
-            return refs_res
+        if annotation_config_res.status is not PrimitiveStatus.EMPTY:
+            return annotation_config_res
 
         trace_res = await drain_trace_scope_step(
             session,
@@ -634,14 +634,14 @@ class CleanupCoordinator:
         if work_res.status is not PrimitiveStatus.EMPTY:
             return work_res
 
-        refs_res = await clear_project_historical_references_step(
+        annotation_config_res = await drain_project_annotation_config_links_step(
             session,
             dialect=dialect,
             project_id=trace_project_id,
             batch_limit=self._batch_limit,
         )
-        if refs_res.status is not PrimitiveStatus.EMPTY:
-            return refs_res
+        if annotation_config_res.status is not PrimitiveStatus.EMPTY:
+            return annotation_config_res
 
         trace_res = await drain_trace_scope_step(
             session,
@@ -720,14 +720,14 @@ class CleanupCoordinator:
         if dep_res.status is not PrimitiveStatus.EMPTY:
             return dep_res
 
-        refs_res = await clear_project_historical_references_step(
+        annotation_config_res = await drain_project_annotation_config_links_step(
             session,
             dialect=dialect,
             project_id=trace_project_id,
             batch_limit=self._batch_limit,
         )
-        if refs_res.status is not PrimitiveStatus.EMPTY:
-            return refs_res
+        if annotation_config_res.status is not PrimitiveStatus.EMPTY:
+            return annotation_config_res
 
         trace_res = await drain_trace_scope_step(
             session,
