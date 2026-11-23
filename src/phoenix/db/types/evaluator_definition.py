@@ -88,10 +88,10 @@ class StoredCodeEvaluatorDefinition(_FrozenDBModel):
     """A stored code evaluator.
 
     Without ``code_evaluator_version_id`` the evaluator runs at its current version, which
-    is what a preview wants. An experiment pins the version, sandbox configuration,
-    language, source code, and output configuration before freezing the definition, so the
-    evaluator rebuilt on a resume runs the same code even if the stored definition is later
-    garbage-collected.
+    is what a preview wants. An experiment pins the version, sandbox configuration and
+    language before freezing the definition, so the evaluator rebuilt on a resume runs the
+    same code in the same environment as the one that started. Any of the three left unset
+    is read from the evaluator's current row.
     """
 
     type: Literal["code_evaluator"]
@@ -99,10 +99,6 @@ class StoredCodeEvaluatorDefinition(_FrozenDBModel):
     code_evaluator_version_id: int | None = None
     sandbox_config_id: int | None = None
     language: str | None = None
-    name: str | None = None
-    description: str | None = None
-    source_code: str | None = None
-    output_configs: list[OutputConfigType] | None = None
     source: EvaluatorSource | None = None
 
 

@@ -1,6 +1,7 @@
 """Pinning a stored evaluator definition before an experiment freezes it."""
 
 import pytest
+from sqlalchemy import delete
 
 from phoenix.db import models
 from phoenix.db.types.evaluator_definition import (
@@ -10,6 +11,7 @@ from phoenix.db.types.evaluator_definition import (
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.evaluators.resolution import build_evaluator_from_definition
 from phoenix.server.evaluators.snapshots import pin_evaluator_definition
 from phoenix.server.types import DbSessionFactory
 
@@ -93,3 +95,34 @@ class TestPinEvaluatorDefinition:
         )
         async with db() as session:
             assert await pin_evaluator_definition(definition, session=session) is definition
+
+
+class TestRebuildingAPinnedDefinition:
+    async def test_fails_when_the_stored_code_evaluator_was_deleted(
+        self, db: DbSessionFactory, sandbox_config: models.SandboxConfig
+    ) -> None:
+        code_eval_id, _ = await _insert_code_evaluator(
+            db, versions=1, sandbox_config_id=sandbox_config.id
+        )
+        async with db() as session:
+            pinned = await pin_evaluator_definition(
+                StoredCodeEvaluatorDefinition(
+                    type="code_evaluator", code_evaluator_id=code_eval_id
+                ),
+                session=session,
+            )
+            await session.execute(
+                delete(models.CodeEvaluatorVersion).where(
+                    models.CodeEvaluatorVersion.code_evaluator_id == code_eval_id
+                )
+            )
+            await session.execute(
+                delete(models.CodeEvaluator).where(models.CodeEvaluator.id == code_eval_id)
+            )
+        async with db() as session:
+            with pytest.raises(
+                BadRequest, match=f"Code evaluator with id {code_eval_id} not found"
+            ):
+                await build_evaluator_from_definition(
+                    definition=pinned, session=session, decrypt=lambda value: value
+                )

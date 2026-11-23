@@ -25,7 +25,6 @@ from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.span import insert_span
 from phoenix.db.types.annotation_configs import (
     ContinuousAnnotationConfig,
-    ContinuousOutputConfig,
     OptimizationDirection,
 )
 from phoenix.db.types.evaluators import InputMapping
@@ -52,12 +51,6 @@ from phoenix.server.cleanup.primitives import (
 )
 from phoenix.server.daemons.cleanup_worker import CleanupWorker
 from phoenix.server.dml_event import DmlEvent, SpanDeleteEvent
-from phoenix.server.evaluators.resolution import build_evaluator_from_definition
-from phoenix.server.evaluators.snapshots import (
-    pin_evaluator_definition,
-    stored_evaluator_definition,
-)
-from phoenix.server.monty_runtime import MontyRuntime
 from phoenix.server.online_eval import coordinator as online_eval_coordinator_module
 from phoenix.server.online_eval.clock import current_database_time
 from phoenix.server.online_eval.coordinator import (
@@ -68,8 +61,6 @@ from phoenix.server.online_eval.coordinator import (
 )
 from phoenix.server.online_eval.executor import HydrationFailure, OnlineEvalExecutor
 from phoenix.server.online_eval.tracing import marked_evaluator_tracer, persist_evaluator_traces
-from phoenix.server.sandbox.session_manager import SandboxSessionManager
-from phoenix.server.sandbox.types import SandboxRuntimeContext
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.schemas import Span, SpanContext, SpanKind, SpanStatusCode
 from phoenix.tracers import Tracer
@@ -1503,85 +1494,7 @@ class TestBatchedClear:
             await _clear_project(db, evaluator_project_id)
 
 
-class TestEvaluatorSnapshotsAndOnlineEvalFences:
-    async def test_pinned_code_evaluator_snapshot_survives_synchronous_definition_gc(
-        self,
-        db: DbSessionFactory,
-        sandbox_config: models.SandboxConfig,
-    ) -> None:
-        dialect = SupportedSQLDialect(db.dialect.value)
-        async with db() as session:
-            dataset = models.Dataset(name=f"snap-ds-{token_hex(4)}", metadata_={})
-            trace_proj = models.Project(name=f"snap-eval-proj-{token_hex(4)}")
-            code_eval_name = f"code-{token_hex(4)}"
-            code_eval = models.CodeEvaluator(
-                name=Identifier(root=code_eval_name),
-                kind="CODE",
-                language="PYTHON",
-                sandbox_config_id=sandbox_config.id,
-                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-                output_configs=[
-                    ContinuousOutputConfig(
-                        type="CONTINUOUS",
-                        name="score",
-                        optimization_direction=OptimizationDirection.MAXIMIZE,
-                    )
-                ],
-                metadata_={},
-            )
-            session.add_all([dataset, trace_proj, code_eval])
-            await session.flush()
-            version = models.CodeEvaluatorVersion(
-                code_evaluator_id=code_eval.id,
-                source_code="def evaluate(output):\n    return {'score': 1.0}\n",
-            )
-            session.add(version)
-            await session.flush()
-            binding = models.DatasetEvaluators(
-                dataset_id=dataset.id,
-                evaluator_id=code_eval.id,
-                project_id=trace_proj.id,
-                name=Identifier(root="pinned-code"),
-                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-            )
-            session.add(binding)
-            await session.flush()
-
-            pinned = await pin_evaluator_definition(
-                stored_evaluator_definition(
-                    code_eval,
-                    name=binding.name.root,
-                    description=binding.description,
-                    dataset_evaluator_id=binding.id,
-                    code_evaluator_version_id=version.id,
-                ),
-                session=session,
-            )
-
-            # Logically delete the sole binding with synchronous definition GC.
-            await logical_delete_dataset_evaluators(
-                session,
-                dialect=dialect,
-                binding_ids=[binding.id],
-                collect_unused_evaluator=True,
-                collect_unused_prompt_or_decision=False,
-            )
-
-        async with db() as session:
-            # Both CodeEvaluator and CodeEvaluatorVersion are already deleted synchronously!
-            assert await session.get(models.CodeEvaluator, code_eval.id) is None
-            assert await session.get(models.CodeEvaluatorVersion, version.id) is None
-            # Rebuilding the experiment's pinned definition still succeeds without DB rows!
-            rebuilt = await build_evaluator_from_definition(
-                definition=pinned,
-                session=session,
-                decrypt=lambda b: b,
-                sandbox_runtime=SandboxRuntimeContext(monty=MontyRuntime()),
-                sandbox_session_manager=SandboxSessionManager(),
-                session_key="test-snap",
-            )
-            assert rebuilt.name == code_eval_name
-
+class TestOnlineEvalFences:
     async def test_online_eval_fences_tombstoned_binding_on_hydration_publish_and_traces(
         self, db: DbSessionFactory
     ) -> None:
