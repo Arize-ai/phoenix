@@ -8,7 +8,7 @@ from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, delete_traces
 from phoenix.server.api.auth import IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest, Conflict
+from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.dml_event import SpanDeleteEvent
@@ -154,14 +154,6 @@ class TraceMutationMixin:
                 )
             if not (source_project_ids <= set(live_projects)):
                 raise BadRequest("Invalid trace IDs provided")
-
-            active_clear_project_id = await session.scalar(
-                select(models.ProjectClearCleanupTask.project_id)
-                .where(models.ProjectClearCleanupTask.project_id.in_(involved_project_ids))
-                .limit(1)
-            )
-            if active_clear_project_id is not None:
-                raise Conflict("Cannot transfer traces while a project clear is in progress")
 
             await session.execute(
                 update(models.Trace)

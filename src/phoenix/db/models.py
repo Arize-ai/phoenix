@@ -245,7 +245,6 @@ EvaluationTarget = TypeAliasType("EvaluationTarget", Literal["SPAN", "TRACE", "S
 ProjectKindName: TypeAlias = Literal["STANDARD", "PLAYGROUND", "EXPERIMENT", "EVALUATOR"]
 CleanupTaskKind: TypeAlias = Literal[
     "DELETE_PROJECT",
-    "CLEAR_PROJECT_TRACES",
     "DELETE_PROJECT_EVALUATOR",
     "DELETE_DATASET_EVALUATOR",
 ]
@@ -4823,47 +4822,6 @@ class ProjectDeleteCleanupTask(CleanupTask):
         "polymorphic_identity": "DELETE_PROJECT",
     }
     __table_args__ = (  # type: ignore[assignment]
-        ForeignKeyConstraint(
-            ["kind", "id"],
-            ["cleanup_tasks.kind", "cleanup_tasks.id"],
-            ondelete="CASCADE",
-        ),
-    )
-
-
-class ProjectClearCleanupTask(CleanupTask):
-    """Obligation to drain a project's traces at or below a watermark and optional time range."""
-
-    __tablename__ = "project_clear_cleanup_tasks"
-    id: Mapped[int] = mapped_column(_Integer, primary_key=True)
-    kind: Mapped[Literal["CLEAR_PROJECT_TRACES"]] = mapped_column(
-        String,
-        CheckConstraint("kind = 'CLEAR_PROJECT_TRACES'", name="valid_cleanup_task_kind"),
-        server_default="CLEAR_PROJECT_TRACES",
-        nullable=False,
-    )
-    project_id: Mapped[int] = mapped_column(
-        _Integer,
-        ForeignKey("projects.id", ondelete="RESTRICT"),
-        nullable=False,
-        unique=True,
-    )
-    max_trace_rowid: Mapped[int] = mapped_column(
-        _Integer,
-        CheckConstraint("max_trace_rowid >= 0", name="nonnegative_max_trace_rowid"),
-        nullable=False,
-    )
-    start_time: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
-    end_time: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
-
-    __mapper_args__ = {
-        "polymorphic_identity": "CLEAR_PROJECT_TRACES",
-    }
-    __table_args__ = (  # type: ignore[assignment]
-        CheckConstraint(
-            "start_time IS NULL OR end_time IS NULL OR start_time < end_time",
-            name="valid_range",
-        ),
         ForeignKeyConstraint(
             ["kind", "id"],
             ["cleanup_tasks.kind", "cleanup_tasks.id"],

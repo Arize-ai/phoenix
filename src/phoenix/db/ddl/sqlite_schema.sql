@@ -27,7 +27,6 @@ CREATE TABLE cleanup_tasks (
         CONSTRAINT "ck_cleanup_tasks_`valid_cleanup_task_kind`"
 CHECK (kind IN (
             'DELETE_PROJECT',
-            'CLEAR_PROJECT_TRACES',
             'DELETE_PROJECT_EVALUATOR',
             'DELETE_DATASET_EVALUATOR'
         )),
@@ -229,34 +228,6 @@ CREATE TABLE project_annotation_configs (
 
 CREATE INDEX ix_project_annotation_configs_annotation_config_id ON project_annotation_configs
     (annotation_config_id);
-
-
--- Table: project_clear_cleanup_tasks
--- ----------------------------------
-CREATE TABLE project_clear_cleanup_tasks (
-    id INTEGER NOT NULL,
-    kind VARCHAR DEFAULT 'CLEAR_PROJECT_TRACES' NOT NULL
-        CONSTRAINT "ck_project_clear_cleanup_tasks_`valid_cleanup_task_kind`"
-        CHECK (kind = 'CLEAR_PROJECT_TRACES'),
-    project_id INTEGER NOT NULL,
-    max_trace_rowid INTEGER NOT NULL
-        CONSTRAINT "ck_project_clear_cleanup_tasks_`nonnegative_max_trace_rowid`"
-        CHECK (max_trace_rowid >= 0),
-    start_time TIMESTAMP,
-    end_time TIMESTAMP,
-    CONSTRAINT pk_project_clear_cleanup_tasks PRIMARY KEY (id),
-    CONSTRAINT uq_project_clear_cleanup_tasks_project_id UNIQUE (project_id),
-    CONSTRAINT "ck_project_clear_cleanup_tasks_`valid_range`"
-        CHECK (start_time IS NULL OR end_time IS NULL OR start_time < end_time),
-    CONSTRAINT fk_project_clear_cleanup_tasks_kind_cleanup_tasks
-        FOREIGN KEY (kind, id)
-        REFERENCES cleanup_tasks (kind, id)
-        ON DELETE CASCADE,
-    CONSTRAINT fk_project_clear_cleanup_tasks_project_id_projects
-        FOREIGN KEY (project_id)
-        REFERENCES projects (id)
-        ON DELETE RESTRICT
-);
 
 
 -- Table: project_delete_cleanup_tasks

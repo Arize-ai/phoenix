@@ -14,9 +14,9 @@ from unittest.mock import MagicMock
 
 import httpx2
 import pytest
-from sqlalchemy import delete, event, func, insert, select, update
+from sqlalchemy import event, func, select, update
 from sqlalchemy.exc import DBAPIError, OperationalError
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -30,13 +30,14 @@ from phoenix.db.types.annotation_configs import (
 )
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
-from phoenix.server.api.exceptions import Conflict
+from phoenix.server.api.exceptions import Conflict, NotFound
 from phoenix.server.app import _db
 from phoenix.server.cleanup.coordinator import ClaimedCleanupTask, CleanupCoordinator
 from phoenix.server.cleanup.lifecycle import (
+    TraceClearBatchResult,
     admit_exclusive_experiment_projects_delete,
-    admit_or_reuse_project_clear,
     admit_project_delete,
+    clear_project_traces_in_batches,
     logical_delete_dataset_evaluators,
     logical_delete_project_evaluators,
 )
@@ -77,9 +78,29 @@ from tests.unit.graphql import AsyncGraphQLClient
 
 async def _drain_all(coordinator: CleanupCoordinator) -> int:
     steps = 0
-    while await coordinator.run_one_step():
+    while (await coordinator.step_or_next_delay())[0]:
         steps += 1
     return steps
+
+
+async def _clear_project(
+    db: DbSessionFactory,
+    project_id: int,
+    *,
+    start_time: Optional[datetime] = None,
+    end_time: Optional[datetime] = None,
+    batch_limit: int = 1000,
+) -> list[TraceClearBatchResult]:
+    return [
+        batch
+        async for batch in clear_project_traces_in_batches(
+            db,
+            project_id=project_id,
+            start_time=start_time,
+            end_time=end_time,
+            batch_limit=batch_limit,
+        )
+    ]
 
 
 class _DaemonController:
@@ -247,88 +268,6 @@ class TestCleanupQueueSchedulingAndFencing:
                 select(models.CleanupTask.claimed_by).where(models.CleanupTask.id == stale.task_id)
             )
         assert claimed_by == fresh.claimed_by
-
-    async def test_wait_for_completion_drives_only_its_own_task(self, db: DbSessionFactory) -> None:
-        dialect = SupportedSQLDialect(db.dialect.value)
-        async with db() as session:
-            first = await _add_project(session, name=f"first-{token_hex(4)}")
-            second = await _add_project(session, name=f"second-{token_hex(4)}")
-            await admit_project_delete(session, dialect=dialect, project_id=first.id)
-            await admit_project_delete(session, dialect=dialect, project_id=second.id)
-            task_ids = {
-                row.project_id: row.id
-                for row in (
-                    await session.execute(
-                        select(
-                            models.ProjectDeleteCleanupTask.id,
-                            models.ProjectDeleteCleanupTask.project_id,
-                        )
-                    )
-                ).all()
-            }
-            first_id, second_id = first.id, second.id
-        coordinator = CleanupCoordinator(db, batch_limit=10)
-        assert await coordinator.wait_for_completion(task_ids[second_id], timeout_seconds=10.0)
-        assert await coordinator.task_exists(task_ids[first_id])
-        async with db() as session:
-            assert await session.get(models.Project, second_id) is None
-            assert await session.get(models.Project, first_id) is not None
-
-    async def test_wait_for_completion_reads_primary_when_read_replica_lags(
-        self, db: DbSessionFactory
-    ) -> None:
-        dialect = SupportedSQLDialect(db.dialect.value)
-        base_start_time = datetime(2026, 6, 1, 0, 0, 0, tzinfo=timezone.utc)
-        async with db() as session:
-            project = await _add_project(session, name=f"lagging-clear-{token_hex(4)}")
-            project_id = project.id
-            for trace_index in range(3):
-                trace_start_time = base_start_time + timedelta(seconds=trace_index)
-                trace = await _add_trace(session, project, start_time=trace_start_time)
-                await _add_span(session, trace=trace, start_time=trace_start_time)
-            task_id = await admit_or_reuse_project_clear(
-                session, dialect=dialect, project_id=project_id
-            )
-
-        stale_replica_engine = create_async_engine("sqlite+aiosqlite:///:memory:")
-        try:
-            cleanup_tasks_table = models.Base.metadata.tables["cleanup_tasks"]
-            async with stale_replica_engine.begin() as replica_connection:
-                await replica_connection.run_sync(
-                    models.Base.metadata.create_all,
-                    tables=[cleanup_tasks_table],
-                )
-            lagging_db = DbSessionFactory(
-                db=db,
-                dialect=db.dialect.value,
-                read_db=_db(stale_replica_engine),
-            )
-            coordinator = CleanupCoordinator(lagging_db, batch_limit=1)
-            is_completed = await coordinator.wait_for_completion(task_id, timeout_seconds=10.0)
-            assert is_completed is True
-
-            async with db() as session:
-                num_remaining_traces = await session.scalar(
-                    select(func.count(models.Trace.id)).where(
-                        models.Trace.project_rowid == project_id
-                    )
-                )
-                assert num_remaining_traces == 0
-                assert await session.get(models.CleanupTask, task_id) is None
-
-            async with stale_replica_engine.begin() as replica_connection:
-                await replica_connection.execute(
-                    insert(models.CleanupTask).values(
-                        id=task_id,
-                        kind="CLEAR_PROJECT_TRACES",
-                        available_at=base_start_time,
-                        failure_count=0,
-                        created_at=base_start_time,
-                    )
-                )
-            assert await coordinator.task_exists(task_id) is False
-        finally:
-            await stale_replica_engine.dispose()
 
     def test_postgres_claim_locks_use_for_no_key_update(self) -> None:
         from sqlalchemy.dialects import postgresql
@@ -626,12 +565,15 @@ class TestCleanupQueueSchedulingAndFencing:
 
         async with db() as session:
             p1 = await _add_project(session, name=f"seq-1-{token_hex(4)}")
-            t1 = await admit_or_reuse_project_clear(session, dialect=dialect, project_id=p1.id)
+            await admit_project_delete(session, dialect=dialect, project_id=p1.id)
+            t1 = await session.scalar(select(func.max(models.CleanupTask.id)))
         await _drain_all(coordinator)
 
         async with db() as session:
-            t2 = await admit_or_reuse_project_clear(session, dialect=dialect, project_id=p1.id)
-        assert t2 > t1
+            p2 = await _add_project(session, name=f"seq-2-{token_hex(4)}")
+            await admit_project_delete(session, dialect=dialect, project_id=p2.id)
+            t2 = await session.scalar(select(func.max(models.CleanupTask.id)))
+        assert t1 is not None and t2 is not None and t2 > t1
         await _drain_all(coordinator)
 
 
@@ -762,76 +704,10 @@ class TestImmediateNameReuseAndHistoricalReferences:
             assert deleted_by_exp == []
 
 
-class TestWatermarkClearAndOverlap:
-    async def test_watermark_clear_preserves_above_watermark_traces_and_blocks_sqlite_id_recycling(
-        self, db: DbSessionFactory
-    ) -> None:
-        dialect = SupportedSQLDialect(db.dialect.value)
-        t0 = datetime(2026, 6, 1, 0, 0, 0, tzinfo=timezone.utc)
-
-        async with db() as session:
-            project = await _add_project(session, name=f"wm-{token_hex(4)}")
-            other = await _add_project(session, name=f"other-{token_hex(4)}")
-            t_below = await _add_trace(session, project, start_time=t0)
-            await _add_span(session, trace=t_below, start_time=t0)
-            t_other_tip = await _add_trace(session, other, start_time=t0 + timedelta(seconds=1))
-            await _add_span(session, trace=t_other_tip, start_time=t0 + timedelta(seconds=1))
-
-        # Admit watermark clear on `project`; watermark captures >= t_other_tip.id.
-        async with db() as session:
-            task_id = await admit_or_reuse_project_clear(
-                session, dialect=dialect, project_id=project.id
-            )
-            # Equivalent duplicate clear reuses the exact same task_id.
-            dup_task_id = await admit_or_reuse_project_clear(
-                session, dialect=dialect, project_id=project.id
-            )
-            assert dup_task_id == task_id
-            # Different range clear is rejected with Conflict while task_id is active.
-            with pytest.raises(Conflict):
-                await admit_or_reuse_project_clear(
-                    session,
-                    dialect=dialect,
-                    project_id=project.id,
-                    end_time=t0 + timedelta(hours=1),
-                )
-
-        # Delete the current global-max trace row so SQLite's plain MAX(id)+1 would recycle
-        # t_other_tip.id (<= watermark) without our monotonic system_state allocator!
-        async with db() as session:
-            await session.execute(delete(models.Trace).where(models.Trace.id == t_other_tip.id))
-
-        # Insert a fresh trace into `project` via insert_span after the watermark was captured.
-        above_span = Span(
-            name="above-watermark",
-            context=SpanContext(trace_id=token_hex(16), span_id=token_hex(8)),
-            span_kind=SpanKind.LLM,
-            parent_id=None,
-            start_time=t0 - timedelta(minutes=5),  # Even with an older start_time, id > watermark!
-            end_time=t0 - timedelta(minutes=4),
-            status_code=SpanStatusCode.OK,
-            status_message="",
-            attributes={},
-            events=[],
-            conversation=None,
-        )
-        async with db() as session:
-            inserted_above = await insert_span(session, above_span, project.name)
-        assert inserted_above is not None
-        assert inserted_above.trace_rowid > t_other_tip.id
-
-        # Run the clear to completion; t_below is removed and inserted_above survives.
-        coordinator = CleanupCoordinator(db, batch_limit=1)
-        await _drain_all(coordinator)
-
-        async with db() as session:
-            assert await session.get(models.Trace, t_below.id) is None
-            assert await session.get(models.Trace, inserted_above.trace_rowid) is not None
-
+class TestBatchedClear:
     async def test_range_clear_resets_done_session_evaluation_for_surviving_session(
         self, db: DbSessionFactory
     ) -> None:
-        dialect = SupportedSQLDialect(db.dialect.value)
         t0 = datetime(2026, 6, 2, 0, 0, 0, tzinfo=timezone.utc)
 
         async with db() as session:
@@ -899,19 +775,15 @@ class TestWatermarkClearAndOverlap:
             session.add(unrelated_unit)
             await session.flush()
 
-            await admit_or_reuse_project_clear(
-                session,
-                dialect=dialect,
-                project_id=project.id,
-                start_time=t0 - timedelta(minutes=1),
-                end_time=t0 + timedelta(hours=1),
-            )
-
-        coordinator = CleanupCoordinator(db, batch_limit=1)
-        claimed = await coordinator.claim_next()
-        assert claimed is not None
-        result = await coordinator.execute_claimed_step(claimed)
-        assert result.outcome == "progress" and result.affected_rows == 1
+        clear_batches = clear_project_traces_in_batches(
+            db,
+            project_id=project.id,
+            start_time=t0 - timedelta(minutes=1),
+            end_time=t0 + timedelta(hours=1),
+            batch_limit=1,
+        )
+        first_batch = await anext(clear_batches)
+        assert first_batch.status == "PROGRESS" and first_batch.num_affected_rows == 1
         async with db() as session:
             # Session ledger is not reset until old_trace's spans have all been drained.
             assert (
@@ -922,7 +794,8 @@ class TestWatermarkClearAndOverlap:
                 )
                 == "DONE"
             )
-        await _drain_all(coordinator)
+        remaining_batches = [batch async for batch in clear_batches]
+        assert remaining_batches[-1].status == "COMPLETE"
 
         async with db() as session:
             # Session survives because newer_trace is outside [start_time, end_time),
@@ -951,7 +824,6 @@ class TestWatermarkClearAndOverlap:
     async def test_range_clear_resets_final_session_decisions_while_preserving_queued_work(
         self, db: DbSessionFactory
     ) -> None:
-        dialect = SupportedSQLDialect(db.dialect.value)
         base_time = datetime(2026, 6, 2, 6, 0, 0, tzinfo=timezone.utc)
         final_decision_statuses: tuple[models.EvalWorkStatus, ...] = (
             "DONE",
@@ -1122,15 +994,13 @@ class TestWatermarkClearAndOverlap:
             surviving_trace_ids.extend([surviving_pending_trace.id, surviving_error_trace.id])
             surviving_session_ids.extend([pending_session.id, error_session.id])
 
-            await admit_or_reuse_project_clear(
-                session,
-                dialect=dialect,
-                project_id=project_id,
-                start_time=base_time - timedelta(minutes=1),
-                end_time=base_time + timedelta(hours=1),
-            )
-
-        await _drain_all(CleanupCoordinator(db, batch_limit=2))
+        await _clear_project(
+            db,
+            project_id,
+            start_time=base_time - timedelta(minutes=1),
+            end_time=base_time + timedelta(hours=1),
+            batch_limit=2,
+        )
 
         async with db() as session:
             for cleared_trace_id in cleared_trace_ids:
@@ -1205,7 +1075,6 @@ class TestWatermarkClearAndOverlap:
     async def test_range_clear_deletes_span_drained_trace_in_same_step_as_session_reset(
         self, db: DbSessionFactory
     ) -> None:
-        dialect = SupportedSQLDialect(db.dialect.value)
         base_time = datetime(2026, 6, 2, 8, 0, 0, tzinfo=timezone.utc)
 
         async with db() as session:
@@ -1261,20 +1130,15 @@ class TestWatermarkClearAndOverlap:
             cleared_trace_id = cleared_trace.id
             session_unit_id = session_unit.id
 
-            await admit_or_reuse_project_clear(
-                session,
-                dialect=dialect,
-                project_id=project.id,
-                start_time=base_time - timedelta(minutes=1),
-                end_time=base_time + timedelta(hours=1),
-            )
-
-        coordinator = CleanupCoordinator(db, batch_limit=10)
-
-        first_claim = await coordinator.claim_next()
-        assert first_claim is not None
-        first_step = await coordinator.execute_claimed_step(first_claim)
-        assert first_step.outcome == "progress" and first_step.affected_rows == 1
+        clear_batches = clear_project_traces_in_batches(
+            db,
+            project_id=project.id,
+            start_time=base_time - timedelta(minutes=1),
+            end_time=base_time + timedelta(hours=1),
+            batch_limit=10,
+        )
+        first_batch = await anext(clear_batches)
+        assert first_batch.status == "PROGRESS" and first_batch.num_affected_rows == 1
         async with db() as session:
             assert (
                 await session.scalar(
@@ -1284,11 +1148,8 @@ class TestWatermarkClearAndOverlap:
                 )
                 == "DONE"
             )
-
-        second_claim = await coordinator.claim_next()
-        assert second_claim is not None
-        second_step = await coordinator.execute_claimed_step(second_claim)
-        assert second_step.outcome == "progress"
+        second_batch = await anext(clear_batches)
+        assert second_batch.status == "PROGRESS"
         async with db() as session:
             assert (
                 await session.scalar(
@@ -1299,13 +1160,11 @@ class TestWatermarkClearAndOverlap:
                 == "DROPPED"
             )
             assert await session.get(models.Trace, cleared_trace_id) is None
-
-        await _drain_all(coordinator)
+        assert [batch async for batch in clear_batches][-1].status == "COMPLETE"
 
     async def test_empty_range_clear_leaves_surviving_session_evaluations_intact(
         self, db: DbSessionFactory
     ) -> None:
-        dialect = SupportedSQLDialect(db.dialect.value)
         t0 = datetime(2026, 6, 2, 12, 0, 0, tzinfo=timezone.utc)
         expected_statuses: dict[int, models.EvalWorkStatus] = {}
 
@@ -1363,15 +1222,13 @@ class TestWatermarkClearAndOverlap:
                 await session.flush()
                 expected_statuses[unit.id] = status
 
-            await admit_or_reuse_project_clear(
-                session,
-                dialect=dialect,
-                project_id=project.id,
-                start_time=t0 - timedelta(hours=2),
-                end_time=t0 - timedelta(hours=1),
-            )
-
-        await _drain_all(CleanupCoordinator(db, batch_limit=2))
+        await _clear_project(
+            db,
+            project.id,
+            start_time=t0 - timedelta(hours=2),
+            end_time=t0 - timedelta(hours=1),
+            batch_limit=2,
+        )
 
         async with db() as session:
             rows = (
@@ -1383,57 +1240,6 @@ class TestWatermarkClearAndOverlap:
                 )
             ).all()
             assert {row.id: row.status for row in rows} == expected_statuses
-
-    async def test_delete_during_active_clear_waits_for_clear_and_binding_tasks(
-        self, db: DbSessionFactory
-    ) -> None:
-        dialect = SupportedSQLDialect(db.dialect.value)
-        t0 = datetime(2026, 6, 3, 0, 0, 0, tzinfo=timezone.utc)
-
-        async with db() as session:
-            project = await _add_project(session, name=f"overlap-{token_hex(4)}")
-            trace_proj = models.Project(name=f"eval-trace-{token_hex(4)}", kind="EVALUATOR")
-            evaluator = models.BuiltinEvaluator(
-                name=Identifier(root=f"bi-{token_hex(4)}"),
-                kind="BUILTIN",
-                key=token_hex(8),
-                input_schema={},
-                output_configs=[],
-            )
-            session.add_all([trace_proj, evaluator])
-            await session.flush()
-            pe = models.ProjectEvaluator(
-                project_id=project.id,
-                evaluator_id=evaluator.id,
-                trace_project_id=trace_proj.id,
-                name=Identifier(root="span-eval"),
-                evaluation_target="SPAN",
-                filter_condition="",
-                sampling_rate=1.0,
-            )
-            session.add(pe)
-            await session.flush()
-            tr = await _add_trace(session, project, start_time=t0)
-            await _add_span(session, trace=tr, start_time=t0)
-
-            clear_task_id = await admit_or_reuse_project_clear(
-                session, dialect=dialect, project_id=project.id
-            )
-            await admit_project_delete(session, dialect=dialect, project_id=project.id)
-
-        coordinator = CleanupCoordinator(db, batch_limit=1)
-        # First claimed task must NOT be DELETE_PROJECT while clear_task_id and binding task exist.
-        first_claim = await coordinator.claim_next()
-        assert first_claim is not None
-        assert first_claim.kind in ("CLEAR_PROJECT_TRACES", "DELETE_PROJECT_EVALUATOR")
-        await coordinator.execute_claimed_step(first_claim)
-        await _drain_all(coordinator)
-
-        async with db() as session:
-            assert await session.get(models.CleanupTask, clear_task_id) is None
-            assert await session.get(models.Project, project.id) is None
-            assert await session.get(models.Project, trace_proj.id) is None
-            assert await session.get(models.ProjectEvaluator, pe.id) is None
 
     async def test_clear_preserves_shared_session_and_annotations_when_other_project_is_tombstoned(
         self, db: DbSessionFactory
@@ -1495,13 +1301,9 @@ class TestWatermarkClearAndOverlap:
             other_trace_id = other_trace.id
 
             await admit_project_delete(session, dialect=dialect, project_id=tombstoned_project_id)
-            clear_task_id = await admit_or_reuse_project_clear(
-                session, dialect=dialect, project_id=live_project_id
-            )
 
+        await _clear_project(db, live_project_id, batch_limit=1)
         coordinator = CleanupCoordinator(db, batch_limit=1)
-        while await coordinator.run_one_step(only_task_id=clear_task_id):
-            pass
         async with db() as session:
             owner_after_clear = await session.scalar(
                 select(models.ProjectSession.project_id).where(
@@ -1530,7 +1332,6 @@ class TestWatermarkClearAndOverlap:
     async def test_clear_does_not_transfer_shared_session_to_live_other_project(
         self, db: DbSessionFactory
     ) -> None:
-        dialect = SupportedSQLDialect(db.dialect.value)
         base_time = datetime(2026, 6, 5, 0, 0, 0, tzinfo=timezone.utc)
 
         async with db() as session:
@@ -1583,9 +1384,7 @@ class TestWatermarkClearAndOverlap:
             cleared_trace_id = cleared_trace.id
             other_trace_id = other_trace.id
 
-            await admit_or_reuse_project_clear(session, dialect=dialect, project_id=live_project_id)
-
-        await _drain_all(CleanupCoordinator(db, batch_limit=1))
+        await _clear_project(db, live_project_id, batch_limit=1)
 
         async with db() as session:
             assert await session.get(models.Trace, cleared_trace_id) is None
@@ -1594,6 +1393,110 @@ class TestWatermarkClearAndOverlap:
             assert surviving_session is not None
             assert surviving_session.project_id == live_project_id
             assert await session.get(models.ProjectSessionAnnotation, annotation_id) is not None
+
+    async def test_clear_deletes_bounded_range_in_committed_batches_and_emits_events(
+        self, db: DbSessionFactory
+    ) -> None:
+        t0 = datetime(2026, 6, 6, 0, 0, 0, tzinfo=timezone.utc)
+        async with db() as session:
+            project = await _add_project(session, name=f"batched-clear-{token_hex(4)}")
+            boundary_session = await _add_project_session(session, project, start_time=t0)
+            emptied_session = await _add_project_session(session, project, start_time=t0)
+            trace_ids: list[int] = []
+            for offset in range(6):
+                trace = await _add_trace(
+                    session,
+                    project,
+                    project_session=boundary_session if offset in (0, 5) else emptied_session,
+                    start_time=t0 + timedelta(minutes=offset),
+                )
+                await _add_span(session, trace=trace, start_time=t0 + timedelta(minutes=offset))
+                trace_ids.append(trace.id)
+            project_id = project.id
+            boundary_session_id = boundary_session.id
+            emptied_session_id = emptied_session.id
+
+        emitted_events: list[DmlEvent] = []
+
+        class _RecordingQueue:
+            def put(self, item: DmlEvent) -> None:
+                emitted_events.append(item)
+
+        batches = [
+            batch
+            async for batch in clear_project_traces_in_batches(
+                db,
+                project_id=project_id,
+                start_time=t0 + timedelta(minutes=1),
+                end_time=t0 + timedelta(minutes=5),
+                event_queue=_RecordingQueue(),
+                batch_limit=1,
+            )
+        ]
+
+        num_progress_batches = sum(batch.status == "PROGRESS" for batch in batches)
+        assert num_progress_batches > 4
+        assert batches[-1].status == "COMPLETE"
+        assert emitted_events == [SpanDeleteEvent((project_id,))] * num_progress_batches
+        async with db() as session:
+            surviving_trace_ids = set(
+                await session.scalars(
+                    select(models.Trace.id).where(models.Trace.project_rowid == project_id)
+                )
+            )
+            assert surviving_trace_ids == {trace_ids[0], trace_ids[5]}
+            assert await session.get(models.ProjectSession, boundary_session_id) is not None
+            assert await session.get(models.ProjectSession, emptied_session_id) is None
+
+    async def test_clear_stops_when_project_is_tombstoned_between_batches(
+        self, db: DbSessionFactory
+    ) -> None:
+        dialect = SupportedSQLDialect(db.dialect.value)
+        t0 = datetime(2026, 6, 7, 0, 0, 0, tzinfo=timezone.utc)
+        async with db() as session:
+            project = await _add_project(session, name=f"tombstoned-clear-{token_hex(4)}")
+            span_ids: list[int] = []
+            for offset in range(3):
+                trace = await _add_trace(
+                    session, project, start_time=t0 + timedelta(minutes=offset)
+                )
+                span = await _add_span(
+                    session, trace=trace, start_time=t0 + timedelta(minutes=offset)
+                )
+                span_ids.append(span.id)
+            project_id = project.id
+
+        clear_batches = clear_project_traces_in_batches(db, project_id=project_id, batch_limit=1)
+        first_batch = await anext(clear_batches)
+        assert first_batch.status == "PROGRESS"
+        async with db() as session:
+            await admit_project_delete(session, dialect=dialect, project_id=project_id)
+        remaining_batches = [batch async for batch in clear_batches]
+
+        assert [batch.status for batch in remaining_batches] == ["PROJECT_DELETED"]
+        async with db() as session:
+            assert await session.get(models.Span, span_ids[0]) is None
+            assert await session.get(models.Span, span_ids[1]) is not None
+            assert await session.get(models.Span, span_ids[2]) is not None
+
+    async def test_clear_rejects_missing_tombstoned_and_evaluator_projects(
+        self, db: DbSessionFactory
+    ) -> None:
+        dialect = SupportedSQLDialect(db.dialect.value)
+        async with db() as session:
+            tombstoned_project = await _add_project(session, name=f"gone-{token_hex(4)}")
+            evaluator_project = models.Project(name=f"eval-sink-{token_hex(4)}", kind="EVALUATOR")
+            session.add(evaluator_project)
+            await session.flush()
+            await admit_project_delete(session, dialect=dialect, project_id=tombstoned_project.id)
+            tombstoned_project_id = tombstoned_project.id
+            evaluator_project_id = evaluator_project.id
+
+        for missing_project_id in (tombstoned_project_id, 999_999):
+            with pytest.raises(NotFound):
+                await _clear_project(db, missing_project_id)
+        with pytest.raises(Conflict, match="evaluator's traces"):
+            await _clear_project(db, evaluator_project_id)
 
 
 class TestEvaluatorSnapshotsAndOnlineEvalFences:
@@ -2086,14 +1989,13 @@ class TestStorageLockoutExemptionsAndCleanupWorker:
             rest_delete_project_id = rest_delete_project.id
             rest_delete_project_name = rest_delete_project.name
 
-        async with cleanup_worker_controller.expect_wake_cycle():
-            clear_resp = await gql_client.execute(
-                """mutation($input: ClearProjectInput!) {
-                    clearProject(input: $input) { __typename }
-                }""",
-                variables={"input": {"id": str(GlobalID("Project", str(clear_project_id)))}},
-            )
-            assert clear_resp.data and not clear_resp.errors
+        clear_resp = await gql_client.execute(
+            """mutation($input: ClearProjectInput!) {
+                clearProject(input: $input) { __typename }
+            }""",
+            variables={"input": {"id": str(GlobalID("Project", str(clear_project_id)))}},
+        )
+        assert clear_resp.data and not clear_resp.errors
 
         async with db() as session:
             assert await session.get(models.Trace, clear_trace_id) is None
@@ -2350,80 +2252,6 @@ class TestBuiltinSyncStaleBindings:
                     )
                 )
                 assert len(list(proj_task_ids)) == 1
-
-
-class TestClearWatermarkReuse:
-    async def test_repeated_clear_preserves_the_active_task_watermark(
-        self, db: DbSessionFactory
-    ) -> None:
-        dialect = SupportedSQLDialect(db.dialect.value)
-        async with db() as session:
-            project = await _add_project(session, name=f"rewatermark-{token_hex(4)}")
-            await _add_trace(session, project)
-            project_id = project.id
-            first_task = await admit_or_reuse_project_clear(
-                session, dialect=dialect, project_id=project_id
-            )
-        async with db() as session:
-            live_project = await session.get(models.Project, project_id)
-            assert live_project is not None
-            late_trace = await _add_trace(session, live_project)
-            late_trace_id = late_trace.id
-        async with db() as session:
-            second_task = await admit_or_reuse_project_clear(
-                session, dialect=dialect, project_id=project_id
-            )
-        assert second_task == first_task
-        async with db() as session:
-            watermark = await session.scalar(
-                select(models.ProjectClearCleanupTask.max_trace_rowid).where(
-                    models.ProjectClearCleanupTask.id == first_task
-                )
-            )
-            assert watermark is not None and watermark < late_trace_id
-
-        await _drain_all(CleanupCoordinator(db, batch_limit=2))
-        async with db() as session:
-            assert await session.get(models.Trace, late_trace_id) is not None
-
-
-async def test_sqlite_trace_allocator_rolls_back_reservations(db: DbSessionFactory) -> None:
-    if db.dialect is not SupportedSQLDialect.SQLITE:
-        pytest.skip("SQLite allocation protocol")
-    async with db() as session:
-        first = await models.allocate_sqlite_trace_rowid(session)
-        bind = session.get_bind()
-        statements: list[str] = []
-
-        def record_statement(
-            _connection: Any,
-            _cursor: Any,
-            statement: str,
-            _parameters: Any,
-            _context: Any,
-            _executemany: bool,
-        ) -> None:
-            if not statement.upper().startswith(("SAVEPOINT", "RELEASE", "ROLLBACK")):
-                statements.append(statement)
-
-        event.listen(bind, "before_cursor_execute", record_statement)
-        try:
-            second = await models.allocate_sqlite_trace_rowid(session)
-            assert second == first + 1
-            assert len(statements) == 1
-            statements.clear()
-            assert await models.capture_trace_max_rowid(session) == second
-            assert len(statements) == 1
-        finally:
-            event.remove(bind, "before_cursor_execute", record_statement)
-
-        savepoint = await session.begin_nested()
-        reserved = await models.allocate_sqlite_trace_rowid(session)
-        assert reserved > second
-        await savepoint.rollback()
-        assert await models.allocate_sqlite_trace_rowid(session) == reserved
-    async with db() as session:
-        assert await models.allocate_sqlite_trace_rowid(session) > reserved
 
 
 async def test_cleanup_batches_cost_details_before_deleting_their_parent(
@@ -2962,7 +2790,6 @@ async def test_sqlite_cleanup_primitives_use_fk_indexes_without_temp_btrees(
         project_id = project.id
         span_evaluator_id = span_evaluator.id
         dataset_binding_id = dataset_binding.id
-        max_trace_rowid = second_trace.id
 
     recorded_selects: list[tuple[str, Any]] = []
 
@@ -3014,7 +2841,6 @@ async def test_sqlite_cleanup_primitives_use_fk_indexes_without_temp_btrees(
                     session,
                     dialect=SupportedSQLDialect.SQLITE,
                     project_id=project_id,
-                    max_trace_rowid=max_trace_rowid,
                     batch_limit=2,
                 )
             ).status is not PrimitiveStatus.EMPTY:
@@ -3509,6 +3335,39 @@ async def test_postgres_locked_span_causes_drain_traces_step_to_yield_without_de
     async with db() as inspector:
         assert await inspector.get(models.Span, span_id) is None
         assert await inspector.get(models.Trace, trace_id) is None
+
+
+async def test_postgres_clear_gives_up_with_conflict_and_keeps_committed_batches(
+    postgresql_engine: Any,
+) -> None:
+    db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
+    base_time = datetime(2026, 8, 6, 0, 0, 0, tzinfo=timezone.utc)
+    async with db() as session:
+        project = await _add_project(session, name=f"pg-clear-contention-{token_hex(4)}")
+        first_trace = await _add_trace(session, project, start_time=base_time)
+        await _add_span(session, trace=first_trace, start_time=base_time)
+        second_start_time = base_time + timedelta(minutes=1)
+        second_trace = await _add_trace(session, project, start_time=second_start_time)
+        locked_span = await _add_span(session, trace=second_trace, start_time=second_start_time)
+        project_id = project.id
+        first_trace_id, second_trace_id = first_trace.id, second_trace.id
+        locked_span_id = locked_span.id
+
+    async with db() as locker:
+        await locker.execute(
+            select(models.Span.id).where(models.Span.id == locked_span_id).with_for_update()
+        )
+        with pytest.raises(Conflict, match="run the clear again"):
+            await _clear_project(db, project_id, batch_limit=1)
+
+    async with db() as inspector:
+        assert await inspector.get(models.Trace, first_trace_id) is None
+        assert await inspector.get(models.Trace, second_trace_id) is not None
+
+    batches = await _clear_project(db, project_id, batch_limit=1)
+    assert batches[-1].status == "COMPLETE"
+    async with db() as inspector:
+        assert await inspector.get(models.Trace, second_trace_id) is None
 
 
 async def test_delete_traces_handles_more_than_32767_trace_ids_without_bind_param_crash(

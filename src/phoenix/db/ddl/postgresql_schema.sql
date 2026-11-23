@@ -37,7 +37,6 @@ CREATE TABLE public.cleanup_tasks (
     CONSTRAINT "ck_cleanup_tasks_`valid_cleanup_task_kind`"
         CHECK (((kind)::text = ANY ((ARRAY[
             'DELETE_PROJECT'::character varying,
-            'CLEAR_PROJECT_TRACES'::character varying,
             'DELETE_PROJECT_EVALUATOR'::character varying,
             'DELETE_DATASET_EVALUATOR'::character varying
         ])::text[])))
@@ -247,32 +246,6 @@ CREATE TABLE public.project_annotation_configs (
 
 CREATE INDEX ix_project_annotation_configs_annotation_config_id ON public.project_annotation_configs
     USING btree (annotation_config_id);
-
-
--- Table: project_clear_cleanup_tasks
--- ----------------------------------
-CREATE TABLE public.project_clear_cleanup_tasks (
-    id BIGINT NOT NULL,
-    kind VARCHAR NOT NULL DEFAULT 'CLEAR_PROJECT_TRACES'::character varying,
-    project_id BIGINT NOT NULL,
-    max_trace_rowid BIGINT NOT NULL,
-    start_time TIMESTAMP WITH TIME ZONE,
-    end_time TIMESTAMP WITH TIME ZONE,
-    CONSTRAINT pk_project_clear_cleanup_tasks PRIMARY KEY (id),
-    CONSTRAINT uq_project_clear_cleanup_tasks_project_id
-        UNIQUE (project_id),
-    CONSTRAINT "ck_project_clear_cleanup_tasks_`nonnegative_max_trace_rowid`" CHECK ((max_trace_rowid >= 0)),
-    CONSTRAINT "ck_project_clear_cleanup_tasks_`valid_cleanup_task_kind`" CHECK (((kind)::text = 'CLEAR_PROJECT_TRACES'::text)),
-    CONSTRAINT "ck_project_clear_cleanup_tasks_`valid_range`" CHECK (((start_time IS NULL) OR (end_time IS NULL) OR (start_time < end_time))),
-    CONSTRAINT fk_project_clear_cleanup_tasks_kind_cleanup_tasks
-        FOREIGN KEY (kind, id)
-        REFERENCES public.cleanup_tasks (kind, id)
-        ON DELETE CASCADE,
-    CONSTRAINT fk_project_clear_cleanup_tasks_project_id_projects
-        FOREIGN KEY (project_id)
-        REFERENCES public.projects (id)
-        ON DELETE RESTRICT
-);
 
 
 -- Table: project_delete_cleanup_tasks

@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from secrets import token_hex
@@ -94,82 +93,26 @@ class StepExecutionResult:
 
 def _ineligible_waiting_delete_predicate() -> ColumnElement[bool]:
     """Fixed ordering rule:
-    - Exclude ``DELETE_PROJECT`` while a clear task or any ``project_evaluators`` row still
-      references that owner project.
-    - Exclude ``DELETE_PROJECT_EVALUATOR`` / ``DELETE_DATASET_EVALUATOR`` while a clear task
-      exists on their trace project.
+    - Exclude ``DELETE_PROJECT`` while any ``project_evaluators`` row still references that
+      owner project.
     """
     project_delete_task = aliased(models.ProjectDeleteCleanupTask)
-    project_clear_task = aliased(models.ProjectClearCleanupTask)
-    project_evaluator_task = aliased(models.ProjectEvaluatorCleanupTask)
-    dataset_evaluator_task = aliased(models.DatasetEvaluatorCleanupTask)
     project_evaluator = aliased(models.ProjectEvaluator)
-    dataset_evaluator = aliased(models.DatasetEvaluators)
 
-    waiting_project_delete = and_(
+    return and_(
         models.CleanupTask.kind == "DELETE_PROJECT",
         exists(
             select(literal(1))
             .select_from(project_delete_task)
             .where(
                 project_delete_task.id == models.CleanupTask.id,
-                or_(
-                    exists(
-                        select(literal(1)).where(
-                            project_clear_task.project_id == project_delete_task.project_id
-                        )
-                    ),
-                    exists(
-                        select(literal(1)).where(
-                            project_evaluator.project_id == project_delete_task.project_id
-                        )
-                    ),
-                ),
-            )
-        ),
-    )
-    waiting_project_eval_delete = and_(
-        models.CleanupTask.kind == "DELETE_PROJECT_EVALUATOR",
-        exists(
-            select(literal(1))
-            .select_from(project_evaluator_task)
-            .join(
-                project_evaluator,
-                project_evaluator.id == project_evaluator_task.project_evaluator_id,
-            )
-            .where(
-                project_evaluator_task.id == models.CleanupTask.id,
                 exists(
                     select(literal(1)).where(
-                        project_clear_task.project_id == project_evaluator.trace_project_id
+                        project_evaluator.project_id == project_delete_task.project_id
                     )
                 ),
             )
         ),
-    )
-    waiting_dataset_eval_delete = and_(
-        models.CleanupTask.kind == "DELETE_DATASET_EVALUATOR",
-        exists(
-            select(literal(1))
-            .select_from(dataset_evaluator_task)
-            .join(
-                dataset_evaluator,
-                dataset_evaluator.id == dataset_evaluator_task.dataset_evaluator_id,
-            )
-            .where(
-                dataset_evaluator_task.id == models.CleanupTask.id,
-                exists(
-                    select(literal(1)).where(
-                        project_clear_task.project_id == dataset_evaluator.project_id
-                    )
-                ),
-            )
-        ),
-    )
-    return or_(
-        waiting_project_delete,
-        waiting_project_eval_delete,
-        waiting_dataset_eval_delete,
     )
 
 
@@ -225,16 +168,13 @@ class CleanupCoordinator:
             return None
         return max(0.0, (next_available_at - now).total_seconds())
 
-    async def claim_next(
-        self, *, only_task_id: Optional[int] = None
-    ) -> Optional[ClaimedCleanupTask]:
-        """Recover unlocked lapsed claims and claim at most one eligible task deployment-wide,
-        restricted to ``only_task_id`` when given."""
-        claimed, _ = await self._claim_next_or_delay(only_task_id=only_task_id)
+    async def claim_next(self) -> Optional[ClaimedCleanupTask]:
+        """Recover unlocked lapsed claims and claim at most one eligible task deployment-wide."""
+        claimed, _ = await self._claim_next_or_delay()
         return claimed
 
     async def _claim_next_or_delay(
-        self, *, only_task_id: Optional[int] = None
+        self,
     ) -> tuple[Optional[ClaimedCleanupTask], Optional[float]]:
         dialect = self._db.dialect
         token = self._new_claim_token()
@@ -321,17 +261,11 @@ class CleanupCoordinator:
                 .order_by(models.CleanupTask.available_at.asc(), models.CleanupTask.id.asc())
                 .limit(1)
             )
-            if only_task_id is not None:
-                candidate_stmt = candidate_stmt.where(models.CleanupTask.id == only_task_id)
             if dialect is SupportedSQLDialect.POSTGRESQL:
                 candidate_stmt = candidate_stmt.with_for_update(key_share=True, skip_locked=True)
                 row = (await session.execute(candidate_stmt)).first()
                 if row is None:
-                    next_delay = (
-                        await self._next_eligible_delay_seconds(session, now=now)
-                        if only_task_id is None
-                        else None
-                    )
+                    next_delay = await self._next_eligible_delay_seconds(session, now=now)
                     return None, next_delay
                 task_id, kind = int(row.id), row.kind
                 await session.execute(
@@ -343,11 +277,7 @@ class CleanupCoordinator:
 
             row = (await session.execute(candidate_stmt)).first()
             if row is None:
-                next_delay = (
-                    await self._next_eligible_delay_seconds(session, now=now)
-                    if only_task_id is None
-                    else None
-                )
+                next_delay = await self._next_eligible_delay_seconds(session, now=now)
                 return None, next_delay
             task_id, kind = int(row.id), row.kind
             cas = await session.execute(
@@ -583,13 +513,6 @@ class CleanupCoordinator:
         task: models.CleanupTask,
         events_after_commit: list[DmlEvent],
     ) -> PrimitiveResult:
-        if isinstance(task, models.ProjectClearCleanupTask):
-            return await self._step_project_clear(
-                session,
-                dialect=dialect,
-                task=task,
-                events_after_commit=events_after_commit,
-            )
         if isinstance(task, models.ProjectDeleteCleanupTask):
             return await self._step_project_delete(
                 session,
@@ -613,33 +536,6 @@ class CleanupCoordinator:
             )
         raise RuntimeError(f"Unsupported cleanup task instance: {type(task)!r}")
 
-    async def _step_project_clear(
-        self,
-        session: AsyncSession,
-        *,
-        dialect: SupportedSQLDialect,
-        task: models.ProjectClearCleanupTask,
-        events_after_commit: list[DmlEvent],
-    ) -> PrimitiveResult:
-        res = await drain_trace_scope_step(
-            session,
-            dialect=dialect,
-            project_id=task.project_id,
-            max_trace_rowid=task.max_trace_rowid,
-            start_time=task.start_time,
-            end_time=task.end_time,
-            batch_limit=self._batch_limit,
-        )
-        if res.status is PrimitiveStatus.PROGRESS:
-            events_after_commit.append(SpanDeleteEvent((task.project_id,)))
-            return res
-        if res.status is PrimitiveStatus.YIELD:
-            return res
-
-        await session.execute(delete(models.CleanupTask).where(models.CleanupTask.id == task.id))
-        events_after_commit.append(SpanDeleteEvent((task.project_id,)))
-        return PrimitiveResult(PrimitiveStatus.EMPTY, 0)
-
     async def _step_project_delete(
         self,
         session: AsyncSession,
@@ -650,17 +546,12 @@ class CleanupCoordinator:
     ) -> PrimitiveResult:
         project_id = task.project_id
         # Recheck fixed ordering invariants before draining/finalizing.
-        has_clear_or_bindings = bool(
+        has_bindings = bool(
             await session.scalar(
-                select(
-                    or_(
-                        exists().where(models.ProjectClearCleanupTask.project_id == project_id),
-                        exists().where(models.ProjectEvaluator.project_id == project_id),
-                    )
-                )
+                select(exists().where(models.ProjectEvaluator.project_id == project_id))
             )
         )
-        if has_clear_or_bindings:
+        if has_bindings:
             return PrimitiveResult(PrimitiveStatus.YIELD, 0)
 
         refs_res = await clear_project_historical_references_step(
@@ -699,7 +590,6 @@ class CleanupCoordinator:
                         exists().where(models.ProjectEvaluator.project_id == project_id),
                         exists().where(models.ProjectEvaluator.trace_project_id == project_id),
                         exists().where(models.DatasetEvaluators.project_id == project_id),
-                        exists().where(models.ProjectClearCleanupTask.project_id == project_id),
                     )
                 )
             )
@@ -734,15 +624,6 @@ class CleanupCoordinator:
                 delete(models.CleanupTask).where(models.CleanupTask.id == task.id)
             )
             return PrimitiveResult(PrimitiveStatus.EMPTY, 0)
-
-        if bool(
-            await session.scalar(
-                select(
-                    exists().where(models.ProjectClearCleanupTask.project_id == trace_project_id)
-                )
-            )
-        ):
-            return PrimitiveResult(PrimitiveStatus.YIELD, 0)
 
         work_res = await drain_eval_work_units_step(
             session,
@@ -830,15 +711,6 @@ class CleanupCoordinator:
             )
             return PrimitiveResult(PrimitiveStatus.EMPTY, 0)
 
-        if bool(
-            await session.scalar(
-                select(
-                    exists().where(models.ProjectClearCleanupTask.project_id == trace_project_id)
-                )
-            )
-        ):
-            return PrimitiveResult(PrimitiveStatus.YIELD, 0)
-
         dep_res = await drain_dataset_evaluator_dependents_step(
             session,
             dialect=dialect,
@@ -904,14 +776,6 @@ class CleanupCoordinator:
         events_after_commit.append(ProjectDeleteEvent((trace_project_id,)))
         return PrimitiveResult(PrimitiveStatus.EMPTY, 1)
 
-    async def run_one_step(self, *, only_task_id: Optional[int] = None) -> bool:
-        """Claim and execute one step if an eligible task exists, returning whether work ran."""
-        claimed = await self.claim_next(only_task_id=only_task_id)
-        if claimed is None:
-            return False
-        await self.execute_claimed_step(claimed)
-        return True
-
     async def step_or_next_delay(self) -> tuple[bool, Optional[float]]:
         """Claim and execute one due step, or return seconds until the earliest eligible task."""
         claimed, next_delay_seconds = await self._claim_next_or_delay()
@@ -919,30 +783,3 @@ class CleanupCoordinator:
             return False, next_delay_seconds
         await self.execute_claimed_step(claimed)
         return True, None
-
-    async def task_exists(self, task_id: int) -> bool:
-        async with self._db() as session:
-            found_task_id = await session.scalar(
-                select(models.CleanupTask.id).where(models.CleanupTask.id == task_id)
-            )
-            return found_task_id is not None
-
-    async def wait_for_completion(
-        self,
-        task_id: int,
-        *,
-        timeout_seconds: float = 55.0,
-        poll_interval_seconds: float = 0.25,
-    ) -> bool:
-        """Wait until ``task_id`` finishes and is removed, driving only that task through the
-        claim-and-step protocol."""
-        deadline = time.monotonic() + timeout_seconds
-        while True:
-            if not await self.task_exists(task_id):
-                return True
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                return False
-            ran = await self.run_one_step(only_task_id=task_id)
-            if not ran:
-                await asyncio.sleep(min(poll_interval_seconds, max(0.005, remaining)))

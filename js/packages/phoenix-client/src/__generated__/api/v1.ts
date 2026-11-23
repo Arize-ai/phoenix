@@ -1027,7 +1027,7 @@ export interface paths {
         post?: never;
         /**
          * Delete traces from a project
-         * @description Delete traces from a project without deleting the project or its configuration. Only traces whose start time is within the required `[start_time, end_time)` interval are deleted. Associated spans are cascade deleted, and project sessions left with no remaining traces are also deleted. Naive datetimes are interpreted as UTC. Returns 409 when the project holds an evaluator's traces or another clear with a different time range is already in progress. If the wait exceeds the request timeout, returns 504 while deletion continues in the background; retrying with the identical `[start_time, end_time)` range waits on the active clear.
+         * @description Delete traces from a project without deleting the project or its configuration. Only traces whose start time is within the required `[start_time, end_time)` interval are deleted. Associated spans are cascade deleted, and project sessions left with no remaining traces are also deleted. Naive datetimes are interpreted as UTC. Traces are deleted in batches, each committed on its own. Returns 409 when the project holds an evaluator's traces, or when some traces stay in use by another operation; in the second case part of the clear may already be done, and the same request can be run again to finish it.
          */
         delete: operations["deleteProjectTraces"];
         options?: never;
@@ -13350,15 +13350,6 @@ export interface operations {
                     "text/plain": string;
                 };
             };
-            /** @description Gateway Timeout */
-            504: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
         };
     };
     annotateTraces: {
@@ -13499,15 +13490,6 @@ export interface operations {
             };
             /** @description Destination project or trace not found */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description A trace clear is in progress on the source or destination project */
-            409: {
                 headers: {
                     [name: string]: unknown;
                 };

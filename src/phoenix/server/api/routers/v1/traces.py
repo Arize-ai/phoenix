@@ -48,8 +48,7 @@ from phoenix.server.authorization import (
     restrict_access_by_viewers,
 )
 from phoenix.server.bearer_auth import PhoenixUser
-from phoenix.server.cleanup.coordinator import CleanupCoordinator
-from phoenix.server.cleanup.lifecycle import admit_or_reuse_project_clear
+from phoenix.server.cleanup.lifecycle import clear_project_traces_in_batches
 from phoenix.server.dml_event import SpanDeleteEvent, TraceAnnotationInsertEvent
 from phoenix.server.trace_filters import TraceFilterConditionError, apply_trace_filter_to_page
 from phoenix.trace.otel import decode_otlp_span
@@ -396,14 +395,14 @@ async def list_project_traces(
         "Only traces whose start time is within the required `[start_time, end_time)` interval "
         "are deleted. Associated spans are cascade deleted, and project sessions left with no "
         "remaining traces are also deleted. Naive datetimes are interpreted as UTC. "
-        "Returns 409 when the project holds an evaluator's traces or another clear with a "
-        "different time range is already in progress. If the wait exceeds the request timeout, "
-        "returns 504 while deletion continues in the background; retrying with the identical "
-        "`[start_time, end_time)` range waits on the active clear."
+        "Traces are deleted in batches, each committed on its own. Returns 409 when the project "
+        "holds an evaluator's traces, or when some traces stay in use by another operation; in "
+        "the second case part of the clear may already be done, and the same request can be "
+        "run again to finish it."
     ),
     response_description="No content returned after the matching traces are deleted",
     status_code=204,
-    responses=add_errors_to_responses([404, 409, 422, 504]),
+    responses=add_errors_to_responses([404, 409, 422]),
 )
 async def delete_project_traces(
     request: Request,
@@ -425,38 +424,22 @@ async def delete_project_traces(
             detail="`start_time` must be strictly earlier than `end_time`.",
         )
     db = request.app.state.db
-    dialect = SupportedSQLDialect(db.dialect.value)
     try:
         async with db() as session:
             project = await get_project_by_identifier(session, project_identifier)
             project_rowid = project.id
-            task_id = await admit_or_reuse_project_clear(
-                session,
-                dialect=dialect,
-                project_id=project_rowid,
-                start_time=normalized_start_time,
-                end_time=normalized_end_time,
-            )
+        async for _ in clear_project_traces_in_batches(
+            db,
+            project_id=project_rowid,
+            start_time=normalized_start_time,
+            end_time=normalized_end_time,
+            event_queue=request.state.event_queue,
+        ):
+            pass
     except NotFound as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
     except Conflict as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
-
-    cleanup_worker = getattr(request.app.state, "cleanup_worker", None)
-    if cleanup_worker is not None:
-        cleanup_worker.wake()
-        coordinator = cleanup_worker.coordinator
-    else:
-        coordinator = CleanupCoordinator(db, event_queue=request.state.event_queue)
-    finished = await coordinator.wait_for_completion(task_id)
-    if not finished:
-        raise HTTPException(
-            status_code=504,
-            detail=(
-                "Trace deletion is still running in the background; retry to wait for completion."
-            ),
-        )
-    request.state.event_queue.put(SpanDeleteEvent((project_rowid,)))
     return None
 
 
@@ -793,10 +776,6 @@ class TransferTracesResponseBody(ResponseBody[TransferTracesData]):
     responses=add_errors_to_responses(
         [
             {"status_code": 404, "description": "Destination project or trace not found"},
-            {
-                "status_code": 409,
-                "description": "A trace clear is in progress on the source or destination project",
-            },
             {"status_code": 422, "description": "Invalid request"},
         ]
     ),
@@ -888,16 +867,6 @@ async def transfer_traces(
         if not (source_project_rowids <= set(live_projects)):
             raise HTTPException(detail="One or more traces not found", status_code=404)
 
-        active_clear_project_id = await session.scalar(
-            select(models.ProjectClearCleanupTask.project_id)
-            .where(models.ProjectClearCleanupTask.project_id.in_(involved_project_ids))
-            .limit(1)
-        )
-        if active_clear_project_id is not None:
-            raise HTTPException(
-                detail="Cannot transfer traces while a project clear is in progress",
-                status_code=409,
-            )
         result = await session.execute(
             update(models.Trace)
             .where(

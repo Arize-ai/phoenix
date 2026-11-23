@@ -4807,9 +4807,6 @@ type Project implements Node {
   """Whether the project has any trace data."""
   hasTraces: Boolean!
 
-  """Whether a background clear of the project's traces is in progress."""
-  isClearingTraces: Boolean!
-
   """
   Number of spans in the project. sessionFilterCondition restricts the result to the sessions matching a session filter expression (see sessionFilterVocabulary). It is an expression, not a substring of the session's input/output.
   """

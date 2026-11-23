@@ -182,7 +182,7 @@ async def test_concurrent_edit_and_delete_of_one_binding_both_return(
         assert tombstoned.evaluator_id is None
 
     coordinator = CleanupCoordinator(db)
-    while await coordinator.run_one_step():
+    while (await coordinator.step_or_next_delay())[0]:
         pass
 
     async with db() as session:

@@ -12,13 +12,6 @@ from phoenix.server.types import DbSessionFactory
 from ...._helpers import _add_live_session_work_unit
 from ....graphql import AsyncGraphQLClient
 
-
-async def _drain_cleanup(db: DbSessionFactory) -> None:
-    coordinator = CleanupCoordinator(db)
-    while await coordinator.run_one_step():
-        pass
-
-
 PATCH_PROJECT_MUTATION = """
     mutation($input: PatchProjectInput!) {
         patchProject(input: $input) {
@@ -122,7 +115,6 @@ class TestProjectMutations:
             },
         )
         assert not result.errors
-        await _drain_cleanup(db)
 
         # Verify the results
         async with db() as session:
@@ -144,7 +136,7 @@ class TestProjectMutations:
                     session_obj = await session.get(models.ProjectSession, project_sessions[i].id)
                     assert session_obj is None, f"Session {i} should be deleted"
 
-    async def test_clear_project_returns_while_clear_is_pending(
+    async def test_clear_project_deletes_traces_before_returning(
         self,
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
@@ -162,16 +154,6 @@ class TestProjectMutations:
             session.add(trace)
             await session.flush()
             project_id, trace_id = project.id, trace.id
-        project_gid = str(GlobalID("Project", str(project_id)))
-        status_query = """
-            query($id: ID!) {
-                node(id: $id) { ... on Project { isClearingTraces } }
-            }
-        """
-
-        before = await gql_client.execute(status_query, variables={"id": project_gid})
-        assert not before.errors and before.data
-        assert before.data["node"]["isClearingTraces"] is False
 
         result = await gql_client.execute(
             query="""
@@ -179,29 +161,28 @@ class TestProjectMutations:
                 clearProject(input: $input) { __typename }
             }
             """,
-            variables={"input": {"id": project_gid}},
+            variables={"input": {"id": str(GlobalID("Project", str(project_id)))}},
         )
         assert not result.errors
 
         async with db() as session:
-            assert await session.get(models.Trace, trace_id) is not None
-            pending = await session.scalar(
-                select(models.ProjectClearCleanupTask.id).where(
-                    models.ProjectClearCleanupTask.project_id == project_id
-                )
-            )
-        assert pending is not None
-        during = await gql_client.execute(status_query, variables={"id": project_gid})
-        assert not during.errors and during.data
-        assert during.data["node"]["isClearingTraces"] is True
-
-        await _drain_cleanup(db)
-
-        async with db() as session:
             assert await session.get(models.Trace, trace_id) is None
-        after = await gql_client.execute(status_query, variables={"id": project_gid})
-        assert not after.errors and after.data
-        assert after.data["node"]["isClearingTraces"] is False
+            surviving_project = await session.get(models.Project, project_id)
+            assert surviving_project is not None and surviving_project.deleted_at is None
+
+    async def test_clear_project_rejects_unknown_project(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        result = await gql_client.execute(
+            query="""
+            mutation($input: ClearProjectInput!) {
+                clearProject(input: $input) { __typename }
+            }
+            """,
+            variables={"input": {"id": str(GlobalID("Project", "999999"))}},
+        )
+        assert result.errors
 
     async def test_clear_project_preserves_straddling_session_and_its_newer_trace(
         self,
@@ -263,7 +244,6 @@ class TestProjectMutations:
             },
         )
         assert not result.errors
-        await _drain_cleanup(db)
 
         async with db() as session:
             assert await session.get(models.Trace, old_trace.id) is None, (
@@ -323,7 +303,6 @@ class TestProjectMutations:
             },
         )
         assert not result.errors
-        await _drain_cleanup(db)
 
         async with db() as session:
             statuses = list(
@@ -632,7 +611,7 @@ async def test_delete_project_also_deletes_its_evaluators_trace_projects(
         assert len(tombstoned) == 2 and all(ts is not None for ts in tombstoned)
 
     coordinator = CleanupCoordinator(db)
-    while await coordinator.run_one_step():
+    while (await coordinator.step_or_next_delay())[0]:
         pass
 
     async with db() as session:

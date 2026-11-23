@@ -320,7 +320,7 @@ async def test_f125a3233286_backfills_kinds_and_historical_references_and_guards
         conn.execute(
             text(
                 "INSERT INTO cleanup_tasks (kind, available_at, created_at) "
-                "VALUES ('CLEAR_PROJECT_TRACES', :t, :t)"
+                "VALUES ('DELETE_PROJECT', :t, :t)"
             ),
             {"t": t0},
         )

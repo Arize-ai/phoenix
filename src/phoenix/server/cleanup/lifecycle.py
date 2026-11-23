@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable, Iterable
+from collections.abc import AsyncIterator, Callable, Iterable
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Optional, Protocol
+from typing import Any, Literal, Optional, Protocol
 
 from sqlalchemy import and_, delete, exists, insert, literal, or_, select, text, update
 from sqlalchemy.exc import DBAPIError
@@ -19,7 +19,9 @@ from phoenix.db.insertion.helpers import get_sqlstate
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.cleanup.primitives import (
     CLEANUP_BATCH_ROWS,
+    PrimitiveResult,
     PrimitiveStatus,
+    drain_trace_scope_step,
     drain_traces_step,
 )
 from phoenix.server.dml_event import (
@@ -50,6 +52,12 @@ class CanStopExperiment(Protocol):
 class LogicalEvaluatorDeleteResult:
     binding_ids: list[int]
     tombstoned_project_ids: list[int]
+
+
+@dataclass(frozen=True)
+class TraceClearBatchResult:
+    status: Literal["PROGRESS", "COMPLETE", "PROJECT_DELETED"]
+    num_affected_rows: int = 0
 
 
 @dataclass(frozen=True)
@@ -496,7 +504,7 @@ async def admit_project_delete(
     project_id: int,
 ) -> AdmittedProjectDelete:
     """Tombstone a live non-evaluator project, detach its live bindings, and enqueue its
-    ``ProjectDeleteCleanupTask`` (preserving any active clear task)."""
+    ``ProjectDeleteCleanupTask``."""
     initial_trace_project_ids = list(
         await session.scalars(
             select(models.ProjectEvaluator.trace_project_id).where(
@@ -583,65 +591,104 @@ async def admit_project_delete(
     )
 
 
-async def admit_or_reuse_project_clear(
-    session: AsyncSession,
-    *,
-    dialect: SupportedSQLDialect,
-    project_id: int,
-    start_time: Optional[datetime] = None,
-    end_time: Optional[datetime] = None,
-) -> int:
-    """Admit a watermark clear task under the project lock, reusing an equivalent active clear
-    or rejecting a conflicting active clear range."""
-    await _lock_projects(session, dialect, [project_id])
-    project = await session.get(models.Project, project_id)
-    if project is None or project.deleted_at is not None:
-        raise NotFound(f"Project with ID {project_id} not found")
-
-    holds_evaluator_traces = project.kind == "EVALUATOR" or (
+async def _project_holds_evaluator_traces(session: AsyncSession, project: models.Project) -> bool:
+    if project.kind == "EVALUATOR":
+        return True
+    return bool(
         await session.scalar(
             select(
                 or_(
-                    exists().where(models.ProjectEvaluator.trace_project_id == project_id),
-                    exists().where(models.DatasetEvaluators.project_id == project_id),
+                    exists().where(models.ProjectEvaluator.trace_project_id == project.id),
+                    exists().where(models.DatasetEvaluators.project_id == project.id),
                 )
             )
         )
     )
-    if holds_evaluator_traces:
-        raise Conflict("This project holds an evaluator's traces; delete the evaluator instead")
 
-    existing = (
-        await session.execute(
-            select(
-                models.ProjectClearCleanupTask.id,
-                models.ProjectClearCleanupTask.start_time,
-                models.ProjectClearCleanupTask.end_time,
-            ).where(models.ProjectClearCleanupTask.project_id == project_id)
-        )
-    ).one_or_none()
-    if existing is not None:
-        if existing.start_time == start_time and existing.end_time == end_time:
-            return int(existing.id)
-        raise Conflict(
-            "Another trace clear is already in progress for this project",
-            reason="clear_in_progress",
-        )
 
-    now = await current_database_time(session, dialect)
-    max_trace_rowid = await models.capture_trace_max_rowid(session)
-    task_id = await _insert_cleanup_task(session, kind="CLEAR_PROJECT_TRACES", now=now)
-    await session.execute(
-        insert(models.ProjectClearCleanupTask).values(
-            id=task_id,
-            kind="CLEAR_PROJECT_TRACES",
-            project_id=project_id,
-            max_trace_rowid=max_trace_rowid,
-            start_time=start_time,
-            end_time=end_time,
-        )
-    )
-    return task_id
+async def clear_project_traces_in_batches(
+    db: DbSessionFactory,
+    *,
+    project_id: int,
+    start_time: Optional[datetime] = None,
+    end_time: Optional[datetime] = None,
+    event_queue: Optional[CanPutItem[DmlEvent]] = None,
+    batch_limit: int = CLEANUP_BATCH_ROWS,
+) -> AsyncIterator[TraceClearBatchResult]:
+    """Delete a project's traces with ``start_time`` in ``[start_time, end_time)`` and then its
+    emptied sessions, one bounded batch per iteration.
+
+    Every iteration runs in its own transaction and is committed before it is yielded, so a clear
+    that stops early leaves earlier batches deleted and can simply be run again. The final result
+    has status ``COMPLETE``, or ``PROJECT_DELETED`` when the project was tombstoned mid-clear (its
+    delete cleanup owns the remainder).
+
+    Raises:
+        NotFound: The project does not exist or is already tombstoned when the clear starts.
+        Conflict: The project holds an evaluator's traces, or another operation kept the
+            remaining traces locked for too many consecutive attempts.
+    """
+    if batch_limit <= 0:
+        raise ValueError("batch_limit must be positive")
+    dialect = SupportedSQLDialect(db.dialect.value)
+    is_first_batch = True
+    num_consecutive_yields = 0
+    while True:
+        step_result: Optional[PrimitiveResult]
+        try:
+            async with db() as session:
+                if dialect is SupportedSQLDialect.POSTGRESQL:
+                    await session.execute(
+                        text(f"SET LOCAL statement_timeout = {_TRACE_DRAIN_STATEMENT_TIMEOUT_MS}")
+                    )
+                    await session.execute(
+                        text(f"SET LOCAL lock_timeout = {_TRACE_DRAIN_LOCK_TIMEOUT_MS}")
+                    )
+                project = await session.get(models.Project, project_id)
+                if project is None or project.deleted_at is not None:
+                    if is_first_batch:
+                        raise NotFound(f"Project with ID {project_id} not found")
+                    step_result = None
+                else:
+                    if is_first_batch and await _project_holds_evaluator_traces(session, project):
+                        raise Conflict(
+                            "This project holds an evaluator's traces; delete the evaluator instead"
+                        )
+                    step_result = await drain_trace_scope_step(
+                        session,
+                        dialect=dialect,
+                        project_id=project_id,
+                        start_time=start_time,
+                        end_time=end_time,
+                        batch_limit=batch_limit,
+                        reset_session_evaluations=True,
+                    )
+        except DBAPIError as error:
+            if get_sqlstate(error) not in _TRANSIENT_CONTENTION_SQLSTATES:
+                raise
+            step_result = PrimitiveResult(PrimitiveStatus.YIELD, 0)
+        is_first_batch = False
+
+        if step_result is None:
+            yield TraceClearBatchResult(status="PROJECT_DELETED")
+            return
+        if step_result.status is PrimitiveStatus.PROGRESS:
+            num_consecutive_yields = 0
+            if event_queue is not None:
+                event_queue.put(SpanDeleteEvent((project_id,)))
+            yield TraceClearBatchResult(
+                status="PROGRESS", num_affected_rows=step_result.affected_rows
+            )
+            continue
+        if step_result.status is PrimitiveStatus.EMPTY:
+            yield TraceClearBatchResult(status="COMPLETE")
+            return
+        num_consecutive_yields += 1
+        if num_consecutive_yields > _MAX_YIELD_RETRIES_PER_CHUNK:
+            raise Conflict(
+                "Some traces are in use by another operation; run the clear again to finish."
+            )
+        await asyncio.sleep(min(0.25, _YIELD_RETRY_DELAY_SECONDS * 2**num_consecutive_yields))
 
 
 async def admit_exclusive_experiment_projects_delete(

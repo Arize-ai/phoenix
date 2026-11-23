@@ -8,7 +8,7 @@ from urllib.parse import quote
 
 import httpx2
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, update
 from strawberry.relay import GlobalID
 
 from phoenix.config import DEFAULT_PROJECT_NAME, PLAYGROUND_PROJECT_NAME
@@ -282,7 +282,7 @@ class TestProjects:
             assert tombstoned is not None and tombstoned.deleted_at is not None
 
         coordinator = CleanupCoordinator(db)
-        while await coordinator.run_one_step():
+        while (await coordinator.step_or_next_delay())[0]:
             pass
 
         async with db() as session:
@@ -1465,6 +1465,25 @@ class TestDeleteProjectTraces:
             params={"start_time": self._START_TIME, "end_time": self._END_TIME},
         )
         assert response.status_code == 404
+
+    async def test_delete_project_traces_from_tombstoned_project_returns_404(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project, traces = await self._project_with_traces(db)
+        async with db() as session:
+            await session.execute(
+                update(models.Project)
+                .where(models.Project.id == project.id)
+                .values(deleted_at=datetime.now(timezone.utc))
+            )
+        response = await httpx_client.delete(
+            f"v1/projects/{project.name}/traces",
+            params={"start_time": self._START_TIME, "end_time": self._END_TIME},
+        )
+        assert response.status_code == 404
+        assert await self._trace_count(db, project.id) == len(traces)
 
     @pytest.mark.parametrize(
         "params",

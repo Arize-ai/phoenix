@@ -716,7 +716,7 @@ async def test_delete_project_binding_preserves_core_attached_to_another_project
         assert await session.get(models.CodeEvaluator, core_rowid) is not None
 
     coordinator = CleanupCoordinator(db)
-    while await coordinator.run_one_step():
+    while (await coordinator.step_or_next_delay())[0]:
         pass
 
     async with db() as session:
@@ -2328,7 +2328,7 @@ async def test_create_mints_a_dedicated_trace_project_and_delete_removes_it(
         assert tombstoned_project is not None and tombstoned_project.deleted_at is not None
 
     coordinator = CleanupCoordinator(db)
-    while await coordinator.run_one_step():
+    while (await coordinator.step_or_next_delay())[0]:
         pass
 
     async with db() as session:

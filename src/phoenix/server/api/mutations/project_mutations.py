@@ -22,8 +22,8 @@ from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project, to_gql_project
 from phoenix.server.cleanup.lifecycle import (
-    admit_or_reuse_project_clear,
     admit_project_delete,
+    clear_project_traces_in_batches,
 )
 from phoenix.server.dml_event import ProjectDeleteEvent, ProjectInsertEvent, SpanDeleteEvent
 
@@ -90,19 +90,16 @@ class ProjectMutationMixin:
             if input.end_time is not None and input.end_time is not UNSET
             else None
         )
-        dialect = SupportedSQLDialect(info.context.db.dialect.value)
         try:
-            async with info.context.db() as session:
-                await admit_or_reuse_project_clear(
-                    session,
-                    dialect=dialect,
-                    project_id=project_id,
-                    start_time=None,
-                    end_time=end_time,
-                )
+            async for _ in clear_project_traces_in_batches(
+                info.context.db,
+                project_id=project_id,
+                end_time=end_time,
+                event_queue=info.context.event_queue,
+            ):
+                pass
         except NotFound as error:
             raise ValueError(f"Unknown project: {input.id}") from error
-        info.context.wake_cleanup_worker()
         return Query()
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore

@@ -19,8 +19,6 @@ from sqlalchemy import insert, select, update
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.server.cleanup.lifecycle import admit_or_reuse_project_clear
 from phoenix.server.types import DbSessionFactory
 from tests.unit._helpers import (
     _add_live_session_work_unit,
@@ -878,41 +876,6 @@ async def test_transfer_traces_unparseable_identifier(
     assert response.status_code == 404
 
 
-@pytest.mark.parametrize("clear_target", ["source", "destination"])
-async def test_transfer_traces_rejects_active_project_clear(
-    db: DbSessionFactory,
-    httpx_client: httpx2.AsyncClient,
-    clear_target: Literal["source", "destination"],
-) -> None:
-    source_rowid, trace_rowids = await _project_with_traces(
-        db, f"clear-src-{clear_target}", 1, "8801"
-    )
-    destination_rowid, _ = await _project_with_traces(db, f"clear-dst-{clear_target}", 1, "8802")
-    dialect = SupportedSQLDialect(db.dialect.value)
-    target_project_rowid = source_rowid if clear_target == "source" else destination_rowid
-    async with db() as session:
-        await admit_or_reuse_project_clear(
-            session,
-            dialect=dialect,
-            project_id=target_project_rowid,
-        )
-
-    response = await httpx_client.post(
-        "v1/traces/transfer",
-        json={
-            "trace_identifiers": [str(GlobalID("Trace", str(trace_rowids[0])))],
-            "destination_project_identifier": str(GlobalID("Project", str(destination_rowid))),
-        },
-    )
-    assert response.status_code == 409
-    assert "project clear is in progress" in response.text.lower()
-
-    async with db() as session:
-        trace = await session.get(models.Trace, trace_rowids[0])
-        assert trace is not None
-        assert trace.project_rowid == source_rowid
-
-
 @pytest.mark.parametrize("destination_kind", ["EVALUATOR", "EXPERIMENT"])
 async def test_transfer_traces_rejects_evaluator_and_experiment_destinations(
     db: DbSessionFactory,
@@ -951,40 +914,6 @@ async def test_transfer_traces_rejects_evaluator_and_experiment_destinations(
 # ---------------------------------------------------------------------------
 
 
-async def test_delete_project_traces_conflict_does_not_leak_internal_ids(
-    db: DbSessionFactory,
-    httpx_client: httpx2.AsyncClient,
-) -> None:
-    await _project_with_traces(db, "clear-conflict-bystander", 1, "9000")
-    project_rowid, trace_rowids = await _project_with_traces(db, "clear-conflict-proj", 1, "9001")
-    dialect = SupportedSQLDialect(db.dialect.value)
-    async with db() as session:
-        active_task_id = await admit_or_reuse_project_clear(
-            session,
-            dialect=dialect,
-            project_id=project_rowid,
-            start_time=datetime(2021, 1, 1, tzinfo=timezone.utc),
-            end_time=datetime(2021, 1, 2, tzinfo=timezone.utc),
-        )
-
-    project_global_id = str(GlobalID("Project", str(project_rowid)))
-    response = await httpx_client.delete(
-        f"v1/projects/{project_global_id}/traces",
-        params={
-            "start_time": "2021-01-01T00:00:00Z",
-            "end_time": "2021-01-03T00:00:00Z",
-        },
-    )
-    assert response.status_code == 409
-    assert str(project_rowid) not in response.text
-    assert str(active_task_id) not in response.text
-    assert response.text == "Another trace clear is already in progress for this project"
-
-    async with db() as session:
-        assert await session.get(models.Trace, trace_rowids[0]) is not None
-        assert await session.get(models.CleanupTask, active_task_id) is not None
-
-
 async def test_delete_project_traces_rejects_evaluator_trace_project(
     db: DbSessionFactory,
     httpx_client: httpx2.AsyncClient,
@@ -1021,49 +950,3 @@ async def test_delete_project_traces_rejects_evaluator_trace_project(
 
     async with db() as session:
         assert await session.get(models.Trace, trace_rowid) is not None
-
-
-async def test_delete_project_traces_reuses_identical_active_clear_range(
-    db: DbSessionFactory,
-    httpx_client: httpx2.AsyncClient,
-) -> None:
-    start_bound = datetime(2021, 1, 1, tzinfo=timezone.utc)
-    end_bound = datetime(2021, 1, 2, tzinfo=timezone.utc)
-    project_rowid, pre_watermark_trace_rowids = await _project_with_traces(
-        db, "clear-reuse-proj", 1, "9201"
-    )
-    dialect = SupportedSQLDialect(db.dialect.value)
-    async with db() as session:
-        active_task_id = await admit_or_reuse_project_clear(
-            session,
-            dialect=dialect,
-            project_id=project_rowid,
-            start_time=start_bound,
-            end_time=end_bound,
-        )
-        post_watermark_trace_rowid = await session.scalar(
-            insert(models.Trace)
-            .values(
-                trace_id="92020000",
-                project_rowid=project_rowid,
-                start_time=datetime(2021, 1, 1, 0, 30, tzinfo=timezone.utc),
-                end_time=datetime(2021, 1, 1, 0, 31, tzinfo=timezone.utc),
-            )
-            .returning(models.Trace.id)
-        )
-        assert post_watermark_trace_rowid is not None
-
-    project_global_id = str(GlobalID("Project", str(project_rowid)))
-    response = await httpx_client.delete(
-        f"v1/projects/{project_global_id}/traces",
-        params={
-            "start_time": "2021-01-01T00:00:00Z",
-            "end_time": "2021-01-02T00:00:00Z",
-        },
-    )
-    assert response.status_code == 204
-
-    async with db() as session:
-        assert await session.get(models.CleanupTask, active_task_id) is None
-        assert await session.get(models.Trace, pre_watermark_trace_rowids[0]) is None
-        assert await session.get(models.Trace, post_watermark_trace_rowid) is not None

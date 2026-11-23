@@ -192,7 +192,7 @@ class TestExperimentSweeper:
         rendezvous.done.clear()
 
         coordinator = CleanupCoordinator(db)
-        while await coordinator.run_one_step():
+        while (await coordinator.step_or_next_delay())[0]:
             pass
 
         assert not await self._experiment_exists(db, expired_temp_id), (

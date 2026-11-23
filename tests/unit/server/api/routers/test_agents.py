@@ -704,7 +704,7 @@ class TestResolveAgentSessionTraceProject:
             await admit_project_delete(session, dialect=dialect, project_id=bound_project_id)
 
         coordinator = CleanupCoordinator(db, batch_limit=10)
-        while await coordinator.run_one_step():
+        while (await coordinator.step_or_next_delay())[0]:
             pass
 
         async with db() as session:

@@ -1674,7 +1674,7 @@ async def test_delete_dataset_stops_running_experiments_and_deletes_only_sdk_eva
             assert await session.get(models.Trace, sink_trace_rowid) is not None
 
         coordinator = CleanupCoordinator(db)
-        while await coordinator.run_one_step():
+        while (await coordinator.step_or_next_delay())[0]:
             pass
 
         async with db() as session:

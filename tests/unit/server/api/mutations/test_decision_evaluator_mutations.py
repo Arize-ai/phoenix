@@ -258,7 +258,7 @@ async def delete_bindings_and_purge(
     result = await gql_client.execute(DELETE_BINDINGS, variables={"input": delete_input})
     assert result.data and not result.errors, result.errors
     coordinator = CleanupCoordinator(db)
-    while await coordinator.run_one_step():
+    while (await coordinator.step_or_next_delay())[0]:
         pass
 
 

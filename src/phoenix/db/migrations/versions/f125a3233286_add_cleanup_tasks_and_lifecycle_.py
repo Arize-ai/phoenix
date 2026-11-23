@@ -25,10 +25,7 @@ _Integer = sa.Integer().with_variant(
 
 _PROJECT_KIND_CHECK = "kind IN ('STANDARD', 'PLAYGROUND', 'EXPERIMENT', 'EVALUATOR')"
 _CLEANUP_TASK_KIND_CHECK = (
-    "kind IN ("
-    "'DELETE_PROJECT', 'CLEAR_PROJECT_TRACES', "
-    "'DELETE_PROJECT_EVALUATOR', 'DELETE_DATASET_EVALUATOR'"
-    ")"
+    "kind IN ('DELETE_PROJECT', 'DELETE_PROJECT_EVALUATOR', 'DELETE_DATASET_EVALUATOR')"
 )
 _LIVE_PREDICATE = "deleted_at IS NULL"
 _UNCLAIMED_PREDICATE = "claimed_at IS NULL"
@@ -45,7 +42,6 @@ _CLAIM_CHECK = (
     "(claimed_at IS NULL AND claimed_by IS NULL) "
     "OR (claimed_at IS NOT NULL AND claimed_by IS NOT NULL)"
 )
-_CLEAR_RANGE_CHECK = "start_time IS NULL OR end_time IS NULL OR start_time < end_time"
 _SQLITE_TRACE_ROWID_STATE_KEY = "traces.sqlite_max_rowid"
 
 
@@ -377,39 +373,6 @@ def _create_cleanup_task_tables() -> None:
     )
 
     op.create_table(
-        "project_clear_cleanup_tasks",
-        sa.Column("id", _Integer, primary_key=True),
-        sa.Column(
-            "kind",
-            sa.String(),
-            sa.CheckConstraint("kind = 'CLEAR_PROJECT_TRACES'", name="valid_cleanup_task_kind"),
-            server_default="CLEAR_PROJECT_TRACES",
-            nullable=False,
-        ),
-        sa.Column(
-            "project_id",
-            _Integer,
-            sa.ForeignKey("projects.id", ondelete="RESTRICT"),
-            nullable=False,
-            unique=True,
-        ),
-        sa.Column(
-            "max_trace_rowid",
-            _Integer,
-            sa.CheckConstraint("max_trace_rowid >= 0", name="nonnegative_max_trace_rowid"),
-            nullable=False,
-        ),
-        sa.Column("start_time", sa.TIMESTAMP(timezone=True), nullable=True),
-        sa.Column("end_time", sa.TIMESTAMP(timezone=True), nullable=True),
-        sa.CheckConstraint(_CLEAR_RANGE_CHECK, name="valid_range"),
-        sa.ForeignKeyConstraint(
-            ["kind", "id"],
-            ["cleanup_tasks.kind", "cleanup_tasks.id"],
-            ondelete="CASCADE",
-        ),
-    )
-
-    op.create_table(
         "project_evaluator_cleanup_tasks",
         sa.Column("id", _Integer, primary_key=True),
         sa.Column(
@@ -727,7 +690,6 @@ def downgrade() -> None:
 
     op.drop_table("dataset_evaluator_cleanup_tasks")
     op.drop_table("project_evaluator_cleanup_tasks")
-    op.drop_table("project_clear_cleanup_tasks")
     op.drop_table("project_delete_cleanup_tasks")
     op.drop_index("ix_cleanup_tasks_claimed", table_name="cleanup_tasks")
     op.drop_index("ix_cleanup_tasks_eligible", table_name="cleanup_tasks")

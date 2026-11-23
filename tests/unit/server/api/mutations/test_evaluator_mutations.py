@@ -3444,7 +3444,7 @@ class TestDeleteDatasetEvaluators:
     @staticmethod
     async def _drain_cleanup(db: DbSessionFactory) -> None:
         coordinator = CleanupCoordinator(db)
-        while await coordinator.run_one_step():
+        while (await coordinator.step_or_next_delay())[0]:
             pass
 
     async def test_delete_builtin_evaluator(

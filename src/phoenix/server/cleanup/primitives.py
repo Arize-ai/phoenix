@@ -72,14 +72,11 @@ async def _has_any(session: AsyncSession, condition: ColumnElement[bool]) -> boo
 def trace_scope_condition(
     project_id: int,
     *,
-    max_trace_rowid: Optional[int] = None,
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
 ) -> ColumnElement[bool]:
     """Predicate selecting traces belonging to a project deletion or bounded clear."""
     conditions: list[ColumnElement[bool]] = [models.Trace.project_rowid == project_id]
-    if max_trace_rowid is not None:
-        conditions.append(models.Trace.id <= max_trace_rowid)
     if start_time is not None:
         conditions.append(models.Trace.start_time >= start_time)
     if end_time is not None:
@@ -396,11 +393,11 @@ async def drain_trace_scope_step(
     *,
     dialect: SupportedSQLDialect,
     project_id: int,
-    max_trace_rowid: Optional[int] = None,
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
     batch_limit: int = CLEANUP_BATCH_ROWS,
     rehome_shared_sessions: bool = False,
+    reset_session_evaluations: bool = False,
 ) -> PrimitiveResult:
     """Drain one bounded step of spans, traces, and eligible orphan sessions for a project scope.
 
@@ -413,7 +410,6 @@ async def drain_trace_scope_step(
     """
     trace_cond = trace_scope_condition(
         project_id,
-        max_trace_rowid=max_trace_rowid,
         start_time=start_time,
         end_time=end_time,
     )
@@ -423,7 +419,7 @@ async def drain_trace_scope_step(
         dialect=dialect,
         trace_cond=trace_cond,
         batch_limit=batch_limit,
-        reset_session_evaluations=max_trace_rowid is not None,
+        reset_session_evaluations=reset_session_evaluations,
     )
     if trace_result.status is not PrimitiveStatus.EMPTY:
         return trace_result
