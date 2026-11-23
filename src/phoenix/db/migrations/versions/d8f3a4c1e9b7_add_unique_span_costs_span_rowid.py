@@ -1,8 +1,8 @@
 """add unique constraint on span_costs.span_rowid
 
 Revision ID: d8f3a4c1e9b7
-Revises: 4aad9107d196
-Create Date: 2026-08-31 12:00:00.000000
+Revises: 5d472ea4b4be
+Create Date: 2026-11-24 12:00:00.000000
 
 Span.span_cost is modeled and consumed as a one-to-one relationship, but
 span_costs.span_rowid only ever had a regular (non-unique) index, so nothing
@@ -37,6 +37,7 @@ CONCURRENTLY support (opt-in via PHOENIX_MIGRATE_INDEX_CONCURRENTLY=true):
   the index is checked for validity before anything else happens.
 """
 
+import logging
 import os
 from typing import Sequence, Union
 
@@ -45,9 +46,11 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "d8f3a4c1e9b7"
-down_revision: Union[str, None] = "4aad9107d196"
+down_revision: Union[str, None] = "5d472ea4b4be"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
+
+logger = logging.getLogger(__name__)
 
 _INDEX_NAME = "ix_span_costs_span_rowid"
 _TEMP_INDEX_NAME = "ix_span_costs_span_rowid_unique_tmp"
@@ -105,6 +108,11 @@ def _dedupe_span_costs() -> None:
     Runs inside the migration's ambient transaction (before any switch to
     autocommit for CONCURRENTLY), so it either fully applies or not at all.
 
+    Uses correlated EXISTS anti-joins that probe ix_span_costs_span_rowid, so
+    the cost is O(n log n) rather than the quadratic rescans a NOT IN subquery
+    degrades to once it no longer fits in work_mem. A cheap existence check
+    skips the deletes entirely in the common no-duplicates case.
+
     Deletes the doomed rows' span_cost_details explicitly rather than relying
     on the span_cost_details.span_cost_id FK's ON DELETE CASCADE: SQLite
     migrations run with foreign key enforcement off (see
@@ -112,28 +120,45 @@ def _dedupe_span_costs() -> None:
     cascade never fires and would otherwise leave orphaned detail rows behind.
     """
     connection = op.get_bind()
-    duplicate_span_cost_ids = (
-        "SELECT id FROM span_costs WHERE id NOT IN "
-        "(SELECT MAX(id) FROM span_costs GROUP BY span_rowid)"
-    )
+    has_duplicates = connection.execute(
+        sa.text("SELECT 1 FROM span_costs GROUP BY span_rowid HAVING COUNT(*) > 1 LIMIT 1")
+    ).first()
+    if has_duplicates is None:
+        return
     connection.execute(
-        sa.text(f"DELETE FROM span_cost_details WHERE span_cost_id IN ({duplicate_span_cost_ids})")
+        sa.text(
+            "DELETE FROM span_cost_details WHERE span_cost_id IN ("
+            "SELECT a.id FROM span_costs a WHERE EXISTS ("
+            "SELECT 1 FROM span_costs b WHERE b.span_rowid = a.span_rowid AND b.id > a.id))"
+        )
     )
-    connection.execute(sa.text(f"DELETE FROM span_costs WHERE id IN ({duplicate_span_cost_ids})"))
+    result = connection.execute(
+        sa.text(
+            "DELETE FROM span_costs WHERE EXISTS ("
+            "SELECT 1 FROM span_costs b "
+            "WHERE b.span_rowid = span_costs.span_rowid AND b.id > span_costs.id)"
+        )
+    )
+    logger.warning(
+        "Removed %s duplicate span_costs rows (kept the highest id per span_rowid)",
+        result.rowcount,
+    )
 
 
 def upgrade() -> None:
     _dedupe_span_costs()
     concurrently = _use_concurrently()
     if not concurrently:
+        if op.get_bind().dialect.name == "postgresql":
+            # Transactional swap: the table is never left without an index on
+            # span_rowid. (SQLite cannot rename indexes, but its DDL is atomic
+            # and single-writer, so drop-then-create is safe there.)
+            op.create_index(_TEMP_INDEX_NAME, "span_costs", ["span_rowid"], unique=True)
+            op.drop_index(_INDEX_NAME, table_name="span_costs", if_exists=True)
+            op.execute(f"ALTER INDEX {_TEMP_INDEX_NAME} RENAME TO {_INDEX_NAME}")
+            return
         op.drop_index(_INDEX_NAME, table_name="span_costs", if_exists=True)
-        op.create_index(
-            _INDEX_NAME,
-            "span_costs",
-            ["span_rowid"],
-            unique=True,
-            if_not_exists=True,
-        )
+        op.create_index(_INDEX_NAME, "span_costs", ["span_rowid"], unique=True)
         return
     _enable_autocommit()
     try:

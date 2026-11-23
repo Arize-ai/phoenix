@@ -845,25 +845,25 @@ class TestSpanCostPerToken:
             )
             session.add(trace)
             await session.flush()
-            span = models.Span(
-                trace_rowid=trace.id,
-                span_id=f"span-{token_hex(4)}",
-                name="test-span",
-                span_kind="LLM",
-                start_time=start_time,
-                end_time=start_time,
-                attributes={},
-                events=[],
-                status_code="OK",
-                status_message="",
-                cumulative_error_count=0,
-                cumulative_llm_token_count_prompt=0,
-                cumulative_llm_token_count_completion=0,
-            )
-            session.add(span)
-            await session.flush()
-
             for i, (cost, tokens, expected) in enumerate(test_cases):
+                span = models.Span(
+                    trace_rowid=trace.id,
+                    span_id=f"span-{token_hex(4)}",
+                    name="test-span",
+                    span_kind="LLM",
+                    start_time=start_time,
+                    end_time=start_time,
+                    attributes={},
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+                session.add(span)
+                await session.flush()
+
                 span_cost = models.SpanCost(
                     span_rowid=span.id,
                     trace_rowid=trace.id,
