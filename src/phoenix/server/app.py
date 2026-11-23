@@ -919,26 +919,29 @@ async def check_healthz(_: Request) -> PlainTextResponse:
 @router.get("/readyz")
 async def check_readyz(request: Request) -> JSONResponse:
     state = request.app.state
-    failures: int = getattr(state, "_readyz_failures", 0)
     try:
         async with state.db() as session:
             await session.execute(select(1))
     except Exception as e:
-        failures += 1
-        state._readyz_failures = failures
+        # The counter is read and written in a single synchronous block, with no
+        # await between them, so overlapping probes apply in completion order and
+        # a late failure cannot overwrite a count that recovery already reset.
+        num_failures: int = getattr(state, "_readyz_failures", 0) + 1
+        state._readyz_failures = num_failures
         # A readiness probe fires every few seconds, so an unreachable database
-        # produces one full-traceback ERROR per probe: at a 5 s interval that is
-        # ~17k lines a day per replica, which buries the daemon errors that
-        # describe the outage and makes the error channel useless for alerting.
-        # Log the transition once, then stay quiet until recovery.
-        if failures == 1:
+        # writes one ERROR line per probe: at a 5 s interval that is ~17k lines
+        # a day per replica. Log the transition once, then stay quiet.
+        if num_failures == 1:
             logger.error(f"Database health check failed: {e}")
         else:
-            logger.debug(f"Database health check still failing ({failures} consecutive probes)")
+            logger.debug(f"Database health check still failing ({num_failures} consecutive probes)")
         raise HTTPException(status_code=503, detail="database unreachable")
-    if failures:
+    num_previous_failures: int = getattr(state, "_readyz_failures", 0)
+    if num_previous_failures:
         state._readyz_failures = 0
-        logger.info(f"Database health check recovered after {failures} failed probe(s)")
+        logger.info(
+            f"Database health check recovered after {num_previous_failures} failed probe(s)"
+        )
     return JSONResponse({})
 
 
