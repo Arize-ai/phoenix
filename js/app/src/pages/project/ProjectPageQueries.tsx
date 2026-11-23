@@ -2,6 +2,7 @@ import { createContext, useContext } from "react";
 import type { PreloadedQuery } from "react-relay";
 import { graphql } from "react-relay";
 
+import type { ProjectPageQueriesOnboardingQuery as ProjectPageOnboardingQueryType } from "./__generated__/ProjectPageQueriesOnboardingQuery.graphql";
 import type { ProjectPageQueriesProjectConfigQuery as ProjectPageProjectConfigQueryType } from "./__generated__/ProjectPageQueriesProjectConfigQuery.graphql";
 import type { ProjectPageQueriesSessionsQuery as ProjectPageSessionsQueryType } from "./__generated__/ProjectPageQueriesSessionsQuery.graphql";
 import type { ProjectPageQueriesSpansQuery as ProjectPageSpansQueryType } from "./__generated__/ProjectPageQueriesSpansQuery.graphql";
@@ -69,6 +70,19 @@ export const ProjectPageQueriesProjectConfigQuery = graphql`
   }
 `;
 
+// Loaded from the network once per visit: the onboarding guide decides on
+// mount whether to show, so a cached answer from an earlier visit would flash
+// it over a project that has had traces since.
+export const ProjectPageQueriesOnboardingQuery = graphql`
+  query ProjectPageQueriesOnboardingQuery($id: ID!) {
+    project: node(id: $id) {
+      ... on Project {
+        ...ProjectOnboardingOverlay_project
+      }
+    }
+  }
+`;
+
 export const ProjectPageQueryReferenceContext = createContext<{
   spansQueryReference: PreloadedQuery<ProjectPageSpansQueryType> | null;
   /**
@@ -97,6 +111,7 @@ export const ProjectPageQueryReferenceContext = createContext<{
   tracesFilterSeed: string | null;
   resolveTracesSeed: (condition: string, persistToUrl?: boolean) => void;
   projectConfigQueryReference: PreloadedQuery<ProjectPageProjectConfigQueryType> | null;
+  onboardingQueryReference: PreloadedQuery<ProjectPageOnboardingQueryType> | null;
 }>({
   spansQueryReference: null,
   spansFilterSeed: null,
@@ -108,6 +123,7 @@ export const ProjectPageQueryReferenceContext = createContext<{
   tracesFilterSeed: null,
   resolveTracesSeed: () => {},
   projectConfigQueryReference: null,
+  onboardingQueryReference: null,
 });
 
 export const useProjectPageQueryReferenceContext = () => {

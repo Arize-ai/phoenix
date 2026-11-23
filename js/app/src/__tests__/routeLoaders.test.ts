@@ -21,7 +21,6 @@ import { appRouteObjects } from "@phoenix/Routes";
 const ROUTES_WITH_BLOCKING_LOADERS = new Set<string>([
   "/",
   "/reset-password",
-  "/projects/:projectId",
   "/projects/:projectId/evaluators/compare",
   "/datasets/:datasetId",
   "/datasets/:datasetId/evaluators/:evaluatorId",

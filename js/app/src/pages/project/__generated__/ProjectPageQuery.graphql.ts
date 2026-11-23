@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4f484273652b577bbeb134b69c29e6bc>>
+ * @generated SignedSource<<24cc5c7ad968b6f9e0169dc60bc4bb33>>
  * @lightSyntaxTransform
  */
 
@@ -15,7 +15,7 @@ export type ProjectPageQuery$variables = {
 export type ProjectPageQuery$data = {
   readonly project: {
     readonly evaluatorCount?: number;
-    readonly " $fragmentSpreads": FragmentRefs<"ProjectOnboardingOverlay_project" | "ProjectTimeRangeControls_data">;
+    readonly " $fragmentSpreads": FragmentRefs<"ProjectTimeRangeControls_data">;
   };
 };
 export type ProjectPageQuery = {
@@ -68,11 +68,6 @@ return {
                 "args": null,
                 "kind": "FragmentSpread",
                 "name": "ProjectTimeRangeControls_data"
-              },
-              {
-                "args": null,
-                "kind": "FragmentSpread",
-                "name": "ProjectOnboardingOverlay_project"
               }
             ],
             "type": "Project",
@@ -123,20 +118,6 @@ return {
                 "kind": "ScalarField",
                 "name": "streamingLastUpdatedAt",
                 "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "name",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "hasTraces",
-                "storageKey": null
               }
             ],
             "type": "Project",
@@ -148,16 +129,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0bad4c2aa346f310f21f0550e38d793a",
+    "cacheID": "d991765e7dc808d02cb14baaa512d3f4",
     "id": null,
     "metadata": {},
     "name": "ProjectPageQuery",
     "operationKind": "query",
-    "text": "query ProjectPageQuery(\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      evaluatorCount\n      ...ProjectTimeRangeControls_data\n      ...ProjectOnboardingOverlay_project\n    }\n    id\n  }\n}\n\nfragment ProjectOnboardingOverlay_project on Project {\n  name\n  hasTraces\n  id\n}\n\nfragment ProjectTimeRangeControls_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n"
+    "text": "query ProjectPageQuery(\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      evaluatorCount\n      ...ProjectTimeRangeControls_data\n    }\n    id\n  }\n}\n\nfragment ProjectTimeRangeControls_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ba25e5fb00e9fd1caf324b162168fc5d";
+(node as any).hash = "220455e609fcf856f75fd16354af4265";
 
 export default node;

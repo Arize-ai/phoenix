@@ -141,6 +141,7 @@ import {
   ProjectEvaluatorsPage,
   projectEvaluatorsLoader,
   ProjectIndexPage,
+  PROJECT_CRUMB_FALLBACK,
   projectLoader,
   ProjectMetricsPage,
   ProjectPage,
@@ -529,21 +530,22 @@ export const appRouteObjects = createRoutesFromElements(
             loader={projectLoader}
             shouldRevalidate={revalidateOnProjectChange}
             handle={{
-              crumb: (data: ProjectLoaderData) => data?.project?.name,
+              crumb: (data: ProjectLoaderData) =>
+                data?.projectName ?? PROJECT_CRUMB_FALLBACK,
               agentRoute: {
                 label: "Project Overview",
                 description:
                   "Open a project's default overview, project home, and summary page.",
               },
-              copy: (data: ProjectLoaderData) => [
+              copy: (data: ProjectLoaderData, crumb: string) => [
                 {
                   name: "Project Name",
-                  value: data?.project?.name,
+                  value: crumb,
                   iconKey: "Text" as const,
                 },
                 {
                   name: "Project ID",
-                  value: data?.project?.id,
+                  value: data.projectId,
                   iconKey: "ID" as const,
                 },
               ],

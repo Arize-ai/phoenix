@@ -8,7 +8,13 @@ import {
   useRef,
   useState,
 } from "react";
-import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
+import {
+  graphql,
+  type PreloadedQuery,
+  useLazyLoadQuery,
+  usePreloadedQuery,
+  useQueryLoader,
+} from "react-relay";
 import {
   Outlet,
   useLocation,
@@ -33,6 +39,7 @@ import {
   useTimeRange,
 } from "@phoenix/components/datetime";
 import { TopNavActions } from "@phoenix/components/nav";
+import { TableSkeleton } from "@phoenix/components/table";
 import {
   SESSION_FILTER_CONDITION_PARAM,
   SPAN_FILTER_CONDITION_PARAM,
@@ -46,7 +53,7 @@ import {
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
-import type { ProjectOnboardingOverlay_project$key } from "./__generated__/ProjectOnboardingOverlay_project.graphql";
+import type { ProjectPageQueriesOnboardingQuery as ProjectPageOnboardingQueryType } from "./__generated__/ProjectPageQueriesOnboardingQuery.graphql";
 import type { ProjectPageQueriesProjectConfigQuery as ProjectPageProjectConfigQueryType } from "./__generated__/ProjectPageQueriesProjectConfigQuery.graphql";
 import type { ProjectPageQueriesSessionsQuery as ProjectPageSessionsQueryType } from "./__generated__/ProjectPageQueriesSessionsQuery.graphql";
 import type { ProjectPageQueriesSpansQuery as ProjectPageSpansQueryType } from "./__generated__/ProjectPageQueriesSpansQuery.graphql";
@@ -58,15 +65,18 @@ import {
 } from "./filterConditionParam";
 import { ProjectOnboardingOverlay } from "./ProjectOnboardingOverlay";
 import {
+  ProjectPageQueriesOnboardingQuery,
   ProjectPageQueriesProjectConfigQuery,
   ProjectPageQueriesSessionsQuery,
   ProjectPageQueriesSpansQuery,
   ProjectPageQueriesTracesQuery,
   ProjectPageQueryReferenceContext,
+  useProjectPageQueryReferenceContext,
 } from "./ProjectPageQueries";
 import { ProjectTimeRangeControls } from "./ProjectTimeRangeControls";
 import { DEFAULT_SPAN_FILTER_CONDITION } from "./spanFilterRootScopeConstants";
 import { type SettledSpanFilterSeed, spanFilterSeed } from "./spanFilterSeed";
+import { TableMetricsChartsPanelGroup } from "./TableMetricsCharts";
 
 const mainCSS = css`
   flex: 1 1 auto;
@@ -115,9 +125,9 @@ const projectPageSkeletonCSS = css`
 `;
 
 /**
- * A loading placeholder for the project page: a block where the metric charts
- * strip stands on the table tabs, and one filling the rest of the page, which
- * stands in for a tab's table or the metrics page's charts alike.
+ * A loading placeholder for a project tab without a table skeleton of its
+ * own: a block where the metric charts strip stands, and one filling the rest
+ * of the tab.
  */
 function ProjectPageSkeleton() {
   return (
@@ -164,6 +174,8 @@ const TABS = [
 const isTab = (tab: string): tab is (typeof TABS)[number] => {
   return TABS.includes(tab as (typeof TABS)[number]);
 };
+
+type StreamingTab = "spans" | "traces" | "sessions";
 
 const TAB_INDEX_MAP: Record<(typeof TABS)[number], number> = {
   spans: 0,
@@ -250,19 +262,46 @@ function settledConditionFromUrl(param: string): string | null {
  * A streaming tab's panel: its route content under the onboarding guide. See
  * `ProjectOnboardingOverlay` for why the guide lives inside the panel.
  */
-function StreamingTabPanel({
-  id,
-  project,
-}: {
-  id: "spans" | "traces" | "sessions";
-  project: ProjectOnboardingOverlay_project$key;
-}) {
+function StreamingTabPanel({ id }: { id: StreamingTab }) {
+  const { onboardingQueryReference } = useProjectPageQueryReferenceContext();
   return (
     <LazyTabPanel padded={false} id={id}>
-      <ProjectOnboardingOverlay project={project}>
-        <Outlet />
-      </ProjectOnboardingOverlay>
+      {onboardingQueryReference ? (
+        <Suspense fallback={<StreamingTabSkeleton id={id} />}>
+          <StreamingTabContent queryReference={onboardingQueryReference} />
+        </Suspense>
+      ) : (
+        <StreamingTabSkeleton id={id} />
+      )}
     </LazyTabPanel>
+  );
+}
+
+function StreamingTabContent({
+  queryReference,
+}: {
+  queryReference: PreloadedQuery<ProjectPageOnboardingQueryType>;
+}) {
+  const data = usePreloadedQuery<ProjectPageOnboardingQueryType>(
+    ProjectPageQueriesOnboardingQuery,
+    queryReference
+  );
+  return (
+    <ProjectOnboardingOverlay project={data.project}>
+      <Outlet />
+    </ProjectOnboardingOverlay>
+  );
+}
+
+function StreamingTabSkeleton({ id }: { id: StreamingTab }) {
+  return (
+    <TableMetricsChartsPanelGroup view={id} isSkeleton>
+      <TableSkeleton
+        hasToolbar
+        isSelectable={id !== "sessions"}
+        rowCount="fill"
+      />
+    </TableMetricsChartsPanelGroup>
   );
 }
 
@@ -327,6 +366,13 @@ function ProjectPageContentBody({
     useQueryLoader<ProjectPageProjectConfigQueryType>(
       ProjectPageQueriesProjectConfigQuery
     );
+  const [onboardingQueryReference, loadOnboardingQuery] =
+    useQueryLoader<ProjectPageOnboardingQueryType>(
+      ProjectPageQueriesOnboardingQuery
+    );
+  useEffect(() => {
+    loadOnboardingQuery({ id: projectId }, { fetchPolicy: "network-only" });
+  }, [projectId, loadOnboardingQuery]);
   const tabIndex = isTab(tab) ? TAB_INDEX_MAP[tab] : 0;
   // React Router recreates this setter on every location change. The resolvers
   // below are handed to the filter field, whose validation effect keys on their
@@ -595,27 +641,22 @@ function ProjectPageContentBody({
         tracesFilterSeed,
         resolveTracesSeed,
         projectConfigQueryReference: projectConfigQueryReference ?? null,
+        onboardingQueryReference: onboardingQueryReference ?? null,
       }}
     >
-      <Suspense fallback={<ProjectPageSkeleton />}>
-        <ProjectPageTabs projectId={projectId} />
-      </Suspense>
+      <ProjectPageTabs projectId={projectId} />
     </ProjectPageQueryReferenceContext.Provider>
   );
 }
 
-function ProjectPageTabs({ projectId }: { projectId: string }) {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { rootPath, tab } = useProjectRootPath();
-  const data = useLazyLoadQuery<ProjectPageQueryType>(
+function useProjectPageQuery(projectId: string) {
+  return useLazyLoadQuery<ProjectPageQueryType>(
     graphql`
       query ProjectPageQuery($id: ID!) {
         project: node(id: $id) {
           ... on Project {
             evaluatorCount
             ...ProjectTimeRangeControls_data
-            ...ProjectOnboardingOverlay_project
           }
         }
       }
@@ -623,6 +664,22 @@ function ProjectPageTabs({ projectId }: { projectId: string }) {
     { id: projectId },
     { fetchPolicy: "store-and-network" }
   );
+}
+
+function ProjectPageTimeRangeControls({ projectId }: { projectId: string }) {
+  const data = useProjectPageQuery(projectId);
+  return <ProjectTimeRangeControls project={data.project} />;
+}
+
+function ProjectEvaluatorCount({ projectId }: { projectId: string }) {
+  const data = useProjectPageQuery(projectId);
+  return <Counter variant="quiet" count={data.project.evaluatorCount ?? 0} />;
+}
+
+function ProjectPageTabs({ projectId }: { projectId: string }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { rootPath, tab } = useProjectRootPath();
 
   const onTabChange = (index: number) => {
     startTransition(() => {
@@ -640,7 +697,9 @@ function ProjectPageTabs({ projectId }: { projectId: string }) {
     <main css={mainCSS}>
       <LegacyTraceFilterParamNotice isActive={tab === "traces"} />
       <TopNavActions order={1}>
-        <ProjectTimeRangeControls project={data.project} />
+        <Suspense fallback={null}>
+          <ProjectPageTimeRangeControls projectId={projectId} />
+        </Suspense>
       </TopNavActions>
       <Tabs
         onSelectionChange={(key) => {
@@ -657,21 +716,29 @@ function ProjectPageTabs({ projectId }: { projectId: string }) {
           <Tab id="metrics">Metrics</Tab>
           <Tab id="evaluators">
             Evaluators{" "}
-            <Counter variant="quiet" count={data.project.evaluatorCount ?? 0} />
+            <Suspense fallback={<Counter variant="quiet" count={null} />}>
+              <ProjectEvaluatorCount projectId={projectId} />
+            </Suspense>
           </Tab>
           <Tab id="config">Config</Tab>
         </TabList>
-        <StreamingTabPanel id="spans" project={data.project} />
-        <StreamingTabPanel id="traces" project={data.project} />
-        <StreamingTabPanel id="sessions" project={data.project} />
+        <StreamingTabPanel id="spans" />
+        <StreamingTabPanel id="traces" />
+        <StreamingTabPanel id="sessions" />
         <LazyTabPanel padded={false} id="metrics">
-          <Outlet />
+          <Suspense fallback={<ProjectPageSkeleton />}>
+            <Outlet />
+          </Suspense>
         </LazyTabPanel>
         <LazyTabPanel padded={false} id="config">
-          <Outlet />
+          <Suspense fallback={<ProjectPageSkeleton />}>
+            <Outlet />
+          </Suspense>
         </LazyTabPanel>
         <LazyTabPanel padded={false} id="evaluators">
-          <Outlet />
+          <Suspense fallback={<ProjectPageSkeleton />}>
+            <Outlet />
+          </Suspense>
         </LazyTabPanel>
       </Tabs>
     </main>

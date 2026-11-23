@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<275e9da8af028511b056afce687f3ea2>>
+ * @generated SignedSource<<2bf9724b6edf5c2f65734b62fe1c8a8c>>
  * @lightSyntaxTransform
  */
 
@@ -13,8 +13,6 @@ export type projectLoaderQuery$variables = {
 };
 export type projectLoaderQuery$data = {
   readonly project: {
-    readonly hasTraces?: boolean;
-    readonly id: string;
     readonly name?: string;
   };
 };
@@ -39,13 +37,6 @@ v1 = [
   }
 ],
 v2 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "id",
-  "storageKey": null
-},
-v3 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -53,13 +44,6 @@ v3 = {
       "args": null,
       "kind": "ScalarField",
       "name": "name",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "hasTraces",
       "storageKey": null
     }
   ],
@@ -81,8 +65,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*:: as any*/),
-          (v3/*:: as any*/)
+          (v2/*:: as any*/)
         ],
         "storageKey": null
       }
@@ -112,23 +95,29 @@ return {
             "storageKey": null
           },
           (v2/*:: as any*/),
-          (v3/*:: as any*/)
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "id",
+            "storageKey": null
+          }
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "618164439b7b3848043f2a6452e204b8",
+    "cacheID": "15b9d7e7786d37c254cf59653629a176",
     "id": null,
     "metadata": {},
     "name": "projectLoaderQuery",
     "operationKind": "query",
-    "text": "query projectLoaderQuery(\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    id\n    ... on Project {\n      name\n      hasTraces\n    }\n  }\n}\n"
+    "text": "query projectLoaderQuery(\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      name\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "24c436a8b54c67f1e3bf00d1e87ad535";
+(node as any).hash = "132cfdd1994fe369d3ea674f65045527";
 
 export default node;

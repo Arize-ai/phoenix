@@ -17,7 +17,7 @@ import {
 type CrumbEntry = {
   key: string;
   crumb: Crumb;
-  copyableItems: CopyActionMenuItem[];
+  listCopyableItems: (crumb: string) => CopyActionMenuItem[];
   to: To;
 };
 
@@ -34,9 +34,8 @@ export function NavBreadcrumb() {
     return {
       key: match.id,
       crumb: match.handle.crumb(match.loaderData),
-      copyableItems: match.handle.copy
-        ? match.handle.copy(match.loaderData)
-        : [],
+      listCopyableItems: (crumb) =>
+        match.handle.copy?.(match.loaderData, crumb) ?? [],
       to:
         nextMatch?.handle.parentCrumbTo?.({
           parentPathname: match.pathname,
@@ -70,10 +69,12 @@ function BreadcrumbTrail({ entries }: { entries: CrumbEntry[] }) {
   const numEntries = entries.length;
   return (
     <Breadcrumbs size="L">
-      {entries.map(({ key, crumb, copyableItems, to }, index) => {
+      {entries.map(({ key, crumb, listCopyableItems, to }, index) => {
         const isCrumbLoading = typeof crumb !== "string";
         const isLastCrumb = index === numEntries - 1;
-        const showCopyableItems = isLastCrumb && copyableItems.length > 0;
+        const copyableItems =
+          isLastCrumb && !isCrumbLoading ? listCopyableItems(crumb) : [];
+        const showCopyableItems = copyableItems.length > 0;
         return (
           <Breadcrumb key={key}>
             <Flex direction="row" gap="size-100" alignItems="center">
