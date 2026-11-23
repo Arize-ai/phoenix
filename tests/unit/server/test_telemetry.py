@@ -1599,7 +1599,7 @@ async def test_direct_create_app_reinitializes_env_tracing_across_repeated_lifes
                         transport=httpx2.ASGITransport(app=manager.app),
                         base_url="http://test",
                     ) as client:
-                        response = await client.get("/readyz")
+                        response = await client.get("/v1/projects")
                         assert response.status_code == 200
 
                     spans = exporter.get_finished_spans()
@@ -1763,7 +1763,7 @@ async def test_thread_session_instruments_sql_engine_and_cleans_up_temp_dir_and_
                     transport=httpx2.ASGITransport(app=manager.app),
                     base_url="http://test",
                 ) as client:
-                    response = await client.get("/readyz")
+                    response = await client.get("/v1/projects")
                     assert response.status_code == 200
 
                 spans = exporter.get_finished_spans()
