@@ -1393,7 +1393,7 @@ export interface paths {
         post?: never;
         /**
          * Delete a prompt
-         * @description Delete a prompt and all its versions, tags, and labels by identifier. A prompt referenced by an LLM evaluator is refused with 409; delete the evaluator first.
+         * @description Delete a prompt and all its versions, tags, and labels by identifier.
          */
         delete: operations["deletePrompt"];
         options?: never;
@@ -14482,15 +14482,6 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Conflict */
-            409: {
                 headers: {
                     [name: string]: unknown;
                 };

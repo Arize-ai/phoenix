@@ -8640,7 +8640,7 @@
           "prompts"
         ],
         "summary": "Delete a prompt",
-        "description": "Delete a prompt and all its versions, tags, and labels by identifier. A prompt referenced by an LLM evaluator is refused with 409; delete the evaluator first.",
+        "description": "Delete a prompt and all its versions, tags, and labels by identifier.",
         "operationId": "deletePrompt",
         "parameters": [
           {
@@ -8671,16 +8671,6 @@
           },
           "404": {
             "description": "Not Found",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict",
             "content": {
               "application/problem+json": {
                 "schema": {
