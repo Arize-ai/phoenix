@@ -86,8 +86,9 @@ const overlayCSS = css`
  * Metrics) show their content, since Config is useful before the first trace.
  *
  * Whether to show is decided once, on mount, from `hasTraces` in the store.
- * The project route loader fetches that field on every visit, so a project
- * that already has traces when it is opened never renders the guide. Within a
+ * The project page loads that field from the network once per visit and
+ * mounts the guide only after the answer arrives, so a project that already
+ * has traces when it is opened never renders the guide. Within a
  * visit the store is kept fresh by this guide's own poll, which runs only on
  * the tabs that mount it: traces that land while the user is on Config or
  * Metrics are not seen until they return, so the guide shows again for about
