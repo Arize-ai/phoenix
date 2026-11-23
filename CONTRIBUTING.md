@@ -98,21 +98,11 @@ Before submitting a pull request, please make sure the following is done:
 
 A PR description is a public record of what change is being made and why it was made. It will become a permanent part of our version control history, and will possibly be read by many people other than your reviewers over the years. Follow the following guidelines when writing a PR description:
 
-- Title: The title must conform to [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/#summary) format and must sufficiently describe the change. Since PR titles are used to form release notes, titles with generic or non-descriptive content ("Fix build.", "Add patch.") are not allowed.
+- Title: The title must conform to [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/#summary) format and must sufficiently describe the change. Since PR titles are used to form release notes, titles with generic or non-descriptive content ("Fix build.", "Add patch.") are not allowed. Use release-triggering commit types only for shipped, user-facing changes; use `chore` for internal work such as Factory automation.
 - Issue: The first line of the description should contain a reference to the issue that the PR is solving. For example, `fixes #1234` or `resolves #1234`. While this is not required for urgent fixes, it is required for all other PRs so that the issue is clearly tracked and triaged by a core team member.
 - Description: The first line should be a short, focused summary, while the rest of the description should fill in the details and include any supplemental information a reader needs to understand the change holistically. It might include a brief description of the problem that's being solved, and why this is the best approach. If there are any shortcomings to the approach, they should be mentioned.
 - Videos and screenshots: Required for UI changes, as [UI Changes](#ui-changes) describes. These should be supplemental to the text description, not a replacement for it.
 - Code Snippets: If the PR is changing an API, include code snippets to highlight the changes. This will expedite a reader's ability to construct the right API calls if they are interested in doing so. These should be supplemental to the text description, not a replacement for it.
-
-### Choosing a Conventional Commit Type
-
-Choose the PR title and commit type by the change's shipped user or package impact, regardless of whether a person or an agent wrote it:
-
-- Use `feat` for shipped features and `fix` for shipped bug fixes that warrant a package release and changelog entry. Factory-authored changes to Phoenix behavior still use these types, for example `fix(server): handle empty trace exports`.
-- Use `chore(factory)` for internal Factory automation, prompts, rubrics, or maintenance, for example `chore(factory): clarify reviewer instructions`. Use another appropriate non-release type, such as `ci` or `test`, for other internal work. An internal automation feature or bug fix does not by itself warrant `feat(factory)` or `fix(factory)`.
-- Reserve other changelog-visible types (`perf`, `deps`, `revert`, and `docs` for the Python packages) for changes that warrant user-facing release notes. Use `chore` for internal process documentation. Reserve `!`, `BREAKING CHANGE`, and `Release-As` for intentional package release changes, including when the type is otherwise non-release.
-
-The [release configuration](./release-please-config.json) uses release-please's [Python strategy](https://github.com/googleapis/release-please/blob/v17.6.0/src/strategies/python.ts): `feat` requests a minor bump; `fix`, `perf`, `deps`, `revert`, and `docs` can produce a patch release when their changed paths belong to a package. Ordinary `chore`, `ci`, `test`, `build`, `style`, and `refactor` commits are hidden from its changelog. Scopes describe the affected area; `(factory)` does not opt out of releases. In particular, `factory/` is not excluded from the root package's release paths. Type selection complements path filtering; it does not replace the changesets required for TypeScript packages.
 
 ### Small Simple Pull Requests
 
