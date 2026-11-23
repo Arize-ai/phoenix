@@ -625,6 +625,24 @@ class TestAnthropicStreamingClient:
             "disable_parallel_tool_use": True,
         }
 
+    def test_null_function_in_tool_call_yields_empty_name_and_input(self) -> None:
+        """A tool call whose function is an explicit null must not crash message building.
+
+        Playground tool calls are accumulated from provider streams, where a chunk can
+        carry `"function": null`. `_playground_tool_call_to_oi_tool_call` already guards
+        this with `if (function := tool_call.get("function")) is not None`; the Anthropic
+        message builder must not raise AttributeError on the same input.
+        """
+        client = self._anthropic_client()
+        content = client._anthropic_message_content(
+            "Evaluating.",
+            [{"id": "tc1", "function": None}],
+        )
+        assert content == [
+            {"type": "text", "text": "Evaluating."},
+            {"type": "tool_use", "id": "tc1", "name": "", "input": {}},
+        ]
+
     def test_one_or_more_tool_choice_survives_disable_parallel_tool_calls(self) -> None:
         """Disabling parallel tool use must not downgrade a required tool choice to `auto`."""
         params = self._anthropic_params(
