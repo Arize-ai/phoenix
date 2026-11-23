@@ -1,6 +1,7 @@
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { RelayEnvironmentProvider } from "react-relay";
+import { MemoryRouter } from "react-router";
 import {
   Environment,
   Network,
@@ -10,7 +11,12 @@ import {
 } from "relay-runtime";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
+import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import type * as PhoenixChart from "@phoenix/components/chart";
+import { TimeRangeProvider } from "@phoenix/components/datetime";
+import { PreferencesProvider } from "@phoenix/contexts";
+import { AgentProvider } from "@phoenix/contexts/AgentContext";
 import type { AnnotationMetricLevel } from "@phoenix/pages/project/constants";
 
 import { ProjectAnnotationMetricsGrid } from "../ProjectAnnotationMetrics";
@@ -20,6 +26,9 @@ vi.mock("@phoenix/components/chart", async (importOriginal) => ({
   ChartPanel: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   ChartSkeleton: () => <div>loading chart</div>,
 }));
+
+installTestMatchMedia();
+installTestStorage();
 
 type RequestedOperation = {
   name: string;
@@ -175,13 +184,21 @@ describe("ProjectAnnotationMetricsGrid", () => {
 
       await act(async () => {
         root.render(
-          <RelayEnvironmentProvider environment={environment}>
-            <ProjectAnnotationMetricsGrid
-              annotationLevel={annotationLevel}
-              projectId={PROJECT_ID}
-              timeRange={TIME_RANGE}
-            />
-          </RelayEnvironmentProvider>
+          <MemoryRouter>
+            <PreferencesProvider>
+              <AgentProvider>
+                <TimeRangeProvider>
+                  <RelayEnvironmentProvider environment={environment}>
+                    <ProjectAnnotationMetricsGrid
+                      annotationLevel={annotationLevel}
+                      projectId={PROJECT_ID}
+                      timeRange={TIME_RANGE}
+                    />
+                  </RelayEnvironmentProvider>
+                </TimeRangeProvider>
+              </AgentProvider>
+            </PreferencesProvider>
+          </MemoryRouter>
         );
       });
 

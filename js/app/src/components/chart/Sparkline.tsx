@@ -58,6 +58,12 @@ export interface SparklineProps {
    * Defaults to the data's own range.
    */
   minRange?: number;
+  /**
+   * The range the values can take, e.g. an annotation's score bounds. The
+   * axis that `minRange` widens shifts to stay inside it, so a series at the
+   * bottom of its range draws at the bottom rather than at mid-height.
+   */
+  bounds?: readonly [number, number];
   /** Stroke color, e.g. a design token var. */
   color: string;
   /**
@@ -179,12 +185,14 @@ function getPoints({
   binCount,
   height,
   minRange,
+  bounds,
 }: {
   bins: SparklineBin[];
   /** The number of source bins, which is the length of the x axis. */
   binCount: number;
   height: number;
   minRange: number | undefined;
+  bounds: readonly [number, number] | undefined;
 }): SparklinePoint[] | null {
   const present = bins.flatMap((bin) =>
     bin.value == null ? [] : [{ bin, value: bin.value }]
@@ -194,10 +202,17 @@ function getPoints({
   }
   const dataMin = Math.min(...present.map((point) => point.value));
   const dataMax = Math.max(...present.map((point) => point.value));
-  // Widen a narrow data range to the floor, keeping the data centered
+  // Widen a narrow data range to the floor, centered on the data, then shift
+  // it by at most the padding so it stays inside the bounds and never off
+  // the data
   const padding = Math.max(0, (minRange ?? 0) - (dataMax - dataMin)) / 2;
-  const min = dataMin - padding;
-  const max = dataMax + padding;
+  const shift =
+    bounds == null
+      ? 0
+      : Math.min(padding, Math.max(0, bounds[0] - (dataMin - padding))) -
+        Math.min(padding, Math.max(0, dataMax + padding - bounds[1]));
+  const min = dataMin - padding + shift;
+  const max = dataMax + padding + shift;
   const drawableHeight = height - 2 * VERTICAL_PADDING;
   return present.map(({ bin, value }) => {
     return {
@@ -368,6 +383,7 @@ export function Sparkline({
   values,
   weights,
   minRange,
+  bounds,
   color,
   showCoverage = false,
   coverageColor = color,
@@ -402,6 +418,7 @@ export function Sparkline({
     binCount: values.length,
     height: plotHeight,
     minRange,
+    bounds,
   });
   if (points == null) {
     return null;

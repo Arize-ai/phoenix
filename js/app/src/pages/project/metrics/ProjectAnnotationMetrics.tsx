@@ -25,6 +25,7 @@ import {
   normalizeAnnotationMetrics,
   useBinTimeTickFormatter,
 } from "@phoenix/components/chart";
+import { useTimeRangeSelectionKey } from "@phoenix/components/datetime";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import { useFrozenWhileHidden } from "@phoenix/hooks/useFrozenWhileHidden";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
@@ -273,9 +274,11 @@ export function ProjectAnnotationMetricPanel({
   ...props
 }: ProjectAnnotationMetricPanelProps) {
   const header = getAnnotationPanelHeader(props);
+  const timeRangeSelectionKey = useTimeRangeSelectionKey();
   return (
     <ErrorBoundary>
       <Suspense
+        key={timeRangeSelectionKey}
         fallback={
           <ChartPanel
             title={header.title}

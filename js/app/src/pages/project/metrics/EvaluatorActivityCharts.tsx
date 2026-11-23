@@ -86,6 +86,7 @@ import {
   getEvaluatorCostRanking,
   getEvaluatorSeries,
   getEvaluatorTimeSeriesRows,
+  hasEvaluatorMetricData,
 } from "./evaluatorActivity";
 
 /**
@@ -265,6 +266,9 @@ function EvaluatorTimeSeriesTooltipContent({
   if (!active || !payload?.length) {
     return null;
   }
+  const hidesZeros =
+    payload.length > 1 &&
+    payload.some((entry) => entry.value != null && entry.value !== 0);
   return (
     <ChartTooltip>
       {label && (
@@ -273,8 +277,7 @@ function EvaluatorTimeSeriesTooltipContent({
         </Text>
       )}
       {payload.map((entry) =>
-        entry.value == null ||
-        (payload.length > 1 && entry.value === 0) ? null : (
+        entry.value == null || (hidesZeros && entry.value === 0) ? null : (
           <ChartTooltipItem
             key={String(entry.dataKey)}
             color={entry.color ?? "transparent"}
@@ -310,6 +313,7 @@ function EvaluatorTimeSeriesChart({
     scale,
     timeRange: loadedTimeRange,
     isOtherRangeLoading,
+    groups,
     bins,
     series,
     getDataKey,
@@ -333,12 +337,7 @@ function EvaluatorTimeSeriesChart({
       )
       .map(({ dataKey }) => dataKey)
   );
-  const hasData = chartData.some((row) =>
-    series.some(({ dataKey }) => {
-      const value = row[dataKey];
-      return value != null && (isLag || value > 0);
-    })
-  );
+  const hasData = hasEvaluatorMetricData({ groups, bins, metric });
   const lagTicks = isLag
     ? getDurationTicks(
         Math.max(
@@ -498,7 +497,7 @@ export function FailuresByEvaluatorTimeSeries(props: ProjectMetricViewProps) {
       mark="line"
       formatValue={intFormatter}
       formatTick={intShortFormatter}
-      emptyMessage="No failed evaluations in this time range"
+      emptyMessage="No evaluations in this time range"
     />
   );
 }
@@ -586,7 +585,12 @@ export function CostByEvaluator({
             }}
             {...defaultTooltipProps}
           />
-          <Bar dataKey="cost" radius={2} isAnimationActive={false}>
+          <Bar
+            dataKey="cost"
+            radius={2}
+            minPointSize={2}
+            isAnimationActive={false}
+          >
             {chartData.map((rank) => {
               const evaluatorSeries = seriesByDataKey.get(rank.dataKey);
               return (

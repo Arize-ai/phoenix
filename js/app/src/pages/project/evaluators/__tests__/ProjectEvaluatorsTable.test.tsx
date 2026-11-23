@@ -1075,7 +1075,7 @@ describe("ProjectEvaluatorsTable cost columns", () => {
     start: "2026-06-29T00:00:00.000Z",
   };
 
-  it("shows a refetch's pending costs as loading, and its scores not as failed, after a failed load", async () => {
+  it("shows a refetch's pending costs and scores as loading after a failed load", async () => {
     const load = createStreamingMultipartResponse();
     const refetch = createStreamingMultipartResponse();
     authFetchMock
@@ -1099,8 +1099,7 @@ describe("ProjectEvaluatorsTable cost columns", () => {
 
     expect(authFetchMock).toHaveBeenCalledTimes(2);
     expect(readCostCells()["evaluator-4"]).toEqual(["loading", "loading"]);
-    // A refetch's pending scores read as none rather than as a skeleton.
-    expect(readResultsCells()["evaluator-4"]).not.toBe("error");
+    expect(readResultsCells()["evaluator-4"]).toBe("loading");
   });
 
   it("ignores a failure of the page's load that arrives after a refetch has started", async () => {
