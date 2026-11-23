@@ -177,6 +177,77 @@ describe("accepting a DSL filter completion", () => {
     expect(accepted).toBe(expected);
   });
 
+  describe("before chained subscripts", () => {
+    it.each([
+      {
+        name: "a longer path from the first subscript replaces the later subscripts",
+        condition: "attributes['ll|m']['model_name'] == 'gpt-4o'",
+        label: "attributes['llm']['model_name']",
+        expected: "attributes['llm']['model_name'] == 'gpt-4o'",
+      },
+      {
+        name: "a different longer path replaces the later subscripts",
+        condition: "attributes['ll|m']['model_name'] == 'gpt-4o'",
+        label: "attributes['llm']['request']['model_name']",
+        expected: "attributes['llm']['request']['model_name'] == 'gpt-4o'",
+      },
+      {
+        name: "a path that stops at the cursor's subscript keeps the later ones verbatim",
+        condition: "attributes['ll|m']['model_name'] == 'gpt-4o'",
+        label: "attributes['llm']",
+        expected: "attributes['llm']['model_name'] == 'gpt-4o'",
+      },
+      {
+        name: "a longer path from the identifier replaces every subscript",
+        condition: "attri|butes['llm']['model_name'] == 'gpt-4o'",
+        label: "attributes['llm']['model_name']",
+        expected: "attributes['llm']['model_name'] == 'gpt-4o'",
+      },
+      {
+        name: "a bare identifier keeps the subscripts after it",
+        condition: "attri|butes['llm']['model_name'] == 'gpt-4o'",
+        label: "attributes",
+        expected: "attributes['llm']['model_name'] == 'gpt-4o'",
+      },
+      {
+        name: "a member name keeps a dotted member after it",
+        condition: "inp|ut.value == 'x'",
+        label: "input",
+        expected: "input.value == 'x'",
+      },
+      {
+        name: "a longer path replaces integer subscripts and dotted members",
+        condition: "attributes['llm']['input_messa|ges'][0].role == 'user'",
+        label: "attributes['llm']['input_messages'][0].content",
+        expected: "attributes['llm']['input_messages'][0].content == 'user'",
+      },
+      {
+        name: "the cursor right after a closed subscript replaces the next one",
+        condition: "attributes['llm']|['model_name'] == 'gpt-4o'",
+        label: "attributes['llm']['model_name']",
+        expected: "attributes['llm']['model_name'] == 'gpt-4o'",
+      },
+      {
+        name: "a quoted key with a bracket in it is replaced whole",
+        condition: "attributes['ll|m']['a]b'] == 1",
+        label: "attributes['llm']['a]b']",
+        expected: "attributes['llm']['a]b'] == 1",
+      },
+      {
+        name: "an unclosed subscript leaves a later bracketed clause alone",
+        condition: "attributes['us| and x['y']",
+        label: "attributes['user']['id']",
+        expected: "attributes['user']['id'] and x['y']",
+      },
+    ])("$name", async ({ condition, label, expected }) => {
+      const { accepted } = await openAndAccept({
+        conditionWithCursor: condition,
+        options: labels(label),
+      });
+      expect(accepted).toBe(expected);
+    });
+  });
+
   it("leaves an option that brings its own apply untouched", async () => {
     const { accepted } = await openAndAccept({
       conditionWithCursor: "sta|foo",
