@@ -80,7 +80,7 @@ help: ## Show this help message
 	@echo -e "  $(YELLOW)test$(NC)                  - Run all tests (Python + TypeScript workspace)"
 	@echo -e "  test-python            - Run Python tests (unit + integration)"
 	@echo -e "  test-frontend          - Run frontend tests only (js/app/)"
-	@echo -e "  test-factory           - Test factory issue routing and session configuration"
+	@echo -e "  test-factory           - Run Factory tests"
 	@echo -e "  test-ts                - Run all TypeScript tests (js/ workspace)"
 	@echo -e "  test-helm              - Run Helm chart tests"
 	@echo -e "  test-integration-docs  - Run configured integration docs against a running Phoenix server"
@@ -292,8 +292,8 @@ dev-frontend: ## Frontend only (React dev server)
 # Testing
 #=============================================================================
 
-test-factory: ## Test factory issue routing and session configuration
-	@$(UV) run --no-project --python 3.12 --with anthropic==1.12.1 --with 'PyJWT[crypto]==2.15.1' --with pytest --with pytest-asyncio pytest -q factory/test_dispatch.py
+test-factory:
+	@$(UV) run pytest --import-mode=prepend -q factory/
 
 test-integration-docs: ## Run configured integration docs against a running Phoenix server
 	@$(UV) run python scripts/testing/integration_docs/run.py $(INTEGRATION_DOCS_ARGS)
