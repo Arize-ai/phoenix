@@ -27,7 +27,7 @@ async function main() {
   }
 
   const agent = createAgent({
-    model: "openai:gpt-3.5-turbo",
+    model: "openai:gpt-5.6-terra",
     systemPrompt: `You are a travel planner. You must produce a trip plan that includes exactly three sections, each backed by a tool call.
 
 RULES:

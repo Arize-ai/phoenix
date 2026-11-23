@@ -11,10 +11,10 @@ October 15 to 16, 2026
 
 **New integration guides; no Phoenix upgrade required**
 
-New integration guides show how to send traces from two more agent stacks to Phoenix.
+Two more agent stacks can send traces to Phoenix.
 
 - **Claude Managed Agents.** Add an **Arize Phoenix** destination in the Claude Console to export agent turns, model requests, and sandbox tool calls with no code changes. Phoenix converts the OpenTelemetry GenAI spans to OpenInference when they arrive. Trace the Claude SDK from your application too, and each session nests inside your own trace.
-- **Atomic Agents.** Atomic Agents 2.11.0+ ships its own OpenInference instrumentor, which emits an `AGENT` span per agent run and a `TOOL` span per tool call. `register(auto_instrument=True)` picks it up automatically.
+- **Atomic Agents.** Version 2.11.0+ ships its own OpenInference instrumentor, which emits an `AGENT` span per agent run and a `TOOL` span per tool call. `register(auto_instrument=True)` picks it up automatically.
 
 ```python
 from phoenix.otel import register
@@ -24,6 +24,10 @@ tracer_provider = register(
     auto_instrument=True,
 )
 ```
+
+<Frame caption="Session turns, model requests, and sandbox tool calls arrive in Phoenix as one trace">
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/claude-managed-agents/phoenix-claude-managed-agents-fibonacci-trace.png" alt="Phoenix trace view of a fibonacci-agent trace with status OK. The trace tree shows the fibonacci-agent root span, Sessions API request spans, an anthropic.session.turn span, anthropic.model_request spans, and an anthropic.tool_use bash span." />
+</Frame>
 
 <CardGroup cols={2}>
   <Card title="Claude Managed Agents" icon="robot" href="/docs/phoenix/integrations/platforms/claude-managed-agents/claude-managed-agents-tracing">
@@ -46,6 +50,9 @@ You can pick both models in the playground, and Phoenix prices their spans from 
 - **Muse Wonder 1.0** (`muse-wonder-1.0`) appears under the Meta provider.
 
 <CardGroup cols={2}>
+  <Card title="Using the Playground" icon="flask" href="/docs/phoenix/prompt-engineering/how-to-prompts/using-the-playground">
+    Pick a model and compare prompts side by side
+  </Card>
   <Card title="Cost Tracking" icon="dollar-sign" href="/docs/phoenix/tracing/how-to-tracing/cost-tracking">
     How Phoenix prices tokens on your spans
   </Card>

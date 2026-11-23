@@ -275,7 +275,7 @@ export const openAIMessageToVercelAI = openAIMessageSchema.transform(
               type: "tool-call",
               toolCallId: tc.id,
               toolName: tc.function.name,
-              input: tc.function.arguments,
+              input: JSON.parse(tc.function.arguments),
             });
           });
         }
@@ -337,7 +337,7 @@ export const openAIToolCallToAnthropic = openAIToolCallSchema.transform(
     id: openai.id,
     type: "tool_use",
     name: openai.function.name,
-    input: openai.function.arguments,
+    input: JSON.parse(openai.function.arguments),
   })
 );
 

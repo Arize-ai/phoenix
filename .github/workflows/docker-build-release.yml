@@ -6,15 +6,46 @@ on:
     tags:
       - "arize-phoenix-v*"
 
+env:
+  IMAGE_NAME: phoenix
+
 jobs:
   version:
-    name: Extract version
+    name: Resolve release tag
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.extract.outputs.version }}
       major: ${{ steps.extract.outputs.major }}
       minor: ${{ steps.extract.outputs.minor }}
+      revision: ${{ steps.release.outputs.revision }}
     steps:
+      - name: Check out the repo
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      # Defense in depth: the tagged commit supplies this workflow and action,
+      # so repository tag rules must enforce who can create or move releases.
+      # Verify ancestry and pass the pinned SHA to every publishing job.
+      - name: Verify the tag points at a commit on main
+        id: release
+        uses: ./.github/actions/resolve-release-tag
+        with:
+          tag: ${{ github.ref_name }}
+          package-name: arize-phoenix
+          package-path: .
+      - name: Verify the tag still matches the triggering commit
+        env:
+          REVISION: ${{ steps.release.outputs.revision }}
+        run: |
+          set -euo pipefail
+          # HEAD peels annotated tags to a commit as well. A moved tag must not
+          # build different sources with this event's workflow and metadata.
+          EVENT_REVISION=$(git rev-parse HEAD)
+          if [ "$REVISION" != "$EVENT_REVISION" ]; then
+            echo "::error::Release tag resolved to ${REVISION}, but this run was triggered for ${EVENT_REVISION}. Refusing to publish a moved tag."
+            exit 1
+          fi
       - name: Extract version from tag
         id: extract
         run: |
@@ -27,8 +58,36 @@ jobs:
             echo "minor=${rest%%.*}"
           } >> "$GITHUB_OUTPUT"
 
+  prepare-tags:
+    name: Prepare image tags
+    needs: version
+    runs-on: ubuntu-latest
+    outputs:
+      tags: ${{ steps.tags.outputs.tags }}
+    steps:
+      - name: Compute shared tags
+        id: tags
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+          MAJOR: ${{ needs.version.outputs.major }}
+          MINOR: ${{ needs.version.outputs.minor }}
+        run: |
+          set -euo pipefail
+          tags=$(jq -cn --arg version "$VERSION" --arg major "$MAJOR" --arg minor "$MINOR" '
+            ["latest", $version, ($major + "." + $minor), $major,
+             ("version-" + $version), ("version-" + $major + "." + $minor),
+             ("version-" + $major)] as $tags |
+            {
+              root: $tags,
+              nonroot: ($tags | map(. + "-nonroot")),
+              debug: ($tags | map(. + "-debug"))
+            }
+          ')
+          echo "tags=$tags" >> "$GITHUB_OUTPUT"
+
   build:
     name: Build ${{ matrix.platform }}
+    needs: version
     # linux/arm64 builds on a native ARM runner rather than under QEMU
     # emulation on x86, which is both far slower and a source of flakes.
     runs-on: ${{ matrix.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
@@ -36,40 +95,30 @@ jobs:
       # One job per platform, not per variant/platform pair: the variants share
       # every stage but the final FROM, so building them together reuses the
       # frontend, backend and WASM stages from the local builder instead of
-      # repeating them on a cold one. Each pushes by digest and nothing is
-      # tagged until the merge job, so a failed build cannot publish a partial
-      # image; letting the other platform finish means a rerun has less to redo.
+      # repeating them on a cold one. OCI artifacts let each registry publish
+      # independently without rebuilding the application.
       fail-fast: false
       matrix:
         platform: [linux/amd64, linux/arm64]
-    env:
-      REGISTRY: arizephoenix
-      IMAGE_NAME: phoenix
     steps:
       - name: Check out the repo
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+          ref: ${{ needs.version.outputs.revision }}
 
-      - name: Build and push every variant by digest
+      - name: Build image
         uses: ./.github/actions/docker-build-image
         with:
           variants: root nonroot debug
           platform: ${{ matrix.platform }}
-          registry: ${{ env.REGISTRY }}
-          image-name: ${{ env.IMAGE_NAME }}
           dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
           dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-  merge:
-    name: Publish ${{ matrix.variant }} manifest
-    needs: [version, build]
-    # A matrix job reports failure if any cell fails, so plain `needs` would let
-    # one variant's failed leg withhold every other variant — including ones
-    # whose digests are already on Docker Hub. Publish per variant instead and
-    # let the digest count refuse the variant that is actually incomplete. The
-    # version job is a real prerequisite: without it the tags are empty.
-    if: ${{ !cancelled() && needs.version.result == 'success' }}
+  publish-dockerhub:
+    name: Publish ${{ matrix.variant }} to Docker Hub
+    needs: [version, build, prepare-tags]
+    if: ${{ !cancelled() && needs.version.result == 'success' && needs.prepare-tags.result == 'success' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -77,67 +126,94 @@ jobs:
         variant: [root, nonroot, debug]
     env:
       REGISTRY: arizephoenix
-      IMAGE_NAME: phoenix
     steps:
       - name: Check out the repo
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+          ref: ${{ needs.version.outputs.revision }}
 
-      # Applied to every tag below. root publishes unsuffixed names, so a
-      # suffix bug would silently point `latest` at the wrong variant — hence
-      # an explicit value per tag rather than the metadata-action flavor.
-      - name: Compute tag suffix
+      - name: Add registry namespace to shared tags
+        id: tags
         env:
-          VARIANT: ${{ matrix.variant }}
+          TAGS: ${{ toJSON(fromJSON(needs.prepare-tags.outputs.tags)[matrix.variant]) }}
         run: |
           set -euo pipefail
-          if [ "$VARIANT" = "root" ]; then
-            echo "TAG_SUFFIX=" >> "$GITHUB_ENV"
-          else
-            echo "TAG_SUFFIX=-${VARIANT}" >> "$GITHUB_ENV"
-          fi
+          {
+            echo 'tags<<TAGS'
+            jq -r --arg image "${REGISTRY}/${IMAGE_NAME}" '.[] | "\($image):\(.)"' <<< "$TAGS"
+            echo 'TAGS'
+          } >> "$GITHUB_OUTPUT"
 
-      - name: Compute tags
-        id: meta
-        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          # latest=false because every `latest` variant is listed explicitly
-          # below; left on auto it would also add an unsuffixed `latest` to
-          # nonroot and debug.
-          flavor: latest=false
-          tags: |
-            type=raw,value=latest${{ env.TAG_SUFFIX }}
-            type=raw,value=${{ needs.version.outputs.version }}${{ env.TAG_SUFFIX }}
-            type=raw,value=${{ needs.version.outputs.major }}.${{ needs.version.outputs.minor }}${{ env.TAG_SUFFIX }}
-            type=raw,value=${{ needs.version.outputs.major }}${{ env.TAG_SUFFIX }}
-            type=raw,value=version-${{ needs.version.outputs.version }}${{ env.TAG_SUFFIX }}
-            type=raw,value=version-${{ needs.version.outputs.major }}.${{ needs.version.outputs.minor }}${{ env.TAG_SUFFIX }}
-            type=raw,value=version-${{ needs.version.outputs.major }}${{ env.TAG_SUFFIX }}
-
-      - name: Merge platform digests and push tags
-        uses: ./.github/actions/docker-merge-manifest
+      - name: Upload images and publish Docker Hub tags
+        uses: ./.github/actions/docker-publish-image
         with:
           variant: ${{ matrix.variant }}
-          registry: ${{ env.REGISTRY }}
-          image-name: ${{ env.IMAGE_NAME }}
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ steps.tags.outputs.tags }}
           expected-digests: 2
           dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
           dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
+  publish-ghcr:
+    name: Publish ${{ matrix.variant }} to GHCR
+    permissions:
+      contents: read
+      packages: write
+    needs: [version, build, prepare-tags]
+    if: ${{ !cancelled() && needs.version.result == 'success' && needs.prepare-tags.result == 'success' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [root, nonroot, debug]
+    env:
+      REGISTRY: ghcr.io/arize-ai
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          ref: ${{ needs.version.outputs.revision }}
+
+      - name: Add registry namespace to shared tags
+        id: tags
+        env:
+          TAGS: ${{ toJSON(fromJSON(needs.prepare-tags.outputs.tags)[matrix.variant]) }}
+        run: |
+          set -euo pipefail
+          {
+            echo 'tags<<TAGS'
+            jq -r --arg image "${REGISTRY}/${IMAGE_NAME}" '.[] | "\($image):\(.)"' <<< "$TAGS"
+            echo 'TAGS'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload images and publish GHCR tags
+        uses: ./.github/actions/docker-publish-image
+        with:
+          variant: ${{ matrix.variant }}
+          tags: ${{ steps.tags.outputs.tags }}
+          expected-digests: 2
+
   update-self-deployment:
     name: Update Kustomize Template
     runs-on: ubuntu-latest
-    needs: [version, merge]
+    needs: [version, publish-dockerhub]
     permissions:
       contents: write
       pull-requests: write
     steps:
+      - name: Mint factory app token
+        id: factory-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.FACTORY_APP_CLIENT_ID }}
+          private-key: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+          ref: ${{ needs.version.outputs.revision }}
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -158,7 +234,7 @@ jobs:
         id: cpr
         uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0
         with:
-          token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          token: ${{ steps.factory-token.outputs.token }}
           commit-message: "chore: update phoenix version to ${{ needs.version.outputs.version }} in kustomize and helm"
           title: "chore: update phoenix version to ${{ needs.version.outputs.version }} in kustomize and helm"
           body: |
@@ -170,7 +246,7 @@ jobs:
       - name: Enable auto-merge
         if: steps.cpr.outputs.pull-request-number != ''
         env:
-          GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          GH_TOKEN: ${{ steps.factory-token.outputs.token }}
           PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
         # Lets a reviewer merge with a single approval; a failure here should
         # not fail the run since the PR itself was opened successfully.
@@ -187,17 +263,17 @@ jobs:
 
   slack:
     name: Slack notification
-    needs: [version, build, merge, update-self-deployment]
+    needs: [version, prepare-tags, build, publish-dockerhub, publish-ghcr, update-self-deployment]
     if: always() && contains(needs.*.result, 'failure')
     runs-on: ubuntu-latest
     steps:
       - name: Send message to Slack
         uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
         with:
-          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
-          webhook-type: incoming-webhook
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
           payload: |
             {
-              "type": "mrkdwn",
+              "channel": "${{ vars.SLACK_CHANNEL_ID }}",
               "text": ":x: Docker Release Publication Failed\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }

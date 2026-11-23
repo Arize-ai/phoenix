@@ -529,7 +529,7 @@ class TestWASMAdapterProbeBinary:
         assert probe.available is False
         assert probe.path is None
         assert probe.detail == (
-            f"PHOENIX_WASM_BINARY_PATH={env_path} is set but the file does not exist."
+            f"PHOENIX_WASM_BINARY_PATH={Path(env_path)} is set but the file does not exist."
         )
         mock_urlopen.assert_not_called()
 

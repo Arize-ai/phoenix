@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from time import monotonic
 from typing import AsyncIterator, Optional
 
+from phoenix.server.sandbox.cancellation import detached_teardowns
 from phoenix.server.sandbox.types import (
     BaseNoSessionBackend,
     ExecutionResult,
@@ -346,19 +347,20 @@ class SandboxSessionManager(DaemonTask):
         """Drain in-flight sessions, then cancel the sweeper.
 
         Three phases under DaemonTask.stop's 10s ceiling: (1) await
-        ``_pending_tasks`` so scheduled close_session calls complete;
+        ``_pending_tasks`` and ``detached_teardowns()`` so their close_session
+        calls complete;
         (2) ``_evict_targets`` over every tracked key; (3) cancel sweeper.
         Phase 3 runs even if the drain is cancelled or raises.
         """
         try:
-            pending = self._pending_tasks
+            pending = set(self._pending_tasks or ()) | detached_teardowns()
             if pending:
                 # asyncio.wait leaves still-pending tasks running (not cancelled)
                 # so a slow close_session past the grace window completes.
                 _, still_pending = await asyncio.wait(pending, timeout=self.eviction_grace_seconds)
                 if still_pending:
                     logger.warning(
-                        "Pending sandbox eviction tasks did not drain within %.2fs",
+                        "Pending sandbox eviction and teardown tasks did not drain within %.2fs",
                         self.eviction_grace_seconds,
                     )
             tracked_keys = list(self._tracked.keys())

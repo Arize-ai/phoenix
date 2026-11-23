@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useState } from "react";
+import { Suspense, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { DebouncedSearch, Flex, View } from "@phoenix/components";
@@ -74,7 +74,6 @@ function DatasetsColumnSelector() {
 }
 
 export function DatasetsPageContent() {
-  const [localFetchKey, setLocalFetchKey] = useState(0);
   const agentFetchKey = useAgentDataChangeFetchKey(REFRESH_ON);
   const data = useLazyLoadQuery<DatasetsPageQuery>(
     graphql`
@@ -84,14 +83,10 @@ export function DatasetsPageContent() {
     `,
     {},
     {
-      fetchKey: localFetchKey + agentFetchKey,
+      fetchKey: agentFetchKey,
       fetchPolicy: "store-and-network",
     }
   );
-
-  const onDatasetCreated = useCallback(() => {
-    setLocalFetchKey((prev) => prev + 1);
-  }, []);
 
   const [filter, setFilter] = useState<string>("");
   // The label filter is persisted to the URL so it can be shared and survive
@@ -125,7 +120,7 @@ export function DatasetsPageContent() {
               onSelectionChange={setSelectedLabelIds}
             />
             <CanModify>
-              <CreateDatasetButton onDatasetCreated={onDatasetCreated} />
+              <CreateDatasetButton />
             </CanModify>
           </Flex>
         </Flex>

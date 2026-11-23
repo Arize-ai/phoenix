@@ -22,7 +22,10 @@ const pageCSS = css`
 `;
 
 const pageSectionCSS = css`
-  width: 500px;
+  width: 100%;
+  max-width: 500px;
+  box-sizing: border-box;
+  padding: 0 var(--global-dimension-size-200);
   margin-top: 200px;
   display: flex;
   flex-direction: column;

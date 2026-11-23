@@ -1,0 +1,204 @@
+name: Factory Preview
+
+# This job holds write tokens: PR code must run only inside the Docker build.
+# Keep scripts, shared actions and the preview Dockerfile on the base branch.
+on:
+  # zizmor: ignore[dangerous-triggers] See above: the PR's checkout is a build context only.
+  pull_request_target:
+    types: [opened, edited, labeled, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: >-
+    factory-preview-${{ github.event.pull_request.number }}-${{
+      ((github.event.action == 'edited' && !github.event.changes.body) ||
+       (github.event.action == 'labeled' && github.event.label.name != 'factory-preview'))
+      && github.run_id || 'deploy' }}
+  cancel-in-progress: true
+
+jobs:
+  authorize:
+    name: Check preview eligibility
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.state == 'open' &&
+      ((github.event.action == 'labeled' && github.event.label.name == 'factory-preview') ||
+       ((contains(fromJSON('["opened", "synchronize", "reopened"]'), github.event.action) ||
+         (github.event.action == 'edited' && github.event.changes.body)) &&
+        contains(github.event.pull_request.labels.*.name, 'factory-preview')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      allowed: ${{ steps.author.outputs.allowed }}
+    steps:
+      - name: Check the PR opener's repository access
+        id: author
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          FACTORY_LOGIN: ${{ vars.FACTORY_GITHUB_LOGIN }}
+        run: |
+          set -euo pipefail
+          # finish.py copies a contributor's body verbatim into a factory-authored PR.
+          # Its reserved branches must not gain seed execution through the bot's identity.
+          if [[ "$PR_BRANCH" == factory/pr-* ]]; then
+            echo "allowed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Previews are disabled for factory-finish copies."
+            exit 0
+          fi
+          if [ -n "$FACTORY_LOGIN" ] && [ "$PR_AUTHOR" = "$FACTORY_LOGIN" ]; then
+            echo "allowed=true" >> "$GITHUB_OUTPUT"
+          else
+            permission=$(gh api "repos/$GH_REPO/collaborators/$PR_AUTHOR/permission" --jq '.permission')
+            case "$permission" in
+              admin|write|maintain) echo "allowed=true" >> "$GITHUB_OUTPUT" ;;
+              *)
+                echo "allowed=false" >> "$GITHUB_OUTPUT"
+                echo "::notice::Previews require a PR opened by the factory or a maintainer."
+                ;;
+            esac
+          fi
+
+  build:
+    name: Build image
+    cache-mode: write
+    needs: authorize
+    if: needs.authorize.outputs.allowed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    outputs:
+      short-sha: ${{ steps.plan.outputs.short-sha }}
+      seed-summary: ${{ steps.plan.outputs.seed-summary }}
+    env:
+      GH_REPO: ${{ github.repository }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Check out the base branch for the scripts
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          path: base
+          persist-credentials: false
+      - name: Check out the PR as the build context
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: head
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version-file: base/pyproject.toml
+          resolution-strategy: "lowest"
+          python-version: "3.12"
+          enable-cache: false
+
+      - name: Prepare startup files, sample data, and tags
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/preview-startup"
+          cp base/factory/preview/{Dockerfile,launch.py,seed_log.py} "$RUNNER_TEMP/preview-startup/"
+          uv run --script base/factory/preview/plan.py --pr "$PR_NUMBER" --head-sha "$HEAD_SHA" --seed-dir "$RUNNER_TEMP/preview-startup" > "$RUNNER_TEMP/plan.out"
+          cat "$RUNNER_TEMP/plan.out" >> "$GITHUB_OUTPUT"
+
+      - name: Build image
+        uses: ./base/.github/actions/docker-build-image
+        with:
+          variants: root
+          revision: ${{ github.event.pull_request.head.sha }}
+          platform: linux/amd64
+          source-dir: ${{ github.workspace }}/head
+          startup-and-data-dir: ${{ runner.temp }}/preview-startup
+          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+  publish-dockerhub:
+    name: Publish to Docker Hub
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out the base branch for the scripts
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          path: base
+          persist-credentials: false
+      - name: Upload image and publish Docker Hub tags
+        uses: ./base/.github/actions/docker-publish-image
+        with:
+          variant: root
+          tags: |
+            arizephoenix/phoenix:pr-${{ github.event.pull_request.number }}
+            arizephoenix/phoenix:pr-${{ github.event.pull_request.number }}-${{ needs.build.outputs.short-sha }}
+          expected-digests: 1
+          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+  publish-ghcr:
+    name: Publish to GHCR
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Check out the base branch for the scripts
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          path: base
+          persist-credentials: false
+      - name: Upload image and publish GHCR tags
+        uses: ./base/.github/actions/docker-publish-image
+        with:
+          variant: root
+          tags: |
+            ghcr.io/arize-ai/phoenix:pr-${{ github.event.pull_request.number }}
+            ghcr.io/arize-ai/phoenix:pr-${{ github.event.pull_request.number }}-${{ needs.build.outputs.short-sha }}
+          expected-digests: 1
+
+  deploy:
+    name: Deploy to Railway
+    needs: [build, publish-dockerhub]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Check out the base branch for the scripts
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          path: base
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version-file: base/pyproject.toml
+          resolution-strategy: "lowest"
+          python-version: "3.12"
+          enable-cache: false
+      - name: Deploy to Railway
+        env:
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GH_TOKEN: ${{ github.token }}
+          RAILWAY_TOKEN: ${{ secrets.FACTORY_RAILWAY_TOKEN }}
+          IMAGE: arizephoenix/phoenix:pr-${{ github.event.pull_request.number }}-${{ needs.build.outputs.short-sha }}
+          SEED_SUMMARY: ${{ needs.build.outputs.seed-summary }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: >-
+          uv run --script base/factory/preview/deploy.py deploy
+          --pr "$PR_NUMBER" --image "$IMAGE" --head-sha "$HEAD_SHA"
+          --seed "$SEED_SUMMARY" --run-url "$RUN_URL"

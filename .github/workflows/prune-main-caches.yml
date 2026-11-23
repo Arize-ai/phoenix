@@ -1,5 +1,5 @@
-# Companion to clean_up_caches.yml, which deletes a PR's caches when the PR
-# closes and therefore only ever reaches refs/pull/*. Nothing prunes
+# Companion to clean_up_caches.yml, which sweeps the caches of closed PRs
+# daily and therefore only ever reaches refs/pull/*. Nothing prunes
 # refs/heads/main, where keys carry a commit SHA and run ID, so every push
 # mints a fresh entry that is never superseded — CodeQL overlay databases at
 # ~290MB apiece are the bulk of it. Left alone, main crowds the repository's

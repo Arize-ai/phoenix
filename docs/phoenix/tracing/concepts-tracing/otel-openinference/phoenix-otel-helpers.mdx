@@ -54,7 +54,7 @@ The convenience function handles four things for you. Each one has additional ca
 | :--- | :--- |
 | **Tracer Provider** | A Phoenix-aware provider with sensible defaults. Combined with the OpenInference instrumentation libraries, it makes the [OpenInference context managers](/docs/phoenix/tracing/concepts-tracing/otel-openinference/context-managers) (`using_session`, `using_user`, `using_metadata`, etc.) attach attributes to spans automatically. |
 | **Span Processor** | Configured and pre-attached. `SimpleSpanProcessor` by default, `BatchSpanProcessor` when you pass `batch=True`. |
-| **Span Exporter** | Auto-detects gRPC or HTTP from the endpoint URL and configures the matching OTLP exporter. If `api_key` is set, it adds the `Authorization: Bearer <key>` header for you. |
+| **Span Exporter** | Picks the OTLP transport from the endpoint: HTTP for a Phoenix Cloud URL or a URL with a path, gRPC for a URL with no path. The `protocol` argument overrides this choice. See [Protocol selection](/docs/phoenix/sdk-api-reference/python/arize-phoenix-otel#protocol-selection). If `api_key` is set, it adds the `Authorization: Bearer <key>` header for you. |
 | **Resource** | Sets the project name automatically from your `project_name` argument (or the `PHOENIX_PROJECT` environment variable, with `PHOENIX_PROJECT_NAME` accepted as an alias). |
 
 # Version Compatibility

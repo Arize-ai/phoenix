@@ -17,7 +17,6 @@ from phoenix.client.constants import (
     ENV_PHOENIX_DISCOVER_CONFIG,
     ENV_PHOENIX_ENDPOINT,
     ENV_PHOENIX_HOST,
-    ENV_PHOENIX_HOST_ROOT_PATH,
     ENV_PHOENIX_PORT,
     ENV_PHOENIX_PROJECT,
     ENV_PHOENIX_PROJECT_NAME,
@@ -407,22 +406,6 @@ def get_env_host() -> str:
     return _resolve_server_location_values()[0].get(ENV_PHOENIX_HOST) or HOST
 
 
-def get_env_host_root_path() -> str:
-    if (host_root_path := getenv(ENV_PHOENIX_HOST_ROOT_PATH)) is None:
-        return ""
-    if not host_root_path.startswith("/"):
-        _reject_invalid_env_value(
-            ENV_PHOENIX_HOST_ROOT_PATH, host_root_path, "Value must start with '/'"
-        )
-        return ""
-    if host_root_path.endswith("/"):
-        _reject_invalid_env_value(
-            ENV_PHOENIX_HOST_ROOT_PATH, host_root_path, "Value cannot end with '/'"
-        )
-        return ""
-    return host_root_path
-
-
 def get_env_client_headers() -> dict[str, str]:
     values = _resolve_env_tier(_CREDENTIAL_ENV_KEYS)
     headers = parse_env_headers(values.get(ENV_PHOENIX_CLIENT_HEADERS))
@@ -467,8 +450,16 @@ def _normalize_base_url_candidate(env_key: str, value: str, port: Optional[str])
     if env_key == ENV_PHOENIX_HOST and not _URL_SCHEME_PATTERN.match(value):
         # PHOENIX_HOST is the server's bind host, so a bare host becomes a URL
         # on PHOENIX_PORT; a value that already carries a port is taken as-is.
-        host = "127.0.0.1" if value == "0.0.0.0" else value
-        return f"http://{host}" if ":" in host else f"http://{host}:{_coerce_port(port)}"
+        host = "127.0.0.1" if value in ("0.0.0.0", "::", "[::]") else value
+        if host.startswith("["):
+            return f"http://{host}:{_coerce_port(port)}" if host.endswith("]") else f"http://{host}"
+        colon_count = host.count(":")
+        if colon_count == 0:
+            return f"http://{host}:{_coerce_port(port)}"
+        # One colon is host:port; two or more is an unbracketed IPv6 literal.
+        if colon_count == 1:
+            return f"http://{host}"
+        return f"http://[{host}]:{_coerce_port(port)}"
     return value
 
 

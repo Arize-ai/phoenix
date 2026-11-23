@@ -4,14 +4,18 @@ from unittest import mock
 
 import pytest
 import sqlean
-from sqlalchemy import text
+from alembic import command
+from alembic.config import Config
+from sqlalchemy import make_url, text
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
+import phoenix.db
 from phoenix.db.engines import (
     aio_sqlite_engine,
     aio_sqlite_read_engine,
     get_async_db_url,
     set_sqlite_migration_pragma,
+    sqlite_migration_engine,
 )
 
 
@@ -174,3 +178,53 @@ async def test_sqlite_savepoint_release_keeps_writes_private_until_outer_commit(
             await asyncio.gather(waiting_writer, return_exceptions=True)
         await reader.dispose()
         await writer.dispose()
+
+
+async def test_sqlite_migration_rollback_undoes_schema_changes(tmp_path: Path) -> None:
+    path = tmp_path / "phoenix.db"
+    setup = sqlean.connect(str(path))
+    setup.execute("CREATE TABLE t (x INTEGER)")
+    setup.execute("CREATE INDEX ix_t ON t (x)")
+    setup.commit()
+    setup.close()
+
+    engine = sqlite_migration_engine(make_url(f"sqlite:///{path}"))
+    try:
+        async with engine.connect() as conn:
+            transaction = await conn.begin()
+            # Schema changes before the first data statement, as in a batch table rewrite.
+            await conn.exec_driver_sql("DROP INDEX ix_t")
+            await conn.exec_driver_sql("CREATE TABLE u (x INTEGER)")
+            await conn.exec_driver_sql("INSERT INTO u SELECT x FROM t")
+            await transaction.rollback()
+        async with engine.connect() as conn:
+            schema_objects = (
+                await conn.execute(text("SELECT type, name FROM sqlite_master ORDER BY name"))
+            ).all()
+    finally:
+        await engine.dispose()
+    assert [tuple(row) for row in schema_objects] == [("index", "ix_t"), ("table", "t")]
+
+
+def test_standalone_alembic_sqlite_url_migrates_via_sqlean(tmp_path: Path) -> None:
+    path = tmp_path / "standalone.db"
+    assert phoenix.db.__file__ is not None
+    root = Path(phoenix.db.__file__).parent
+    cfg = Config(root / "alembic.ini")
+    cfg.set_main_option("script_location", str(root / "migrations"))
+    cfg.set_main_option("sqlalchemy.url", f"sqlite:///{path}")
+    command.upgrade(cfg, "head")
+
+    async def verify() -> None:
+        engine = sqlite_migration_engine(make_url(f"sqlite:///{path}"))
+        try:
+            async with engine.connect() as conn:
+                assert await conn.scalar(text("SELECT count(*) FROM alembic_version")) == 1
+                assert (
+                    await conn.scalar(text("SELECT median(value) FROM (SELECT 2.0 AS value)"))
+                    == 2.0
+                )
+        finally:
+            await engine.dispose()
+
+    asyncio.run(verify())

@@ -20,10 +20,10 @@ agents:
     extra_allowed_hosts: [api.anthropic.com]
     resume_trajectory: true
     skills:
-      - .agents/skills/phoenix-cli
-      - .agents/skills/phoenix-error-analysis
-      - .agents/skills/phoenix-evals
-      - .agents/skills/phoenix-tracing
+      - skills/phoenix-cli
+      - skills/phoenix-error-analysis
+      - skills/phoenix-evals
+      - skills/phoenix-tracing
 environment:
   type: daytona
   extra_allowed_hosts: [arizeai-433a7140.mintlify.app, arize.com]

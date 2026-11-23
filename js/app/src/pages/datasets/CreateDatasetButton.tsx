@@ -35,13 +35,7 @@ const dialogCSS = css`
   height: 100%;
 `;
 
-type CreateDatasetButtonProps = {
-  onDatasetCreated: () => void;
-};
-
-export function CreateDatasetButton({
-  onDatasetCreated,
-}: CreateDatasetButtonProps) {
+export function CreateDatasetButton() {
   const navigate = useNavigate();
   const notifySuccess = useNotifySuccess();
   const [isOpen, setIsOpen] = useState(false);
@@ -74,17 +68,10 @@ export function CreateDatasetButton({
       notifySuccess({
         title: "Dataset created",
         message,
-        action: {
-          text: "Go to Dataset",
-          onClick: () => {
-            navigate(`/datasets/${newDataset.id}`);
-          },
-        },
       });
-      setIsOpen(false);
-      onDatasetCreated();
+      return navigate(`/datasets/${newDataset.id}/examples`);
     },
-    [navigate, notifySuccess, onDatasetCreated]
+    [navigate, notifySuccess]
   );
 
   const handleDatasetCreatedFromScratch = useCallback(
@@ -92,17 +79,10 @@ export function CreateDatasetButton({
       notifySuccess({
         title: "Dataset created",
         message: `${newDataset.name} has been successfully created.`,
-        action: {
-          text: "Go to Dataset",
-          onClick: () => {
-            navigate(`/datasets/${newDataset.id}`);
-          },
-        },
       });
-      setIsOpen(false);
-      onDatasetCreated();
+      return navigate(`/datasets/${newDataset.id}/examples`);
     },
-    [navigate, notifySuccess, onDatasetCreated]
+    [navigate, notifySuccess]
   );
 
   const handleCancel = useCallback(() => setIsOpen(false), []);

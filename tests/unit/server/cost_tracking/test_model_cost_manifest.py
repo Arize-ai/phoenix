@@ -1,5 +1,5 @@
 """
-Regression tests for src/phoenix/server/cost_tracking/model_cost_manifest.json.
+Regression tests for src/phoenix/server/cost_tracking/manifests/v1.json.
 
 Guards that LiteLLM whole-prompt tier rates (``*_above_NNNk_tokens``) survive the
 sync from LiteLLM through ``scripts/cost_tracking/sync_models.py`` and land in the
@@ -9,6 +9,9 @@ Also guards that the current flagship lineup stays priced and, just as important
 stays distinguishable: several model IDs are prefixes of newer ones (``claude-opus-5``
 of ``claude-opus-5-5``), so a span must bill against its own entry rather than the
 older, pricier one it happens to be a prefix of.
+
+And guards that the models never change without ``generated_at``: servers apply the manifest
+only if it is newer than the one they have.
 """
 
 import json
@@ -19,8 +22,16 @@ from typing import Any
 
 import pytest
 
+import phoenix
 from phoenix.db import models
 from phoenix.server.cost_tracking.cost_model_lookup import CostModelLookup
+from phoenix.server.cost_tracking.manifest import (
+    BUNDLED_MANIFEST_PATH,
+    DEFAULT_MANIFEST_URL,
+    SUPPORTED_SCHEMA_VERSION,
+    compute_models_sha256,
+    parse_manifest,
+)
 
 MANIFEST_PATH = (
     Path(__file__).resolve().parents[4]
@@ -28,7 +39,8 @@ MANIFEST_PATH = (
     / "phoenix"
     / "server"
     / "cost_tracking"
-    / "model_cost_manifest.json"
+    / "manifests"
+    / "v1.json"
 )
 
 
@@ -47,10 +59,6 @@ def models_by_name(manifest: dict[str, Any]) -> dict[str, dict[str, Any]]:
 @pytest.mark.parametrize(
     "model_name, token_type, threshold, base_rate, elevated_rate",
     [
-        ("claude-sonnet-4-5", "input", 200_000, 3e-6, 6e-6),
-        ("claude-sonnet-4-5", "output", 200_000, 1.5e-5, 2.25e-5),
-        ("claude-sonnet-4-5", "cache_read", 200_000, 3e-7, 6e-7),
-        ("claude-sonnet-4-5", "cache_write", 200_000, 3.75e-6, 7.5e-6),
         ("gemini-2.5-pro", "input", 200_000, 1.25e-6, 2.5e-6),
         ("gemini-2.5-pro", "output", 200_000, 1e-5, 1.5e-5),
         ("gpt-5.4", "input", 272_000, 2.5e-6, 5e-6),
@@ -171,7 +179,7 @@ def test_flat_rate_models_carry_every_token_rate(
     [
         # Direct Mistral AI API prices from LiteLLM ``mistral/*`` IDs. OpenInference uses
         # ``llm.provider = "mistralai"`` (not LiteLLM's ``mistral`` string).
-        ("mistral/mistral-large-latest", "mistralai", 5e-7, 1.5e-6, 5e-8),
+        ("mistral/mistral-large-latest", "mistralai", 7e-7, 2.1e-6, 7e-8),
         ("mistral/mistral-small-latest", "mistralai", 1.5e-7, 6e-7, 1.5e-8),
         ("mistral/codestral-latest", "mistralai", 3e-7, 9e-7, 3e-8),
         ("mistral/pixtral-large-latest", "mistralai", 2e-6, 6e-6, 2e-7),
@@ -206,9 +214,9 @@ def test_direct_mistral_models_carry_openinference_provider_and_rates(
         ("mistral-large-latest", None, "mistral/mistral-large-latest"),
         # Together-hosted Mistral stays on the together provider entry.
         (
-            "mistralai/Mistral-7B-Instruct-v0.1",
+            "mistralai/Mistral-7B-Instruct-v0.3",
             "together",
-            "together_ai/mistralai/Mistral-7B-Instruct-v0.1",
+            "together_ai/mistralai/Mistral-7B-Instruct-v0.3",
         ),
         # Unknown model name does not resolve.
         ("totally-unknown-mistral-model", "mistralai", None),
@@ -240,11 +248,13 @@ def test_mistral_span_model_names_resolve_to_manifest_entries(
 def built_in_lookup(manifest: dict[str, Any]) -> CostModelLookup:
     """A lookup over every built-in model, mirroring how the facilitator seeds them."""
     now = datetime.now(timezone.utc)
+    all_models = [*manifest["models"], *manifest.get("non_llm_models", [])]
     return CostModelLookup(
         models.GenerativeModel(
             id=index,
             name=model["name"],
             provider=model.get("provider") or "",
+            type=model.get("type", "LLM"),
             start_time=None,
             name_pattern=re.compile(model["name_pattern"]),
             is_built_in=True,
@@ -253,7 +263,7 @@ def built_in_lookup(manifest: dict[str, Any]) -> CostModelLookup:
         )
         # Enumerate from 1 so that the built-in tie-breaker (-id) stays ordered by
         # manifest position, as it is for database-assigned ids.
-        for index, model in enumerate(manifest["models"], start=1)
+        for index, model in enumerate(all_models, start=1)
     )
 
 
@@ -264,8 +274,9 @@ def built_in_lookup(manifest: dict[str, Any]) -> CostModelLookup:
         # and vice versa: claude-opus-5's pattern also matches claude-opus-5-5.
         ("claude-opus-5-5", "claude-opus-5-5"),
         ("claude-opus-5", "claude-opus-5"),
-        # Platform-specific IDs for the same model resolve to the same entry.
-        ("anthropic.claude-opus-5-5", "claude-opus-5-5"),
+        # Platform-specific IDs for the same model resolve to the same entry, unless LiteLLM
+        # lists the platform ID with its own prices.
+        ("anthropic.claude-opus-5-5", "anthropic.claude-opus-5-5"),
         ("claude-opus-5-5@default", "claude-opus-5-5"),
         # The GPT-6 tiers released alongside the flagship, plus the GPT-5.6 Terra tier
         # that has no GPT-6 counterpart.
@@ -277,8 +288,9 @@ def built_in_lookup(manifest: dict[str, Any]) -> CostModelLookup:
         ("gpt-5.6-sol", "gpt-5.6-sol"),
         ("gpt-5.6-terra", "gpt-5.6-terra"),
         ("gpt-5.6-luna", "gpt-5.6-luna"),
-        # LiteLLM lists Argon only under gemini/ and vertex_ai/, so its entry is manual.
-        ("gemini-4-argon", "gemini-4-argon"),
+        # LiteLLM lists the Gemini 4 models only under gemini/ and vertex_ai/.
+        ("gemini-4-argon", "gemini/gemini-4-argon"),
+        ("gemini-4-neon", "gemini/gemini-4-neon"),
         ("muse-wonder-1.0", "meta/muse-wonder-1.0"),
     ],
 )
@@ -293,3 +305,226 @@ def test_current_lineup_resolves_to_its_own_manifest_entry(
     )
     assert model is not None, f"no built-in model priced {span_model_name}"
     assert model.name == expected_entry
+
+
+@pytest.mark.parametrize(
+    "span_model_name, input_rate, output_rate",
+    [
+        # Bedrock cross-region inference profiles bill at Bedrock's regional rate, 10% above
+        # Anthropic's list price, as LiteLLM lists for these ids: $3.30/$16.50 per MTok for
+        # Sonnet 4.5 and $5.50/$27.50 for Opus 4.5.
+        ("us.anthropic.claude-sonnet-4-5-20250929-v1:0", 3.3e-6, 1.65e-5),
+        ("jp.anthropic.claude-sonnet-4-5-20250929-v1:0", 3.3e-6, 1.65e-5),
+        ("eu.anthropic.claude-opus-4-5-20251101-v1:0", 5.5e-6, 2.75e-5),
+    ],
+)
+def test_bedrock_cross_region_claude_ids_resolve_to_regional_rates(
+    built_in_lookup: CostModelLookup,
+    models_by_name: dict[str, dict[str, Any]],
+    span_model_name: str,
+    input_rate: float,
+    output_rate: float,
+) -> None:
+    model = built_in_lookup.find_model(
+        start_time=datetime.now(timezone.utc),
+        attributes={"llm": {"model_name": span_model_name}},
+    )
+    assert model is not None, f"no built-in model priced {span_model_name}"
+    prices = {
+        (price["token_type"], price["is_prompt"]): price["base_rate"]
+        for price in models_by_name[model.name]["token_prices"]
+    }
+    billed_at = f"{span_model_name} bills at the rates of {model.name}"
+    assert prices[("input", True)] == pytest.approx(input_rate, rel=1e-9), billed_at
+    assert prices[("output", False)] == pytest.approx(output_rate, rel=1e-9), billed_at
+
+
+def test_embedding_entries_carry_only_an_input_rate(manifest: dict[str, Any]) -> None:
+    # Embedding spans report no output tokens, so the sync prices embedding models on input
+    # tokens alone.
+    embeddings = [model for model in manifest["non_llm_models"] if model["type"] == "EMBEDDING"]
+    assert embeddings
+    for model in embeddings:
+        prices = [(p["token_type"], p["is_prompt"]) for p in model["token_prices"]]
+        assert prices == [("input", True)], model["name"]
+
+
+@pytest.mark.parametrize(
+    "span_model_name, span_provider, expected_entry",
+    [
+        ("text-embedding-3-small", None, "text-embedding-3-small"),
+        # Prefix pairs must resolve to their own entry rather than the shorter prefix.
+        ("text-embedding-ada-002", None, "text-embedding-ada-002"),
+        ("text-embedding-ada-002-v2", None, "text-embedding-ada-002-v2"),
+        # google-genai prefixes embedding model IDs with ``models/``.
+        ("models/gemini-embedding-001", "google", "gemini-embedding-001"),
+        ("gemini-embedding-2", None, "gemini-embedding-2"),
+        ("gemini-embedding-2-preview", None, "gemini-embedding-2-preview"),
+        ("mistral-embed", "mistralai", "mistral/mistral-embed"),
+        ("mistral-embed", None, "mistral/mistral-embed"),
+        ("mistral-embed-2312", "mistralai", "mistral/mistral-embed-2312"),
+        ("codestral-embed", "mistralai", "mistral/codestral-embed"),
+        ("codestral-embed-2505", "mistralai", "mistral/codestral-embed-2505"),
+        ("BAAI/bge-base-en-v1.5", "together", "together_ai/BAAI/bge-base-en-v1.5"),
+    ],
+)
+def test_embedding_span_model_names_resolve_apart_from_other_types(
+    built_in_lookup: CostModelLookup,
+    span_model_name: str,
+    span_provider: str | None,
+    expected_entry: str,
+) -> None:
+    now = datetime.now(timezone.utc)
+    embedding_attrs: dict[str, Any] = {
+        "openinference": {"span": {"kind": "EMBEDDING"}},
+        "embedding": {"model_name": span_model_name},
+    }
+    if span_provider is not None:
+        embedding_attrs["llm"] = {"provider": span_provider}
+    embedding_model = built_in_lookup.find_model(start_time=now, attributes=embedding_attrs)
+    assert embedding_model is not None
+    assert (embedding_model.name, embedding_model.type) == (expected_entry, "EMBEDDING")
+
+    assert (
+        built_in_lookup.find_model(
+            start_time=now,
+            attributes={"llm": {"model_name": span_model_name}},
+        )
+        is None
+    )
+    assert (
+        built_in_lookup.find_model(
+            start_time=now,
+            attributes={
+                "openinference": {"span": {"kind": "DECISION"}},
+                "decision": {"model_name": span_model_name},
+            },
+        )
+        is None
+    )
+
+
+def test_checked_in_manifest_parses_without_skipping_entries(
+    manifest: dict[str, Any],
+) -> None:
+    # Servers fetch this file from GitHub, so anything parse_manifest rejects or skips here
+    # would be rejected or skipped by every running server too.
+    parsed = parse_manifest(MANIFEST_PATH.read_bytes())
+    assert parsed.schema_version == SUPPORTED_SCHEMA_VERSION
+    assert [model.key for model in parsed.models] == [
+        *((model["name"], "LLM") for model in manifest["models"]),
+        *((model["name"], model["type"]) for model in manifest["non_llm_models"]),
+    ]
+
+
+def test_checked_in_manifest_reads_the_same_on_servers_that_predate_types(
+    manifest: dict[str, Any],
+) -> None:
+    # Servers released before model types (such as 21.0.0) fetch this same file. They ignore
+    # non_llm_models and price every entry in models as an LLM, keyed by name alone, so models
+    # must hold only LLMs. Removing non_llm_models must leave exactly the LLMs.
+    assert all("type" not in model for model in manifest["models"])
+    without_types = {key: value for key, value in manifest.items() if key != "non_llm_models"}
+    parsed_without_types = parse_manifest(json.dumps(without_types))
+    parsed = parse_manifest(MANIFEST_PATH.read_bytes())
+    assert parsed_without_types.models == [model for model in parsed.models if model.type == "LLM"]
+
+
+def test_decision_entries_carry_expected_rates_and_tiers(manifest: dict[str, Any]) -> None:
+    decisions = {
+        model["name"]: model for model in manifest["non_llm_models"] if model["type"] == "DECISION"
+    }
+
+    luna = decisions["gpt-6-luna"]
+    assert luna.get("provider") is None
+    luna_prices = {price["token_type"]: price for price in luna["token_prices"]}
+    assert set(luna_prices) == {"input", "output", "cache_read", "cache_write"}
+    assert luna_prices["output"]["base_rate"] == 0.0
+    assert luna_prices["output"].get("customization") is None
+    for token_type, base_rate, elevated_rate in (
+        ("input", 1e-7, 2e-7),
+        ("cache_read", 1e-8, 2e-8),
+        ("cache_write", 1.25e-7, 2.5e-7),
+    ):
+        assert luna_prices[token_type]["base_rate"] == pytest.approx(base_rate, rel=1e-9)
+        assert luna_prices[token_type]["customization"] == {
+            "type": "threshold_based",
+            "key": "decision.token_count.input",
+            "threshold": 272_000.0,
+            "new_rate": pytest.approx(elevated_rate, rel=1e-9),
+        }
+
+    for jev_name in (
+        "typesafe/jev-latest",
+        "typesafe/jev-1.14.0",
+        "typesafe/jev-1.13.0",
+        "typesafe/jev-preview",
+    ):
+        jev = decisions[jev_name]
+        assert jev.get("provider") == "typesafe"
+        assert jev["token_prices"] == [
+            {
+                "base_rate": pytest.approx(4.2e-8, rel=1e-9),
+                "is_prompt": True,
+                "token_type": "input",
+            },
+            {"base_rate": 0.0, "is_prompt": False, "token_type": "output"},
+        ]
+
+
+@pytest.mark.parametrize(
+    "span_model_name, span_provider, expected_decision_entry, expected_llm_entry",
+    [
+        ("gpt-6-luna", None, "gpt-6-luna", "gpt-6-luna"),
+        ("us.openai.gpt-6-luna", None, "gpt-6-luna", "us.openai.gpt-6-luna"),
+        ("jev-latest", "typesafe", "typesafe/jev-latest", None),
+        ("jev-latest", None, "typesafe/jev-latest", None),
+        ("jev-1.13.0", "typesafe", "typesafe/jev-1.13.0", None),
+        ("gemini-decision-1", None, "gemini/gemini-decision-1", None),
+    ],
+)
+def test_decision_span_model_names_resolve_apart_from_llm_entries(
+    built_in_lookup: CostModelLookup,
+    span_model_name: str,
+    span_provider: str | None,
+    expected_decision_entry: str,
+    expected_llm_entry: str | None,
+) -> None:
+    now = datetime.now(timezone.utc)
+    decision_attrs: dict[str, Any] = {
+        "openinference": {"span": {"kind": "DECISION"}},
+        "decision": {"model_name": span_model_name},
+    }
+    if span_provider is not None:
+        decision_attrs["decision"]["provider"] = span_provider
+    decision_model = built_in_lookup.find_model(start_time=now, attributes=decision_attrs)
+    assert decision_model is not None
+    assert (decision_model.name, decision_model.type) == (expected_decision_entry, "DECISION")
+
+    llm_model = built_in_lookup.find_model(
+        start_time=now,
+        attributes={"llm": {"model_name": span_model_name}},
+    )
+    if expected_llm_entry is None:
+        assert llm_model is None
+    else:
+        assert llm_model is not None
+        assert (llm_model.name, llm_model.type) == (expected_llm_entry, "LLM")
+
+
+def test_bundled_manifest_is_the_one_servers_fetch() -> None:
+    # Servers fetch the bundled file from GitHub, and the sync script writes it, so the URL
+    # must point at it. Compared within the package, since CI tests an installed copy of it.
+    package_path = BUNDLED_MANIFEST_PATH.relative_to(Path(phoenix.__file__).parent)
+    assert package_path == MANIFEST_PATH.relative_to(MANIFEST_PATH.parents[3])
+    repo_root = MANIFEST_PATH.parents[5]
+    assert DEFAULT_MANIFEST_URL.endswith("/main/" + MANIFEST_PATH.relative_to(repo_root).as_posix())
+
+
+def test_models_are_not_changed_without_bumping_generated_at(manifest: dict[str, Any]) -> None:
+    models = [*manifest["models"], *manifest.get("non_llm_models", [])]
+    assert manifest.get("models_sha256") == compute_models_sha256(models), (
+        "The manifest's models changed without generated_at. Servers would skip the change, "
+        "since they apply only a newer manifest. Run "
+        "`uv run python scripts/cost_tracking/sync_models.py --bump-generated-at`."
+    )

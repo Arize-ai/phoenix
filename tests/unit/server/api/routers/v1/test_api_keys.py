@@ -1,4 +1,4 @@
-import httpx
+import httpx2
 import pytest
 from strawberry.relay import GlobalID
 
@@ -23,7 +23,7 @@ _API_KEY_ROUTES = [
 async def test_api_keys_are_forbidden_when_auth_is_disabled(
     method: str,
     url: str,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
 ) -> None:
     response = await httpx_client.request(
         method, url, json={"data": {"name": "should-not-be-created"}}

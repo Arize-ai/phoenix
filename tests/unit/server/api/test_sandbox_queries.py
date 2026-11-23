@@ -7,11 +7,15 @@ from sqlalchemy import func, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.server.api.mutations.sandbox_config_mutations import (
+    DEFAULT_SANDBOX_TIMEOUT_SECONDS,
+)
 from phoenix.server.sandbox import (
     _SANDBOX_ADAPTERS,
     SANDBOX_ADAPTER_METADATA,
     AdapterMetadata,
 )
+from phoenix.server.sandbox.sync import default_sandbox_config_name
 from phoenix.server.sandbox.types import (
     NoDeployment,
     SandboxAdapter,
@@ -60,7 +64,14 @@ async def test_sandbox_providers_returns_nested_configs(
 ) -> None:
     async with db() as session:
         provider = await session.get(models.SandboxProvider, sandbox_config.backend_type)
-    assert provider is not None
+        assert provider is not None
+        seeded_default = await session.scalar(
+            select(models.SandboxConfig).where(
+                models.SandboxConfig.name
+                == default_sandbox_config_name(provider.backend_type, "PYTHON")
+            )
+        )
+    assert seeded_default is not None, "app startup seeds a default config for WASM"
 
     query = """
       query {
@@ -108,6 +119,19 @@ async def test_sandbox_providers_returns_nested_configs(
     assert provider_result["enabled"] is True
     assert provider_result["configs"] == [
         {
+            "id": str(GlobalID("SandboxConfig", str(seeded_default.id))),
+            "name": str(seeded_default.name),
+            "description": f"Default {SANDBOX_ADAPTER_METADATA['WASM'].display_name} (Python)",
+            "language": "PYTHON",
+            "timeout": DEFAULT_SANDBOX_TIMEOUT_SECONDS,
+            "enabled": True,
+            "config": {
+                "envVars": [],
+                "internetAccess": None,
+                "dependencies": None,
+            },
+        },
+        {
             "id": str(GlobalID("SandboxConfig", str(sandbox_config.id))),
             "name": sandbox_config.name.root,
             "description": sandbox_config.description,
@@ -119,7 +143,7 @@ async def test_sandbox_providers_returns_nested_configs(
                 "internetAccess": None,
                 "dependencies": None,
             },
-        }
+        },
     ]
 
 

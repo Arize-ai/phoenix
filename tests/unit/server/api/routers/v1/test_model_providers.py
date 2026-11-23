@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import httpx
+import httpx2
 from fastapi import FastAPI
 
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
@@ -9,7 +9,7 @@ from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REG
 class TestModelProviders:
     async def test_get_model_providers_returns_every_builtin_family(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         app: FastAPI,
     ) -> None:
         """
@@ -53,7 +53,7 @@ class TestModelProviders:
 
     async def test_get_model_providers_honors_allow_list(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         app: FastAPI,
     ) -> None:
         """
@@ -81,7 +81,7 @@ class TestModelProviders:
 
     async def test_get_model_providers_never_returns_custom_provider_fields(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         """
         Test that custom providers are not reachable through this endpoint.

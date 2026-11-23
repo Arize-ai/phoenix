@@ -5,9 +5,6 @@ from typing import Any, Optional
 _BACKWARD_COMPATIBILITY_REPLACEMENTS: dict[str, str] = {
     "context.span_id": "span_id",
     "context.trace_id": "trace_id",
-    "cumulative_token_count.completion": "cumulative_llm_token_count_completion",
-    "cumulative_token_count.prompt": "cumulative_llm_token_count_prompt",
-    "cumulative_token_count.total": "cumulative_llm_token_count_total",
 }
 
 _ALIASES: dict[str, str] = {
@@ -77,7 +74,7 @@ class Explosion:
     """Represents an explosion operation in a span query."""
 
     key: str = dataclass_field(default="")
-    kwargs: dict[str, str] = dataclass_field(default_factory=dict)
+    kwargs: dict[str, str] = dataclass_field(default_factory=dict[str, str])
     primary_index_key: str = dataclass_field(default="context.span_id")
 
     def __post_init__(self) -> None:
@@ -105,7 +102,7 @@ class Concatenation:
     """Represents a concatenation operation in a span query."""
 
     key: str = dataclass_field(default="")
-    kwargs: dict[str, str] = dataclass_field(default_factory=dict)
+    kwargs: dict[str, str] = dataclass_field(default_factory=dict[str, str])
     separator: str = dataclass_field(default="\n\n")
 
     def __post_init__(self) -> None:

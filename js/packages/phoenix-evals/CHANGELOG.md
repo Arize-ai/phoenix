@@ -1,5 +1,23 @@
 # @arizeai/phoenix-evals
 
+## 2.8.1
+
+### Patch Changes
+
+- 02ed180: Remove Slack community links from the package README
+
+## 2.8.0
+
+### Minor Changes
+
+- d03cfdc: Support the Gemini Decisions API (`gemini-decision-1`) in classification evaluators. Pass `google.decisionModel("gemini-decision-1")` as the `model` to `createClassificationEvaluator` or any built-in. Requires `@ai-sdk/google` >= 4.0.118.
+
+## 2.7.1
+
+### Patch Changes
+
+- 0128562: fix(phoenix-evals): keep `metadata` returned by custom evaluator functions wrapped with `createEvaluator`
+
 ## 2.7.0
 
 ### Minor Changes

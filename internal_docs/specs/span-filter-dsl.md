@@ -173,8 +173,7 @@ Names resolve to typed span columns:
 **String** — `span_id`, `trace_id`, `parent_id`, `span_kind`, `name`,
 `status_code`, `status_message`, `context.span_id`, `context.trace_id`
 
-**Number** — `latency_ms`, `cumulative_llm_token_count_prompt`,
-`cumulative_llm_token_count_completion`, `cumulative_llm_token_count_total`
+**Number** — `latency_ms`
 
 **Datetime** — `start_time`, `end_time`
 
@@ -248,11 +247,10 @@ cost-per-token scalar. Use these expressions instead:
 | Cost per token, this span | `sum(d.cost for d in cost_details) / sum(d.tokens for d in cost_details)` |
 | Cost per token, one token type | `any(d.cost_per_token > 0.0001 for d in cost_details)` |
 | Tokens, this span alone | `attributes['llm']['token_count']['total']` |
-| Tokens, this span and descendants | `cumulative_llm_token_count_total` |
 
 The ratio denominator is wrapped in `nullif`, so missing or zero tokens produce
-NULL instead of a division error or a rate of `0`. The token expressions read
-span attributes; `cumulative_llm_token_count_total` includes descendants.
+NULL instead of a division error or a rate of `0`. The token expression reads
+span attributes.
 
 ### Backward-compatibility aliases
 
@@ -262,9 +260,6 @@ Rewritten before translation:
 |---|---|
 | `context.span_id` | `span_id` |
 | `context.trace_id` | `trace_id` |
-| `cumulative_token_count.prompt` | `cumulative_llm_token_count_prompt` |
-| `cumulative_token_count.completion` | `cumulative_llm_token_count_completion` |
-| `cumulative_token_count.total` | `cumulative_llm_token_count_total` |
 
 These are load-bearing for stored conditions. Removing one silently breaks every
 persisted expression that uses it.

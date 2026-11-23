@@ -31,6 +31,7 @@ import (
 	"strings"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -66,8 +67,13 @@ func initTracer(ctx context.Context) (*sdktrace.TracerProvider, error) {
 	if err != nil {
 		return nil, err
 	}
+	projectName := os.Getenv("PHOENIX_PROJECT_NAME")
+	if projectName == "" {
+		projectName = "openai-go-app"
+	}
 	res, _ := resource.New(ctx, resource.WithAttributes(
-		semconv.ServiceName("openai-go-app"),
+		semconv.ServiceName(projectName),
+		attribute.String("openinference.project.name", projectName),
 	))
 	tp := sdktrace.NewTracerProvider(
 		sdktrace.WithBatcher(exporter),
@@ -88,6 +94,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/openai/openai-go"
@@ -101,23 +108,33 @@ import (
 
 func main() {
 	ctx := context.Background()
-	tp, _ := initTracer(ctx)
+	projectName := os.Getenv("PHOENIX_PROJECT_NAME")
+	if projectName == "" {
+		projectName = "openai-go-app"
+	}
+	tp, err := initTracer(ctx)
+	if err != nil {
+		log.Fatalf("initialize tracer: %v", err)
+	}
 	defer tp.Shutdown(ctx)
 
 	client := openai.NewClient(
 		option.WithAPIKey(os.Getenv("OPENAI_API_KEY")),
-		option.WithMiddleware(openaiotel.Middleware(otel.Tracer("openai-go-app"))),
+		option.WithMiddleware(openaiotel.Middleware(otel.Tracer(projectName))),
 	)
 
 	ctx = instrumentation.WithSession(ctx, "session-abc")
 	ctx = instrumentation.WithUser(ctx, "user-xyz")
 
-	resp, _ := client.Chat.Completions.New(ctx, openai.ChatCompletionNewParams{
+	resp, err := client.Chat.Completions.New(ctx, openai.ChatCompletionNewParams{
 		Model: shared.ChatModelGPT4o,
 		Messages: []openai.ChatCompletionMessageParamUnion{
 			openai.UserMessage("Write a haiku."),
 		},
 	})
+	if err != nil {
+		log.Fatalf("openai completion: %v", err)
+	}
 	fmt.Println(resp.Choices[0].Message.Content)
 }
 ```
@@ -226,7 +243,7 @@ Each call shows up in Phoenix as a **[DECISION span](/docs/phoenix/tracing/conce
 - `decision.request.model_name`, `decision.response.model_name`, and `decision.model_name`
 - `decision.token_count.input` and `decision.token_count.output`, from the response's `usage`
 
-Phoenix names the decision model in the span's input card. The model and its usage are recorded under `decision.*` rather than `llm.*`, so decision-model calls stay out of Phoenix's LLM token and cost reporting. A non-2xx response sets the span status to `Error` and records only the request attributes. The Decisions API has no streaming mode.
+Phoenix names the decision model in the span's input card. The model and its usage are recorded under `decision.*` rather than `llm.*`, so decision-model calls stay out of Phoenix's LLM span token counts. Their tokens and cost appear in cost summaries, priced against decision-model prices (see [Cost Tracking](/docs/phoenix/tracing/how-to-tracing/cost-tracking#decision-spans)). A non-2xx response sets the span status to `Error` and records only the request attributes. The Decisions API has no streaming mode.
 
 The questions and answers live only in `input.value` and `output.value`, so `OPENINFERENCE_HIDE_INPUTS=true` and `OPENINFERENCE_HIDE_OUTPUTS=true` redact them completely. `OPENINFERENCE_HIDE_INPUT_IMAGES=true` replaces the `image_url` of each inline input image with `__REDACTED__`.
 

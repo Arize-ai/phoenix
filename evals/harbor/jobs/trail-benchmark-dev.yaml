@@ -25,7 +25,7 @@ agents:
     env:
       NO_COLOR: "1"
     skills:
-      - .agents/skills/phoenix-cli
+      - skills/phoenix-cli
   - name: codex-mcp
     import_path: evals.harbor.agents.coding_agents:CodexMcpAgent
     model_name: openai/gpt-5.6
@@ -43,7 +43,7 @@ agents:
     env:
       NO_COLOR: "1"
     skills:
-      - .agents/skills/phoenix-cli
+      - skills/phoenix-cli
   - name: phoenix-chat-agent
     import_path: evals.harbor.agents.phoenix_chat_agent:PhoenixChatAgent
     model_name: anthropic/claude-opus-5

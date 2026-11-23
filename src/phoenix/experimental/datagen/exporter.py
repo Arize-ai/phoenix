@@ -7,7 +7,7 @@ from types import TracebackType
 from typing import Mapping
 from urllib.parse import urlsplit, urlunsplit
 
-import httpx
+import httpx2
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
 )
@@ -31,7 +31,7 @@ class OTLPHTTPExporter:
         if api_key and not any(key.lower() == "authorization" for key in request_headers):
             request_headers["Authorization"] = f"Bearer {api_key}"
         self._endpoint = _trace_endpoint(endpoint)
-        self._client = httpx.Client(headers=request_headers, timeout=timeout)
+        self._client = httpx2.Client(headers=request_headers, timeout=timeout)
 
     def export(self, request: ExportTraceServiceRequest) -> bool:
         """Export one protobuf trace request, returning whether it was delivered."""
@@ -39,7 +39,7 @@ class OTLPHTTPExporter:
         try:
             response = self._client.post(self._endpoint, content=content)
             response.raise_for_status()
-        except httpx.HTTPError as error:
+        except httpx2.HTTPError as error:
             logger.warning("OTLP export failed: %s", str(error).replace("\n", " "))
             return False
         return True

@@ -31,7 +31,7 @@ class ExperimentEvaluationResult(V1RoutesBaseModel):
 class UpsertExperimentEvaluationRequestBody(V1RoutesBaseModel):
     experiment_run_id: str = Field(description="The ID of the experiment run being evaluated")
     name: str = Field(description="The name of the evaluation")
-    annotator_kind: Literal["LLM", "CODE", "HUMAN"] = Field(
+    annotator_kind: Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"] = Field(
         description="The kind of annotator used for the evaluation"
     )
     start_time: IsoDatetime = Field(description="The start time of the evaluation in ISO format")

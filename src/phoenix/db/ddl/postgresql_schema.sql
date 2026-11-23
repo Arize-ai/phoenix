@@ -20,6 +20,16 @@ CREATE TABLE public.annotation_configs (
 );
 
 
+-- Table: deployment_secret
+-- ------------------------
+CREATE TABLE public.deployment_secret (
+    id serial NOT NULL,
+    seed BYTEA NOT NULL,
+    CONSTRAINT pk_deployment_secret PRIMARY KEY (id),
+    CONSTRAINT "ck_deployment_secret_`singleton`" CHECK ((id = 1))
+);
+
+
 -- Table: generative_models
 -- ------------------------
 CREATE TABLE public.generative_models (
@@ -32,13 +42,20 @@ CREATE TABLE public.generative_models (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     deleted_at TIMESTAMP WITH TIME ZONE,
-    CONSTRAINT pk_generative_models PRIMARY KEY (id)
+    type VARCHAR NOT NULL DEFAULT 'LLM'::character varying,
+    CONSTRAINT pk_generative_models PRIMARY KEY (id),
+    CONSTRAINT "ck_generative_models_`valid_type`"
+        CHECK (((type)::text = ANY ((ARRAY[
+            'LLM'::character varying,
+            'DECISION'::character varying,
+            'EMBEDDING'::character varying
+        ])::text[])))
 );
 
 CREATE UNIQUE INDEX ix_generative_models_match_criteria ON public.generative_models
-    USING btree (name_pattern, provider, is_built_in) WHERE (deleted_at IS NULL);
+    USING btree (type, name_pattern, provider, is_built_in) WHERE (deleted_at IS NULL);
 CREATE UNIQUE INDEX ix_generative_models_name_is_built_in ON public.generative_models
-    USING btree (name, is_built_in) WHERE (deleted_at IS NULL);
+    USING btree (name, is_built_in, type) WHERE (deleted_at IS NULL);
 CREATE INDEX ix_generative_models_updated_at ON public.generative_models
     USING btree (updated_at);
 
@@ -216,6 +233,15 @@ CREATE INDEX ix_prompts_prompt_labels_prompt_id ON public.prompts_prompt_labels
     USING btree (prompt_id);
 
 
+-- Table: system_state
+-- -------------------
+CREATE TABLE public.system_state (
+    key VARCHAR NOT NULL,
+    value JSONB NOT NULL,
+    CONSTRAINT pk_system_state PRIMARY KEY (key)
+);
+
+
 -- Table: token_prices
 -- -------------------
 CREATE TABLE public.token_prices (
@@ -298,8 +324,6 @@ CREATE TABLE public.spans (
         ON DELETE CASCADE
 );
 
-CREATE INDEX ix_cumulative_llm_token_count_total ON public.spans
-    USING btree (((cumulative_llm_token_count_prompt + cumulative_llm_token_count_completion)));
 CREATE INDEX ix_spans_parent_id ON public.spans
     USING btree (parent_id);
 CREATE INDEX ix_spans_session_id ON public.spans
@@ -437,13 +461,14 @@ CREATE UNIQUE INDEX ix_users_username ON public.users
 -- ---------------
 CREATE TABLE public.api_keys (
     id serial NOT NULL,
-    user_id INTEGER,
+    user_id INTEGER NOT NULL,
     name VARCHAR NOT NULL,
     description VARCHAR,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     expires_at TIMESTAMP WITH TIME ZONE,
     scopes JSONB,
     audience JSONB,
+    token_hash BYTEA,
     CONSTRAINT pk_api_keys PRIMARY KEY (id),
     CONSTRAINT fk_api_keys_user_id_users
         FOREIGN KEY (user_id)
@@ -677,7 +702,9 @@ CREATE TABLE public.document_annotations (
         CHECK (((annotator_kind)::text = ANY ((ARRAY[
             'LLM'::character varying,
             'CODE'::character varying,
-            'HUMAN'::character varying
+            'HUMAN'::character varying,
+            'DECISION'::character varying,
+            'AGENT'::character varying
         ])::text[]))),
     CONSTRAINT "ck_document_annotations_`valid_source`"
         CHECK (((source)::text = ANY ((ARRAY[
@@ -1008,7 +1035,9 @@ CREATE TABLE public.experiment_run_annotations (
         CHECK (((annotator_kind)::text = ANY ((ARRAY[
             'LLM'::character varying,
             'CODE'::character varying,
-            'HUMAN'::character varying
+            'HUMAN'::character varying,
+            'DECISION'::character varying,
+            'AGENT'::character varying
         ])::text[]))),
     CONSTRAINT fk_experiment_run_annotations_experiment_run_id_experiment_runs
         FOREIGN KEY (experiment_run_id)
@@ -1288,9 +1317,10 @@ CREATE INDEX ix_oauth2_grants_user_id ON public.oauth2_grants
 -- ----------------------------
 CREATE TABLE public.password_reset_tokens (
     id serial NOT NULL,
-    user_id INTEGER,
+    user_id INTEGER NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    token_hash BYTEA,
     CONSTRAINT pk_password_reset_tokens PRIMARY KEY (id),
     CONSTRAINT fk_password_reset_tokens_user_id_users
         FOREIGN KEY (user_id)
@@ -1327,7 +1357,9 @@ CREATE TABLE public.project_session_annotations (
         CHECK (((annotator_kind)::text = ANY ((ARRAY[
             'LLM'::character varying,
             'CODE'::character varying,
-            'HUMAN'::character varying
+            'HUMAN'::character varying,
+            'DECISION'::character varying,
+            'AGENT'::character varying
         ])::text[]))),
     CONSTRAINT "ck_project_session_annotations_`valid_source`"
         CHECK (((source)::text = ANY ((ARRAY[
@@ -1519,6 +1551,7 @@ CREATE TABLE public.refresh_tokens (
     scopes JSONB,
     audience JSONB,
     consumed_at TIMESTAMP WITH TIME ZONE,
+    token_hash BYTEA,
     CONSTRAINT pk_refresh_tokens PRIMARY KEY (id),
     CONSTRAINT fk_refresh_tokens_oauth2_grant_id_oauth2_grants
         FOREIGN KEY (oauth2_grant_id)
@@ -1548,6 +1581,7 @@ CREATE TABLE public.access_tokens (
     refresh_token_id INTEGER NOT NULL,
     scopes JSONB,
     audience JSONB,
+    token_hash BYTEA,
     CONSTRAINT pk_access_tokens PRIMARY KEY (id),
     CONSTRAINT fk_access_tokens_refresh_token_id_refresh_tokens
         FOREIGN KEY (refresh_token_id)
@@ -1724,7 +1758,9 @@ CREATE TABLE public.span_annotations (
         CHECK (((annotator_kind)::text = ANY ((ARRAY[
             'LLM'::character varying,
             'CODE'::character varying,
-            'HUMAN'::character varying
+            'HUMAN'::character varying,
+            'DECISION'::character varying,
+            'AGENT'::character varying
         ])::text[]))),
     CONSTRAINT "ck_span_annotations_`valid_source`"
         CHECK (((source)::text = ANY ((ARRAY[
@@ -1788,7 +1824,9 @@ CREATE TABLE public.trace_annotations (
         CHECK (((annotator_kind)::text = ANY ((ARRAY[
             'LLM'::character varying,
             'CODE'::character varying,
-            'HUMAN'::character varying
+            'HUMAN'::character varying,
+            'DECISION'::character varying,
+            'AGENT'::character varying
         ])::text[]))),
     CONSTRAINT "ck_trace_annotations_`valid_source`"
         CHECK (((source)::text = ANY ((ARRAY[

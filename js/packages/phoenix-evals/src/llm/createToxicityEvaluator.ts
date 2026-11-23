@@ -39,7 +39,7 @@ export type ToxicityEvaluationRecord = {
  *
  * @example
  * ```ts
- * const evaluator = createToxicityEvaluator({ model: openai("gpt-4o-mini") });
+ * const evaluator = createToxicityEvaluator({ model: openai.decisionModel("gpt-6-luna") });
  * const result = await evaluator.evaluate({
  *   text: "You are a worthless idiot and everyone despises you.",
  * });

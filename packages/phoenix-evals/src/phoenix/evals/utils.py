@@ -448,15 +448,18 @@ def to_annotation_dataframe(
     """
 
     # Step 1: Identify all span_id sources
-    span_id_cols = [col for col in dataframe.columns if "span_id" in col.lower()]
-    index_is_span_id = dataframe.index.name and "span_id" in dataframe.index.name.lower()
+    span_id_cols = [
+        col for col in dataframe.columns if isinstance(col, str) and "span_id" in col.lower()
+    ]
+    index_name = dataframe.index.name if isinstance(dataframe.index.name, str) else None
+    index_is_span_id = bool(index_name and "span_id" in index_name.lower())
 
     # Step 2: Create a working copy and preserve all span info
     working_df = dataframe.copy()
 
     if index_is_span_id:
         # Add index as a span_id column if it isn't already a column
-        index_col_name = dataframe.index.name or "span_id"
+        index_col_name = index_name or "span_id"
         if index_col_name not in working_df.columns:
             working_df[index_col_name] = working_df.index
             span_id_cols.append(index_col_name)

@@ -16,15 +16,16 @@ Phoenix provides auto-instrumentation, allowing you to track and visualize every
 ## Install
 
 ```bash
-pip install openinference-instrumentation-smolagents smolagents
+pip install openinference-instrumentation-smolagents \
+  openinference-instrumentation-openai smolagents openai
 ```
 
 ## Setup
 
-Add your `HF_TOKEN` as an environment variable:
+Add your OpenAI API key as an environment variable:
 
-```javascript
-os.environ["HF_TOKEN"] = "<your_hf_token_value>"
+```bash
+export OPENAI_API_KEY=[your_key_here]
 ```
 
 <RegisterTracerPython projectName="my-llm-app" />
@@ -34,23 +35,11 @@ os.environ["HF_TOKEN"] = "<your_hf_token_value>"
 Create your Hugging Face Model, and at every run, traces will be sent to Phoenix.
 
 ```python
-from smolagents import (
-    CodeAgent,
-    InferenceClientModel,
-    ToolCallingAgent,
-    VisitWebpageTool,
-    WebSearchTool,
-)
+from smolagents import CodeAgent, OpenAIServerModel
 
-model = InferenceClientModel()
-
-managed_agent = ToolCallingAgent(
-    tools=[WebSearchTool(), VisitWebpageTool()],
-    model=model,
-    name="managed_agent",
-    description="This is an agent that can do web search.",
-)
-managed_agent.run("Based on the latest news, what is happening in extraterrestrial life?")
+model = OpenAIServerModel(model_id="gpt-4o-mini")
+agent = CodeAgent(tools=[], model=model)
+print(agent.run("Why is the ocean salty? Answer in two sentences."))
 ```
 
 ## Observe

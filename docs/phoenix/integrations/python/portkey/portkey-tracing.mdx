@@ -10,7 +10,7 @@ Phoenix provides seamless integration with [Portkey](https://portkey.ai/), the A
 ## Install
 
 ```bash
-pip install openinference-instrumentation-portkey portkey-ai
+pip install openinference-instrumentation-portkey openinference-instrumentation-openai portkey-ai openai
 ```
 
 ## Setup
@@ -29,8 +29,8 @@ from openai import OpenAI
 from portkey_ai import PORTKEY_GATEWAY_URL, createHeaders
 
 # Set up your API keys
-os.environ["OPENAI_API_KEY"] = "your-openai-api-key"
-os.environ["PORTKEY_API_KEY"] = "your-portkey-api-key"  # Optional for self-hosted
+os.environ.setdefault("OPENAI_API_KEY", "your-openai-api-key")
+os.environ.setdefault("PORTKEY_API_KEY", "your-portkey-api-key")
 
 client = OpenAI(
     api_key=os.environ.get("OPENAI_API_KEY"),

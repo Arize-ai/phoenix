@@ -125,7 +125,7 @@ function SpanAnnotationsCardContents({ spanNodeId }: { spanNodeId: string }) {
       {...defaultCardProps}
       {...cardProps}
       title="Annotations"
-      titleExtra={<Counter variant="quiet">{annotationCount}</Counter>}
+      titleExtra={<Counter variant="quiet" count={annotationCount} />}
       // the summary tokens are clickable, so the collapse toggle is a
       // standalone arrow rather than a button wrapping the whole header
       interactiveTitle

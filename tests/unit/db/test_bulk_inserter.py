@@ -1,4 +1,6 @@
 import asyncio
+import logging
+import re
 from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
 from dataclasses import replace
@@ -8,7 +10,9 @@ from queue import SimpleQueue
 from typing import Any, NamedTuple, cast
 from unittest.mock import AsyncMock, MagicMock
 
+import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 import pytest
+from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
 from sqlalchemy import NullPool, delete, func, select, text
 from sqlalchemy.exc import DBAPIError, StatementError
 from sqlalchemy.ext.asyncio import AsyncSession, AsyncSessionTransaction, create_async_engine
@@ -19,8 +23,11 @@ from phoenix.db.engines import aio_sqlite_engine, get_async_db_url
 from phoenix.db.insertion.helpers import get_sqlstate
 from phoenix.db.insertion.span import SpanInsertionEvent, insert_span
 from phoenix.server.app import _db
+from phoenix.server.cost_tracking.span_cost_calculator import SpanCostCalculator
+from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
 from phoenix.server.types import DbSessionFactory
+from phoenix.trace.otel import decode_otlp_span
 from phoenix.trace.schemas import Span, SpanContext, SpanEvent, SpanKind, SpanStatusCode
 from tests.unit._helpers import _peek_first_row, _selects_from
 
@@ -397,6 +404,11 @@ async def test_connection_acquisition_failure_holds_batch_past_retry_limit(
             assert inserter.is_full and inserter._span_retry_attempts == attempt
             assert inserter._span_limited_retries == 0
         assert len(set(map(id, sessions))) == outage_attempts
+        connect_records = [
+            record for record in caplog.records if record.name == bulk_inserter.__name__
+        ]
+        assert len(connect_records) == outage_attempts
+        assert all(record.levelno == logging.WARNING for record in connect_records)
         assert "phase=connect" in caplog.text
         assert "Span insertion failed after savepoint rollback" not in caplog.text
         await inserter._insert_spans(2)
@@ -511,13 +523,14 @@ async def test_retry_whole_transaction_after_rollback(
         _span("child-2", parent_id="root"),
         max_spans_queue_size=2,
     )
-    await inserter._insert_spans(2)
+    with caplog.at_level(logging.DEBUG, logger=bulk_inserter.__name__):
+        await inserter._insert_spans(2)
+    retry_records = [record for record in caplog.records if record.name == bulk_inserter.__name__]
+    assert [record.levelno for record in retry_records] == [logging.DEBUG]
+    assert "retry 1/5" in retry_records[0].getMessage()
+    assert f"sqlstate={sqlstate}" in retry_records[0].getMessage()
     assert secret not in caplog.text
-    assert all(
-        record.exc_info is None
-        for record in caplog.records
-        if record.name == bulk_inserter.__name__
-    )
+    assert all(record.exc_info is None for record in retry_records)
     assert len(inserter._span_batch) == 2
     assert inserter.is_full
     assert cast(SimpleQueue[DmlEvent], inserter._event_queue).empty()
@@ -662,6 +675,75 @@ async def test_rejected_cost_keeps_its_span_and_sibling_costs(
         )
         assert set(details) == {(saved["first"].id, 7), (saved["last"].id, 7)}
     assert not cast(SimpleQueue[DmlEvent], inserter._event_queue).empty()
+
+
+def _otlp_embedding_span(model_name: str, *, span_id: bytes) -> otlp.Span:
+    """The token counts of the embedding spec's example, which sets no provider."""
+    attributes = [
+        KeyValue(key=key, value=value)
+        for key, value in (
+            ("openinference.span.kind", AnyValue(string_value="EMBEDDING")),
+            ("embedding.model_name", AnyValue(string_value=model_name)),
+            ("llm.token_count.prompt", AnyValue(int_value=2)),
+            ("llm.token_count.total", AnyValue(int_value=2)),
+        )
+    ]
+    start = int(_START.timestamp() * 1e9)
+    return otlp.Span(
+        trace_id=bytes(range(1, 17)),
+        span_id=span_id,
+        name=model_name,
+        start_time_unix_nano=start,
+        end_time_unix_nano=start + 200_000_000,
+        attributes=attributes,
+    )
+
+
+async def test_embedding_span_from_otlp_gets_a_cost_row(db: DbSessionFactory) -> None:
+    # An LLM row with the same pattern must not price the embedding span, and an embedding span
+    # with no EMBEDDING row still gets a row with its tokens and NULL costs.
+    rows = {
+        model_type: models.GenerativeModel(
+            name=f"text-embedding-3-small-{model_type.lower()}",
+            provider="openai",
+            name_pattern=re.compile("text-embedding-3-small"),
+            is_built_in=True,
+            type=model_type,
+            token_prices=[models.TokenPrice(token_type="input", is_prompt=True, base_rate=rate)],
+        )
+        for model_type, rate in (("LLM", 1e-6), ("EMBEDDING", 2e-8))
+    }
+    async with db() as session:
+        session.add_all(rows.values())
+    store = GenerativeModelStore(db=db)
+    await store._fetch_models()
+    inserter = _inserter(
+        db,
+        decode_otlp_span(
+            _otlp_embedding_span("text-embedding-3-small", span_id=bytes(range(1, 9)))
+        ),
+        decode_otlp_span(_otlp_embedding_span("nomic-embed-text", span_id=bytes(range(9, 17)))),
+    )
+    inserter._span_cost_calculator = SpanCostCalculator(model_store=store)
+    await inserter._insert_spans(2)
+    async with db() as session:
+        costs_by_name = dict(
+            (
+                await session.execute(
+                    select(models.Span.name, models.SpanCost).join(
+                        models.SpanCost, models.SpanCost.span_rowid == models.Span.id
+                    )
+                )
+            ).all()
+        )
+    assert set(costs_by_name) == {"text-embedding-3-small", "nomic-embed-text"}
+    for cost in costs_by_name.values():
+        assert (cost.prompt_tokens, cost.completion_tokens, cost.total_tokens) == (2, None, 2)
+        assert cost.completion_cost is None
+    assert costs_by_name["text-embedding-3-small"].model_id == rows["EMBEDDING"].id
+    assert costs_by_name["text-embedding-3-small"].total_cost == pytest.approx(2 * 2e-8)
+    assert costs_by_name["nomic-embed-text"].model_id is None
+    assert costs_by_name["nomic-embed-text"].total_cost is None
 
 
 @pytest.mark.parametrize("sqlstate", ["40P01", "40001", "08006"])
@@ -1151,8 +1233,8 @@ async def test_invalid_span_does_not_block_valid_neighbors(
 
 
 @pytest.mark.parametrize("existing_trace", [False, True], ids=["new-trace", "existing-trace"])
-@pytest.mark.parametrize("field", ["name", "json_value", "project_name"])
-async def test_nul_span_is_isolated_without_changing_sqlite_behavior(
+@pytest.mark.parametrize("field", ["name", "json_value", "json_key", "project_name", "session_id"])
+async def test_nul_span_is_repaired_or_isolated_without_changing_sqlite_behavior(
     db: DbSessionFactory,
     caplog: pytest.LogCaptureFixture,
     existing_trace: bool,
@@ -1180,6 +1262,10 @@ async def test_nul_span_is_isolated_without_changing_sqlite_behavior(
         invalid = replace(invalid, name=value)
     elif field == "json_value":
         attributes["input"] = value
+    elif field == "json_key":
+        attributes[value] = "value"
+    elif field == "session_id":
+        attributes["session"] = {"id": value}
     else:
         project_name = value
     invalid = replace(invalid, attributes=attributes)
@@ -1187,11 +1273,14 @@ async def test_nul_span_is_isolated_without_changing_sqlite_behavior(
     inserter._spans[1] = (invalid, project_name)
     await inserter._insert_spans(3)
 
-    rejected = db.dialect.name_literal == "postgresql" and not (
-        field == "project_name" and existing_trace
+    # On PostgreSQL, NUL in descriptive values is replaced, while a JSON key or an
+    # identifier that would be stored rejects the span. SQLite stores NUL as is.
+    postgresql = db.dialect.name_literal == "postgresql"
+    rejected = postgresql and (
+        field == "json_key" or (field in ("project_name", "session_id") and not existing_trace)
     )
     if rejected:
-        assert f"sqlstate={'22P05' if field == 'json_value' else '22021'}" in caplog.text
+        assert f"sqlstate={'22P05' if field == 'json_key' else '22021'}" in caplog.text
     assert not inserter._span_batch and not inserter._spans and not inserter.is_full
     assert inserter._span_retry_attempts == 0
     async with db() as session:
@@ -1227,7 +1316,13 @@ async def test_nul_span_is_isolated_without_changing_sqlite_behavior(
                 assert saved["root"].cumulative_llm_token_count_prompt == 0
         else:
             stored = saved["invalid"]
-            assert stored.name == invalid.name and stored.attributes == invalid.attributes
+            repaired = "contains\ufffdnul" if postgresql else value
+            assert stored.name == (repaired if field == "name" else invalid.name)
+            assert stored.attributes == {
+                **invalid.attributes,
+                **({"input": repaired} if field == "json_value" else {}),
+                **({"session": {"id": repaired}} if field == "session_id" else {}),
+            }
             trace = await session.get(models.Trace, stored.trace_rowid)
             assert trace is not None
             project = await session.get(models.Project, trace.project_rowid)
@@ -1529,6 +1624,7 @@ async def test_connection_lost_mid_batch_is_limited_and_replay_delay_is_capped(
 async def test_retry_exhaustion_releases_batch_and_capacity_and_later_work_proceeds(
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
     metrics: _Metrics,
 ) -> None:
     calls = 0
@@ -1544,9 +1640,14 @@ async def test_retry_exhaustion_releases_batch_and_capacity_and_later_work_proce
 
     monkeypatch.setattr(bulk_inserter, "insert_span", fail)
     inserter = _inserter(db, _span("span"), span_retry_allowance=1, max_spans_queue_size=1)
-    for _ in range(3):
-        await inserter._insert_spans(1)
+    with caplog.at_level(logging.DEBUG, logger=bulk_inserter.__name__):
+        for _ in range(3):
+            await inserter._insert_spans(1)
     assert calls == 2
+    records = [record for record in caplog.records if record.name == bulk_inserter.__name__]
+    assert [record.levelno for record in records] == [logging.DEBUG, logging.ERROR]
+    assert "retry 1/1" in records[0].getMessage()
+    assert "outcome=retry_exhausted" in records[1].getMessage()
     assert not inserter._span_batch and not inserter.is_full
     assert inserter._span_retry_attempts == 0 and inserter._span_retry_at == 0
     metrics.failed.labels.assert_called_once_with(reason="retry_exhausted")

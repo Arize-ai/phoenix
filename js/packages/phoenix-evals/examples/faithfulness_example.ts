@@ -4,7 +4,7 @@ import { openai } from "@ai-sdk/openai";
 /* eslint-disable no-console */
 import { createFaithfulnessEvaluator } from "../src/llm";
 
-const model = openai("gpt-4o-mini");
+const model = openai("gpt-6-luna");
 
 async function main() {
   const evaluator = createFaithfulnessEvaluator({

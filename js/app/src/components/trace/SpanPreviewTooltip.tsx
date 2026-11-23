@@ -1,15 +1,7 @@
-import { css } from "@emotion/react";
-import type { ReactNode } from "react";
-import { Suspense, useState } from "react";
-import { useLazyLoadQuery, useRelayEnvironment } from "react-relay";
-import { createOperationDescriptor, getRequest } from "relay-runtime";
-
-import { ErrorBoundary, RichTooltip, TooltipArrow } from "@phoenix/components";
-import { TextErrorBoundaryFallback } from "@phoenix/components/exception";
-import { useRetainQuery } from "@phoenix/contexts/QueryRetentionContext";
-import { useSettled } from "@phoenix/hooks";
+import { RichTooltip, TooltipArrow } from "@phoenix/components";
 
 import type { SpanMetricsDetailsQuery as SpanMetricsDetailsQueryType } from "./__generated__/SpanMetricsDetailsQuery.graphql";
+import { rowPreviewTooltipCSS, RowPreviewQuery } from "./RowPreviewQuery";
 import {
   SpanMetricsDetailsQuery,
   useSpanMetricsDetailsProps,
@@ -18,26 +10,6 @@ import type { SpanPreviewCardProps } from "./SpanPreviewCard";
 import { SpanPreviewCard } from "./SpanPreviewCard";
 import type { TokenDetailsBreakdownProps } from "./TokenDetailsBreakdown";
 import { TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH } from "./TokenDetailsBreakdown";
-
-/**
- * How long a tooltip stays open before its span's details are fetched.
- * React Aria opens each tooltip at once after the first, so without this a
- * scrub down the tree would fetch details for every row it crossed.
- */
-const DETAILS_SETTLE_MS = 150;
-
-/**
- * The preview follows the pointer from row to row, so it neither fades in
- * nor lingers: each hop shows the next span at once.
- */
-const spanPreviewTooltipCSS = css`
-  transition: none;
-  &[data-entering],
-  &[data-exiting] {
-    transform: none;
-    opacity: 1;
-  }
-`;
 
 export type SpanPreviewTooltipProps = Pick<
   SpanPreviewCardProps,
@@ -62,7 +34,7 @@ export function SpanPreviewTooltip(props: SpanPreviewTooltipProps) {
       placement="left top"
       width={TOKEN_DETAILS_BREAKDOWN_TOOLTIP_WIDTH}
       className="span-preview"
-      css={spanPreviewTooltipCSS}
+      css={rowPreviewTooltipCSS}
     >
       {/* The arrow points at the row the preview describes */}
       <TooltipArrow />
@@ -73,12 +45,6 @@ export function SpanPreviewTooltip(props: SpanPreviewTooltipProps) {
 
 const EMPTY_METRICS_DETAILS: TokenDetailsBreakdownProps = {};
 
-function getDetailsOperation(spanId: string) {
-  return createOperationDescriptor(getRequest(SpanMetricsDetailsQuery), {
-    nodeId: spanId,
-  });
-}
-
 function SpanPreviewDetails(props: SpanPreviewTooltipProps) {
   const { span } = props;
   // Annotations come with the tree, so a span without usage has nothing to load
@@ -87,50 +53,30 @@ function SpanPreviewDetails(props: SpanPreviewTooltipProps) {
       <SpanPreviewCard {...props} metricsDetails={EMPTY_METRICS_DETAILS} />
     );
   }
-  return <SpanPreviewUsageDetails {...props} />;
+  return (
+    <RowPreviewQuery<SpanMetricsDetailsQueryType>
+      query={SpanMetricsDetailsQuery}
+      variables={{ nodeId: span.id }}
+      placeholder={(metricsError) => (
+        <SpanPreviewCard {...props} metricsError={metricsError} />
+      )}
+    >
+      {(data) => (
+        <LoadedSpanPreviewCard
+          {...props}
+          node={data.node.__typename === "Span" ? data.node : null}
+        />
+      )}
+    </RowPreviewQuery>
+  );
 }
 
-function SpanPreviewUsageDetails(props: SpanPreviewTooltipProps) {
-  const environment = useRelayEnvironment();
-  // Details already in the store when the tooltip opens skip the settle, so
-  // revisited rows never pop in
-  const [wasCached] = useState(
-    () =>
-      environment.check(getDetailsOperation(props.span.id)).status ===
-      "available"
-  );
-  const placeholder = <SpanPreviewCard {...props} />;
-  const details = (
-    <ErrorBoundary fallback={TextErrorBoundaryFallback}>
-      <Suspense fallback={placeholder}>
-        <LoadedSpanPreviewCard {...props} />
-      </Suspense>
-    </ErrorBoundary>
-  );
-  if (wasCached) {
-    return details;
-  }
-  return <AfterSettle placeholder={placeholder}>{details}</AfterSettle>;
-}
-
-function AfterSettle({
-  placeholder,
-  children,
-}: {
-  placeholder: ReactNode;
-  children: ReactNode;
+function LoadedSpanPreviewCard({
+  node,
+  ...props
+}: SpanPreviewTooltipProps & {
+  node: Parameters<typeof useSpanMetricsDetailsProps>[0];
 }) {
-  const hasSettled = useSettled(DETAILS_SETTLE_MS);
-  return hasSettled ? children : placeholder;
-}
-
-function LoadedSpanPreviewCard(props: SpanPreviewTooltipProps) {
-  const data = useLazyLoadQuery<SpanMetricsDetailsQueryType>(
-    SpanMetricsDetailsQuery,
-    { nodeId: props.span.id }
-  );
-  useRetainQuery(getDetailsOperation(props.span.id));
-  const node = data.node.__typename === "Span" ? data.node : null;
   const metricsDetails = useSpanMetricsDetailsProps(node);
   return (
     <SpanPreviewCard

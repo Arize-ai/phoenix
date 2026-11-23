@@ -22,7 +22,7 @@ from phoenix.client.__generated__ import v1
 if TYPE_CHECKING:
     import pandas as pd
 
-_AnnotatorKind: TypeAlias = Literal["LLM", "CODE", "HUMAN"]
+_AnnotatorKind: TypeAlias = Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]
 _VALID_ANNOTATOR_KINDS: frozenset[_AnnotatorKind] = frozenset(get_args(_AnnotatorKind))
 _DATAFRAME_CHUNK_SIZE = 100
 
@@ -279,7 +279,7 @@ def _validate_annotations_dataframe(
     annotation_name_required: bool = False,
     annotator_kind_required: bool = False,
     id_config: _IdConfig = _SPAN_ID_CONFIG,
-    valid_annotator_kinds: frozenset[str] = frozenset(["LLM", "CODE", "HUMAN"]),
+    valid_annotator_kinds: frozenset[str] = _VALID_ANNOTATOR_KINDS,
 ) -> None:
     """Validate DataFrame structure and content for annotation processing.
 
@@ -573,9 +573,10 @@ def _chunk_annotations_dataframe(
                 else:
                     raise ValueError(f"Row {idx}: Missing required ID columns: {missing_ids}")
 
-            label = (
-                str(row.loc["label"]).strip() if "label" in row and bool(row.loc["label"]) else None
-            )
+            # Stringify before testing for emptiness: a label whose value is falsy
+            # but meaningful (e.g. the integer 0, common in labelled eval data) must
+            # still be reported, so only a blank string counts as "no label".
+            label = (str(row.loc["label"]).strip() or None) if "label" in row else None
             score = None
             if "score" in row and row.loc["score"] is not None:
                 try:
@@ -682,7 +683,7 @@ def _create_session_annotation(
     Args:
         session_id (str): The ID of the session to annotate.
         annotation_name (str): The name of the annotation.
-        annotator_kind (Literal["LLM", "CODE", "HUMAN"]): The kind of annotator used for the annotation. Must be one of "LLM", "CODE", or "HUMAN".
+        annotator_kind (Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]): The kind of annotator used for the annotation. Must be one of "LLM", "CODE", "HUMAN", "DECISION", or "AGENT".
             Defaults to "HUMAN".
         label (Optional[str]): The label assigned by the annotation.
         score (Optional[float]): The score assigned by the annotation.
@@ -739,7 +740,7 @@ def _create_trace_annotation(
     Args:
         trace_id (str): The ID of the trace to annotate.
         annotation_name (str): The name of the annotation.
-        annotator_kind (Literal["LLM", "CODE", "HUMAN"]): The kind of annotator used for the annotation. Must be one of "LLM", "CODE", or "HUMAN".
+        annotator_kind (Literal["LLM", "CODE", "HUMAN", "DECISION", "AGENT"]): The kind of annotator used for the annotation. Must be one of "LLM", "CODE", "HUMAN", "DECISION", or "AGENT".
             Defaults to "HUMAN".
         label (Optional[str]): The label assigned by the annotation.
         score (Optional[float]): The score assigned by the annotation.
