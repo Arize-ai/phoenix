@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-20T03:22:33Z",
-  "models_sha256": "abe4f625f7d988309c75c8980994c17d88594d14e849ca931ea544f6bb256027",
+  "generated_at": "2026-11-23T13:08:25Z",
+  "models_sha256": "f24ec891bd19ee7b8258a1dc611cee090ad80a57c3ba9242e3e3bc4fe0c47441",
   "models": [
     {
       "name": "anthropic.claude-3-5-haiku-20241022-v1:0",
@@ -3266,11 +3266,6 @@
           "token_type": "output"
         },
         {
-          "base_rate": 1e-6,
-          "is_prompt": true,
-          "token_type": "audio"
-        },
-        {
           "base_rate": 0.00003,
           "is_prompt": false,
           "token_type": "image"
@@ -3593,35 +3588,17 @@
         {
           "base_rate": 2e-6,
           "is_prompt": true,
-          "token_type": "input",
-          "customization": {
-            "type": "threshold_based",
-            "key": "llm.token_count.prompt",
-            "threshold": 200000.0,
-            "new_rate": 4e-6
-          }
+          "token_type": "input"
         },
         {
           "base_rate": 0.000012,
           "is_prompt": false,
-          "token_type": "output",
-          "customization": {
-            "type": "threshold_based",
-            "key": "llm.token_count.prompt",
-            "threshold": 200000.0,
-            "new_rate": 0.000018
-          }
+          "token_type": "output"
         },
         {
           "base_rate": 2e-7,
           "is_prompt": true,
-          "token_type": "cache_read",
-          "customization": {
-            "type": "threshold_based",
-            "key": "llm.token_count.prompt",
-            "threshold": 200000.0,
-            "new_rate": 4e-7
-          }
+          "token_type": "cache_read"
         },
         {
           "base_rate": 0.00012,
@@ -3638,35 +3615,17 @@
         {
           "base_rate": 2e-6,
           "is_prompt": true,
-          "token_type": "input",
-          "customization": {
-            "type": "threshold_based",
-            "key": "llm.token_count.prompt",
-            "threshold": 200000.0,
-            "new_rate": 4e-6
-          }
+          "token_type": "input"
         },
         {
           "base_rate": 0.000012,
           "is_prompt": false,
-          "token_type": "output",
-          "customization": {
-            "type": "threshold_based",
-            "key": "llm.token_count.prompt",
-            "threshold": 200000.0,
-            "new_rate": 0.000018
-          }
+          "token_type": "output"
         },
         {
           "base_rate": 2e-7,
           "is_prompt": true,
-          "token_type": "cache_read",
-          "customization": {
-            "type": "threshold_based",
-            "key": "llm.token_count.prompt",
-            "threshold": 200000.0,
-            "new_rate": 4e-7
-          }
+          "token_type": "cache_read"
         },
         {
           "base_rate": 0.00012,
@@ -7917,7 +7876,7 @@
             "type": "threshold_based",
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
-            "new_rate": 0.00003
+            "new_rate": 0.00002
           }
         },
         {
@@ -7928,7 +7887,7 @@
             "type": "threshold_based",
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
-            "new_rate": 0.0001125
+            "new_rate": 0.000075
           }
         },
         {
@@ -7939,18 +7898,18 @@
             "type": "threshold_based",
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
-            "new_rate": 3e-6
+            "new_rate": 2e-6
           }
         },
         {
-          "base_rate": 0.00001875,
+          "base_rate": 0.0000125,
           "is_prompt": true,
           "token_type": "cache_write",
           "customization": {
             "type": "threshold_based",
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
-            "new_rate": 0.0000375
+            "new_rate": 0.000025
           }
         }
       ]

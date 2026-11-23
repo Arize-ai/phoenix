@@ -1321,7 +1321,6 @@ class OllamaClient(OpenAICompatibleClient):
     model_names=[
         PROVIDER_DEFAULT,
         "qwen-3.8-27b",
-        "llama3.1-8b",
         "gpt-oss-120b",
     ],
 )
@@ -1356,17 +1355,14 @@ class GroqClient(OpenAICompatibleClient):
     provider_key=GenerativeProviderKey.MOONSHOT,
     model_names=[
         PROVIDER_DEFAULT,
+        "kimi-k3.1-pro",
+        "kimi-k3.1-pro-highspeed",
         "kimi-k3",
         "kimi-k2.7-code",
         "kimi-k2.6",
         "kimi-k2-turbo-preview",
         "kimi-k2-thinking-turbo",
         "kimi-k2-thinking",
-        "kimi-k2.5",
-        "moonshot-v1-128k",
-        "moonshot-v1-32k",
-        "moonshot-v1-8k",
-        "moonshot-v1-auto",
     ],
 )
 class MoonshotClient(OpenAICompatibleClient):
@@ -1454,6 +1450,7 @@ class MetaClient(OpenAICompatibleClient):
     provider_key=GenerativeProviderKey.AWS,
     model_names=[
         PROVIDER_DEFAULT,
+        "anthropic.claude-fable-5-2",
         "anthropic.claude-fable-5-1",
         "anthropic.claude-fable-5",
         "anthropic.claude-opus-5-5",
@@ -1469,7 +1466,6 @@ class MetaClient(OpenAICompatibleClient):
         "anthropic.claude-sonnet-4-5-20250929-v1:0",
         "anthropic.claude-haiku-4-5-20251001-v1:0",
         "anthropic.claude-opus-4-20250514-v1:0",
-        "anthropic.claude-sonnet-4-20250514-v1:0",
         "amazon.titan-embed-text-v2:0",
         "amazon.nova-pro-v1:0",
         "amazon.nova-premier-v1:0:8k",
@@ -1485,11 +1481,6 @@ class MetaClient(OpenAICompatibleClient):
         "meta.llama3-1-8b-instruct-v1:0",
         "meta.llama3-1-70b-instruct-v1:0:128k",
         "meta.llama3-1-70b-instruct-v1:0",
-        "meta.llama3-1-405b-instruct-v1:0",
-        "meta.llama3-2-11b-instruct-v1:0",
-        "meta.llama3-2-90b-instruct-v1:0",
-        "meta.llama3-2-1b-instruct-v1:0",
-        "meta.llama3-2-3b-instruct-v1:0",
         "meta.llama3-3-70b-instruct-v1:0",
         "meta.llama4-scout-17b-instruct-v1:0",
         "meta.llama4-maverick-17b-instruct-v1:0",
@@ -2024,6 +2015,7 @@ OPENAI_REASONING_MODELS = [
     provider_key=GenerativeProviderKey.OPENAI,
     model_names=[
         PROVIDER_DEFAULT,
+        "gpt-6.2-astra",
         "gpt-6.2-sol",
         "gpt-6.1-terra",
         *OPENAI_REASONING_MODELS,
