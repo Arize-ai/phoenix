@@ -857,7 +857,7 @@ dev = [
 
 [[package]]
 name = "arize-phoenix-client"
-version = "3.7.0"
+version = "3.8.0"
 source = { editable = "packages/phoenix-client" }
 dependencies = [
     { name = "certifi" },
