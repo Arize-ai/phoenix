@@ -335,24 +335,20 @@ To target a feature branch, add one standalone line to the issue description:
 Target branch: version-online-evals
 ```
 
-The issue's declaration takes precedence. Without one, dispatch follows GitHub's explicit parent relationships and uses the nearest ancestor's declaration.
-If no ancestor declares a target, dispatch reads the target repository's default branch from GitHub.
-Checklists, labels, titles, comments and prose mentions do not configure a target. Fenced examples, indented code and block quotes are ignored.
+Dispatch uses the first declaration on the issue or its GitHub parent chain, or the repository's default branch if none exists.
+Checklists, labels, titles, comments and prose mentions do not configure a target. Declarations in code blocks or block quotes are ignored.
 
 Use the exact `Target branch: <branch-name>` syntax outside code blocks.
 Branch names must start with a letter or number and contain only letters, numbers, `.`, `_`, `/` or `-`.
 They must also be valid Git branch names and exist in the target repository.
-Malformed or multiple declarations in the selected issue or ancestor fail the run, including repeated declarations with the same value.
-Dispatch stops at the nearest declaration; an issue's override does not require reading its ancestors.
-Unreadable ancestry, cycles and ancestry beyond 50 issues also fail the run. Dispatch never falls back after a configuration error.
+Dispatch stops at the nearest declaration. Malformed or duplicate declarations, unreadable ancestry, cycles and ancestry beyond 50 issues fail the run.
 
-Dispatch resolves the target after admission and before creating a coding session. `start --dry-run` also resolves and validates the target without creating a session.
-The session mounts that branch and records `target_branch` in its metadata and kickoff context.
-The lane creates its work branch from that mount, tests the unchanged target first, and gives reviewers the same comparison base.
-The resulting draft PR targets that branch. The watcher rejects a mismatched PR base before marking it ready or enabling auto-merge.
-Existing PR review and finishing sessions continue to use the PR's actual base.
+Dispatch resolves and validates the target before creating the coding session, which mounts that branch.
+The kickoff names the target for PR creation and review comparisons. The watcher rejects a mismatched PR base before advancing the PR.
+PR review and finishing sessions mount the screened PR head and compare against the PR's actual base.
+`start --dry-run` resolves and validates the target without creating a session.
 
-Run `make test-factory` to check branch resolution and session propagation. These tests stub GitHub and Managed Agents API calls.
+Run `make test-factory` to run the Factory tests. They stub GitHub and Managed Agents API calls.
 
 ## Bootstrap
 

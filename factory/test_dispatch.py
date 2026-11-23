@@ -236,9 +236,7 @@ def test_target_propagates_to_session(session_client: Mock, lane: str) -> None:
     assert request["resources"][0]["checkout"] == {"type": "branch", "name": "feature/online-evals"}
     assert request["metadata"]["target_branch"] == "feature/online-evals"
     kickoff = request["initial_events"][0]["content"][0]["text"]
-    assert '"target_branch": "feature/online-evals"' in kickoff
-    assert "acceptance tests there" in kickoff
-    assert "open the draft PR with that base" in kickoff
+    assert 'Target branch: "feature/online-evals"' in kickoff
     assert "against `main`" not in request["initial_events"][1]["rubric"]["content"]
 
 

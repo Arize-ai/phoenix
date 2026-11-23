@@ -15,7 +15,7 @@ The session ends in exactly one of two states. Grade the criteria for the state 
 9. Every area the diff touches got a review pass, shown by the reviewer's final report quoted in the transcript. Each blocking finding is fixed or, if disputed, listed in the PR body.
 10. User-visible behavior is documented under `docs/phoenix/`; changed `js/packages/` packages have a changeset.
 11. No file under `.github/`, `.cursor/`, `.claude/`, `.agents/`, `factory/` or `plugins/`, nor any `AGENTS.md` or `CLAUDE.md`, is modified.
-12. The PR targets the resolved branch in the kickoff and session metadata, and is a draft from branch `factory/issue-<number>`, with a conventional-commit `feat` title.
+12. The PR is a draft against the kickoff's target branch from branch `factory/issue-<number>`, with a conventional-commit `feat` title.
 13. The PR body's Preview seed section holds one self-contained ```python block that sends data showing the feature to the server at `PHOENIX_BASE_URL` and prints where to look, using only the standard library and the packages the server image ships, and the transcript shows it ran to exit 0 against a server on the implemented tree.
 14. The PR body starts with `resolves #<number>`, its Acceptance test section matches the acceptance test runs in the transcript, its Verified line names the commands that ran, and its Not verified line names what the sandbox couldn't run.
 15. Exactly one assessment comment on the PR follows `factory/assessment.md`, matches the PR's final state, and takes its risk ratings from the reviewers' risk lines.
@@ -25,5 +25,3 @@ The session ends in exactly one of two states. Grade the criteria for the state 
 1. Each open question is specific and lists the options with their user-facing consequences.
 2. No branch was pushed and no PR was opened.
 3. One comment on the issue carries the questions.
-
-Any before-change acceptance tests use the resolved target branch. Area reviewers compare against that same target, with no fallback to another branch.
