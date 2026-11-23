@@ -1,8 +1,16 @@
 from typing import Any, Optional
 
 import pytest
+from sqlalchemy import select
 from strawberry.relay.types import GlobalID
 
+from phoenix.db import models
+from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationValue,
+    CategoricalOutputConfig,
+    OptimizationDirection,
+)
+from phoenix.db.types.identifier import Identifier
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -1624,6 +1632,63 @@ class TestPromptMutations:
             in result.errors[0].message
         )
         assert result.data is None
+
+    DELETE_PROMPT_MUTATION = """
+      mutation DeletePromptMutation($input: DeletePromptInput!) {
+        deletePrompt(input: $input) {
+          __typename
+        }
+      }
+    """
+
+    async def test_delete_prompt_succeeds_when_unreferenced(
+        self, db: DbSessionFactory, gql_client: AsyncGraphQLClient
+    ) -> None:
+        async with db() as session:
+            prompt = models.Prompt(name=Identifier(root="unreferenced-prompt"))
+            session.add(prompt)
+        result = await gql_client.execute(
+            self.DELETE_PROMPT_MUTATION,
+            {"input": {"promptId": str(GlobalID("Prompt", str(prompt.id)))}},
+        )
+        assert not result.errors
+        async with db() as session:
+            assert await session.scalar(select(models.Prompt).filter_by(id=prompt.id)) is None
+
+    async def test_delete_prompt_fails_when_referenced_by_evaluator(
+        self, db: DbSessionFactory, gql_client: AsyncGraphQLClient
+    ) -> None:
+        async with db() as session:
+            prompt = models.Prompt(name=Identifier(root="referenced-prompt"))
+            session.add(prompt)
+            await session.flush()
+            session.add(
+                models.LLMEvaluator(
+                    name=Identifier(root="referencing-evaluator"),
+                    description=None,
+                    metadata_={},
+                    prompt_id=prompt.id,
+                    output_configs=[
+                        CategoricalOutputConfig(
+                            type="CATEGORICAL",
+                            name="result",
+                            optimization_direction=OptimizationDirection.MAXIMIZE,
+                            values=[
+                                CategoricalAnnotationValue(label="good", score=1.0),
+                                CategoricalAnnotationValue(label="bad", score=0.0),
+                            ],
+                        )
+                    ],
+                )
+            )
+        result = await gql_client.execute(
+            self.DELETE_PROMPT_MUTATION,
+            {"input": {"promptId": str(GlobalID("Prompt", str(prompt.id)))}},
+        )
+        assert len(result.errors) == 1
+        assert "referencing-evaluator" in result.errors[0].message
+        async with db() as session:
+            assert await session.scalar(select(models.Prompt).filter_by(id=prompt.id)) is not None
 
     PATCH_PROMPT_MUTATION = """
       mutation PatchPromptMutation($input: PatchPromptInput!) {

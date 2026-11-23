@@ -940,9 +940,12 @@ async def patch_prompt(
     dependencies=[Depends(is_not_locked)],
     operation_id="deletePrompt",
     summary="Delete a prompt",
-    description="Delete a prompt and all its versions, tags, and labels by identifier.",
+    description=(
+        "Delete a prompt and all its versions, tags, and labels by identifier. "
+        "A prompt referenced by an LLM evaluator is refused with 409; delete the evaluator first."
+    ),
     status_code=204,
-    responses=add_errors_to_responses([404, 422]),
+    responses=add_errors_to_responses([404, 409, 422]),
 )
 async def delete_prompt(
     request: Request,
@@ -956,11 +959,33 @@ async def delete_prompt(
     else:
         assert_never(identifier)
     async with request.app.state.db() as session:
-        prompt_id = await session.scalar(
-            delete(models.Prompt).where(where_clause).returning(models.Prompt.id)
-        )
-    if prompt_id is None:
-        raise HTTPException(status_code=404, detail="Prompt not found")
+        prompt_id = await session.scalar(select(models.Prompt.id).where(where_clause))
+        if prompt_id is None:
+            raise HTTPException(status_code=404, detail="Prompt not found")
+        evaluator_names = (
+            await session.scalars(
+                select(models.LLMEvaluator.name)
+                .where(models.LLMEvaluator.prompt_id == prompt_id)
+                .order_by(models.LLMEvaluator.name)
+            )
+        ).all()
+        if evaluator_names:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "This prompt is referenced by LLM evaluators "
+                    f"({', '.join(name.root for name in evaluator_names)}); delete them first"
+                ),
+            )
+        try:
+            async with session.begin_nested():
+                await session.execute(delete(models.Prompt).where(models.Prompt.id == prompt_id))
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+            # An evaluator was created for this prompt after the check above.
+            raise HTTPException(
+                status_code=409,
+                detail="This prompt is referenced by an LLM evaluator; delete it first",
+            )
 
 
 class _PromptId(int): ...

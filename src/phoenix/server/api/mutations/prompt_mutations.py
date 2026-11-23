@@ -162,12 +162,27 @@ class PromptMutationMixin:
             global_id=input.prompt_id, expected_type_name=Prompt.__name__
         )
         async with info.context.db() as session:
-            stmt = delete(models.Prompt).where(models.Prompt.id == prompt_id)
-            result = await session.execute(stmt)
-
-            if result.rowcount == 0:  # type: ignore[attr-defined]
+            if await session.get(models.Prompt, prompt_id) is None:
                 raise NotFound(f"Prompt with ID '{input.prompt_id}' not found")
-
+            evaluator_names = (
+                await session.scalars(
+                    select(models.LLMEvaluator.name)
+                    .where(models.LLMEvaluator.prompt_id == prompt_id)
+                    .order_by(models.LLMEvaluator.name)
+                )
+            ).all()
+            if evaluator_names:
+                raise Conflict(
+                    "This prompt is referenced by LLM evaluators "
+                    f"({', '.join(name.root for name in evaluator_names)}); delete them first"
+                )
+            try:
+                async with session.begin_nested():
+                    await session.execute(
+                        delete(models.Prompt).where(models.Prompt.id == prompt_id)
+                    )
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+                raise Conflict("This prompt is referenced by an LLM evaluator; delete it first")
             await session.commit()
         return DeletePromptMutationPayload(query=Query())
 

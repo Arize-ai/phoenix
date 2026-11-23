@@ -19,6 +19,11 @@ from strawberry.relay import GlobalID
 from typing_extensions import assert_never
 
 from phoenix.db import models
+from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationValue,
+    CategoricalOutputConfig,
+    OptimizationDirection,
+)
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.prompts import (
@@ -238,6 +243,45 @@ class TestPrompts:
         assert response.status_code == 204
         async with db() as session:
             assert await session.scalar(select(models.Prompt).filter_by(id=prompt.id)) is None
+
+    @pytest.mark.parametrize("identify_by", ["name", "id"])
+    async def test_delete_prompt_referenced_by_evaluator_returns_409(
+        self,
+        identify_by: str,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, _ = await self._insert_prompt_versions(db)
+        async with db() as session:
+            session.add(
+                models.LLMEvaluator(
+                    name=Identifier(root="referencing-evaluator"),
+                    description=None,
+                    metadata_={},
+                    prompt_id=prompt.id,
+                    output_configs=[
+                        CategoricalOutputConfig(
+                            type="CATEGORICAL",
+                            name="result",
+                            optimization_direction=OptimizationDirection.MAXIMIZE,
+                            values=[
+                                CategoricalAnnotationValue(label="good", score=1.0),
+                                CategoricalAnnotationValue(label="bad", score=0.0),
+                            ],
+                        )
+                    ],
+                )
+            )
+        identifier = (
+            prompt.name.root
+            if identify_by == "name"
+            else str(GlobalID(Prompt.__name__, str(prompt.id)))
+        )
+        response = await httpx_client.delete(f"v1/prompts/{quote_plus(identifier)}")
+        assert response.status_code == 409
+        assert "referencing-evaluator" in response.text
+        async with db() as session:
+            assert await session.scalar(select(models.Prompt).filter_by(id=prompt.id)) is not None
 
     async def test_delete_prompt_not_found(
         self,
