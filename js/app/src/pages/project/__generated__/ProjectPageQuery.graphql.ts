@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4f484273652b577bbeb134b69c29e6bc>>
+ * @generated SignedSource<<7f6b11d548f75d9e6b5e5263694c7da1>>
  * @lightSyntaxTransform
  */
 
@@ -15,7 +15,8 @@ export type ProjectPageQuery$variables = {
 export type ProjectPageQuery$data = {
   readonly project: {
     readonly evaluatorCount?: number;
-    readonly " $fragmentSpreads": FragmentRefs<"ProjectOnboardingOverlay_project" | "ProjectTimeRangeControls_data">;
+    readonly name?: string;
+    readonly " $fragmentSpreads": FragmentRefs<"ProjectTimeRangeControls_data">;
   };
 };
 export type ProjectPageQuery = {
@@ -42,6 +43,13 @@ v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "evaluatorCount",
   "storageKey": null
 };
@@ -64,15 +72,11 @@ return {
             "kind": "InlineFragment",
             "selections": [
               (v2/*:: as any*/),
+              (v3/*:: as any*/),
               {
                 "args": null,
                 "kind": "FragmentSpread",
                 "name": "ProjectTimeRangeControls_data"
-              },
-              {
-                "args": null,
-                "kind": "FragmentSpread",
-                "name": "ProjectOnboardingOverlay_project"
               }
             ],
             "type": "Project",
@@ -117,25 +121,12 @@ return {
             "kind": "InlineFragment",
             "selections": [
               (v2/*:: as any*/),
+              (v3/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
                 "name": "streamingLastUpdatedAt",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "name",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "hasTraces",
                 "storageKey": null
               }
             ],
@@ -148,16 +139,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0bad4c2aa346f310f21f0550e38d793a",
+    "cacheID": "3713de301f1ca7016f37f625c4a86b82",
     "id": null,
     "metadata": {},
     "name": "ProjectPageQuery",
     "operationKind": "query",
-    "text": "query ProjectPageQuery(\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      evaluatorCount\n      ...ProjectTimeRangeControls_data\n      ...ProjectOnboardingOverlay_project\n    }\n    id\n  }\n}\n\nfragment ProjectOnboardingOverlay_project on Project {\n  name\n  hasTraces\n  id\n}\n\nfragment ProjectTimeRangeControls_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n"
+    "text": "query ProjectPageQuery(\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      name\n      evaluatorCount\n      ...ProjectTimeRangeControls_data\n    }\n    id\n  }\n}\n\nfragment ProjectTimeRangeControls_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ba25e5fb00e9fd1caf324b162168fc5d";
+(node as any).hash = "17b0430cbb7a0b6ad24363e0985e35ee";
 
 export default node;
