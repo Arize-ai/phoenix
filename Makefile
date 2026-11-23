@@ -43,11 +43,6 @@ NC := \033[0m # No Color
 	harbor-stage harbor-plugin-e2e harbor-run harbor-view \
 	clean clean-all
 
-.PHONY: test-factory-preview-workflow
-
-test-factory-preview-workflow: ## Check dual-registry preview publishing and deployment dependencies
-	@$(UV_BIN) run --script factory/preview/test_workflow.py
-
 help: ## Show this help message
 	@echo -e ""
 	@echo -e "$(CYAN)Phoenix Monorepo - Available Make Targets$(NC)"
