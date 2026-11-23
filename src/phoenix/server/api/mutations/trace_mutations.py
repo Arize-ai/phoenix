@@ -103,7 +103,7 @@ class TraceMutationMixin:
             dest_project = await session.get(models.Project, dest_project_rowid)
             if dest_project is None or dest_project.deleted_at is not None:
                 raise BadRequest("Destination project does not exist")
-            if dest_project.kind in ("EVALUATOR", "EXPERIMENT"):
+            if dest_project.is_internal:
                 raise BadRequest(
                     "Cannot transfer traces into an evaluator or experiment trace project"
                 )
@@ -134,7 +134,7 @@ class TraceMutationMixin:
 
             involved_project_ids = sorted({*source_project_ids, dest_project_rowid})
             live_projects_stmt = (
-                select(models.Project.id, models.Project.kind)
+                select(models.Project.id, models.Project.is_internal)
                 .where(
                     models.Project.id.in_(involved_project_ids),
                     models.Project.deleted_at.is_(None),
@@ -144,11 +144,12 @@ class TraceMutationMixin:
             if dialect is SupportedSQLDialect.POSTGRESQL:
                 live_projects_stmt = live_projects_stmt.with_for_update(read=True)
             live_projects = {
-                int(row.id): row.kind for row in (await session.execute(live_projects_stmt)).all()
+                int(row.id): row.is_internal
+                for row in (await session.execute(live_projects_stmt)).all()
             }
             if dest_project_rowid not in live_projects:
                 raise BadRequest("Destination project does not exist")
-            if live_projects[dest_project_rowid] in ("EVALUATOR", "EXPERIMENT"):
+            if live_projects[dest_project_rowid]:
                 raise BadRequest(
                     "Cannot transfer traces into an evaluator or experiment trace project"
                 )

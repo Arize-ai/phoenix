@@ -32,6 +32,7 @@ from phoenix.config import (
     get_env_playground_timeout_seconds,
 )
 from phoenix.db import models
+from phoenix.db.cleanup_tasks import ProjectKindName
 from phoenix.db.helpers import (
     get_dataset_example_revisions,
     insert_experiment_with_examples_snapshot,
@@ -829,7 +830,7 @@ async def _ensure_project(session: AsyncSession, project_name: str) -> int:
         )
     )
     if project_id is None:
-        kind: models.ProjectKindName = (
+        kind: ProjectKindName = (
             "PLAYGROUND" if project_name == PLAYGROUND_PROJECT_NAME else "EXPERIMENT"
         )
         project_id = await session.scalar(

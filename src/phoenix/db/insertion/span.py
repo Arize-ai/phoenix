@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.cleanup_tasks import (
+    ProjectKindName,
     is_generated_evaluator_trace_project_name,
     is_generated_experiment_project_name,
     live_row_predicate,
@@ -254,7 +255,7 @@ async def insert_span(
                 .where(
                     models.Project.name == project_name,
                     models.Project.deleted_at.is_not(None),
-                    models.Project.kind.in_(("EXPERIMENT", "EVALUATOR")),
+                    models.Project.is_internal,
                 )
                 .limit(1)
             )
@@ -274,7 +275,7 @@ async def insert_span(
                 )
                 if live_experiment_id is None:
                     return None
-            project_kind: models.ProjectKindName = (
+            project_kind: ProjectKindName = (
                 "PLAYGROUND" if project_name == PLAYGROUND_PROJECT_NAME else "STANDARD"
             )
             project = await _get_or_create(

@@ -56,6 +56,8 @@ from typing_extensions import Self, TypeAlias, TypeAliasType
 from phoenix.config import get_env_database_schema
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db.cleanup_tasks import (
+    INTERNAL_PROJECT_KINDS,
+    ProjectKindName,
     claimed_cleanup_tasks_predicate,
     cleanup_task_kind_check,
     live_row_predicate,
@@ -239,7 +241,6 @@ EvalWorkStatus: TypeAlias = Literal[
     "SAMPLED_OUT",
 ]
 EvaluationTarget = TypeAliasType("EvaluationTarget", Literal["SPAN", "TRACE", "SESSION"])
-ProjectKindName: TypeAlias = Literal["STANDARD", "PLAYGROUND", "EXPERIMENT", "EVALUATOR"]
 CleanupTaskKind: TypeAlias = Literal[
     "DELETE_PROJECT",
     "DELETE_PROJECT_EVALUATOR",
@@ -949,6 +950,16 @@ class Project(HasId):
         passive_deletes=True,
         uselist=True,
     )
+
+    @hybrid_property
+    def is_internal(self) -> bool:
+        return self.kind in INTERNAL_PROJECT_KINDS
+
+    @is_internal.inplace.expression
+    @classmethod
+    def _is_internal_expression(cls) -> ColumnElement[bool]:
+        return cls.kind.in_(INTERNAL_PROJECT_KINDS)
+
     __table_args__ = (
         Index(
             "ix_projects_live_name",

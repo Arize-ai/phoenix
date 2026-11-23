@@ -87,6 +87,7 @@ from phoenix.config import (
     get_env_phoenix_agents_web_access_enabled,
 )
 from phoenix.db import models
+from phoenix.db.cleanup_tasks import ProjectKindName
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, advance_liveness, insert_on_conflict
 from phoenix.db.types.data_stream_protocol import (
@@ -1642,9 +1643,7 @@ async def _merge_session_summary_chunk(
 
 async def _ensure_project_exists(db: DbSessionFactory, project_name: str) -> int:
     """Resolve live project_id by name, creating the project row if missing."""
-    kind: models.ProjectKindName = (
-        "PLAYGROUND" if project_name == PLAYGROUND_PROJECT_NAME else "STANDARD"
-    )
+    kind: ProjectKindName = "PLAYGROUND" if project_name == PLAYGROUND_PROJECT_NAME else "STANDARD"
     async with db() as session:
         await session.execute(
             insert_on_conflict(

@@ -802,7 +802,7 @@ async def transfer_traces(
         project = await get_project_by_identifier(
             session, request_body.destination_project_identifier
         )
-        if project.kind in ("EVALUATOR", "EXPERIMENT"):
+        if project.is_internal:
             raise HTTPException(
                 detail="Cannot transfer traces into an evaluator or experiment trace project",
                 status_code=422,
@@ -845,7 +845,7 @@ async def transfer_traces(
 
         involved_project_ids = sorted({*source_project_rowids, project.id})
         live_projects_stmt = (
-            select(models.Project.id, models.Project.kind)
+            select(models.Project.id, models.Project.is_internal)
             .where(
                 models.Project.id.in_(involved_project_ids),
                 models.Project.deleted_at.is_(None),
@@ -855,11 +855,12 @@ async def transfer_traces(
         if dialect is SupportedSQLDialect.POSTGRESQL:
             live_projects_stmt = live_projects_stmt.with_for_update(read=True)
         live_projects = {
-            int(row.id): row.kind for row in (await session.execute(live_projects_stmt)).all()
+            int(row.id): row.is_internal
+            for row in (await session.execute(live_projects_stmt)).all()
         }
         if project.id not in live_projects:
             raise HTTPException(detail="Destination project not found", status_code=404)
-        if live_projects[project.id] in ("EVALUATOR", "EXPERIMENT"):
+        if live_projects[project.id]:
             raise HTTPException(
                 detail="Cannot transfer traces into an evaluator or experiment trace project",
                 status_code=422,
