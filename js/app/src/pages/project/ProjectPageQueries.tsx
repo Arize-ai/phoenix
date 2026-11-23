@@ -2,6 +2,7 @@ import { createContext, useContext } from "react";
 import type { PreloadedQuery } from "react-relay";
 import { graphql } from "react-relay";
 
+import type { ProjectPageQueriesOnboardingQuery as ProjectPageOnboardingQueryType } from "./__generated__/ProjectPageQueriesOnboardingQuery.graphql";
 import type { ProjectPageQueriesProjectConfigQuery as ProjectPageProjectConfigQueryType } from "./__generated__/ProjectPageQueriesProjectConfigQuery.graphql";
 import type { ProjectPageQueriesSessionsQuery as ProjectPageSessionsQueryType } from "./__generated__/ProjectPageQueriesSessionsQuery.graphql";
 import type { ProjectPageQueriesSpansQuery as ProjectPageSpansQueryType } from "./__generated__/ProjectPageQueriesSpansQuery.graphql";
@@ -68,6 +69,32 @@ export const ProjectPageQueriesProjectConfigQuery = graphql`
     ...ProjectRetentionPolicyCard_query
   }
 `;
+
+// Loaded from the network on every visit: the onboarding guide decides on
+// mount whether to show, so a cached answer from an earlier visit would flash
+// it over a project that has had traces since.
+export const ProjectPageQueriesOnboardingQuery = graphql`
+  query ProjectPageQueriesOnboardingQuery($id: ID!) {
+    project: node(id: $id) {
+      ... on Project {
+        name
+        ...ProjectOnboardingOverlay_project
+      }
+    }
+  }
+`;
+
+/** The onboarding query the project route loads, owned by `ProjectRoot`. */
+export const ProjectOnboardingQueryReferenceContext =
+  createContext<PreloadedQuery<ProjectPageOnboardingQueryType> | null>(null);
+
+export const useProjectOnboardingQueryReference = () => {
+  const queryReference = useContext(ProjectOnboardingQueryReferenceContext);
+  if (!queryReference) {
+    throw new Error("ProjectOnboardingQueryReferenceContext not found");
+  }
+  return queryReference;
+};
 
 export const ProjectPageQueryReferenceContext = createContext<{
   spansQueryReference: PreloadedQuery<ProjectPageSpansQueryType> | null;
