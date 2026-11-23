@@ -1703,7 +1703,6 @@ async def evaluator_experiment(db: DbSessionFactory) -> _EvaluatorExperiment:
             repetitions=1,
             metadata_={},
             project_name=project.name,
-            project_id=project.id,
         )
         session.add(experiment)
         await session.flush()

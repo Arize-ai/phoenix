@@ -1271,7 +1271,7 @@ async def projects_with_and_without_experiments(
                 description="non-experiment-project-description",
             )
         )
-        exp_project_id = await session.scalar(
+        await session.scalar(
             insert(models.Project)
             .returning(models.Project.id)
             .values(
@@ -1300,7 +1300,6 @@ async def projects_with_and_without_experiments(
                 repetitions=1,
                 metadata_={},
                 project_name="experiment-project-name",
-                project_id=exp_project_id,
             )
         )
 
@@ -1431,7 +1430,6 @@ async def playground_project_with_an_experiment(
                 repetitions=1,
                 metadata_={},
                 project_name=PLAYGROUND_PROJECT_NAME,
-                project_id=playground_project.id,
             )
         )
         await session.flush()

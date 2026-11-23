@@ -217,7 +217,7 @@ async def create_experiment(
             f"dataset_id: {dataset_globalid}\ndataset_version_id: {dataset_version_globalid}"
         )
         dialect = SupportedSQLDialect(session.get_bind().dialect.name)
-        project_rowid = await session.scalar(
+        await session.execute(
             insert_on_conflict(
                 dict(
                     name=project_name,
@@ -229,16 +229,8 @@ async def create_experiment(
                 unique_by=("name",),
                 on_conflict=OnConflict.DO_NOTHING,
                 index_where=sa.text(live_row_predicate()),
-            ).returning(models.Project.id)
-        )
-        if project_rowid is None:
-            project_rowid = await session.scalar(
-                select(models.Project.id).where(
-                    models.Project.name == project_name,
-                    models.Project.deleted_at.is_(None),
-                )
             )
-        assert project_rowid is not None
+        )
         experiment = models.Experiment(
             dataset_id=int(dataset_rowid),
             dataset_version_id=int(dataset_version_id),
@@ -247,7 +239,6 @@ async def create_experiment(
             repetitions=request_body.repetitions,
             metadata_=request_body.metadata or {},
             project_name=project_name,
-            project_id=project_rowid,
             user_id=user_id,
         )
 
@@ -613,7 +604,7 @@ async def delete_experiment(
     stmt = (
         sa.delete(models.Experiment)
         .where(models.Experiment.id == experiment_rowid)
-        .returning(models.Experiment.project_id)
+        .returning(models.Experiment.project_name)
     )
     db = request.app.state.db
     dialect = SupportedSQLDialect(db.dialect.value)
@@ -625,19 +616,19 @@ async def delete_experiment(
         result = (await session.execute(stmt)).first()
         if result is None:
             raise HTTPException(detail="Experiment does not exist", status_code=404)
-        project_id = result.project_id
-        if project_id is not None:
+        project_name = result.project_name
+        if project_name is not None:
             if delete_project:
                 enqueued_projects = await admit_exclusive_experiment_projects_delete(
                     session,
                     dialect=dialect,
-                    candidate_project_ids=[project_id],
+                    candidate_project_names=[project_name],
                 )
             else:
                 await promote_retained_experiment_projects_to_standard(
                     session,
                     dialect=dialect,
-                    candidate_project_ids=[project_id],
+                    candidate_project_names=[project_name],
                 )
     request.state.event_queue.put(ExperimentDeleteEvent((experiment_rowid,)))
     if enqueued_projects:

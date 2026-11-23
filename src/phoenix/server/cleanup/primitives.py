@@ -556,9 +556,9 @@ async def clear_project_historical_references_step(
     project_id: int,
     batch_limit: int = CLEANUP_BATCH_ROWS,
 ) -> PrimitiveResult:
-    """Clear ``experiments.project_id`` and ``agent_sessions.project_id`` in bounded batches
-    before physically deleting ``projects(id = project_id)``."""
-    for model in (models.Experiment, models.AgentSession):
+    """Clear ``agent_sessions.project_id`` in bounded batches before physically deleting
+    ``projects(id = project_id)``."""
+    for model in (models.AgentSession,):
         cond = model.project_id == project_id
         ids_stmt = select(model.id).where(cond).limit(batch_limit)
         if dialect is SupportedSQLDialect.POSTGRESQL:

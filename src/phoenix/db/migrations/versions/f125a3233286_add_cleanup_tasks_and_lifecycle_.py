@@ -150,51 +150,10 @@ def _upgrade_projects() -> None:
 
 def _upgrade_historical_project_references() -> None:
     is_sqlite = op.get_bind().dialect.name == "sqlite"
-    experiment_time_pred = (
-        "julianday(p.created_at) <= julianday(experiments.created_at)"
-        if is_sqlite
-        else "p.created_at <= experiments.created_at"
-    )
     agent_session_time_pred = (
         "julianday(p.created_at) <= julianday(agent_sessions.updated_at) + (5.0 / 86400.0)"
         if is_sqlite
         else "p.created_at <= agent_sessions.updated_at + INTERVAL '5 seconds'"
-    )
-
-    op.drop_index("ix_experiments_ephemeral_updated_at", table_name="experiments")
-    with op.batch_alter_table("experiments") as batch_op:
-        batch_op.add_column(
-            sa.Column(
-                "project_id",
-                _Integer,
-                sa.ForeignKey("projects.id", ondelete="SET NULL"),
-                nullable=True,
-            )
-        )
-    op.create_index(
-        "ix_experiments_ephemeral_updated_at",
-        "experiments",
-        ["updated_at"],
-        postgresql_where=sa.text("is_ephemeral IS TRUE"),
-        sqlite_where=sa.text("is_ephemeral IS TRUE"),
-    )
-    op.create_index("ix_experiments_project_id", "experiments", ["project_id"])
-    op.execute(
-        "UPDATE experiments "
-        "SET project_id = ("
-        "SELECT p.id FROM projects p "
-        "WHERE p.name = experiments.project_name "
-        "AND ("
-        "p.name = 'playground' "
-        f"OR {experiment_time_pred} "
-        "OR EXISTS ("
-        "SELECT 1 FROM experiment_runs er "
-        "JOIN traces t ON t.trace_id = er.trace_id "
-        "WHERE er.experiment_id = experiments.id AND t.project_rowid = p.id"
-        ")"
-        ")"
-        ") "
-        "WHERE project_name IS NOT NULL"
     )
 
     op.drop_index("ix_agent_sessions_user_id_updated_at", table_name="agent_sessions")
@@ -742,18 +701,6 @@ def downgrade() -> None:
     op.create_index(
         "ix_agent_sessions_ephemeral_updated_at",
         "agent_sessions",
-        ["updated_at"],
-        postgresql_where=sa.text("is_ephemeral IS TRUE"),
-        sqlite_where=sa.text("is_ephemeral IS TRUE"),
-    )
-
-    op.drop_index("ix_experiments_project_id", table_name="experiments")
-    op.drop_index("ix_experiments_ephemeral_updated_at", table_name="experiments")
-    with op.batch_alter_table("experiments") as batch_op:
-        batch_op.drop_column("project_id")
-    op.create_index(
-        "ix_experiments_ephemeral_updated_at",
-        "experiments",
         ["updated_at"],
         postgresql_where=sa.text("is_ephemeral IS TRUE"),
         sqlite_where=sa.text("is_ephemeral IS TRUE"),

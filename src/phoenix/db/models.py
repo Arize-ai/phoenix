@@ -1957,14 +1957,7 @@ class Experiment(HasId):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
-    project_id: Mapped[Optional[int]] = mapped_column(
-        _Integer,
-        ForeignKey("projects.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
     user: Mapped[Optional["User"]] = relationship("User")
-    project: Mapped[Optional["Project"]] = relationship("Project")
     experiment_dataset_splits: Mapped[list["ExperimentDatasetSplit"]] = relationship(
         "ExperimentDatasetSplit",
         back_populates="experiment",

@@ -2118,10 +2118,10 @@ class RunningExperiment:
 
                     # Get project_id from cache or DB
                     if self._project_id is None:
-                        if self._experiment.project_id is not None:
+                        if self._experiment.project_name is not None:
                             self._project_id = await session.scalar(
                                 select(models.Project.id).where(
-                                    models.Project.id == self._experiment.project_id,
+                                    models.Project.name == self._experiment.project_name,
                                     models.Project.deleted_at.is_(None),
                                 )
                             )

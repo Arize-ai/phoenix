@@ -578,7 +578,7 @@ class TestCleanupQueueSchedulingAndFencing:
 
 
 class TestImmediateNameReuseAndHistoricalReferences:
-    async def test_delete_project_allows_immediate_name_reuse_and_isolates_historical_references(
+    async def test_delete_project_allows_immediate_name_reuse_and_history_follows_the_name(
         self,
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
@@ -606,7 +606,6 @@ class TestImmediateNameReuseAndHistoricalReferences:
                 repetitions=1,
                 metadata_={},
                 project_name=shared_name,
-                project_id=old_project_id,
             )
             agent = models.AgentSession(
                 title="hist-agent",
@@ -626,6 +625,18 @@ class TestImmediateNameReuseAndHistoricalReferences:
             variables={"id": str(GlobalID("Project", str(old_project_id)))},
         )
         assert not del_resp.errors
+
+        # While the old project drains, its tombstone is not what the experiment's name resolves to.
+        tombstoned_query = await gql_client.execute(
+            """query($id: ID!) {
+                node(id: $id) {
+                    ... on Experiment { projectName project { id } }
+                }
+            }""",
+            variables={"id": str(GlobalID("Experiment", str(exp_id)))},
+        )
+        assert tombstoned_query.data and not tombstoned_query.errors
+        assert tombstoned_query.data["node"] == {"projectName": shared_name, "project": None}
 
         # Immediately recreate a new project with the exact same name before old traces are purged.
         create_resp = await gql_client.execute(
@@ -658,7 +669,7 @@ class TestImmediateNameReuseAndHistoricalReferences:
         assert inserted is not None
         assert inserted.project_rowid == new_project_id
 
-        # Historical Experiment.project on GraphQL must NOT resolve to new_project_id.
+        # The experiment follows its project name to the live project, not the tombstone.
         exp_query = await gql_client.execute(
             """query($id: ID!) {
                 node(id: $id) {
@@ -668,7 +679,10 @@ class TestImmediateNameReuseAndHistoricalReferences:
             variables={"id": str(GlobalID("Experiment", str(exp_id)))},
         )
         assert exp_query.data and not exp_query.errors
-        assert exp_query.data["node"] == {"projectName": shared_name, "project": None}
+        assert exp_query.data["node"] == {
+            "projectName": shared_name,
+            "project": {"id": new_project_gid},
+        }
 
         # Drain background cleanup in small batches (batch_limit=2).
         coordinator = CleanupCoordinator(db, batch_limit=2)
@@ -689,19 +703,80 @@ class TestImmediateNameReuseAndHistoricalReferences:
             assert new_trace_count == 1
             exp_after = await session.get(models.Experiment, exp_id)
             agent_after = await session.get(models.AgentSession, agent_id)
-            assert exp_after is not None and exp_after.project_id is None
+            assert exp_after is not None
             assert exp_after.project_name == shared_name
             assert agent_after is not None and agent_after.project_id is None
             assert agent_after.project_name == shared_name
 
-            # Deleting the historical experiment afterward must NEVER delete new_project!
+            # Deleting the experiment must not delete the live project: it is STANDARD, not
+            # EXPERIMENT.
             await session.delete(exp_after)
             await session.flush()
             dialect = SupportedSQLDialect(db.dialect.value)
             deleted_by_exp = await admit_exclusive_experiment_projects_delete(
-                session, dialect=dialect, candidate_project_ids=[new_project_id]
+                session, dialect=dialect, candidate_project_names=[shared_name]
             )
             assert deleted_by_exp == []
+
+
+class TestExperimentProjectsResolveByName:
+    async def test_admit_exclusive_delete_targets_the_live_project_and_ignores_the_tombstone(
+        self, db: DbSessionFactory
+    ) -> None:
+        dialect = SupportedSQLDialect(db.dialect.value)
+        shared_name = f"Experiment-{token_hex(12)}"
+        async with db() as session:
+            tombstone = models.Project(
+                name=shared_name,
+                kind="EXPERIMENT",
+                deleted_at=datetime(2026, 5, 1, tzinfo=timezone.utc),
+            )
+            live_project = models.Project(name=shared_name, kind="EXPERIMENT")
+            session.add_all([tombstone, live_project])
+            await session.flush()
+            tombstone_id, live_project_id = tombstone.id, live_project.id
+
+            tombstoned_ids = await admit_exclusive_experiment_projects_delete(
+                session, dialect=dialect, candidate_project_names=[shared_name]
+            )
+
+            assert tombstoned_ids == [live_project_id]
+            assert tombstone_id not in tombstoned_ids
+            refreshed = await session.get(models.Project, live_project_id, populate_existing=True)
+            assert refreshed is not None and refreshed.deleted_at is not None
+
+    async def test_admit_exclusive_delete_keeps_project_still_named_by_another_experiment(
+        self, db: DbSessionFactory
+    ) -> None:
+        dialect = SupportedSQLDialect(db.dialect.value)
+        shared_name = f"Experiment-{token_hex(12)}"
+        async with db() as session:
+            dataset = models.Dataset(name=f"ds-{token_hex(4)}", metadata_={})
+            session.add(dataset)
+            await session.flush()
+            version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+            project = models.Project(name=shared_name, kind="EXPERIMENT")
+            session.add_all([version, project])
+            await session.flush()
+            session.add(
+                models.Experiment(
+                    dataset_id=dataset.id,
+                    dataset_version_id=version.id,
+                    name="remaining",
+                    repetitions=1,
+                    metadata_={},
+                    project_name=shared_name,
+                )
+            )
+            await session.flush()
+
+            tombstoned_ids = await admit_exclusive_experiment_projects_delete(
+                session, dialect=dialect, candidate_project_names=[shared_name]
+            )
+
+            assert tombstoned_ids == []
+            refreshed = await session.get(models.Project, project.id, populate_existing=True)
+            assert refreshed is not None and refreshed.deleted_at is None
 
 
 class TestBatchedClear:
@@ -2743,7 +2818,7 @@ async def test_sqlite_cleanup_primitives_use_fk_indexes_without_temp_btrees(
                 name=f"eqp-exp-{index}-{token_hex(4)}",
                 repetitions=1,
                 metadata_={},
-                project_id=project.id,
+                project_name=project.name,
             )
             session.add(experiment)
             await session.flush()
@@ -3148,7 +3223,6 @@ async def test_late_spans_dropped_after_internal_projects_are_physically_purged(
             repetitions=1,
             metadata_={},
             project_name=retained_experiment_project_name,
-            project_id=retained_experiment_project.id,
         )
         session.add(retained_experiment)
         await session.flush()
@@ -3189,7 +3263,6 @@ async def test_late_spans_dropped_after_internal_projects_are_physically_purged(
 
     for internal_name in (
         deleted_experiment_project_name,
-        retained_experiment_project_name,
         dataset_evaluator_project_name,
         project_evaluator_project_name,
     ):
@@ -3214,6 +3287,30 @@ async def test_late_spans_dropped_after_internal_projects_are_physically_purged(
                 )
                 is None
             )
+
+    # A retained experiment still names its project, so a late span lands in a recreated
+    # EXPERIMENT project instead of being dropped.
+    retained_span = Span(
+        name="late-retained-span",
+        context=SpanContext(trace_id=token_hex(16), span_id=token_hex(8)),
+        span_kind=SpanKind.LLM,
+        parent_id=None,
+        start_time=base_time,
+        end_time=base_time + timedelta(seconds=1),
+        status_code=SpanStatusCode.OK,
+        status_message="",
+        attributes={},
+        events=[],
+        conversation=None,
+    )
+    async with db() as session:
+        inserted = await insert_span(session, retained_span, retained_experiment_project_name)
+        assert inserted is not None
+        recreated = await session.get(models.Project, inserted.project_rowid)
+        assert recreated is not None
+        assert recreated.name == retained_experiment_project_name
+        assert recreated.kind == "EXPERIMENT"
+        assert recreated.deleted_at is None
 
     custom_span = Span(
         name="custom-user-span",

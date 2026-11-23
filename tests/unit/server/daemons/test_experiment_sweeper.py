@@ -65,15 +65,6 @@ class TestExperimentSweeper:
             session.add(version)
             await session.flush()
 
-            project_id: Optional[int] = None
-            if project_name is not None:
-                project_id = await session.scalar(
-                    sa.select(models.Project.id).where(
-                        models.Project.name == project_name,
-                        models.Project.deleted_at.is_(None),
-                    )
-                )
-
             experiment_kwargs: dict[str, Any] = dict(
                 dataset_id=dataset.id,
                 dataset_version_id=version.id,
@@ -82,7 +73,6 @@ class TestExperimentSweeper:
                 repetitions=1,
                 metadata_={},
                 project_name=project_name,
-                project_id=project_id,
                 created_at=created_at,
             )
             if updated_at is not None:

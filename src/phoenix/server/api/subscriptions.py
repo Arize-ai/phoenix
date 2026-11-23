@@ -511,7 +511,7 @@ async def _stream_experiments_over_dataset(
             input.tasks, resolved_evaluator_tasks, resolved_decision_tasks
         ):
             project_name = generate_experiment_project_name()
-            project_rowid = await _ensure_project(session, project_name)
+            await _ensure_project(session, project_name)
             experiment = models.Experiment(
                 dataset_id=target.dataset_id,
                 dataset_version_id=target.dataset_version_id,
@@ -522,7 +522,6 @@ async def _stream_experiments_over_dataset(
                 metadata_=input.experiment_metadata or dict(),
                 is_ephemeral=bool(input.create_ephemeral_experiment),
                 project_name=project_name,
-                project_id=project_rowid,
                 user_id=info.context.user_id,
             )
             if target.split_ids:
@@ -822,7 +821,7 @@ async def _with_task_source(
     return definition.model_copy(update={"source": source})
 
 
-async def _ensure_project(session: AsyncSession, project_name: str) -> int:
+async def _ensure_project(session: AsyncSession, project_name: str) -> None:
     project_id = await session.scalar(
         select(models.Project.id).where(
             models.Project.name == project_name,
@@ -833,17 +832,13 @@ async def _ensure_project(session: AsyncSession, project_name: str) -> int:
         kind: ProjectKindName = (
             "PLAYGROUND" if project_name == PLAYGROUND_PROJECT_NAME else "EXPERIMENT"
         )
-        project_id = await session.scalar(
-            insert(models.Project)
-            .returning(models.Project.id)
-            .values(
+        await session.execute(
+            insert(models.Project).values(
                 name=project_name,
                 kind=kind,
                 description="Traces from experiment runs",
             )
         )
-    assert project_id is not None
-    return project_id
 
 
 async def _add_prompt_task(

@@ -724,7 +724,6 @@ class TestDeletedProjectVisibility:
                 repetitions=1,
                 metadata_={},
                 project_name=exp_project.name,
-                project_id=exp_project.id,
             )
             session.add(db_exp)
             await session.flush()

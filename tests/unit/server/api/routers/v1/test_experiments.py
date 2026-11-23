@@ -2075,7 +2075,7 @@ async def test_create_experiment_preserves_existing_live_project_on_name_collisi
     async with db() as session:
         experiment_row = await session.get(models.Experiment, experiment_rowid)
         assert experiment_row is not None
-        assert experiment_row.project_id == existing_project_id
+        assert experiment_row.project_name == colliding_project_name
 
         project_row = await session.get(models.Project, existing_project_id)
         assert project_row is not None
@@ -2188,8 +2188,14 @@ async def test_delete_experiment_without_delete_project_promotes_unreferenced_pr
     async with db() as session:
         first_experiment = await session.get(models.Experiment, first_experiment_rowid)
         assert first_experiment is not None
-        assert first_experiment.project_id is not None
-        shared_project_id = first_experiment.project_id
+        assert first_experiment.project_name is not None
+        shared_project_id = await session.scalar(
+            select(models.Project.id).where(
+                models.Project.name == first_experiment.project_name,
+                models.Project.deleted_at.is_(None),
+            )
+        )
+        assert shared_project_id is not None
         shared_project = await session.get(models.Project, shared_project_id)
         assert shared_project is not None
         assert shared_project.kind == "EXPERIMENT"
@@ -2201,7 +2207,6 @@ async def test_delete_experiment_without_delete_project_promotes_unreferenced_pr
             repetitions=1,
             metadata_={},
             project_name=first_experiment.project_name,
-            project_id=shared_project_id,
         )
         session.add(second_experiment)
         await session.flush()

@@ -979,7 +979,6 @@ CREATE TABLE experiments (
     updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
     user_id INTEGER,
     is_ephemeral BOOLEAN DEFAULT 0 NOT NULL,
-    project_id INTEGER,
     CONSTRAINT pk_experiments PRIMARY KEY (id),
     CONSTRAINT fk_experiments_dataset_id_datasets
         FOREIGN KEY (dataset_id)
@@ -989,10 +988,6 @@ CREATE TABLE experiments (
         FOREIGN KEY (dataset_version_id)
         REFERENCES dataset_versions (id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_experiments_project_id_projects
-        FOREIGN KEY (project_id)
-        REFERENCES projects (id)
-        ON DELETE SET NULL,
     CONSTRAINT fk_experiments_user_id_users
         FOREIGN KEY (user_id)
         REFERENCES users (id)
@@ -1003,7 +998,6 @@ CREATE INDEX ix_experiments_dataset_id ON experiments (dataset_id);
 CREATE INDEX ix_experiments_dataset_version_id ON experiments (dataset_version_id);
 CREATE INDEX ix_experiments_ephemeral_updated_at ON experiments (updated_at)
     WHERE is_ephemeral IS TRUE;
-CREATE INDEX ix_experiments_project_id ON experiments (project_id);
 CREATE INDEX ix_experiments_project_name ON experiments (project_name);
 CREATE INDEX ix_experiments_user_id ON experiments (user_id);
 

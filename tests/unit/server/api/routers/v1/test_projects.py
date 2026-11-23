@@ -799,7 +799,6 @@ class TestProjects:
                 repetitions=1,
                 metadata_={},
                 project_name="experiment-project",
-                project_id=experiment_project.id,
             )
             session.add(experiment)
             await session.flush()
@@ -821,7 +820,6 @@ class TestProjects:
                 repetitions=1,
                 metadata_={},
                 project_name=PLAYGROUND_PROJECT_NAME,
-                project_id=playground_project.id,
             )
             session.add(playground_experiment)
             await session.flush()

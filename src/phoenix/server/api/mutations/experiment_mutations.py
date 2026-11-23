@@ -381,14 +381,14 @@ class ExperimentMutationMixin:
                         ]
                     )
                 )
-            candidate_project_ids = {
-                exp.project_id for exp in experiments.values() if exp.project_id is not None
+            candidate_project_names = {
+                exp.project_name for exp in experiments.values() if exp.project_name is not None
             }
-            if candidate_project_ids:
+            if candidate_project_names:
                 enqueued_projects = await admit_exclusive_experiment_projects_delete(
                     session,
                     dialect=dialect,
-                    candidate_project_ids=candidate_project_ids,
+                    candidate_project_names=candidate_project_names,
                 )
         if enqueued_projects:
             tombstoned_ids = tuple(enqueued_projects)

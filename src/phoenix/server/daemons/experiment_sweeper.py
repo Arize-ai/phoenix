@@ -83,7 +83,7 @@ class ExperimentSweeper(DaemonTask):
             if not candidate_experiment_ids:
                 return
 
-            candidate_project_ids: set[int] = set()
+            candidate_project_names: set[str] = set()
             for chunk_start in range(0, len(candidate_experiment_ids), CLEANUP_BATCH_ROWS):
                 chunk_ids = candidate_experiment_ids[chunk_start : chunk_start + CLEANUP_BATCH_ROWS]
                 chunk_eval_trace_ids = (
@@ -98,19 +98,19 @@ class ExperimentSweeper(DaemonTask):
                             models.Experiment.is_ephemeral.is_(True),
                             models.Experiment.updated_at < cutoff,
                         )
-                        .returning(models.Experiment.id, models.Experiment.project_id)
+                        .returning(models.Experiment.id, models.Experiment.project_name)
                     )
                 ).all()
                 for row in deleted_rows:
                     deleted_experiment_ids.append(int(row.id))
-                    if row.project_id is not None:
-                        candidate_project_ids.add(int(row.project_id))
+                    if row.project_name is not None:
+                        candidate_project_names.add(row.project_name)
 
-            if candidate_project_ids:
+            if candidate_project_names:
                 enqueued_projects = await admit_exclusive_experiment_projects_delete(
                     session,
                     dialect=dialect,
-                    candidate_project_ids=candidate_project_ids,
+                    candidate_project_names=candidate_project_names,
                 )
         if enqueued_projects:
             if self._event_queue is not None:

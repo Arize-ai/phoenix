@@ -263,21 +263,18 @@ async def insert_span(
                 return None
             if is_generated_evaluator_trace_project_name(project_name):
                 return None
-            if is_generated_experiment_project_name(project_name):
-                live_experiment_id = await session.scalar(
-                    select(models.Experiment.id)
-                    .join(models.Project, models.Project.id == models.Experiment.project_id)
-                    .where(
-                        models.Experiment.project_name == project_name,
-                        models.Project.deleted_at.is_(None),
-                    )
-                    .limit(1)
-                )
-                if live_experiment_id is None:
-                    return None
             project_kind: ProjectKindName = (
                 "PLAYGROUND" if project_name == PLAYGROUND_PROJECT_NAME else "STANDARD"
             )
+            if is_generated_experiment_project_name(project_name):
+                experiment_id = await session.scalar(
+                    select(models.Experiment.id)
+                    .where(models.Experiment.project_name == project_name)
+                    .limit(1)
+                )
+                if experiment_id is None:
+                    return None
+                project_kind = "EXPERIMENT"
             project = await _get_or_create(
                 session,
                 models.Project,

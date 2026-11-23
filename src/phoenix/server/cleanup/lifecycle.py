@@ -92,6 +92,30 @@ async def _lock_projects(
         )
 
 
+async def resolve_live_project_ids_by_name(
+    session: AsyncSession,
+    project_names: Iterable[Optional[str]],
+) -> set[int]:
+    """Resolve project names to the ids of their live projects. Tombstoned projects that still
+    carry a name awaiting cleanup are ignored, since a name only identifies its live project.
+
+    The read takes no locks: callers lock the returned ids in ascending order and re-verify
+    eligibility afterwards.
+    """
+    names = sorted({project_name for project_name in project_names if project_name})
+    if not names:
+        return set()
+    return {
+        int(project_id)
+        for project_id in await session.scalars(
+            select(models.Project.id).where(
+                models.Project.name.in_(names),
+                models.Project.deleted_at.is_(None),
+            )
+        )
+    }
+
+
 async def _lock_additional_projects(
     session: AsyncSession,
     dialect: SupportedSQLDialect,
@@ -424,12 +448,14 @@ async def lock_dataset_delete_targets(
     *,
     dialect: SupportedSQLDialect,
     dataset_id: int,
-    candidate_project_ids: Iterable[int],
+    candidate_project_names: Iterable[Optional[str]],
 ) -> list[int]:
     """Acquire all ``Project`` and ``Evaluator`` locks needed for dataset deletion in canonical
     ``Dataset -> Project (id ASC) -> Evaluator (id ASC)`` order, returning live dataset binding IDs.
+
+    Experiment project names are resolved to live project ids before any project lock is taken.
     """
-    exp_project_ids = {project_id for project_id in candidate_project_ids if project_id is not None}
+    exp_project_ids = await resolve_live_project_ids_by_name(session, candidate_project_names)
     live_dataset_bindings = (
         await session.execute(
             select(
@@ -695,12 +721,12 @@ async def admit_exclusive_experiment_projects_delete(
     session: AsyncSession,
     *,
     dialect: SupportedSQLDialect,
-    candidate_project_ids: Iterable[int],
+    candidate_project_names: Iterable[Optional[str]],
 ) -> list[int]:
-    """Tombstone and enqueue ``ProjectDeleteCleanupTask`` for ``EXPERIMENT`` projects in
-    ``candidate_project_ids`` that have zero remaining ``Experiment`` references after the
-    owning experiment/dataset rows were deleted in ``session``."""
-    ids = sorted({project_id for project_id in candidate_project_ids if project_id is not None})
+    """Tombstone and enqueue ``ProjectDeleteCleanupTask`` for the live ``EXPERIMENT`` projects
+    named in ``candidate_project_names`` that have zero remaining ``Experiment`` references after
+    the owning experiment/dataset rows were deleted in ``session``."""
+    ids = sorted(await resolve_live_project_ids_by_name(session, candidate_project_names))
     if not ids:
         return []
 
@@ -724,13 +750,7 @@ async def admit_exclusive_experiment_projects_delete(
                 models.Project.kind == "EXPERIMENT",
                 models.Project.name != PLAYGROUND_PROJECT_NAME,
                 models.Project.name != DEFAULT_PROJECT_NAME,
-                ~exists().where(models.Experiment.project_id == models.Project.id),
-                ~exists().where(
-                    and_(
-                        models.Experiment.project_id.is_(None),
-                        models.Experiment.project_name == models.Project.name,
-                    )
-                ),
+                ~exists().where(models.Experiment.project_name == models.Project.name),
                 ~exists().where(models.ProjectEvaluator.trace_project_id == models.Project.id),
                 ~exists().where(models.DatasetEvaluators.project_id == models.Project.id),
             )
@@ -798,12 +818,12 @@ async def promote_retained_experiment_projects_to_standard(
     session: AsyncSession,
     *,
     dialect: SupportedSQLDialect,
-    candidate_project_ids: Iterable[int],
+    candidate_project_names: Iterable[Optional[str]],
 ) -> None:
-    """When an experiment is deleted without deleting its project, promote any unreferenced
-    ``EXPERIMENT`` project in ``candidate_project_ids`` to ``STANDARD`` so it remains visible
-    in standard project listings."""
-    ids = sorted({project_id for project_id in candidate_project_ids if project_id is not None})
+    """When an experiment is deleted without deleting its project, promote the live, unreferenced
+    ``EXPERIMENT`` projects named in ``candidate_project_names`` to ``STANDARD`` so they remain
+    visible in standard project listings."""
+    ids = sorted(await resolve_live_project_ids_by_name(session, candidate_project_names))
     if not ids:
         return
 
@@ -817,13 +837,7 @@ async def promote_retained_experiment_projects_to_standard(
             models.Project.kind == "EXPERIMENT",
             models.Project.name != PLAYGROUND_PROJECT_NAME,
             models.Project.name != DEFAULT_PROJECT_NAME,
-            ~exists().where(models.Experiment.project_id == models.Project.id),
-            ~exists().where(
-                and_(
-                    models.Experiment.project_id.is_(None),
-                    models.Experiment.project_name == models.Project.name,
-                )
-            ),
+            ~exists().where(models.Experiment.project_name == models.Project.name),
         )
         .values(kind="STANDARD", updated_at=now)
     )
@@ -959,14 +973,14 @@ async def admit_dataset_delete(
     ]
     experiment_rows = (
         await session.execute(
-            select(models.Experiment.id, models.Experiment.project_id)
+            select(models.Experiment.id, models.Experiment.project_name)
             .where(models.Experiment.dataset_id == dataset_id)
             .order_by(models.Experiment.id.asc())
         )
     ).all()
     experiment_ids = [int(row.id) for row in experiment_rows]
-    candidate_project_ids = {
-        int(row.project_id) for row in experiment_rows if row.project_id is not None
+    candidate_project_names = {
+        row.project_name for row in experiment_rows if row.project_name is not None
     }
 
     enqueued_cleanup = False
@@ -975,7 +989,7 @@ async def admit_dataset_delete(
         session,
         dialect=dialect,
         dataset_id=dataset_id,
-        candidate_project_ids=candidate_project_ids,
+        candidate_project_names=candidate_project_names,
     )
     if live_binding_ids:
         deleted_bindings = await logical_delete_dataset_evaluators(
@@ -994,11 +1008,11 @@ async def admit_dataset_delete(
     if deleted_dataset is None:
         raise NotFound(f"Dataset with ID {dataset_id} not found")
 
-    if candidate_project_ids:
+    if candidate_project_names:
         deleted_projects = await admit_exclusive_experiment_projects_delete(
             session,
             dialect=dialect,
-            candidate_project_ids=candidate_project_ids,
+            candidate_project_names=candidate_project_names,
         )
         enqueued_cleanup = enqueued_cleanup or bool(deleted_projects)
         tombstoned_project_ids.update(deleted_projects)

@@ -1037,7 +1037,6 @@ CREATE TABLE public.experiments (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     user_id BIGINT,
     is_ephemeral BOOLEAN NOT NULL DEFAULT false,
-    project_id BIGINT,
     CONSTRAINT pk_experiments PRIMARY KEY (id),
     CONSTRAINT fk_experiments_dataset_id_datasets
         FOREIGN KEY (dataset_id)
@@ -1047,10 +1046,6 @@ CREATE TABLE public.experiments (
         FOREIGN KEY (dataset_version_id)
         REFERENCES public.dataset_versions (id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_experiments_project_id_projects
-        FOREIGN KEY (project_id)
-        REFERENCES public.projects (id)
-        ON DELETE SET NULL,
     CONSTRAINT fk_experiments_user_id_users
         FOREIGN KEY (user_id)
         REFERENCES public.users (id)
@@ -1063,8 +1058,6 @@ CREATE INDEX ix_experiments_dataset_version_id ON public.experiments
     USING btree (dataset_version_id);
 CREATE INDEX ix_experiments_ephemeral_updated_at ON public.experiments
     USING btree (updated_at) WHERE (is_ephemeral IS TRUE);
-CREATE INDEX ix_experiments_project_id ON public.experiments
-    USING btree (project_id);
 CREATE INDEX ix_experiments_project_name ON public.experiments
     USING btree (project_name);
 CREATE INDEX ix_experiments_user_id ON public.experiments

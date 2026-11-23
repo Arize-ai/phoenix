@@ -685,6 +685,7 @@ async def test_admit_exclusive_experiment_projects_delete_locks_evaluators_in_id
         prompt_version_id = prompt.prompt_versions[0].id
         first_exp_project_id = first_exp_project.id
         second_exp_project_id = second_exp_project.id
+        exp_project_names = [first_exp_project.name, second_exp_project.name]
 
     lower_evaluator = await definitions_module.create_llm_evaluator(
         context,
@@ -742,7 +743,7 @@ async def test_admit_exclusive_experiment_projects_delete_locks_evaluators_in_id
         tombstoned_ids = await lifecycle.admit_exclusive_experiment_projects_delete(
             delete_session,
             dialect=SupportedSQLDialect.POSTGRESQL,
-            candidate_project_ids=[first_exp_project_id, second_exp_project_id],
+            candidate_project_names=exp_project_names,
         )
 
     assert locked_evaluator_batches == [[lower_evaluator.id, higher_evaluator.id]]
@@ -1187,9 +1188,9 @@ async def test_delete_dataset_locks_experiment_projects_before_evaluators_and_em
             dataset_id=dataset.id,
             dataset_version_id=dataset_version.id,
             name=f"exp-{token_hex(4)}",
-            project_id=exp_project.id,
             repetitions=1,
             metadata_={},
+            project_name=exp_project.name,
         )
         session.add(experiment)
         await session.flush()

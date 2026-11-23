@@ -279,14 +279,6 @@ async def test_f125a3233286_backfills_kinds_and_historical_references_and_guards
         assert kinds[ids["user_proj"]] == "STANDARD"
         assert kinds[ids["mixed_proj"]] == "STANDARD"
 
-        exp_refs: dict[int, int | None] = {
-            int(row[0]): (int(row[1]) if row[1] is not None else None)
-            for row in conn.execute(text("SELECT id, project_id FROM experiments")).all()
-        }
-        assert exp_refs[ids["exp_owned"]] == ids["exp_proj"]
-        assert exp_refs[ids["exp_shared"]] == ids["shared_proj"]
-        assert exp_refs[ids["exp_ambiguous"]] is None
-
         agent_refs: dict[int, int | None] = {
             int(row[0]): (int(row[1]) if row[1] is not None else None)
             for row in conn.execute(text("SELECT id, project_id FROM agent_sessions")).all()
@@ -743,12 +735,6 @@ async def test_f125a3233286_handles_sqlite_default_timestamps_empty_generated_ex
         }
         assert kinds[ids["empty_exp_proj"]] == "EXPERIMENT"
         assert kinds[ids["orphan_exp_proj"]] == "STANDARD"
-
-        exp_proj_id = conn.execute(
-            text("SELECT project_id FROM experiments WHERE id = :id"),
-            {"id": ids["exp_empty"]},
-        ).scalar_one()
-        assert exp_proj_id == ids["empty_exp_proj"]
 
         agent_rows = {
             int(row[0]): (
