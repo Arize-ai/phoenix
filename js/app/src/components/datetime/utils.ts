@@ -110,6 +110,27 @@ export function getMillisecondsUntilNextLastNTimeRangeRefresh(
 }
 
 /**
+ * Hourly refreshes are delayed by up to this much past the top of the hour so
+ * that open tabs and clients do not all refetch at the same instant.
+ */
+const HOURLY_REFRESH_MAX_JITTER_MS = 5 * MINUTE_IN_MS;
+
+/**
+ * A random delay to add to a live range's scheduled refresh. Ranges that
+ * refresh hourly get up to {@link HOURLY_REFRESH_MAX_JITTER_MS}; ranges that
+ * refresh every minute get none, so they keep tracking the minute closely.
+ */
+export function getLastNTimeRangeRefreshJitterMs(
+  key: LastNTimeRangeKey
+): number {
+  const parsed = parseLastNTimeRangeKey(key);
+  if (parsed && getLastNTimeRangeDurationMs(parsed) <= HOUR_IN_MS) {
+    return 0;
+  }
+  return Math.floor(Math.random() * HOURLY_REFRESH_MAX_JITTER_MS);
+}
+
+/**
  * Type guard for the last N time range key
  */
 export function isLastNTimeRangeKey(key: unknown): key is LastNTimeRangeKey {

@@ -201,6 +201,31 @@ Example::
 
     PHOENIX_SQL_DATABASE_READ_REPLICA_URL=postgresql://user:pass@replica-host:5432/phoenix
 """
+ENV_PHOENIX_SQL_DATABASE_POOL_SIZE = "PHOENIX_SQL_DATABASE_POOL_SIZE"
+"""
+The number of connections each PostgreSQL engine keeps open in its pool.
+Defaults to 5. Ignored for SQLite deployments.
+
+When no read replica is configured, GraphQL reads, span ingestion and
+authentication all share the primary engine's pool, so a busy UI can hold every
+connection. The primary and the read replica each get a pool of this size, so
+the PostgreSQL server must allow at least (pool size + max overflow) connections
+per engine for every Phoenix replica.
+
+Example::
+
+    PHOENIX_SQL_DATABASE_POOL_SIZE=20
+"""
+ENV_PHOENIX_SQL_DATABASE_MAX_OVERFLOW = "PHOENIX_SQL_DATABASE_MAX_OVERFLOW"
+"""
+The number of extra connections each PostgreSQL engine may open past
+PHOENIX_SQL_DATABASE_POOL_SIZE during a burst. They are closed when returned.
+Defaults to 10. Ignored for SQLite deployments.
+
+Example::
+
+    PHOENIX_SQL_DATABASE_MAX_OVERFLOW=20
+"""
 ENV_PHOENIX_LOG_SQL = "PHOENIX_LOG_SQL"
 """
 Whether to log all SQL statements to stdout.
@@ -3584,6 +3609,46 @@ def get_env_max_spans_queue_size() -> int:
     return max_size
 
 
+def get_env_sql_database_pool_size() -> int:
+    """
+    Gets the PostgreSQL connection pool size from PHOENIX_SQL_DATABASE_POOL_SIZE.
+
+    Returns:
+        int: The number of connections each PostgreSQL engine keeps open. Defaults to 5,
+             SQLAlchemy's default.
+
+    Raises:
+        ValueError: If the value is not a positive integer.
+    """
+    pool_size = _int_val(ENV_PHOENIX_SQL_DATABASE_POOL_SIZE, 5)
+    if pool_size <= 0:
+        raise ValueError(
+            f"Invalid value for environment variable {ENV_PHOENIX_SQL_DATABASE_POOL_SIZE}: "
+            f"{pool_size}. Value must be a positive integer."
+        )
+    return pool_size
+
+
+def get_env_sql_database_max_overflow() -> int:
+    """
+    Gets the PostgreSQL connection pool overflow from PHOENIX_SQL_DATABASE_MAX_OVERFLOW.
+
+    Returns:
+        int: The number of extra connections each PostgreSQL engine may open past the pool
+             size. Defaults to 10, SQLAlchemy's default.
+
+    Raises:
+        ValueError: If the value is a negative integer.
+    """
+    max_overflow = _int_val(ENV_PHOENIX_SQL_DATABASE_MAX_OVERFLOW, 10)
+    if max_overflow < 0:
+        raise ValueError(
+            f"Invalid value for environment variable {ENV_PHOENIX_SQL_DATABASE_MAX_OVERFLOW}: "
+            f"{max_overflow}. Value must be a non-negative integer."
+        )
+    return max_overflow
+
+
 def get_env_root_url() -> URL:
     """
     Get the URL used to access Phoenix from a web browser
@@ -3883,6 +3948,8 @@ def verify_server_environment_variables() -> None:
     get_env_database_usage_email_warning_threshold_percentage()
     get_env_database_usage_insertion_blocking_threshold_percentage()
     get_env_max_spans_queue_size()
+    get_env_sql_database_pool_size()
+    get_env_sql_database_max_overflow()
     validate_env_support_email()
     validate_env_allowed_providers()
     validate_env_allowed_sandbox_providers()
