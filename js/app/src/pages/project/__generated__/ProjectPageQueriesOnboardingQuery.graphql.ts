@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<33f0dc1e96539345acbe179c8ffad59f>>
+ * @generated SignedSource<<3f846af886ffe642e44eecfe57237f60>>
  * @lightSyntaxTransform
  */
 
@@ -14,6 +14,7 @@ export type ProjectPageQueriesOnboardingQuery$variables = {
 };
 export type ProjectPageQueriesOnboardingQuery$data = {
   readonly project: {
+    readonly name?: string;
     readonly " $fragmentSpreads": FragmentRefs<"ProjectOnboardingOverlay_project">;
   };
 };
@@ -36,7 +37,14 @@ v1 = [
     "name": "id",
     "variableName": "id"
   }
-];
+],
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+};
 return {
   "fragment": {
     "argumentDefinitions": (v0/*:: as any*/),
@@ -55,6 +63,7 @@ return {
           {
             "kind": "InlineFragment",
             "selections": [
+              (v2/*:: as any*/),
               {
                 "args": null,
                 "kind": "FragmentSpread",
@@ -102,13 +111,7 @@ return {
           {
             "kind": "InlineFragment",
             "selections": [
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "name",
-                "storageKey": null
-              },
+              (v2/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -126,16 +129,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "74c3c36775e607899f63a907239220cb",
+    "cacheID": "ee8cda382cd9b541b1daa4d9570ecf4a",
     "id": null,
     "metadata": {},
     "name": "ProjectPageQueriesOnboardingQuery",
     "operationKind": "query",
-    "text": "query ProjectPageQueriesOnboardingQuery(\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      ...ProjectOnboardingOverlay_project\n    }\n    id\n  }\n}\n\nfragment ProjectOnboardingOverlay_project on Project {\n  name\n  hasTraces\n  id\n}\n"
+    "text": "query ProjectPageQueriesOnboardingQuery(\n  $id: ID!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      name\n      ...ProjectOnboardingOverlay_project\n    }\n    id\n  }\n}\n\nfragment ProjectOnboardingOverlay_project on Project {\n  name\n  hasTraces\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "90ef13f1e665d4862234dcf3d0842369";
+(node as any).hash = "d71d55627ee7d4db026ba59539d54fc9";
 
 export default node;

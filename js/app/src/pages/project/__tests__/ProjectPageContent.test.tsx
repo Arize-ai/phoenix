@@ -1,10 +1,15 @@
 import { act, Suspense } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { RelayEnvironmentProvider } from "react-relay";
-import { MemoryRouter, Route, Routes } from "react-router";
+import {
+  MemoryRouter,
+  Route,
+  RouterContextProvider,
+  Routes,
+} from "react-router";
 import { createOperationDescriptor } from "relay-runtime";
 import { createMockEnvironment } from "relay-test-utils";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
 import { TopNavActionsProvider } from "@phoenix/components/nav";
@@ -14,7 +19,19 @@ import { ProjectProvider } from "@phoenix/contexts/ProjectContext";
 
 import ProjectPageQueriesOnboardingQueryNode from "../__generated__/ProjectPageQueriesOnboardingQuery.graphql";
 import ProjectPageQueryNode from "../__generated__/ProjectPageQuery.graphql";
+import { projectLoader } from "../projectLoader";
 import { ProjectPageContent } from "../ProjectPage";
+import { ProjectOnboardingQueryReferenceContext } from "../ProjectPageQueries";
+
+const relayEnvironmentHolder = vi.hoisted(() => ({
+  current: null as ReturnType<typeof createMockEnvironment> | null,
+}));
+
+vi.mock("@phoenix/RelayEnvironment", () => ({
+  get default() {
+    return relayEnvironmentHolder.current;
+  },
+}));
 
 installTestMatchMedia();
 
@@ -28,11 +45,25 @@ const TIME_RANGE = {
   end: "2026-07-02T00:00:00.000Z",
 };
 
+function runProjectLoader() {
+  const url = new URL(`http://localhost/projects/${PROJECT_ID}`);
+  return projectLoader({
+    request: new Request(url),
+    url,
+    pattern: "/projects/:projectId",
+    params: { projectId: PROJECT_ID },
+    context: new RouterContextProvider(),
+  });
+}
+
 describe("ProjectPageContent", () => {
   let container: HTMLDivElement;
   let root: Root;
+  let environment: ReturnType<typeof createMockEnvironment>;
 
   beforeEach(() => {
+    environment = createMockEnvironment();
+    relayEnvironmentHolder.current = environment;
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -43,34 +74,37 @@ describe("ProjectPageContent", () => {
     container.remove();
   });
 
-  async function renderProjectPage(
-    environment: ReturnType<typeof createMockEnvironment>
-  ) {
+  async function renderProjectPage() {
+    const { onboardingQueryReference } = runProjectLoader();
     await act(async () => {
       root.render(
         <RelayEnvironmentProvider environment={environment}>
           <ThemeProvider themeMode="light" disableBodyTheme>
             <PreferencesProvider>
               <ProjectProvider projectId={PROJECT_ID}>
-                <TopNavActionsProvider>
-                  <MemoryRouter
-                    initialEntries={[`/projects/${PROJECT_ID}/spans`]}
-                  >
-                    <Routes>
-                      <Route
-                        path="/projects/:projectId/*"
-                        element={
-                          <Suspense fallback={null}>
-                            <ProjectPageContent
-                              projectId={PROJECT_ID}
-                              timeRangeISOStrings={TIME_RANGE}
-                            />
-                          </Suspense>
-                        }
-                      />
-                    </Routes>
-                  </MemoryRouter>
-                </TopNavActionsProvider>
+                <ProjectOnboardingQueryReferenceContext.Provider
+                  value={onboardingQueryReference}
+                >
+                  <TopNavActionsProvider>
+                    <MemoryRouter
+                      initialEntries={[`/projects/${PROJECT_ID}/spans`]}
+                    >
+                      <Routes>
+                        <Route
+                          path="/projects/:projectId/*"
+                          element={
+                            <Suspense fallback={null}>
+                              <ProjectPageContent
+                                projectId={PROJECT_ID}
+                                timeRangeISOStrings={TIME_RANGE}
+                              />
+                            </Suspense>
+                          }
+                        />
+                      </Routes>
+                    </MemoryRouter>
+                  </TopNavActionsProvider>
+                </ProjectOnboardingQueryReferenceContext.Provider>
               </ProjectProvider>
             </PreferencesProvider>
           </ThemeProvider>
@@ -79,19 +113,16 @@ describe("ProjectPageContent", () => {
     });
   }
 
-  function listPendingOperationNames(
-    environment: ReturnType<typeof createMockEnvironment>
-  ): string[] {
+  function listPendingOperationNames(): string[] {
     return environment.mock
       .getAllOperations()
       .map((operation) => operation.request.node.params.name);
   }
 
   it("requests the spans table's first page while the page query is in flight", async () => {
-    const environment = createMockEnvironment();
-    await renderProjectPage(environment);
+    await renderProjectPage();
 
-    expect(listPendingOperationNames(environment)).toEqual(
+    expect(listPendingOperationNames()).toEqual(
       expect.arrayContaining([
         "ProjectPageQuery",
         "ProjectPageQueriesSpansQuery",
@@ -100,8 +131,7 @@ describe("ProjectPageContent", () => {
   });
 
   it("shows the tabs while the page query is in flight, requesting it once", async () => {
-    const environment = createMockEnvironment();
-    await renderProjectPage(environment);
+    await renderProjectPage();
 
     const tabNames = Array.from(
       container.querySelectorAll('[role="tab"]'),
@@ -111,16 +141,12 @@ describe("ProjectPageContent", () => {
       expect.arrayContaining(["Spans", "Traces", "Sessions", "Config"])
     );
     expect(
-      listPendingOperationNames(environment).filter(
-        (name) => name === "ProjectPageQuery"
-      )
+      listPendingOperationNames().filter((name) => name === "ProjectPageQuery")
     ).toHaveLength(1);
   });
 
   /** What an earlier visit left in the store: an empty project with 3 evaluators. */
-  function commitEarlierVisit(
-    environment: ReturnType<typeof createMockEnvironment>
-  ) {
+  function commitEarlierVisit() {
     environment.commitPayload(
       createOperationDescriptor(ProjectPageQueryNode, { id: PROJECT_ID }),
       {
@@ -147,13 +173,7 @@ describe("ProjectPageContent", () => {
     );
   }
 
-  async function resolveOnboardingQuery({
-    environment,
-    hasTraces,
-  }: {
-    environment: ReturnType<typeof createMockEnvironment>;
-    hasTraces: boolean;
-  }) {
+  async function resolveOnboardingQuery({ hasTraces }: { hasTraces: boolean }) {
     const operation = environment.mock
       .getAllOperations()
       .find(
@@ -179,38 +199,55 @@ describe("ProjectPageContent", () => {
   }
 
   it("renders the evaluator count from an earlier visit while the page query refreshes", async () => {
-    const environment = createMockEnvironment();
-    commitEarlierVisit(environment);
-    await renderProjectPage(environment);
+    commitEarlierVisit();
+    await renderProjectPage();
 
     const evaluatorsTab = Array.from(
       container.querySelectorAll('[role="tab"]')
     ).find((tab) => tab.textContent?.startsWith("Evaluators"));
     expect(evaluatorsTab?.textContent).toContain("3");
-    expect(listPendingOperationNames(environment)).toContain(
-      "ProjectPageQuery"
-    );
+    expect(listPendingOperationNames()).toContain("ProjectPageQuery");
   });
 
   it("waits for the server before deciding to show the onboarding guide", async () => {
-    const environment = createMockEnvironment();
-    commitEarlierVisit(environment);
-    await renderProjectPage(environment);
+    commitEarlierVisit();
+    await renderProjectPage();
 
     expect(container.querySelector(ONBOARDING_GUIDE_SELECTOR)).toBeNull();
 
-    await resolveOnboardingQuery({ environment, hasTraces: true });
+    await resolveOnboardingQuery({ hasTraces: true });
 
     expect(container.querySelector(ONBOARDING_GUIDE_SELECTOR)).toBeNull();
   });
 
   it("shows the onboarding guide once the server says the project is empty", async () => {
-    const environment = createMockEnvironment();
-    commitEarlierVisit(environment);
-    await renderProjectPage(environment);
+    commitEarlierVisit();
+    await renderProjectPage();
 
-    await resolveOnboardingQuery({ environment, hasTraces: false });
+    await resolveOnboardingQuery({ hasTraces: false });
 
     expect(container.querySelector(ONBOARDING_GUIDE_SELECTOR)).not.toBeNull();
+  });
+
+  it("resolves the breadcrumb name from the onboarding request", async () => {
+    const { projectName } = runProjectLoader();
+
+    expect(
+      listPendingOperationNames().filter(
+        (name) => name === "ProjectPageQueriesOnboardingQuery"
+      )
+    ).toHaveLength(1);
+
+    await resolveOnboardingQuery({ hasTraces: true });
+
+    await expect(projectName).resolves.toBe("support-chatbot");
+  });
+
+  it("uses a project name already in the store for the breadcrumb", () => {
+    environment.commitUpdate((store) => {
+      store.create(PROJECT_ID, "Project").setValue("support-chatbot", "name");
+    });
+
+    expect(runProjectLoader().projectName).toBe("support-chatbot");
   });
 });

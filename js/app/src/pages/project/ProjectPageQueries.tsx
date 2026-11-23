@@ -70,18 +70,31 @@ export const ProjectPageQueriesProjectConfigQuery = graphql`
   }
 `;
 
-// Loaded from the network once per visit: the onboarding guide decides on
+// Loaded from the network on every visit: the onboarding guide decides on
 // mount whether to show, so a cached answer from an earlier visit would flash
 // it over a project that has had traces since.
 export const ProjectPageQueriesOnboardingQuery = graphql`
   query ProjectPageQueriesOnboardingQuery($id: ID!) {
     project: node(id: $id) {
       ... on Project {
+        name
         ...ProjectOnboardingOverlay_project
       }
     }
   }
 `;
+
+/** The onboarding query the project route loads, owned by `ProjectRoot`. */
+export const ProjectOnboardingQueryReferenceContext =
+  createContext<PreloadedQuery<ProjectPageOnboardingQueryType> | null>(null);
+
+export const useProjectOnboardingQueryReference = () => {
+  const queryReference = useContext(ProjectOnboardingQueryReferenceContext);
+  if (!queryReference) {
+    throw new Error("ProjectOnboardingQueryReferenceContext not found");
+  }
+  return queryReference;
+};
 
 export const ProjectPageQueryReferenceContext = createContext<{
   spansQueryReference: PreloadedQuery<ProjectPageSpansQueryType> | null;
@@ -111,7 +124,6 @@ export const ProjectPageQueryReferenceContext = createContext<{
   tracesFilterSeed: string | null;
   resolveTracesSeed: (condition: string, persistToUrl?: boolean) => void;
   projectConfigQueryReference: PreloadedQuery<ProjectPageProjectConfigQueryType> | null;
-  onboardingQueryReference: PreloadedQuery<ProjectPageOnboardingQueryType> | null;
 }>({
   spansQueryReference: null,
   spansFilterSeed: null,
@@ -123,7 +135,6 @@ export const ProjectPageQueryReferenceContext = createContext<{
   tracesFilterSeed: null,
   resolveTracesSeed: () => {},
   projectConfigQueryReference: null,
-  onboardingQueryReference: null,
 });
 
 export const useProjectPageQueryReferenceContext = () => {

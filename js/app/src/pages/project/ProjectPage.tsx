@@ -10,7 +10,6 @@ import {
 } from "react";
 import {
   graphql,
-  type PreloadedQuery,
   useLazyLoadQuery,
   usePreloadedQuery,
   useQueryLoader,
@@ -71,7 +70,7 @@ import {
   ProjectPageQueriesSpansQuery,
   ProjectPageQueriesTracesQuery,
   ProjectPageQueryReferenceContext,
-  useProjectPageQueryReferenceContext,
+  useProjectOnboardingQueryReference,
 } from "./ProjectPageQueries";
 import { ProjectTimeRangeControls } from "./ProjectTimeRangeControls";
 import { DEFAULT_SPAN_FILTER_CONDITION } from "./spanFilterRootScopeConstants";
@@ -263,28 +262,19 @@ function settledConditionFromUrl(param: string): string | null {
  * `ProjectOnboardingOverlay` for why the guide lives inside the panel.
  */
 function StreamingTabPanel({ id }: { id: StreamingTab }) {
-  const { onboardingQueryReference } = useProjectPageQueryReferenceContext();
   return (
     <LazyTabPanel padded={false} id={id}>
-      {onboardingQueryReference ? (
-        <Suspense fallback={<StreamingTabSkeleton id={id} />}>
-          <StreamingTabContent queryReference={onboardingQueryReference} />
-        </Suspense>
-      ) : (
-        <StreamingTabSkeleton id={id} />
-      )}
+      <Suspense fallback={<StreamingTabSkeleton id={id} />}>
+        <StreamingTabContent />
+      </Suspense>
     </LazyTabPanel>
   );
 }
 
-function StreamingTabContent({
-  queryReference,
-}: {
-  queryReference: PreloadedQuery<ProjectPageOnboardingQueryType>;
-}) {
+function StreamingTabContent() {
   const data = usePreloadedQuery<ProjectPageOnboardingQueryType>(
     ProjectPageQueriesOnboardingQuery,
-    queryReference
+    useProjectOnboardingQueryReference()
   );
   return (
     <ProjectOnboardingOverlay project={data.project}>
@@ -366,13 +356,6 @@ function ProjectPageContentBody({
     useQueryLoader<ProjectPageProjectConfigQueryType>(
       ProjectPageQueriesProjectConfigQuery
     );
-  const [onboardingQueryReference, loadOnboardingQuery] =
-    useQueryLoader<ProjectPageOnboardingQueryType>(
-      ProjectPageQueriesOnboardingQuery
-    );
-  useEffect(() => {
-    loadOnboardingQuery({ id: projectId }, { fetchPolicy: "network-only" });
-  }, [projectId, loadOnboardingQuery]);
   const tabIndex = isTab(tab) ? TAB_INDEX_MAP[tab] : 0;
   // React Router recreates this setter on every location change. The resolvers
   // below are handed to the filter field, whose validation effect keys on their
@@ -641,7 +624,6 @@ function ProjectPageContentBody({
         tracesFilterSeed,
         resolveTracesSeed,
         projectConfigQueryReference: projectConfigQueryReference ?? null,
-        onboardingQueryReference: onboardingQueryReference ?? null,
       }}
     >
       <ProjectPageTabs projectId={projectId} />
