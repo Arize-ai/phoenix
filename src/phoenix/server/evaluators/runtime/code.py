@@ -50,19 +50,6 @@ from phoenix.server.sandbox.types import (
     UnsupportedOperation,
 )
 
-# What a code evaluator's payload-limit error suggests when the caller sets no remediation.
-DEFAULT_PAYLOAD_LIMIT_REMEDIATION = "Reduce the mapped inputs or raise the caller's payload limit."
-
-
-class SandboxPayloadTooLargeError(Exception):
-    """Rendered sandbox source exceeds the configured online-eval limit."""
-
-    online_eval_disposition = FailureDisposition(
-        count_attempt=True,
-        terminal=True,
-        code="SANDBOX_PAYLOAD_TOO_LARGE",
-    )
-
 
 class SandboxBackendTimeoutError(TimeoutError):
     """The sandbox backend reported its own execution timeout."""
@@ -320,8 +307,6 @@ class CodeEvaluatorRunner(BaseEvaluator):
         runner_timeout: Optional[float] = None,
         evaluator_version_id: Optional[str] = None,
         session_key: Optional[str] = None,
-        max_payload_bytes: Optional[int] = None,
-        payload_limit_remediation: str = DEFAULT_PAYLOAD_LIMIT_REMEDIATION,
     ) -> None:
         self._name = name
         self._description = description
@@ -332,8 +317,6 @@ class CodeEvaluatorRunner(BaseEvaluator):
         self._timeout = timeout
         self._runner_timeout = runner_timeout if runner_timeout is not None else timeout
         self._evaluator_version_id = evaluator_version_id
-        self._max_payload_bytes = max_payload_bytes
-        self._payload_limit_remediation = payload_limit_remediation
         # ``session_key`` is required on the managed path; the ephemeral
         # path does not consult it.
         if sandbox_session_manager is not None and session_key is None:
@@ -483,41 +466,10 @@ class CodeEvaluatorRunner(BaseEvaluator):
             if self._language == "PYTHON":
                 if self._sandbox_backend.provider == "MONTY":
                     code = self._build_monty_harness()
-                    baseline_code = code
                 else:
                     code = self._build_python_harness(mapped_inputs)
-                    baseline_code = self._build_python_harness({})
             else:
                 code = self._build_typescript_harness(mapped_inputs)
-                baseline_code = self._build_typescript_harness({})
-
-            if self._max_payload_bytes is not None:
-                payload_bytes = len(code.encode("utf-8"))
-                if payload_bytes > self._max_payload_bytes:
-                    source_and_harness_bytes = len(baseline_code.encode("utf-8"))
-                    mapped_input_bytes = max(payload_bytes - source_and_harness_bytes, 0)
-                    dominant_component = (
-                        "evaluator source and harness"
-                        if source_and_harness_bytes >= mapped_input_bytes
-                        else "mapped inputs"
-                    )
-                    err = (
-                        f"Rendered sandbox payload is {payload_bytes} bytes, which exceeds the "
-                        f"allowed {self._max_payload_bytes} bytes. The dominant component is "
-                        f"{dominant_component} ({source_and_harness_bytes} source/harness bytes; "
-                        f"{mapped_input_bytes} mapped-input bytes). "
-                        f"{self._payload_limit_remediation}"
-                    )
-                    error_exc = SandboxPayloadTooLargeError(err)
-                    evaluator_span.set_status(Status(StatusCode.ERROR, err))
-                    return self.error_results(
-                        name,
-                        output_configs,
-                        err,
-                        start_time=start_time,
-                        trace_id=trace_id,
-                        error_exc=error_exc,
-                    )
 
             session_key = self._session_key or ""
 

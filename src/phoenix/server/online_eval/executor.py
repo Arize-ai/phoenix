@@ -33,12 +33,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 from typing_extensions import TypeAlias
 
-from phoenix.config import (
-    ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION,
-    get_env_enable_prometheus,
-    get_env_online_eval_max_llm_message_bytes,
-    get_env_online_eval_max_sandbox_payload_bytes,
-)
+from phoenix.config import get_env_enable_prometheus
 from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.db.trace_aggregates import SPAN_ROWID, representative_root_span_by_trace
@@ -916,9 +911,6 @@ class OnlineEvalExecutor:
                 if manager is not None
                 else None
             ),
-            max_message_bytes=get_env_online_eval_max_llm_message_bytes(),
-            max_payload_bytes=get_env_online_eval_max_sandbox_payload_bytes(),
-            payload_limit_remediation=ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION,
             execution_deadline_seconds=self._execution_deadline_seconds,
         )
         return _HydratedEvaluatorSnapshot(

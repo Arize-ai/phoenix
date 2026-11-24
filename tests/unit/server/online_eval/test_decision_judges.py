@@ -390,26 +390,3 @@ async def test_span_annotations_expose_the_typed_decision(
         "answer": {"__typename": "ScaleAnswer", "expectedLevel": 1.5},
         "modelProvider": "TYPESAFE",
     }
-
-
-async def test_an_oversized_request_gives_up_without_calling_the_model(
-    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    async with db() as session:
-        project = await _add_project(session)
-        trace = await _add_trace(session, project)
-        span = await _add_span(session, trace, attributes={"output": {"value": "x" * 2_000}})
-        project_id, span_rowid = project.id, span.id
-    judge_id = await _seed_judge(db)
-    binding_id = await _bind(db, project_id, judge_id)
-    unit_id = await _queue_span_work(db, span_rowid, binding_id)
-    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES", "1024")
-    invoke = AsyncMock(return_value=_response())
-    monkeypatch.setattr(TypeSafeDecisionClient, "invoke", invoke)
-
-    await _cycle_to_completion(EvaluationConsumer(db, decrypt=lambda value: value))
-
-    unit = await _get_unit(db, unit_id)
-    assert invoke.await_count == 0
-    assert unit.status == "EXPIRED"
-    assert unit.error is not None and "RENDERED_MESSAGE_TOO_LARGE" in unit.error
