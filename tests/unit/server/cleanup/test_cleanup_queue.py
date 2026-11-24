@@ -3155,6 +3155,7 @@ async def test_postgres_locked_span_causes_drain_traces_step_to_yield_without_de
         assert await inspector.get(models.Trace, trace_id) is None
 
 
+@pytest.mark.postgres_only
 async def test_postgres_clear_gives_up_with_conflict_and_keeps_committed_batches(
     postgresql_engine: Any,
 ) -> None:
