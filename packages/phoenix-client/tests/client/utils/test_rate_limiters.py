@@ -8,6 +8,8 @@ import pytest
 
 from phoenix.client.utils.rate_limiters import (
     AdaptiveTokenBucket,
+    RateLimiter,
+    RateLimitError,
     UnavailableTokensError,
 )
 
@@ -350,3 +352,101 @@ def test_token_bucket_decreases_rate_once_per_cooldown_period() -> None:
     with warp_time(start + 6):
         bucket.on_rate_limit_error(request_start_time=time.time())
         assert isclose(bucket.rate, 6.25)
+
+
+async def test_token_bucket_async_decreases_rate_once_per_cooldown_period() -> None:
+    start = time.time()
+    rate = 100
+
+    with freeze_time(start):
+        bucket = AdaptiveTokenBucket(
+            initial_per_second_request_rate=rate,
+            maximum_per_second_request_rate=rate * 2,
+            enforcement_window_minutes=1,
+            rate_reduction_factor=0.25,
+            rate_increase_factor=0.01,
+            cooldown_seconds=5,
+        )
+
+    with async_warp_time(start):
+        request_start_time = time.time()
+        await bucket.async_on_rate_limit_error(request_start_time=request_start_time)
+        await bucket.async_on_rate_limit_error(request_start_time=request_start_time)
+
+    assert isclose(bucket.rate, 25)
+
+
+async def test_alimit_cooldown_never_blocks_the_event_loop() -> None:
+    import asyncio
+
+    class _RateLimitError(Exception):
+        pass
+
+    limiter = RateLimiter(
+        rate_limit_error=_RateLimitError,
+        max_rate_limit_retries=1,
+        initial_per_second_request_rate=1000,
+        cooldown_seconds=0.05,
+    )
+
+    @limiter.alimit
+    async def always_rate_limited() -> None:
+        raise _RateLimitError
+
+    ticks = 0
+    done = asyncio.Event()
+
+    async def ticker() -> None:
+        nonlocal ticks
+        while not done.is_set():
+            ticks += 1
+            await asyncio.sleep(0.005)
+
+    with mock.patch("time.sleep") as mock_sync_sleep:
+        tick_task = asyncio.create_task(ticker())
+        try:
+            with pytest.raises(RateLimitError):
+                await always_rate_limited()
+        finally:
+            done.set()
+            await tick_task
+        assert not mock_sync_sleep.called, "async path must not block with time.sleep"
+        assert ticks >= 5, f"event loop should remain responsive during cooldown (got {ticks} ticks)"
+
+
+async def test_alimit_cancellation_during_cooldown_unblocks_waiters() -> None:
+    import asyncio
+
+    class _RateLimitError(Exception):
+        pass
+
+    limiter = RateLimiter(
+        rate_limit_error=_RateLimitError,
+        max_rate_limit_retries=0,
+        initial_per_second_request_rate=1000,
+        cooldown_seconds=5,
+    )
+
+    entered_cooldown = asyncio.Event()
+    should_fail = True
+
+    async def slow_cooldown(_delay: float) -> None:
+        entered_cooldown.set()
+        await asyncio.Future()
+
+    @limiter.alimit
+    async def call() -> str:
+        if should_fail:
+            raise _RateLimitError
+        return "ok"
+
+    with mock.patch("phoenix.client.utils.rate_limiters.asyncio.sleep", side_effect=slow_cooldown):
+        first = asyncio.create_task(call())
+        await entered_cooldown.wait()
+        first.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await first
+
+    should_fail = False
+    assert await asyncio.wait_for(call(), timeout=1.0) == "ok"
+
