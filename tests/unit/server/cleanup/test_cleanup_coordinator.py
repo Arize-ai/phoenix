@@ -44,6 +44,7 @@ from phoenix.server.cleanup.primitives import (
     drain_eval_work_units_step,
     drain_project_annotation_config_links_step,
     drain_trace_scope_step,
+    drain_traces_step,
 )
 from phoenix.server.daemons.cleanup_worker import CleanupWorker
 from phoenix.server.dml_event import SpanDeleteEvent
@@ -2447,6 +2448,43 @@ async def test_delete_traces_handles_more_than_32767_trace_ids_without_bind_para
         assert await session.get(models.Trace, sdk_trace_rowid) is None
 
 
+async def test_delete_traces_announces_each_chunk_once_it_commits(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from phoenix.server.api.utils import delete_traces
+    from phoenix.server.cleanup import lifecycle
+
+    base_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    async with db() as session:
+        sdk_evaluators_project = models.Project(name="evaluators")
+        session.add(sdk_evaluators_project)
+        await session.flush()
+        sdk_traces = [
+            await _add_trace(session, sdk_evaluators_project, start_time=base_time)
+            for _ in range(2)
+        ]
+        for sdk_trace in sdk_traces:
+            await _add_span(session, trace=sdk_trace, start_time=base_time)
+        sdk_evaluators_project_id = sdk_evaluators_project.id
+        trace_ids = [sdk_trace.trace_id for sdk_trace in sdk_traces]
+
+    num_drain_calls = 0
+
+    async def _fail_on_the_second_chunk(*args: Any, **kwargs: Any) -> PrimitiveResult:
+        nonlocal num_drain_calls
+        num_drain_calls += 1
+        if num_drain_calls == 4:
+            raise RuntimeError("second chunk failed")
+        return await drain_traces_step(*args, **kwargs)
+
+    monkeypatch.setattr(lifecycle, "drain_traces_step", _fail_on_the_second_chunk)
+    event_queue = _RecordingQueue()
+    with pytest.raises(RuntimeError, match="second chunk failed"):
+        await delete_traces(db, *trace_ids, event_queue=event_queue, batch_limit=1)
+
+    assert event_queue.events == [SpanDeleteEvent((sdk_evaluators_project_id,))]
+
+
 async def test_delete_traces_chunks_batches_skips_evaluator_projects_and_emits_event(
     db: DbSessionFactory,
 ) -> None:
@@ -2521,15 +2559,15 @@ async def test_delete_traces_chunks_batches_skips_evaluator_projects_and_emits_e
         ]
 
     event_queue = _RecordingQueue()
-    affected_project_ids = await delete_traces(
+    await delete_traces(
         db,
         *deletion_candidate_trace_ids,
         *(f"nonexistent-eval-trace-{idx:02d}" for idx in range(3)),
         event_queue=event_queue,
         batch_limit=2,
     )
-    assert set(affected_project_ids) == {sdk_evaluators_project_id}
-    assert event_queue.events == [SpanDeleteEvent((sdk_evaluators_project_id,))]
+    assert event_queue.events
+    assert set(event_queue.events) == {SpanDeleteEvent((sdk_evaluators_project_id,))}
 
     async with db() as session:
         remaining_sdk_traces = list(

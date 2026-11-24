@@ -11,8 +11,8 @@ async def delete_traces(
     *trace_ids: str,
     event_queue: Optional[CanPutItem[DmlEvent]] = None,
     batch_limit: int = CLEANUP_BATCH_ROWS,
-) -> set[int]:
-    return await delete_standalone_traces_by_trace_id(
+) -> None:
+    await delete_standalone_traces_by_trace_id(
         db,
         trace_ids,
         event_queue=event_queue,

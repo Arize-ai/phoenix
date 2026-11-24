@@ -499,7 +499,6 @@ class DatasetMutationMixin:
             deleted = await execute_dataset_delete(
                 db=info.context.db,
                 dataset_id=dataset_id,
-                experiment_runner=getattr(info.context, "experiment_runner", None),
                 event_queue=info.context.event_queue,
             )
         except NotFound as error:

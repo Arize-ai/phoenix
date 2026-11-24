@@ -197,14 +197,10 @@ async def delete_dataset(
             raise HTTPException(detail=f"Invalid Dataset ID: {id}", status_code=422)
     else:
         raise HTTPException(detail="Missing Dataset ID", status_code=422)
-    experiment_runner = getattr(request.app.state, "experiment_runner", None) or getattr(
-        request.state, "experiment_runner", None
-    )
     try:
         await execute_dataset_delete(
             db=request.app.state.db,
             dataset_id=dataset_id,
-            experiment_runner=experiment_runner,
             event_queue=request.state.event_queue,
         )
     except NotFound as error:

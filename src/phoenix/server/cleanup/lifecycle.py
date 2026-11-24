@@ -6,7 +6,7 @@ import asyncio
 from collections.abc import AsyncIterator, Iterable
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Literal, Optional, Protocol, TypeAlias
+from typing import Literal, Optional, TypeAlias
 
 from sqlalchemy import and_, delete, exists, literal, or_, select, text, update
 from sqlalchemy.exc import DBAPIError
@@ -47,10 +47,6 @@ _TRACE_DRAIN_STATEMENT_TIMEOUT_MS = 60_000
 _TRACE_DRAIN_LOCK_TIMEOUT_MS = 5_000
 _MAX_YIELD_RETRIES_PER_CHUNK = 5
 _YIELD_RETRY_DELAY_SECONDS = 0.05
-
-
-class CanStopExperiment(Protocol):
-    async def stop_experiment(self, experiment_id: int) -> Any: ...
 
 
 @dataclass(frozen=True)
@@ -762,22 +758,22 @@ async def delete_standalone_traces_by_trace_id(
     *,
     event_queue: Optional[CanPutItem[DmlEvent]] = None,
     batch_limit: int = CLEANUP_BATCH_ROWS,
-) -> set[int]:
+) -> None:
     """Drain standalone traces matching ``trace_ids`` in bounded batches, skipping traces
-    owned by ``EVALUATOR`` or tombstoned projects, and emit ``SpanDeleteEvent`` for
-    affected projects."""
+    owned by ``EVALUATOR`` or tombstoned projects, and emit ``SpanDeleteEvent`` for each chunk's
+    affected projects once the chunk commits."""
     if batch_limit <= 0:
         raise ValueError("batch_limit must be positive")
     unique_trace_ids = sorted({trace_id for trace_id in trace_ids if trace_id})
     if not unique_trace_ids:
-        return set()
+        return
 
     dialect = SupportedSQLDialect(db.dialect.value)
     chunk_size = min(batch_limit, CLEANUP_BATCH_ROWS)
-    affected_project_ids: set[int] = set()
 
     for chunk_start in range(0, len(unique_trace_ids), chunk_size):
         chunk_trace_ids = unique_trace_ids[chunk_start : chunk_start + chunk_size]
+        chunk_affected_project_ids: set[int] = set()
         async with db() as session:
             if dialect is SupportedSQLDialect.POSTGRESQL:
                 await session.execute(
@@ -848,7 +844,7 @@ async def delete_standalone_traces_by_trace_id(
                     raise
 
                 if step_result.status is PrimitiveStatus.PROGRESS:
-                    affected_project_ids.add(project_rowid)
+                    chunk_affected_project_ids.add(project_rowid)
                     num_yields = 0
                     await asyncio.sleep(0)
                     continue
@@ -860,9 +856,8 @@ async def delete_standalone_traces_by_trace_id(
                     continue
                 break
 
-    if affected_project_ids and event_queue is not None:
-        event_queue.put(SpanDeleteEvent(tuple(sorted(affected_project_ids))))
-    return affected_project_ids
+        if chunk_affected_project_ids and event_queue is not None:
+            event_queue.put(SpanDeleteEvent(tuple(sorted(chunk_affected_project_ids))))
 
 
 async def delete_dataset_and_tombstone_projects(
@@ -937,50 +932,26 @@ async def execute_dataset_delete(
     *,
     db: DbSessionFactory,
     dataset_id: int,
-    experiment_runner: Optional[CanStopExperiment] = None,
     event_queue: Optional[CanPutItem[DmlEvent]] = None,
 ) -> DeletedDataset:
-    """Stop active dataset experiments, commit the canonical dataset-deletion transaction,
-    emit tombstoning and dataset-delete events, and drain
-    standalone SDK evaluation traces in bounded batches."""
-    stopped_experiment_ids: set[int] = set()
-    if experiment_runner is not None:
-        async with db() as session:
-            initial_experiment_ids = [
-                int(experiment_id)
-                for experiment_id in (
-                    await session.scalars(
-                        select(models.Experiment.id)
-                        .where(models.Experiment.dataset_id == dataset_id)
-                        .order_by(models.Experiment.id.asc())
-                    )
-                ).all()
-            ]
-        for experiment_id in initial_experiment_ids:
-            await experiment_runner.stop_experiment(experiment_id)
-            stopped_experiment_ids.add(experiment_id)
-
+    """Commit the canonical dataset-deletion transaction, emit tombstoning and dataset-delete
+    events, and drain standalone SDK evaluation traces in bounded batches."""
     async with db() as session:
         deleted_dataset = await delete_dataset_and_tombstone_projects(
             session,
             dataset_id=dataset_id,
         )
 
-    if experiment_runner is not None:
-        for experiment_id in deleted_dataset.experiment_ids:
-            if experiment_id not in stopped_experiment_ids:
-                await experiment_runner.stop_experiment(experiment_id)
-
-    if deleted_dataset.tombstoned_project_ids and event_queue is not None:
-        sorted_project_ids = tuple(deleted_dataset.tombstoned_project_ids)
-        event_queue.put(SpanDeleteEvent(sorted_project_ids))
-        event_queue.put(ProjectDeleteEvent(sorted_project_ids))
+    if event_queue is not None:
+        if deleted_dataset.tombstoned_project_ids:
+            sorted_project_ids = tuple(deleted_dataset.tombstoned_project_ids)
+            event_queue.put(SpanDeleteEvent(sorted_project_ids))
+            event_queue.put(ProjectDeleteEvent(sorted_project_ids))
+        event_queue.put(DatasetDeleteEvent((deleted_dataset.dataset.id,)))
     if deleted_dataset.eval_trace_ids:
         await delete_standalone_traces_by_trace_id(
             db,
             deleted_dataset.eval_trace_ids,
             event_queue=event_queue,
         )
-    if event_queue is not None:
-        event_queue.put(DatasetDeleteEvent((deleted_dataset.dataset.id,)))
     return deleted_dataset
