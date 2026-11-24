@@ -31,6 +31,11 @@ export type TimeRangeControlsProps = {
    * (e.g. while a detail drawer pauses streaming).
    */
   isLiveToggleDisabled?: boolean;
+  /**
+   * Added to the live toggle's tooltip while live, to say what live
+   * streaming keeps up to date.
+   */
+  liveTooltipText?: string;
   /** Disables every control. */
   isDisabled?: boolean;
   /** Visual size for the buttons. */
@@ -210,6 +215,7 @@ export function TimeRangeControls(props: TimeRangeControlsProps) {
     isLive = false,
     onIsLiveChange,
     isLiveToggleDisabled,
+    liveTooltipText,
     isDisabled,
     size = "S",
   } = props;
@@ -218,6 +224,10 @@ export function TimeRangeControls(props: TimeRangeControlsProps) {
   const liveToggleLabel = isLive
     ? "Stop live streaming"
     : "Resume live streaming";
+  const liveToggleTooltipText =
+    isLive && liveTooltipText
+      ? `${liveToggleLabel}. ${liveTooltipText}`
+      : liveToggleLabel;
   // An open-ended range is already at the live edge.
   const isAtLiveEdge = value.end == null;
 
@@ -264,7 +274,7 @@ export function TimeRangeControls(props: TimeRangeControlsProps) {
             }
             onChange={onIsLiveChange}
           />
-          <Tooltip>{liveToggleLabel}</Tooltip>
+          <Tooltip>{liveToggleTooltipText}</Tooltip>
         </TooltipTrigger>
       )}
       <ControlButton

@@ -134,6 +134,7 @@ vi.mock("../TableMetricsChartSelector", () => ({
 }));
 
 import type { TracesTable_spans$key } from "../__generated__/TracesTable_spans.graphql";
+import type { useSpanAnnotationNames_project$key } from "../__generated__/useSpanAnnotationNames_project.graphql";
 import { TraceFiltersProvider } from "../TraceFiltersContext";
 import { TracesTable } from "../TracesTable";
 
@@ -179,7 +180,10 @@ describe("TracesTable preload integration", () => {
           >
             <TraceFiltersProvider>
               <TracesTable
-                project={{} as TracesTable_spans$key}
+                project={
+                  {} as TracesTable_spans$key &
+                    useSpanAnnotationNames_project$key
+                }
                 seed={seed}
                 initialRequest={null}
               />

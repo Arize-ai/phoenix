@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<765472cd48f0a8d489ea122ac18fe698>>
+ * @generated SignedSource<<612c226dffc3536b7b63f3001162a69f>>
  * @lightSyntaxTransform
  */
 
@@ -66,7 +66,7 @@ export type TracesTable_spans$data = {
       };
     }>;
   };
-  readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment" | "useSpanAnnotationNames_project">;
+  readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment">;
   readonly " $fragmentType": "TracesTable_spans";
 };
 export type TracesTable_spans$key = {
@@ -286,11 +286,6 @@ return {
       "kind": "LocalArgument",
       "name": "first"
     },
-    {
-      "defaultValue": true,
-      "kind": "LocalArgument",
-      "name": "includeAnnotationNames"
-    },
     (v0/*:: as any*/),
     {
       "defaultValue": {
@@ -347,40 +342,6 @@ return {
       "args": null,
       "kind": "FragmentSpread",
       "name": "ProjectAnnotationConfigsByNameFragment"
-    },
-    {
-      "condition": "includeAnnotationNames",
-      "kind": "Condition",
-      "passingValue": true,
-      "selections": [
-        {
-          "kind": "Defer",
-          "selections": [
-            {
-              "kind": "InlineDataFragmentSpread",
-              "name": "useSpanAnnotationNames_project",
-              "selections": [
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "spanAnnotationNames",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "traceAnnotationNames",
-                  "storageKey": null
-                }
-              ],
-              "args": null,
-              "argumentDefinitions": []
-            }
-          ]
-        }
-      ]
     },
     {
       "alias": "rootSpans",
@@ -689,6 +650,6 @@ return {
 };
 })();
 
-(node as any).hash = "856131ee740b3db055c5b00c12a41f3e";
+(node as any).hash = "98dcf5aa769a41c7e9b3ac60cb768303";
 
 export default node;

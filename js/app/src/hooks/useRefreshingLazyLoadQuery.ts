@@ -13,8 +13,8 @@ type QueryInput<TQuery extends OperationType> = {
   fetchKey: string | undefined;
   /** The variables and fetch key as one string, to compare with the requested ones. */
   key: string;
-  /** What the data is about; see `subjectKey`. */
-  subjectKey: string;
+  /** See `resetKey`. */
+  resetKey: string;
 };
 
 type LoadedQueryInput<TQuery extends OperationType> = QueryInput<TQuery> & {
@@ -37,10 +37,9 @@ type QueryLoad<TQuery extends OperationType> = {
  * changed its variables, so other content updated in that transition commits
  * without waiting for this query. The first load suspends as usual.
  *
- * One request at a time: a refresh asked for while another is loading waits
- * for it to finish and show, and only the latest refresh that waited is then
- * made, so data slower to load than the refreshes come still advances. A
- * request for another subject replaces the one loading.
+ * Refreshes don't overlap: while one loads, only the newest pending refresh
+ * is kept, and it starts once the first shows. A new `resetKey` replaces the
+ * request loading.
  *
  * With a fetch key the first load is store-and-network, as for live charts;
  * without one it reads the store first and fetches once.
@@ -49,39 +48,39 @@ type QueryLoad<TQuery extends OperationType> = {
  * @param params.query - the query to read
  * @param params.variables - the query's variables
  * @param params.fetchKey - refetches whenever it changes
- * @param params.subjectKey - what the data is about, apart from how fresh it
- * is (e.g. a project and a live preset, whose bounds move on each refresh).
- * New variables under the same subject key refresh the data; under another
- * one they load other data. Defaults to the variables, so that only a new
- * fetch key refreshes.
+ * @param params.resetKey - when it changes, the data shown is no longer
+ * current and `isLoading` is set until the new data loads; new variables or
+ * a new fetch key under the same `resetKey` keep the data up while they load
+ * (e.g. a live preset whose bounds move on each refresh). Defaults to the
+ * variables, so that only a new fetch key refreshes in place.
  * @returns the data; the variables it was loaded with, which while newer
- * variables load are the previous ones; and `isOtherSubjectLoading`, set while
- * the data is for another subject than the one requested, so a caller can
- * show that it is loading rather than show the other subject's data.
+ * variables load are the previous ones; and `isLoading`, set while the data
+ * is for another `resetKey` than the one requested, so a caller can show
+ * that it is loading rather than show stale data.
  */
 export function useRefreshingLazyLoadQuery<TQuery extends OperationType>({
   query,
   variables,
   fetchKey,
-  subjectKey,
+  resetKey,
 }: {
   query: GraphQLTaggedNode;
   variables: TQuery["variables"];
   fetchKey?: string;
-  subjectKey?: string;
+  resetKey?: string;
 }): {
   data: TQuery["response"];
   variables: TQuery["variables"];
-  isOtherSubjectLoading: boolean;
+  isLoading: boolean;
 } {
   const environment = useRelayEnvironment();
   const requestedKey = `${JSON.stringify(variables)}|${fetchKey ?? ""}`;
-  const requestedSubjectKey = subjectKey ?? JSON.stringify(variables);
+  const requestedResetKey = resetKey ?? JSON.stringify(variables);
   const [loaded, setLoaded] = useState<LoadedQueryInput<TQuery>>(() => ({
     variables,
     fetchKey,
     key: requestedKey,
-    subjectKey: requestedSubjectKey,
+    resetKey: requestedResetKey,
     isRefresh: false,
   }));
   // The request loading, the latest refresh waiting for it, and the retains
@@ -131,9 +130,9 @@ export function useRefreshingLazyLoadQuery<TQuery extends OperationType>({
     load?.retained.dispose();
   });
   const loadRequested = useEffectEvent((key: string) => {
-    const input = { variables, fetchKey, key, subjectKey: requestedSubjectKey };
+    const input = { variables, fetchKey, key, resetKey: requestedResetKey };
     const load = loadRef.current;
-    if (load != null && load.input.subjectKey !== input.subjectKey) {
+    if (load != null && load.input.resetKey !== input.resetKey) {
       cancelLoad();
     } else if (load != null) {
       nextRef.current = key === load.input.key ? null : input;
@@ -146,7 +145,7 @@ export function useRefreshingLazyLoadQuery<TQuery extends OperationType>({
   });
   useEffect(
     () => loadRequested(requestedKey),
-    [requestedKey, requestedSubjectKey]
+    [requestedKey, requestedResetKey]
   );
   useEffect(
     () => () => {
@@ -177,7 +176,7 @@ export function useRefreshingLazyLoadQuery<TQuery extends OperationType>({
   return {
     data,
     variables: loaded.variables,
-    isOtherSubjectLoading:
-      loaded.key !== requestedKey && loaded.subjectKey !== requestedSubjectKey,
+    isLoading:
+      loaded.key !== requestedKey && loaded.resetKey !== requestedResetKey,
   };
 }

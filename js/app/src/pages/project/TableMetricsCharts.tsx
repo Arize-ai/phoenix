@@ -40,8 +40,8 @@ const TableMetricsCharts = memo(function TableMetricsCharts({
     (state) => state.metricChartKeys[view]
   );
   const { setCustomTimeRange } = useTimeRange();
-  const { fetchKey: streamFetchKey } = useStreamState();
-  const fetchKey = viewFetchKey ?? streamFetchKey;
+  const { throttledFetchKey } = useStreamState();
+  const fetchKey = viewFetchKey ?? throttledFetchKey;
   const timeRange = useClosedTimeRange();
   const charts = getProjectMetricCharts(selectedChartKeys);
   return (
