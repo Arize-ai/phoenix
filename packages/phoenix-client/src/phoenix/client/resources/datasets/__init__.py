@@ -2264,7 +2264,7 @@ def _get_csv_column_headers(path: Path) -> tuple[str, ...]:
     if not path.is_file():
         raise FileNotFoundError(f"File does not exist: {path}")
 
-    with open(path, "r") as f:
+    with open(path, "r", encoding="utf-8-sig", newline="") as f:
         reader = csv.reader(f)
         try:
             column_headers = tuple(next(reader))

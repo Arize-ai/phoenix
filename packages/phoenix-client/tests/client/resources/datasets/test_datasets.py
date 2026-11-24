@@ -1,4 +1,5 @@
 import gzip
+import tempfile
 import warnings
 from datetime import datetime
 from io import StringIO
@@ -288,6 +289,20 @@ class TestHelperFunctions:
         with patch("builtins.open", mock_open(read_data=csv_content)):
             headers = _get_csv_column_headers(mock_path)
             assert headers == ("col1", "col2", "col3")
+
+    def test_get_csv_column_headers_utf8_bom(self) -> None:
+        # Excel "CSV UTF-8" files start with a UTF-8 BOM (\xef\xbb\xbf).
+        # _get_csv_column_headers must strip it so the first column name is
+        # returned without the BOM prefix (﻿).
+        with tempfile.TemporaryDirectory() as tmpdir:
+            bom_path = Path(tmpdir) / "excel.csv"
+            bom_path.write_text(
+                "question,answer\nCapital of France?,Paris\n", encoding="utf-8-sig"
+            )
+            headers = _get_csv_column_headers(bom_path)
+            assert headers == ("question", "answer"), (
+                f"BOM not stripped from first header; got {headers!r}"
+            )
 
     def test_get_csv_column_headers_errors(self) -> None:
         # Test empty file
