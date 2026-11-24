@@ -944,7 +944,10 @@ async def patch_prompt(
     dependencies=[Depends(is_not_locked)],
     operation_id="deletePrompt",
     summary="Delete a prompt",
-    description="Delete a prompt and all its versions, tags, and labels by identifier.",
+    description=(
+        "Delete a prompt and all its versions, tags, and labels by identifier. "
+        "Returns 409 if one or more LLM evaluators use the prompt."
+    ),
     status_code=204,
     responses=add_errors_to_responses(
         [
@@ -969,7 +972,9 @@ async def delete_prompt(
         prompt_id = await session.scalar(select(models.Prompt.id).where(where_clause))
         if prompt_id is None:
             raise HTTPException(status_code=404, detail="Prompt not found")
-        evaluator_names = await get_prompt_referencing_llm_evaluator_names(session, prompt_id)
+        evaluator_names = await get_prompt_referencing_llm_evaluator_names(
+            session=session, prompt_id=prompt_id
+        )
         if evaluator_names:
             raise HTTPException(
                 status_code=409,
@@ -983,7 +988,9 @@ async def delete_prompt(
                     .returning(models.Prompt.id)
                 )
         except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-            evaluator_names = await get_prompt_referencing_llm_evaluator_names(session, prompt_id)
+            evaluator_names = await get_prompt_referencing_llm_evaluator_names(
+                session=session, prompt_id=prompt_id
+            )
             raise HTTPException(
                 status_code=409,
                 detail=format_prompt_in_use_by_llm_evaluators_message(evaluator_names),

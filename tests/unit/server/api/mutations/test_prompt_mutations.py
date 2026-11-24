@@ -2127,12 +2127,14 @@ class TestPromptMutations:
 
         calls = 0
 
-        async def _simulate_race(session: Any, prompt_id: int) -> list[str]:
+        async def _simulate_race(*, session: Any, prompt_id: int) -> list[str]:
             nonlocal calls
             calls += 1
             if calls == 1:
                 return []
-            return await get_prompt_referencing_llm_evaluator_names(session, prompt_id)
+            return await get_prompt_referencing_llm_evaluator_names(
+                session=session, prompt_id=prompt_id
+            )
 
         monkeypatch.setattr(
             "phoenix.server.api.mutations.prompt_mutations.get_prompt_referencing_llm_evaluator_names",

@@ -1134,7 +1134,7 @@ export interface paths {
         post?: never;
         /**
          * Delete a prompt
-         * @description Delete a prompt and all its versions, tags, and labels by identifier.
+         * @description Delete a prompt and all its versions, tags, and labels by identifier. Returns 409 if one or more LLM evaluators use the prompt.
          */
         delete: operations["deletePrompt"];
         options?: never;

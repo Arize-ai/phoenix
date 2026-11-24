@@ -166,7 +166,9 @@ class PromptMutationMixin:
             global_id=input.prompt_id, expected_type_name=Prompt.__name__
         )
         async with info.context.db() as session:
-            evaluator_names = await get_prompt_referencing_llm_evaluator_names(session, prompt_id)
+            evaluator_names = await get_prompt_referencing_llm_evaluator_names(
+                session=session, prompt_id=prompt_id
+            )
             if evaluator_names:
                 raise Conflict(format_prompt_in_use_by_llm_evaluators_message(evaluator_names))
             stmt = delete(models.Prompt).where(models.Prompt.id == prompt_id)
@@ -175,7 +177,7 @@ class PromptMutationMixin:
                     result = await session.execute(stmt)
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 evaluator_names = await get_prompt_referencing_llm_evaluator_names(
-                    session, prompt_id
+                    session=session, prompt_id=prompt_id
                 )
                 raise Conflict(format_prompt_in_use_by_llm_evaluators_message(evaluator_names))
 

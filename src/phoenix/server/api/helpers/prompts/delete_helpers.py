@@ -7,6 +7,7 @@ from phoenix.db import models
 
 
 async def get_prompt_referencing_llm_evaluator_names(
+    *,
     session: AsyncSession,
     prompt_id: int,
 ) -> list[str]:
