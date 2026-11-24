@@ -7,7 +7,7 @@
 # ///
 """Run one Phoenix pull request through the factory's review lane.
 
-`start` checks that the PR is open and that whoever asked has write access, then creates a
+`start` admits a newly ready PR or checks that a manual requester has write access, then creates a
 Managed Agents session with the pr-reviewer agent, kicked off with the PR number and the
 commit to review, and posts one status comment on the PR. `watch` waits for the session to
 end, finds the review it posted, turns that comment into the review's verdict, which it
@@ -120,7 +120,7 @@ def read_pr(*, pr_number: int) -> dict[str, Any]:
             "view",
             str(pr_number),
             "--json",
-            "number,state,isCrossRepository,baseRefName,baseRefOid,headRefName,headRefOid,"
+            "number,state,isDraft,labels,isCrossRepository,baseRefName,baseRefOid,headRefName,headRefOid,"
             "headRepository,headRepositoryOwner",
         )
     )
@@ -180,9 +180,10 @@ def find_admission_problem(
     pr: dict[str, Any],
     requester_login: str,
     requester_permission: str,
+    automatic: bool = False,
     scan_input: bool = True,
 ) -> Optional[str]:
-    if requester_permission not in STARTING_PERMISSIONS:
+    if not automatic and requester_permission not in STARTING_PERMISSIONS:
         return f"`{requester_login}` needs write access to this repository to start it"
     if pr["state"] != "OPEN":
         return f"the pull request is {pr['state'].lower()}"
@@ -547,19 +548,41 @@ def watch_session(
     ), verdict
 
 
+def needs_automatic_review(pr: dict[str, Any]) -> bool:
+    labels = {label["name"] for label in pr["labels"]}
+    return (
+        pr["state"] == "OPEN"
+        and not pr["isDraft"]
+        and REVIEW_LABEL not in labels
+        and not any(verdict.name in labels for verdict in VERDICT_LABELS.values())
+    )
+
+
 def run_start(*, args: argparse.Namespace) -> None:
     pr = read_pr(pr_number=args.pr)
-    # A workflow's GITHUB_TOKEN is not a maintainer, so turn away runs it starts.
     requester_login = args.requested_by
-    requester_permission = (
-        "none" if requester_login == WORKFLOW_LOGIN else read_repo_permission(login=requester_login)
-    )
+    if args.automatic:
+        if not needs_automatic_review(pr):
+            print("PR is not ready for its first automatic review")
+            write_github_outputs(started="false")
+            return
+        if not args.head_sha:
+            raise ValueError("Automatic review requires the head commit from its ready event")
+        requester_permission = "none"
+    else:
+        # A workflow's GITHUB_TOKEN cannot request a manual review.
+        requester_permission = (
+            "none"
+            if requester_login == WORKFLOW_LOGIN
+            else read_repo_permission(login=requester_login)
+        )
     admission_problem = check_requested_head(
         pr=pr, expected_sha=args.head_sha
     ) or find_admission_problem(
         pr=pr,
         requester_login=requester_login,
         requester_permission=requester_permission,
+        automatic=args.automatic,
         scan_input=not args.dry_run,
     )
     print(f"head_sha={pr['headRefOid']} admission_problem={admission_problem}")
@@ -573,24 +596,47 @@ def run_start(*, args: argparse.Namespace) -> None:
             body=f"The factory skipped reviewing this pull request: {admission_problem}.",
             token=app_token.refresh(),
         )
-        remove_review_label(pr_number=args.pr, token=app_token.refresh())
+        if not args.automatic:
+            remove_review_label(pr_number=args.pr, token=app_token.refresh())
         write_github_outputs(started="false")
         return
 
+    if args.automatic:
+        current_pr = read_pr(pr_number=args.pr)
+        if not needs_automatic_review(current_pr) or current_pr["headRefOid"] != pr["headRefOid"]:
+            print("PR changed or was queued for review during admission")
+            write_github_outputs(started="false")
+            return
     # Fail before starting a session that the watch step could not check.
     factory_login = read_factory_login()
     # A verdict from an earlier review describes an older commit, so drop it until this one ends.
     set_verdict_label(pr_number=args.pr, verdict=None, token=app_token.refresh())
+    if args.automatic:
+        # GITHUB_TOKEN adds the label without starting a second review workflow.
+        run_gh(
+            "api",
+            "--method",
+            "POST",
+            f"repos/{{owner}}/{{repo}}/issues/{args.pr}/labels",
+            "--raw-field",
+            f"labels[]={REVIEW_LABEL}",
+            "--silent",
+        )
     # Taken before the session exists, so every review it posts is submitted at or after it.
     started_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    session_id = start_session(
-        client=client,
-        repo=args.repo,
-        pr=pr,
-        github_token=app_token.refresh(),
-        factory_login=factory_login,
-        budget_cents=args.budget_cents,
-    )
+    try:
+        session_id = start_session(
+            client=client,
+            repo=args.repo,
+            pr=pr,
+            github_token=app_token.refresh(),
+            factory_login=factory_login,
+            budget_cents=args.budget_cents,
+        )
+    except Exception:
+        if args.automatic:
+            remove_review_label(pr_number=args.pr, token=None)
+        raise
     print(f"session_id={session_id}")
     status_comment_id = post_status_comment(
         number=args.pr,
@@ -669,6 +715,9 @@ def main() -> None:
     )
     start_parser.add_argument(
         "--budget-cents", type=int, default=1000, help="Session spend cap, USD cents"
+    )
+    start_parser.add_argument(
+        "--automatic", action="store_true", help="Start from a trusted PR-ready workflow event"
     )
     start_parser.add_argument("--dry-run", action="store_true", help="Print the checks and exit")
 
