@@ -1,5 +1,5 @@
-import React, { startTransition, Suspense } from "react";
-import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
+import React, { Suspense } from "react";
+import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
 import { useParams } from "react-router";
 import { Cell, Pie, PieChart } from "recharts";
 
@@ -33,7 +33,7 @@ import type {
 } from "@phoenix/components/core/types";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeRange } from "@phoenix/components/datetime";
-import { useRefetchOnThrottledFetchKey } from "@phoenix/hooks/useRefetchOnThrottledFetchKey";
+import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import type { Mutable } from "@phoenix/typeUtils";
 import { formatPercent } from "@phoenix/utils/numberFormatUtils";
 
@@ -54,6 +54,7 @@ export function AnnotationSummary({
 }: AnnotationSummaryProps) {
   const { projectId } = useParams();
   const { timeRangeISOStrings } = useTimeRange();
+  const { throttledFetchKey } = useStreamState();
   const data = useLazyLoadQuery<AnnotationSummaryQuery>(
     graphql`
       query AnnotationSummaryQuery(
@@ -77,13 +78,13 @@ export function AnnotationSummary({
       id: projectId as string,
       timeRange: timeRangeISOStrings,
       filterCondition: filterCondition || null,
-    }
+    },
+    { fetchKey: throttledFetchKey, fetchPolicy: "store-and-network" }
   );
   return (
     <Summary name={annotationName}>
       <AnnotationSummaryValue
         annotationName={annotationName}
-        filterCondition={filterCondition || null}
         project={data.project}
       />
     </Summary>
@@ -92,17 +93,12 @@ export function AnnotationSummary({
 
 function AnnotationSummaryValue(props: {
   annotationName: string;
-  filterCondition: string | null;
   project: AnnotationSummaryValueFragment$key;
 }) {
-  const { project, annotationName, filterCondition } = props;
-  const [data, refetch] = useRefetchableFragment<
-    AnnotationSummaryQuery,
-    AnnotationSummaryValueFragment$key
-  >(
+  const { project, annotationName } = props;
+  const data = useFragment<AnnotationSummaryValueFragment$key>(
     graphql`
       fragment AnnotationSummaryValueFragment on Project
-      @refetchable(queryName: "AnnotationSummaryValueQuery")
       @argumentDefinitions(
         annotationName: { type: "String!" }
         timeRange: { type: "TimeRange!" }
@@ -129,12 +125,6 @@ function AnnotationSummaryValue(props: {
     `,
     project
   );
-
-  useRefetchOnThrottledFetchKey(() => {
-    startTransition(() => {
-      refetch({ filterCondition }, { fetchPolicy: "store-and-network" });
-    });
-  });
 
   return (
     <AnnotationSummaryValueView

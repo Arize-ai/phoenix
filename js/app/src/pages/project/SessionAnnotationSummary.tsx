@@ -1,9 +1,8 @@
-import { startTransition } from "react";
-import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
+import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
 import { useParams } from "react-router";
 
 import { useTimeRange } from "@phoenix/components/datetime";
-import { useRefetchOnThrottledFetchKey } from "@phoenix/hooks/useRefetchOnThrottledFetchKey";
+import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 
 import type { SessionAnnotationSummaryQuery } from "./__generated__/SessionAnnotationSummaryQuery.graphql";
 import type { SessionAnnotationSummaryValueFragment$key } from "./__generated__/SessionAnnotationSummaryValueFragment.graphql";
@@ -26,6 +25,7 @@ export function SessionAnnotationSummary({
 }: SessionAnnotationSummaryProps) {
   const { projectId } = useParams();
   const { timeRangeISOStrings } = useTimeRange();
+  const { throttledFetchKey } = useStreamState();
   const data = useLazyLoadQuery<SessionAnnotationSummaryQuery>(
     graphql`
       query SessionAnnotationSummaryQuery(
@@ -49,7 +49,8 @@ export function SessionAnnotationSummary({
       id: projectId as string,
       timeRange: timeRangeISOStrings,
       sessionFilterCondition,
-    }
+    },
+    { fetchKey: throttledFetchKey, fetchPolicy: "store-and-network" }
   );
   return (
     <Summary name={annotationName}>
@@ -66,13 +67,9 @@ function SessionAnnotationSummaryValue(props: {
   project: SessionAnnotationSummaryValueFragment$key;
 }) {
   const { project, annotationName } = props;
-  const [data, refetch] = useRefetchableFragment<
-    SessionAnnotationSummaryQuery,
-    SessionAnnotationSummaryValueFragment$key
-  >(
+  const data = useFragment<SessionAnnotationSummaryValueFragment$key>(
     graphql`
       fragment SessionAnnotationSummaryValueFragment on Project
-      @refetchable(queryName: "SessionAnnotationSummaryValueQuery")
       @argumentDefinitions(
         annotationName: { type: "String!" }
         timeRange: { type: "TimeRange!" }
@@ -99,12 +96,6 @@ function SessionAnnotationSummaryValue(props: {
     `,
     project
   );
-
-  useRefetchOnThrottledFetchKey(() => {
-    startTransition(() => {
-      refetch({}, { fetchPolicy: "store-and-network" });
-    });
-  });
 
   return (
     <AnnotationSummaryValueView

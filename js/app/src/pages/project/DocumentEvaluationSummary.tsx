@@ -1,10 +1,10 @@
-import { startTransition, Suspense } from "react";
-import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
+import { Suspense } from "react";
+import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
 import { useParams } from "react-router";
 
 import { Flex, Text } from "@phoenix/components";
 import { useTimeRange } from "@phoenix/components/datetime";
-import { useRefetchOnThrottledFetchKey } from "@phoenix/hooks/useRefetchOnThrottledFetchKey";
+import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 
 import type { DocumentEvaluationSummaryQuery } from "./__generated__/DocumentEvaluationSummaryQuery.graphql";
 import type { DocumentEvaluationSummaryValueFragment$key } from "./__generated__/DocumentEvaluationSummaryValueFragment.graphql";
@@ -18,6 +18,7 @@ export function DocumentEvaluationSummary({
 }: DocumentEvaluationSummaryProps) {
   const { projectId } = useParams();
   const { timeRangeISOStrings } = useTimeRange();
+  const { throttledFetchKey } = useStreamState();
   const data = useLazyLoadQuery<DocumentEvaluationSummaryQuery>(
     graphql`
       query DocumentEvaluationSummaryQuery(
@@ -35,7 +36,8 @@ export function DocumentEvaluationSummary({
       id: projectId as string,
       evaluationName,
       timeRange: timeRangeISOStrings,
-    }
+    },
+    { fetchKey: throttledFetchKey, fetchPolicy: "store-and-network" }
   );
   return (
     <Flex direction="column" flex="none">
@@ -57,13 +59,9 @@ function EvaluationSummaryValue(props: {
   project: DocumentEvaluationSummaryValueFragment$key;
 }) {
   const { project } = props;
-  const [data, refetch] = useRefetchableFragment<
-    DocumentEvaluationSummaryQuery,
-    DocumentEvaluationSummaryValueFragment$key
-  >(
+  const data = useFragment<DocumentEvaluationSummaryValueFragment$key>(
     graphql`
       fragment DocumentEvaluationSummaryValueFragment on Project
-      @refetchable(queryName: "DocumentEvaluationSummaryValueQuery")
       @argumentDefinitions(
         evaluationName: { type: "String!" }
         timeRange: { type: "TimeRange!" }
@@ -81,12 +79,6 @@ function EvaluationSummaryValue(props: {
     `,
     project
   );
-
-  useRefetchOnThrottledFetchKey(() => {
-    startTransition(() => {
-      refetch({}, { fetchPolicy: "store-and-network" });
-    });
-  });
 
   const averageNdcg = data?.documentEvaluationSummary?.averageNdcg;
   const averagePrecision = data?.documentEvaluationSummary?.averagePrecision;
