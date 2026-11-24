@@ -59,7 +59,7 @@ const experiment = await runExperiment({
 
 | Option | Default | Use |
 | ------ | ------- | --- |
-| `repetitions` | 1 | Runs each example several times. Consider 3 or more when nondeterminism matters to the decision. |
+| `repetitions` | 1 | Runs each example several times. Use 3 or more when the task or a judge calls an LLM. |
 | `concurrency` | 5 | Tasks running at once. |
 | `dryRun` | `false` | `true` or a number runs that many examples without recording anything. |
 | `record` | `true` | `false` runs without writing to Phoenix. |

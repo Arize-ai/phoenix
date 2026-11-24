@@ -29,10 +29,9 @@ experiments from the terminal (`px dataset list`, `px experiment get`).
    evaluators you'll compare on.
 3. **Run the change** on the same dataset version, with the same evaluators, under a
    name that says what changed.
-4. **Repeat when variation matters.** For a nondeterministic task or judge, multiple
-   repetitions show whether a result is stable. Three repetitions are a useful
-   starting point for a small dataset, but cost and the decision's risk should
-   determine the count.
+4. **Repeat when variation matters.** When the task or a judge calls an LLM, set
+   `repetitions` to 3 or more so you can see whether a result is stable. Raise or
+   lower the count from there based on cost and the decision's risk.
 5. **Compare per evaluator and per example.** Read pass rates side by side, then the
    examples that flipped. See [compare-experiments](references/compare-experiments.md).
 6. **Decide and say why.** Name the metric, the two rates, the number of runs behind
