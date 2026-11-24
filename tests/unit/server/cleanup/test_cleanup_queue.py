@@ -2913,7 +2913,7 @@ async def test_postgres_dataset_evaluator_dependents_skip_locked_past_locked_pre
         assert empty_result == PrimitiveResult(PrimitiveStatus.EMPTY, 0)
 
 
-async def test_late_spans_dropped_after_internal_projects_are_physically_purged(
+async def test_late_spans_recreate_a_live_project_after_generated_projects_are_purged(
     db: DbSessionFactory,
 ) -> None:
     base_time = datetime(2026, 8, 4, 0, 0, 0, tzinfo=timezone.utc)
@@ -3028,16 +3028,16 @@ async def test_late_spans_dropped_after_internal_projects_are_physically_purged(
             conversation=None,
         )
         async with db() as session:
-            assert await insert_span(session, late_span, internal_name) is None
-            assert (
-                await session.scalar(
-                    select(models.Project.id).where(models.Project.name == internal_name)
-                )
-                is None
-            )
+            inserted_late = await insert_span(session, late_span, internal_name)
+            assert inserted_late is not None
+            recreated_late = await session.get(models.Project, inserted_late.project_rowid)
+            assert recreated_late is not None
+            assert recreated_late.name == internal_name
+            assert recreated_late.deleted_at is None
+            assert recreated_late.id not in purged_project_ids
 
     # A retained experiment still names its project, so a late span lands in a recreated
-    # EXPERIMENT project instead of being dropped.
+    # project as well.
     retained_span = Span(
         name="late-retained-span",
         context=SpanContext(trace_id=token_hex(16), span_id=token_hex(8)),

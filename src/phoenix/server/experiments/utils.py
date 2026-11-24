@@ -1,11 +1,9 @@
 from __future__ import annotations
 
+import re
 from secrets import token_hex
 
-from phoenix.db.lifecycle import (
-    EXPERIMENT_PROJECT_NAME_PATTERN,
-    is_generated_experiment_project_name,
-)
+EXPERIMENT_PROJECT_NAME_PATTERN = re.compile(r"^Experiment-[0-9a-f]{24}$")
 
 
 def generate_experiment_project_name() -> str:
@@ -13,11 +11,4 @@ def generate_experiment_project_name() -> str:
 
 
 def is_experiment_project_name(name: str) -> bool:
-    return is_generated_experiment_project_name(name)
-
-
-__all__ = [
-    "EXPERIMENT_PROJECT_NAME_PATTERN",
-    "generate_experiment_project_name",
-    "is_experiment_project_name",
-]
+    return bool(EXPERIMENT_PROJECT_NAME_PATTERN.match(name))

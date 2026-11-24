@@ -24,11 +24,7 @@ from phoenix.db.helpers import (
     random_project_gradient,
 )
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
-from phoenix.db.lifecycle import (
-    is_generated_evaluator_trace_project_name,
-    is_generated_experiment_project_name,
-    live_row_predicate,
-)
+from phoenix.db.lifecycle import live_row_predicate
 from phoenix.trace.attributes import get_attribute_value
 from phoenix.trace.schemas import Span, SpanEvent, SpanKind, SpanStatusCode
 
@@ -251,16 +247,6 @@ async def insert_span(
             _ProjectRow,
         )
         if project is None:
-            if is_generated_evaluator_trace_project_name(project_name):
-                return None
-            if is_generated_experiment_project_name(project_name):
-                experiment_id = await session.scalar(
-                    select(models.Experiment.id)
-                    .where(models.Experiment.project_name == project_name)
-                    .limit(1)
-                )
-                if experiment_id is None:
-                    return None
             project = await _get_or_create(
                 session,
                 models.Project,
