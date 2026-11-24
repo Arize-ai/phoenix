@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { ComponentType } from "react";
-import { Suspense, useTransition } from "react";
+import { Suspense } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
@@ -95,19 +95,15 @@ export const ProjectEvaluatorScopePanel = ({
   requiredVariables?: string[];
 }) => {
   const [timeWindow, setTimeWindow] = useProjectEvaluatorTimeWindow();
-  const [, startWindowTransition] = useTransition();
-  // A target or filter change swaps the records wholesale, so the bench shows
-  // its loading state under the new title: the switch of level is the point.
-  // A window change keeps the same records in view while the next page loads,
-  // so it is a transition.
+  // Not a transition: a new window should show the loading state, not the
+  // previous window's records.
   const { filterCondition } = scope;
   const recordKind = toEvaluatorRecordKind(scope.targetType);
   const { CountLine, RecordSource } = RECORD_SOURCE_BY_RECORD_KIND[recordKind];
   const headerProps: TestBenchHeaderProps = {
     targetType: scope.targetType,
     timeWindow,
-    onTimeWindowChange: (next) =>
-      startWindowTransition(() => setTimeWindow(next)),
+    onTimeWindowChange: setTimeWindow,
     countLine: (
       <CountLine
         projectId={projectId}
@@ -127,7 +123,11 @@ export const ProjectEvaluatorScopePanel = ({
   };
   return (
     <div css={panelCSS}>
+      {/* The filter field applies changes in a transition, which would keep
+          the old records on screen. Remounting on each filter shows the
+          loading state instead. */}
       <Suspense
+        key={filterCondition.trim()}
         fallback={<ProjectEvaluatorTestBenchFallback {...headerProps} />}
       >
         {codeEvaluatorId || inlineCode || decision ? (
