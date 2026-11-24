@@ -16,7 +16,7 @@ from openinference.semconv.trace import (
 )
 from opentelemetry.context import Context as OtelContext
 from opentelemetry.semconv.attributes.url_attributes import URL_FULL, URL_PATH
-from sqlalchemy import select
+from sqlalchemy import select, update
 from strawberry.relay.types import GlobalID
 from vcr.request import Request as VCRRequest  # type: ignore[import-untyped]
 
@@ -29,6 +29,11 @@ from phoenix.db.types.annotation_configs import (
 )
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.experiment_config import OpenAIConnectionConfig
+from phoenix.db.types.model_provider import (
+    AuthenticationMethodApiKey,
+    GenerativeModelCustomerProviderConfig,
+    OpenAICustomProviderConfig,
+)
 from phoenix.db.types.prompts import PromptMessageRole, PromptTemplateFormat
 from phoenix.server.api import subscriptions
 from phoenix.server.api.input_types.ChatCompletionInput import ChatCompletionInput
@@ -68,6 +73,7 @@ from phoenix.server.daemons.experiment_runner import (
     TaskWorkItem,
     WorkItem,
 )
+from phoenix.server.encryption import EncryptionService
 from phoenix.server.experiments.utils import is_experiment_project_name
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import flatten, get_attribute_value
@@ -320,7 +326,7 @@ class TestChatCompletionSubscription:
                         ]
                     },
                     "modelProvider": "OPENAI",
-                    "modelName": "gpt-4o",
+                    "modelName": "gpt-4",
                     "invocationParameters": {"openai": {"temperature": 0.1}},
                     "tools": None,
                 },
@@ -411,7 +417,7 @@ class TestChatCompletionSubscription:
         assert not span
 
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
-        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4o"
+        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
         assert isinstance(invocation_parameters := attributes.pop("llm.invocation_parameters"), str)
         assert json.loads(invocation_parameters) == {
             "temperature": 0.1,
@@ -472,7 +478,7 @@ class TestChatCompletionSubscription:
                         ]
                     },
                     "modelProvider": "OPENAI",
-                    "modelName": "gpt-4o",
+                    "modelName": "gpt-4",
                     "invocationParameters": {"openai": {"temperature": 0.1}},
                     "tools": None,
                 },
@@ -564,7 +570,7 @@ class TestChatCompletionSubscription:
         assert not span
 
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
-        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4o"
+        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
         assert isinstance(invocation_parameters := attributes.pop("llm.invocation_parameters"), str)
         assert json.loads(invocation_parameters) == {
             "temperature": 0.1,
@@ -624,7 +630,7 @@ class TestChatCompletionSubscription:
                         ]
                     },
                     "modelProvider": "OPENAI",
-                    "modelName": "gpt-4o",
+                    "modelName": "gpt-4",
                     "invocationParameters": {"openai": {}},
                     "tools": {
                         "tools": [
@@ -732,7 +738,7 @@ class TestChatCompletionSubscription:
         assert not span
 
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
-        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4o"
+        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
         assert isinstance(invocation_paramaters := attributes.pop(LLM_INVOCATION_PARAMETERS), str)
         assert json.loads(invocation_paramaters) == {
             "tool_choice": "auto",
@@ -823,7 +829,7 @@ class TestChatCompletionSubscription:
                         ]
                     },
                     "modelProvider": "OPENAI",
-                    "modelName": "gpt-4o",
+                    "modelName": "gpt-4",
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
@@ -916,7 +922,7 @@ class TestChatCompletionSubscription:
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
         assert isinstance(invocation_paramaters := attributes.pop(LLM_INVOCATION_PARAMETERS), str)
         assert json.loads(invocation_paramaters) == {}
-        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4o"
+        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
         assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
         assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
         assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION) == token_count_completion
@@ -1271,7 +1277,7 @@ class TestChatCompletionOverDatasetSubscription:
                         ]
                     },
                     "modelProvider": "OPENAI",
-                    "modelName": "gpt-4o",
+                    "modelName": "gpt-4",
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
@@ -1433,7 +1439,7 @@ class TestChatCompletionOverDatasetSubscription:
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
         assert isinstance(invocation_paramaters := attributes.pop(LLM_INVOCATION_PARAMETERS), str)
         assert json.loads(invocation_paramaters) == {}
-        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4o"
+        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
         assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
         assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
         assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION) == token_count_completion
@@ -1523,7 +1529,7 @@ class TestChatCompletionOverDatasetSubscription:
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
         assert isinstance(invocation_paramaters := attributes.pop(LLM_INVOCATION_PARAMETERS), str)
         assert json.loads(invocation_paramaters) == {}
-        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4o"
+        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
         assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
         assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
         assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION) == token_count_completion
@@ -1686,7 +1692,7 @@ class TestChatCompletionOverDatasetSubscription:
                         ]
                     },
                     "modelProvider": "OPENAI",
-                    "modelName": "gpt-4o",
+                    "modelName": "gpt-4",
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
@@ -1795,7 +1801,7 @@ class TestChatCompletionOverDatasetSubscription:
                         ]
                     },
                     "modelProvider": "OPENAI",
-                    "modelName": "gpt-4o",
+                    "modelName": "gpt-4",
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
@@ -1833,6 +1839,13 @@ class TestChatCompletionOverDatasetSubscription:
         assert set(payloads.keys()) == set(train_example_ids) | {None}
         for test_id in test_example_ids:
             assert test_id not in payloads, f"Test example {test_id} should not be in results"
+        assert not [
+            payload
+            for example_payloads in payloads.values()
+            for payload in example_payloads
+            if payload["chatCompletionOverDataset"]["__typename"]
+            == ChatCompletionSubscriptionError.__name__
+        ]
 
         # Verify experiment payload exists
         assert len(payloads[None]) == 1
@@ -1888,7 +1901,7 @@ class TestChatCompletionOverDatasetSubscription:
                         ]
                     },
                     "modelProvider": "OPENAI",
-                    "modelName": "gpt-4o",
+                    "modelName": "gpt-4",
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
@@ -2041,7 +2054,7 @@ class TestChatCompletionOverDatasetSubscription:
                         ]
                     },
                     "modelProvider": "OPENAI",
-                    "modelName": "gpt-4o",
+                    "modelName": "gpt-4",
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
@@ -2113,7 +2126,7 @@ class TestChatCompletionOverDatasetSubscription:
                         ]
                     },
                     "modelProvider": "OPENAI",
-                    "modelName": "gpt-4o",
+                    "modelName": "gpt-4",
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
@@ -2177,6 +2190,37 @@ class TestChatCompletionOverDatasetSubscription:
         llm_dataset_evaluator = await assign_correctness_llm_evaluator_to_dataset(
             single_example_dataset.id
         )
+        # An evaluator prompt has no connection config, so a custom provider is how it pins
+        # the API its cassette was recorded against.
+        async with db() as session:
+            chat_completions_provider = models.GenerativeModelCustomProvider(
+                name="openai-chat-completions",
+                provider="openai",
+                sdk="openai",
+                config=EncryptionService().encrypt(
+                    GenerativeModelCustomerProviderConfig(
+                        root=OpenAICustomProviderConfig(
+                            openai_authentication_method=AuthenticationMethodApiKey(
+                                api_key=openai_api_key
+                            ),
+                            openai_api_type="chat_completions",
+                        )
+                    )
+                    .model_dump_json()
+                    .encode()
+                ),
+            )
+            session.add(chat_completions_provider)
+            await session.flush()
+            llm_evaluator = await session.get(
+                models.LLMEvaluator, llm_dataset_evaluator.evaluator_id
+            )
+            assert llm_evaluator is not None
+            await session.execute(
+                update(models.PromptVersion)
+                .where(models.PromptVersion.prompt_id == llm_evaluator.prompt_id)
+                .values(custom_provider_id=chat_completions_provider.id)
+            )
         llm_evaluator_gid = str(
             GlobalID(type_name=DatasetEvaluator.__name__, node_id=str(llm_dataset_evaluator.id))
         )
@@ -2215,7 +2259,7 @@ class TestChatCompletionOverDatasetSubscription:
                         ]
                     },
                     "modelProvider": "OPENAI",
-                    "modelName": "gpt-4o",
+                    "modelName": "gpt-4",
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
@@ -2915,7 +2959,7 @@ class TestChatCompletionOverDatasetSubscription:
                         ]
                     },
                     "modelProvider": "OPENAI",
-                    "modelName": "gpt-4o",
+                    "modelName": "gpt-4",
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
