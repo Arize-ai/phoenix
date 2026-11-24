@@ -20,6 +20,7 @@ export const ProjectPageQueriesTracesQuery = graphql`
     project: node(id: $id) {
       ...TracesTable_spans
         @arguments(traceFilterCondition: $traceFilterCondition)
+      ...useSpanAnnotationNames_project @defer
     }
   }
 `;
@@ -42,6 +43,7 @@ export const ProjectPageQueriesSpansQuery = graphql`
           filterCondition: $filterCondition
           rootSpansOnly: $rootSpansOnly
         )
+      ...useSpanAnnotationNames_project @defer
     }
   }
 `;
