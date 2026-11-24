@@ -20,10 +20,7 @@ import {
   useMetricChartsLayout,
 } from "@phoenix/components/chart";
 import { TableSkeleton } from "@phoenix/components/table";
-import {
-  EXPERIMENT_FILTER_CONDITION_PARAM,
-  EXPERIMENT_SEARCH_PARAM,
-} from "@phoenix/constants/searchParams";
+import { EXPERIMENT_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { readFilterConditionParam } from "@phoenix/pages/project/filterConditionParam";
 
 import type { ExperimentsPageQuery } from "./__generated__/ExperimentsPageQuery.graphql";
@@ -44,9 +41,6 @@ export function ExperimentsPage() {
   // suspend the whole page.
   const [urlFilterCondition] = useState(() =>
     readFilterConditionParam(searchParams, EXPERIMENT_FILTER_CONDITION_PARAM)
-  );
-  const [urlSearchText] = useState(
-    () => searchParams.get(EXPERIMENT_SEARCH_PARAM) ?? ""
   );
   // The condition the page query fetches with, or null until the server has
   // checked the URL's condition.
@@ -78,7 +72,6 @@ export function ExperimentsPage() {
       datasetId={datasetId}
       urlFilterCondition={urlFilterCondition}
       settledFilterCondition={settledFilterCondition}
-      urlSearchText={urlSearchText}
     />
   );
 }
@@ -87,7 +80,6 @@ function ExperimentsPageContent({
   datasetId,
   urlFilterCondition,
   settledFilterCondition,
-  urlSearchText,
 }: {
   datasetId: string;
   /**
@@ -97,8 +89,6 @@ function ExperimentsPageContent({
   urlFilterCondition: string;
   /** The condition the page query fetches with. */
   settledFilterCondition: string;
-  /** The URL's name and description search. */
-  urlSearchText: string;
 }) {
   // We use a lazyLoadQuery here due to the fact that there is an issue with Relay connections
   // @see https://github.com/facebook/relay/issues/4875#issuecomment-3138533719
@@ -106,7 +96,6 @@ function ExperimentsPageContent({
     graphql`
       query ExperimentsPageQuery(
         $datasetId: ID!
-        $filterCondition: String
         $experimentFilterCondition: String
       ) {
         dataset: node(id: $datasetId) {
@@ -115,16 +104,12 @@ function ExperimentsPageContent({
             experimentCount
           }
           ...ExperimentsTableFragment
-            @arguments(
-              filterCondition: $filterCondition
-              experimentFilterCondition: $experimentFilterCondition
-            )
+            @arguments(experimentFilterCondition: $experimentFilterCondition)
         }
       }
     `,
     {
       datasetId,
-      filterCondition: urlSearchText || null,
       experimentFilterCondition: settledFilterCondition || null,
     },
     { fetchPolicy: "store-and-network" }
@@ -142,7 +127,6 @@ function ExperimentsPageContent({
             dataset={data.dataset}
             initialFilterCondition={urlFilterCondition}
             appliedFilterCondition={settledFilterCondition}
-            initialSearchText={urlSearchText}
           />
         </ErrorBoundary>
       </ExperimentsMetricChartsPanelGroup>

@@ -1,29 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  getExperimentsRefetchVariables,
-  shouldRestoreFilterConditionParam,
-} from "../experimentsTableFilters";
-
-describe("getExperimentsRefetchVariables", () => {
-  it("passes both the search text and the filter condition", () => {
-    expect(
-      getExperimentsRefetchVariables({
-        searchText: "cold",
-        filterCondition: 'metadata["model"] == "gpt-5"',
-      })
-    ).toEqual({
-      filterCondition: "cold",
-      experimentFilterCondition: 'metadata["model"] == "gpt-5"',
-    });
-  });
-
-  it("sends null for an empty filter", () => {
-    expect(
-      getExperimentsRefetchVariables({ searchText: "", filterCondition: "" })
-    ).toEqual({ filterCondition: null, experimentFilterCondition: null });
-  });
-});
+import { shouldRestoreFilterConditionParam } from "../experimentsTableFilters";
 
 describe("shouldRestoreFilterConditionParam", () => {
   it("restores an applied condition the URL dropped", () => {

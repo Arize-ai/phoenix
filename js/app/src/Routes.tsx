@@ -607,7 +607,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Dataset Experiments",
                 description:
-                  "View dataset experiments, experiment runs, and evaluation results.",
+                  "View dataset experiments, experiment runs, and evaluation results. Filter experiments by name, metadata, and other fields with filter expressions.",
               },
               copy: (data: DatasetLoaderData) => [
                 {
@@ -636,7 +636,7 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Dataset Experiments",
                     description:
-                      "View dataset experiments, experiment runs, and evaluation results.",
+                      "View dataset experiments, experiment runs, and evaluation results. Filter experiments by name, metadata, and other fields with filter expressions.",
                   },
                 }}
               >

@@ -72,11 +72,18 @@ test.describe("Experiments filter condition", () => {
     ({ datasetId, datasetName } = await createDatasetWithExperiments(request));
   });
 
-  test("filters by a typed condition, keeps it in the URL, and composes with search", async ({
+  test("filters metadata and searches names in one field, keeping the condition after reload", async ({
     page,
   }) => {
     await page.goto(`/datasets/${datasetId}/experiments`);
     await expectExperiments(page, ALL_EXPERIMENTS);
+    await expect(filterField(page)).toHaveCount(1);
+    await expect(
+      page.getByRole("searchbox", { name: "Search experiments" })
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: "Filter experiments by metadata" })
+    ).toHaveCount(0);
 
     await filterField(page).click();
     await page.keyboard.type('metadata["model"] == "gpt-5"');
@@ -86,20 +93,24 @@ test.describe("Experiments filter condition", () => {
       .poll(() => urlFilterCondition(page))
       .toBe('metadata["model"] == "gpt-5"');
 
-    await page
-      .getByRole("searchbox", { name: "Search experiments" })
-      .fill("cold");
+    await filterField(page).click();
+    await page.keyboard.press("End");
+    await page.keyboard.type(' and "cold" in name');
+    await page.keyboard.press("Escape");
     await expectExperiments(page, [GPT_COLD]);
 
     await page.reload();
-    await expect(filterField(page)).toHaveText('metadata["model"] == "gpt-5"');
-    await expect(
-      page.getByRole("searchbox", { name: "Search experiments" })
-    ).toHaveValue("cold");
+    await expect(filterField(page)).toHaveText(
+      'metadata["model"] == "gpt-5" and "cold" in name'
+    );
     await expectExperiments(page, [GPT_COLD]);
+
+    await page.getByRole("button", { name: "Clear filter condition" }).click();
+    await expect.poll(() => urlFilterCondition(page)).toBeNull();
+    await expectExperiments(page, ALL_EXPERIMENTS);
   });
 
-  test("adds a Metadata form match to the condition", async ({ page }) => {
+  test("combines metadata conditions in the filter field", async ({ page }) => {
     await page.goto(
       `/datasets/${datasetId}/experiments?experimentFilterCondition=${encodeURIComponent(
         'metadata["model"] == "gpt-5"'
@@ -107,15 +118,13 @@ test.describe("Experiments filter condition", () => {
     );
     await expectExperiments(page, [GPT_HOT, GPT_COLD]);
 
-    await page
-      .getByRole("button", { name: "Filter experiments by metadata" })
-      .click();
-    await page.getByLabel("Key").fill("temperature");
-    await page.getByLabel("Value").fill("0.7");
-    await page.getByRole("button", { name: "Add filter" }).click();
+    await filterField(page).click();
+    await page.keyboard.press("End");
+    await page.keyboard.type(' and metadata["temperature"] == 0.7');
+    await page.keyboard.press("Escape");
 
     await expect(filterField(page)).toHaveText(
-      '(metadata["model"] == "gpt-5") and (metadata["temperature"] == 0.7)'
+      'metadata["model"] == "gpt-5" and metadata["temperature"] == 0.7'
     );
     await expectExperiments(page, [GPT_HOT]);
   });

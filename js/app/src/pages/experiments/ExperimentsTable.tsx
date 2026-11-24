@@ -35,7 +35,6 @@ import type { AnnotationConfig } from "@phoenix/components/annotation";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation";
 import { CopyToClipboardButton } from "@phoenix/components/core/copy/CopyToClipboardButton";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
-import { DebouncedSearch } from "@phoenix/components/core/field/DebouncedSearch";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import {
   BaselineExperimentBadge,
@@ -86,10 +85,7 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
-import {
-  EXPERIMENT_FILTER_CONDITION_PARAM,
-  EXPERIMENT_SEARCH_PARAM,
-} from "@phoenix/constants/searchParams";
+import { EXPERIMENT_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { EXPERIMENTS_TABLE_STORAGE_KEY_PREFIX } from "@phoenix/constants/storageConstants";
 import { usePersistedState } from "@phoenix/hooks";
 import { useInterval } from "@phoenix/hooks/useInterval";
@@ -100,7 +96,6 @@ import {
   withFilterConditionParam,
 } from "@phoenix/pages/project/filterConditionParam";
 import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
-import { joinFilterConditions } from "@phoenix/utils/filterConditionUtils";
 import {
   floatFormatter,
   formatPercent,
@@ -121,17 +116,11 @@ import {
   ExperimentFilterConditionField,
   type ExperimentFilterValidConditionArgs,
 } from "./ExperimentFilterConditionField";
-import { getMetadataFilterCondition } from "./experimentFilterDSL";
-import { ExperimentMetadataFilterButton } from "./ExperimentMetadataFilterButton";
 import { useExperimentsDeltasViewSetting } from "./experimentsDeltasViewSetting";
 import { ExperimentSelectionToolbar } from "./ExperimentSelectionToolbar";
 import { useExperimentsMetricChartsViewSetting } from "./ExperimentsMetricsCharts";
 import { ExperimentsMetricsChartSelector } from "./ExperimentsMetricsChartSelector";
-import {
-  type ExperimentsTableFilters,
-  getExperimentsRefetchVariables,
-  shouldRestoreFilterConditionParam,
-} from "./experimentsTableFilters";
+import { shouldRestoreFilterConditionParam } from "./experimentsTableFilters";
 
 const PAGE_SIZE = 100;
 
@@ -195,7 +184,7 @@ const TableBody = <T extends { id: string }>({
   isLoadingNext: boolean;
   dataset: ExperimentsTableFragment$data;
   /**
-   * Whether a search or filter condition is active, so an empty table reads
+   * Whether a filter condition is active, so an empty table reads
    * "No results" instead of "No experiments".
    */
   isFiltered: boolean;
@@ -269,7 +258,6 @@ export function ExperimentsTable({
   dataset,
   initialFilterCondition,
   appliedFilterCondition: initialAppliedFilterCondition,
-  initialSearchText,
 }: {
   dataset: ExperimentsTableFragment$key;
   /**
@@ -282,11 +270,6 @@ export function ExperimentsTable({
    * the condition it last applied.
    */
   appliedFilterCondition: string;
-  /**
-   * The name and description search the page query fetched the dataset's
-   * experiments with.
-   */
-  initialSearchText: string;
 }) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [rowSelection, setRowSelection] = useState({});
@@ -300,15 +283,8 @@ export function ExperimentsTable({
   const [filterCondition, setFilterCondition] = useState(
     initialAppliedFilterCondition
   );
-  const [searchText, setSearchText] = useState(initialSearchText);
-  // The filters most recently asked for. State commits only when a refetch's
-  // transition finishes, so a refetch issued while another is in flight reads
-  // its other filter from here rather than from stale state.
-  const requestedFiltersRef = useRef<ExperimentsTableFilters>({
-    searchText: initialSearchText,
-    filterCondition: initialAppliedFilterCondition,
-  });
-  const isFiltered = Boolean(searchText) || Boolean(filterCondition);
+  const requestedFilterConditionRef = useRef(initialAppliedFilterCondition);
+  const isFiltered = Boolean(filterCondition);
   const {
     isExpanded: areRowsExpanded,
     setIsExpanded: setAreRowsExpanded,
@@ -324,7 +300,6 @@ export function ExperimentsTable({
         @argumentDefinitions(
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 100 }
-          filterCondition: { type: "String", defaultValue: null }
           experimentFilterCondition: { type: "String", defaultValue: null }
         ) {
           id
@@ -383,7 +358,6 @@ export function ExperimentsTable({
           experiments(
             first: $first
             after: $after
-            filterCondition: $filterCondition
             experimentFilterCondition: $experimentFilterCondition
           ) @connection(key: "ExperimentsTable_experiments") {
             edges {
@@ -493,34 +467,19 @@ export function ExperimentsTable({
     [data.experiments.edges]
   );
 
-  /**
-   * Refetches the experiments with the filters most recently asked for,
-   * after applying `changes` to them.
-   */
   const refetchExperiments = ({
     fetchPolicy,
-    changes,
+    condition = requestedFilterConditionRef.current,
   }: {
     fetchPolicy: "network-only" | "store-and-network";
-    changes?: Partial<ExperimentsTableFilters>;
+    condition?: string;
   }) => {
-    const filters = { ...requestedFiltersRef.current, ...changes };
-    requestedFiltersRef.current = filters;
+    requestedFilterConditionRef.current = condition;
     startTransition(() => {
-      refetch(getExperimentsRefetchVariables(filters), { fetchPolicy });
-    });
-  };
-
-  const onSearchTextChange = (nextSearchText: string) => {
-    setSearchText(nextSearchText);
-    setSearchParams(
-      (prev) =>
-        withFilterConditionParam(prev, EXPERIMENT_SEARCH_PARAM, nextSearchText),
-      { replace: true }
-    );
-    refetchExperiments({
-      fetchPolicy: "network-only",
-      changes: { searchText: nextSearchText },
+      refetch(
+        { experimentFilterCondition: condition || null },
+        { fetchPolicy }
+      );
     });
   };
 
@@ -530,7 +489,7 @@ export function ExperimentsTable({
   }: ExperimentFilterValidConditionArgs) => {
     // The page query already fetched the rows for the condition it settled on.
     // A URL condition it fell back from still applies once the field accepts it.
-    const isChanged = condition !== requestedFiltersRef.current.filterCondition;
+    const isChanged = condition !== requestedFilterConditionRef.current;
     // The URL can still hold a condition the server rejected, so a condition
     // the user settles on is written even when the rows already match it.
     if (isChanged || !isInitialSettlement) {
@@ -550,7 +509,7 @@ export function ExperimentsTable({
     setFilterCondition(condition);
     refetchExperiments({
       fetchPolicy: "network-only",
-      changes: { filterCondition: condition },
+      condition,
     });
   };
 
@@ -558,43 +517,26 @@ export function ExperimentsTable({
     searchParams,
     EXPERIMENT_FILTER_CONDITION_PARAM
   );
-  const urlSearchText = searchParams.get(EXPERIMENT_SEARCH_PARAM) ?? "";
   useEffect(() => {
-    const { filterCondition: appliedCondition, searchText: appliedSearchText } =
-      requestedFiltersRef.current;
-    const isConditionDropped = shouldRestoreFilterConditionParam({
-      urlCondition: urlFilterCondition,
-      appliedCondition,
-    });
-    const isSearchDropped = shouldRestoreFilterConditionParam({
-      urlCondition: urlSearchText,
-      appliedCondition: appliedSearchText,
-    });
-    if (!isConditionDropped && !isSearchDropped) {
+    const appliedCondition = requestedFilterConditionRef.current;
+    if (
+      !shouldRestoreFilterConditionParam({
+        urlCondition: urlFilterCondition,
+        appliedCondition,
+      })
+    ) {
       return;
     }
     setSearchParams(
-      (prev) => {
-        let next = prev;
-        if (isConditionDropped) {
-          next = withFilterConditionParam(
-            next,
-            EXPERIMENT_FILTER_CONDITION_PARAM,
-            appliedCondition
-          );
-        }
-        if (isSearchDropped) {
-          next = withFilterConditionParam(
-            next,
-            EXPERIMENT_SEARCH_PARAM,
-            appliedSearchText
-          );
-        }
-        return next;
-      },
+      (prev) =>
+        withFilterConditionParam(
+          prev,
+          EXPERIMENT_FILTER_CONDITION_PARAM,
+          appliedCondition
+        ),
       { replace: true }
     );
-  }, [urlFilterCondition, urlSearchText, setSearchParams]);
+  }, [urlFilterCondition, setSearchParams]);
 
   const hasRunningExperiments = useMemo(
     () => tableData.some((row) => row.job?.status === "RUNNING"),
@@ -1144,14 +1086,6 @@ export function ExperimentsTable({
           alignItems="center"
           wrap="wrap"
         >
-          <View flex="1 1 200px">
-            <DebouncedSearch
-              placeholder="Search experiments"
-              aria-label="Search experiments"
-              defaultValue={initialSearchText}
-              onChange={onSearchTextChange}
-            />
-          </View>
           <div css={toolbarFilterFieldCSS}>
             <ExperimentFilterConditionField
               datasetId={data.id}
@@ -1160,16 +1094,6 @@ export function ExperimentsTable({
               onValidCondition={onValidFilterCondition}
             />
           </div>
-          <ExperimentMetadataFilterButton
-            onAddFilter={(filter) =>
-              setDraftFilterCondition((current) =>
-                joinFilterConditions({
-                  existingCondition: current,
-                  nextCondition: getMetadataFilterCondition(filter),
-                })
-              )
-            }
-          />
           <ExperimentsMetricsChartSelector />
           <ExperimentColumnSelector
             columns={selectorColumns}
