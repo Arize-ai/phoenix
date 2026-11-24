@@ -38,7 +38,7 @@ jobs:
           RAILWAY_API_TOKEN: ${{ secrets.FACTORY_PREVIEW_RAILWAY_TOKEN }}
           RAILWAY_WORKSPACE_ID: ${{ vars.FACTORY_PREVIEW_RAILWAY_WORKSPACE_ID }}
         run: |
-          prs=$(uv run --script factory/preview/deploy.py discover-cleanup)
+          prs=$(uv run --script factory/preview/sweep.py discover)
           echo "prs=$prs" >> "$GITHUB_OUTPUT"
 
   cleanup:
@@ -73,4 +73,4 @@ jobs:
           PR_NUMBER: ${{ matrix.pr }}
           RAILWAY_API_TOKEN: ${{ secrets.FACTORY_PREVIEW_RAILWAY_TOKEN }}
           RAILWAY_WORKSPACE_ID: ${{ vars.FACTORY_PREVIEW_RAILWAY_WORKSPACE_ID }}
-        run: uv run --script factory/preview/deploy.py cleanup --pr "$PR_NUMBER"
+        run: uv run --script factory/preview/sweep.py cleanup --pr "$PR_NUMBER"
