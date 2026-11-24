@@ -419,7 +419,7 @@ async def lock_dataset_delete_targets(
         )
     ).all()
 
-    initial_exp_bindings = (
+    experiment_bindings_seen_before_locking = (
         (
             await session.execute(
                 select(
@@ -438,11 +438,11 @@ async def lock_dataset_delete_targets(
     locked_project_ids = {
         *exp_project_ids,
         *(int(row.project_id) for row in live_dataset_bindings),
-        *(int(row.trace_project_id) for row in initial_exp_bindings),
+        *(int(row.trace_project_id) for row in experiment_bindings_seen_before_locking),
     }
     await _lock_projects(session, locked_project_ids, key_share=True)
 
-    current_exp_bindings = (
+    experiment_bindings_after_locking = (
         (
             await session.execute(
                 select(
@@ -457,16 +457,22 @@ async def lock_dataset_delete_targets(
         if exp_project_ids
         else []
     )
-    if current_exp_bindings:
+    if experiment_bindings_after_locking:
         await _lock_additional_projects(
             session,
             locked_project_ids=locked_project_ids,
-            target_project_ids=(int(row.trace_project_id) for row in current_exp_bindings),
+            target_project_ids=(
+                int(row.trace_project_id) for row in experiment_bindings_after_locking
+            ),
         )
 
     all_evaluator_ids = {
         int(row.evaluator_id) for row in live_dataset_bindings if row.evaluator_id is not None
-    } | {int(row.evaluator_id) for row in current_exp_bindings if row.evaluator_id is not None}
+    } | {
+        int(row.evaluator_id)
+        for row in experiment_bindings_after_locking
+        if row.evaluator_id is not None
+    }
     await lock_evaluators(session, all_evaluator_ids)
 
     return [int(row.id) for row in live_dataset_bindings]
@@ -480,7 +486,7 @@ async def admit_project_delete(
     """Tombstone a live non-evaluator project, and detach its live bindings; the
     tombstone is what the cleanup worker drains."""
     dialect = SupportedSQLDialect(session.get_bind().dialect.name)
-    initial_trace_project_ids = list(
+    trace_project_ids_seen_before_locking = list(
         await session.scalars(
             select(models.ProjectEvaluator.trace_project_id).where(
                 models.ProjectEvaluator.project_id == project_id,
@@ -490,7 +496,7 @@ async def admit_project_delete(
     )
     locked_project_ids = {
         project_id,
-        *(int(trace_project_id) for trace_project_id in initial_trace_project_ids),
+        *(int(trace_project_id) for trace_project_id in trace_project_ids_seen_before_locking),
     }
     await _lock_projects(session, locked_project_ids, key_share=True)
 
@@ -504,7 +510,8 @@ async def admit_project_delete(
         raise Conflict("This project holds an evaluator's traces; delete the evaluator instead")
     await _lock_projects(session, [project_id], key_share=False)
 
-    current_live_bindings = (
+    # The FOR UPDATE above blocks new bindings, so this read is complete.
+    live_bindings_under_exclusive_lock = (
         await session.execute(
             select(
                 models.ProjectEvaluator.id,
@@ -516,15 +523,17 @@ async def admit_project_delete(
         )
     ).all()
     tombstoned_trace_project_ids: list[int] = []
-    if current_live_bindings:
+    if live_bindings_under_exclusive_lock:
         await _lock_additional_projects(
             session,
             locked_project_ids=locked_project_ids,
-            target_project_ids=(int(row.trace_project_id) for row in current_live_bindings),
+            target_project_ids=(
+                int(row.trace_project_id) for row in live_bindings_under_exclusive_lock
+            ),
         )
         binding_delete_result = await logical_delete_project_evaluators(
             session,
-            binding_ids=[int(row.id) for row in current_live_bindings],
+            binding_ids=[int(row.id) for row in live_bindings_under_exclusive_lock],
             collect_unused_evaluator=False,
             delete_associated_prompt=False,
         )
@@ -683,7 +692,7 @@ async def admit_exclusive_experiment_projects_delete(
     if not ids:
         return []
 
-    initial_trace_project_ids = list(
+    trace_project_ids_seen_before_locking = list(
         await session.scalars(
             select(models.ProjectEvaluator.trace_project_id).where(
                 models.ProjectEvaluator.project_id.in_(ids),
@@ -691,7 +700,7 @@ async def admit_exclusive_experiment_projects_delete(
             )
         )
     )
-    locked_project_ids = {*ids, *(int(pid) for pid in initial_trace_project_ids)}
+    locked_project_ids = {*ids, *(int(pid) for pid in trace_project_ids_seen_before_locking)}
     await _lock_projects(session, locked_project_ids, key_share=True)
 
     eligible_ids = list(
@@ -709,7 +718,7 @@ async def admit_exclusive_experiment_projects_delete(
     if not eligible_ids:
         return []
 
-    current_live_bindings = (
+    live_bindings_after_locking = (
         await session.execute(
             select(
                 models.ProjectEvaluator.id,
@@ -721,15 +730,15 @@ async def admit_exclusive_experiment_projects_delete(
         )
     ).all()
     tombstoned_trace_project_ids: list[int] = []
-    if current_live_bindings:
+    if live_bindings_after_locking:
         await _lock_additional_projects(
             session,
             locked_project_ids=locked_project_ids,
-            target_project_ids=(int(row.trace_project_id) for row in current_live_bindings),
+            target_project_ids=(int(row.trace_project_id) for row in live_bindings_after_locking),
         )
         binding_delete_result = await logical_delete_project_evaluators(
             session,
-            binding_ids=[int(row.id) for row in current_live_bindings],
+            binding_ids=[int(row.id) for row in live_bindings_after_locking],
             collect_unused_evaluator=False,
             delete_associated_prompt=False,
         )
