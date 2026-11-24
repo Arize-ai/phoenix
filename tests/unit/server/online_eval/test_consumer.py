@@ -10,7 +10,7 @@ from unittest.mock import ANY, AsyncMock, Mock, call, patch
 import httpx
 import httpx2
 import pytest
-from openai import BadRequestError
+from anthropic import AsyncAnthropic
 from opentelemetry.context import Context
 from opentelemetry.trace import format_trace_id
 from sqlalchemy import func, select, text, update
@@ -31,9 +31,12 @@ from phoenix.db.types.annotation_configs import (
 )
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
-from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.model_provider import LLMClientFactory, ModelProvider
 from phoenix.db.types.prompts import (
+    PromptAnthropicInvocationParameters,
+    PromptAnthropicInvocationParametersContent,
     PromptChatTemplate,
+    PromptInvocationParameters,
     PromptMessage,
     PromptOpenAIInvocationParameters,
     PromptOpenAIInvocationParametersContent,
@@ -47,6 +50,7 @@ from phoenix.db.types.prompts import (
 from phoenix.server.api.dataloaders.project_evaluator_run_counts import (
     ProjectEvaluatorRunCountsDataLoader,
 )
+from phoenix.server.api.helpers.chat_clients import AnthropicClient
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     FunctionCallChunk,
     ToolCallChunk,
@@ -337,6 +341,8 @@ async def _seed_llm_criteria(
     criteria_input_mapping: Optional[InputMapping] = None,
     evaluation_target: models.EvaluationTarget = "SPAN",
     custom_provider: bool = False,
+    model_provider: ModelProvider = ModelProvider.OPENAI,
+    invocation_parameters: Optional[PromptInvocationParameters] = None,
 ) -> tuple[int, int]:
     """Create an LLM evaluator (prompt + version + tools) and an enabled project_evaluator
     row, returning (evaluator_id, project_evaluator_id)."""
@@ -368,7 +374,8 @@ async def _seed_llm_criteria(
                             ),
                         ],
                     ),
-                    invocation_parameters=PromptOpenAIInvocationParameters(
+                    invocation_parameters=invocation_parameters
+                    or PromptOpenAIInvocationParameters(
                         type="openai", openai=PromptOpenAIInvocationParametersContent()
                     ),
                     tools=PromptTools(
@@ -395,7 +402,7 @@ async def _seed_llm_criteria(
                         tool_choice=PromptToolChoiceOneOrMore(type="one_or_more"),
                     ),
                     response_format=None,
-                    model_provider=ModelProvider.OPENAI,
+                    model_provider=model_provider,
                     model_name="gpt-4",
                     metadata_={},
                     custom_provider_id=custom_provider_id,
@@ -2822,7 +2829,7 @@ async def test_transient_provider_error_retries_without_burning_attempts(
     assert len(await _annotations(db)) == 1
 
 
-async def test_provider_bad_request_counts_an_attempt(
+async def test_provider_bad_request_counts_an_attempt_and_records_its_message(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     async with db() as session:
@@ -2833,24 +2840,40 @@ async def test_provider_bad_request_counts_an_attempt(
             trace,
             attributes={"input": {"value": "hi"}, "output": {"value": "there"}},
         )
-    evaluator_id, project_evaluator_id = await _seed_llm_criteria(db, project.id)
-    unit_id, _ = await _queue_unit(db, span.id, evaluator_id, project_evaluator_id)
-    request = httpx2.Request("POST", "https://api.openai.com/v1/chat/completions")
-    message = "This model's maximum context length is 128000 tokens."
-    error = BadRequestError(
-        f"Error code: 400 - {message}",
-        response=httpx2.Response(400, request=request),
-        body={"message": message, "code": "context_length_exceeded"},
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(
+        db,
+        project.id,
+        model_provider=ModelProvider.ANTHROPIC,
+        invocation_parameters=PromptAnthropicInvocationParameters(
+            type="anthropic",
+            anthropic=PromptAnthropicInvocationParametersContent(max_tokens=100),
+        ),
     )
-    _patch_playground_client(monkeypatch, _StubLLMClient(error=error))
+    unit_id, _ = await _queue_unit(db, span.id, evaluator_id, project_evaluator_id)
+    message = "prompt is too long: 210000 tokens > 200000 maximum"
+    body = {"type": "error", "error": {"type": "invalid_request_error", "message": message}}
+    transport = httpx2.MockTransport(lambda request: httpx2.Response(400, json=body))
+
+    @asynccontextmanager
+    async def create_client() -> AsyncIterator[AsyncAnthropic]:
+        async with httpx2.AsyncClient(transport=transport) as http_client:
+            yield AsyncAnthropic(api_key="sk-ant-test", max_retries=0, http_client=http_client)
+
+    client = AnthropicClient(
+        client_factory=LLMClientFactory(create_client, ("anthropic", "test")),
+        model_name="claude-sonnet-4-5",
+    )
+
+    async def _get_client(**_: Any) -> AnthropicClient:
+        return client
+
+    monkeypatch.setattr(resolution_module, "get_chat_client", _get_client)
 
     await _cycle_to_completion(EvaluationConsumer(db, decrypt=lambda value: value))
 
     unit = await _get_unit(db, unit_id)
-    assert unit.status == "ERROR"
-    assert unit.attempts == 1
-    assert unit.error is not None
-    assert message in unit.error
+    assert (unit.status, unit.attempts) == ("ERROR", 1)
+    assert unit.error == f"Error code: 400 - {message}"
     assert await _annotations(db) == []
 
 

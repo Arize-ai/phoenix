@@ -4,7 +4,7 @@ import re
 from abc import abstractmethod
 from collections import defaultdict
 from collections.abc import AsyncIterator, Callable, Iterator
-from contextlib import AsyncExitStack
+from contextlib import AsyncExitStack, contextmanager
 from itertools import chain
 from secrets import token_hex
 from typing import (
@@ -2179,6 +2179,22 @@ def anthropic_model_supports_forced_tool_choice(model_name: str) -> bool:
     return _ANTHROPIC_MODEL_WITH_FORCED_TOOL_CHOICE.search(model_name) is not None
 
 
+@contextmanager
+def _anthropic_error_message() -> Iterator[None]:
+    from anthropic import APIStatusError
+
+    try:
+        yield
+    except APIStatusError as e:
+        error = e.body.get("error") if isinstance(e.body, dict) else None
+        message = error.get("message") if isinstance(error, dict) else None
+        if not isinstance(message, str):
+            raise
+        raise type(e)(
+            f"Error code: {e.status_code} - {message}", response=e.response, body=e.body
+        ) from e
+
+
 @register_client(
     model_type="CHAT",
     provider_key=GenerativeProviderKey.ANTHROPIC,
@@ -2454,6 +2470,7 @@ class AnthropicClient(ChatClient["AsyncAnthropic"]):
         tool_call_chunks: defaultdict[ToolCallID, list[ToolCallChunk]] = defaultdict(list)
         if not stream_model_output:
             async with AsyncExitStack() as stack:
+                stack.enter_context(_anthropic_error_message())
                 client = await stack.enter_async_context(self._client_factory())
                 client._client = _HttpxClient(client._client, span=span, base_url=client.base_url)
                 params, extra_body, extra_headers = self._anthropic_message_params(
@@ -2491,6 +2508,7 @@ class AnthropicClient(ChatClient["AsyncAnthropic"]):
             return
 
         async with AsyncExitStack() as stack:
+            stack.enter_context(_anthropic_error_message())
             client = await stack.enter_async_context(self._client_factory())
             # Wrap httpx client for instrumentation (fresh client each request)
             client._client = _HttpxClient(client._client, span=span, base_url=client.base_url)
