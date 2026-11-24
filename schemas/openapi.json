@@ -2418,6 +2418,16 @@
             },
             "description": "Dataset not found"
           },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The dataset is in use by another operation; retry the delete"
+          },
           "422": {
             "content": {
               "text/plain": {
@@ -5517,6 +5527,16 @@
               }
             },
             "description": "Experiment not found"
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The experiment is in use by another operation; retry the delete"
           },
           "422": {
             "description": "Validation Error",

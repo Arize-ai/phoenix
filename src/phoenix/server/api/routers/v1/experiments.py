@@ -23,6 +23,7 @@ from phoenix.db.helpers import (
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.db.lifecycle import live_row_predicate
 from phoenix.db.types.db_helper_types import UNDEFINED
+from phoenix.server.api.exceptions import Conflict
 from phoenix.server.api.routers.v1.datasets import DatasetExample
 from phoenix.server.api.routers.v1.models import IsoDatetime
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -560,7 +561,13 @@ async def update_experiment(
     operation_id="deleteExperiment",
     summary="Delete experiment by ID",
     responses=add_errors_to_responses(
-        [{"status_code": 404, "description": "Experiment not found"}]
+        [
+            {"status_code": 404, "description": "Experiment not found"},
+            {
+                "status_code": 409,
+                "description": "The experiment is in use by another operation; retry the delete",
+            },
+        ]
     ),
     response_description="Experiment deleted successfully",
     status_code=204,
@@ -607,30 +614,35 @@ async def delete_experiment(
     )
     db = request.app.state.db
     enqueued_projects: list[int] = []
-    async with db() as session:
-        eval_trace_ids = [
-            trace_id for trace_id in (await session.scalars(eval_trace_ids_stmt)).all() if trace_id
-        ]
-        candidate_project_ids: list[int] = []
-        if delete_project:
-            candidate_project_ids = await resolve_experiment_project_delete_candidates(
-                session,
-                candidate_project_names=(
-                    await session.scalars(
-                        sa.select(models.Experiment.project_name).where(
-                            models.Experiment.id == experiment_rowid
+    try:
+        async with db() as session:
+            eval_trace_ids = [
+                trace_id
+                for trace_id in (await session.scalars(eval_trace_ids_stmt)).all()
+                if trace_id
+            ]
+            candidate_project_ids: list[int] = []
+            if delete_project:
+                candidate_project_ids = await resolve_experiment_project_delete_candidates(
+                    session,
+                    candidate_project_names=(
+                        await session.scalars(
+                            sa.select(models.Experiment.project_name).where(
+                                models.Experiment.id == experiment_rowid
+                            )
                         )
-                    )
-                ).all(),
-            )
-        result = (await session.execute(stmt)).first()
-        if result is None:
-            raise HTTPException(detail="Experiment does not exist", status_code=404)
-        if candidate_project_ids:
-            enqueued_projects = await tombstone_exclusive_experiment_projects(
-                session,
-                candidate_project_ids=candidate_project_ids,
-            )
+                    ).all(),
+                )
+            result = (await session.execute(stmt)).first()
+            if result is None:
+                raise HTTPException(detail="Experiment does not exist", status_code=404)
+            if candidate_project_ids:
+                enqueued_projects = await tombstone_exclusive_experiment_projects(
+                    session,
+                    candidate_project_ids=candidate_project_ids,
+                )
+    except Conflict as error:
+        raise HTTPException(detail=str(error), status_code=409) from error
     request.state.event_queue.put(ExperimentDeleteEvent((experiment_rowid,)))
     if enqueued_projects:
         tombstoned_ids = tuple(enqueued_projects)

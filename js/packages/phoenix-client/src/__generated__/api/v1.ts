@@ -10689,6 +10689,15 @@ export interface operations {
                     "text/plain": string;
                 };
             };
+            /** @description The dataset is in use by another operation; retry the delete */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
             /** @description Invalid dataset ID */
             422: {
                 headers: {
@@ -12596,6 +12605,15 @@ export interface operations {
             };
             /** @description Experiment not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description The experiment is in use by another operation; retry the delete */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

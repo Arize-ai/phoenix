@@ -14,6 +14,8 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.helpers import project_kind_expression
+from phoenix.server.api.exceptions import Conflict
+from phoenix.server.api.routers.v1 import experiments as experiments_router
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.dml_event import DmlEvent, ProjectDeleteEvent, SpanDeleteEvent
 from phoenix.server.types import DbSessionFactory
@@ -2267,6 +2269,31 @@ async def _create_experiment_with_project(
         )
         assert project_id is not None
     return experiment_gid, project_id, experiment
+
+
+async def test_delete_experiment_returns_conflict_and_keeps_the_experiment(
+    httpx_client: httpx2.AsyncClient,
+    simple_dataset: Any,
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _conflict(*args: Any, **kwargs: Any) -> list[int]:
+        raise Conflict("Project evaluators were modified concurrently; retry the delete operation")
+
+    monkeypatch.setattr(experiments_router, "tombstone_exclusive_experiment_projects", _conflict)
+    experiment_gid, project_id, experiment = await _create_experiment_with_project(httpx_client, db)
+
+    response = await httpx_client.delete(
+        f"v1/experiments/{experiment_gid}", params={"delete_project": "true"}
+    )
+    assert response.status_code == 409
+    assert response.text == (
+        "Project evaluators were modified concurrently; retry the delete operation"
+    )
+    async with db() as session:
+        assert await session.get(models.Experiment, experiment.id) is not None
+        project = await session.get(models.Project, project_id)
+        assert project is not None and project.deleted_at is None
 
 
 async def test_delete_experiment_tombstones_its_exclusive_project_and_emits_events(

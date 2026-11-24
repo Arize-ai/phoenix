@@ -45,7 +45,7 @@ from phoenix.db.insertion.dataset import (
     add_dataset_examples,
 )
 from phoenix.db.types.db_helper_types import UNDEFINED
-from phoenix.server.api.exceptions import NotFound
+from phoenix.server.api.exceptions import Conflict, NotFound
 from phoenix.server.api.routers.v1.models import IsoDatetime
 from phoenix.server.api.types.Dataset import Dataset as DatasetNodeType
 from phoenix.server.api.types.DatasetExample import DatasetExample as DatasetExampleNodeType
@@ -179,6 +179,10 @@ async def list_datasets(
     responses=add_errors_to_responses(
         [
             {"status_code": 404, "description": "Dataset not found"},
+            {
+                "status_code": 409,
+                "description": "The dataset is in use by another operation; retry the delete",
+            },
             {"status_code": 422, "description": "Invalid dataset ID"},
         ]
     ),
@@ -205,6 +209,8 @@ async def delete_dataset(
         )
     except NotFound as error:
         raise HTTPException(detail="Dataset does not exist", status_code=404) from error
+    except Conflict as error:
+        raise HTTPException(detail=str(error), status_code=409) from error
 
 
 class DatasetWithExampleCount(Dataset):
