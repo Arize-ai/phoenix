@@ -1,19 +1,16 @@
 import { useCallback, useEffect, useRef } from "react";
 import { Controller, useForm, type ValidateResult } from "react-hook-form";
 
-import { FieldError, Input, Label } from "@phoenix/components";
-import {
-  TextField,
-  type TextFieldProps,
-  transformInputValue,
-} from "@phoenix/components/core/field";
+import { FieldError, Input, Label, Text } from "@phoenix/components";
+import { TextField, type TextFieldProps } from "@phoenix/components/core/field";
+import { IDENTIFIER_DESCRIPTION } from "@phoenix/constants";
 import {
   useEvaluatorStore,
   useEvaluatorStoreInstance,
 } from "@phoenix/contexts/EvaluatorContext";
+import { TransformingInputController } from "@phoenix/hooks/useTransformingInput";
 import type { EvaluatorStoreProps } from "@phoenix/store/evaluatorStore";
 import {
-  IDENTIFIER_ERROR_MESSAGES,
   transformIdentifierInput,
   validateIdentifier,
 } from "@phoenix/utils/identifierUtils";
@@ -114,18 +111,9 @@ export const EvaluatorNameInput = ({
       control={control}
       rules={{ validate }}
       render={({ field, fieldState: { error } }) => {
-        // Only show blur-specific errors after the field has been blurred
-        const shouldShowError =
-          error?.message &&
-          (hasBlurredRef.current ||
-            error.message !== IDENTIFIER_ERROR_MESSAGES.leadingTrailing);
+        // Identifier errors are deferred until blur or parent-form submission.
+        const shouldShowError = error?.message && hasBlurredRef.current;
         const displayedError = shouldShowError ? error.message : undefined;
-
-        const handleChange = (value: string) => {
-          field.onChange(
-            transformInputValue({ value, transform: transformIdentifierInput })
-          );
-        };
 
         const handleFocus = () => {
           // Reset blur state so deferred validation doesn't run while typing
@@ -140,20 +128,33 @@ export const EvaluatorNameInput = ({
         };
 
         return (
-          <TextField
-            {...field}
-            onChange={handleChange}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-            autoComplete="off"
-            isInvalid={!!displayedError}
-            autoFocus
-            {...props}
+          <TransformingInputController
+            value={field.value}
+            onValueChange={field.onChange}
+            transformValue={transformIdentifierInput}
           >
-            <Label>Name</Label>
-            <Input placeholder={placeholder} />
-            <FieldError>{displayedError}</FieldError>
-          </TextField>
+            {(transformingInput) => (
+              <TextField
+                {...field}
+                value={transformingInput.displayValue}
+                onChange={transformingInput.handleValueChange}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
+                autoComplete="off"
+                isInvalid={!!displayedError}
+                autoFocus
+                {...props}
+              >
+                <Label>Name</Label>
+                <Input
+                  {...transformingInput.inputProps}
+                  placeholder={placeholder}
+                />
+                <Text slot="description">{IDENTIFIER_DESCRIPTION}</Text>
+                <FieldError>{displayedError}</FieldError>
+              </TextField>
+            )}
+          </TransformingInputController>
         );
       }}
     />

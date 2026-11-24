@@ -21,13 +21,14 @@ import {
   Text,
   TextArea,
   TextField,
-  transformInputValue,
   View,
 } from "@phoenix/components";
 import { movePromptVersionTag } from "@phoenix/components/prompt/movePromptVersionTag";
+import { IDENTIFIER_DESCRIPTION } from "@phoenix/constants";
+import { TransformingInputController } from "@phoenix/hooks/useTransformingInput";
 
 import {
-  replaceWhitespaceWithDashes,
+  transformIdentifierInput,
   validateIdentifier,
 } from "../../utils/identifierUtils";
 import type { NewPromptVersionTagDialogMutation } from "./__generated__/NewPromptVersionTagDialogMutation.graphql";
@@ -54,10 +55,11 @@ export function NewPromptVersionDialog({
   onNewTagCreated: (tag: PromptVersionTagFormParams) => void;
   onDismiss: () => void;
 }) {
+  const [isNameFocused, setIsNameFocused] = useState(false);
   const {
     control,
     handleSubmit,
-    formState: { isDirty },
+    formState: { isDirty, isSubmitted },
   } = useForm<PromptVersionTagFormParams>({
     defaultValues: {
       name: "",
@@ -137,33 +139,47 @@ export function NewPromptVersionDialog({
                   }}
                   render={({
                     field: { name, onChange, onBlur, value },
-                    fieldState: { invalid, error },
-                  }) => (
-                    <TextField
-                      isInvalid={invalid}
-                      onChange={(value) =>
-                        onChange(
-                          transformInputValue({
-                            value,
-                            transform: replaceWhitespaceWithDashes,
-                          })
-                        )
-                      }
-                      onBlur={onBlur}
-                      name={name}
-                      value={value}
-                    >
-                      <Label>Tag Name</Label>
-                      <Input placeholder="e.x. prod" />
-                      {error?.message ? (
-                        <FieldError>{error.message}</FieldError>
-                      ) : (
-                        <Text slot="description">
-                          The identifier of the tag
-                        </Text>
-                      )}
-                    </TextField>
-                  )}
+                    fieldState: { error, isTouched },
+                  }) => {
+                    const displayedError =
+                      (isTouched && !isNameFocused) || isSubmitted
+                        ? error
+                        : undefined;
+                    return (
+                      <TransformingInputController
+                        value={value}
+                        onValueChange={onChange}
+                        transformValue={transformIdentifierInput}
+                      >
+                        {(transformingInput) => (
+                          <TextField
+                            isInvalid={!!displayedError}
+                            onChange={transformingInput.handleValueChange}
+                            onFocus={() => setIsNameFocused(true)}
+                            onBlur={() => {
+                              setIsNameFocused(false);
+                              onBlur();
+                            }}
+                            name={name}
+                            value={transformingInput.displayValue}
+                          >
+                            <Label>Tag Name</Label>
+                            <Input
+                              {...transformingInput.inputProps}
+                              placeholder="e.x. prod"
+                            />
+                            {displayedError?.message ? (
+                              <FieldError>{displayedError.message}</FieldError>
+                            ) : (
+                              <Text slot="description">
+                                {IDENTIFIER_DESCRIPTION}
+                              </Text>
+                            )}
+                          </TextField>
+                        )}
+                      </TransformingInputController>
+                    );
+                  }}
                 />
                 <Controller
                   name="description"

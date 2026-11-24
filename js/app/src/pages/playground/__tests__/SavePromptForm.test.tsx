@@ -4,8 +4,8 @@ import type * as ReactRelayModule from "react-relay";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
+import { IDENTIFIER_ERROR_MESSAGES } from "@phoenix/constants";
 import { ThemeProvider } from "@phoenix/contexts";
-import { IDENTIFIER_ERROR_MESSAGES } from "@phoenix/utils/identifierUtils";
 
 installTestMatchMedia();
 
