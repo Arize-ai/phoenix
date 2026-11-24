@@ -466,7 +466,7 @@ class TestClassificationEvaluator:
             ),
             pytest.param(
                 {"good": (1.0, "Good result"), "bad": (0.0, "Bad result")},
-                {"good": 1.0, "bad": 0.0},
+                {"good": (1.0, "Good result"), "bad": (0.0, "Bad result")},
                 {"good": "Good result", "bad": "Bad result"},
                 {"good": 1.0, "bad": 0.0},
                 id="Tuple choices: criterion keeps score map, labels keep descriptions",
@@ -560,18 +560,16 @@ class TestClassificationEvaluator:
         described = Criterion(
             name="c",
             instruction="d",
-            choices={"a": 1, "b": 0},
-            label_descriptions={"a": "A", "b": "B"},
+            choices={"a": (1, "A"), "b": (0, "B")},
         )
         assert described.backend_labels == {"a": "A", "b": "B"}
 
-    def test_criterion_rejects_unknown_label_description(self):
-        with pytest.raises(ValueError, match="unknown labels"):
+    def test_criterion_rejects_malformed_choice_tuple(self):
+        with pytest.raises(ValueError, match="score or a \\(score, description\\) tuple"):
             Criterion(
                 name="c",
                 instruction="d",
-                choices=["a", "b"],
-                label_descriptions={"a": "A", "z": "Z"},
+                choices={"a": (1, "A"), "b": (0,)},  # type: ignore[dict-item]
             )
 
     def test_classification_evaluator_evaluate_success(self):
@@ -746,8 +744,8 @@ class TestClassificationEvaluator:
     def test_criteria_list_forwards_description_and_resolves_method(self, openai_api_key):
         """The List[Criterion] path must send each criterion's ``instruction`` to the backend as
         that property's ``description``, omit the ``explanation`` property when
-        ``include_explanation=False``, and pick ``TOOL_CALLING`` for criteria with
-        ``label_descriptions``. ``MockLLM`` can't catch these because it ignores both the schema
+        ``include_explanation=False``, and pick ``TOOL_CALLING`` for criteria whose choices
+        carry descriptions. ``MockLLM`` can't catch these because it ignores both the schema
         and the ``method`` kwarg, so use a real ``LLM`` with only ``generate_object`` stubbed."""
         from phoenix.evals import LLM
 
@@ -758,10 +756,9 @@ class TestClassificationEvaluator:
         criterion = Criterion(
             name="relevance",
             instruction="Is the answer relevant to the question?",
-            choices={"relevant": 1, "irrelevant": 0},
-            label_descriptions={
-                "relevant": "The answer addresses the question.",
-                "irrelevant": "The answer does not address the question.",
+            choices={
+                "relevant": (1, "The answer addresses the question."),
+                "irrelevant": (0, "The answer does not address the question."),
             },
         )
         evaluator = ClassificationEvaluator(
@@ -783,7 +780,7 @@ class TestClassificationEvaluator:
         assert prop["description"] == criterion.instruction
         # include_explanation=False => no explanation property on the criterion object.
         assert "explanation" not in prop["properties"]
-        # label_descriptions => TOOL_CALLING, not AUTO.
+        # choices carrying descriptions => TOOL_CALLING, not AUTO.
         assert kwargs["method"] == ObjectGenerationMethod.TOOL_CALLING
 
     def test_choices_list_mixing_criterion_and_string_raises(self):

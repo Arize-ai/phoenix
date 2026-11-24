@@ -282,19 +282,17 @@ class Criterion:
     Args:
         name: The criterion name; used as the resulting ``Score.name``.
         instruction: Instructions for this criterion as a whole (the question). May be empty.
-        choices: Either a list of label strings, or a dict mapping each label to a numeric score.
+        choices: Either a list of label strings, or a dict mapping each label to its score. A
+            score may be a bare number, or a ``(score, description)`` tuple when the label also
+            needs a description sent to the backend. The description explains that one choice.
         direction: Optional per-criterion score direction. When ``None``, the evaluator's
             direction is used.
-        label_descriptions: Optional per-label descriptions (one string per label), sent to the
-            backend to explain what each individual choice means. Distinct from ``instruction``,
-            which describes the question as a whole.
     """
 
     name: str
     instruction: str
-    choices: Union[List[str], Dict[str, Union[float, int]]]
+    choices: Union[List[str], Dict[str, Union[float, int, Tuple[Union[float, int], str]]]]
     direction: Optional[DirectionType] = None
-    label_descriptions: Optional[Dict[str, str]] = None
 
     def __post_init__(self) -> None:
         if not self.choices:
@@ -302,6 +300,13 @@ class Criterion:
         if isinstance(self.choices, dict):
             if not all(isinstance(key, str) for key in self.choices):
                 raise ValueError(f"Criterion '{self.name}' choices dict keys must be strings.")
+            for label, value in self.choices.items():
+                if isinstance(value, tuple):
+                    if len(value) != 2 or not isinstance(value[1], str):
+                        raise ValueError(
+                            f"Criterion '{self.name}' choice '{label}' must be a score or a "
+                            f"(score, description) tuple."
+                        )
         elif isinstance(self.choices, list):
             if not all(isinstance(label, str) for label in self.choices):
                 raise ValueError(f"Criterion '{self.name}' choices list must contain only strings.")
@@ -310,12 +315,6 @@ class Criterion:
                 f"Criterion '{self.name}' choices must be a list of label strings or a "
                 f"label->score dict."
             )
-        if self.label_descriptions is not None:
-            unknown = set(self.label_descriptions) - set(self.labels)
-            if unknown:
-                raise ValueError(
-                    f"Criterion '{self.name}' label_descriptions has unknown labels: {unknown}."
-                )
 
     @property
     def labels(self) -> List[str]:
@@ -325,14 +324,23 @@ class Criterion:
     @property
     def label_score_map(self) -> Optional[Dict[str, Union[float, int]]]:
         """Mapping of label to score, or ``None`` when choices are a bare label list."""
-        return dict(self.choices) if isinstance(self.choices, dict) else None
+        if not isinstance(self.choices, dict):
+            return None
+        return {
+            label: (value[0] if isinstance(value, tuple) else value)
+            for label, value in self.choices.items()
+        }
 
     @property
     def backend_labels(self) -> Union[List[str], Dict[str, str]]:
-        """Labels as sent to the backend: a ``label -> description`` dict when per-label
-        descriptions exist, otherwise a bare list of label strings."""
-        if self.label_descriptions:
-            return {label: self.label_descriptions.get(label, "") for label in self.labels}
+        """Labels as sent to the backend: a ``label -> description`` dict when any choice carries
+        a description, otherwise a bare list of label strings."""
+        if isinstance(self.choices, dict):
+            descriptions = {
+                label: value[1] for label, value in self.choices.items() if isinstance(value, tuple)
+            }
+            if descriptions:
+                return {label: descriptions.get(label, "") for label in self.labels}
         return self.labels
 
 
@@ -851,29 +859,23 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
                 )
             return criteria
 
-        # Cases 1-3: a single legacy classification -> one criterion named after the evaluator.
-        label_descriptions: Optional[Dict[str, str]] = None
+        # Cases 1-3: a single legacy classification
+        leaf: Union[List[str], Dict[str, Union[float, int, Tuple[Union[float, int], str]]]]
         if isinstance(choices, list):
             if not all(isinstance(label, str) for label in choices):
                 raise ValueError(
                     "`choices` given as a list must be either all label strings or all "
                     "Criterion (or criterion dicts); mixing them is not supported."
                 )
-            leaf: Union[List[str], Dict[str, Union[float, int]]] = cast("List[str]", choices)
+            leaf = cast("List[str]", choices)
         else:
-            first_value = next(iter(choices.values()))
-            if isinstance(first_value, tuple):
-                leaf = {key: value[0] for key, value in choices.items()}  # type: ignore[index]
-                label_descriptions = {key: value[1] for key, value in choices.items()}  # type: ignore[index]
-            else:
-                leaf = dict(choices)  # type: ignore[arg-type]
+            leaf = dict(choices)
         return [
             Criterion(
                 name=self.name,
                 instruction="",
                 choices=leaf,
                 direction=direction,
-                label_descriptions=label_descriptions,
             ),
         ]
 
