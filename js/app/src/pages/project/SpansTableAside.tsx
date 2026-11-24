@@ -42,7 +42,7 @@ import {
   TableAsideSkeleton,
 } from "./TableAside";
 import { TraceAnnotationSummary } from "./TraceAnnotationSummary";
-import { useDeferredPartsFailure } from "./useDeferredPartsFailure";
+import { useDeferredPayloadStatus } from "./useDeferredPayloadStatus";
 
 type SpansAsideProject = SpansTableAsideQuery["response"]["project"];
 
@@ -76,7 +76,7 @@ const statsFragment = graphql`
   }
 `;
 
-// The stats arrive in a deferred part; until then each field reads as
+// The stats arrive in a deferred payload; until then each field reads as
 // undefined, though Relay types them as present.
 type SpansAsideStats = Partial<SpansTableAside_stats$data>;
 
@@ -90,11 +90,11 @@ function getSpansAsideCosts(stats: SpansAsideStats | null) {
 }
 
 /**
- * The totals to show: those that arrived for the current request, or until
- * they do, the last ones that arrived for this project, so a change of time
- * range or filter keeps the previous totals on screen.
+ * The stats that arrived for the current request or, until they do, frozen
+ * at the last ones that arrived for this project, so a change of time range
+ * or filter keeps the previous stats on screen.
  */
-function useShownStats({
+function useFrozenStats({
   projectId,
   stats,
 }: {
@@ -103,21 +103,21 @@ function useShownStats({
 }) {
   const haveStatsArrived = stats?.timeRangeTraceCount !== undefined;
   const statsKey = haveStatsArrived ? JSON.stringify(stats) : null;
-  const [shown, setShown] = useState({
+  const [frozen, setFrozen] = useState({
     projectId,
     statsKey,
     stats: haveStatsArrived ? stats : null,
   });
   const isNewArrival =
     statsKey != null &&
-    (statsKey !== shown.statsKey || projectId !== shown.projectId);
+    (statsKey !== frozen.statsKey || projectId !== frozen.projectId);
   if (isNewArrival) {
-    setShown({ projectId, statsKey, stats });
+    setFrozen({ projectId, statsKey, stats });
   }
   if (haveStatsArrived) {
     return stats;
   }
-  return shown.projectId === projectId ? shown.stats : null;
+  return frozen.projectId === projectId ? frozen.stats : null;
 }
 
 function getSpansAsideValues({
@@ -166,7 +166,7 @@ export function SpansTableAside(props: {
   const filterCondition = props.filterCondition || null;
   const projectId = useTracingContext((state) => state.projectId);
   const { timeRangeISOStrings } = useTimeRange();
-  const { fetchKey } = useStreamState();
+  const { throttledFetchKey } = useStreamState();
   const [queryReference, loadAsideQuery] =
     useQueryLoader<SpansTableAsideQuery>(spansTableAsideQuery);
   const variablesKey = JSON.stringify({
@@ -175,7 +175,7 @@ export function SpansTableAside(props: {
     filterCondition,
   });
   const loadedKeyRef = useRef<string | null>(null);
-  const loadKey = `${variablesKey}|${fetchKey}`;
+  const loadKey = `${variablesKey}|${throttledFetchKey}`;
   // A passive effect, not a layout one: when a boundary above reveals this
   // component, React reruns its effects, and the query loader's own passive
   // effect then releases every reference but the one it last committed, so
@@ -216,7 +216,7 @@ function SpansTableAsideContent(props: {
     spansTableAsideQuery,
     props.queryReference
   );
-  const { hasRequestFailed } = useDeferredPartsFailure({
+  const { hasFailed } = useDeferredPayloadStatus({
     initialRequest: props.queryReference.source,
   });
 
@@ -224,7 +224,7 @@ function SpansTableAsideContent(props: {
   const stats: SpansAsideStats | null = project
     ? readInlineData<SpansTableAside_stats$key>(statsFragment, project)
     : null;
-  const shownStats = useShownStats({ projectId, stats });
+  const frozenStats = useFrozenStats({ projectId, stats });
   const {
     completionCost,
     description,
@@ -236,12 +236,11 @@ function SpansTableAsideContent(props: {
     totalCost,
     traceAnnotationNames,
     traceCount,
-  } = getSpansAsideValues({ project, stats: shownStats });
+  } = getSpansAsideValues({ project, stats: frozenStats });
   const spanAnnotationNames = getNonNoteAnnotationNames(
     props.spanAnnotationNames
   );
-  const haveTotalsFailed =
-    stats?.timeRangeTraceCount === undefined && hasRequestFailed;
+  const haveStatsFailed = stats?.timeRangeTraceCount === undefined && hasFailed;
 
   return (
     <Group orientation="vertical">
@@ -254,7 +253,7 @@ function SpansTableAsideContent(props: {
         <View padding="size-200" overflow="auto" height="100%">
           <Flex direction="column" gap="size-300" minWidth="size-3400">
             <Flex direction="column" gap="size-200" alignItems="start">
-              {haveTotalsFailed ? (
+              {haveStatsFailed ? (
                 <Text color="text-700">
                   Trace count, cost and latency failed to load.
                 </Text>

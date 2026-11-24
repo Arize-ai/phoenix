@@ -44,7 +44,7 @@ export function SessionsTableAside({
 }: SessionsTableAsideProps) {
   const projectId = useTracingContext((state) => state.projectId);
   const { timeRangeISOStrings } = useTimeRange();
-  const { fetchKey } = useStreamState();
+  const { throttledFetchKey } = useStreamState();
   const data = useLazyLoadQuery<SessionsTableAsideQuery>(
     graphql`
       query SessionsTableAsideQuery(
@@ -88,7 +88,7 @@ export function SessionsTableAside({
       timeRange: timeRangeISOStrings,
       sessionFilterCondition,
     },
-    { fetchKey, fetchPolicy: "store-and-network" }
+    { fetchKey: throttledFetchKey, fetchPolicy: "store-and-network" }
   );
 
   const project = data?.project;

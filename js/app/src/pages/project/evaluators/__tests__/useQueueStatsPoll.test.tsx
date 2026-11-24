@@ -9,6 +9,11 @@ function QueueStatsFetchKey({ isPolling }: { isPolling: boolean }) {
   return <output>{fetchKey}</output>;
 }
 
+function ChartFetchKey() {
+  const { throttledFetchKey } = useQueueStatsPoll({ refreshKey: "refresh" });
+  return <output>{throttledFetchKey}</output>;
+}
+
 function setPageVisibility(visibilityState: DocumentVisibilityState) {
   Object.defineProperty(document, "visibilityState", {
     configurable: true,
@@ -63,6 +68,38 @@ describe("useQueueStatsPoll", () => {
     act(() => setPageVisibility("visible"));
 
     expect(container.textContent).toBe("refresh:1");
+  });
+
+  it("moves the charts' key once a minute while polling", () => {
+    act(() => root.render(<ChartFetchKey />));
+    const chartKeys = [0, 1, 2, 3, 4].map(() => {
+      act(() => {
+        vi.advanceTimersByTime(30_000);
+      });
+      return container.textContent;
+    });
+
+    expect(chartKeys).toEqual([
+      "refresh:0",
+      "refresh:1",
+      "refresh:1",
+      "refresh:2",
+      "refresh:2",
+    ]);
+  });
+
+  it("moves the charts' key when the page is shown again after a long pause", () => {
+    act(() => root.render(<ChartFetchKey />));
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
+    act(() => setPageVisibility("hidden"));
+    act(() => {
+      vi.advanceTimersByTime(60 * 60_000);
+    });
+    act(() => setPageVisibility("visible"));
+
+    expect(container.textContent).toBe("refresh:2");
   });
 
   it("does not poll when the page is shown again while polling is off", () => {

@@ -37,6 +37,7 @@ const TIME_RANGE = {
 vi.mock("@phoenix/components/datetime", async (importOriginal) => ({
   ...(await importOriginal<typeof DateTimeModule>()),
   useTimeRange: () => ({ timeRangeISOStrings: TIME_RANGE }),
+  useTimeRangeSelectionKey: () => "1d",
 }));
 
 vi.mock("@phoenix/contexts/StreamStateContext", () => ({

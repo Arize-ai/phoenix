@@ -17,7 +17,6 @@ const relayMocks = vi.hoisted(() => ({
 }));
 
 const refreshMocks = vi.hoisted(() => ({
-  refreshLiveTimeRange: () => {},
   setFetchKey: vi.fn(),
 }));
 
@@ -38,9 +37,6 @@ vi.mock("@phoenix/contexts/StreamStateContext", () => ({
 }));
 
 vi.mock("@phoenix/components/datetime", () => ({
-  useTimeRange: () => ({
-    refreshLiveTimeRange: () => refreshMocks.refreshLiveTimeRange(),
-  }),
   ConnectedTimeRangeControls: (
     props: Omit<TimeRangeControlsProps, "value" | "onChange">
   ) => (
@@ -62,8 +58,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   relayMocks.refetch.mockClear();
   relayMocks.streamingLastUpdatedAt = null;
-  refreshMocks.refreshLiveTimeRange = () => {};
-  refreshMocks.setFetchKey.mockClear();
+  refreshMocks.setFetchKey.mockReset();
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -192,7 +187,7 @@ describe("ProjectTimeRangeControls", () => {
     function RefreshingView() {
       const [isRefreshed, setIsRefreshed] = useState(false);
       useEffect(() => {
-        refreshMocks.refreshLiveTimeRange = () => setIsRefreshed(true);
+        refreshMocks.setFetchKey.mockImplementation(() => setIsRefreshed(true));
       }, []);
       if (isRefreshed) {
         use(refreshLoaded);
@@ -239,9 +234,10 @@ describe("ProjectTimeRangeControls", () => {
     act(() => setPageVisibility("visible"));
 
     expect(refreshMocks.setFetchKey).toHaveBeenCalledTimes(1);
-    expect(refreshMocks.setFetchKey).toHaveBeenCalledWith(
-      "fetch-traces-2026-11-10T20:12:55.000Z"
-    );
+    expect(refreshMocks.setFetchKey).toHaveBeenCalledWith({
+      fetchKey: "fetch-traces-2026-11-10T20:12:55.000Z",
+      isThrottled: true,
+    });
   });
 
   it("hides the toggle and does not stream off the streamable tabs", () => {

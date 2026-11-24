@@ -138,7 +138,7 @@ export function ProjectOnboardingOverlay({
   const { setFetchKey } = useStreamState();
   useEffect(() => {
     if (isExiting) {
-      setFetchKey(`onboarding-traces-${Date.now()}`);
+      setFetchKey({ fetchKey: `onboarding-traces-${Date.now()}` });
     }
   }, [isExiting, setFetchKey]);
 

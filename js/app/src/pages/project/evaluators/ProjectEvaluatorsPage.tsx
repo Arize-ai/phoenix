@@ -13,7 +13,6 @@ import { useFilterSearchParam, useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { projectEvaluatorsLoaderQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorsLoaderQuery.graphql";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import { ClearQueuedEvaluationsMenu } from "@phoenix/pages/project/evaluators/ClearQueuedEvaluationsMenu";
-import { useQueueStatsPoll } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
 import { EvaluationQueueStripSkeleton } from "@phoenix/pages/project/evaluators/EvaluationQueueStrip";
 import {
   ProjectEvaluationQueueStrip,
@@ -25,7 +24,7 @@ import { projectEvaluatorsLoaderGQL } from "@phoenix/pages/project/evaluators/pr
 import { ProjectEvaluatorsTable } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsTable";
 import { ProjectEvaluatorsToolbar } from "@phoenix/pages/project/evaluators/ProjectEvaluatorsToolbar";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
-import { useQueueStatsRefreshKey } from "@phoenix/pages/project/evaluators/useQueueStatsRefreshKey";
+import { useQueueStatsFetchKeys } from "@phoenix/pages/project/evaluators/useQueueStatsFetchKeys";
 import { TableMetricsChartsPanelGroup } from "@phoenix/pages/project/TableMetricsCharts";
 
 /** The content scrolls inside its panel rather than growing the panel. */
@@ -129,10 +128,11 @@ function ProjectEvaluatorsPageContent({
   invariant(data.project, "project is required");
   const isEmptyState =
     (data.project.evaluatorCount ?? 0) === 0 && filter.trim().length === 0;
-  const { refreshKey: queueRefreshKey, refresh: refreshQueueStats } =
-    useQueueStatsRefreshKey();
-  // One poll keeps the queue strip and the charts in step.
-  const { fetchKey } = useQueueStatsPoll({ refreshKey: queueRefreshKey });
+  const {
+    fetchKey,
+    throttledFetchKey: chartsFetchKey,
+    refresh: refreshQueueStats,
+  } = useQueueStatsFetchKeys();
   const content = (
     <div css={panelContentCSS}>
       {isEmptyState ? (
@@ -203,7 +203,10 @@ function ProjectEvaluatorsPageContent({
               />
             )}
           />
-          <TableMetricsChartsPanelGroup view="evaluators" fetchKey={fetchKey}>
+          <TableMetricsChartsPanelGroup
+            view="evaluators"
+            fetchKey={chartsFetchKey}
+          >
             {content}
           </TableMetricsChartsPanelGroup>
         </>

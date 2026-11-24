@@ -1,5 +1,5 @@
-import { startTransition, Suspense, useEffect } from "react";
-import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
+import { Suspense } from "react";
+import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
 import { useParams } from "react-router";
 
 import { Flex, Text } from "@phoenix/components";
@@ -18,6 +18,7 @@ export function DocumentEvaluationSummary({
 }: DocumentEvaluationSummaryProps) {
   const { projectId } = useParams();
   const { timeRangeISOStrings } = useTimeRange();
+  const { throttledFetchKey } = useStreamState();
   const data = useLazyLoadQuery<DocumentEvaluationSummaryQuery>(
     graphql`
       query DocumentEvaluationSummaryQuery(
@@ -35,7 +36,8 @@ export function DocumentEvaluationSummary({
       id: projectId as string,
       evaluationName,
       timeRange: timeRangeISOStrings,
-    }
+    },
+    { fetchKey: throttledFetchKey, fetchPolicy: "store-and-network" }
   );
   return (
     <Flex direction="column" flex="none">
@@ -57,14 +59,9 @@ function EvaluationSummaryValue(props: {
   project: DocumentEvaluationSummaryValueFragment$key;
 }) {
   const { project } = props;
-  const { fetchKey } = useStreamState();
-  const [data, refetch] = useRefetchableFragment<
-    DocumentEvaluationSummaryQuery,
-    DocumentEvaluationSummaryValueFragment$key
-  >(
+  const data = useFragment<DocumentEvaluationSummaryValueFragment$key>(
     graphql`
       fragment DocumentEvaluationSummaryValueFragment on Project
-      @refetchable(queryName: "DocumentEvaluationSummaryValueQuery")
       @argumentDefinitions(
         evaluationName: { type: "String!" }
         timeRange: { type: "TimeRange!" }
@@ -82,13 +79,6 @@ function EvaluationSummaryValue(props: {
     `,
     project
   );
-
-  // Refetch the evaluation summary if the fetchKey changes
-  useEffect(() => {
-    startTransition(() => {
-      refetch({}, { fetchPolicy: "store-and-network" });
-    });
-  }, [fetchKey, refetch]);
 
   const averageNdcg = data?.documentEvaluationSummary?.averageNdcg;
   const averagePrecision = data?.documentEvaluationSummary?.averagePrecision;
