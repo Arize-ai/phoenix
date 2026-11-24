@@ -53,11 +53,25 @@ const shareFormatter = new Intl.NumberFormat(undefined, {
   maximumFractionDigits: 0,
 });
 
-function ServerQueueShareCell({ share }: { share: number | null }) {
-  if (share == null || share === 0) {
+function ServerQueueShareCell({
+  share,
+  isServerQueueEmpty,
+}: {
+  share: number;
+  /** With nothing queued on the server, there is no share to take. */
+  isServerQueueEmpty: boolean;
+}) {
+  if (isServerQueueEmpty) {
     return (
       <Text fontFamily="mono" color="text-700">
         --
+      </Text>
+    );
+  }
+  if (share === 0) {
+    return (
+      <Text fontFamily="mono" color="text-700">
+        0%
       </Text>
     );
   }
@@ -263,7 +277,10 @@ export function ProjectEvaluatorsTabTable({
           serverQueuedCount,
         }),
       cell: ({ getValue }) => (
-        <ServerQueueShareCell share={getValue() as number} />
+        <ServerQueueShareCell
+          share={getValue() as number}
+          isServerQueueEmpty={serverQueuedCount === 0}
+        />
       ),
     },
     {

@@ -9,7 +9,10 @@ import {
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { Flex, Text } from "@phoenix/components";
-import { useTimeRange } from "@phoenix/components/datetime";
+import {
+  useTimeRange,
+  useTimeRangeSelectionKey,
+} from "@phoenix/components/datetime";
 import {
   ErrorBoundary,
   TextErrorBoundaryFallback,
@@ -32,6 +35,7 @@ import {
   OldestWaitStat,
   QueueStatusBadge,
   StatValue,
+  StatValueSkeleton,
 } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
 import {
   EvaluationQueueStatsRow,
@@ -117,6 +121,7 @@ function ProjectEvaluationQueueStripContent({
   onClearableCount: (clearableCount: number | null) => void;
 }) {
   const { timeRangeISOStrings } = useTimeRange();
+  const timeRangeSelectionKey = useTimeRangeSelectionKey();
   const data = useLazyLoadQuery<ProjectEvaluatorQueueStatsQuery>(
     graphql`
       query ProjectEvaluatorQueueStatsQuery($projectId: ID!) {
@@ -228,7 +233,10 @@ function ProjectEvaluationQueueStripContent({
           resetKey={`${fetchKey} ${timeRangeISOStrings.start} ${timeRangeISOStrings.end}`}
           fallback={TextErrorBoundaryFallback}
         >
-          <Suspense fallback={<StatValue>--</StatValue>}>
+          <Suspense
+            key={timeRangeSelectionKey}
+            fallback={<StatValueSkeleton />}
+          >
             <ProjectEvaluationCostValue
               projectId={projectId}
               fetchKey={fetchKey}

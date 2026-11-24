@@ -27,7 +27,7 @@ export function ProjectEvaluatorQueueCell({
   if (queuedCount === 0) {
     return (
       <Text fontFamily="mono" color="text-700">
-        --
+        0
       </Text>
     );
   }
