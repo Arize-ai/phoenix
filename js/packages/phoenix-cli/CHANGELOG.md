@@ -1,5 +1,19 @@
 # @arizeai/phoenix-cli
 
+## 1.25.0
+
+### Minor Changes
+
+- d3eafcb: Add `px project create --name <name>` to create a Phoenix project. It prints the new project's ID on success.
+- 697aaca: Add `px setup doctor`, which checks config, server connectivity, server version, and authentication, and prints pass/fail/skip for each with a fix hint.
+
+### Patch Changes
+
+- 697aaca: `px auth status` now sends the profile's custom headers when it retries expired OAuth credentials as anonymous access, so the retry works behind a header-gated proxy.
+- Updated dependencies [264ff3c]
+- Updated dependencies [c822820]
+  - @arizeai/phoenix-client@8.0.4
+
 ## 1.24.1
 
 ### Patch Changes
