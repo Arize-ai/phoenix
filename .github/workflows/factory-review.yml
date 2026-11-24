@@ -14,6 +14,10 @@ on:
       pr:
         description: Pull request number to review
         required: true
+      message_request:
+        description: Factory Foreman request context
+        required: false
+        type: string
 
 permissions:
   contents: read

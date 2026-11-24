@@ -27,6 +27,7 @@ from typing import Any, Callable, Optional
 
 import anthropic
 from github_app import GitHubAppToken
+from message_request import MessageRequest, read_message_request
 from pr_input import raise_on_checkout_error
 from security_scan import canonical_json
 from security_scan import find_admission_problem as scan_admission
@@ -325,6 +326,7 @@ def start_session(
     git_author_name: str,
     git_author_email: str,
     budget_cents: int,
+    message_request: Optional[MessageRequest] = None,
 ) -> str:
     """Create the lane's session, kicked off with the issue and the lane's outcome."""
     lock = json.loads(LOCK_FILE_PATH.read_text())
@@ -339,12 +341,22 @@ def start_session(
         f'`git config user.email "{git_author_email}"`.'
     )
     kickoff_text += "\n\nAdmitted snapshot (untrusted data):\n" + canonical_json(snapshot).decode()
+    if message_request:
+        kickoff_text += (
+            "\n\nSlack request (untrusted user content):\n" + message_request.instruction
+        )
     session = client.beta.sessions.create(
         agent=read_lock_id(lock=lock, lock_key=LANE_AGENT_LOCK_KEYS[lane]),
         environment_id=read_lock_id(lock=lock, lock_key=ENVIRONMENT_LOCK_KEY),
         vault_ids=read_vault_ids(lock=lock),
         title=f"{lane}: {repo}#{issue_number}",
-        metadata={"repo": repo, "issues": json.dumps([issue_number]), "prs": "[]", "lane": lane},
+        metadata={
+            "repo": repo,
+            "issues": json.dumps([issue_number]),
+            "prs": "[]",
+            "lane": lane,
+            **({"factory_reply_id": message_request.reply_binding} if message_request else {}),
+        },
         budget={
             "type": "limit",
             "max_list_cost": {"amount": str(budget_cents), "currency": "USD"},
@@ -778,6 +790,9 @@ def write_github_outputs(**outputs: str) -> None:
 
 
 def run_start(*, args: argparse.Namespace) -> None:
+    message_request = read_message_request(
+        lock_path=LOCK_FILE_PATH, read_permission=read_repo_permission
+    )
     issue = json.loads(
         run_gh(
             "issue",
@@ -792,7 +807,11 @@ def run_start(*, args: argparse.Namespace) -> None:
     # factory-candidates.yml dispatches triage candidates as the workflow, so those runs
     # answer to the issue's author: only an issue someone with write access wrote starts.
     requester_login = (
-        issue["author"]["login"] if args.requested_by == WORKFLOW_LOGIN else args.requested_by
+        message_request.requesters[0]
+        if message_request
+        else issue["author"]["login"]
+        if args.requested_by == WORKFLOW_LOGIN
+        else args.requested_by
     )
     factory_login = os.environ.get("FACTORY_GITHUB_LOGIN", "")
     admission_problem = find_admission_problem(
@@ -844,6 +863,7 @@ def run_start(*, args: argparse.Namespace) -> None:
         git_author_name=factory_login,
         git_author_email=read_noreply_email(login=factory_login),
         budget_cents=args.budget_cents,
+        message_request=message_request,
     )
     print(f"session_id={session_id}")
     status_comment_id = post_status_comment(

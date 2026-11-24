@@ -73,6 +73,11 @@ help: ## Show this help message
 	@echo -e "  $(YELLOW)dev$(NC)                   - Full dev environment (backend + frontend)"
 	@echo -e "  dev-backend            - Backend only (FastAPI server)"
 	@echo -e "  dev-frontend           - Frontend only (React dev server)"
+	@echo -e "  dev-factory-foreman - Factory Foreman on localhost:3109"
+	@echo -e "  test-factory-foreman - Unit tests and temporary Postgres integration tests"
+	@echo -e "  db-migrate-factory-foreman - Apply dbmate migrations"
+	@echo -e "  db-model-factory-foreman - Update the data model using temporary Postgres"
+	@echo -e "  db-types-factory-foreman - Generate Kysely types using temporary Postgres"
 	@echo -e "  dev-docker             - Docker devops environment (use ARGS= for arguments)"
 	@echo -e "  dev-mock-llm           - Start the mock LLM server"
 	@echo -e ""
@@ -344,6 +349,28 @@ typecheck: typecheck-python typecheck-ts ## Type check all code (Python + TypeSc
 #=============================================================================
 # Code Quality
 #=============================================================================
+
+.PHONY: dev-factory-foreman start-factory-foreman build-factory-foreman typecheck-factory-foreman lint-factory-foreman format-factory-foreman test-factory-foreman db-migrate-factory-foreman db-types-factory-foreman db-model-factory-foreman
+
+dev-factory-foreman start-factory-foreman build-factory-foreman typecheck-factory-foreman lint-factory-foreman:
+	@cd $(JS_DIR) && $(PNPM) --filter phoenix-factory-foreman run $(patsubst %-factory-foreman,%,$@)
+
+format-factory-foreman:
+	@cd $(JS_DIR) && $(PNPM) --filter phoenix-factory-foreman run fmt
+
+test-factory-foreman:
+	@cd $(JS_DIR) && $(PNPM) --filter phoenix-factory-foreman run test
+	@cd $(JS_DIR) && $(PNPM) --filter phoenix-factory-foreman run test:integration
+	@$(UV) run --script factory/test_message_request.py
+
+db-migrate-factory-foreman:
+	@cd $(JS_DIR) && $(PNPM) --filter phoenix-factory-foreman run db:migrate
+
+db-model-factory-foreman:
+	@cd $(JS_DIR) && $(PNPM) --filter phoenix-factory-foreman run db:model
+
+db-types-factory-foreman:
+	@cd $(JS_DIR) && $(PNPM) --filter phoenix-factory-foreman run db:types
 
 format-python: ## Format Python code with ruff
 	@echo -e "$(CYAN)Formatting Python code...$(NC)"

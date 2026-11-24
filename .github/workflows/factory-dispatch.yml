@@ -19,6 +19,10 @@ on:
         type: choice
         options: [auto, bug, feature, docs]
         default: auto
+      message_request:
+        description: Factory Foreman request context
+        required: false
+        type: string
 
 permissions:
   contents: read
