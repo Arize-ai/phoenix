@@ -70,7 +70,7 @@ def _upgrade_evaluator_bindings() -> None:
             "evaluators",
             ["evaluator_id"],
             ["id"],
-            ondelete="SET NULL",
+            ondelete="RESTRICT",
         )
         batch_op.drop_constraint("uq_dataset_evaluators_dataset_id_name", type_="unique")
         batch_op.create_check_constraint("valid_lifecycle", _DATASET_EVALUATOR_LIFECYCLE_CHECK)

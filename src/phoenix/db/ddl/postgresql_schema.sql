@@ -938,7 +938,7 @@ CREATE TABLE public.dataset_evaluators (
     CONSTRAINT fk_dataset_evaluators_evaluator_id_evaluators
         FOREIGN KEY (evaluator_id)
         REFERENCES public.evaluators (id)
-        ON DELETE SET NULL,
+        ON DELETE RESTRICT,
     CONSTRAINT fk_dataset_evaluators_project_id_projects
         FOREIGN KEY (project_id)
         REFERENCES public.projects (id)
@@ -1719,11 +1719,11 @@ CREATE TABLE public.project_evaluators (
     CONSTRAINT fk_project_evaluators_evaluator_id_evaluators
         FOREIGN KEY (evaluator_id)
         REFERENCES public.evaluators (id)
-        ON DELETE SET NULL,
+        ON DELETE RESTRICT,
     CONSTRAINT fk_project_evaluators_project_id_projects
         FOREIGN KEY (project_id)
         REFERENCES public.projects (id)
-        ON DELETE CASCADE,
+        ON DELETE RESTRICT,
     CONSTRAINT fk_project_evaluators_trace_project_id_projects
         FOREIGN KEY (trace_project_id)
         REFERENCES public.projects (id)

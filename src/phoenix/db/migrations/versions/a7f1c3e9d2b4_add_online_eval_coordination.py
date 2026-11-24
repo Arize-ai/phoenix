@@ -338,7 +338,7 @@ def upgrade() -> None:
         sa.Column(
             "project_id",
             _Integer,
-            sa.ForeignKey("projects.id", ondelete="CASCADE"),
+            sa.ForeignKey("projects.id", ondelete="RESTRICT"),
             nullable=False,
         ),
         # Cleared when the binding is tombstoned, so a tombstone keeps no reference to the
@@ -346,7 +346,7 @@ def upgrade() -> None:
         sa.Column(
             "evaluator_id",
             _Integer,
-            sa.ForeignKey("evaluators.id", ondelete="SET NULL"),
+            sa.ForeignKey("evaluators.id", ondelete="RESTRICT"),
             nullable=True,
         ),
         sa.Column(

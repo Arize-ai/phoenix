@@ -3913,7 +3913,7 @@ class DatasetEvaluators(HasId):
     )
     # Unified evaluator_id FK - works for all evaluator types (LLM, CODE, BUILTIN, DECISION)
     evaluator_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("evaluators.id", ondelete="SET NULL"),
+        ForeignKey("evaluators.id", ondelete="RESTRICT"),
         nullable=True,
         index=True,
     )
@@ -4350,12 +4350,12 @@ class ProjectEvaluator(HasId):
 
     __tablename__ = "project_evaluators"
     project_id: Mapped[int] = mapped_column(
-        ForeignKey("projects.id", ondelete="CASCADE"),
+        ForeignKey("projects.id", ondelete="RESTRICT"),
         nullable=False,
         index=True,
     )
     evaluator_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("evaluators.id", ondelete="SET NULL"),
+        ForeignKey("evaluators.id", ondelete="RESTRICT"),
         nullable=True,
         index=True,
     )
