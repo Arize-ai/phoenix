@@ -42,44 +42,52 @@ def _patch_clients(monkeypatch, sync_client=None, async_client=None):
 
 def test_routes_a_text_prompt_through_a_single_choice_question(monkeypatch):
     client = MagicMock()
-    client.system_one.return_value = _response("incorrect", {"correct": 0.03, "incorrect": 0.97})
+    client.system_one.return_value = _response(
+        "incorrect", {"correct": 0.03, "incorrect": 0.97}, name="correctness"
+    )
     _patch_clients(monkeypatch, sync_client=client)
 
     decision = DecisionModel(provider="typesafe", model="jev-latest")
-    result = decision.generate_classification("Is 2 + 2 = 5 correct?", ["correct", "incorrect"])
+    results = decision.generate_classifications(
+        "Is 2 + 2 = 5 correct?", {"correctness": {"labels": ["correct", "incorrect"]}}
+    )
 
-    assert result == {
-        "label": "incorrect",
-        "metadata": {
-            "probabilities": {"correct": 0.03, "incorrect": 0.97},
-            "model_id": "mock-evaluation-model",
-            "confidence": 0.95,
-        },
+    assert results == {
+        "correctness": ClassificationResult(
+            name="correctness",
+            label="incorrect",
+            metadata={
+                "probabilities": {"correct": 0.03, "incorrect": 0.97},
+                "model_id": "mock-evaluation-model",
+                "confidence": 0.95,
+            },
+        )
     }
-    assert "explanation" not in result
-    assert "usage" not in result
+    assert results["correctness"].explanation is None
 
     client.system_one.assert_called_once()
     _, kwargs = client.system_one.call_args
     assert kwargs["state"] == "Is 2 + 2 = 5 correct?"
     assert kwargs["model"] == "jev-latest"
-    question = kwargs["questions"]["label"]
+    question = kwargs["questions"]["correctness"]
     assert question.criteria == {"correct": None, "incorrect": None}
     assert question.instructions is None
 
 
 async def test_async_routes_a_text_prompt_through_a_single_choice_question(monkeypatch):
     async_client = MagicMock()
-    async_client.system_one = AsyncMock(return_value=_response("correct", {"correct": 0.9}))
+    async_client.system_one = AsyncMock(
+        return_value=_response("correct", {"correct": 0.9}, name="correctness")
+    )
     _patch_clients(monkeypatch, async_client=async_client)
 
     decision = DecisionModel(provider="typesafe", model="jev-latest")
-    result = await decision.async_generate_classification(
-        "Is the sky blue?", ["correct", "incorrect"]
+    results = await decision.async_generate_classifications(
+        "Is the sky blue?", {"correctness": {"labels": ["correct", "incorrect"]}}
     )
 
-    assert result["label"] == "correct"
-    assert result["metadata"]["probabilities"] == {"correct": 0.9}
+    assert results["correctness"].label == "correct"
+    assert results["correctness"].metadata["probabilities"] == {"correct": 0.9}
     async_client.system_one.assert_awaited_once()
 
 
@@ -325,14 +333,16 @@ def test_typesafe_to_input_flattens_like_to_state():
 def test_confidence_is_omitted_when_the_provider_does_not_report_one(monkeypatch):
     client = MagicMock()
     client.system_one.return_value = _response(
-        "correct", {"correct": 0.9, "incorrect": 0.1}, confidence=None
+        "correct", {"correct": 0.9, "incorrect": 0.1}, confidence=None, name="correctness"
     )
     _patch_clients(monkeypatch, sync_client=client)
 
     decision = DecisionModel(provider="typesafe", model="jev-latest")
-    result = decision.generate_classification("is this ok?", ["correct", "incorrect"])
+    results = decision.generate_classifications(
+        "is this ok?", {"correctness": {"labels": ["correct", "incorrect"]}}
+    )
 
-    assert "confidence" not in result["metadata"]
+    assert "confidence" not in results["correctness"].metadata
 
 
 def test_decision_span_records_attributes_and_usage(monkeypatch):
@@ -343,7 +353,7 @@ def test_decision_span_records_attributes_and_usage(monkeypatch):
 
     client = MagicMock()
     client.system_one.return_value = _response(
-        "valid", {"valid": 0.8, "invalid": 0.2}, input_tokens=42, output_tokens=5
+        "valid", {"valid": 0.8, "invalid": 0.2}, input_tokens=42, output_tokens=5, name="validity"
     )
     _patch_clients(monkeypatch, sync_client=client)
 
@@ -354,9 +364,11 @@ def test_decision_span_records_attributes_and_usage(monkeypatch):
     tracer = provider.get_tracer("test")
 
     decision = DecisionModel(provider="typesafe", model="jev-latest")
-    result = decision.generate_classification("is this valid?", ["valid", "invalid"], tracer=tracer)
+    results = decision.generate_classifications(
+        "is this valid?", {"validity": {"labels": ["valid", "invalid"]}}, tracer=tracer
+    )
 
-    assert "usage" not in result
+    assert "usage" not in results
 
     [span] = exporter.get_finished_spans()
     attrs = dict(span.attributes or {})

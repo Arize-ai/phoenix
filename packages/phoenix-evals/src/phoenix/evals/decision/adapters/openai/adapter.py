@@ -13,7 +13,6 @@ from ...types import (
 )
 from .factories import create_openai_client, get_openai_rate_limit_errors
 
-_QUESTION_NAME = "label"
 # The Decisions API rejects a choice question without instructions.
 _CHOICE_INSTRUCTIONS = "Select the single best label for the input."
 
@@ -113,14 +112,6 @@ class OpenAIDecisionAdapter(BaseDecisionAdapter):
         return {"label": answer.choice, "metadata": metadata}
 
     @classmethod
-    def _to_result(cls, response: Any) -> Dict[str, Any]:
-        result = cls._answer_to_label_metadata(response.answers[0], response.model)
-        usage = cls._usage_dict(response)
-        if usage is not None:
-            result["usage"] = usage
-        return result
-
-    @classmethod
     def _to_results(cls, response: Any, names: List[str]) -> ClassificationResponse:
         by_name = {getattr(answer, "name", None): answer for answer in response.answers}
         results: List[ClassificationResult] = []
@@ -139,34 +130,6 @@ class OpenAIDecisionAdapter(BaseDecisionAdapter):
                 )
             )
         return {"results": results, "usage": cls._usage_dict(response)}
-
-    def generate_classification(
-        self,
-        prompt: PromptLike,
-        labels: Union[List[str], Dict[str, str]],
-        **kwargs: Any,
-    ) -> Dict[str, Any]:
-        response = self.client.decisions.create(
-            model=self.model,
-            input=self._to_input(prompt),
-            questions=[self._build_choice_question(_QUESTION_NAME, labels, None)],
-            **kwargs,
-        )
-        return self._to_result(response)
-
-    async def async_generate_classification(
-        self,
-        prompt: PromptLike,
-        labels: Union[List[str], Dict[str, str]],
-        **kwargs: Any,
-    ) -> Dict[str, Any]:
-        response = await self.client.decisions.create(
-            model=self.model,
-            input=self._to_input(prompt),
-            questions=[self._build_choice_question(_QUESTION_NAME, labels, None)],
-            **kwargs,
-        )
-        return self._to_result(response)
 
     def generate_classifications(
         self,

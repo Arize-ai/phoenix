@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Type, Union
+from typing import Any, Callable, Dict, List, Optional, Type
 
 from .._criteria import (
     ClassificationCriterion,
@@ -27,12 +27,13 @@ class BaseDecisionAdapter(ABC):
     Abstract base class that all decision-model SDK adapters must implement.
 
     A decision model only answers typed questions and cannot generate free-form text, so
-    adapters only need to implement classification:
-    - generate_classification (sync)
-    - async_generate_classification (async)
+    adapters only need to implement classification. Decision SDKs answer several named
+    questions in a single batched request, so the adapter contract is the plural:
+    - generate_classifications (sync)
+    - async_generate_classifications (async)
 
-    The adapter is responsible for translating labels into the SDK's question type, issuing
-    the request, and parsing the response into a plain dict.
+    The adapter is responsible for translating each criterion into the SDK's question type,
+    issuing one request, and parsing the response into a :class:`ClassificationResponse`.
     """
 
     def __init__(self, client: Any, model: str) -> None:
@@ -47,89 +48,26 @@ class BaseDecisionAdapter(ABC):
         pass
 
     @abstractmethod
-    def generate_classification(
-        self,
-        prompt: PromptLike,
-        labels: Union[List[str], Dict[str, str]],
-        **kwargs: Any,
-    ) -> Dict[str, Any]:
-        """Classify a prompt by selecting exactly one of the labels.
-
-        Args:
-            prompt: Either a string or a list of message dicts with 'role' and 'content' fields.
-            labels: Either a list of label strings, or a dict mapping each label to a description.
-
-        Returns:
-            A dict with a ``label`` key and an optional ``metadata`` key.
-        """
-        pass
-
-    @abstractmethod
-    async def async_generate_classification(
-        self,
-        prompt: PromptLike,
-        labels: Union[List[str], Dict[str, str]],
-        **kwargs: Any,
-    ) -> Dict[str, Any]:
-        """Async version of generate_classification."""
-        pass
-
-    @staticmethod
-    def _assemble_fanout(
-        criteria: Dict[Name, ClassificationCriterion], raw_results: List[Dict[str, Any]]
-    ) -> ClassificationResponse:
-        """Combine the per-criterion single-classification results into the multi result.
-
-        Token usage from each call is summed (so the DECISION span still records token counts
-        on this fan-out path); ``usage`` is ``None`` only when no call reported any.
-        """
-        results = [
-            ClassificationResult(
-                name=name,
-                label=result["label"],
-                metadata=result.get("metadata", {}),
-            )
-            for name, result in zip(criteria.keys(), raw_results)
-        ]
-        usages: List[Dict[str, Any]] = []
-        for result in raw_results:
-            usage = result.get("usage")
-            if usage:
-                usages.append(usage)
-        aggregate: Optional[TokenUsage] = None
-        if usages:
-            aggregate = {
-                "input_tokens": sum(u.get("input_tokens") or 0 for u in usages),
-                "output_tokens": sum(u.get("output_tokens") or 0 for u in usages),
-            }
-        return {"results": results, "usage": aggregate}
-
     def generate_classifications(
         self,
         prompt: PromptLike,
         criteria: Dict[Name, ClassificationCriterion],
         **kwargs: Any,
     ) -> ClassificationResponse:
-        """Answer several named classification questions about one prompt.
+        """Answer several named classification questions about one prompt in a single request.
 
-        Adapters whose SDK can batch questions in a single request should override this.
-        The default fans out to one :meth:`generate_classification` call per criterion and sums
-        their token usage.
-
-        Note: each criterion's ``instruction`` is not forwarded, because the single-question
-        :meth:`generate_classification` has no instruction parameter. Adapters that need to send
-        per-question instructions must override this method.
+        Args:
+            prompt: Either a string or a list of message dicts with 'role' and 'content' fields.
+            criteria: The questions to answer, keyed by name; each has its ``labels`` and an
+                optional ``instruction``.
 
         Returns:
             A :class:`ClassificationResponse`: one ``ClassificationResult`` per criterion (in the
-            order given) and the request's token usage (summed, or ``None`` if none reported).
+            order given) and the request's token usage (``None`` if none reported).
         """
-        raw_results = [
-            self.generate_classification(prompt, criterion["labels"], **kwargs)
-            for criterion in criteria.values()
-        ]
-        return self._assemble_fanout(criteria, raw_results)
+        pass
 
+    @abstractmethod
     async def async_generate_classifications(
         self,
         prompt: PromptLike,
@@ -137,12 +75,7 @@ class BaseDecisionAdapter(ABC):
         **kwargs: Any,
     ) -> ClassificationResponse:
         """Async version of :meth:`generate_classifications`."""
-        raw_results: List[Dict[str, Any]] = []
-        for criterion in criteria.values():
-            raw_results.append(
-                await self.async_generate_classification(prompt, criterion["labels"], **kwargs)
-            )
-        return self._assemble_fanout(criteria, raw_results)
+        pass
 
     @property
     def model_name(self) -> str:

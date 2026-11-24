@@ -12,8 +12,6 @@ from ...types import (
 )
 from .factories import create_typesafe_client, get_typesafe_rate_limit_errors
 
-_QUESTION_NAME = "label"
-
 
 @register_provider(
     provider="typesafe",
@@ -64,18 +62,6 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
         return metadata
 
     @classmethod
-    def _to_result(cls, response: Any) -> Dict[str, Any]:
-        answer = response.choices[_QUESTION_NAME]
-        result: Dict[str, Any] = {
-            "label": answer.choice,
-            "metadata": cls._answer_metadata(answer, response.model),
-        }
-        usage = cls._usage_dict(response)
-        if usage is not None:
-            result["usage"] = usage
-        return result
-
-    @classmethod
     def _to_results(cls, response: Any, names: List[str]) -> ClassificationResponse:
         results: List[ClassificationResult] = []
         for name in names:
@@ -123,27 +109,3 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
             state=self._to_input(prompt), questions=questions, model=self.model, **kwargs
         )
         return self._to_results(response, list(criteria))
-
-    def generate_classification(
-        self,
-        prompt: PromptLike,
-        labels: Union[List[str], Dict[str, str]],
-        **kwargs: Any,
-    ) -> Dict[str, Any]:
-        questions = {_QUESTION_NAME: self._build_choice(labels, None)}
-        response = self.client.system_one(
-            state=self._to_input(prompt), questions=questions, model=self.model, **kwargs
-        )
-        return self._to_result(response)
-
-    async def async_generate_classification(
-        self,
-        prompt: PromptLike,
-        labels: Union[List[str], Dict[str, str]],
-        **kwargs: Any,
-    ) -> Dict[str, Any]:
-        questions = {_QUESTION_NAME: self._build_choice(labels, None)}
-        response = await self.client.system_one(
-            state=self._to_input(prompt), questions=questions, model=self.model, **kwargs
-        )
-        return self._to_result(response)

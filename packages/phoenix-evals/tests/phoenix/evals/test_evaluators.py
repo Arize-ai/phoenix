@@ -34,14 +34,6 @@ class MockLLM(LLM):
         self.provider = "openai"
         self.model = model
 
-    def generate_classification(self, prompt: str, labels, include_explanation: bool, method):
-        return {"label": "good", "explanation": "This is a good result"}
-
-    async def async_generate_classification(
-        self, prompt: str, labels, include_explanation: bool, method
-    ):
-        return {"label": "good", "explanation": "This is a good result"}
-
     @staticmethod
     def _first_label(labels):
         return labels[0] if isinstance(labels, list) else next(iter(labels))

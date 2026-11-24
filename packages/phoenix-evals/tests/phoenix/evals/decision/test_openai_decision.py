@@ -191,23 +191,27 @@ async def test_async_generate_classifications(monkeypatch):
 def test_routes_a_text_prompt_through_a_single_choice_question(monkeypatch):
     client = MagicMock()
     client.decisions.create.return_value = _response(
-        "incorrect", {"correct": 0.03, "incorrect": 0.97}
+        "incorrect", {"correct": 0.03, "incorrect": 0.97}, name="correctness"
     )
     _patch_clients(monkeypatch, sync_client=client)
 
     decision = DecisionModel(provider="openai", model="gpt-6-luna")
-    result = decision.generate_classification("Is 2 + 2 = 5 correct?", ["correct", "incorrect"])
+    results = decision.generate_classifications(
+        "Is 2 + 2 = 5 correct?", {"correctness": {"labels": ["correct", "incorrect"]}}
+    )
 
-    assert result == {
-        "label": "incorrect",
-        "metadata": {
-            "probabilities": {"correct": 0.03, "incorrect": 0.97},
-            "model_id": "mock-evaluation-model",
-            "confidence": 0.95,
-        },
+    assert results == {
+        "correctness": ClassificationResult(
+            name="correctness",
+            label="incorrect",
+            metadata={
+                "probabilities": {"correct": 0.03, "incorrect": 0.97},
+                "model_id": "mock-evaluation-model",
+                "confidence": 0.95,
+            },
+        )
     }
-    assert "explanation" not in result
-    assert "usage" not in result
+    assert results["correctness"].explanation is None
 
     client.decisions.create.assert_called_once()
     _, kwargs = client.decisions.create.call_args
@@ -215,23 +219,25 @@ def test_routes_a_text_prompt_through_a_single_choice_question(monkeypatch):
     assert kwargs["model"] == "gpt-6-luna"
     [question] = kwargs["questions"]
     assert question["type"] == "choice"
-    assert question["name"] == "label"
+    assert question["name"] == "correctness"
     assert question["instructions"]
     assert question["choices"] == [{"value": "correct"}, {"value": "incorrect"}]
 
 
 async def test_async_routes_a_text_prompt_through_a_single_choice_question(monkeypatch):
     async_client = MagicMock()
-    async_client.decisions.create = AsyncMock(return_value=_response("correct", {"correct": 0.9}))
+    async_client.decisions.create = AsyncMock(
+        return_value=_response("correct", {"correct": 0.9}, name="correctness")
+    )
     _patch_clients(monkeypatch, async_client=async_client)
 
     decision = DecisionModel(provider="openai", model="gpt-6-luna")
-    result = await decision.async_generate_classification(
-        "Is the sky blue?", ["correct", "incorrect"]
+    results = await decision.async_generate_classifications(
+        "Is the sky blue?", {"correctness": {"labels": ["correct", "incorrect"]}}
     )
 
-    assert result["label"] == "correct"
-    assert result["metadata"]["probabilities"] == {"correct": 0.9}
+    assert results["correctness"].label == "correct"
+    assert results["correctness"].metadata["probabilities"] == {"correct": 0.9}
     async_client.decisions.create.assert_awaited_once()
 
 
@@ -310,7 +316,7 @@ def test_invocation_kwargs_reach_create_but_evaluator_params_do_not(monkeypatch)
 
 
 def test_refusal_raises(monkeypatch):
-    refusal = SimpleNamespace(type="refusal", name="label")
+    refusal = SimpleNamespace(type="refusal", name="correctness")
     client = MagicMock()
     client.decisions.create.return_value = SimpleNamespace(
         model="mock-evaluation-model", answers=[refusal], usage=None
@@ -319,7 +325,9 @@ def test_refusal_raises(monkeypatch):
 
     decision = DecisionModel(provider="openai", model="gpt-6-luna")
     with pytest.raises(PhoenixDecisionRefusal, match="refused"):
-        decision.generate_classification("something", ["correct", "incorrect"])
+        decision.generate_classifications(
+            "something", {"correctness": {"labels": ["correct", "incorrect"]}}
+        )
 
 
 def test_max_retries_defaults_to_zero_but_can_be_overridden(monkeypatch):
@@ -350,14 +358,16 @@ def test_old_sdk_without_decisions_raises_a_helpful_error(monkeypatch):
 def test_confidence_is_omitted_when_the_provider_does_not_report_one(monkeypatch):
     client = MagicMock()
     client.decisions.create.return_value = _response(
-        "correct", {"correct": 0.9, "incorrect": 0.1}, confidence=None
+        "correct", {"correct": 0.9, "incorrect": 0.1}, confidence=None, name="correctness"
     )
     _patch_clients(monkeypatch, sync_client=client)
 
     decision = DecisionModel(provider="openai", model="gpt-6-luna")
-    result = decision.generate_classification("is this ok?", ["correct", "incorrect"])
+    results = decision.generate_classifications(
+        "is this ok?", {"correctness": {"labels": ["correct", "incorrect"]}}
+    )
 
-    assert "confidence" not in result["metadata"]
+    assert "confidence" not in results["correctness"].metadata
 
 
 def test_decision_span_records_attributes_and_usage(monkeypatch):
@@ -368,7 +378,7 @@ def test_decision_span_records_attributes_and_usage(monkeypatch):
 
     client = MagicMock()
     client.decisions.create.return_value = _response(
-        "valid", {"valid": 0.8, "invalid": 0.2}, input_tokens=42, output_tokens=5
+        "valid", {"valid": 0.8, "invalid": 0.2}, input_tokens=42, output_tokens=5, name="validity"
     )
     _patch_clients(monkeypatch, sync_client=client)
 
@@ -378,9 +388,11 @@ def test_decision_span_records_attributes_and_usage(monkeypatch):
     tracer = provider.get_tracer("test")
 
     decision = DecisionModel(provider="openai", model="gpt-6-luna")
-    result = decision.generate_classification("is this valid?", ["valid", "invalid"], tracer=tracer)
+    results = decision.generate_classifications(
+        "is this valid?", {"validity": {"labels": ["valid", "invalid"]}}, tracer=tracer
+    )
 
-    assert "usage" not in result
+    assert "usage" not in results
 
     [span] = exporter.get_finished_spans()
     attrs = dict(span.attributes or {})
@@ -454,7 +466,9 @@ def test_system_and_user_roles_are_preserved(monkeypatch):
 
 def test_assistant_text_is_mapped_to_output_text(monkeypatch):
     client = MagicMock()
-    client.decisions.create.return_value = _response("correct", {"correct": 0.9, "incorrect": 0.1})
+    client.decisions.create.return_value = _response(
+        "correct", {"correct": 0.9, "incorrect": 0.1}, name="correctness"
+    )
     _patch_clients(monkeypatch, sync_client=client)
 
     decision = DecisionModel(provider="openai", model="gpt-6-luna")
@@ -462,7 +476,7 @@ def test_assistant_text_is_mapped_to_output_text(monkeypatch):
         {"role": "user", "content": "Rate this."},
         {"role": "assistant", "content": "ok"},
     ]
-    decision.generate_classification(prompt, ["correct", "incorrect"])
+    decision.generate_classifications(prompt, {"correctness": {"labels": ["correct", "incorrect"]}})
 
     _, kwargs = client.decisions.create.call_args
     assert kwargs["input"] == [

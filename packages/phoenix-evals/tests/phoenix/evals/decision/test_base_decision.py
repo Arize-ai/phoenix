@@ -1,20 +1,29 @@
+import pytest
+
 from phoenix.evals.decision.types import BaseDecisionAdapter, ClassificationResult
 
 
-def test_base_adapter_fans_out_to_single_calls_by_default():
-    """An adapter that does not override generate_classifications falls back to N single calls."""
+def test_plural_classifications_is_the_adapter_contract():
+    """An adapter only needs to implement the plural generate_classifications."""
 
     class DummyAdapter(BaseDecisionAdapter):
         @classmethod
         def client_name(cls):
             return "dummy"
 
-        def generate_classification(self, prompt, labels, **kwargs):
-            label = next(iter(labels)) if isinstance(labels, dict) else labels[0]
-            return {"label": label, "metadata": {"model_id": "dummy"}}
+        def generate_classifications(self, prompt, criteria, **kwargs):
+            return {
+                "results": [
+                    ClassificationResult(
+                        name=name, label=criterion["labels"][0], metadata={"model_id": "dummy"}
+                    )
+                    for name, criterion in criteria.items()
+                ],
+                "usage": {"input_tokens": 20, "output_tokens": 4},
+            }
 
-        async def async_generate_classification(self, prompt, labels, **kwargs):
-            return self.generate_classification(prompt, labels, **kwargs)
+        async def async_generate_classifications(self, prompt, criteria, **kwargs):
+            return self.generate_classifications(prompt, criteria, **kwargs)
 
     adapter = DummyAdapter(client=object(), model="dummy")
     raw = adapter.generate_classifications(
@@ -30,42 +39,20 @@ def test_base_adapter_fans_out_to_single_calls_by_default():
             ClassificationResult(name="q1", label="a", metadata={"model_id": "dummy"}),
             ClassificationResult(name="q2", label="c", metadata={"model_id": "dummy"}),
         ],
-        "usage": None,
+        "usage": {"input_tokens": 20, "output_tokens": 4},
     }
 
 
-def test_base_adapter_fanout_sums_usage_across_calls():
-    """The fan-out default sums each single call's token usage onto the aggregate result."""
+def test_adapter_missing_plural_methods_cannot_be_instantiated():
+    """generate_classifications/async are abstract, so an adapter that omits them is abstract."""
 
-    class DummyAdapter(BaseDecisionAdapter):
+    class Incomplete(BaseDecisionAdapter):
         @classmethod
         def client_name(cls):
             return "dummy"
 
-        def generate_classification(self, prompt, labels, **kwargs):
-            return {
-                "label": labels[0],
-                "metadata": {"model_id": "dummy"},
-                "usage": {"input_tokens": 10, "output_tokens": 2},
-            }
-
-        async def async_generate_classification(self, prompt, labels, **kwargs):
-            return self.generate_classification(prompt, labels, **kwargs)
-
-    adapter = DummyAdapter(client=object(), model="dummy")
-    raw = adapter.generate_classifications(
-        "p",
-        {
-            "q1": {"labels": ["a", "b"]},
-            "q2": {"labels": ["c", "d"]},
-        },
-    )
-
-    # Two calls at 10/2 tokens each -> summed.
-    assert raw["usage"] == {"input_tokens": 20, "output_tokens": 4}
-    # Per-call usage is not leaked into each result (ClassificationResult carries no usage).
-    assert all(isinstance(r, ClassificationResult) for r in raw["results"])
-    assert all(not hasattr(r, "usage") for r in raw["results"])
+    with pytest.raises(TypeError, match="abstract"):
+        Incomplete(client=object(), model="dummy")
 
 
 def test_to_state_passes_a_string_prompt_through_unchanged():

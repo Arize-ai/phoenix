@@ -308,49 +308,6 @@ class LLM:
         )
         return rate_limited_generate(prompt, schema, **kwargs)
 
-    def generate_classification(
-        self,
-        prompt: PromptLike,
-        labels: Union[List[str], Dict[str, str]],
-        include_explanation: bool = True,
-        description: Optional[str] = None,
-        **kwargs: Any,
-    ) -> Dict[str, Any]:
-        """Generate a classification given a prompt and a set of labels.
-
-        Args:
-            prompt (Union[str, List[Dict[str, Any]]]): The prompt template to go with the tool call.
-            labels (Union[List[str], Dict[str, str]]): Either:
-                - A list of strings, where each string is a label
-                - A dictionary where keys are labels and values are descriptions
-            include_explanation (bool): Whether to prompt the LLM for an explanation.
-            description (Optional[str]): A description of the classification task.
-            **kwargs: Additional keyword arguments to pass to the LLM SDK.
-
-        Returns:
-            Dict[str, Any]: The generated classification.
-
-        Examples::
-
-            from phoenix.evals import LLM
-            llm = LLM(provider="openai", model="gpt-4o", client="openai")
-            llm.generate_classification(
-                prompt="Hello, world!",
-                labels=["yes", "no"],
-            )
-            {"label": "yes", "explanation": "The answer is yes."}
-            llm.generate_classification(
-                prompt="Hello, world!",
-                labels={"yes": "Positive response", "no": "Negative response"},
-                include_explanation=False,
-            )
-            {"label": "yes"}
-        """
-        # Generate schema from labels
-        schema = generate_classification_schema(labels, include_explanation, description)
-        result: Dict[str, Any] = self.generate_object(prompt, schema, **kwargs)
-        return result
-
     @trace(
         span_kind=OpenInferenceSpanKindValues.LLM,
         process_input={
@@ -411,33 +368,6 @@ class LLM:
             lambda fn, limiter: limiter.alimit(fn), self._rate_limiters, fn
         )
         return await rate_limited_generate(prompt, schema, **kwargs)
-
-    async def async_generate_classification(
-        self,
-        prompt: PromptLike,
-        labels: Union[List[str], Dict[str, str]],
-        include_explanation: bool = True,
-        description: Optional[str] = None,
-        **kwargs: Any,
-    ) -> Dict[str, Any]:
-        """Asynchronously generate a classification given a prompt and a set of labels.
-
-        Args:
-            prompt (Union[str, List[Dict[str, Any]]]): The prompt template to go with the tool call.
-            labels (Union[List[str], Dict[str, str]]): Either:
-                - A list of strings, where each string is a label
-                - A dictionary where keys are labels and values are descriptions
-            include_explanation (bool): Whether to prompt the LLM for an explanation.
-            description (Optional[str]): A description of the classification task.
-            **kwargs: Additional keyword arguments to pass to the LLM SDK.
-
-        Returns:
-            Dict[str, Any]: The generated classification.
-        """
-        # Generate schema from labels
-        schema = generate_classification_schema(labels, include_explanation, description)
-        result: Dict[str, Any] = await self.async_generate_object(prompt, schema, **kwargs)
-        return result
 
     def generate_classifications(
         self,
