@@ -33,7 +33,7 @@ import type {
 } from "@phoenix/components/core/types";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeRange } from "@phoenix/components/datetime";
-import { useRefetchOnStreamAdvance } from "@phoenix/hooks/useRefetchOnStreamAdvance";
+import { useRefetchOnThrottledFetchKey } from "@phoenix/hooks/useRefetchOnThrottledFetchKey";
 import type { Mutable } from "@phoenix/typeUtils";
 import { formatPercent } from "@phoenix/utils/numberFormatUtils";
 
@@ -130,7 +130,7 @@ function AnnotationSummaryValue(props: {
     project
   );
 
-  useRefetchOnStreamAdvance(() => {
+  useRefetchOnThrottledFetchKey(() => {
     startTransition(() => {
       refetch({ filterCondition }, { fetchPolicy: "store-and-network" });
     });

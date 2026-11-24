@@ -8,10 +8,7 @@ import {
 import { graphql, useRefetchableFragment } from "react-relay";
 import { useParams } from "react-router";
 
-import {
-  ConnectedTimeRangeControls,
-  useTimeRange,
-} from "@phoenix/components/datetime";
+import { ConnectedTimeRangeControls } from "@phoenix/components/datetime";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useInterval } from "@phoenix/hooks/useInterval";
 import { useOnTimestampAdvance } from "@phoenix/hooks/useOnTimestampAdvance";
@@ -52,7 +49,6 @@ export function ProjectTimeRangeControls(props: {
     setIsStreaming,
     setFetchKey,
   } = useStreamState();
-  const { refreshLiveTimeRange } = useTimeRange();
   const { tab } = useProjectRootPath();
   // Parent routes see child params, so this is set while the session drawer
   // is open; the trace and compare drawers are known from the selected traces
@@ -81,12 +77,13 @@ export function ProjectTimeRangeControls(props: {
     isLiveStreaming && !isRefreshing ? refreshIntervalMs : null
   );
 
-  // New data landed: slide a live time range forward and refetch the tables
-  // below, keeping the current rows up while they load
+  // New data landed: refetch the tables below, keeping the current rows up
+  // while they load
   function refreshForNewData(currentLastUpdatedAt: string) {
     startRefreshTransition(() => {
-      refreshLiveTimeRange();
-      setFetchKey(`fetch-traces-${currentLastUpdatedAt}`);
+      setFetchKey(`fetch-traces-${currentLastUpdatedAt}`, {
+        isThrottled: true,
+      });
     });
   }
   const heldLastUpdatedAtRef = useRef<string | null>(null);

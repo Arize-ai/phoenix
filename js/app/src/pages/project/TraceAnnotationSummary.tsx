@@ -3,7 +3,7 @@ import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 import { useParams } from "react-router";
 
 import { useTimeRange } from "@phoenix/components/datetime";
-import { useRefetchOnStreamAdvance } from "@phoenix/hooks/useRefetchOnStreamAdvance";
+import { useRefetchOnThrottledFetchKey } from "@phoenix/hooks/useRefetchOnThrottledFetchKey";
 
 import type { TraceAnnotationSummaryQuery } from "./__generated__/TraceAnnotationSummaryQuery.graphql";
 import type { TraceAnnotationSummaryValueFragment$key } from "./__generated__/TraceAnnotationSummaryValueFragment.graphql";
@@ -105,7 +105,7 @@ function TraceAnnotationSummaryValue(props: {
     project
   );
 
-  useRefetchOnStreamAdvance(() => {
+  useRefetchOnThrottledFetchKey(() => {
     startTransition(() => {
       refetch({ filterCondition }, { fetchPolicy: "store-and-network" });
     });

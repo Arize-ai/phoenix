@@ -1,10 +1,10 @@
-import { startTransition, Suspense, useEffect } from "react";
+import { startTransition, Suspense } from "react";
 import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 import { useParams } from "react-router";
 
 import { Flex, Text } from "@phoenix/components";
 import { useTimeRange } from "@phoenix/components/datetime";
-import { useStreamState } from "@phoenix/contexts/StreamStateContext";
+import { useRefetchOnThrottledFetchKey } from "@phoenix/hooks/useRefetchOnThrottledFetchKey";
 
 import type { DocumentEvaluationSummaryQuery } from "./__generated__/DocumentEvaluationSummaryQuery.graphql";
 import type { DocumentEvaluationSummaryValueFragment$key } from "./__generated__/DocumentEvaluationSummaryValueFragment.graphql";
@@ -57,7 +57,6 @@ function EvaluationSummaryValue(props: {
   project: DocumentEvaluationSummaryValueFragment$key;
 }) {
   const { project } = props;
-  const { fetchKey } = useStreamState();
   const [data, refetch] = useRefetchableFragment<
     DocumentEvaluationSummaryQuery,
     DocumentEvaluationSummaryValueFragment$key
@@ -83,12 +82,11 @@ function EvaluationSummaryValue(props: {
     project
   );
 
-  // Refetch the evaluation summary if the fetchKey changes
-  useEffect(() => {
+  useRefetchOnThrottledFetchKey(() => {
     startTransition(() => {
       refetch({}, { fetchPolicy: "store-and-network" });
     });
-  }, [fetchKey, refetch]);
+  });
 
   const averageNdcg = data?.documentEvaluationSummary?.averageNdcg;
   const averagePrecision = data?.documentEvaluationSummary?.averagePrecision;

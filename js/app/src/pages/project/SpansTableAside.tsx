@@ -166,7 +166,7 @@ export function SpansTableAside(props: {
   const filterCondition = props.filterCondition || null;
   const projectId = useTracingContext((state) => state.projectId);
   const { timeRangeISOStrings } = useTimeRange();
-  const { fetchKey } = useStreamState();
+  const { throttledFetchKey } = useStreamState();
   const [queryReference, loadAsideQuery] =
     useQueryLoader<SpansTableAsideQuery>(spansTableAsideQuery);
   const variablesKey = JSON.stringify({
@@ -175,7 +175,7 @@ export function SpansTableAside(props: {
     filterCondition,
   });
   const loadedKeyRef = useRef<string | null>(null);
-  const loadKey = `${variablesKey}|${fetchKey}`;
+  const loadKey = `${variablesKey}|${throttledFetchKey}`;
   // A passive effect, not a layout one: when a boundary above reveals this
   // component, React reruns its effects, and the query loader's own passive
   // effect then releases every reference but the one it last committed, so
