@@ -2,15 +2,23 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Type, Union
 
-from .._criteria import ClassificationCriterion, ClassificationResult, Name
+from .._criteria import (
+    ClassificationCriterion,
+    ClassificationResponse,
+    ClassificationResult,
+    Name,
+    TokenUsage,
+)
 from ..llm.prompts import PromptLike
 
 __all__ = [
     "BaseDecisionAdapter",
-    "ClassificationResult",
     "ClassificationCriterion",
+    "ClassificationResponse",
+    "ClassificationResult",
     "Name",
     "ProviderRegistration",
+    "TokenUsage",
 ]
 
 
@@ -69,7 +77,7 @@ class BaseDecisionAdapter(ABC):
     @staticmethod
     def _assemble_fanout(
         criteria: Dict[Name, ClassificationCriterion], raw_results: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+    ) -> ClassificationResponse:
         """Combine the per-criterion single-classification results into the multi result.
 
         Token usage from each call is summed (so the DECISION span still records token counts
@@ -88,7 +96,7 @@ class BaseDecisionAdapter(ABC):
             usage = result.get("usage")
             if usage:
                 usages.append(usage)
-        aggregate: Optional[Dict[str, Any]] = None
+        aggregate: Optional[TokenUsage] = None
         if usages:
             aggregate = {
                 "input_tokens": sum(u.get("input_tokens") or 0 for u in usages),
@@ -101,7 +109,7 @@ class BaseDecisionAdapter(ABC):
         prompt: PromptLike,
         criteria: Dict[Name, ClassificationCriterion],
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> ClassificationResponse:
         """Answer several named classification questions about one prompt.
 
         Adapters whose SDK can batch questions in a single request should override this.
@@ -113,8 +121,8 @@ class BaseDecisionAdapter(ABC):
         per-question instructions must override this method.
 
         Returns:
-            A dict with ``results`` (one ``{"name", "label", "metadata"}`` dict per criterion,
-            in the order given) and ``usage`` (summed token usage, or ``None`` if none reported).
+            A :class:`ClassificationResponse`: one ``ClassificationResult`` per criterion (in the
+            order given) and the request's token usage (summed, or ``None`` if none reported).
         """
         raw_results = [
             self.generate_classification(prompt, criterion["labels"], **kwargs)
@@ -127,7 +135,7 @@ class BaseDecisionAdapter(ABC):
         prompt: PromptLike,
         criteria: Dict[Name, ClassificationCriterion],
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> ClassificationResponse:
         """Async version of :meth:`generate_classifications`."""
         raw_results: List[Dict[str, Any]] = []
         for criterion in criteria.values():

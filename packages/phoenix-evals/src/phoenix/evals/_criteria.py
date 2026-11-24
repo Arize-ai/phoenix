@@ -4,9 +4,11 @@ from typing import Any, Dict, List, Optional, Union
 from typing_extensions import NotRequired, TypeAlias, TypedDict
 
 __all__ = [
-    "ClassificationResult",
     "ClassificationCriterion",
+    "ClassificationResponse",
+    "ClassificationResult",
     "Name",
+    "TokenUsage",
 ]
 
 Name: TypeAlias = str
@@ -56,3 +58,26 @@ class ClassificationResult:
     label: str
     explanation: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+class TokenUsage(TypedDict, total=False):
+    """Token counts a backend reports for a request. Either key may be absent or ``None``."""
+
+    input_tokens: Optional[int]
+    output_tokens: Optional[int]
+
+
+class ClassificationResponse(TypedDict):
+    """What a classification backend's ``generate_classifications`` returns: one
+    :class:`ClassificationResult` per criterion plus the request's token usage.
+
+    This is the typed shape of the adapter boundary; ``DecisionModel`` and the evaluator then
+    re-key ``results`` by criterion name for their callers.
+
+    Keys:
+        results: One answer per criterion, in the order the criteria were given.
+        usage: Token usage for the request, or ``None`` when the backend reported none.
+    """
+
+    results: List[ClassificationResult]
+    usage: Optional[TokenUsage]

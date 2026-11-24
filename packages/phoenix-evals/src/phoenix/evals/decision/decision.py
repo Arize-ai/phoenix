@@ -2,7 +2,7 @@ import functools
 import json
 from dataclasses import asdict, is_dataclass
 from inspect import BoundArguments
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Mapping, Optional, Union
 
 import opentelemetry.trace as trace_api
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
@@ -14,7 +14,7 @@ from phoenix.evals.tracing import trace
 from ..llm.prompts import PromptLike
 from .adapters import register_adapters
 from .registries import DECISION_PROVIDER_REGISTRY, adapter_availability_table
-from .types import ClassificationCriterion, ClassificationResult, Name
+from .types import ClassificationCriterion, ClassificationResponse, ClassificationResult, Name
 
 register_adapters()
 
@@ -183,7 +183,7 @@ class DecisionModel:
         ]
 
     @staticmethod
-    def _record_usage_values(usage: Optional[Dict[str, Any]], model_id: Any) -> None:
+    def _record_usage_values(usage: Optional[Mapping[str, Any]], model_id: Any) -> None:
         """Record token usage and the response model on the current span."""
         usage = usage or {}
         span = trace_api.get_current_span()
@@ -204,7 +204,7 @@ class DecisionModel:
 
     @classmethod
     def _record_multiple_classifications_usage(
-        cls, raw: Dict[str, Any]
+        cls, raw: ClassificationResponse
     ) -> List[ClassificationResult]:
         """Record usage from a multi-classification adapter result and return its ``results``."""
         results: List[ClassificationResult] = raw.get("results", [])
@@ -343,7 +343,7 @@ class DecisionModel:
         rate_limited = functools.reduce(
             lambda fn, limiter: limiter.limit(fn), self._rate_limiters, fn
         )
-        raw: Dict[str, Any] = rate_limited(prompt, criteria, **kwargs)
+        raw: ClassificationResponse = rate_limited(prompt, criteria, **kwargs)
         answers = self._record_multiple_classifications_usage(raw)
         return {answer.name: answer for answer in answers}
 
@@ -374,7 +374,7 @@ class DecisionModel:
         rate_limited = functools.reduce(
             lambda fn, limiter: limiter.alimit(fn), self._rate_limiters, fn
         )
-        raw: Dict[str, Any] = await rate_limited(prompt, criteria, **kwargs)
+        raw: ClassificationResponse = await rate_limited(prompt, criteria, **kwargs)
         answers = self._record_multiple_classifications_usage(raw)
         return {answer.name: answer for answer in answers}
 

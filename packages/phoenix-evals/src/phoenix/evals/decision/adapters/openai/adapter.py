@@ -3,7 +3,14 @@ from typing import Any, Dict, List, Optional, Union
 from ....exceptions import PhoenixDecisionRefusal
 from ....llm.prompts import MessageRole, PromptLike, normalize_role
 from ...registries import register_provider
-from ...types import BaseDecisionAdapter, ClassificationCriterion, ClassificationResult, Name
+from ...types import (
+    BaseDecisionAdapter,
+    ClassificationCriterion,
+    ClassificationResponse,
+    ClassificationResult,
+    Name,
+    TokenUsage,
+)
 from .factories import create_openai_client, get_openai_rate_limit_errors
 
 _QUESTION_NAME = "label"
@@ -77,7 +84,7 @@ class OpenAIDecisionAdapter(BaseDecisionAdapter):
         }
 
     @staticmethod
-    def _usage_dict(response: Any) -> Optional[Dict[str, Any]]:
+    def _usage_dict(response: Any) -> Optional[TokenUsage]:
         usage = getattr(response, "usage", None)
         if usage is None:
             return None
@@ -114,7 +121,7 @@ class OpenAIDecisionAdapter(BaseDecisionAdapter):
         return result
 
     @classmethod
-    def _to_results(cls, response: Any, names: List[str]) -> Dict[str, Any]:
+    def _to_results(cls, response: Any, names: List[str]) -> ClassificationResponse:
         by_name = {getattr(answer, "name", None): answer for answer in response.answers}
         results: List[ClassificationResult] = []
         for name in names:
@@ -166,7 +173,7 @@ class OpenAIDecisionAdapter(BaseDecisionAdapter):
         prompt: PromptLike,
         criteria: Dict[Name, ClassificationCriterion],
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> ClassificationResponse:
         questions = [
             self._build_choice_question(name, c["labels"], c.get("instruction"))
             for name, c in criteria.items()
@@ -181,7 +188,7 @@ class OpenAIDecisionAdapter(BaseDecisionAdapter):
         prompt: PromptLike,
         criteria: Dict[Name, ClassificationCriterion],
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> ClassificationResponse:
         questions = [
             self._build_choice_question(name, c["labels"], c.get("instruction"))
             for name, c in criteria.items()

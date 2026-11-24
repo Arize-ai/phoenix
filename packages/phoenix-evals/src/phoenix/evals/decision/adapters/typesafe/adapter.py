@@ -2,7 +2,14 @@ from typing import Any, Dict, List, Optional, Union
 
 from ....llm.prompts import PromptLike
 from ...registries import register_provider
-from ...types import BaseDecisionAdapter, ClassificationCriterion, ClassificationResult, Name
+from ...types import (
+    BaseDecisionAdapter,
+    ClassificationCriterion,
+    ClassificationResponse,
+    ClassificationResult,
+    Name,
+    TokenUsage,
+)
 from .factories import create_typesafe_client, get_typesafe_rate_limit_errors
 
 _QUESTION_NAME = "label"
@@ -39,7 +46,7 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
         return Choice(criteria=criteria)
 
     @staticmethod
-    def _usage_dict(response: Any) -> Optional[Dict[str, Any]]:
+    def _usage_dict(response: Any) -> Optional[TokenUsage]:
         usage = getattr(response, "usage", None)
         if usage is None:
             return None
@@ -69,7 +76,7 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
         return result
 
     @classmethod
-    def _to_results(cls, response: Any, names: List[str]) -> Dict[str, Any]:
+    def _to_results(cls, response: Any, names: List[str]) -> ClassificationResponse:
         results: List[ClassificationResult] = []
         for name in names:
             if name not in response.choices:
@@ -92,7 +99,7 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
         prompt: PromptLike,
         criteria: Dict[Name, ClassificationCriterion],
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> ClassificationResponse:
         questions = {
             name: self._build_choice(c["labels"], c.get("instruction"))
             for name, c in criteria.items()
@@ -107,7 +114,7 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
         prompt: PromptLike,
         criteria: Dict[Name, ClassificationCriterion],
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> ClassificationResponse:
         questions = {
             name: self._build_choice(c["labels"], c.get("instruction"))
             for name, c in criteria.items()
