@@ -20,6 +20,7 @@ import { Empty } from "@phoenix/components/core/empty";
 import {
   ConnectedTimeRangeSelector,
   TimeRangeProvider,
+  useTimeRangeSelectionKey,
 } from "@phoenix/components/datetime";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import type { ErrorBoundaryFallbackProps } from "@phoenix/components/exception/types";
@@ -97,6 +98,7 @@ function ProjectEvaluatorComparePageLoaded({
   const timeRange = useClosedTimeRange();
   // Keep the current comparison visible while a live range refreshes.
   const deferredTimeRange = useDeferredValue(timeRange);
+  const timeRangeSelectionKey = useTimeRangeSelectionKey();
   const evaluatorA =
     data.evaluatorA?.__typename === "ProjectEvaluator" ? data.evaluatorA : null;
   const evaluatorB =
@@ -168,7 +170,7 @@ function ProjectEvaluatorComparePageLoaded({
         <div css={gutterCSS}>
           <div css={contentCSS}>
             <Suspense
-              key={pairKey}
+              key={`${pairKey}:${timeRangeSelectionKey}`}
               fallback={
                 <ProjectEvaluatorCompareContentSkeleton
                   target={evaluatorA.evaluationTarget}

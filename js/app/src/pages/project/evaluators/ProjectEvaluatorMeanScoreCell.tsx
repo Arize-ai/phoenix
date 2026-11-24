@@ -271,8 +271,12 @@ export function ProjectEvaluatorResultsCell({
     projectEvaluator
   );
   const deferredError = useEvaluatorDeferredError();
-  if (annotationScoreMetrics === undefined && deferredError != null) {
-    return <TextErrorBoundaryFallback error="Scores failed to load." />;
+  if (annotationScoreMetrics === undefined) {
+    return deferredError != null ? (
+      <TextErrorBoundaryFallback error="Scores failed to load." />
+    ) : (
+      <ProjectEvaluatorMeanScoreCellSkeleton annotations={annotations} />
+    );
   }
   return (
     <ProjectEvaluatorMeanScoreCell
@@ -456,9 +460,13 @@ function AnnotationMeanScoreView({
     typeof bin.meanScore === "number" ? bin.meanScore : null
   );
   const sparkWeights = series.map((bin) => bin.count);
-  const sparkMinRange =
+  const sparkBounds: [number, number] | undefined =
     lowerBound != null && upperBound != null && upperBound > lowerBound
-      ? (upperBound - lowerBound) * SPARKLINE_MIN_RANGE_FRACTION
+      ? [lowerBound, upperBound]
+      : undefined;
+  const sparkMinRange =
+    sparkBounds != null
+      ? (sparkBounds[1] - sparkBounds[0]) * SPARKLINE_MIN_RANGE_FRACTION
       : undefined;
   return (
     <Flex direction="row" alignItems="center" gap="size-100" minWidth={0}>
@@ -514,6 +522,7 @@ function AnnotationMeanScoreView({
           values={sparkValues}
           weights={sparkWeights}
           minRange={sparkMinRange}
+          bounds={sparkBounds}
           maxWidth={RESULTS_CHART_WIDTH}
           color={SPARKLINE_COLOR}
           showCoverage={SPARKLINE_SHOW_COVERAGE}
