@@ -467,6 +467,7 @@ export const DatasetEvaluatorsTable = ({
             datasetId={datasetId}
             evaluatorKind={row.original.evaluator.kind}
             evaluatorName={row.original.name}
+            associatedPromptId={row.original.evaluator.prompt?.id}
             updateConnectionIds={updateConnectionIds}
           />
         ),

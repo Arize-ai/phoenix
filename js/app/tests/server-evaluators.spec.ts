@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import type { Request } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
 test.describe.serial("Server Evaluators", () => {
@@ -531,5 +532,73 @@ test.describe.serial("Server Evaluators", () => {
     await expect(
       page.getByRole("heading", { name: prebuiltCodeEvaluatorName })
     ).toBeVisible();
+  });
+
+  test("does not show a cached prompt after deleting its evaluator", async ({
+    page,
+  }) => {
+    await page.goto("/prompts");
+    const associatedPromptRow = page.getByRole("row").filter({
+      has: page.getByRole("link", {
+        name: new RegExp(`^${prebuiltLLMEvaluatorName}-evaluator-`),
+      }),
+    });
+    await expect(associatedPromptRow).toBeVisible();
+
+    await page.getByRole("link", { name: /^Datasets & Experiments/ }).click();
+    await page.getByRole("link", { name: datasetName }).click();
+    await page.getByRole("tab", { name: /Evaluators/i }).click();
+    const evaluatorRow = page.getByRole("row").filter({
+      has: page.getByRole("link", {
+        name: prebuiltLLMEvaluatorName,
+        exact: true,
+      }),
+    });
+    await evaluatorRow
+      .getByRole("button", { name: "Evaluator actions" })
+      .click();
+    await page.getByRole("menuitem", { name: "Delete" }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(
+      dialog.getByRole("checkbox", { name: "Delete associated prompt" })
+    ).toBeChecked();
+    await dialog.getByRole("button", { name: "Delete Evaluator" }).click();
+    await expect(evaluatorRow).toHaveCount(0);
+
+    // Hold the list request so a fast response cannot hide a stale first paint.
+    const isPromptsListRequest = (request: Request): boolean => {
+      if (!request.url().endsWith("/graphql") || request.method() !== "POST") {
+        return false;
+      }
+      const query: unknown = request.postDataJSON()?.query;
+      return (
+        typeof query === "string" &&
+        /^query (promptsLoaderQuery|PromptsTablePromptsQuery)\b/.test(query)
+      );
+    };
+    let resumeList = (): void => undefined;
+    const holdList = new Promise<void>((resolve) => {
+      resumeList = resolve;
+    });
+    await page.route("**/graphql", async (route) => {
+      if (isPromptsListRequest(route.request())) {
+        await holdList;
+      }
+      await route.continue();
+    });
+
+    try {
+      await Promise.all([
+        page.waitForRequest(isPromptsListRequest),
+        page.getByRole("link", { name: /^Prompts\b/ }).click(),
+      ]);
+      await expect(page).toHaveURL(/\/prompts$/);
+      await expect(associatedPromptRow).toHaveCount(0);
+    } finally {
+      resumeList();
+    }
+
+    await expect(page.getByRole("link", { name: "New Prompt" })).toBeVisible();
+    await expect(associatedPromptRow).toHaveCount(0);
   });
 });
