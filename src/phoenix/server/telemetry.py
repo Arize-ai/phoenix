@@ -1090,7 +1090,7 @@ class _TracedStreamCursorProxy:
 
     __slots__ = ("_cursor", "_end_span", "__weakref__")
 
-    def __init__(self, cursor: Any, end_span: Callable[[], None]) -> None:
+    def __init__(self, cursor: Any, end_span: Callable[[], Any]) -> None:
         self._cursor = cursor
         self._end_span = end_span
 
@@ -1127,9 +1127,9 @@ class _SqlAlchemyEngineTracer:
         self._in_flight_spans: weakref.WeakKeyDictionary[
             SAConnection, list[tuple[object, Span]]
         ] = weakref.WeakKeyDictionary()
-        self._streamed_spans: weakref.WeakKeyDictionary[
-            object, tuple[Span, Callable[[], None]]
-        ] = weakref.WeakKeyDictionary()
+        self._streamed_spans: weakref.WeakKeyDictionary[object, tuple[Span, Callable[[], Any]]] = (
+            weakref.WeakKeyDictionary()
+        )
         self._listeners: list[tuple[str, Callable[..., Any]]] = [
             ("before_cursor_execute", _fail_open(self._before_cursor_execute)),
             ("after_cursor_execute", _fail_open(self._after_cursor_execute)),
@@ -1214,49 +1214,39 @@ class _SqlAlchemyEngineTracer:
         if not callable(getattr(cursor, "close", None)):
             return False
 
-        ended = False
-
-        def end_span() -> None:
-            nonlocal ended
-            if ended:
-                return
-            ended = True
-            self._streamed_spans.pop(tag, None)
-            span.end()
-
-        proxy = _TracedStreamCursorProxy(cursor, end_span)
+        # Use weakref.finalize directly on the proxy with span.end so neither
+        # the finalizer nor _streamed_spans holds a strong reference to
+        # execution_context or proxy. Calling finalize() from proxy.close() or
+        # _handle_error() ends the span at most once and immediately detaches
+        # the entry from weakref.finalize._registry.
+        proxy = _TracedStreamCursorProxy(cursor, lambda: None)
+        finalizer = weakref.finalize(proxy, span.end)
+        proxy._end_span = finalizer
         try:
             execution_context.cursor = proxy
         except (AttributeError, TypeError):
+            finalizer.detach()
             return False
 
         try:
-            self._streamed_spans[tag] = (span, end_span)
+            self._streamed_spans[tag] = (span, finalizer)
         except TypeError:
             pass
-        weakref.finalize(proxy, end_span)
         return True
 
     def _handle_error(self, exception_context: ExceptionContext) -> None:
         connection = exception_context.connection
-        cursor = getattr(exception_context, "cursor", None)
-        tag: object = (
-            exception_context.execution_context
-            if exception_context.execution_context is not None
-            else cursor
-        )
+        execution_context = exception_context.execution_context
         span: Span | None = None
-        end_span: Callable[[], None] | None = None
-        if connection is not None and tag is not None:
+        end_span: Callable[[], Any] | None = None
+        if connection is not None and execution_context is not None:
             spans = self._in_flight_spans.get(connection)
-            if spans and spans[-1][0] is tag:
+            if spans and spans[-1][0] is execution_context:
                 _, span = spans.pop()
                 if not spans:
                     self._in_flight_spans.pop(connection, None)
-        if span is None and tag is not None:
-            streamed = self._streamed_spans.pop(tag, None)
-            if streamed is None and cursor is not None:
-                streamed = self._streamed_spans.pop(cursor, None)
+        if span is None and execution_context is not None:
+            streamed = self._streamed_spans.pop(execution_context, None)
             if streamed is not None:
                 span, end_span = streamed
         if span is None:
