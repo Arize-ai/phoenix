@@ -80,19 +80,21 @@ class ClassificationFailure:
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
-class TokenUsage(TypedDict, total=False):
-    """Token counts a backend reports for a request. Either key may be absent or ``None``."""
+@dataclass(frozen=True)
+class TokenUsage:
+    """Token counts a backend reports for a request. Either field may be ``None``."""
 
-    input_tokens: Optional[int]
-    output_tokens: Optional[int]
+    input_tokens: Optional[int] = None
+    output_tokens: Optional[int] = None
 
 
-class ClassificationResponse(TypedDict):
+@dataclass(frozen=True)
+class ClassificationResponse:
     """What a classification backend's ``generate_classifications`` returns: one outcome per
     criterion (a :class:`ClassificationResult` or a :class:`ClassificationFailure`) plus the
     request's token usage.
 
-    Keys:
+    Attributes:
         results: One outcome per criterion, keyed by criterion name. A criterion that could
             not be classified maps to a :class:`ClassificationFailure` instead of a
             :class:`ClassificationResult`, so one failure does not discard the others.
@@ -100,4 +102,4 @@ class ClassificationResponse(TypedDict):
     """
 
     results: Dict[Name, Union[ClassificationResult, ClassificationFailure]]
-    usage: Optional[TokenUsage]
+    usage: Optional[TokenUsage] = None

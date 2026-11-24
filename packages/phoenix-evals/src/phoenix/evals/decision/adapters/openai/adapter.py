@@ -87,10 +87,10 @@ class OpenAIDecisionAdapter(BaseDecisionAdapter):
         usage = getattr(response, "usage", None)
         if usage is None:
             return None
-        return {
-            "input_tokens": getattr(usage, "input_tokens", None),
-            "output_tokens": getattr(usage, "output_tokens", None),
-        }
+        return TokenUsage(
+            input_tokens=getattr(usage, "input_tokens", None),
+            output_tokens=getattr(usage, "output_tokens", None),
+        )
 
     @staticmethod
     def _answer_to_label_metadata(answer: Any, model: Any) -> Dict[str, Any]:
@@ -131,7 +131,7 @@ class OpenAIDecisionAdapter(BaseDecisionAdapter):
                 label=label_metadata["label"],
                 metadata=label_metadata["metadata"],
             )
-        return {"results": results, "usage": cls._usage_dict(response)}
+        return ClassificationResponse(results=results, usage=cls._usage_dict(response))
 
     def generate_classifications(
         self,

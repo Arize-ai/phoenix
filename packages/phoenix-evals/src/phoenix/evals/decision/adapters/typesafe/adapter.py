@@ -49,10 +49,10 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
         usage = getattr(response, "usage", None)
         if usage is None:
             return None
-        return {
-            "input_tokens": getattr(usage, "input_tokens", None),
-            "output_tokens": getattr(usage, "output_tokens", None),
-        }
+        return TokenUsage(
+            input_tokens=getattr(usage, "input_tokens", None),
+            output_tokens=getattr(usage, "output_tokens", None),
+        )
 
     @staticmethod
     def _answer_metadata(answer: Any, model: Any) -> Dict[str, Any]:
@@ -78,7 +78,7 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
                 label=answer.choice,
                 metadata=cls._answer_metadata(answer, response.model),
             )
-        return {"results": results, "usage": cls._usage_dict(response)}
+        return ClassificationResponse(results=results, usage=cls._usage_dict(response))
 
     def generate_classifications(
         self,

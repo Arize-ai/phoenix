@@ -2,7 +2,7 @@ import functools
 import json
 from dataclasses import asdict, is_dataclass
 from inspect import BoundArguments
-from typing import Any, Dict, Mapping, Optional, Union
+from typing import Any, Dict, Optional, Union
 
 import opentelemetry.trace as trace_api
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
@@ -20,6 +20,7 @@ from .types import (
     ClassificationResponse,
     ClassificationResult,
     Name,
+    TokenUsage,
 )
 
 register_adapters()
@@ -189,14 +190,13 @@ class DecisionModel:
         ]
 
     @staticmethod
-    def _record_usage_values(usage: Optional[Mapping[str, Any]], model_id: Any) -> None:
+    def _record_usage_values(usage: Optional[TokenUsage], model_id: Any) -> None:
         """Record token usage and the response model on the current span."""
-        usage = usage or {}
         span = trace_api.get_current_span()
         attributes = {
             SpanAttributes.DECISION_RESPONSE_MODEL_NAME: model_id,
-            SpanAttributes.DECISION_TOKEN_COUNT_INPUT: usage.get("input_tokens"),
-            SpanAttributes.DECISION_TOKEN_COUNT_OUTPUT: usage.get("output_tokens"),
+            SpanAttributes.DECISION_TOKEN_COUNT_INPUT: usage.input_tokens if usage else None,
+            SpanAttributes.DECISION_TOKEN_COUNT_OUTPUT: usage.output_tokens if usage else None,
         }
         for key, value in attributes.items():
             if value is not None:
@@ -207,12 +207,12 @@ class DecisionModel:
         cls, raw: ClassificationResponse
     ) -> Dict[Name, Union[ClassificationResult, ClassificationFailure]]:
         """Record usage from a multi-classification adapter result and return its ``results``."""
-        results = raw.get("results", {})
+        results = raw.results
         model_id = next(
             (o.metadata.get("model_id") for o in results.values() if o.metadata.get("model_id")),
             None,
         )
-        cls._record_usage_values(raw.get("usage"), model_id)
+        cls._record_usage_values(raw.usage, model_id)
         return results
 
     @trace(
