@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-23T13:08:25Z",
-  "models_sha256": "f24ec891bd19ee7b8258a1dc611cee090ad80a57c3ba9242e3e3bc4fe0c47441",
+  "generated_at": "2026-11-24T13:08:04Z",
+  "models_sha256": "d98a7277fa9898c224916880fa331057d73e7bccae6efd80e19273646d13d654",
   "models": [
     {
       "name": "anthropic.claude-3-5-haiku-20241022-v1:0",
@@ -13196,6 +13196,62 @@
       ]
     },
     {
+      "name": "minimax/MiniMax-H3-Image",
+      "name_pattern": "MiniMax-H3-Image",
+      "source": "litellm",
+      "provider": "minimax",
+      "token_prices": [
+        {
+          "base_rate": 2.3e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 3.8e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.5e-6,
+          "is_prompt": true,
+          "token_type": "image"
+        },
+        {
+          "base_rate": 3.8e-6,
+          "is_prompt": false,
+          "token_type": "image"
+        }
+      ]
+    },
+    {
+      "name": "minimax/MiniMax-H3-Image-Highspeed",
+      "name_pattern": "MiniMax-H3-Image-Highspeed",
+      "source": "litellm",
+      "provider": "minimax",
+      "token_prices": [
+        {
+          "base_rate": 2.3e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 7.6e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "image"
+        },
+        {
+          "base_rate": 7.6e-6,
+          "is_prompt": false,
+          "token_type": "image"
+        }
+      ]
+    },
+    {
       "name": "minimax/MiniMax-M2",
       "name_pattern": "MiniMax-M2",
       "source": "litellm",
@@ -15455,17 +15511,17 @@
       "provider": "together",
       "token_prices": [
         {
-          "base_rate": 1.05e-6,
+          "base_rate": 1.5e-6,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 3.15e-6,
+          "base_rate": 4.5e-6,
           "is_prompt": false,
           "token_type": "output"
         },
         {
-          "base_rate": 5.25e-8,
+          "base_rate": 7.5e-8,
           "is_prompt": true,
           "token_type": "cache_read"
         }
@@ -15666,6 +15722,29 @@
         },
         {
           "base_rate": 6e-9,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "together_ai/deepseek-ai/DeepSeek-V4.1-Flash-1017-fast",
+      "name_pattern": "deepseek-ai/DeepSeek-V4\\.1-Flash-1017-fast",
+      "source": "litellm",
+      "provider": "together",
+      "token_prices": [
+        {
+          "base_rate": 6e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 2.4e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.2e-8,
           "is_prompt": true,
           "token_type": "cache_read"
         }

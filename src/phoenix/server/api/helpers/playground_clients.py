@@ -1992,12 +1992,8 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
 OPENAI_CHAT_COMPLETIONS_MODELS = [
     "gpt-4.1",
     "gpt-4.1-mini",
-    "gpt-4.1-nano",
     "gpt-4o",
     "gpt-4o-mini",
-    "gpt-4-turbo",
-    "gpt-4",
-    "gpt-3.5-turbo",
 ]
 """OpenAI models that default to /v1/chat/completions. Any other name, known or
 not, defaults to the Responses API. See ``get_openai_client_class``."""
