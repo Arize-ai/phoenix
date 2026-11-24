@@ -292,7 +292,9 @@ describe("SpansTableAside totals", () => {
     load.end();
     await settle();
 
-    await act(async () => streamState.setFetchKey("trace-transfer-1"));
+    await act(async () =>
+      streamState.setFetchKey({ fetchKey: "trace-transfer-1" })
+    );
     nextLoad.sendPart(PANEL_PART);
     nextLoad.sendPart(getTotalsPart(1200));
     nextLoad.end();

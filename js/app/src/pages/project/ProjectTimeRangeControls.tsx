@@ -81,7 +81,8 @@ export function ProjectTimeRangeControls(props: {
   // while they load
   function refreshForNewData(currentLastUpdatedAt: string) {
     startRefreshTransition(() => {
-      setFetchKey(`fetch-traces-${currentLastUpdatedAt}`, {
+      setFetchKey({
+        fetchKey: `fetch-traces-${currentLastUpdatedAt}`,
         isThrottled: true,
       });
     });

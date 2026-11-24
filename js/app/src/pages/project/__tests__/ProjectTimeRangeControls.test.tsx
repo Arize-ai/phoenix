@@ -243,10 +243,10 @@ describe("ProjectTimeRangeControls", () => {
     act(() => setPageVisibility("visible"));
 
     expect(refreshMocks.setFetchKey).toHaveBeenCalledTimes(1);
-    expect(refreshMocks.setFetchKey).toHaveBeenCalledWith(
-      "fetch-traces-2026-11-10T20:12:55.000Z",
-      { isThrottled: true }
-    );
+    expect(refreshMocks.setFetchKey).toHaveBeenCalledWith({
+      fetchKey: "fetch-traces-2026-11-10T20:12:55.000Z",
+      isThrottled: true,
+    });
   });
 
   it("hides the toggle and does not stream off the streamable tabs", () => {

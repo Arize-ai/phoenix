@@ -14,7 +14,9 @@ import { AgentProvider } from "@phoenix/contexts/AgentContext";
 import { PreferencesProvider } from "@phoenix/contexts/PreferencesContext";
 import {
   DEFAULT_MAX_AGGREGATES_AGE_MS,
+  type StreamStateContextType,
   StreamStateProvider,
+  useStreamState,
 } from "@phoenix/contexts/StreamStateContext";
 
 import type { ProjectTimeRangeControls_data$key } from "../__generated__/ProjectTimeRangeControls_data.graphql";
@@ -114,12 +116,15 @@ import { TableMetricsChartsPanelGroup } from "../TableMetricsCharts";
 let container: HTMLDivElement;
 let root: Root;
 let timeRange: TimeRangeContextType;
+let streamState: StreamStateContextType;
 
 function TimeRangeProbe() {
   const value = useTimeRange();
+  const stream = useStreamState();
   useEffect(() => {
     timeRange = value;
-  }, [value]);
+    streamState = stream;
+  }, [value, stream]);
   return null;
 }
 
@@ -180,6 +185,8 @@ function renderLivePage({
 
 beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  // The preferences store persists the live toggle across renders.
+  localStorage.clear();
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-06-09T10:00:30.000Z"));
   lastUpdated.value = "2026-06-09T10:00:00.000Z";
@@ -255,6 +262,29 @@ describe("a live project page", () => {
       expect(chartRequests.at(-1)).toBe(request);
     }
   );
+
+  it("refreshes the charts at once when live is turned off while they are behind", () => {
+    renderLivePage();
+    advanceTime(10_000);
+    landNewData();
+    act(() => streamState.setIsStreaming(false));
+
+    expect(chartRequests).toEqual([
+      "2026-06-02T10:00:00.000Z..2026-06-09T10:00:30.000Z initial",
+      "2026-06-02T10:00:00.000Z..2026-06-09T10:00:40.000Z fetch-traces-2026-06-09T10:00:40.000Z",
+    ]);
+  });
+
+  it("ends the charts' range at now, in one request, when a user action refreshes them", () => {
+    renderLivePage({ traceStreamingEnabled: false });
+    advanceTime(50_000);
+    act(() => streamState.setFetchKey({ fetchKey: "trace-transfer-1" }));
+
+    expect(chartRequests).toEqual([
+      "2026-06-02T10:00:00.000Z..2026-06-09T10:00:30.000Z initial",
+      "2026-06-02T10:00:00.000Z..2026-06-09T10:01:20.000Z trace-transfer-1",
+    ]);
+  });
 
   it("catches up on the next minute after a hidden tab is shown", () => {
     renderLivePage();

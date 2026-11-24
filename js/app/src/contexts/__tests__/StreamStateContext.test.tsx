@@ -64,7 +64,7 @@ describe("StreamStateProvider", () => {
     renderProvider({ maxAggregatesAgeMs: 10_000 });
     for (const fetchKey of ["a", "b", "c"]) {
       advanceTime(2_000);
-      act(() => streamState.setFetchKey(fetchKey, { isThrottled: true }));
+      act(() => streamState.setFetchKey({ fetchKey, isThrottled: true }));
       expect(streamState.fetchKey).toBe(fetchKey);
     }
 
@@ -77,9 +77,18 @@ describe("StreamStateProvider", () => {
 
   it("moves both keys at once when not throttled, while streaming is paused", () => {
     renderProvider({ traceStreamingEnabled: false });
-    act(() => streamState.setFetchKey("trace-transfer-1"));
+    act(() => streamState.setFetchKey({ fetchKey: "trace-transfer-1" }));
 
     expect(streamState.fetchKey).toBe("trace-transfer-1");
     expect(streamState.throttledFetchKey).toBe("trace-transfer-1");
+  });
+
+  it("moves throttledFetchKey up to fetchKey when streaming is turned off", () => {
+    renderProvider({ maxAggregatesAgeMs: 10_000 });
+    act(() => streamState.setFetchKey({ fetchKey: "a", isThrottled: true }));
+    act(() => streamState.setIsStreaming(false));
+
+    expect(streamState.isStreaming).toBe(false);
+    expect(streamState.throttledFetchKey).toBe("a");
   });
 });

@@ -1,11 +1,5 @@
 import type { PropsWithChildren } from "react";
-import {
-  createContext,
-  startTransition,
-  useCallback,
-  useContext,
-  useState,
-} from "react";
+import { createContext, startTransition, useContext, useState } from "react";
 
 import { useNullableTimeRangeContext } from "@phoenix/components/datetime/TimeRangeContext";
 import { useInterval } from "@phoenix/hooks/useInterval";
@@ -15,7 +9,9 @@ import { usePreferencesContext } from "./PreferencesContext";
 /** The longest the aggregates (charts, totals, summaries) wait for new data. */
 export const DEFAULT_MAX_AGGREGATES_AGE_MS = 60_000;
 
-export type SetFetchKeyOptions = {
+export type SetFetchKeyParams = {
+  /** The new fetch key. */
+  fetchKey: string;
   /**
    * Leaves `throttledFetchKey` behind, to follow at the provider's next
    * interval. For the stream's own advance; a user action refreshes both.
@@ -31,7 +27,8 @@ export type StreamStateContextType = {
    */
   isStreaming: boolean;
   /**
-   * Enables or disables streaming.
+   * Enables or disables streaming. Disabling it brings a `throttledFetchKey`
+   * left behind up to `fetchKey`, since the interval stops.
    */
   setIsStreaming: (isStreaming: boolean) => void;
   /**
@@ -46,9 +43,10 @@ export type StreamStateContextType = {
    */
   throttledFetchKey: string;
   /**
-   * Sets the fetchKey to force a refetch
+   * Sets the fetchKey to force a refetch. Unless throttled, it also moves
+   * `throttledFetchKey` and a live time range's "now".
    */
-  setFetchKey: (fetchKey: string, options?: SetFetchKeyOptions) => void;
+  setFetchKey: (params: SetFetchKeyParams) => void;
 };
 
 export const StreamStateContext = createContext<StreamStateContextType | null>(
@@ -84,7 +82,7 @@ export function StreamStateProvider({
   const isStreaming = usePreferencesContext(
     (state) => state.traceStreamingEnabled
   );
-  const setIsStreaming = usePreferencesContext(
+  const setTraceStreamingEnabled = usePreferencesContext(
     (state) => state.setTraceStreamingEnabled
   );
   const refreshLiveTimeRange =
@@ -94,26 +92,41 @@ export function StreamStateProvider({
     throttledFetchKey: initialFetchKey,
   });
 
-  const setFetchKey = useCallback(
-    (fetchKey: string, { isThrottled = false }: SetFetchKeyOptions = {}) => {
-      startTransition(() => {
-        setFetchKeys((keys) => ({
-          fetchKey,
-          throttledFetchKey: isThrottled ? keys.throttledFetchKey : fetchKey,
-        }));
-      });
-    },
-    []
-  );
+  const isThrottledFetchKeyBehind =
+    fetchKeys.throttledFetchKey !== fetchKeys.fetchKey;
+  // A live range's "now" moves with the aggregates' key, so their range has
+  // one anchor.
+  const catchUpThrottledFetchKey = () => {
+    startTransition(() => {
+      refreshLiveTimeRange?.();
+      setFetchKeys((keys) => ({ ...keys, throttledFetchKey: keys.fetchKey }));
+    });
+  };
+  const setFetchKey = ({
+    fetchKey,
+    isThrottled = false,
+  }: SetFetchKeyParams) => {
+    startTransition(() => {
+      if (!isThrottled) {
+        refreshLiveTimeRange?.();
+      }
+      setFetchKeys((keys) => ({
+        fetchKey,
+        throttledFetchKey: isThrottled ? keys.throttledFetchKey : fetchKey,
+      }));
+    });
+  };
+  const setIsStreaming = (nextIsStreaming: boolean) => {
+    setTraceStreamingEnabled(nextIsStreaming);
+    if (!nextIsStreaming && isThrottledFetchKeyBehind) {
+      catchUpThrottledFetchKey();
+    }
+  };
   useInterval(
     () => {
-      if (fetchKeys.throttledFetchKey === fetchKeys.fetchKey) {
-        return;
+      if (isThrottledFetchKeyBehind) {
+        catchUpThrottledFetchKey();
       }
-      startTransition(() => {
-        refreshLiveTimeRange?.();
-        setFetchKeys((keys) => ({ ...keys, throttledFetchKey: keys.fetchKey }));
-      });
     },
     isStreaming ? maxAggregatesAgeMs : null
   );

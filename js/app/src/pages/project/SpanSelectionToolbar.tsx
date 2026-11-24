@@ -268,7 +268,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
                 message: `The traces have been moved to project: ${projectName}`,
               });
               onClearSelection();
-              setFetchKey(`trace-transfer-${Date.now()}`);
+              setFetchKey({ fetchKey: `trace-transfer-${Date.now()}` });
             }}
             onError={(error) => {
               setError(`Failed to transfer due to error: ${error.message}`);
