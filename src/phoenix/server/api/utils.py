@@ -1,12 +1,22 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import delete, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.helpers import (
+    SupportedSQLDialect,
+    get_eval_trace_ids_for_datasets,
+    get_project_names_for_datasets,
+)
 from phoenix.server.types import DbSessionFactory
+
+if TYPE_CHECKING:
+    from phoenix.server.daemons.experiment_runner import ExperimentRunner
 
 
 async def delete_traces_and_orphan_sessions(
@@ -92,3 +102,73 @@ async def delete_traces(
     )
     async with db() as session:
         return list(await session.scalars(stmt))
+
+
+@dataclass(frozen=True)
+class DeletedDatasetData:
+    dataset: models.Dataset
+    project_names: list[str]
+    eval_trace_ids: list[str]
+
+
+async def delete_dataset_and_stop_experiments(
+    *,
+    db: DbSessionFactory,
+    experiment_runner: ExperimentRunner,
+    dataset_id: int,
+) -> Optional[DeletedDatasetData]:
+    """Stop running experiments for a dataset and delete the dataset record.
+
+    Stops every experiment belonging to the dataset before opening the delete
+    transaction so in-flight writes drain before cascade deletion removes their
+    target rows. After the delete commits, stops every deleted experiment again
+    so any run started or resumed between the initial stop and the delete is
+    also halted.
+    """
+    experiment_ids_stmt = select(models.Experiment.id).where(
+        models.Experiment.dataset_id == dataset_id
+    )
+    async with db() as session:
+        initial_experiment_ids = list(await session.scalars(experiment_ids_stmt))
+
+    for exp_id in initial_experiment_ids:
+        await experiment_runner.stop_experiment(exp_id)
+
+    project_names_stmt = get_project_names_for_datasets(dataset_id)
+    eval_trace_ids_stmt = get_eval_trace_ids_for_datasets(dataset_id)
+    async with db() as session:
+        if db.dialect is SupportedSQLDialect.POSTGRESQL:
+            # Lock the dataset row first so concurrent experiment creation cannot
+            # commit after the pre-delete queries and bypass post-delete stop cleanup.
+            await session.execute(
+                select(models.Dataset.id).where(models.Dataset.id == dataset_id).with_for_update()
+            )
+        project_names = [
+            name for name in await session.scalars(project_names_stmt) if name is not None
+        ]
+        eval_trace_ids = [
+            trace_id
+            for trace_id in await session.scalars(eval_trace_ids_stmt)
+            if trace_id is not None
+        ]
+        deleted_experiment_ids = list(
+            await session.scalars(
+                delete(models.Experiment)
+                .where(models.Experiment.dataset_id == dataset_id)
+                .returning(models.Experiment.id)
+            )
+        )
+        dataset = await session.scalar(
+            delete(models.Dataset).where(models.Dataset.id == dataset_id).returning(models.Dataset)
+        )
+        if dataset is None:
+            return None
+
+    for exp_id in dict.fromkeys([*initial_experiment_ids, *deleted_experiment_ids]):
+        await experiment_runner.stop_experiment(exp_id)
+
+    return DeletedDatasetData(
+        dataset=dataset,
+        project_names=project_names,
+        eval_trace_ids=eval_trace_ids,
+    )

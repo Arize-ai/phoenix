@@ -12,7 +12,7 @@ from openinference.semconv.trace import (
     ToolAttributes,
     ToolCallAttributes,
 )
-from sqlalchemy import delete, func, insert, select, update
+from sqlalchemy import func, insert, select, update
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import contains_eager
@@ -22,7 +22,6 @@ from strawberry.relay.types import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
-from phoenix.db.helpers import get_eval_trace_ids_for_datasets, get_project_names_for_datasets
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
@@ -45,7 +44,11 @@ from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
-from phoenix.server.api.utils import delete_projects, delete_traces
+from phoenix.server.api.utils import (
+    delete_dataset_and_stop_experiments,
+    delete_projects,
+    delete_traces,
+)
 from phoenix.server.dml_event import DatasetDeleteEvent, DatasetInsertEvent
 
 _MAX_REPORTED_EXTERNAL_ID_CONFLICTS = 10
@@ -485,23 +488,22 @@ class DatasetMutationMixin:
             )
         except ValueError:
             raise NotFound(f"Unknown dataset: {input.dataset_id}")
-        project_names_stmt = get_project_names_for_datasets(dataset_id)
-        eval_trace_ids_stmt = get_eval_trace_ids_for_datasets(dataset_id)
-        stmt = (
-            delete(models.Dataset).where(models.Dataset.id == dataset_id).returning(models.Dataset)
+        deleted = await delete_dataset_and_stop_experiments(
+            db=info.context.db,
+            experiment_runner=info.context.experiment_runner,
+            dataset_id=dataset_id,
         )
-        async with info.context.db() as session:
-            project_names = await session.scalars(project_names_stmt)
-            eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
-            if not (dataset := await session.scalar(stmt)):
-                raise NotFound(f"Unknown dataset: {input.dataset_id}")
+        if deleted is None:
+            raise NotFound(f"Unknown dataset: {input.dataset_id}")
         await asyncio.gather(
-            delete_projects(info.context.db, *project_names),
-            delete_traces(info.context.db, *eval_trace_ids),
+            delete_projects(info.context.db, *deleted.project_names),
+            delete_traces(info.context.db, *deleted.eval_trace_ids),
             return_exceptions=True,
         )
-        info.context.event_queue.put(DatasetDeleteEvent((dataset.id,)))
-        return DatasetMutationPayload(dataset=Dataset(id=dataset.id, db_record=dataset))
+        info.context.event_queue.put(DatasetDeleteEvent((deleted.dataset.id,)))
+        return DatasetMutationPayload(
+            dataset=Dataset(id=deleted.dataset.id, db_record=deleted.dataset)
+        )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def patch_dataset_examples(
