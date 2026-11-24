@@ -65,7 +65,7 @@ class VersionAuthorsDataLoader(DataLoader[Key, Result], Generic[VersionTable]):
         ).subquery()
 
         # Join the users in so the resolved User carries its record and needs no further query,
-        # restricting selected columns to public UI fields (excluding password hashes / auth secrets).
+        # restricting selected columns to public UI fields (excluding password hashes and secrets).
         latest_version = aliased(version_table)
         updated_by = aliased(models.User)
         load_options = [
