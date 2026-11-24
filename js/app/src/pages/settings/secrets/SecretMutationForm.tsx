@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import {
@@ -13,6 +14,8 @@ import {
   View,
 } from "@phoenix/components";
 import {
+  SECRET_KEY_DESCRIPTION,
+  SECRET_KEY_LEADING_AND_TRAILING_MESSAGE,
   SECRET_KEY_LEADING_AND_TRAILING_PATTERN,
   SECRET_KEY_PATTERN,
 } from "@phoenix/constants";
@@ -42,7 +45,7 @@ export function SecretMutationForm({
   const {
     control,
     handleSubmit,
-    formState: { isDirty, isValid },
+    formState: { isDirty, isSubmitted },
   } = useForm<SecretFormParams>({
     defaultValues: {
       key: defaultKey,
@@ -50,6 +53,9 @@ export function SecretMutationForm({
     },
     mode: "onChange",
   });
+  // Errors wait until the key field loses focus or the form is submitted, so
+  // a trailing "_" typed between words does not flag the key mid-typing
+  const [isKeyFocused, setIsKeyFocused] = useState(false);
 
   return (
     <Form onSubmit={handleSubmit(onSubmit)}>
@@ -78,47 +84,55 @@ export function SecretMutationForm({
                   if (
                     !SECRET_KEY_LEADING_AND_TRAILING_PATTERN.test(trimmedValue)
                   ) {
-                    return "Must start with a letter and end with a letter or digit";
+                    return SECRET_KEY_LEADING_AND_TRAILING_MESSAGE;
                   }
                   return true;
                 },
               }}
               render={({
                 field: { onChange, onBlur, value },
-                fieldState: { invalid, error },
-              }) => (
-                <TransformingInputController
-                  value={value}
-                  onValueChange={onChange}
-                  transformValue={transformEnvironmentVariableInput}
-                  finalizeValue={trimEnvironmentVariableSeparators}
-                >
-                  {(transformingInput) => (
-                    <TextField
-                      isInvalid={invalid}
-                      onChange={transformingInput.handleValueChange}
-                      onBlur={() => {
-                        transformingInput.handleBlur();
-                        onBlur();
-                      }}
-                      value={transformingInput.displayValue}
-                    >
-                      <Label>Key</Label>
-                      <Input
-                        {...transformingInput.inputProps}
-                        placeholder="e.g. OPENAI_API_KEY"
-                      />
-                      {error?.message ? (
-                        <FieldError>{error.message}</FieldError>
-                      ) : (
-                        <Text slot="description">
-                          Use the same format as an environment variable name.
-                        </Text>
-                      )}
-                    </TextField>
-                  )}
-                </TransformingInputController>
-              )}
+                fieldState: { error, isTouched },
+              }) => {
+                const displayedError =
+                  (isTouched && !isKeyFocused) || isSubmitted
+                    ? error
+                    : undefined;
+                return (
+                  <TransformingInputController
+                    value={value}
+                    onValueChange={onChange}
+                    transformValue={transformEnvironmentVariableInput}
+                    finalizeValue={trimEnvironmentVariableSeparators}
+                  >
+                    {(transformingInput) => (
+                      <TextField
+                        isInvalid={!!displayedError?.message}
+                        onChange={transformingInput.handleValueChange}
+                        onFocus={() => setIsKeyFocused(true)}
+                        onBlur={() => {
+                          setIsKeyFocused(false);
+                          transformingInput.handleBlur();
+                          onBlur();
+                        }}
+                        value={transformingInput.displayValue}
+                      >
+                        <Label>Key</Label>
+                        <Input
+                          {...transformingInput.inputProps}
+                          placeholder="e.g. OPENAI_API_KEY"
+                        />
+                        {displayedError?.message ? (
+                          <FieldError>{displayedError.message}</FieldError>
+                        ) : (
+                          <Text slot="description">
+                            {SECRET_KEY_DESCRIPTION}
+                          </Text>
+                        )}
+                      </TextField>
+                    )}
+                  </TransformingInputController>
+                );
+              }}
             />
           )}
           <Controller
@@ -164,7 +178,7 @@ export function SecretMutationForm({
             type="submit"
             size="S"
             variant={isDirty ? "primary" : "default"}
-            isDisabled={!isValid || isSubmitting}
+            isDisabled={isSubmitting}
           >
             {submitLabel}
           </Button>
