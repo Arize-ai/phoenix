@@ -31,7 +31,6 @@ from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.experiment_config import OpenAIConnectionConfig
 from phoenix.db.types.prompts import PromptMessageRole, PromptTemplateFormat
 from phoenix.server.api import subscriptions
-from phoenix.server.api.helpers import playground_clients
 from phoenix.server.api.input_types.ChatCompletionInput import ChatCompletionInput
 from phoenix.server.api.input_types.PromptInvocationParametersInput import (
     AnthropicThinkingEnabledInput,
@@ -2174,13 +2173,7 @@ class TestChatCompletionOverDatasetSubscription:
         ],
         custom_vcr: CustomVCR,
         db: DbSessionFactory,
-        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        # The LLM evaluator's stored prompt version has no connection config, so its
-        # API is picked from the model name. Keep its model on the chat-completions list
-        # so the recorded /v1/chat/completions evaluator call still matches if the
-        # model-catalog sync prunes the list.
-        monkeypatch.setattr(playground_clients, "OPENAI_CHAT_COMPLETIONS_MODELS", ["gpt-4o"])
         llm_dataset_evaluator = await assign_correctness_llm_evaluator_to_dataset(
             single_example_dataset.id
         )
