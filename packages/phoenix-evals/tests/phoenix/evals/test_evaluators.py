@@ -1234,6 +1234,60 @@ class TestIntrospectionAndSchema:
         assert set(schema["input_schema"]["required"]) == {"a"}
         assert schema["input_schema"]["properties"]["k"]["type"] in {"integer", "number"}
 
+    def test_describe_outputs_default_is_single_self_describing_entry(self):
+        @create_evaluator(name="simple_eval", direction="maximize")
+        def simple_eval(output: str) -> Score:
+            return Score(score=1.0)
+
+        [out] = simple_eval.describe()["outputs"]
+        assert out == {
+            "name": "simple_eval",
+            "kind": simple_eval.kind,
+            "direction": "maximize",
+            "labels": None,
+            "score_map": None,
+        }
+
+    def test_describe_outputs_single_criterion_classifier(self):
+        evaluator = ClassificationEvaluator(
+            name="relevance",
+            llm=MockLLM(),
+            prompt_template="judge: {x}",
+            choices={"relevant": (1, "addresses it"), "irrelevant": 0},
+        )
+        [out] = evaluator.describe()["outputs"]
+        assert out["name"] == "relevance"
+        assert out["kind"] == evaluator.kind
+        # labels is a uniform {label: description|None} map.
+        assert out["labels"] == {"relevant": "addresses it", "irrelevant": None}
+        assert out["score_map"] == {"relevant": 1, "irrelevant": 0}
+
+    def test_describe_outputs_multi_criterion_one_entry_each(self):
+        evaluator = ClassificationEvaluator(
+            name="quality",
+            llm=MockLLM(),
+            prompt_template="review: {x}",
+            direction="maximize",
+            choices=[
+                Criterion(name="helpfulness", instruction="How helpful?", choices=["poor", "good"]),
+                Criterion(
+                    name="accuracy",
+                    instruction="How accurate?",
+                    choices={"wrong": 0, "right": 1},
+                    direction="minimize",
+                ),
+            ],
+        )
+        outputs = evaluator.describe()["outputs"]
+        assert [o["name"] for o in outputs] == ["helpfulness", "accuracy"]
+        # Per-criterion direction is reflected (inherited vs explicit).
+        assert outputs[0]["direction"] == "maximize"
+        assert outputs[1]["direction"] == "minimize"
+        # Bare label list -> all-None label map, no score map.
+        assert outputs[0]["labels"] == {"poor": None, "good": None}
+        assert outputs[0]["score_map"] is None
+        assert outputs[1]["score_map"] == {"wrong": 0, "right": 1}
+
 
 class TestEvaluatorRequiredFieldsAndBinding:
     """Covers required field inference and binding behavior."""

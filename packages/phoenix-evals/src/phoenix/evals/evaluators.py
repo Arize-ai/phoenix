@@ -343,6 +343,26 @@ class Criterion:
                 return {label: descriptions.get(label, "") for label in self.labels}
         return self.labels
 
+    @property
+    def label_descriptions(self) -> Dict[str, Optional[str]]:
+        """Each label mapped to its description, or ``None`` when that label has none."""
+        if isinstance(self.choices, dict):
+            return {
+                label: (value[1] if isinstance(value, tuple) else None)
+                for label, value in self.choices.items()
+            }
+        return {label: None for label in self.choices}
+
+    def describe(self) -> Dict[str, Any]:
+        """The Score this criterion produces, for Evaluator.describe's outputs. ``kind`` is not
+        included here; it is the evaluator's and is added by the caller."""
+        return {
+            "name": self.name,
+            "direction": self.direction,
+            "labels": self.label_descriptions,
+            "score_map": self.label_score_map,
+        }
+
 
 def _is_criteria_list(choices: Any) -> bool:
     """True when ``choices`` is the multi-criterion format (a list of Criterion/criterion dicts)."""
@@ -572,11 +592,26 @@ class Evaluator(ABC):
 
     # --- Introspection helpers ---
 
+    def _describe_outputs(self) -> List[Dict[str, Any]]:
+        """The Scores this evaluator produces, one entry each. The default is a single output
+        described by the evaluator itself; evaluators that emit several Scores (e.g. a
+        multi-criterion classifier) override this to describe one output per Score."""
+        return [
+            {
+                "name": self.name,
+                "kind": self.kind,
+                "direction": self.direction,
+                "labels": None,
+                "score_map": None,
+            }
+        ]
+
     def describe(self) -> Dict[str, Any]:
         """
         Return a JSON-serializable description of the evaluator, including
-        its name, kind, direction, and input fields derived from the
-        Pydantic input schema when available.
+        its name, kind, direction, input fields derived from the Pydantic input schema
+        when available, and the ``outputs`` it produces (one entry per Score, each with its
+        name, kind, direction, labels, and score mapping).
         """
         # TODO add other serializable properties from subclasses
         if self.input_schema is not None:
@@ -588,6 +623,7 @@ class Evaluator(ABC):
             "kind": self.kind,
             "direction": self.direction,
             "input_schema": schema,
+            "outputs": self._describe_outputs(),
         }
 
 
@@ -819,6 +855,9 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
     def criteria(self) -> List[Criterion]:
         """The normalised list of criteria this evaluator classifies (one Score each)."""
         return self._criteria
+
+    def _describe_outputs(self) -> List[Dict[str, Any]]:
+        return [{**criterion.describe(), "kind": self.kind} for criterion in self._criteria]
 
     def _normalize_choices(
         self,
