@@ -18,6 +18,7 @@ from phoenix.db.helpers import (
     is_foreign_key_violation,
 )
 from phoenix.db.types.annotation_configs import OutputConfigType, as_output_configs
+from phoenix.db.types.decision_evaluators import matches_derived_output_configs
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import AlreadyExists, BadRequest, Conflict, NotFound
@@ -742,7 +743,9 @@ def dataset_binding_overrides(
     None inherits the evaluator's. A decision evaluator's outputs follow its questions and
     scoring policy, so its binding stores None and is refused any other outputs."""
     if isinstance(evaluator, models.DecisionEvaluator):
-        if output_configs is None or list(output_configs) != evaluator.output_configs:
+        if output_configs is None or not matches_derived_output_configs(
+            output_configs, evaluator.output_configs
+        ):
             raise BadRequest(
                 "Decision outputs are derived from the questions and scoring policy; "
                 "edit the scoring policy to change scoring"

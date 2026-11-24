@@ -33,7 +33,8 @@ const codeEvaluator = {
       name: "length",
       optimizationDirection: "MAXIMIZE",
       lowerBound: 0,
-      upperBound: null,
+      upperBound: 10,
+      threshold: 7,
     },
   ],
   " $fragmentType": "projectEvaluatorOptions_codeEvaluatorDetails",
@@ -119,10 +120,12 @@ describe("buildCopyCodeCreationMode", () => {
         inputDescriptions: { output: "The final answer." },
         outputConfigs: [
           {
+            annotationType: "CONTINUOUS",
             name: "length",
             optimizationDirection: "MAXIMIZE",
             lowerBound: 0,
-            upperBound: null,
+            upperBound: 10,
+            threshold: 7,
           },
         ],
       },

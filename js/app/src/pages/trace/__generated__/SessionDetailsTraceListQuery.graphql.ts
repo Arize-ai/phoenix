@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9687956e332c81d8cc347369debea574>>
+ * @generated SignedSource<<0d5e477e693414240ffab9d784b50977>>
  * @lightSyntaxTransform
  */
 
@@ -109,10 +109,17 @@ v12 = {
   "name": "upperBound",
   "storageKey": null
 },
-v13 = [
+v13 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "threshold",
+  "storageKey": null
+},
+v14 = [
   (v5/*:: as any*/)
 ],
-v14 = [
+v15 = [
   (v4/*:: as any*/),
   {
     "kind": "InlineFragment",
@@ -151,7 +158,8 @@ v14 = [
         "selections": [
           (v8/*:: as any*/),
           (v11/*:: as any*/),
-          (v12/*:: as any*/)
+          (v12/*:: as any*/),
+          (v13/*:: as any*/)
         ],
         "type": "ContinuousAnnotationConfig",
         "abstractKey": null
@@ -160,13 +168,7 @@ v14 = [
         "kind": "InlineFragment",
         "selections": [
           (v8/*:: as any*/),
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "threshold",
-            "storageKey": null
-          },
+          (v13/*:: as any*/),
           (v11/*:: as any*/),
           (v12/*:: as any*/)
         ],
@@ -179,12 +181,12 @@ v14 = [
   },
   {
     "kind": "InlineFragment",
-    "selections": (v13/*:: as any*/),
+    "selections": (v14/*:: as any*/),
     "type": "Node",
     "abstractKey": "__isNode"
   }
 ],
-v15 = [
+v16 = [
   {
     "kind": "Literal",
     "name": "filter",
@@ -197,35 +199,35 @@ v15 = [
     }
   }
 ],
-v16 = {
+v17 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "value",
   "storageKey": null
 },
-v17 = {
+v18 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "description",
   "storageKey": null
 },
-v18 = {
+v19 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "probability",
   "storageKey": null
 },
-v19 = {
+v20 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "confidence",
   "storageKey": null
 },
-v20 = [
+v21 = [
   (v5/*:: as any*/),
   (v7/*:: as any*/),
   (v9/*:: as any*/),
@@ -323,8 +325,8 @@ v20 = [
             "name": "choices",
             "plural": true,
             "selections": [
-              (v16/*:: as any*/),
-              (v17/*:: as any*/)
+              (v17/*:: as any*/),
+              (v18/*:: as any*/)
             ],
             "storageKey": null
           },
@@ -337,7 +339,7 @@ v20 = [
             "plural": true,
             "selections": [
               (v9/*:: as any*/),
-              (v17/*:: as any*/)
+              (v18/*:: as any*/)
             ],
             "storageKey": null
           }
@@ -356,7 +358,7 @@ v20 = [
           {
             "kind": "InlineFragment",
             "selections": [
-              (v18/*:: as any*/)
+              (v19/*:: as any*/)
             ],
             "type": "PredicateAnswer",
             "abstractKey": null
@@ -371,7 +373,7 @@ v20 = [
                 "name": "choice",
                 "storageKey": null
               },
-              (v19/*:: as any*/),
+              (v20/*:: as any*/),
               {
                 "alias": "choiceProbabilities",
                 "args": null,
@@ -380,8 +382,8 @@ v20 = [
                 "name": "probabilities",
                 "plural": true,
                 "selections": [
-                  (v16/*:: as any*/),
-                  (v18/*:: as any*/)
+                  (v17/*:: as any*/),
+                  (v19/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -399,7 +401,7 @@ v20 = [
                 "name": "expectedLevel",
                 "storageKey": null
               },
-              (v19/*:: as any*/),
+              (v20/*:: as any*/),
               {
                 "alias": "levelProbabilities",
                 "args": null,
@@ -415,7 +417,7 @@ v20 = [
                     "name": "level",
                     "storageKey": null
                   },
-                  (v18/*:: as any*/)
+                  (v19/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -451,14 +453,14 @@ v20 = [
     "storageKey": null
   }
 ],
-v21 = {
+v22 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "count",
   "storageKey": null
 },
-v22 = {
+v23 = {
   "alias": null,
   "args": null,
   "concreteType": "LabelFraction",
@@ -477,15 +479,15 @@ v22 = {
   ],
   "storageKey": null
 },
-v23 = {
+v24 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "meanScore",
   "storageKey": null
 },
-v24 = [
-  (v16/*:: as any*/),
+v25 = [
+  (v17/*:: as any*/),
   {
     "alias": null,
     "args": null,
@@ -629,7 +631,7 @@ return {
                                     "kind": "LinkedField",
                                     "name": "outputConfigs",
                                     "plural": true,
-                                    "selections": (v14/*:: as any*/),
+                                    "selections": (v15/*:: as any*/),
                                     "storageKey": null
                                   },
                                   (v5/*:: as any*/)
@@ -671,7 +673,7 @@ return {
                             "kind": "LinkedField",
                             "name": "node",
                             "plural": false,
-                            "selections": (v14/*:: as any*/),
+                            "selections": (v15/*:: as any*/),
                             "storageKey": null
                           }
                         ],
@@ -735,23 +737,23 @@ return {
                                   (v5/*:: as any*/),
                                   {
                                     "alias": "summaryTraceAnnotations",
-                                    "args": (v15/*:: as any*/),
+                                    "args": (v16/*:: as any*/),
                                     "concreteType": "TraceAnnotation",
                                     "kind": "LinkedField",
                                     "name": "traceAnnotations",
                                     "plural": true,
-                                    "selections": (v20/*:: as any*/),
+                                    "selections": (v21/*:: as any*/),
                                     "storageKey": "traceAnnotations(filter:{\"exclude\":{\"names\":[\"note\"]}})"
                                   },
                                   {
                                     "alias": "summaryTraceAnnotationSummaries",
-                                    "args": (v15/*:: as any*/),
+                                    "args": (v16/*:: as any*/),
                                     "concreteType": "AnnotationSummary",
                                     "kind": "LinkedField",
                                     "name": "traceAnnotationSummaries",
                                     "plural": true,
                                     "selections": [
-                                      (v21/*:: as any*/),
+                                      (v22/*:: as any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -766,8 +768,8 @@ return {
                                         "name": "labelCount",
                                         "storageKey": null
                                       },
-                                      (v22/*:: as any*/),
                                       (v23/*:: as any*/),
+                                      (v24/*:: as any*/),
                                       (v7/*:: as any*/)
                                     ],
                                     "storageKey": "traceAnnotationSummaries(filter:{\"exclude\":{\"names\":[\"note\"]}})"
@@ -852,7 +854,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "project",
                                 "plural": false,
-                                "selections": (v13/*:: as any*/),
+                                "selections": (v14/*:: as any*/),
                                 "storageKey": null
                               },
                               {
@@ -862,7 +864,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "input",
                                 "plural": false,
-                                "selections": (v24/*:: as any*/),
+                                "selections": (v25/*:: as any*/),
                                 "storageKey": null
                               },
                               {
@@ -872,7 +874,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "output",
                                 "plural": false,
-                                "selections": (v24/*:: as any*/),
+                                "selections": (v25/*:: as any*/),
                                 "storageKey": null
                               },
                               {
@@ -919,27 +921,27 @@ return {
                               },
                               {
                                 "alias": "summarySpanAnnotationSummaries",
-                                "args": (v15/*:: as any*/),
+                                "args": (v16/*:: as any*/),
                                 "concreteType": "AnnotationSummary",
                                 "kind": "LinkedField",
                                 "name": "spanAnnotationSummaries",
                                 "plural": true,
                                 "selections": [
                                   (v7/*:: as any*/),
-                                  (v21/*:: as any*/),
-                                  (v23/*:: as any*/),
-                                  (v22/*:: as any*/)
+                                  (v22/*:: as any*/),
+                                  (v24/*:: as any*/),
+                                  (v23/*:: as any*/)
                                 ],
                                 "storageKey": "spanAnnotationSummaries(filter:{\"exclude\":{\"names\":[\"note\"]}})"
                               },
                               {
                                 "alias": "summarySpanAnnotations",
-                                "args": (v15/*:: as any*/),
+                                "args": (v16/*:: as any*/),
                                 "concreteType": "SpanAnnotation",
                                 "kind": "LinkedField",
                                 "name": "spanAnnotations",
                                 "plural": true,
-                                "selections": (v20/*:: as any*/),
+                                "selections": (v21/*:: as any*/),
                                 "storageKey": "spanAnnotations(filter:{\"exclude\":{\"names\":[\"note\"]}})"
                               }
                             ],
@@ -1018,12 +1020,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d8c561c0ddd99beca0ad3d1760a5586c",
+    "cacheID": "eec2dce163d82997082a1e09a1eca617",
     "id": null,
     "metadata": {},
     "name": "SessionDetailsTraceListQuery",
     "operationKind": "query",
-    "text": "query SessionDetailsTraceListQuery(\n  $id: ID!\n  $first: Int!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      ...SessionDetailsTraceList_traces_3ASum4\n    }\n    id\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  summarySpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}}) {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n    decision {\n      status\n      question {\n        name\n        type\n        choices {\n          value\n          description\n        }\n        levels {\n          label\n          description\n        }\n      }\n      answer {\n        __typename\n        ... on PredicateAnswer {\n          probability\n        }\n        ... on ChoiceAnswer {\n          choice\n          confidence\n          choiceProbabilities: probabilities {\n            value\n            probability\n          }\n        }\n        ... on ScaleAnswer {\n          expectedLevel\n          confidence\n          levelProbabilities: probabilities {\n            level\n            probability\n          }\n        }\n      }\n      requestedModel\n      resolvedModel\n      modelProvider\n    }\n  }\n  summarySpanAnnotationSummaries: spanAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  evaluators(first: 100, filter: {}) {\n    edges {\n      node {\n        name\n        evaluator {\n          __typename\n          outputConfigs {\n            __typename\n            ...useProjectAnnotationConfigsByName_config\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n          id\n        }\n        id\n      }\n    }\n  }\n  configsByName: annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ...useProjectAnnotationConfigsByName_config\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment SessionDetailsTraceList_traces_3ASum4 on ProjectSession {\n  numTraces\n  project {\n    ...ProjectAnnotationConfigsByNameFragment\n    id\n  }\n  traces(first: $first) {\n    edges {\n      trace: node {\n        id\n        traceId\n        rootSpan {\n          trace {\n            id\n            ...TraceAnnotationSummaryGroup\n            ...TraceActionToolbar_trace\n            costSummary {\n              total {\n                cost\n              }\n            }\n            summaryTraceAnnotationSummaries: traceAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n              name\n              count\n              meanScore\n              labelFractions {\n                fraction\n                label\n              }\n            }\n          }\n          id\n          name\n          attributes\n          project {\n            id\n          }\n          input {\n            value\n            truncatedValue\n            mimeType\n          }\n          output {\n            value\n            truncatedValue\n            mimeType\n          }\n          cumulativeTokenCountTotal\n          latencyMs\n          startTime\n          endTime\n          statusCode\n          spanId\n          summarySpanAnnotationSummaries: spanAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n            name\n            count\n            meanScore\n            labelFractions {\n              fraction\n              label\n            }\n          }\n          ...AnnotationSummaryGroup\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment TraceActionToolbar_trace on Trace {\n  id\n  viewerUserFeedbackAnnotations: traceAnnotations(filter: {include: {names: [\"user_feedback\"]}}) {\n    id\n    label\n    identifier\n  }\n}\n\nfragment TraceAnnotationSummaryGroup on Trace {\n  summaryTraceAnnotations: traceAnnotations(filter: {exclude: {names: [\"note\"]}}) {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n    decision {\n      status\n      question {\n        name\n        type\n        choices {\n          value\n          description\n        }\n        levels {\n          label\n          description\n        }\n      }\n      answer {\n        __typename\n        ... on PredicateAnswer {\n          probability\n        }\n        ... on ChoiceAnswer {\n          choice\n          confidence\n          choiceProbabilities: probabilities {\n            value\n            probability\n          }\n        }\n        ... on ScaleAnswer {\n          expectedLevel\n          confidence\n          levelProbabilities: probabilities {\n            level\n            probability\n          }\n        }\n      }\n      requestedModel\n      resolvedModel\n      modelProvider\n    }\n  }\n  summaryTraceAnnotationSummaries: traceAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment useProjectAnnotationConfigsByName_config on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  name\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    optimizationDirection\n    lowerBound\n    upperBound\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n    lowerBound\n    upperBound\n  }\n}\n"
+    "text": "query SessionDetailsTraceListQuery(\n  $id: ID!\n  $first: Int!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      ...SessionDetailsTraceList_traces_3ASum4\n    }\n    id\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  summarySpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}}) {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n    decision {\n      status\n      question {\n        name\n        type\n        choices {\n          value\n          description\n        }\n        levels {\n          label\n          description\n        }\n      }\n      answer {\n        __typename\n        ... on PredicateAnswer {\n          probability\n        }\n        ... on ChoiceAnswer {\n          choice\n          confidence\n          choiceProbabilities: probabilities {\n            value\n            probability\n          }\n        }\n        ... on ScaleAnswer {\n          expectedLevel\n          confidence\n          levelProbabilities: probabilities {\n            level\n            probability\n          }\n        }\n      }\n      requestedModel\n      resolvedModel\n      modelProvider\n    }\n  }\n  summarySpanAnnotationSummaries: spanAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment ProjectAnnotationConfigsByNameFragment on Project {\n  evaluators(first: 100, filter: {}) {\n    edges {\n      node {\n        name\n        evaluator {\n          __typename\n          outputConfigs {\n            __typename\n            ...useProjectAnnotationConfigsByName_config\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n          id\n        }\n        id\n      }\n    }\n  }\n  configsByName: annotationConfigs(first: 100) {\n    edges {\n      config: node {\n        __typename\n        ...useProjectAnnotationConfigsByName_config\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment SessionDetailsTraceList_traces_3ASum4 on ProjectSession {\n  numTraces\n  project {\n    ...ProjectAnnotationConfigsByNameFragment\n    id\n  }\n  traces(first: $first) {\n    edges {\n      trace: node {\n        id\n        traceId\n        rootSpan {\n          trace {\n            id\n            ...TraceAnnotationSummaryGroup\n            ...TraceActionToolbar_trace\n            costSummary {\n              total {\n                cost\n              }\n            }\n            summaryTraceAnnotationSummaries: traceAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n              name\n              count\n              meanScore\n              labelFractions {\n                fraction\n                label\n              }\n            }\n          }\n          id\n          name\n          attributes\n          project {\n            id\n          }\n          input {\n            value\n            truncatedValue\n            mimeType\n          }\n          output {\n            value\n            truncatedValue\n            mimeType\n          }\n          cumulativeTokenCountTotal\n          latencyMs\n          startTime\n          endTime\n          statusCode\n          spanId\n          summarySpanAnnotationSummaries: spanAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n            name\n            count\n            meanScore\n            labelFractions {\n              fraction\n              label\n            }\n          }\n          ...AnnotationSummaryGroup\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment TraceActionToolbar_trace on Trace {\n  id\n  viewerUserFeedbackAnnotations: traceAnnotations(filter: {include: {names: [\"user_feedback\"]}}) {\n    id\n    label\n    identifier\n  }\n}\n\nfragment TraceAnnotationSummaryGroup on Trace {\n  summaryTraceAnnotations: traceAnnotations(filter: {exclude: {names: [\"note\"]}}) {\n    id\n    name\n    label\n    score\n    explanation\n    annotatorKind\n    createdAt\n    updatedAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n    decision {\n      status\n      question {\n        name\n        type\n        choices {\n          value\n          description\n        }\n        levels {\n          label\n          description\n        }\n      }\n      answer {\n        __typename\n        ... on PredicateAnswer {\n          probability\n        }\n        ... on ChoiceAnswer {\n          choice\n          confidence\n          choiceProbabilities: probabilities {\n            value\n            probability\n          }\n        }\n        ... on ScaleAnswer {\n          expectedLevel\n          confidence\n          levelProbabilities: probabilities {\n            level\n            probability\n          }\n        }\n      }\n      requestedModel\n      resolvedModel\n      modelProvider\n    }\n  }\n  summaryTraceAnnotationSummaries: traceAnnotationSummaries(filter: {exclude: {names: [\"note\"]}}) {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment useProjectAnnotationConfigsByName_config on AnnotationConfigBase {\n  __isAnnotationConfigBase: __typename\n  name\n  annotationType\n  ... on CategoricalAnnotationConfig {\n    optimizationDirection\n    values {\n      label\n      score\n    }\n  }\n  ... on ContinuousAnnotationConfig {\n    optimizationDirection\n    lowerBound\n    upperBound\n    threshold\n  }\n  ... on FreeformAnnotationConfig {\n    optimizationDirection\n    threshold\n    lowerBound\n    upperBound\n  }\n}\n"
   }
 };
 })();

@@ -1724,6 +1724,7 @@ class ContinuousAnnotationConfigData(TypedDict):
     description: NotRequired[str]
     lower_bound: NotRequired[float]
     upper_bound: NotRequired[float]
+    threshold: NotRequired[float]
 
 
 class ContinuousAnnotationConfig(ContinuousAnnotationConfigData):

@@ -135,13 +135,20 @@ describe("datasetEvaluatorToAnnotationConfigs", () => {
           name: "quality",
           optimizationDirection: "MAXIMIZE",
           lowerBound: 0,
-          upperBound: 1,
+          upperBound: 10,
+          threshold: 7,
         },
       ],
     };
 
     const [config] = datasetEvaluatorToAnnotationConfigs(evaluator);
     expect(config.annotationType).toBe("CONTINUOUS");
+    expect(config).toMatchObject({
+      lowerBound: 0,
+      upperBound: 10,
+      threshold: 7,
+    });
+    expect(getOptimizationBounds(config).threshold).toBe(7);
   });
 
   it("maps a categorical MINIMIZE config to a lower-is-better optimization", () => {
@@ -165,6 +172,7 @@ describe("datasetEvaluatorToAnnotationConfigs", () => {
       lowerBound: 0,
       upperBound: 1,
       threshold: undefined,
+      isThresholdHighSide: false,
       optimizationDirection: "MINIMIZE",
     });
   });

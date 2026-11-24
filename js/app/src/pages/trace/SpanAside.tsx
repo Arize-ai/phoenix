@@ -57,6 +57,7 @@ export function SpanAside(props: SpanAsideProps) {
                 ... on ContinuousAnnotationConfig {
                   lowerBound
                   upperBound
+                  threshold
                   optimizationDirection
                 }
                 ... on FreeformAnnotationConfig {

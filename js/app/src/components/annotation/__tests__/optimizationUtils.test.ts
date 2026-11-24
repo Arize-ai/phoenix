@@ -41,6 +41,7 @@ describe("getOptimizationBounds", () => {
       lowerBound: undefined,
       upperBound: undefined,
       optimizationDirection: undefined,
+      isThresholdHighSide: false,
     });
   });
 
@@ -49,6 +50,7 @@ describe("getOptimizationBounds", () => {
       lowerBound: undefined,
       upperBound: undefined,
       optimizationDirection: undefined,
+      isThresholdHighSide: false,
     });
   });
 
@@ -57,6 +59,7 @@ describe("getOptimizationBounds", () => {
       lowerBound: 0,
       upperBound: 1,
       optimizationDirection: "MAXIMIZE",
+      isThresholdHighSide: false,
     });
   });
 
@@ -70,6 +73,7 @@ describe("getOptimizationBounds", () => {
       lowerBound: undefined,
       upperBound: undefined,
       optimizationDirection: "MAXIMIZE",
+      isThresholdHighSide: false,
     });
   });
 
@@ -78,6 +82,7 @@ describe("getOptimizationBounds", () => {
       lowerBound: 0,
       upperBound: 1,
       optimizationDirection: "MAXIMIZE",
+      isThresholdHighSide: false,
     });
   });
 
@@ -90,6 +95,7 @@ describe("getOptimizationBounds", () => {
       lowerBound: undefined,
       upperBound: undefined,
       optimizationDirection: "MAXIMIZE",
+      isThresholdHighSide: false,
     });
   });
 
@@ -106,6 +112,7 @@ describe("getOptimizationBounds", () => {
       lowerBound: 5,
       upperBound: 5,
       optimizationDirection: "MAXIMIZE",
+      isThresholdHighSide: false,
     });
   });
 
@@ -118,6 +125,7 @@ describe("getOptimizationBounds", () => {
       lowerBound: 0,
       upperBound: 1,
       optimizationDirection: undefined,
+      isThresholdHighSide: false,
     });
   });
 
@@ -130,6 +138,7 @@ describe("getOptimizationBounds", () => {
       lowerBound: 0,
       upperBound: 1,
       optimizationDirection: "MINIMIZE",
+      isThresholdHighSide: false,
     });
   });
 });
@@ -220,6 +229,74 @@ describe("getOptimizationValue", () => {
 });
 
 describe("getOptimizationValueFromConfig", () => {
+  describe("a decision Yes / No output pivots on its threshold", () => {
+    // The probability of true, labelled true at or above 0.8.
+    const predicate = (
+      optimizationDirection: "MAXIMIZE" | "MINIMIZE" | "NONE"
+    ): AnnotationConfigContinuous => ({
+      ...continuousConfig,
+      optimizationDirection,
+      threshold: 0.8,
+    });
+
+    it("marks a 0.7 bad when true is good, though it is above the midpoint", () => {
+      const config = predicate("MAXIMIZE");
+      expect(getOptimizationBounds(config).threshold).toBe(0.8);
+      expect(
+        getOptimizationValueFromConfig({ config, score: 0.7 })
+      ).toBeLessThan(0);
+      expect(
+        getOptimizationValueFromConfig({ config, score: 0.9 })
+      ).toBeGreaterThan(0);
+    });
+
+    it("marks a 0.7 good when false is good", () => {
+      const config = predicate("MINIMIZE");
+      expect(
+        getOptimizationValueFromConfig({ config, score: 0.7 })
+      ).toBeGreaterThan(0);
+      expect(
+        getOptimizationValueFromConfig({ config, score: 0.9 })
+      ).toBeLessThan(0);
+    });
+
+    it("puts a score exactly at the threshold on its high side", () => {
+      // 0.8 is labelled true: good when true is good, bad when false is.
+      expect(
+        getOptimizationValueFromConfig({
+          config: predicate("MAXIMIZE"),
+          score: 0.8,
+        })
+      ).toBeGreaterThan(0);
+      expect(
+        getOptimizationValueFromConfig({
+          config: predicate("MINIMIZE"),
+          score: 0.8,
+        })
+      ).toBeLessThan(0);
+    });
+
+    it("counts a certain Yes as true at a threshold of 1", () => {
+      const config = { ...predicate("MAXIMIZE"), threshold: 1 };
+      expect(getOptimizationValueFromConfig({ config, score: 1 })).toBe(1);
+    });
+
+    it("is neutral without a direction", () => {
+      expect(
+        getOptimizationValueFromConfig({
+          config: predicate("NONE"),
+          score: 0.7,
+        })
+      ).toBeNull();
+    });
+
+    it("leaves a continuous config without a threshold on its midpoint", () => {
+      expect(
+        getOptimizationValueFromConfig({ config: continuousConfig, score: 0.7 })
+      ).toBeGreaterThan(0);
+    });
+  });
+
   it("grades a categorical score between its lowest and highest value scores", () => {
     expect(
       getOptimizationValueFromConfig({
@@ -472,5 +549,95 @@ describe("toAnnotationOptimizationConfig", () => {
         labels: ["correct", "incorrect"],
       })
     ).toEqual([true, false]);
+  });
+});
+
+describe("a human annotation config's saved threshold", () => {
+  // helpfulness_score: 0..10, Maximize, threshold 7, as the Settings dialog saves it.
+  const helpfulness = toAnnotationOptimizationConfig({
+    annotationType: "CONTINUOUS",
+    optimizationDirection: "MAXIMIZE",
+    lowerBound: 0,
+    upperBound: 10,
+    threshold: 7,
+  });
+
+  it("pivots good and bad on the threshold rather than the midpoint", () => {
+    expect(getOptimizationBounds(helpfulness).threshold).toBe(7);
+    expect(
+      getOptimizationValueFromConfig({ config: helpfulness, score: 6 })
+    ).toBeLessThan(0);
+    expect(
+      getOptimizationValueFromConfig({ config: helpfulness, score: 8 })
+    ).toBeGreaterThan(0);
+    // At the threshold is its high side, so good when maximizing.
+    expect(
+      getOptimizationValueFromConfig({ config: helpfulness, score: 7 })
+    ).toBeGreaterThan(0);
+  });
+
+  it("falls back to the midpoint without one", () => {
+    const unthresholded = toAnnotationOptimizationConfig({
+      annotationType: "CONTINUOUS",
+      optimizationDirection: "MAXIMIZE",
+      lowerBound: 0,
+      upperBound: 10,
+      threshold: null,
+    });
+    expect(
+      getOptimizationValueFromConfig({ config: unthresholded, score: 6 })
+    ).toBeGreaterThan(0);
+  });
+
+  it("flips sides for a minimized config", () => {
+    const latency = toAnnotationOptimizationConfig({
+      annotationType: "CONTINUOUS",
+      optimizationDirection: "MINIMIZE",
+      lowerBound: 0,
+      upperBound: 10,
+      threshold: 3,
+    });
+    expect(
+      getOptimizationValueFromConfig({ config: latency, score: 2 })
+    ).toBeGreaterThan(0);
+    expect(
+      getOptimizationValueFromConfig({ config: latency, score: 4 })
+    ).toBeLessThan(0);
+    // At the threshold is its high side, so bad when minimizing.
+    expect(
+      getOptimizationValueFromConfig({ config: latency, score: 3 })
+    ).toBeLessThan(0);
+  });
+
+  it("keeps a score at the midpoint neutral without one", () => {
+    const unthresholded = toAnnotationOptimizationConfig({
+      annotationType: "CONTINUOUS",
+      optimizationDirection: "MAXIMIZE",
+      lowerBound: 0,
+      upperBound: 10,
+      threshold: null,
+    });
+    expect(
+      getOptimizationValueFromConfig({ config: unthresholded, score: 5 })
+    ).toBe(0);
+  });
+
+  it("grows from the threshold without dipping just above it", () => {
+    const at = getOptimizationValueFromConfig({
+      config: helpfulness,
+      score: 7,
+    });
+    const justAbove = getOptimizationValueFromConfig({
+      config: helpfulness,
+      score: 7.01,
+    });
+    expect(at).not.toBeNull();
+    expect(justAbove).toBeGreaterThanOrEqual(at!);
+    expect(
+      getOptimizationValueFromConfig({ config: helpfulness, score: 10 })
+    ).toBe(1);
+    expect(
+      getOptimizationValueFromConfig({ config: helpfulness, score: 8.5 })
+    ).toBeCloseTo(0.5);
   });
 });

@@ -16,7 +16,15 @@ export type AnnotationConfigContinuous = Pick<
   | "optimizationDirection"
   | "upperBound"
   | "lowerBound"
-> & { annotationType: "CONTINUOUS" };
+> & {
+  annotationType: "CONTINUOUS";
+  /**
+   * The score separating good from bad results, strictly between the bounds;
+   * unset means their midpoint. A decision evaluator's Yes / No question sets
+   * it to its threshold.
+   */
+  threshold?: number | null;
+};
 
 export type AnnotationConfigCategorical = Pick<
   AnnotationConfigBase,

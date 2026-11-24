@@ -39,6 +39,7 @@ const bodyQuery = graphql`
               optimizationDirection
               lowerBound
               upperBound
+              threshold
             }
             ... on FreeformAnnotationConfig {
               name

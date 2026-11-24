@@ -152,7 +152,9 @@ const columns = [
           return tokens;
         }
         case "CONTINUOUS":
-          return `from ${row.lowerBound} to ${row.upperBound}`;
+          return row.threshold != null
+            ? `from ${row.lowerBound} to ${row.upperBound}, threshold ${row.threshold}`
+            : `from ${row.lowerBound} to ${row.upperBound}`;
         case "FREEFORM":
           return "";
         default:
@@ -212,6 +214,7 @@ export const AnnotationConfigTable = ({
                 annotationType
                 optimizationDirection
                 upperBound
+                threshold
                 lowerBound
               }
               ... on FreeformAnnotationConfig {

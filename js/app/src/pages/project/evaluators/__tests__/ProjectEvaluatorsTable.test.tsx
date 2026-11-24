@@ -137,6 +137,7 @@ function makeEvaluator({
       optimizationDirection: "MAXIMIZE",
       lowerBound: 0,
       upperBound: 1,
+      threshold: null,
       __isNode: "ContinuousAnnotationConfig",
       id: `ContinuousAnnotationConfig:${index}`,
     },

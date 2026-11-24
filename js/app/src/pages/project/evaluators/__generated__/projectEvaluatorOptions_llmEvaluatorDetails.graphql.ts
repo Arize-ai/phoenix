@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<afceec4209db318076af6d0297fecd1e>>
+ * @generated SignedSource<<ad0dd0061add7f9df0e2aa81f40a9532>>
  * @lightSyntaxTransform
  */
 
@@ -32,6 +32,7 @@ export type projectEvaluatorOptions_llmEvaluatorDetails$data = {
     readonly lowerBound: number | null;
     readonly name: string;
     readonly optimizationDirection: OptimizationDirection;
+    readonly threshold: number | null;
     readonly upperBound: number | null;
   } | {
     readonly __typename: "FreeformAnnotationConfig";
@@ -88,6 +89,6 @@ const node: ReaderInlineDataFragment = {
   "name": "projectEvaluatorOptions_llmEvaluatorDetails"
 };
 
-(node as any).hash = "e9490d681bf7fe3a06f782c3715dbef0";
+(node as any).hash = "6869af5860144bd45eebc51753bd3914";
 
 export default node;

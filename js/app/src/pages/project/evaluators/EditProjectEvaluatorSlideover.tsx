@@ -176,6 +176,7 @@ function EditProjectEvaluatorForm({
                     optimizationDirection
                     lowerBound
                     upperBound
+                    threshold
                   }
                   ... on FreeformAnnotationConfig {
                     name
@@ -236,6 +237,7 @@ function EditProjectEvaluatorForm({
                     optimizationDirection
                     lowerBound
                     upperBound
+                    threshold
                   }
                   ... on FreeformAnnotationConfig {
                     name

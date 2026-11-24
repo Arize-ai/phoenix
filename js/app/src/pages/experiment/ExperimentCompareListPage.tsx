@@ -249,6 +249,7 @@ export function ExperimentCompareListPage({
                         optimizationDirection
                         lowerBound
                         upperBound
+                        threshold
                       }
                       ... on FreeformAnnotationConfig {
                         name

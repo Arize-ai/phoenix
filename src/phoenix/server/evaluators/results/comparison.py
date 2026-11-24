@@ -44,13 +44,17 @@ class SideBinning:
     semantics pair with the frontend's optimizationUtils.ts: flagged means
     "not on the good side of the pivot" for the config's optimization
     direction — at or above it for MINIMIZE, at or below it for MAXIMIZE —
-    and at or above it by default when the direction is undetermined.
+    and at or above it by default when the direction is undetermined. A
+    continuous config's own threshold (saved, or a decision predicate's, whose
+    label is true from it up) puts a score exactly at it on the high side, so
+    under MAXIMIZE that score is good and not flagged.
     """
 
     annotation_name: str
     categorical_label_order: Optional[tuple[str, ...]]
     threshold: float = DEFAULT_FLAG_THRESHOLD
     flagged_when_gte: bool = True
+    threshold_is_high_side: bool = False
     flagged_label_set: Optional[frozenset[str]] = None
 
     @property
@@ -63,7 +67,12 @@ class SideBinning:
             return label
         if score is None:
             return None
-        flagged = score >= self.threshold if self.flagged_when_gte else score <= self.threshold
+        if self.flagged_when_gte:
+            flagged = score >= self.threshold
+        elif self.threshold_is_high_side:
+            flagged = score < self.threshold
+        else:
+            flagged = score <= self.threshold
         return FLAGGED_LABEL if flagged else UNFLAGGED_LABEL
 
 
@@ -75,9 +84,9 @@ def make_side_binning(
     """Build the binning for one comparison side from its evaluator output config.
 
     The flag threshold is the caller's override when given, else the pivot the
-    config pins down (a freeform config's first declared threshold, or the
-    midpoint of the config's bounds — value-score bounds for categorical
-    configs), else 0.5. A categorical label sitting exactly at the pivot is
+    config pins down (a freeform config's first declared threshold, a continuous
+    config's threshold, or the midpoint of the config's bounds — value-score
+    bounds for categorical configs), else 0.5. A categorical label sitting exactly at the pivot is
     neither good nor bad and never flagged; without a MAXIMIZE/MINIMIZE
     direction or with unscored labels a categorical side has no flag semantics
     at all (None).
@@ -117,6 +126,9 @@ def make_side_binning(
         categorical_label_order=None,
         threshold=threshold,
         flagged_when_gte=continuous_direction is not OptimizationDirection.MAXIMIZE,
+        threshold_is_high_side=threshold_override is None
+        and isinstance(output_config, ContinuousOutputConfig)
+        and output_config.threshold is not None,
         flagged_label_set=frozenset({FLAGGED_LABEL}),
     )
 
@@ -124,13 +136,16 @@ def make_side_binning(
 def _pivot(output_config: Optional[OutputConfig], threshold_override: Optional[float]) -> float:
     """The score separating flagged from unflagged, per optimizationUtils.ts.
 
-    Override first, then a freeform config's first declared threshold, then
+    Override first, then a freeform config's first declared threshold or a
+    continuous config's threshold (saved, or a decision predicate's), then
     the midpoint of the config's bounds when both are pinned down, then 0.5.
     """
     if threshold_override is not None:
         return threshold_override
     if isinstance(output_config, FreeformOutputConfig) and output_config.thresholds:
         return output_config.thresholds[0]
+    if isinstance(output_config, ContinuousOutputConfig) and output_config.threshold is not None:
+        return output_config.threshold
     if isinstance(output_config, CategoricalOutputConfig):
         scores = [value.score for value in output_config.values if value.score is not None]
         if len(scores) == len(output_config.values) and scores:
