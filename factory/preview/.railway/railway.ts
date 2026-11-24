@@ -55,7 +55,7 @@ const grafanaMcp = service("grafana-mcp", {
     "grafana/mcp-grafana@sha256:63d4501d3166c2b9242d8a2b5b7df8892c59c6c477be3a2a61bcf8a252671f31"
   ),
   start:
-    "/app/mcp-grafana -t streamable-http --address 0.0.0.0:8000 --disable-write",
+    "/bin/sh -c 'exec /app/mcp-grafana -t streamable-http --address 0.0.0.0:8000 --disable-write --allowed-hosts \"${RAILWAY_PUBLIC_DOMAIN:-grafana-mcp.railway.internal}\"'",
   env: {
     GRAFANA_URL: "http://lgtm.railway.internal:3000",
     GRAFANA_SERVICE_ACCOUNT_TOKEN: preserve(),

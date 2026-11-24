@@ -120,7 +120,9 @@ def find_project(pr_number: int) -> Optional[PreviewProject]:
     matches = [
         project
         for project in list_workspace_projects()
-        if project["description"] == marker and project["workspaceId"] == workspace_id
+        if project["description"] == marker
+        and project["workspaceId"] == workspace_id
+        and project["name"] == f"phoenix-preview-pr-{pr_number}"
     ]
     if len(matches) > 1:
         raise RailwayError(f"Multiple preview projects claim PR #{pr_number}")
@@ -603,18 +605,18 @@ def run_deploy(args: argparse.Namespace) -> int:
             service_id=services["lgtm"],
             port=3000,
         )
-        if token := configure_grafana(
-            domain=grafana,
-            password=password,
-            needs_mcp_token=not mcp_vars.get("GRAFANA_SERVICE_ACCOUNT_TOKEN"),
-        ):
-            set_mcp_token(project=project, service_id=services["grafana-mcp"], token=token)
         mcp = ensure_domain(
             project_id=project.id,
             environment_id=project.environment_id,
             service_id=services["grafana-mcp"],
             port=8000,
         )
+        if token := configure_grafana(
+            domain=grafana,
+            password=password,
+            needs_mcp_token=not mcp_vars.get("GRAFANA_SERVICE_ACCOUNT_TOKEN"),
+        ):
+            set_mcp_token(project=project, service_id=services["grafana-mcp"], token=token)
         results = [future.result() for future in futures]
     if preview_wanted(args.pr, head_sha=args.head_sha):
         upsert_comment(
