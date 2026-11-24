@@ -128,31 +128,4 @@ TSDoc on exported symbols in `js/packages/` is public API, not an inline comment
 
 ## Modules
 
-A module owns one thing, its name says what that thing is, and every consumer imports it from that one place. Clean scoping is what makes code reusable: a module that owns one thing can be imported anywhere without pulling in the code around it.
-
-- **Look before you write.** Existing shared modules must be checked before writing an inline helper. In `js/packages/`, check sibling packages before adding a dependency or reimplementing.
-- **One responsibility, specifically named.** A module must be named for what it does, specifically enough that the file name alone finds it in an IDE's file search or a grep: `retryPolicy.ts`, `authTokenStorage.ts`, not `helpers.ts`, `shared.ts`, `common.ts` or `auth/storage.ts`. Do not rely on the directory to supply the meaning; many files called `storage.ts` are hard to tell apart in search results and editor tabs. A module you can name only generically, or only with "and", holds more than one thing: split it.
-- **One home for shared code.** Shared code has one home, and every consumer imports it from there. When a second module needs code that lives inside another, move that code to its own module, named for what it does, and import it from both. Do not import it out of the first consumer, and do not copy it. This applies to code that encodes the same rule, so a change to one copy must reach the other; two snippets that only look alike today may need to diverge, and stay apart. Across `js/packages/`, the home is a package the consumer already depends on; do not add a dependency between published packages only to share a helper.
-- **Export only what you own.** A module must not export internals for a sibling to use; needing to is the signal that the code wants its own module. A module must not re-export another module's symbols to give them a second import path. An `index.ts` may gather the modules of its own directory, one local module may wrap a third-party package, and a package's entry point may re-export the symbols that make up its public API; none of them forwards code owned elsewhere in the repo.
-- **Imports flow one way.** Dependencies point from specific to general: features import shared modules, shared modules never import features, and `utils` never imports from components, pages, contexts or stores. Circular imports must not be introduced: a module in a cycle can run before the module it imports has initialized and read its exports as `undefined`, and neither module can be reused without the other. A cycle usually means two modules share something neither owns: extract that piece into a module both import. When the two modules are one responsibility split in two, merge them instead. Do not hide a cycle behind a lazy import or a type-only import.
-- **Group by domain.** Once a directory holds several modules about one domain, move them into a subdirectory named for it instead of growing a flat directory. The files keep their specific names: `auth/authLogin.ts`, `auth/authTokenStorage.ts`.
-
-```ts
-// Bad — SpanSearch.tsx exports an internal so TraceSearch.tsx can use it
-// SpanSearch.tsx
-export function parseSearchTerm(searchText: string): SearchTerm { ... }
-// TraceSearch.tsx
-import { parseSearchTerm } from "./SpanSearch";
-
-// Bad — re-exporting gives the helper a second home
-// TraceSearch.tsx
-export { parseSearchTerm } from "./SpanSearch";
-
-// Good — the helper has one home, named for what it does; neither
-// component imports the other
-// utils/searchTermUtils.ts
-export type SearchTerm = { ... };
-export function parseSearchTerm(searchText: string): SearchTerm { ... }
-// SpanSearch.tsx, TraceSearch.tsx
-import { parseSearchTerm } from "@phoenix/utils/searchTermUtils";
-```
+A module owns one responsibility and is named specifically enough to find by file name alone: `authTokenStorage.ts`, not `helpers.ts` or `auth/storage.ts`. Shared code has one home that every consumer imports from, so check for an existing module first, and when a second module needs code inside another, move it to its own module rather than exporting internals, re-exporting or copying it. Imports flow from specific to general and never in a cycle; break a cycle by extracting what both modules share, not with a lazy or type-only import.
