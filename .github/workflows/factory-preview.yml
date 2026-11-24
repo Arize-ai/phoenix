@@ -5,7 +5,7 @@ name: Factory Preview
 on:
   # zizmor: ignore[dangerous-triggers] See above: the PR's checkout is a build context only.
   pull_request_target:
-    types: [opened, edited, labeled, unlabeled, synchronize, reopened, closed]
+    types: [opened, edited, labeled, synchronize, reopened]
 
 permissions:
   contents: read
@@ -14,10 +14,9 @@ concurrency:
   group: >-
     factory-preview-${{ github.event.pull_request.number }}-${{
       github.event.pull_request.head.repo.full_name == github.repository &&
-      ((contains(fromJSON('["labeled", "unlabeled"]'), github.event.action) &&
-        github.event.label.name == 'factory-preview') ||
+      ((github.event.action == 'labeled' && github.event.label.name == 'factory-preview') ||
        (contains(github.event.pull_request.labels.*.name, 'factory-preview') &&
-        (contains(fromJSON('["opened", "synchronize", "reopened", "closed"]'), github.event.action) ||
+        (contains(fromJSON('["opened", "synchronize", "reopened"]'), github.event.action) ||
          (github.event.action == 'edited' && github.event.changes.body))))
       && 'deploy' || github.run_id }}
   cancel-in-progress: true
@@ -252,33 +251,3 @@ jobs:
           --pr "$PR_NUMBER" --base-sha "$BASE_SHA" --head-sha "$HEAD_SHA"
           --seed "$SEED_SUMMARY" --run-url "$RUN_URL"
           --baseline "$PREVIEW_BASELINE" --database "$PREVIEW_DATABASE"
-
-  cleanup:
-    name: Delete the preview project
-    if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      (github.event.action == 'closed' && contains(github.event.pull_request.labels.*.name, 'factory-preview') ||
-       (github.event.action == 'unlabeled' && github.event.label.name == 'factory-preview'))
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-      pull-requests: write
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          ref: ${{ github.event.pull_request.base.ref }}
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@20cfd1bf7457ade1205e4dbc17946fc9a30d # v10.0.1
-        with:
-          version-file: pyproject.toml
-          python-version: "3.12"
-          enable-cache: false
-      - name: Delete the owned Railway project
-        env:
-          GH_REPO: ${{ github.repository }}
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          RAILWAY_API_TOKEN: ${{ secrets.FACTORY_PREVIEW_RAILWAY_TOKEN }}
-          RAILWAY_WORKSPACE_ID: ${{ vars.FACTORY_PREVIEW_RAILWAY_WORKSPACE_ID }}
-        run: uv run --script factory/preview/deploy.py cleanup --pr "$PR_NUMBER"

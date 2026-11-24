@@ -7,6 +7,7 @@ import argparse
 import base64
 import json
 import os
+import re
 import secrets
 import subprocess
 import sys
@@ -26,6 +27,8 @@ from settings import BASELINE_OPTIONS, DATABASE_OPTIONS, PreviewSettings, parse_
 
 RAILWAY_API_URL = "https://backboard.railway.com/graphql/v2"
 PREVIEW_LABEL = "factory-preview"
+PREVIEW_PROJECT_PREFIX = "phoenix-preview-pr-"
+SWEEP_BATCH_SIZE = 256
 PHOENIX_PORT = 6006
 DEPLOY_TIMEOUT_SECONDS = 15 * 60
 SKIPPED_GRACE_SECONDS = 120
@@ -116,21 +119,31 @@ def list_workspace_projects() -> list[dict[str, Any]]:
         cursor = page["pageInfo"]["endCursor"]
 
 
-def find_project(pr_number: int) -> Optional[PreviewProject]:
-    marker = project_marker(pr_number)
+def owned_pr_number(project: dict[str, Any]) -> Optional[int]:
     workspace_id = str(UUID(os.environ["RAILWAY_WORKSPACE_ID"]))
+    if project["workspaceId"] != workspace_id or not project["name"].startswith(
+        PREVIEW_PROJECT_PREFIX
+    ):
+        return None
+    suffix = project["name"].removeprefix(PREVIEW_PROJECT_PREFIX)
+    if not re.fullmatch(r"[1-9][0-9]*", suffix):
+        return None
+    pr_number = int(suffix)
+    return pr_number if project["description"] == project_marker(pr_number) else None
+
+
+def find_owned_project(pr_number: int) -> Optional[dict[str, Any]]:
     matches = [
-        project
-        for project in list_workspace_projects()
-        if project["description"] == marker
-        and project["workspaceId"] == workspace_id
-        and project["name"] == f"phoenix-preview-pr-{pr_number}"
+        project for project in list_workspace_projects() if owned_pr_number(project) == pr_number
     ]
     if len(matches) > 1:
         raise RailwayError(f"Multiple preview projects claim PR #{pr_number}")
-    if not matches:
+    return matches[0] if matches else None
+
+
+def find_project(pr_number: int) -> Optional[PreviewProject]:
+    if not (project := find_owned_project(pr_number)):
         return None
-    project = matches[0]
     environments = [
         edge["node"]["id"]
         for edge in project["environments"]["edges"]
@@ -152,7 +165,7 @@ def create_project(pr_number: int) -> PreviewProject:
         """,
         input={
             "workspaceId": str(UUID(os.environ["RAILWAY_WORKSPACE_ID"])),
-            "name": f"phoenix-preview-pr-{pr_number}",
+            "name": f"{PREVIEW_PROJECT_PREFIX}{pr_number}",
             "description": project_marker(pr_number),
             "defaultEnvironmentName": "production",
         },
@@ -714,13 +727,32 @@ def run_deploy(args: argparse.Namespace) -> int:
     return 0 if all(result.succeeded for result in results) else 1
 
 
+def run_discover_cleanup(_args: argparse.Namespace) -> int:
+    pr_numbers = {
+        pr_number
+        for project in list_workspace_projects()
+        if (pr_number := owned_pr_number(project)) is not None
+    }
+    candidates = []
+    for pr_number in sorted(pr_numbers):
+        try:
+            if not preview_wanted(pr_number):
+                candidates.append(pr_number)
+        except subprocess.CalledProcessError:
+            print(f"::warning::Could not verify PR #{pr_number} for cleanup", file=sys.stderr)
+    if len(candidates) > SWEEP_BATCH_SIZE:
+        print(f"::warning::Deferring cleanup beyond {SWEEP_BATCH_SIZE} projects", file=sys.stderr)
+    print(json.dumps(candidates[:SWEEP_BATCH_SIZE]))
+    return 0
+
+
 def run_cleanup(args: argparse.Namespace) -> int:
     if preview_wanted(args.pr):
         return 0
-    if project := find_project(args.pr):
+    if project := find_owned_project(args.pr):
         if preview_wanted(args.pr):
             return 0
-        deleted = railway("mutation($id: String!) { projectDelete(id: $id) }", id=project.id)
+        deleted = railway("mutation($id: String!) { projectDelete(id: $id) }", id=project["id"])
         if not deleted.get("projectDelete"):
             raise RailwayError(f"Railway did not delete the preview project for PR #{args.pr}")
         upsert_comment(pr_number=args.pr, body="The Factory Preview Railway project was removed.")
@@ -739,6 +771,8 @@ def main() -> int:
     deploy_parser.add_argument("--baseline", choices=BASELINE_OPTIONS, default="on")
     deploy_parser.add_argument("--database", choices=DATABASE_OPTIONS, default="both")
     deploy_parser.set_defaults(run=run_deploy)
+    discovery_parser = subparsers.add_parser("discover-cleanup")
+    discovery_parser.set_defaults(run=run_discover_cleanup)
     cleanup_parser = subparsers.add_parser("cleanup")
     cleanup_parser.add_argument("--pr", type=int, required=True)
     cleanup_parser.set_defaults(run=run_cleanup)
