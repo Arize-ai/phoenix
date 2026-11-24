@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { ComponentType } from "react";
-import { Suspense, useState, useTransition } from "react";
+import { Suspense, useTransition } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
@@ -32,6 +32,7 @@ import {
 import { getSampleSessionEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSessionEvaluationContext";
 import { getSampleSpanEvaluationContext } from "@phoenix/pages/project/evaluators/sampleSpanEvaluationContext";
 import { getSampleTraceEvaluationContext } from "@phoenix/pages/project/evaluators/sampleTraceEvaluationContext";
+import { useLoadMoreRecords } from "@phoenix/pages/project/evaluators/useLoadMoreRecords";
 import {
   getSessionDetailsPath,
   getTraceDetailsPath,
@@ -321,9 +322,6 @@ function MatchedTraceCountLine({
   );
 }
 
-/** Rows arrive in pages of this many; the first page fits the table without scrolling. */
-const RECORD_PAGE_SIZE = 10;
-
 /** No search params to carry over: the bench's own URL has nothing the viewer should inherit. */
 const NO_SEARCH_PARAMS = new URLSearchParams();
 
@@ -337,8 +335,11 @@ function TraceRecordSource({
   filterCondition,
   ...benchProps
 }: RecordSourceProps) {
-  const [limit, setLimit] = useState(RECORD_PAGE_SIZE);
-  const [isShowingMore, startShowMoreTransition] = useTransition();
+  const { numRecordsToLoad, isLoadingMore, keepListedRowsFirst, loadMore } =
+    useLoadMoreRecords({
+      filterCondition,
+      timeWindowStartISOTimestamp: benchProps.timeWindow.startIso,
+    });
   const data = useLazyLoadQuery<ProjectEvaluatorScopePanelTracesQuery>(
     graphql`
       query ProjectEvaluatorScopePanelTracesQuery(
@@ -387,13 +388,13 @@ function TraceRecordSource({
       projectId,
       traceFilterCondition: filterCondition.trim() || null,
       timeRange: { start: benchProps.timeWindow.startIso },
-      first: limit,
+      first: numRecordsToLoad,
     },
     { fetchPolicy: "store-and-network" }
   );
   const rootSpans = data.project?.rootSpans?.edges.map(({ span }) => span);
   const sample = rootSpans?.length ? null : getSampleTraceEvaluationContext();
-  const rows: RecordedRunRow[] = rootSpans?.length
+  const loadedRows: RecordedRunRow[] = rootSpans?.length
     ? rootSpans.map(({ name, trace }) => ({
         key: trace.id,
         name,
@@ -429,18 +430,19 @@ function TraceRecordSource({
           },
         ]
       : [];
+  const hasMore = data.project?.rootSpans?.pageInfo.hasNextPage ?? false;
+  const rows = keepListedRowsFirst({
+    loadedRows,
+    hasNextPage: hasMore,
+  });
   return (
     <ProjectEvaluatorTestBench
       {...benchProps}
       rows={rows}
       recordKind="trace"
-      hasMore={data.project?.rootSpans?.pageInfo.hasNextPage ?? false}
-      isLoadingMore={isShowingMore}
-      onLoadMore={() =>
-        startShowMoreTransition(() => {
-          setLimit((current) => current + RECORD_PAGE_SIZE);
-        })
-      }
+      hasMore={hasMore}
+      isLoadingMore={isLoadingMore}
+      onLoadMore={() => loadMore({ listedRows: rows })}
     />
   );
 }
@@ -461,8 +463,11 @@ function SessionRecordSource({
   filterCondition,
   ...benchProps
 }: RecordSourceProps) {
-  const [limit, setLimit] = useState(RECORD_PAGE_SIZE);
-  const [isShowingMore, startShowMoreTransition] = useTransition();
+  const { numRecordsToLoad, isLoadingMore, keepListedRowsFirst, loadMore } =
+    useLoadMoreRecords({
+      filterCondition,
+      timeWindowStartISOTimestamp: benchProps.timeWindow.startIso,
+    });
   const data = useLazyLoadQuery<ProjectEvaluatorScopePanelSessionsQuery>(
     graphql`
       query ProjectEvaluatorScopePanelSessionsQuery(
@@ -503,13 +508,13 @@ function SessionRecordSource({
       projectId,
       sessionFilterCondition: filterCondition.trim() || null,
       timeRange: { start: benchProps.timeWindow.startIso },
-      first: limit,
+      first: numRecordsToLoad,
     },
     { fetchPolicy: "store-and-network" }
   );
   const sessions = data.project?.sessions?.edges.map(({ session }) => session);
   const sample = sessions?.length ? null : getSampleSessionEvaluationContext();
-  const rows: RecordedRunRow[] = sessions?.length
+  const loadedRows: RecordedRunRow[] = sessions?.length
     ? sessions.map((session) => ({
         key: session.id,
         name: session.sessionId,
@@ -544,18 +549,19 @@ function SessionRecordSource({
           },
         ]
       : [];
+  const hasMore = data.project?.sessions?.pageInfo.hasNextPage ?? false;
+  const rows = keepListedRowsFirst({
+    loadedRows,
+    hasNextPage: hasMore,
+  });
   return (
     <ProjectEvaluatorTestBench
       {...benchProps}
       rows={rows}
       recordKind="session"
-      hasMore={data.project?.sessions?.pageInfo.hasNextPage ?? false}
-      isLoadingMore={isShowingMore}
-      onLoadMore={() =>
-        startShowMoreTransition(() => {
-          setLimit((current) => current + RECORD_PAGE_SIZE);
-        })
-      }
+      hasMore={hasMore}
+      isLoadingMore={isLoadingMore}
+      onLoadMore={() => loadMore({ listedRows: rows })}
     />
   );
 }
@@ -565,8 +571,11 @@ function SpanRecordSource({
   filterCondition,
   ...benchProps
 }: RecordSourceProps) {
-  const [limit, setLimit] = useState(RECORD_PAGE_SIZE);
-  const [isShowingMore, startShowMoreTransition] = useTransition();
+  const { numRecordsToLoad, isLoadingMore, keepListedRowsFirst, loadMore } =
+    useLoadMoreRecords({
+      filterCondition,
+      timeWindowStartISOTimestamp: benchProps.timeWindow.startIso,
+    });
   const data = useLazyLoadQuery<ProjectEvaluatorScopePanelSpansQuery>(
     graphql`
       query ProjectEvaluatorScopePanelSpansQuery(
@@ -609,13 +618,13 @@ function SpanRecordSource({
       projectId,
       filterCondition: filterCondition.trim() || null,
       timeRange: { start: benchProps.timeWindow.startIso },
-      first: limit,
+      first: numRecordsToLoad,
     },
     { fetchPolicy: "store-and-network" }
   );
   const spans = data.project?.spans?.edges.map(({ span }) => span) ?? [];
   const sample = spans.length === 0 ? getSampleSpanEvaluationContext() : null;
-  const rows: RecordedRunRow[] = spans.length
+  const loadedRows: RecordedRunRow[] = spans.length
     ? spans.map((span) => ({
         key: span.id,
         name: span.name,
@@ -646,18 +655,19 @@ function SpanRecordSource({
           },
         ]
       : [];
+  const hasMore = data.project?.spans?.pageInfo.hasNextPage ?? false;
+  const rows = keepListedRowsFirst({
+    loadedRows,
+    hasNextPage: hasMore,
+  });
   return (
     <ProjectEvaluatorTestBench
       {...benchProps}
       rows={rows}
       recordKind="span"
-      hasMore={data.project?.spans?.pageInfo.hasNextPage ?? false}
-      isLoadingMore={isShowingMore}
-      onLoadMore={() =>
-        startShowMoreTransition(() => {
-          setLimit((current) => current + RECORD_PAGE_SIZE);
-        })
-      }
+      hasMore={hasMore}
+      isLoadingMore={isLoadingMore}
+      onLoadMore={() => loadMore({ listedRows: rows })}
     />
   );
 }
