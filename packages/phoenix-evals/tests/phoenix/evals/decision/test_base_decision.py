@@ -20,8 +20,8 @@ def test_base_adapter_fans_out_to_single_calls_by_default():
     raw = adapter.generate_classifications(
         "p",
         {
-            "q1": {"name": "q1", "labels": ["a", "b"]},
-            "q2": {"name": "q2", "labels": ["c", "d"]},
+            "q1": {"labels": ["a", "b"]},
+            "q2": {"labels": ["c", "d"]},
         },
     )
 
@@ -56,8 +56,8 @@ def test_base_adapter_fanout_sums_usage_across_calls():
     raw = adapter.generate_classifications(
         "p",
         {
-            "q1": {"name": "q1", "labels": ["a", "b"]},
-            "q2": {"name": "q2", "labels": ["c", "d"]},
+            "q1": {"labels": ["a", "b"]},
+            "q2": {"labels": ["c", "d"]},
         },
     )
 

@@ -15,7 +15,7 @@ from phoenix.evals.llm.llm import (
 
 def _by_name(criteria):
     """Key a list of backend criteria by name, the shape generate_classifications expects."""
-    return {c["name"]: c for c in criteria}
+    return {c["name"]: {k: v for k, v in c.items() if k != "name"} for c in criteria}
 
 
 class TestGenerateClassificationSchema:

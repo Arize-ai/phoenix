@@ -22,13 +22,15 @@ class ClassificationCriterion(TypedDict):
     module avoids a circular import (the backends sit below ``evaluators`` in the import graph)
     and keeps adapters decoupled from the evaluator layer's scoring concerns.
 
+    The question name is the mapping key under which this criterion is passed to
+    ``generate_classifications`` (and the key its answer is returned under), so it is not
+    repeated here.
+
     Keys:
-        name: Question name; becomes the key used to look the answer back up.
         labels: Either a list of label strings, or a dict mapping each label to a description.
         instruction: Optional instruction for this one question (the criterion's instruction).
     """
 
-    name: str
     labels: Union[List[str], Dict[str, str]]
     instruction: NotRequired[Optional[str]]
 

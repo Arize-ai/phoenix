@@ -77,11 +77,11 @@ class BaseDecisionAdapter(ABC):
         """
         results = [
             ClassificationResult(
-                name=criterion["name"],
+                name=name,
                 label=result["label"],
                 metadata=result.get("metadata", {}),
             )
-            for criterion, result in zip(criteria.values(), raw_results)
+            for name, result in zip(criteria.keys(), raw_results)
         ]
         usages: List[Dict[str, Any]] = []
         for result in raw_results:

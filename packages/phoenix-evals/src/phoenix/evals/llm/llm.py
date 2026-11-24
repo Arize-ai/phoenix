@@ -585,8 +585,7 @@ def generate_classifications_schema(
     """
     properties: Dict[str, Any] = {}
     required: List[str] = []
-    for criterion in criteria.values():
-        name = criterion["name"]
+    for name, criterion in criteria.items():
         inner = generate_classification_schema(criterion["labels"], include_explanation)
         instruction = criterion.get("instruction")
         if instruction:
@@ -603,8 +602,7 @@ def _parse_classifications(
     """Turn the nested object from :func:`generate_classifications_schema` into one
     :class:`ClassificationResult` per criterion, keyed by criterion name."""
     answers: Dict[Name, ClassificationResult] = {}
-    for criterion in criteria.values():
-        name = criterion["name"]
+    for name, criterion in criteria.items():
         answer = raw.get(name)
         if not isinstance(answer, dict) or "label" not in answer:
             raise ValueError(

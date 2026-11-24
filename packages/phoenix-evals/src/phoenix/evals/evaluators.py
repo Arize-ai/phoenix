@@ -919,10 +919,7 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
         keyed by criterion name."""
         payload: Dict[Name, ClassificationCriterion] = {}
         for criterion in self._criteria:
-            item: ClassificationCriterion = {
-                "name": criterion.name,
-                "labels": criterion.backend_labels,
-            }
+            item: ClassificationCriterion = {"labels": criterion.backend_labels}
             # An empty question-level instruction is omitted so the backend uses its default.
             if criterion.instruction:
                 item["instruction"] = criterion.instruction
