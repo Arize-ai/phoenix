@@ -45,10 +45,6 @@ When adding, removing, renaming, or materially changing what a page contains, up
 
 If a content change makes an existing route easier or harder to find by natural language, adjust `description` in the same change.
 
-## Client State
-
-A hook may remember an earlier value or an earlier request only if all three hold: the fact is not already in the Relay store, the URL or the server; a test shows what the user sees go wrong without it; and its comment names what would let us delete it. If the hook exists because of a fetch shape we chose (a skipped field, a deferred payload, a throttle), change the shape before adding the hook.
-
 ## URL State
 
 Significant view state must be recreatable from the URL. If a user can select a tab, sub-view, or detail state that should survive reloads, sharing, or adjacent-record pagination, encode it in route params or search params and preserve the relevant URL state during navigation.
