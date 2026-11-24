@@ -373,16 +373,6 @@ ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY = "PHOENIX_ONLINE_EVAL_MAX_EVA
 Maximum online-eval work units a replica evaluates at once, across all consumers.
 Defaults to 50.
 """
-ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES = "PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES"
-"""
-The maximum aggregate UTF-8 byte size of rendered messages sent by an online LLM evaluator.
-Defaults to 65536.
-"""
-ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES = "PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES"
-"""
-The maximum UTF-8 byte size of a rendered online code-evaluator payload.
-Defaults to 65536.
-"""
 ENV_LOGGING_MODE = "PHOENIX_LOGGING_MODE"
 """
 The logging mode (either 'default' or 'structured').
@@ -3662,38 +3652,6 @@ def _online_eval_positive_int(name: str, default: int) -> int:
 
 def get_env_online_eval_max_evaluator_concurrency() -> int:
     return _online_eval_positive_int(ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY, 50)
-
-
-def get_env_online_eval_max_llm_message_bytes() -> int:
-    """Get the rendered online-eval LLM message cap."""
-    max_bytes = _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES, 65_536)
-    if max_bytes < 1_024:
-        raise ValueError(
-            f"Invalid value for environment variable "
-            f"{ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES}: "
-            f"{max_bytes}. Value must be an integer of at least 1024."
-        )
-    return max_bytes
-
-
-ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION = (
-    "Narrow the slot with a path mapping, reduce the evaluator source, or raise the "
-    f"limit with {ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES}."
-)
-"""What to do about a code-evaluator payload over the online-eval limit, in the same words
-for a scheduled evaluation and for a preview run under the online limits."""
-
-
-def get_env_online_eval_max_sandbox_payload_bytes() -> int:
-    """Get the online-eval code-evaluator payload cap, whose minimum is 1024 UTF-8 bytes."""
-    max_bytes = _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES, 65_536)
-    if max_bytes < 1_024:
-        raise ValueError(
-            f"Invalid value for environment variable "
-            f"{ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES}: "
-            f"{max_bytes}. Value must be an integer of at least 1024."
-        )
-    return max_bytes
 
 
 def get_env_root_url() -> URL:

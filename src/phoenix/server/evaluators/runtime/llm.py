@@ -41,7 +41,6 @@ from phoenix.server.evaluators.runtime.base import (
     EvaluatorAnnotatorKind,
     EvaluatorProviderClient,
     EvaluatorResultValidationError,
-    RenderedMessageTooLargeError,
     result_annotation_names,
 )
 from phoenix.server.evaluators.schemas import infer_input_schema_from_prompt_template
@@ -110,7 +109,6 @@ class LLMEvaluator(BaseEvaluator):
         llm_client: ChatClient[Any],
         output_configs: Sequence[CategoricalOutputConfig],
         prompt_name: str,
-        max_message_bytes: Optional[int] = None,
     ):
         self._name = name
         self._description = description
@@ -122,7 +120,6 @@ class LLMEvaluator(BaseEvaluator):
         self._llm_client = llm_client
         self._output_configs = output_configs
         self._prompt_name = prompt_name
-        self._max_message_bytes = max_message_bytes
 
     @property
     @override
@@ -249,20 +246,6 @@ class LLMEvaluator(BaseEvaluator):
                                     text_parts.append(formatted_text)
                             formatted_content = "".join(text_parts)
                         messages.append(create_playground_message(role, formatted_content))
-
-                    rendered_message_bytes = sum(
-                        len(message["content"].encode("utf-8")) for message in messages
-                    )
-                    if (
-                        self._max_message_bytes is not None
-                        and rendered_message_bytes > self._max_message_bytes
-                    ):
-                        raise RenderedMessageTooLargeError(
-                            f"Rendered online-eval messages are {rendered_message_bytes} bytes, "
-                            f"exceeding the {self._max_message_bytes}-byte limit. Narrow the "
-                            "slot with a path mapping, shorten the prompt, or raise the limit "
-                            "with PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES."
-                        )
 
                     formatted_messages = [
                         oi.Message(role=msg["role"].value.lower(), content=msg["content"])

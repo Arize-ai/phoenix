@@ -113,18 +113,6 @@ class TestGetEnvOnlineEval:
                 "1",
                 1,
             ),
-            (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES,
-                phoenix_config.get_env_online_eval_max_llm_message_bytes,
-                "1024",
-                1024,
-            ),
-            (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES,
-                phoenix_config.get_env_online_eval_max_sandbox_payload_bytes,
-                "1024",
-                1024,
-            ),
         ],
     )
     def test_integer_boundaries(
@@ -146,16 +134,6 @@ class TestGetEnvOnlineEval:
                 phoenix_config.get_env_online_eval_max_evaluator_concurrency,
                 "0",
             ),
-            (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES,
-                phoenix_config.get_env_online_eval_max_llm_message_bytes,
-                "1023",
-            ),
-            (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES,
-                phoenix_config.get_env_online_eval_max_sandbox_payload_bytes,
-                "1023",
-            ),
         ],
     )
     def test_integer_domains(
@@ -175,19 +153,6 @@ class TestGetEnvOnlineEval:
         )
 
         assert phoenix_config.get_env_online_eval_max_evaluator_concurrency() == 50
-
-    def test_session_size_defaults(self, monkeypatch: MonkeyPatch) -> None:
-        monkeypatch.delenv(
-            phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES,
-            raising=False,
-        )
-        monkeypatch.delenv(
-            phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES,
-            raising=False,
-        )
-
-        assert phoenix_config.get_env_online_eval_max_llm_message_bytes() == 65_536
-        assert phoenix_config.get_env_online_eval_max_sandbox_payload_bytes() == 65_536
 
 
 class TestPostgresConnectionString:
