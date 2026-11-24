@@ -355,7 +355,7 @@ class Criterion:
 
     def describe(self) -> Dict[str, Any]:
         """The Score this criterion produces, for Evaluator.describe's outputs. ``kind`` is not
-        included here; it is the evaluator's and is added by the caller."""
+        included; it is the evaluator's and sits at the top level of describe()."""
         return {
             "name": self.name,
             "direction": self.direction,
@@ -595,11 +595,11 @@ class Evaluator(ABC):
     def _describe_outputs(self) -> List[Dict[str, Any]]:
         """The Scores this evaluator produces, one entry each. The default is a single output
         described by the evaluator itself; evaluators that emit several Scores (e.g. a
-        multi-criterion classifier) override this to describe one output per Score."""
+        multi-criterion classifier) override this to describe one output per Score. ``kind`` is
+        not repeated per output; it is the evaluator's and sits at the top level of describe()."""
         return [
             {
                 "name": self.name,
-                "kind": self.kind,
                 "direction": self.direction,
                 "labels": None,
                 "score_map": None,
@@ -857,7 +857,7 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
         return self._criteria
 
     def _describe_outputs(self) -> List[Dict[str, Any]]:
-        return [{**criterion.describe(), "kind": self.kind} for criterion in self._criteria]
+        return [criterion.describe() for criterion in self._criteria]
 
     def _normalize_choices(
         self,

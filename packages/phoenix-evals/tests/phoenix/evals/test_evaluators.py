@@ -1242,7 +1242,6 @@ class TestIntrospectionAndSchema:
         [out] = simple_eval.describe()["outputs"]
         assert out == {
             "name": "simple_eval",
-            "kind": simple_eval.kind,
             "direction": "maximize",
             "labels": None,
             "score_map": None,
@@ -1257,7 +1256,7 @@ class TestIntrospectionAndSchema:
         )
         [out] = evaluator.describe()["outputs"]
         assert out["name"] == "relevance"
-        assert out["kind"] == evaluator.kind
+        assert "kind" not in out  # kind is the evaluator's, at the top level only
         # labels is a uniform {label: description|None} map.
         assert out["labels"] == {"relevant": "addresses it", "irrelevant": None}
         assert out["score_map"] == {"relevant": 1, "irrelevant": 0}
