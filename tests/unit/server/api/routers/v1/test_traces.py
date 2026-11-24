@@ -731,6 +731,14 @@ async def test_transfer_traces_rejects_deleted_source_project(
         },
     )
     assert response.status_code == 404
+    assert response.text == "One or more traces not found"
+    async with db() as session:
+        remaining_project_rowids = set(
+            await session.scalars(
+                select(models.Trace.project_rowid).where(models.Trace.id.in_(trace_rowids))
+            )
+        )
+    assert remaining_project_rowids == {source_rowid}
 
 
 async def test_transfer_traces_accepts_project_global_id(

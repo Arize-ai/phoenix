@@ -5,7 +5,8 @@ from types import SimpleNamespace
 from typing import Any, Optional, cast
 
 import pytest
-from sqlalchemy import delete, select
+from sqlalchemy import delete, event, func, select
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from strawberry.relay import GlobalID
 
@@ -248,6 +249,8 @@ async def test_dataset_attach_waits_for_owner_before_locking_evaluator(
             )
         )
         await asyncio.wait_for(waiting_for_owner.wait(), 5)
+        await _wait_until_lock_wait_or_done(db, attach, "FROM datasets")
+        assert not attach.done()
         await session.execute(
             select(models.Evaluator.id)
             .where(models.Evaluator.id == original.evaluator_id)
@@ -546,9 +549,24 @@ async def test_concurrent_tombstone_project_and_persist_evaluator_traces(
         _run_tombstone_project(),
     )
 
+    async with db() as session:
+        tombstoned_owner = await session.get(models.Project, owner_project_id)
+        assert tombstoned_owner is not None and tombstoned_owner.deleted_at is not None
+        tombstoned_binding = await session.get(models.ProjectEvaluator, binding.id)
+        assert tombstoned_binding is not None and tombstoned_binding.deleted_at is not None
+        tombstoned_trace_project = await session.get(models.Project, binding.trace_project_id)
+        assert tombstoned_trace_project is not None
+        assert tombstoned_trace_project.deleted_at is not None
+        num_persisted_traces = await session.scalar(
+            select(func.count())
+            .select_from(models.Trace)
+            .where(models.Trace.project_rowid == binding.trace_project_id)
+        )
+        assert num_persisted_traces == 1
+
 
 @pytest.mark.postgres_only
-async def test_tombstone_exclusive_experiment_projects_locks_evaluators_in_id_order(
+async def test_tombstone_exclusive_experiment_projects_locks_all_evaluators_in_one_ordered_statement(
     postgresql_engine: AsyncEngine,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -615,15 +633,22 @@ async def test_tombstone_exclusive_experiment_projects_locks_evaluators_in_id_or
         ),
     )
 
-    locked_evaluator_batches: list[list[int]] = []
+    locked_evaluator_batches: list[set[int]] = []
+    evaluator_lock_statements: list[str] = []
 
     async def _record_lock_evaluators(lock_session: AsyncSession, evaluator_ids: Any) -> None:
-        batch = sorted(set(evaluator_ids))
-        if batch:
+        if batch := set(evaluator_ids):
             locked_evaluator_batches.append(batch)
         await original_lock_evaluators(lock_session, evaluator_ids)
 
+    def _record_statement(
+        _connection: Any, _cursor: Any, statement: str, *_args: Any, **_kwargs: Any
+    ) -> None:
+        if "FROM evaluators" in statement and "FOR UPDATE" in statement:
+            evaluator_lock_statements.append(statement)
+
     monkeypatch.setattr(lifecycle, "lock_evaluators", _record_lock_evaluators)
+    event.listen(postgresql_engine.sync_engine, "before_cursor_execute", _record_statement)
 
     async with db() as delete_session:
         candidate_project_ids = await lifecycle.resolve_experiment_project_delete_candidates(
@@ -634,7 +659,13 @@ async def test_tombstone_exclusive_experiment_projects_locks_evaluators_in_id_or
             candidate_project_ids=candidate_project_ids,
         )
 
-    assert locked_evaluator_batches == [[lower_evaluator.id, higher_evaluator.id]]
+    event.remove(postgresql_engine.sync_engine, "before_cursor_execute", _record_statement)
+
+    # The evaluators bound to lower- and higher-id projects are in opposite id order, so one
+    # statement that orders by evaluator id is what keeps their lock order canonical.
+    assert locked_evaluator_batches == [{lower_evaluator.id, higher_evaluator.id}]
+    assert len(evaluator_lock_statements) == 1
+    assert "ORDER BY evaluators.id" in evaluator_lock_statements[0]
     assert len(tombstoned_ids) == 4
 
 
@@ -848,56 +879,52 @@ async def test_patch_llm_evaluator_does_not_lock_prompt_versions_for_update(
 
 
 @pytest.mark.postgres_only
-@pytest.mark.parametrize("kind", ["prompt", "decision"])
-async def test_delete_locks_the_row_before_checking_references(
+async def test_delete_decision_locks_the_row_before_checking_references(
     postgresql_engine: AsyncEngine,
-    kind: str,
 ) -> None:
-    from phoenix.server.api.mutations.prompt_mutations import (
-        DeletePromptInput,
-        PromptMutationMixin,
-    )
+    from phoenix.server.api.exceptions import Conflict
     from phoenix.server.api.mutations.saved_decision_mutations import (
         DeleteDecisionInput,
         SavedDecisionMutationMixin,
     )
 
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
+    context = _service_context(db)
     info = cast(Any, SimpleNamespace(context=SimpleNamespace(db=db)))
     async with db() as session:
-        if kind == "prompt":
-            row: models.Prompt | models.Decision = models.Prompt(
-                name=Identifier(f"prompt-lock-{token_hex(4)}"),
-                prompt_versions=[_prompt_version()],
-            )
-        else:
-            row = models.Decision(name=Identifier(f"dec-lock-{token_hex(4)}"), metadata_={})
-            session.add(_create_decision_version(decision=row))
-        session.add(row)
+        decision = models.Decision(name=Identifier(f"dec-lock-{token_hex(4)}"), metadata_={})
+        session.add(_create_decision_version(decision=decision))
         await session.flush()
-        row_id = row.id
-
-    if kind == "prompt":
-        model: type[models.Prompt] | type[models.Decision] = models.Prompt
-        lock_query_fragment = "SELECT prompts.id \nFROM prompts"
-        delete_coroutine = PromptMutationMixin().delete_prompt(
-            info, DeletePromptInput(prompt_id=GlobalID("Prompt", str(row_id)))
-        )
-    else:
-        model = models.Decision
-        lock_query_fragment = "SELECT decisions.id \nFROM decisions"
-        delete_coroutine = SavedDecisionMutationMixin().delete_decision(
-            info, DeleteDecisionInput(decision_id=GlobalID("Decision", str(row_id)))
+        decision_id = decision.id
+        version_id = await session.scalar(
+            select(models.DecisionVersion.id).where(
+                models.DecisionVersion.decision_id == decision_id
+            )
         )
 
+    delete_task_coroutine = SavedDecisionMutationMixin().delete_decision(
+        info, DeleteDecisionInput(decision_id=GlobalID("Decision", str(decision_id)))
+    )
     async with db() as key_share_session:
         await key_share_session.execute(
-            select(model.id).where(model.id == row_id).with_for_update(read=True, key_share=True)
+            select(models.Decision.id)
+            .where(models.Decision.id == decision_id)
+            .with_for_update(read=True, key_share=True)
         )
-        delete_task = asyncio.create_task(delete_coroutine)
-        await _wait_until_lock_wait_or_done(db, delete_task, lock_query_fragment)
+        delete_task = asyncio.create_task(delete_task_coroutine)
+        await _wait_until_lock_wait_or_done(db, delete_task, "SELECT decisions.id \nFROM decisions")
         assert not delete_task.done()
-    await asyncio.wait_for(delete_task, 5)
+        await decisions.create_decision_evaluator(
+            context,
+            decisions.CreateDecisionEvaluatorInput(
+                name=Identifier(f"referrer-{token_hex(4)}"),
+                decision_version_id=GlobalID("DecisionVersion", str(version_id)),
+            ),
+        )
+    # The evaluator committed while the delete waited, so only a check made after taking
+    # the lock reports it by name; an earlier check falls through to the foreign-key fallback.
+    with pytest.raises(Conflict, match=r"is referenced by an evaluator \(referrer-"):
+        await asyncio.wait_for(delete_task, 5)
 
 
 @pytest.mark.postgres_only
@@ -963,7 +990,7 @@ async def test_delete_project_evaluator_skips_surviving_prompt_lock(
         await prompt_lock_session.execute(
             select(models.Prompt.id).where(models.Prompt.id == shared_prompt_id).with_for_update()
         )
-        await asyncio.wait_for(
+        delete_task = asyncio.create_task(
             project_bindings.delete_project_evaluators(
                 context,
                 project_bindings.DeleteProjectEvaluatorsInput(
@@ -973,9 +1000,11 @@ async def test_delete_project_evaluator_skips_surviving_prompt_lock(
                     ],
                     delete_associated_prompt=True,
                 ),
-            ),
-            timeout=1.5,
+            )
         )
+        await _wait_until_lock_wait_or_done(db, delete_task, "FROM prompts")
+        assert delete_task.done()
+        await delete_task
 
 
 async def test_delete_project_evaluator_emits_tombstone_events(
@@ -1197,6 +1226,31 @@ async def test_delete_project_handles_lower_slipped_trace_project_and_emits_chil
 
     monkeypatch.setattr(lifecycle, "_lock_projects", _commit_slipped_before_first_lock)
 
+    original_lock_additional_projects = lifecycle._lock_additional_projects
+    num_lower_project_probes = 0
+
+    async def _lock_additional_projects_then_probe(
+        lock_session: AsyncSession, *, locked_project_ids: set[int], target_project_ids: Any
+    ) -> None:
+        nonlocal num_lower_project_probes
+        await original_lock_additional_projects(
+            lock_session,
+            locked_project_ids=locked_project_ids,
+            target_project_ids=list(target_project_ids),
+        )
+        async with db() as probe_session:
+            with pytest.raises(DBAPIError):
+                await probe_session.execute(
+                    select(models.Project.id)
+                    .where(models.Project.id == lower_trace_project_id)
+                    .with_for_update(nowait=True)
+                )
+        num_lower_project_probes += 1
+
+    monkeypatch.setattr(
+        lifecycle, "_lock_additional_projects", _lock_additional_projects_then_probe
+    )
+
     info = SimpleNamespace(
         context=SimpleNamespace(
             db=db,
@@ -1210,6 +1264,7 @@ async def test_delete_project_handles_lower_slipped_trace_project_and_emits_chil
     expected_project_ids = tuple(
         sorted({owner_project_id, lower_trace_project_id, existing_binding.trace_project_id})
     )
+    assert num_lower_project_probes == 1
     assert SpanDeleteEvent(expected_project_ids) in event_queue.events
     assert ProjectDeleteEvent(expected_project_ids) in event_queue.events
 

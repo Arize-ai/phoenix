@@ -42,7 +42,7 @@ from phoenix.server.cleanup.primitives import (
     drain_trace_scope_step,
 )
 from phoenix.server.daemons.cleanup_worker import CleanupWorker
-from phoenix.server.dml_event import DmlEvent, SpanDeleteEvent
+from phoenix.server.dml_event import DmlEvent, ProjectDeleteEvent, SpanDeleteEvent
 from phoenix.server.online_eval.clock import current_database_time
 from phoenix.server.online_eval.coordinator import (
     EvalWorkCoordinator,
@@ -145,6 +145,8 @@ class TestCleanupSchedulingAndBackoff:
         dialect = SupportedSQLDialect(db.dialect.value)
         async with db() as session:
             project = await _add_project(session, name=f"poison-{token_hex(4)}")
+            trace = await _add_trace(session, project)
+            await _add_span(session, trace=trace)
             project_id = project.id
             await tombstone_project(session, project_id=project_id)
 
@@ -170,7 +172,17 @@ class TestCleanupSchedulingAndBackoff:
         assert 30.0 < recorded[2][1] <= 40.0
 
         monkeypatch.undo()
-        assert await _drain_all(coordinator) >= 1
+        assert (await coordinator.step()).outcome == "progress"
+        assert await _get_failure(db, "PROJECT", project_id) is None
+
+        monkeypatch.setattr(coordinator, "_run_domain_step", _boom)
+        assert (await coordinator.step()).outcome == "error"
+        failure = await _get_failure(db, "PROJECT", project_id)
+        assert failure is not None and failure.failure_count == 1
+
+        monkeypatch.undo()
+        await _expire_retries(db)
+        await _drain_all(coordinator)
         async with db() as session:
             assert await session.get(models.Project, project_id) is None
         assert await _get_failure(db, "PROJECT", project_id) is None
@@ -282,6 +294,8 @@ class TestCleanupSchedulingAndBackoff:
         marker_name = f"rolled-back-{token_hex(4)}"
         async with db() as session:
             project = await _add_project(session, name=f"rollback-{token_hex(4)}")
+            trace = await _add_trace(session, project)
+            await _add_span(session, trace=trace)
             project_id = project.id
             await tombstone_project(session, project_id=project_id)
 
@@ -307,6 +321,17 @@ class TestCleanupSchedulingAndBackoff:
                 select(models.Project.id).where(models.Project.name == marker_name)
             )
             assert marker_project is None
+
+        monkeypatch.undo()
+        await _expire_retries(db)
+        await _drain_all(coordinator)
+        *progress_and_purge_events, project_event = event_queue.events
+        assert project_event == ProjectDeleteEvent((project_id,))
+        # One event for the progress step that drained the trace, one for the purge step.
+        assert progress_and_purge_events == [SpanDeleteEvent((project_id,))] * len(
+            progress_and_purge_events
+        )
+        assert len(progress_and_purge_events) >= 2
 
     async def test_cancelled_step_rolls_back_and_leaves_the_target_pending(
         self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch

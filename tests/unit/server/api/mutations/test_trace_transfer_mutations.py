@@ -39,7 +39,14 @@ class TestTraceTransferMutationMixin:
                 ),
             },
         )
-        assert result.errors
+        assert [error.message for error in result.errors or []] == ["Invalid trace IDs provided"]
+        async with db() as session:
+            trace_project_id = await session.scalar(
+                select(models.Trace.project_rowid).where(
+                    models.Trace.id == trace_transfer_fixture["trace1_id"]
+                )
+            )
+        assert trace_project_id == trace_transfer_fixture["source_project_id"]
 
     async def test_transfer_traces_to_project_success(
         self,

@@ -150,10 +150,9 @@ class TestDeletedProjectVisibility:
         async with db() as session:
             project = await _add_project(session, name=f"spans-{token_hex(4)}")
             project_id = project.id
-        await _tombstone(db, project_id)
-        response = await httpx_client.post(
-            f"v1/projects/{GlobalID('Project', str(project_id))}/spans",
-            json={
+
+        def _span_request_body() -> dict[str, Any]:
+            return {
                 "data": [
                     {
                         "name": "s",
@@ -164,8 +163,14 @@ class TestDeletedProjectVisibility:
                         "status_code": "OK",
                     }
                 ]
-            },
-        )
+            }
+
+        spans_url = f"v1/projects/{GlobalID('Project', str(project_id))}/spans"
+        live_response = await httpx_client.post(spans_url, json=_span_request_body())
+        assert live_response.status_code == 202
+
+        await _tombstone(db, project_id)
+        response = await httpx_client.post(spans_url, json=_span_request_body())
         assert response.status_code == 404
 
     async def test_retention_policy_dataloader_skips_deleted_projects(

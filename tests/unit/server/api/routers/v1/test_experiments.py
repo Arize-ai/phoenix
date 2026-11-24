@@ -15,6 +15,7 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.helpers import project_kind_expression
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.dml_event import DmlEvent, ProjectDeleteEvent, SpanDeleteEvent
 from phoenix.server.types import DbSessionFactory
 from tests.unit._helpers import (
     _bind_evaluator_trace_project,
@@ -2268,10 +2269,11 @@ async def _create_experiment_with_project(
     return experiment_gid, project_id, experiment
 
 
-async def test_delete_experiment_deletes_its_exclusive_project(
+async def test_delete_experiment_tombstones_its_exclusive_project_and_emits_events(
     httpx_client: httpx2.AsyncClient,
     simple_dataset: Any,
     db: DbSessionFactory,
+    recorded_dml_events: list[DmlEvent],
 ) -> None:
     experiment_gid, project_id, _ = await _create_experiment_with_project(httpx_client, db)
 
@@ -2282,4 +2284,6 @@ async def test_delete_experiment_deletes_its_exclusive_project(
 
     async with db() as session:
         project = await session.get(models.Project, project_id)
-        assert project is None or project.deleted_at is not None
+        assert project is not None and project.deleted_at is not None
+    assert SpanDeleteEvent((project_id,)) in recorded_dml_events
+    assert ProjectDeleteEvent((project_id,)) in recorded_dml_events

@@ -149,6 +149,7 @@ class TestProjectMutations:
             variables={"input": {"id": str(GlobalID("Project", "999999"))}},
         )
         assert result.errors
+        assert [error.message for error in result.errors] == ["Project with ID 999999 not found"]
 
     async def test_clear_project_preserves_straddling_session_and_its_newer_trace(
         self,

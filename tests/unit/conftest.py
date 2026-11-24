@@ -94,6 +94,7 @@ from phoenix.server import app as server_app
 from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
 from phoenix.server.api.schema import build_graphql_schema
 from phoenix.server.app import _db, create_app
+from phoenix.server.dml_event import DmlEvent
 from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.grpc_server import GrpcServer
@@ -313,6 +314,20 @@ def _cleanup_worker_off(request: FixtureRequest, monkeypatch: pytest.MonkeyPatch
         "phoenix.server.daemons.cleanup_worker.CleanupWorker._run",
         _idle,
     )
+
+
+@pytest.fixture
+def recorded_dml_events(monkeypatch: pytest.MonkeyPatch) -> list[DmlEvent]:
+    """The ``DmlEvent`` values the app puts on its event handler during a test."""
+    events: list[DmlEvent] = []
+    original_put = DmlEventHandler.put
+
+    def spy_put(self: DmlEventHandler, event: DmlEvent) -> None:
+        events.append(event)
+        original_put(self, event)
+
+    monkeypatch.setattr(DmlEventHandler, "put", spy_put)
+    return events
 
 
 @pytest.fixture(autouse=True)
