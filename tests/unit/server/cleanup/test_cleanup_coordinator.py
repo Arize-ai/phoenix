@@ -97,7 +97,7 @@ class _DaemonController:
     def __init__(self) -> None:
         self._release = asyncio.Event()
         self._parked = asyncio.Event()
-        self.sleep_delays: list[Optional[float]] = []
+        self.sleep_delays: list[float] = []
 
     async def wait_until_parked(self, timeout: float = 30.0) -> None:
         await self._parked_within(timeout, "the cleanup worker never parked")
@@ -119,7 +119,7 @@ class _DaemonController:
 def cleanup_worker_controller(monkeypatch: pytest.MonkeyPatch) -> _DaemonController:
     controller = _DaemonController()
 
-    async def _park(worker: CleanupWorker, delay_seconds: Optional[float] = None) -> None:
+    async def _park(worker: CleanupWorker, delay_seconds: float) -> None:
         controller.sleep_delays.append(delay_seconds)
         controller._parked.set()
         await controller._release.wait()
@@ -1280,7 +1280,6 @@ class TestStorageLockoutExemptionsAndCleanupWorker:
             await cleanup_worker_controller.wait_until_parked()
             assert len(cleanup_worker_controller.sleep_delays) == 1
             first_delay = cleanup_worker_controller.sleep_delays[0]
-            assert first_delay is not None
             assert 0.0 < first_delay <= 0.5
 
             await _expire_retries(db)
@@ -1288,11 +1287,37 @@ class TestStorageLockoutExemptionsAndCleanupWorker:
             await cleanup_worker_controller.run_once()
             assert len(cleanup_worker_controller.sleep_delays) == 2
             second_delay = cleanup_worker_controller.sleep_delays[1]
-            assert second_delay is not None
             assert second_delay >= 29.0
 
         async with db() as session:
             assert await session.get(models.Project, project_id) is None
+
+    @pytest.mark.real_cleanup_worker
+    async def test_cleanup_worker_waits_for_the_idle_poll_when_a_failure_cannot_be_recorded(
+        self,
+        db: DbSessionFactory,
+        cleanup_worker_controller: _DaemonController,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        async with db() as session:
+            project = await _add_project(session, name=f"unrecorded-{token_hex(4)}")
+            await tombstone_project(session, project_id=project.id)
+
+        worker = CleanupWorker(db, idle_poll_seconds=10.0)
+
+        async def _step_fails(*args: Any, **kwargs: Any) -> PrimitiveResult:
+            raise OperationalError("SELECT 1", {}, Exception("injected step failure"))
+
+        async def _failure_write_fails(*args: Any, **kwargs: Any) -> None:
+            raise OperationalError("INSERT", {}, Exception("injected write failure"))
+
+        monkeypatch.setattr(worker.coordinator, "_run_domain_step", _step_fails)
+        monkeypatch.setattr(worker.coordinator, "_record_retry", _failure_write_fails)
+
+        async with worker:
+            await cleanup_worker_controller.wait_until_parked(timeout=5.0)
+            assert len(cleanup_worker_controller.sleep_delays) == 1
+            assert 9.0 <= cleanup_worker_controller.sleep_delays[0] <= 11.0
 
     @pytest.mark.real_cleanup_worker
     async def test_lifespan_cleanup_worker_drains_a_project_deleted_through_the_api(

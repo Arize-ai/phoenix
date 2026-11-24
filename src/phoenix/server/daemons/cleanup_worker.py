@@ -59,6 +59,5 @@ class CleanupWorker(DaemonTask):
             return idle_delay
         return min(idle_delay, max(0.01, next_delay_seconds))
 
-    async def _sleep(self, delay_seconds: Optional[float] = None) -> None:
-        delay = self._compute_sleep_delay_seconds() if delay_seconds is None else delay_seconds
-        await asyncio.sleep(delay)
+    async def _sleep(self, delay_seconds: float) -> None:
+        await asyncio.sleep(delay_seconds)

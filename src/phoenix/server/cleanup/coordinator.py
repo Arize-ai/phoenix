@@ -247,31 +247,30 @@ class CleanupCoordinator:
             )
 
     async def _record_failure(self, target: CleanupTarget) -> None:
-        """Back a failed target off, doubling the delay per consecutive failure."""
-        try:
-            async with self._db() as session:
-                now = await current_database_time(session, self._db.dialect)
-                num_prior_failures = (
-                    await session.scalar(
-                        select(models.CleanupFailure.failure_count).where(
-                            models.CleanupFailure.target_kind == target.kind,
-                            models.CleanupFailure.target_id == target.id,
-                        )
+        """Back a failed target off, doubling the delay per consecutive failure.
+
+        A write failure propagates: without a backoff row the same target is picked again at
+        once, so the caller must see the error and wait instead of spinning.
+        """
+        async with self._db() as session:
+            now = await current_database_time(session, self._db.dialect)
+            num_prior_failures = (
+                await session.scalar(
+                    select(models.CleanupFailure.failure_count).where(
+                        models.CleanupFailure.target_kind == target.kind,
+                        models.CleanupFailure.target_id == target.id,
                     )
-                    or 0
                 )
-                retry_delay_seconds = self._compute_error_retry_delay_seconds(
-                    num_prior_failures=int(num_prior_failures)
-                )
-                await self._record_retry(
-                    session,
-                    target=target,
-                    retry_at=now + timedelta(seconds=retry_delay_seconds),
-                    failure_count=int(num_prior_failures) + 1,
-                )
-        except SQLAlchemyError:
-            logger.exception(
-                "Failed to record retry delay for cleanup target %s %s", target.kind, target.id
+                or 0
+            )
+            retry_delay_seconds = self._compute_error_retry_delay_seconds(
+                num_prior_failures=int(num_prior_failures)
+            )
+            await self._record_retry(
+                session,
+                target=target,
+                retry_at=now + timedelta(seconds=retry_delay_seconds),
+                failure_count=int(num_prior_failures) + 1,
             )
 
     async def step(self) -> StepExecutionResult:
