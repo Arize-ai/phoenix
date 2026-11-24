@@ -32,13 +32,18 @@ export type EvaluationQueueStatusValue = "HEALTHY" | "DEGRADED";
 
 const QUEUE_STATS_POLL_INTERVAL_MS = 30_000;
 
+/** A minute between chart polls, less half a poll for timer drift. */
+const CHART_POLL_MIN_INTERVAL_MS = QUEUE_STATS_POLL_INTERVAL_MS * 1.5;
+
 /**
  * Polls the queue stats: `fetchKey` changes on every poll or refresh, and
- * `throttledFetchKey` on every other poll (once a minute) or refresh, for
- * charts that read the whole time range. Call it once per page, so the
- * stats and charts refresh together. Paused while `isPolling` is false or
- * the page is hidden; a refresh still changes the keys. When the page is
- * shown again while polling, it polls once.
+ * `throttledFetchKey` on a poll at least a minute after its last change, or
+ * on a refresh, for charts that read the whole time range. Call it once per
+ * page, so the stats and charts refresh together. Paused while `isPolling` is
+ * false or the page is hidden; a refresh still changes the keys. When the
+ * page is shown again while polling, it polls once. A server-side cache of
+ * the charts' aggregates would let them poll with the stats and remove the
+ * throttled key.
  */
 export function useQueueStatsPoll({
   refreshKey,
@@ -47,17 +52,34 @@ export function useQueueStatsPoll({
   refreshKey: string | number;
   isPolling?: boolean;
 }) {
-  const [pollCount, setPollCount] = useState(0);
+  const [polls, setPolls] = useState(() => ({
+    pollCount: 0,
+    chartPollCount: 0,
+    chartPolledAtMs: Date.now(),
+  }));
   useInterval(
     () => {
+      const nowMs = Date.now();
       // Keep the current stats up while the next poll loads.
-      startTransition(() => setPollCount((count) => count + 1));
+      startTransition(() =>
+        setPolls((current) => {
+          const isChartPollDue =
+            nowMs - current.chartPolledAtMs >= CHART_POLL_MIN_INTERVAL_MS;
+          return isChartPollDue
+            ? {
+                pollCount: current.pollCount + 1,
+                chartPollCount: current.chartPollCount + 1,
+                chartPolledAtMs: nowMs,
+              }
+            : { ...current, pollCount: current.pollCount + 1 };
+        })
+      );
     },
     isPolling ? QUEUE_STATS_POLL_INTERVAL_MS : null
   );
   return {
-    fetchKey: `${refreshKey}:${pollCount}`,
-    throttledFetchKey: `${refreshKey}:${Math.floor(pollCount / 2)}`,
+    fetchKey: `${refreshKey}:${polls.pollCount}`,
+    throttledFetchKey: `${refreshKey}:${polls.chartPollCount}`,
   };
 }
 
