@@ -131,7 +131,7 @@ async def sync_builtin_evaluators(db: DbSessionFactory) -> None:
                     for row in project_binding_rows
                     for project_id in (int(row.project_id), int(row.trace_project_id))
                 }
-                await _lock_projects(session, all_project_ids, key_share=True)
+                await _lock_projects(session, all_project_ids, mode="no_key_update")
 
                 if dialect is SupportedSQLDialect.POSTGRESQL:
                     await session.execute(

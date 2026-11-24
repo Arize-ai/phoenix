@@ -6,7 +6,7 @@ import asyncio
 from collections.abc import AsyncIterator, Iterable
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Literal, Optional, Protocol
+from typing import Any, Literal, Optional, Protocol, TypeAlias
 
 from sqlalchemy import and_, delete, exists, literal, or_, select, text, update
 from sqlalchemy.exc import DBAPIError
@@ -79,12 +79,22 @@ class DeletedDataset:
     tombstoned_project_ids: list[int]
 
 
+ProjectLockMode: TypeAlias = Literal["no_key_update", "update"]
+
+
 async def _lock_projects(
     session: AsyncSession,
     project_ids: Iterable[int],
     *,
-    key_share: bool = False,
+    mode: ProjectLockMode,
+    nowait: bool = False,
 ) -> None:
+    """Lock project rows in ascending id order.
+
+    ``no_key_update`` serializes deletes and binding writers on the row but does not block the
+    ``FOR KEY SHARE`` that foreign-key inserts such as trace ingest take; ``update`` blocks those
+    inserts too.
+    """
     dialect = SupportedSQLDialect(session.get_bind().dialect.name)
     ids = sorted(set(project_ids))
     if ids and dialect is SupportedSQLDialect.POSTGRESQL:
@@ -92,7 +102,7 @@ async def _lock_projects(
             select(models.Project.id)
             .where(models.Project.id.in_(ids))
             .order_by(models.Project.id.asc())
-            .with_for_update(key_share=key_share)
+            .with_for_update(key_share=mode == "no_key_update", nowait=nowait)
         )
 
 
@@ -127,7 +137,6 @@ async def _lock_additional_projects(
     target_project_ids: Iterable[int],
 ) -> None:
     """Lock newly discovered project IDs without violating ascending ``Project.id`` wait order."""
-    dialect = SupportedSQLDialect(session.get_bind().dialect.name)
     missing_ids = sorted(set(target_project_ids) - locked_project_ids)
     if not missing_ids:
         return
@@ -139,15 +148,10 @@ async def _lock_additional_projects(
         lower_ids = []
         higher_ids = missing_ids
 
-    if lower_ids and dialect is SupportedSQLDialect.POSTGRESQL:
+    if lower_ids:
         try:
             async with session.begin_nested():
-                await session.execute(
-                    select(models.Project.id)
-                    .where(models.Project.id.in_(lower_ids))
-                    .order_by(models.Project.id.asc())
-                    .with_for_update(key_share=True, nowait=True)
-                )
+                await _lock_projects(session, lower_ids, mode="no_key_update", nowait=True)
         except DBAPIError as error:
             if is_lock_not_available(error):
                 raise Conflict(
@@ -155,7 +159,7 @@ async def _lock_additional_projects(
                 ) from error
             raise
     if higher_ids:
-        await _lock_projects(session, higher_ids, key_share=True)
+        await _lock_projects(session, higher_ids, mode="no_key_update")
     locked_project_ids.update(missing_ids)
 
 
@@ -196,7 +200,7 @@ async def tombstone_project_evaluators(
     evaluator_ids = {int(row.evaluator_id) for row in discovered if row.evaluator_id is not None}
 
     # Canonical lock order: Project (FOR NO KEY UPDATE) -> Evaluator -> Binding.
-    await _lock_projects(session, project_ids, key_share=True)
+    await _lock_projects(session, project_ids, mode="no_key_update")
     await lock_evaluators(session, evaluator_ids)
 
     bindings_stmt = (
@@ -315,7 +319,7 @@ async def tombstone_dataset_evaluators(
             .order_by(models.Dataset.id.asc())
             .with_for_update(key_share=True)
         )
-    await _lock_projects(session, project_ids, key_share=True)
+    await _lock_projects(session, project_ids, mode="no_key_update")
     await lock_evaluators(session, evaluator_ids)
 
     bindings_stmt = (
@@ -440,9 +444,9 @@ async def lock_dataset_delete_targets(
         *(int(row.project_id) for row in live_dataset_bindings),
         *(int(row.trace_project_id) for row in experiment_bindings_seen_before_locking),
     }
-    await _lock_projects(session, locked_project_ids, key_share=True)
+    await _lock_projects(session, locked_project_ids, mode="no_key_update")
 
-    experiment_bindings_after_locking = (
+    experiment_bindings_under_project_lock = (
         (
             await session.execute(
                 select(
@@ -457,12 +461,12 @@ async def lock_dataset_delete_targets(
         if exp_project_ids
         else []
     )
-    if experiment_bindings_after_locking:
+    if experiment_bindings_under_project_lock:
         await _lock_additional_projects(
             session,
             locked_project_ids=locked_project_ids,
             target_project_ids=(
-                int(row.trace_project_id) for row in experiment_bindings_after_locking
+                int(row.trace_project_id) for row in experiment_bindings_under_project_lock
             ),
         )
 
@@ -470,7 +474,7 @@ async def lock_dataset_delete_targets(
         int(row.evaluator_id) for row in live_dataset_bindings if row.evaluator_id is not None
     } | {
         int(row.evaluator_id)
-        for row in experiment_bindings_after_locking
+        for row in experiment_bindings_under_project_lock
         if row.evaluator_id is not None
     }
     await lock_evaluators(session, all_evaluator_ids)
@@ -498,7 +502,7 @@ async def tombstone_project(
         project_id,
         *(int(trace_project_id) for trace_project_id in trace_project_ids_seen_before_locking),
     }
-    await _lock_projects(session, locked_project_ids, key_share=True)
+    await _lock_projects(session, locked_project_ids, mode="no_key_update")
 
     # A caller may have loaded the project before it was locked, so re-read its committed state.
     project = await session.get(models.Project, project_id, populate_existing=True)
@@ -509,10 +513,10 @@ async def tombstone_project(
 
     if await _project_holds_evaluator_traces(session, project):
         raise Conflict("This project holds an evaluator's traces; delete the evaluator instead")
-    await _lock_projects(session, [project_id], key_share=False)
+    await _lock_projects(session, [project_id], mode="update")
 
-    # The FOR UPDATE above blocks new bindings, so this read is complete.
-    live_bindings_under_exclusive_lock = (
+    # Binding writers lock this project row too, so this read is complete.
+    live_bindings_under_project_lock = (
         await session.execute(
             select(
                 models.ProjectEvaluator.id,
@@ -524,17 +528,17 @@ async def tombstone_project(
         )
     ).all()
     tombstoned_trace_project_ids: list[int] = []
-    if live_bindings_under_exclusive_lock:
+    if live_bindings_under_project_lock:
         await _lock_additional_projects(
             session,
             locked_project_ids=locked_project_ids,
             target_project_ids=(
-                int(row.trace_project_id) for row in live_bindings_under_exclusive_lock
+                int(row.trace_project_id) for row in live_bindings_under_project_lock
             ),
         )
         binding_delete_result = await tombstone_project_evaluators(
             session,
-            binding_ids=[int(row.id) for row in live_bindings_under_exclusive_lock],
+            binding_ids=[int(row.id) for row in live_bindings_under_project_lock],
             collect_unused_evaluator=False,
             delete_associated_prompt=False,
         )
@@ -702,7 +706,7 @@ async def tombstone_exclusive_experiment_projects(
         )
     )
     locked_project_ids = {*ids, *(int(pid) for pid in trace_project_ids_seen_before_locking)}
-    await _lock_projects(session, locked_project_ids, key_share=True)
+    await _lock_projects(session, locked_project_ids, mode="no_key_update")
 
     eligible_ids = list(
         await session.scalars(
@@ -719,7 +723,7 @@ async def tombstone_exclusive_experiment_projects(
     if not eligible_ids:
         return []
 
-    live_bindings_after_locking = (
+    live_bindings_under_project_lock = (
         await session.execute(
             select(
                 models.ProjectEvaluator.id,
@@ -731,15 +735,17 @@ async def tombstone_exclusive_experiment_projects(
         )
     ).all()
     tombstoned_trace_project_ids: list[int] = []
-    if live_bindings_after_locking:
+    if live_bindings_under_project_lock:
         await _lock_additional_projects(
             session,
             locked_project_ids=locked_project_ids,
-            target_project_ids=(int(row.trace_project_id) for row in live_bindings_after_locking),
+            target_project_ids=(
+                int(row.trace_project_id) for row in live_bindings_under_project_lock
+            ),
         )
         binding_delete_result = await tombstone_project_evaluators(
             session,
-            binding_ids=[int(row.id) for row in live_bindings_after_locking],
+            binding_ids=[int(row.id) for row in live_bindings_under_project_lock],
             collect_unused_evaluator=False,
             delete_associated_prompt=False,
         )

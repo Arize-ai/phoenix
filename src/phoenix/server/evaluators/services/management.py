@@ -371,6 +371,8 @@ async def validate_project_evaluator_project(
     *,
     lock: bool = False,
 ) -> models.Project:
+    """Return the live project; ``lock`` takes ``FOR NO KEY UPDATE`` on its row, which
+    serializes against project deletes and other binding writers but not trace ingest."""
     project = await session.get(
         models.Project,
         project_id,

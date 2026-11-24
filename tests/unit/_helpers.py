@@ -12,6 +12,7 @@ from typing_extensions import TypeAlias
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
+from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.types.node import from_global_id
 from phoenix.server.api.types.ProjectSession import ProjectSession
@@ -107,6 +108,35 @@ async def _add_project(
     await session.flush()
     assert isinstance(await _get_record_by_id(session, models.Project, project.id), models.Project)
     return project
+
+
+async def _bind_evaluator_trace_project(
+    session: AsyncSession,
+    trace_project: models.Project,
+) -> models.ProjectEvaluator:
+    """Make ``trace_project`` an evaluator trace project by binding a project evaluator to it."""
+    host_project = models.Project(name=f"eval-host-{token_hex(4)}")
+    evaluator = models.BuiltinEvaluator(
+        name=Identifier(root=f"builtin-{token_hex(4)}"),
+        kind="BUILTIN",
+        key=token_hex(8),
+        input_schema={},
+        output_configs=[],
+    )
+    session.add_all([host_project, evaluator])
+    await session.flush()
+    binding = models.ProjectEvaluator(
+        project_id=host_project.id,
+        evaluator_id=evaluator.id,
+        trace_project_id=trace_project.id,
+        name=Identifier(root=f"binding-{token_hex(4)}"),
+        sampling_rate=1.0,
+        evaluation_target="SPAN",
+        evaluation_delay_seconds=0,
+    )
+    session.add(binding)
+    await session.flush()
+    return binding
 
 
 async def _bind_evaluator_trace_project(
