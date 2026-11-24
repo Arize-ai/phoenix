@@ -177,12 +177,12 @@ class TestMonitorState:
         probes: _ProbeController,
     ) -> None:
         database.connect_error = _connection_refused()
-        clock.advance(seconds=16)
+        clock.advance(seconds=21)
         await probes.run_probe("failed probe")
         assert not monitor.is_ready
         assert monitor.is_live
 
-        clock.advance(seconds=284)
+        clock.advance(seconds=279)
         await probes.run_probe("failed probe at the grace boundary")
         assert monitor.is_live
 
@@ -218,6 +218,7 @@ class TestMonitorState:
                 id="database-starting-up",
             ),
             pytest.param(TimeoutError("pool checkout timed out"), id="timeout"),
+            pytest.param(RuntimeError("credential provider failed"), id="unexpected-error"),
         ],
     )
     async def test_connection_failures_count_as_unreachable(
@@ -229,7 +230,7 @@ class TestMonitorState:
         connect_error: BaseException,
     ) -> None:
         database.connect_error = connect_error
-        clock.advance(seconds=16)
+        clock.advance(seconds=21)
         await probes.run_probe("failed probe")
         assert not monitor.is_ready
 
@@ -243,11 +244,44 @@ class TestMonitorState:
     ) -> None:
         monkeypatch.setattr(db_health_monitor_module, "_PROBE_TIMEOUT_SECONDS", 0.01)
         database.is_hung = True
-        clock.advance(seconds=16)
+        clock.advance(seconds=21)
         # A probe that never returned would leave the monitor unparked and fail here.
         await probes.run_probe("probe against a hung database")
         assert not monitor.is_ready
         assert database.num_sessions_in_flight == 0
+
+    async def test_probe_timeouts_never_fail_liveness(
+        self,
+        monitor: DbHealthMonitor,
+        database: _FakeDatabase,
+        clock: _FakeClock,
+        probes: _ProbeController,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(db_health_monitor_module, "_PROBE_TIMEOUT_SECONDS", 0.01)
+        database.is_hung = True
+        for _ in range(10):
+            clock.advance(seconds=100)
+            await probes.run_probe("probe that times out")
+        assert not monitor.is_ready
+        assert monitor.is_live
+
+    async def test_unexpected_probe_error_does_not_stop_the_monitor(
+        self,
+        monitor: DbHealthMonitor,
+        database: _FakeDatabase,
+        clock: _FakeClock,
+        probes: _ProbeController,
+    ) -> None:
+        database.connect_error = RuntimeError("credential provider failed")
+        clock.advance(seconds=301)
+        await probes.run_probe("probe with an unexpected error")
+        assert not monitor.is_live
+
+        database.connect_error = None
+        await probes.run_probe("recovery probe")
+        assert monitor.is_ready
+        assert monitor.is_live
 
     async def test_monitor_that_stops_probing_reports_unhealthy(
         self,
@@ -256,7 +290,7 @@ class TestMonitorState:
     ) -> None:
         await monitor.stop()
         assert monitor.is_ready
-        clock.advance(seconds=16)
+        clock.advance(seconds=21)
         assert not monitor.is_ready
         assert monitor.is_live
         clock.advance(seconds=285)
@@ -336,7 +370,7 @@ class TestHealthEndpoints:
         probes: _ProbeController,
     ) -> None:
         database.connect_error = _connection_refused()
-        clock.advance(seconds=16)
+        clock.advance(seconds=21)
         await probes.run_probe("failed probe")
         assert (await client.get("/readyz")).status_code == 503
         assert (await client.get("/healthz")).status_code == 200
