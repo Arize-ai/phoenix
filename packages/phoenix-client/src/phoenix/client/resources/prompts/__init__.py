@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any, Optional, Union, cast
 
 import httpx
@@ -162,6 +162,7 @@ class Prompts:
         name: str,
         prompt_description: Optional[str] = None,
         prompt_metadata: Optional[dict[str, Any]] = None,
+        tags: Optional[Sequence[str]] = None,
     ) -> PromptVersion:
         """
         Creates a new version for the prompt under the name specified. The prompt will
@@ -176,9 +177,16 @@ class Prompts:
                 If prompt already exists, this value is ignored by the server.
             prompt_metadata (Optional[dict[str, Any]]): An optional metadata dictionary
                 for the prompt. If prompt already exists, this value is ignored by the server.
+            tags (Optional[Sequence[str]]): Tag names to assign to the created version.
+                Existing tags with these names on this prompt move to the new version.
 
         Returns:
             PromptVersion: The created prompt version data.
+
+        Raises:
+            httpx.HTTPStatusError: If creating the version or assigning a tag fails.
+                Tags are assigned after the version is saved. A tagging failure leaves
+                the version and any tags already assigned in place.
         """
         url = "v1/prompts"
         prompt = v1.PromptData(name=name)
@@ -191,7 +199,10 @@ class Prompts:
         json_ = v1.CreatePromptRequestBody(prompt=prompt, version=version._dumps())  # pyright: ignore[reportPrivateUsage]
         response = self._client.post(url=url, json=json_)
         response.raise_for_status()
-        return PromptVersion._loads(cast(v1.CreatePromptResponseBody, response.json())["data"])  # pyright: ignore[reportPrivateUsage]
+        data = cast(v1.CreatePromptResponseBody, response.json())["data"]
+        for tag in tags or ():
+            self.tags.create(prompt_version_id=data["id"], name=tag)
+        return PromptVersion._loads(data)  # pyright: ignore[reportPrivateUsage]
 
     def update(
         self,
@@ -546,6 +557,7 @@ class AsyncPrompts:
         name: str,
         prompt_description: Optional[str] = None,
         prompt_metadata: Optional[dict[str, Any]] = None,
+        tags: Optional[Sequence[str]] = None,
     ) -> PromptVersion:
         """
         Creates a new version for the prompt under the name specified. The prompt will
@@ -560,9 +572,16 @@ class AsyncPrompts:
                 If prompt already exists, this value is ignored by the server.
             prompt_metadata (Optional[dict[str, Any]]): An optional metadata dictionary
                 for the prompt. If prompt already exists, this value is ignored by the server.
+            tags (Optional[Sequence[str]]): Tag names to assign to the created version.
+                Existing tags with these names on this prompt move to the new version.
 
         Returns:
             PromptVersion: The created prompt version data.
+
+        Raises:
+            httpx.HTTPStatusError: If creating the version or assigning a tag fails.
+                Tags are assigned after the version is saved. A tagging failure leaves
+                the version and any tags already assigned in place.
         """
         url = "v1/prompts"
         prompt = v1.PromptData(name=name)
@@ -575,7 +594,10 @@ class AsyncPrompts:
         json_ = v1.CreatePromptRequestBody(prompt=prompt, version=version._dumps())  # pyright: ignore[reportPrivateUsage]
         response = await self._client.post(url=url, json=json_)
         response.raise_for_status()
-        return PromptVersion._loads(cast(v1.CreatePromptResponseBody, response.json())["data"])  # pyright: ignore[reportPrivateUsage]
+        data = cast(v1.CreatePromptResponseBody, response.json())["data"]
+        for tag in tags or ():
+            await self.tags.create(prompt_version_id=data["id"], name=tag)
+        return PromptVersion._loads(data)  # pyright: ignore[reportPrivateUsage]
 
     async def update(
         self,

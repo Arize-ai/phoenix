@@ -1341,6 +1341,47 @@ class TestClient:
             assert not DeepDiff(expected, {**params})
 
     @pytest.mark.parametrize("is_async", [True, False])
+    async def test_create_with_tags(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        from phoenix.client import AsyncClient, Client
+
+        client = (
+            AsyncClient(base_url=_app.base_url, api_key=_app.admin_secret)
+            if is_async
+            else Client(base_url=_app.base_url, api_key=_app.admin_secret)
+        )
+        prompt_name = token_hex(16)
+        version = PromptVersion([{"role": "user", "content": "Hello"}], model_name="gpt-4o")
+
+        first_version = await _await_or_return(
+            client.prompts.create(name=prompt_name, version=version, tags=["staging", "production"])
+        )
+        assert first_version.id is not None
+        tags = await _await_or_return(client.prompts.tags.list(prompt_version_id=first_version.id))
+        assert {tag["name"] for tag in tags} == {"staging", "production"}
+        for tag_name in ("staging", "production"):
+            tagged_version = await _await_or_return(
+                client.prompts.get(prompt_identifier=prompt_name, tag=tag_name)
+            )
+            assert tagged_version.id == first_version.id
+
+        second_version = await _await_or_return(
+            client.prompts.create(name=prompt_name, version=version, tags=["production"])
+        )
+        assert second_version.id != first_version.id
+        production_version = await _await_or_return(
+            client.prompts.get(prompt_identifier=prompt_name, tag="production")
+        )
+        staging_version = await _await_or_return(
+            client.prompts.get(prompt_identifier=prompt_name, tag="staging")
+        )
+        assert production_version.id == second_version.id
+        assert staging_version.id == first_version.id
+
+    @pytest.mark.parametrize("is_async", [True, False])
     async def test_version_tags(
         self,
         is_async: bool,

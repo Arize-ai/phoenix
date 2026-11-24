@@ -148,10 +148,11 @@ prompt = client.prompts.create(
         model_name="gpt-4o-mini",
     ),
     prompt_description="Summarize an article in a few bullet points",
+    tags=["production"],
 )
 
 # Retrieve and use prompts
-prompt = client.prompts.get(prompt_identifier="article-bullet-summarizer")
+prompt = client.prompts.get(prompt_identifier="article-bullet-summarizer", tag="production")
 
 # Format the prompt with variables
 prompt_vars = {
