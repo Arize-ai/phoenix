@@ -19,8 +19,9 @@ from phoenix.db.helpers import (
     get_eval_trace_ids_for_datasets,
     is_evaluator_project_condition,
     is_experiment_named_project_condition,
+    is_lock_contention,
+    is_lock_not_available,
 )
-from phoenix.db.insertion.helpers import get_sqlstate
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.cleanup.primitives import (
     CLEANUP_BATCH_ROWS,
@@ -44,7 +45,6 @@ from phoenix.server.types import CanPutItem, DbSessionFactory
 
 _TRACE_DRAIN_STATEMENT_TIMEOUT_MS = 60_000
 _TRACE_DRAIN_LOCK_TIMEOUT_MS = 5_000
-_TRANSIENT_CONTENTION_SQLSTATES = frozenset({"55P03", "40P01"})
 _MAX_YIELD_RETRIES_PER_CHUNK = 5
 _YIELD_RETRY_DELAY_SECONDS = 0.05
 
@@ -150,7 +150,7 @@ async def _lock_additional_projects(
                     .with_for_update(key_share=True, nowait=True)
                 )
         except DBAPIError as error:
-            if get_sqlstate(error) == "55P03":
+            if is_lock_not_available(error):
                 raise Conflict(
                     "Project evaluators were modified concurrently; retry the delete operation"
                 ) from error
@@ -618,7 +618,7 @@ async def clear_project_traces_in_batches(
                         reset_session_evaluations=True,
                     )
         except DBAPIError as error:
-            if get_sqlstate(error) not in _TRANSIENT_CONTENTION_SQLSTATES:
+            if not is_lock_contention(error):
                 raise
             step_result = PrimitiveResult(PrimitiveStatus.YIELD, 0)
         is_first_batch = False
@@ -838,7 +838,7 @@ async def delete_standalone_traces_by_trace_id(
                             reset_session_evaluations=False,
                         )
                 except DBAPIError as error:
-                    if get_sqlstate(error) in _TRANSIENT_CONTENTION_SQLSTATES:
+                    if is_lock_contention(error):
                         num_yields += 1
                         if num_yields > _MAX_YIELD_RETRIES_PER_CHUNK:
                             break

@@ -7,10 +7,9 @@ from sqlalchemy import insert, select
 from sqlalchemy.exc import DBAPIError, EmulatedDBAPIException
 
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.helpers import SupportedSQLDialect, get_sqlstate
 from phoenix.db.insertion.helpers import (
     OnConflict,
-    get_sqlstate,
     insert_on_conflict,
     should_calculate_span_cost,
 )

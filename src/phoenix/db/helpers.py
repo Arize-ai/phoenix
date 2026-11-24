@@ -25,6 +25,7 @@ from sqlalchemy import (
     text,
     util,
 )
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import QueryableAttribute, aliased
 from sqlalchemy.sql.roles import InElementRole
@@ -1459,3 +1460,39 @@ def is_foreign_key_violation(error: BaseException) -> bool:
     if sqlstate == _POSTGRES_FOREIGN_KEY_SQLSTATE:
         return True
     return str(candidate) == _SQLITE_FOREIGN_KEY_MESSAGE
+
+
+def get_sqlstate(error: DBAPIError) -> Optional[str]:
+    """Read a driver's SQLSTATE without parsing its error message."""
+    try:
+        driver_error = error.driver_exception
+    except ValueError:
+        # SQLAlchemy's emulated errors can be constructed without a driver error.
+        return None
+    for name in ("sqlstate", "pgcode"):
+        if isinstance(code := getattr(driver_error, name, None), str):
+            return code
+    return None
+
+
+# PostgreSQL lock_not_available is what NOWAIT and lock_timeout raise; deadlock_detected
+# is what the victim of a deadlock sees. SQLite never raises either because its single
+# writer lock serializes transactions.
+_POSTGRES_LOCK_NOT_AVAILABLE_SQLSTATE = "55P03"
+_POSTGRES_DEADLOCK_DETECTED_SQLSTATE = "40P01"
+
+
+def is_lock_not_available(error: BaseException) -> bool:
+    """Whether a NOWAIT or lock_timeout request lost to another transaction's lock."""
+    return (
+        isinstance(error, DBAPIError)
+        and get_sqlstate(error) == _POSTGRES_LOCK_NOT_AVAILABLE_SQLSTATE
+    )
+
+
+def is_lock_contention(error: BaseException) -> bool:
+    """Whether another transaction held or deadlocked on the rows, so retrying later can succeed."""
+    return isinstance(error, DBAPIError) and get_sqlstate(error) in (
+        _POSTGRES_LOCK_NOT_AVAILABLE_SQLSTATE,
+        _POSTGRES_DEADLOCK_DETECTED_SQLSTATE,
+    )

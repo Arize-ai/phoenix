@@ -8,6 +8,7 @@ import pytest
 import sqlalchemy as sa
 from faker import Faker
 from sqlalchemy import Select, func, literal, select
+from sqlalchemy.exc import DBAPIError, EmulatedDBAPIException
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from sqlalchemy.sql import CompoundSelect
 from typing_extensions import assert_never
@@ -19,6 +20,8 @@ from phoenix.db.helpers import (
     create_experiment_examples_snapshot_insert,
     date_trunc,
     get_dataset_example_revisions,
+    is_lock_contention,
+    is_lock_not_available,
     pg_table_sizes_stmt,
     pg_total_table_size_stmt,
 )
@@ -1776,3 +1779,35 @@ class TestPgTableSizeStmts:
             await session.execute(sa.text("INSERT INTO not_phoenix VALUES (1)"))
             assert await session.scalar(pg_total_table_size_stmt()) == 0
             assert (await session.execute(pg_table_sizes_stmt())).all() == []
+
+
+class TestLockContentionPredicates:
+    @staticmethod
+    def _dbapi_error(*, sqlstate: str) -> DBAPIError:
+        driver_error = Exception("driver error")
+        setattr(driver_error, "sqlstate", sqlstate)
+        return DBAPIError("SELECT 1", {}, EmulatedDBAPIException("wrapper", driver_error))
+
+    @pytest.mark.parametrize(
+        "error,expected_lock_not_available,expected_lock_contention",
+        [
+            pytest.param(_dbapi_error(sqlstate="55P03"), True, True, id="lock-not-available"),
+            pytest.param(_dbapi_error(sqlstate="40P01"), False, True, id="deadlock-detected"),
+            pytest.param(_dbapi_error(sqlstate="23503"), False, False, id="other-sqlstate"),
+            pytest.param(
+                DBAPIError("SELECT 1", {}, EmulatedDBAPIException("no driver error")),
+                False,
+                False,
+                id="no-driver-sqlstate",
+            ),
+            pytest.param(Exception("55P03"), False, False, id="not-a-dbapi-error"),
+        ],
+    )
+    def test_classifies_error(
+        self,
+        error: BaseException,
+        expected_lock_not_available: bool,
+        expected_lock_contention: bool,
+    ) -> None:
+        assert is_lock_not_available(error) is expected_lock_not_available
+        assert is_lock_contention(error) is expected_lock_contention

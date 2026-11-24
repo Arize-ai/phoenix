@@ -30,13 +30,12 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
-from sqlalchemy.exc import DBAPIError, SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.db.insertion.helpers import get_sqlstate
+from phoenix.db.helpers import SupportedSQLDialect, is_lock_contention
 from phoenix.server.cleanup.primitives import (
     CLEANUP_BATCH_ROWS,
     PrimitiveResult,
@@ -60,7 +59,6 @@ ERROR_RETRY_DELAY_SECONDS = 15.0
 MAX_ERROR_RETRY_DELAY_SECONDS = 3600.0
 STATEMENT_TIMEOUT_MS = 60_000
 LOCK_TIMEOUT_MS = 5_000
-_TRANSIENT_CONTENTION_SQLSTATES = frozenset({"55P03", "40P01"})
 
 
 @dataclass(frozen=True)
@@ -314,7 +312,7 @@ class CleanupCoordinator:
         except SQLAlchemyError as exc:
             if target is None:
                 raise
-            if isinstance(exc, DBAPIError) and get_sqlstate(exc) in _TRANSIENT_CONTENTION_SQLSTATES:
+            if is_lock_contention(exc):
                 # A writer holds or deadlocked on the rows this step needs; retry shortly
                 # without counting a failure.
                 await self._record_short_retry(target)
