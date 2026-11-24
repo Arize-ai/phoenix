@@ -1583,30 +1583,30 @@ CREATE TABLE project_evaluators (
     evaluator_id INTEGER,
     trace_project_id INTEGER NOT NULL,
     name VARCHAR NOT NULL,
-    filter_condition VARCHAR DEFAULT ('') NOT NULL,
-    sampling_rate FLOAT NOT NULL,
-    evaluation_target VARCHAR NOT NULL,
-    evaluation_delay_seconds INTEGER NOT NULL,
-    input_mapping JSONB,
-    enabled BOOLEAN DEFAULT (true) NOT NULL,
-    tracing_enabled BOOLEAN DEFAULT (true) NOT NULL,
-    created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
-    updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
-    deleted_at TIMESTAMP,
-    CONSTRAINT "ck_project_evaluators_`valid_evaluation_delay_seconds`"
+    filter_condition VARCHAR DEFAULT '' NOT NULL,
+    sampling_rate FLOAT NOT NULL
+        CONSTRAINT "ck_project_evaluators_`valid_sampling_rate`"
+        CHECK (0.0 <= sampling_rate AND sampling_rate <= 1.0),
+    evaluation_target VARCHAR NOT NULL
+        CONSTRAINT "ck_project_evaluators_`valid_evaluation_target`"
+        CHECK (evaluation_target IN ('SPAN', 'TRACE', 'SESSION')),
+    evaluation_delay_seconds INTEGER NOT NULL
+        CONSTRAINT "ck_project_evaluators_`valid_evaluation_delay_seconds`"
         CHECK (
             (evaluation_target = 'SPAN' AND evaluation_delay_seconds = 0)
             OR (evaluation_target <> 'SPAN' AND evaluation_delay_seconds >= 10)
         ),
-    CONSTRAINT "ck_project_evaluators_`valid_evaluation_target`"
-        CHECK (evaluation_target IN ('SPAN', 'TRACE', 'SESSION')),
+    input_mapping JSONB,
+    enabled BOOLEAN DEFAULT true NOT NULL,
+    tracing_enabled BOOLEAN DEFAULT true NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    deleted_at TIMESTAMP,
     CONSTRAINT "ck_project_evaluators_`valid_lifecycle`"
         CHECK (
             (deleted_at IS NULL AND evaluator_id IS NOT NULL)
             OR (deleted_at IS NOT NULL AND evaluator_id IS NULL)
         ),
-    CONSTRAINT "ck_project_evaluators_`valid_sampling_rate`"
-        CHECK (0.0 <= sampling_rate AND sampling_rate <= 1.0),
     CONSTRAINT fk_project_evaluators_evaluator_id_evaluators
         FOREIGN KEY (evaluator_id)
         REFERENCES evaluators (id)
