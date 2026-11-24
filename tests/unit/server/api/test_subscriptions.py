@@ -28,8 +28,10 @@ from phoenix.db.types.annotation_configs import (
     OptimizationDirection,
 )
 from phoenix.db.types.evaluators import InputMapping
+from phoenix.db.types.experiment_config import OpenAIConnectionConfig
 from phoenix.db.types.prompts import PromptMessageRole, PromptTemplateFormat
 from phoenix.server.api import subscriptions
+from phoenix.server.api.helpers import playground_clients
 from phoenix.server.api.input_types.ChatCompletionInput import ChatCompletionInput
 from phoenix.server.api.input_types.PromptInvocationParametersInput import (
     AnthropicThinkingEnabledInput,
@@ -323,6 +325,7 @@ class TestChatCompletionSubscription:
                     "invocationParameters": {"openai": {"temperature": 0.1}},
                     "tools": None,
                 },
+                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
                 "repetitions": 1,
             },
         }
@@ -474,6 +477,7 @@ class TestChatCompletionSubscription:
                     "invocationParameters": {"openai": {"temperature": 0.1}},
                     "tools": None,
                 },
+                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
                 "repetitions": 1,
             },
         }
@@ -640,6 +644,7 @@ class TestChatCompletionSubscription:
                         "toolChoice": {"zeroOrMore": True},
                     },
                 },
+                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
                 "repetitions": 1,
             },
         }
@@ -823,6 +828,7 @@ class TestChatCompletionSubscription:
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
+                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
                 "repetitions": 1,
             }
         }
@@ -1270,6 +1276,7 @@ class TestChatCompletionOverDatasetSubscription:
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
+                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
                 "repetitions": 1,
                 "createEphemeralExperiment": True,
             }
@@ -1351,6 +1358,14 @@ class TestChatCompletionOverDatasetSubscription:
 
         async with db() as session:
             await verify_experiment_examples_junction_table(session, experiment_id)
+            # The explicit API type is persisted with the task, so the runner uses it.
+            prompt_task = await session.get(
+                models.ExperimentPromptTask, from_global_id(GlobalID.from_id(experiment_id))[1]
+            )
+        assert prompt_task is not None
+        assert isinstance(prompt_task.connection, OpenAIConnectionConfig)
+        assert prompt_task.connection.openai_api_type == "chat_completions"
+        assert prompt_task.connection.base_url is None
 
         # query for the span via the node interface to ensure that the span
         # recorded in the db contains identical information as the span emitted
@@ -1676,6 +1691,7 @@ class TestChatCompletionOverDatasetSubscription:
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
+                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
                 "repetitions": 1,
             }
         }
@@ -1784,6 +1800,7 @@ class TestChatCompletionOverDatasetSubscription:
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
+                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
                 "repetitions": 1,
                 "splitIds": [train_split_id],  # Only train split
             }
@@ -1876,6 +1893,7 @@ class TestChatCompletionOverDatasetSubscription:
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
+                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
                 "repetitions": 1,
                 "splitIds": [train_split_id, test_split_id],  # Both splits
             }
@@ -2028,6 +2046,7 @@ class TestChatCompletionOverDatasetSubscription:
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
+                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
                 "repetitions": 1,
                 "splitIds": [train_split_id, test_split_id],
             }
@@ -2099,6 +2118,7 @@ class TestChatCompletionOverDatasetSubscription:
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
+                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
                 "repetitions": 1,
                 # No splitIds provided
             }
@@ -2154,7 +2174,13 @@ class TestChatCompletionOverDatasetSubscription:
         ],
         custom_vcr: CustomVCR,
         db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
+        # The LLM evaluator's stored prompt version has no connection config, so its
+        # API is picked from the model name. Keep its model on the chat-completions list
+        # so the recorded /v1/chat/completions evaluator call still matches if the
+        # model-catalog sync prunes the list.
+        monkeypatch.setattr(playground_clients, "OPENAI_CHAT_COMPLETIONS_MODELS", ["gpt-4o"])
         llm_dataset_evaluator = await assign_correctness_llm_evaluator_to_dataset(
             single_example_dataset.id
         )
@@ -2200,6 +2226,7 @@ class TestChatCompletionOverDatasetSubscription:
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
+                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
                 "repetitions": 1,
                 "tracingEnabled": True,
                 "evaluators": [
@@ -2899,6 +2926,7 @@ class TestChatCompletionOverDatasetSubscription:
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
+                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
                 "repetitions": 1,
                 "evaluators": [
                     {
