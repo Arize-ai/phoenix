@@ -328,7 +328,7 @@ class TestGenerateClassificationsSchema:
 
     def test_one_property_per_criterion_keyed_by_name(self):
         criteria = [
-            {"name": "helpfulness", "labels": ["poor", "good"], "instructions": "how helpful"},
+            {"name": "helpfulness", "labels": ["poor", "good"], "instruction": "how helpful"},
             {"name": "accuracy", "labels": {"right": "ok", "wrong": "nope"}},
         ]
         schema = generate_classifications_schema(_by_name(criteria), include_explanation=True)
@@ -350,7 +350,7 @@ class TestGenerateClassificationsSchema:
 
     def test_instructions_become_the_property_description(self):
         criteria = [
-            {"name": "helpfulness", "labels": ["poor", "good"], "instructions": "how helpful"}
+            {"name": "helpfulness", "labels": ["poor", "good"], "instruction": "how helpful"}
         ]
         schema = generate_classifications_schema(_by_name(criteria), include_explanation=True)
         assert schema["properties"]["helpfulness"]["description"] == "how helpful"
@@ -417,7 +417,7 @@ class TestLLMGenerateClassifications:
         }
 
         criteria = [
-            {"name": "helpfulness", "labels": ["poor", "good"], "instructions": "how helpful"},
+            {"name": "helpfulness", "labels": ["poor", "good"], "instruction": "how helpful"},
             {"name": "accuracy", "labels": {"right": "ok", "wrong": "nope"}},
         ]
         results = llm.generate_classifications("some text", _by_name(criteria))

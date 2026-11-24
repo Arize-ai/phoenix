@@ -94,7 +94,7 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
         **kwargs: Any,
     ) -> Dict[str, Any]:
         questions = {
-            name: self._build_choice(c["labels"], c.get("instructions"))
+            name: self._build_choice(c["labels"], c.get("instruction"))
             for name, c in criteria.items()
         }
         response = self.client.system_one(
@@ -109,7 +109,7 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
         **kwargs: Any,
     ) -> Dict[str, Any]:
         questions = {
-            name: self._build_choice(c["labels"], c.get("instructions"))
+            name: self._build_choice(c["labels"], c.get("instruction"))
             for name, c in criteria.items()
         }
         response = await self.client.system_one(

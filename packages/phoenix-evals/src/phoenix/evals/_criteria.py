@@ -25,12 +25,12 @@ class ClassificationCriterion(TypedDict):
     Keys:
         name: Question name; becomes the key used to look the answer back up.
         labels: Either a list of label strings, or a dict mapping each label to a description.
-        instructions: Optional per-question instructions (the criterion's description).
+        instruction: Optional instruction for this one question (the criterion's instruction).
     """
 
     name: str
     labels: Union[List[str], Dict[str, str]]
-    instructions: NotRequired[Optional[str]]
+    instruction: NotRequired[Optional[str]]
 
 
 @dataclass(frozen=True)

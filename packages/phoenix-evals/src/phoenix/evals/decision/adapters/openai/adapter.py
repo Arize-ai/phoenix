@@ -168,7 +168,7 @@ class OpenAIDecisionAdapter(BaseDecisionAdapter):
         **kwargs: Any,
     ) -> Dict[str, Any]:
         questions = [
-            self._build_choice_question(c["name"], c["labels"], c.get("instructions"))
+            self._build_choice_question(c["name"], c["labels"], c.get("instruction"))
             for c in criteria.values()
         ]
         response = self.client.decisions.create(
@@ -183,7 +183,7 @@ class OpenAIDecisionAdapter(BaseDecisionAdapter):
         **kwargs: Any,
     ) -> Dict[str, Any]:
         questions = [
-            self._build_choice_question(c["name"], c["labels"], c.get("instructions"))
+            self._build_choice_question(c["name"], c["labels"], c.get("instruction"))
             for c in criteria.values()
         ]
         response = await self.client.decisions.create(

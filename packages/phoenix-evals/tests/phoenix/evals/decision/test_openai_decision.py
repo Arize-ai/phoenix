@@ -90,7 +90,7 @@ def test_generate_classifications_sends_one_request_with_n_questions(monkeypatch
         "some text",
         _by_name(
             [
-                {"name": "helpfulness", "labels": ["good", "bad"], "instructions": "how helpful"},
+                {"name": "helpfulness", "labels": ["good", "bad"], "instruction": "how helpful"},
                 {"name": "accuracy", "labels": {"right": "ok", "wrong": "nope"}},
             ]
         ),

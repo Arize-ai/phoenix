@@ -452,7 +452,7 @@ class LLM:
             prompt (Union[str, List[Dict[str, Any]]]): The prompt to classify.
             criteria (Dict[Name, ClassificationCriterion]): The questions to answer; each has a
                 ``name``, its ``labels`` (a list or a label->description dict), and optional
-                ``instructions``.
+                ``instruction``.
             include_explanation (bool): Whether to prompt the LLM for a per-question explanation.
             **kwargs: Additional keyword arguments to pass to the LLM SDK (e.g. ``method``).
 
@@ -573,11 +573,11 @@ def generate_classifications_schema(
 
     Each criterion becomes a required property (keyed by its name) whose value is the
     single-criterion object schema (``label`` plus an optional ``explanation``). The
-    criterion's ``instructions`` describe that property.
+    criterion's ``instruction`` describes that property.
 
     Args:
         criteria (Dict[Name, ClassificationCriterion]): The questions to answer; each has a
-            ``name``, its ``labels``, and optional ``instructions``.
+            ``name``, its ``labels``, and optional ``instruction``.
         include_explanation (bool): Whether each criterion's object requests an explanation.
 
     Returns:
@@ -588,9 +588,9 @@ def generate_classifications_schema(
     for criterion in criteria.values():
         name = criterion["name"]
         inner = generate_classification_schema(criterion["labels"], include_explanation)
-        instructions = criterion.get("instructions")
-        if instructions:
-            inner["description"] = instructions
+        instruction = criterion.get("instruction")
+        if instruction:
+            inner["description"] = instruction
         properties[name] = inner
         required.append(name)
     return {"type": "object", "properties": properties, "required": required}

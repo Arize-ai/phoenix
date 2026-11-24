@@ -488,7 +488,7 @@ class TestClassificationEvaluator:
         assert len(evaluator.criteria) == 1
         criterion = evaluator.criteria[0]
         assert criterion.name == "test_evaluator"
-        assert criterion.description == ""
+        assert criterion.instruction == ""
         assert criterion.choices == expected_leaf
         assert criterion.direction == "minimize"  # inherits the evaluator's direction
         # Legacy public attributes are unchanged.
@@ -498,10 +498,10 @@ class TestClassificationEvaluator:
     def test_criteria_list_choices_passthrough(self):
         """The new List[Criterion] format passes through, one criterion each."""
         criteria = [
-            Criterion(name="helpfulness", description="How helpful", choices=["poor", "good"]),
+            Criterion(name="helpfulness", instruction="How helpful", choices=["poor", "good"]),
             Criterion(
                 name="accuracy",
-                description="How accurate",
+                instruction="How accurate",
                 choices={"wrong": 0.0, "right": 1.0},
                 direction="minimize",
             ),
@@ -529,7 +529,7 @@ class TestClassificationEvaluator:
             llm=MockLLM(),
             prompt_template="Rate this: {input}",
             choices=[
-                {"name": "clarity", "description": "How clear", "choices": {"no": 0, "yes": 1}},
+                {"name": "clarity", "instruction": "How clear", "choices": {"no": 0, "yes": 1}},
             ],
         )
 
@@ -541,7 +541,7 @@ class TestClassificationEvaluator:
         "kwargs,match",
         [
             pytest.param(
-                {"name": "c", "description": "d", "choices": []}, "at least one", id="empty-choices"
+                {"name": "c", "instruction": "d", "choices": []}, "at least one", id="empty-choices"
             ),
         ],
     )
@@ -554,12 +554,12 @@ class TestClassificationEvaluator:
 
     def test_criterion_backend_labels(self):
         """backend_labels is a bare list without descriptions, a label->description dict with."""
-        bare = Criterion(name="c", description="d", choices=["a", "b"])
+        bare = Criterion(name="c", instruction="d", choices=["a", "b"])
         assert bare.backend_labels == ["a", "b"]
 
         described = Criterion(
             name="c",
-            description="d",
+            instruction="d",
             choices={"a": 1, "b": 0},
             label_descriptions={"a": "A", "b": "B"},
         )
@@ -569,7 +569,7 @@ class TestClassificationEvaluator:
         with pytest.raises(ValueError, match="unknown labels"):
             Criterion(
                 name="c",
-                description="d",
+                instruction="d",
                 choices=["a", "b"],
                 label_descriptions={"a": "A", "z": "Z"},
             )
@@ -675,11 +675,11 @@ class TestClassificationEvaluator:
             prompt_template="review: {text}",
             choices=[
                 Criterion(
-                    name="helpfulness", description="How helpful?", choices={"good": 1, "bad": 0}
+                    name="helpfulness", instruction="How helpful?", choices={"good": 1, "bad": 0}
                 ),
                 Criterion(
                     name="accuracy",
-                    description="How accurate?",
+                    instruction="How accurate?",
                     choices=["right", "wrong"],
                     direction="minimize",
                 ),
@@ -702,8 +702,8 @@ class TestClassificationEvaluator:
             llm=MockLLM(),
             prompt_template="review: {text}",
             choices=[
-                Criterion(name="a", description="qa", choices=["x", "y"]),
-                Criterion(name="b", description="qb", choices=["x", "y"]),
+                Criterion(name="a", instruction="qa", choices=["x", "y"]),
+                Criterion(name="b", instruction="qb", choices=["x", "y"]),
             ],
         )
 
@@ -725,8 +725,8 @@ class TestClassificationEvaluator:
             llm=llm,
             prompt_template="review: {text}",
             choices=[
-                Criterion(name="a", description="qa", choices=["x", "y"]),
-                Criterion(name="b", description="qb", choices=["x", "y"]),
+                Criterion(name="a", instruction="qa", choices=["x", "y"]),
+                Criterion(name="b", instruction="qb", choices=["x", "y"]),
             ],
         )
 
@@ -734,17 +734,17 @@ class TestClassificationEvaluator:
             evaluator._evaluate({"text": "..."})
 
     def test_multi_criterion_requires_non_empty_description(self):
-        """User-supplied criteria must each carry a non-empty description (the question)."""
-        with pytest.raises(ValueError, match="non-empty description"):
+        """User-supplied criteria must each carry a non-empty instruction (the question)."""
+        with pytest.raises(ValueError, match="non-empty instruction"):
             ClassificationEvaluator(
                 name="review",
                 llm=MockLLM(),
                 prompt_template="review: {text}",
-                choices=[Criterion(name="a", description="", choices=["x", "y"])],
+                choices=[Criterion(name="a", instruction="", choices=["x", "y"])],
             )
 
     def test_criteria_list_forwards_description_and_resolves_method(self, openai_api_key):
-        """The List[Criterion] path must send each criterion's ``description`` to the backend as
+        """The List[Criterion] path must send each criterion's ``instruction`` to the backend as
         that property's ``description``, omit the ``explanation`` property when
         ``include_explanation=False``, and pick ``TOOL_CALLING`` for criteria with
         ``label_descriptions``. ``MockLLM`` can't catch these because it ignores both the schema
@@ -757,7 +757,7 @@ class TestClassificationEvaluator:
 
         criterion = Criterion(
             name="relevance",
-            description="Is the answer relevant to the question?",
+            instruction="Is the answer relevant to the question?",
             choices={"relevant": 1, "irrelevant": 0},
             label_descriptions={
                 "relevant": "The answer addresses the question.",
@@ -779,8 +779,8 @@ class TestClassificationEvaluator:
         schema = args[1]
         prop = schema["properties"]["relevance"]
 
-        # description reaches the backend as the criterion property's description (instructions).
-        assert prop["description"] == criterion.description
+        # instruction reaches the backend as the criterion property's description (instructions).
+        assert prop["description"] == criterion.instruction
         # include_explanation=False => no explanation property on the criterion object.
         assert "explanation" not in prop["properties"]
         # label_descriptions => TOOL_CALLING, not AUTO.
@@ -793,7 +793,7 @@ class TestClassificationEvaluator:
                 name="e",
                 llm=MockLLM(),
                 prompt_template="t {x}",
-                choices=[Criterion(name="q", description="d", choices=["a", "b"]), "a"],
+                choices=[Criterion(name="q", instruction="d", choices=["a", "b"]), "a"],
             )
 
     def test_legacy_empty_name_evaluator_constructs_and_evaluates(self):
@@ -816,7 +816,7 @@ class TestClassificationEvaluator:
                 name="e",
                 llm=MockLLM(),
                 prompt_template="t {x}",
-                choices=[Criterion(name="", description="d", choices=["a", "b"])],
+                choices=[Criterion(name="", instruction="d", choices=["a", "b"])],
             )
 
     def test_multi_criterion_rejects_duplicate_names(self):
@@ -827,8 +827,8 @@ class TestClassificationEvaluator:
                 llm=MockLLM(),
                 prompt_template="review: {text}",
                 choices=[
-                    Criterion(name="q", description="d", choices=["a", "b"]),
-                    Criterion(name="q", description="d2", choices=["a", "c"]),
+                    Criterion(name="q", instruction="d", choices=["a", "b"]),
+                    Criterion(name="q", instruction="d2", choices=["a", "c"]),
                 ],
             )
 

@@ -191,7 +191,7 @@ def test_generate_classifications_sends_one_request_with_n_questions(monkeypatch
         "some text",
         _by_name(
             [
-                {"name": "helpfulness", "labels": ["good", "bad"], "instructions": "how helpful"},
+                {"name": "helpfulness", "labels": ["good", "bad"], "instruction": "how helpful"},
                 {"name": "accuracy", "labels": {"right": "ok", "wrong": "nope"}},
             ]
         ),
@@ -267,11 +267,11 @@ def test_evaluator_multiple_criteria_one_request_one_score_each(monkeypatch):
         prompt_template="review: {text}",
         choices=[
             Criterion(
-                name="helpfulness", description="How helpful?", choices={"good": 1, "bad": 0}
+                name="helpfulness", instruction="How helpful?", choices={"good": 1, "bad": 0}
             ),
             Criterion(
                 name="accuracy",
-                description="How accurate?",
+                instruction="How accurate?",
                 choices={"right": 1, "wrong": 0},
                 direction="minimize",
             ),

@@ -108,8 +108,8 @@ class BaseDecisionAdapter(ABC):
         The default fans out to one :meth:`generate_classification` call per criterion and sums
         their token usage.
 
-        Note: each criterion's ``instructions`` is not forwarded, because the single-question
-        :meth:`generate_classification` has no instructions parameter. Adapters that need to send
+        Note: each criterion's ``instruction`` is not forwarded, because the single-question
+        :meth:`generate_classification` has no instruction parameter. Adapters that need to send
         per-question instructions must override this method.
 
         Returns:

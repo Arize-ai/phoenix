@@ -281,17 +281,17 @@ class Criterion:
 
     Args:
         name: The criterion name; used as the resulting ``Score.name``.
-        description: Instructions for this criterion as a whole (the question). May be empty.
+        instruction: Instructions for this criterion as a whole (the question). May be empty.
         choices: Either a list of label strings, or a dict mapping each label to a numeric score.
         direction: Optional per-criterion score direction. When ``None``, the evaluator's
             direction is used.
         label_descriptions: Optional per-label descriptions (one string per label), sent to the
-            backend to explain what each individual choice means. Distinct from ``description``,
+            backend to explain what each individual choice means. Distinct from ``instruction``,
             which describes the question as a whole.
     """
 
     name: str
-    description: str
+    instruction: str
     choices: Union[List[str], Dict[str, Union[float, int]]]
     direction: Optional[DirectionType] = None
     label_descriptions: Optional[Dict[str, str]] = None
@@ -834,9 +834,9 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
                 criterion = choice if isinstance(choice, Criterion) else Criterion(**choice)
                 if not criterion.name or not isinstance(criterion.name, str):
                     raise ValueError("Criterion.name must be a non-empty string.")
-                if not criterion.description:
+                if not criterion.instruction:
                     raise ValueError(
-                        f"Criterion '{criterion.name}' must have a non-empty description; it "
+                        f"Criterion '{criterion.name}' must have a non-empty instruction; it "
                         f"becomes the question asked about this criterion."
                     )
                 if criterion.direction is None:
@@ -870,7 +870,7 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
         return [
             Criterion(
                 name=self.name,
-                description="",
+                instruction="",
                 choices=leaf,
                 direction=direction,
                 label_descriptions=label_descriptions,
@@ -905,9 +905,9 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
                 "name": criterion.name,
                 "labels": criterion.backend_labels,
             }
-            # An empty question-level description is omitted so the backend uses its default.
-            if criterion.description:
-                item["instructions"] = criterion.description
+            # An empty question-level instruction is omitted so the backend uses its default.
+            if criterion.instruction:
+                item["instruction"] = criterion.instruction
             payload[criterion.name] = item
         return payload
 
