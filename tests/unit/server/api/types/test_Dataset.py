@@ -1493,6 +1493,53 @@ class TestDatasetExperimentsFilterCondition:
     ) -> None:
         assert await self._names(gql_client, dataset_id, condition) == expected_names
 
+    @pytest.mark.parametrize(
+        "condition, expected_names",
+        [
+            ('0 < repetitions < 3 and name == "gpt-hot"', {"gpt-hot"}),
+            ("repetitions / 0 > 1", set()),
+            ("repetitions % 0 == 1", set()),
+            ('repetitions % 2 == 1 and metadata["model"] == "gpt-5"', {"gpt-hot", "gpt-cold"}),
+            ('-repetitions % 2 == 1 and name == "gpt-hot"', {"gpt-hot"}),
+            ('repetitions % -2 == -1 and name == "gpt-hot"', {"gpt-hot"}),
+            ('repetitions < 3000000000 and name == "claude"', {"claude"}),
+            ('repetitions in [-1, 1] and name == "gpt-hot"', {"gpt-hot"}),
+            ('"%" in name', set()),
+            ('"_" in name', set()),
+            ('metadata["missing"] != "x"', set()),
+            (
+                'metadata["model"] is None',
+                {"no-metadata", "special-keys", "digit-key", "array-value"},
+            ),
+            ('name not in [] and name == "gpt-hot"', {"gpt-hot"}),
+            ("name in []", set()),
+            ('metadata["model"] == metadata["model"] and name == "gpt-hot"', {"gpt-hot"}),
+            ('"2021-01-01T00:00:00Z" > created_at', {"gpt-hot"}),
+            (
+                'float(metadata["harbor_agent"]["model_params"]["temperature"]) + 1 > 1.5 '
+                'and metadata["model"] != "other"',
+                {"gpt-hot", "claude"},
+            ),
+            (
+                'float(metadata["harbor_agent"]["model_params"]["temperature"]) % 0.5 > 0.1 '
+                'and metadata["model"] != "other"',
+                {"gpt-hot"},
+            ),
+            (
+                'metadata["harbor_agent"]["model_params"]["stream"] in [True]',
+                {"gpt-hot", "string-numbers", "bool-like-numbers"},
+            ),
+        ],
+    )
+    async def test_independent_compiler_operations(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_id: GlobalID,
+        condition: str,
+        expected_names: set[str],
+    ) -> None:
+        assert await self._names(gql_client, dataset_id, condition) == expected_names
+
     async def test_digit_only_key_also_indexes_arrays_on_postgresql(
         self,
         gql_client: AsyncGraphQLClient,

@@ -4,7 +4,7 @@ from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.sql.expression import Select
 
 from phoenix.server.api.exceptions import BadRequest
-from phoenix.trace.dsl.experiment_filter import ExperimentFilter
+from phoenix.server.experiments.filter import compile_experiment_filter
 
 
 class ExperimentFilterConditionError(BadRequest):
@@ -37,7 +37,8 @@ def apply_experiment_filter(*, condition: str, stmt: Select[Any]) -> Select[Any]
     ``ExperimentFilterConditionError`` here rather than when the query runs.
     """
     try:
-        filtered_stmt = ExperimentFilter(condition=condition)(stmt)
+        predicate = compile_experiment_filter(condition)
+        filtered_stmt = stmt.where(predicate) if predicate is not None else stmt
         filtered_stmt.compile(dialect=sqlite.dialect())
         filtered_stmt.compile(dialect=postgresql.dialect())  # type: ignore[no-untyped-call]
     except RecursionError:

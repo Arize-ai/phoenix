@@ -239,6 +239,11 @@ Experiment-specific notes:
 - **Database differences:** on PostgreSQL, a digit-only key such as `metadata["a"]["0"]` also reads
   index `0` of an array. On SQLite, it reads only an object key, and a key that contains `"` or `\`
   matches nothing.
+- **Metadata types:** a numeric comparison or numeric membership list reads numeric metadata
+  values and numeric strings. A boolean comparison also reads `1`/`0` and `"true"`/`"false"`.
+  Use `float(metadata["key"])` for arithmetic and `str(metadata["key"])` for text comparisons.
+- **Literal limits:** numbers must be finite, and integer literals must fit in a signed 64-bit
+  integer. Conditions with more than 1,000 syntax nodes or nesting deeper than 64 nodes are rejected.
 - The filter bar suggests the names above and your recent filters, not your metadata keys.
 
 ## Finding field names
