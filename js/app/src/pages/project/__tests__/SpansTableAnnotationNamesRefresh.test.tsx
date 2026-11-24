@@ -553,38 +553,116 @@ describe("SpansTable annotation names while the stream advances", () => {
     expect(await readColumnSelectorFailures()).toEqual([]);
   });
 
-  it("refreshes the names when a filter is applied while streaming is paused", async () => {
-    await renderLoadedTable();
-    answerRequests({ rows: [1], names: ["helpfulness"] });
-    await act(async () =>
-      filterField.onValidCondition?.({
-        condition: "span_kind == 'LLM'",
-        selectsRootSpansOnly: true,
-        isInitialSettlement: false,
-      })
-    );
-    await settle();
+  it.each([
+    {
+      change: "a filter is applied",
+      applyChange: () =>
+        filterField.onValidCondition?.({
+          condition: "span_kind == 'LLM'",
+          selectsRootSpansOnly: true,
+          isInitialSettlement: false,
+        }),
+    },
+    {
+      change: "another time range is picked",
+      applyChange: () =>
+        timeRangeStore.setTimeRange({
+          selectionKey: "7d",
+          timeRangeISOStrings: {
+            start: "2026-06-25T00:00:00.000Z",
+            end: "2026-07-02T00:00:00.000Z",
+          },
+        }),
+    },
+  ])(
+    "does not refresh the project-wide names when $change",
+    async ({ applyChange }) => {
+      await renderLoadedTable();
+      answerRequests({ rows: [1], names: ["helpfulness"] });
+      await act(async () => applyChange());
+      await settle();
 
-    expect(readNamesRefreshCount()).toBe(1);
-    expect(readColumnHeaders()).not.toContain("correctness");
+      expect(readNamesRefreshCount()).toBe(0);
+      expect(readColumnHeaders()).toContain("correctness");
+    }
+  );
+
+  it("keeps one names refresh in flight however often the throttled fetch key moves", async () => {
+    await renderLoadedTable();
+    const namesRefreshSignals: AbortSignal[] = [];
+    authFetchMock.mockImplementation(
+      async (_url: string, init: { body: string; signal: AbortSignal }) => {
+        if (
+          JSON.parse(init.body).query.includes(
+            "useSpanAnnotationNamesRefreshQuery"
+          )
+        ) {
+          namesRefreshSignals.push(init.signal);
+          return new Promise<Response>(() => {});
+        }
+        return makeRowsResponse([1, 2]);
+      }
+    );
+    for (const fetchKey of ["advance-1", "advance-2", "advance-3"]) {
+      await act(async () => {
+        streamState.setFetchKey(fetchKey);
+        streamState.throttle();
+      });
+      await settle();
+    }
+
+    expect(namesRefreshSignals).toHaveLength(1);
+    expect(namesRefreshSignals[0].aborted).toBe(false);
   });
 
-  it("refreshes the names when another time range is picked while streaming is paused", async () => {
+  it("does not refresh the names while their deferred payload is loading", async () => {
+    const load = createStreamingMultipartResponse();
+    authFetchMock.mockResolvedValueOnce(load.response);
+    await renderTable();
+    load.sendPart(ROWS_PART);
+    await settle();
+    answerRequests({ rows: [1, 2], names: ["helpfulness"] });
+    await act(async () => {
+      streamState.setFetchKey("advance-1");
+      streamState.throttle();
+    });
+    await settle();
+    load.sendPart(NAMES_PART);
+    load.end();
+    await settle();
+
+    expect(readNamesRefreshCount()).toBe(0);
+    expect(readColumnHeaders()).toContain("correctness");
+  });
+
+  it("keeps the names on screen and reports a names refresh that fails", async () => {
     await renderLoadedTable();
-    answerRequests({ rows: [1], names: ["helpfulness"] });
-    await act(async () =>
-      timeRangeStore.setTimeRange({
-        selectionKey: "7d",
-        timeRangeISOStrings: {
-          start: "2026-06-25T00:00:00.000Z",
-          end: "2026-07-02T00:00:00.000Z",
-        },
-      })
+    authFetchMock.mockImplementation(
+      async (_url: string, init: { body: string }) =>
+        JSON.parse(init.body).query.includes(
+          "useSpanAnnotationNamesRefreshQuery"
+        )
+          ? new Response(
+              JSON.stringify({
+                data: null,
+                errors: [{ message: "an unexpected error occurred" }],
+              }),
+              { headers: { "Content-Type": "application/json" } }
+            )
+          : makeRowsResponse([1, 2])
     );
+    await act(async () => {
+      streamState.setFetchKey("advance-1");
+      streamState.throttle();
+    });
     await settle();
 
     expect(readNamesRefreshCount()).toBe(1);
-    expect(readColumnHeaders()).not.toContain("correctness");
+    expect(readColumnHeaders()).toContain("correctness");
+    expect(await readColumnSelectorFailures()).toEqual([
+      "Span annotation names failed to load.",
+      "Trace annotation names failed to load.",
+    ]);
   });
 });
 

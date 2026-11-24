@@ -467,7 +467,6 @@ export function SpansTable(props: SpansTableProps) {
     useSpanAnnotationNames({
       project: props.project,
       initialRequest: props.initialRequest,
-      filterCondition,
     });
 
   const pagination = useTracePagination();

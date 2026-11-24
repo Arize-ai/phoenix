@@ -517,7 +517,6 @@ export function TracesTable(props: TracesTableProps) {
     useSpanAnnotationNames({
       project: props.project,
       initialRequest: props.initialRequest,
-      filterCondition: validTraceFilterCondition,
     });
 
   const annotationColumnVisibility = useTracingContext(

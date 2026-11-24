@@ -1,13 +1,12 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   fetchQuery,
   graphql,
   readInlineData,
   useRelayEnvironment,
 } from "react-relay";
-import type { GraphQLResponse, Observable } from "relay-runtime";
+import type { GraphQLResponse, Observable, Subscription } from "relay-runtime";
 
-import { useTimeRangeSelectionKey } from "@phoenix/components/datetime";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 
 import type { useSpanAnnotationNames_project$key } from "./__generated__/useSpanAnnotationNames_project.graphql";
@@ -28,23 +27,21 @@ const annotationNamesRefreshQuery = graphql`
 
 /**
  * The project's span and trace annotation names, deferred in the table's owner
- * query. A names-only query refreshes them when the table's filter, the picked
- * time range or `throttledFetchKey` changes, and once their payload fails.
+ * query. A names-only query refreshes them when `throttledFetchKey` changes,
+ * and once after their payload fails. The names cover the whole project, so
+ * the table's filter and time range do not refresh them.
  *
- * @param params - the owner query's project and request, and the table's filter
+ * @param params - the owner query's project and request
  * @param params.project - the owner query's project, spreading this fragment
  * @param params.initialRequest - the owner query's request
- * @param params.filterCondition - the table's applied filter
- * @returns the names, and whether their deferred payload failed
+ * @returns the names, and whether they failed to load or to refresh
  */
 export function useSpanAnnotationNames({
   project,
   initialRequest,
-  filterCondition,
 }: {
   project: useSpanAnnotationNames_project$key;
   initialRequest: Observable<GraphQLResponse> | null | undefined;
-  filterCondition: string;
 }) {
   // Relay types the fields as present, but a deferred inline fragment reads
   // as undefined until its payload arrives.
@@ -68,33 +65,60 @@ export function useSpanAnnotationNames({
   );
   // Whether the owner query's names payload failed: Relay drops errors after
   // the first payload. `@catch` on the deferred fields would replace this.
-  const { hasFailed } = useDeferredPayloadStatus({ initialRequest });
-  const hasAnnotationNamesError =
-    spanAnnotationNames === undefined && hasFailed;
+  const { hasFailed, isPending } = useDeferredPayloadStatus({ initialRequest });
+  const isNamesPayloadPending = spanAnnotationNames === undefined && isPending;
+  const hasNamesPayloadFailed = spanAnnotationNames === undefined && hasFailed;
+  // `fetchQuery` reports a failed refresh only to its subscriber. `@catch` on
+  // the refresh query's fields would replace this.
+  const [hasRefreshFailed, setHasRefreshFailed] = useState(false);
   const environment = useRelayEnvironment();
   const { throttledFetchKey } = useStreamState();
-  const timeRangeSelectionKey = useTimeRangeSelectionKey();
-  const refreshKey = JSON.stringify([
-    id,
-    filterCondition,
-    timeRangeSelectionKey,
-    throttledFetchKey,
-  ]);
+  const refreshKey = `${id}:${throttledFetchKey}`;
   const lastRefreshKeyRef = useRef(refreshKey);
+  // The names query can outlast several refresh keys on a large project, and
+  // the server keeps running a request the client aborts, so a refresh that
+  // falls due while one is in flight is skipped. A server-side cache of the
+  // names would remove this.
+  const refreshSubscriptionRef = useRef<Subscription | null>(null);
   useEffect(() => {
     const isNewRefreshKey = lastRefreshKeyRef.current !== refreshKey;
     lastRefreshKeyRef.current = refreshKey;
-    if (!isNewRefreshKey && !hasAnnotationNamesError) {
-      return undefined;
+    const isRefreshDue = isNewRefreshKey || hasNamesPayloadFailed;
+    const isNamesRequestInFlight =
+      isNamesPayloadPending || refreshSubscriptionRef.current != null;
+    if (!isRefreshDue || isNamesRequestInFlight) {
+      return;
     }
-    const subscription = fetchQuery(environment, annotationNamesRefreshQuery, {
-      id,
-    }).subscribe({});
-    return () => subscription.unsubscribe();
-  }, [environment, id, refreshKey, hasAnnotationNamesError]);
+    fetchQuery(environment, annotationNamesRefreshQuery, { id }).subscribe({
+      start: (subscription) => {
+        refreshSubscriptionRef.current = subscription;
+      },
+      complete: () => {
+        refreshSubscriptionRef.current = null;
+        setHasRefreshFailed(false);
+      },
+      error: () => {
+        refreshSubscriptionRef.current = null;
+        setHasRefreshFailed(true);
+      },
+    });
+  }, [
+    environment,
+    id,
+    refreshKey,
+    hasNamesPayloadFailed,
+    isNamesPayloadPending,
+  ]);
+  useEffect(
+    () => () => {
+      refreshSubscriptionRef.current?.unsubscribe();
+      refreshSubscriptionRef.current = null;
+    },
+    [environment, id]
+  );
   return {
     spanAnnotationNames: spanAnnotationNames ?? NO_ANNOTATION_NAMES,
     traceAnnotationNames: traceAnnotationNames ?? NO_ANNOTATION_NAMES,
-    hasAnnotationNamesError,
+    hasAnnotationNamesError: hasNamesPayloadFailed || hasRefreshFailed,
   };
 }
