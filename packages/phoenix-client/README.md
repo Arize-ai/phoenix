@@ -144,7 +144,7 @@ in a few concise bullet points that are easy for beginners to understand.
 prompt = client.prompts.create(
     name="article-bullet-summarizer",
     version=PromptVersion(
-        messages=[{"role": "user", "content": content}],
+        [{"role": "user", "content": content}],
         model_name="gpt-4o-mini",
     ),
     prompt_description="Summarize an article in a few bullet points",
@@ -242,6 +242,8 @@ dataset = client.datasets.create_dataset(
 Retrieve traces for a project with optional filtering and sorting:
 
 ```python
+from datetime import datetime, timedelta
+
 from phoenix.client import Client
 
 client = Client()
@@ -249,11 +251,12 @@ client = Client()
 # Get the latest 100 traces
 traces = client.traces.get_traces(project_identifier="my-llm-app")
 for trace in traces:
-    print(f"Trace {trace.trace_id}: {trace.status} ({trace.latency_ms}ms)")
+    start = datetime.fromisoformat(trace["start_time"])
+    end = datetime.fromisoformat(trace["end_time"])
+    latency_ms = (end - start).total_seconds() * 1000
+    print(f"Trace {trace['trace_id']}: {latency_ms:.0f}ms")
 
 # Filter by time range
-from datetime import datetime, timedelta
-
 traces = client.traces.get_traces(
     project_identifier="my-llm-app",
     start_time=datetime.now() - timedelta(hours=24),
