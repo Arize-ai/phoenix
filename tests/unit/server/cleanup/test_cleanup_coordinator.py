@@ -46,7 +46,7 @@ from phoenix.server.cleanup.primitives import (
     drain_trace_scope_step,
 )
 from phoenix.server.daemons.cleanup_worker import CleanupWorker
-from phoenix.server.dml_event import DmlEvent, ProjectDeleteEvent, SpanDeleteEvent
+from phoenix.server.dml_event import SpanDeleteEvent
 from phoenix.server.online_eval.clock import current_database_time
 from phoenix.server.online_eval.coordinator import (
     EvalWorkCoordinator,
@@ -330,7 +330,7 @@ class TestCleanupSchedulingAndBackoff:
             await coordinator.step()
         assert await _get_failure(db, "PROJECT", project_id) is None
 
-    async def test_failed_step_rolls_back_its_batch_and_emits_no_events(
+    async def test_failed_step_rolls_back_its_batch(
         self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         marker_name = f"rolled-back-{token_hex(4)}"
@@ -341,39 +341,20 @@ class TestCleanupSchedulingAndBackoff:
             project_id = project.id
             await tombstone_project(session, project_id=project_id)
 
-        event_queue = _RecordingQueue()
-        coordinator = CleanupCoordinator(db, event_queue=event_queue)
+        coordinator = CleanupCoordinator(db)
 
-        async def _fail_after_writing(
-            session: Any,
-            *,
-            target: Any,
-            events_after_commit: list[DmlEvent],
-        ) -> PrimitiveResult:
+        async def _fail_after_writing(session: Any, *, target: Any) -> PrimitiveResult:
             session.add(models.Project(name=marker_name))
             await session.flush()
-            events_after_commit.append(SpanDeleteEvent((project_id,)))
             raise OperationalError("SELECT 1", {}, Exception("injected step failure"))
 
         monkeypatch.setattr(coordinator, "_run_domain_step", _fail_after_writing)
         assert (await coordinator.step()).outcome == "error"
-        assert event_queue.events == []
         async with db() as session:
             marker_project = await session.scalar(
                 select(models.Project.id).where(models.Project.name == marker_name)
             )
             assert marker_project is None
-
-        monkeypatch.undo()
-        await _expire_retries(db)
-        await _drain_all(coordinator)
-        *progress_and_purge_events, project_event = event_queue.events
-        assert project_event == ProjectDeleteEvent((project_id,))
-        # One event for the progress step that drained the trace, one for the purge step.
-        assert progress_and_purge_events == [SpanDeleteEvent((project_id,))] * len(
-            progress_and_purge_events
-        )
-        assert len(progress_and_purge_events) >= 2
 
     async def test_cancelled_step_rolls_back_and_leaves_the_target_pending(
         self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
@@ -1427,61 +1408,46 @@ class TestTraceScopeDrain:
             assert len(loaded_examples) == 5
             assert all(ex.span_rowid is None for ex in loaded_examples)
 
-    async def test_delete_project_reassigns_shared_cross_project_session_without_deleting_survivor(
+    async def test_delete_project_purges_when_it_owns_a_session_another_project_shares(
         self, db: DbSessionFactory
     ) -> None:
-        shared_sid = f"shared-session-{token_hex(4)}"
+        shared_session_id = f"shared-session-{token_hex(4)}"
         t0 = datetime(2026, 7, 2, 0, 0, 0, tzinfo=timezone.utc)
 
-        p1_span = Span(
-            name="p1-span",
-            context=SpanContext(trace_id=token_hex(16), span_id=token_hex(8)),
-            span_kind=SpanKind.LLM,
-            parent_id=None,
-            start_time=t0,
-            end_time=t0 + timedelta(seconds=1),
-            status_code=SpanStatusCode.OK,
-            status_message="",
-            attributes={"session": {"id": shared_sid}},
-            events=[],
-            conversation=None,
-        )
-        p2_span = Span(
-            name="p2-span",
-            context=SpanContext(trace_id=token_hex(16), span_id=token_hex(8)),
-            span_kind=SpanKind.LLM,
-            parent_id=None,
-            start_time=t0 + timedelta(seconds=2),
-            end_time=t0 + timedelta(seconds=3),
-            status_code=SpanStatusCode.OK,
-            status_message="",
-            attributes={"session": {"id": shared_sid}},
-            events=[],
-            conversation=None,
-        )
-        p1_name = f"cross-p1-{token_hex(4)}"
-        p2_name = f"cross-p2-{token_hex(4)}"
-        async with db() as session:
-            ins1 = await insert_span(session, p1_span, p1_name)
-            ins2 = await insert_span(session, p2_span, p2_name)
-            assert ins1 is not None and ins2 is not None
-            assert ins1.project_session_rowid == ins2.project_session_rowid
-            assert ins1.project_session_rowid is not None
-            shared_session_rowid = ins1.project_session_rowid
-            p1_id = ins1.project_rowid
-            p2_id = ins2.project_rowid
-            p2_trace_id = ins2.trace_rowid
-            await tombstone_project(session, project_id=p1_id)
-
-        coordinator = CleanupCoordinator(db, batch_limit=1)
-        await _drain_all(coordinator)
+        def _span_in_shared_session(offset_seconds: int) -> Span:
+            return Span(
+                name="shared-session-span",
+                context=SpanContext(trace_id=token_hex(16), span_id=token_hex(8)),
+                span_kind=SpanKind.LLM,
+                parent_id=None,
+                start_time=t0 + timedelta(seconds=offset_seconds),
+                end_time=t0 + timedelta(seconds=offset_seconds + 1),
+                status_code=SpanStatusCode.OK,
+                status_message="",
+                attributes={"session": {"id": shared_session_id}},
+                events=[],
+                conversation=None,
+            )
 
         async with db() as session:
-            assert await session.get(models.Project, p1_id) is None
-            surviving_session = await session.get(models.ProjectSession, shared_session_rowid)
-            assert surviving_session is not None
-            assert surviving_session.project_id == p2_id
-            assert await session.get(models.Trace, p2_trace_id) is not None
+            owner_event = await insert_span(
+                session, _span_in_shared_session(0), f"session-owner-{token_hex(4)}"
+            )
+            other_event = await insert_span(
+                session, _span_in_shared_session(2), f"session-sharer-{token_hex(4)}"
+            )
+            assert owner_event is not None and other_event is not None
+            assert owner_event.project_session_rowid == other_event.project_session_rowid
+            owner_project_id = owner_event.project_rowid
+            other_project_id = other_event.project_rowid
+            await tombstone_project(session, project_id=owner_project_id)
+
+        await _drain_all(CleanupCoordinator(db, batch_limit=1))
+
+        async with db() as session:
+            assert await session.get(models.Project, owner_project_id) is None
+            surviving_project = await session.get(models.Project, other_project_id)
+            assert surviving_project is not None and surviving_project.deleted_at is None
 
 
 class TestBuiltinSyncStaleBindings:

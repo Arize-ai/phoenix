@@ -1303,9 +1303,7 @@ def create_app(
         )
         online_eval_session_producer = SessionEvaluationProducer(db)
         online_eval_trace_producer = TraceEvaluationProducer(db)
-    cleanup_worker: Optional[CleanupWorker] = (
-        None if read_only else CleanupWorker(db, event_queue=dml_event_handler)
-    )
+    cleanup_worker: Optional[CleanupWorker] = None if read_only else CleanupWorker(db)
     experiment_sweeper = ExperimentSweeper(db, event_queue=dml_event_handler)
     graphql_schema = build_graphql_schema(graphql_schema_extensions)
     graphql_router = create_graphql_router(

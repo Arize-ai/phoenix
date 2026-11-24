@@ -6,7 +6,8 @@ transaction-scoped advisory lock on PostgreSQL (SQLite serializes writers), pick
 target that is not backing off, drains one bounded batch of it, and deletes the target rows
 once nothing is left. ``cleanup_failures`` holds retry state only, for targets that yielded
 or failed; it is neither a queue nor a lease. Rows that carry ``deleted_at`` are hard-deleted
-only by this drain.
+only by this drain. Tombstoning emits the delete events; the drain emits none, because readers
+already hide the project.
 """
 
 from __future__ import annotations
@@ -46,9 +47,8 @@ from phoenix.server.cleanup.primitives import (
     drain_project_annotation_config_links_step,
     drain_trace_scope_step,
 )
-from phoenix.server.dml_event import DmlEvent, ProjectDeleteEvent, SpanDeleteEvent
 from phoenix.server.online_eval.clock import current_database_time
-from phoenix.server.types import CanPutItem, DbSessionFactory
+from phoenix.server.types import DbSessionFactory
 
 logger = logging.getLogger(__name__)
 
@@ -123,13 +123,11 @@ class CleanupCoordinator:
         self,
         db: DbSessionFactory,
         *,
-        event_queue: Optional[CanPutItem[DmlEvent]] = None,
         batch_limit: int = CLEANUP_BATCH_ROWS,
         yield_delay_seconds: float = YIELD_DELAY_SECONDS,
         error_retry_delay_seconds: float = ERROR_RETRY_DELAY_SECONDS,
     ) -> None:
         self._db = db
-        self._event_queue = event_queue
         self._batch_limit = batch_limit
         self._yield_delay_seconds = yield_delay_seconds
         self._error_retry_delay_seconds = error_retry_delay_seconds
@@ -276,7 +274,6 @@ class CleanupCoordinator:
     async def step(self) -> StepExecutionResult:
         """Run one bounded step on the oldest eligible target in a single transaction."""
         dialect = self._db.dialect
-        events_after_commit: list[DmlEvent] = []
         target: Optional[CleanupTarget] = None
         try:
             async with self._db() as session:
@@ -289,7 +286,6 @@ class CleanupCoordinator:
                 step_result = await self._run_domain_step(
                     session,
                     target=target,
-                    events_after_commit=events_after_commit,
                 )
                 if step_result.status is PrimitiveStatus.PROGRESS:
                     await self._delete_failure(session, kind=target.kind, target_id=target.id)
@@ -318,9 +314,6 @@ class CleanupCoordinator:
             logger.exception("Cleanup of %s %s failed; scheduling retry", target.kind, target.id)
             await self._record_failure(target)
             return StepExecutionResult("error", 0)
-        if self._event_queue is not None:
-            for event in events_after_commit:
-                self._event_queue.put(event)
         return outcome
 
     async def _run_domain_step(
@@ -328,25 +321,21 @@ class CleanupCoordinator:
         session: AsyncSession,
         *,
         target: CleanupTarget,
-        events_after_commit: list[DmlEvent],
     ) -> PrimitiveResult:
         if target.kind == "PROJECT":
             return await self._step_project_delete(
                 session,
                 project_id=target.id,
-                events_after_commit=events_after_commit,
             )
         if target.kind == "PROJECT_EVALUATOR":
             return await self._step_project_evaluator_delete(
                 session,
                 binding_id=target.id,
-                events_after_commit=events_after_commit,
             )
         if target.kind == "DATASET_EVALUATOR":
             return await self._step_dataset_evaluator_delete(
                 session,
                 binding_id=target.id,
-                events_after_commit=events_after_commit,
             )
         assert_never(target.kind)
 
@@ -355,7 +344,6 @@ class CleanupCoordinator:
         session: AsyncSession,
         *,
         project_id: int,
-        events_after_commit: list[DmlEvent],
     ) -> PrimitiveResult:
         # Recheck fixed ordering invariants before draining/finalizing.
         dialect = SupportedSQLDialect(session.get_bind().dialect.name)
@@ -379,12 +367,8 @@ class CleanupCoordinator:
             session,
             project_id=project_id,
             batch_limit=self._batch_limit,
-            rehome_shared_sessions=True,
         )
-        if trace_res.status is PrimitiveStatus.PROGRESS:
-            events_after_commit.append(SpanDeleteEvent((project_id,)))
-            return trace_res
-        if trace_res.status is PrimitiveStatus.YIELD:
+        if trace_res.status is not PrimitiveStatus.EMPTY:
             return trace_res
 
         # Lock the project row FOR UPDATE before final residual checks and deletion.
@@ -397,7 +381,6 @@ class CleanupCoordinator:
                 select(
                     or_(
                         exists().where(models.Trace.project_rowid == project_id),
-                        exists().where(models.ProjectSession.project_id == project_id),
                         exists().where(models.ProjectEvaluator.project_id == project_id),
                         exists().where(models.ProjectEvaluator.trace_project_id == project_id),
                         exists().where(models.DatasetEvaluators.project_id == project_id),
@@ -409,9 +392,9 @@ class CleanupCoordinator:
             return PrimitiveResult(PrimitiveStatus.YIELD, 0)
 
         await self._delete_failure(session, kind="PROJECT", target_id=project_id)
+        # The row delete cascades through its sessions, including any session that another
+        # project's traces share (#18218).
         await session.execute(delete(models.Project).where(models.Project.id == project_id))
-        events_after_commit.append(SpanDeleteEvent((project_id,)))
-        events_after_commit.append(ProjectDeleteEvent((project_id,)))
         return PrimitiveResult(PrimitiveStatus.EMPTY, 1)
 
     async def _step_project_evaluator_delete(
@@ -419,7 +402,6 @@ class CleanupCoordinator:
         session: AsyncSession,
         *,
         binding_id: int,
-        events_after_commit: list[DmlEvent],
     ) -> PrimitiveResult:
         dialect = SupportedSQLDialect(session.get_bind().dialect.name)
         trace_project_id = await session.scalar(
@@ -450,7 +432,6 @@ class CleanupCoordinator:
             session,
             project_id=trace_project_id,
             batch_limit=self._batch_limit,
-            rehome_shared_sessions=True,
         )
         if trace_res.status is not PrimitiveStatus.EMPTY:
             return trace_res
@@ -476,7 +457,6 @@ class CleanupCoordinator:
                             models.EvalSessionWorkUnit.project_evaluator_id == binding_id
                         ),
                         exists().where(models.Trace.project_rowid == trace_project_id),
-                        exists().where(models.ProjectSession.project_id == trace_project_id),
                     )
                 )
             )
@@ -489,8 +469,6 @@ class CleanupCoordinator:
             delete(models.ProjectEvaluator).where(models.ProjectEvaluator.id == binding_id)
         )
         await session.execute(delete(models.Project).where(models.Project.id == trace_project_id))
-        events_after_commit.append(SpanDeleteEvent((trace_project_id,)))
-        events_after_commit.append(ProjectDeleteEvent((trace_project_id,)))
         return PrimitiveResult(PrimitiveStatus.EMPTY, 1)
 
     async def _step_dataset_evaluator_delete(
@@ -498,7 +476,6 @@ class CleanupCoordinator:
         session: AsyncSession,
         *,
         binding_id: int,
-        events_after_commit: list[DmlEvent],
     ) -> PrimitiveResult:
         dialect = SupportedSQLDialect(session.get_bind().dialect.name)
         trace_project_id = await session.scalar(
@@ -529,7 +506,6 @@ class CleanupCoordinator:
             session,
             project_id=trace_project_id,
             batch_limit=self._batch_limit,
-            rehome_shared_sessions=True,
         )
         if trace_res.status is not PrimitiveStatus.EMPTY:
             return trace_res
@@ -554,7 +530,6 @@ class CleanupCoordinator:
                             models.ExperimentDatasetEvaluator.dataset_evaluator_id == binding_id
                         ),
                         exists().where(models.Trace.project_rowid == trace_project_id),
-                        exists().where(models.ProjectSession.project_id == trace_project_id),
                     )
                 )
             )
@@ -567,8 +542,6 @@ class CleanupCoordinator:
             delete(models.DatasetEvaluators).where(models.DatasetEvaluators.id == binding_id)
         )
         await session.execute(delete(models.Project).where(models.Project.id == trace_project_id))
-        events_after_commit.append(SpanDeleteEvent((trace_project_id,)))
-        events_after_commit.append(ProjectDeleteEvent((trace_project_id,)))
         return PrimitiveResult(PrimitiveStatus.EMPTY, 1)
 
     async def step_or_next_delay(self) -> tuple[bool, Optional[float]]:

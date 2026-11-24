@@ -8,8 +8,7 @@ import random
 from typing import Optional
 
 from phoenix.server.cleanup.coordinator import CleanupCoordinator
-from phoenix.server.dml_event import DmlEvent
-from phoenix.server.types import CanPutItem, DaemonTask, DbSessionFactory
+from phoenix.server.types import DaemonTask, DbSessionFactory
 
 logger = logging.getLogger(__name__)
 
@@ -24,12 +23,10 @@ class CleanupWorker(DaemonTask):
         self,
         db: DbSessionFactory,
         *,
-        event_queue: Optional[CanPutItem[DmlEvent]] = None,
         idle_poll_seconds: float = _IDLE_POLL_SECONDS,
     ) -> None:
         super().__init__()
-        self._db = db
-        self._coordinator = CleanupCoordinator(db, event_queue=event_queue)
+        self._coordinator = CleanupCoordinator(db)
         self._idle_poll_seconds = idle_poll_seconds
 
     @property
