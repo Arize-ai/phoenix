@@ -350,9 +350,13 @@ export function ProjectAnnotationMetricsGrid({
   annotationLevel,
   ...props
 }: ProjectMetricViewProps & { annotationLevel: AnnotationMetricLevel }) {
+  const timeRangeSelectionKey = useTimeRangeSelectionKey();
   return (
     <ErrorBoundary>
-      <Suspense fallback={<ProjectAnnotationMetricsGridSkeleton />}>
+      <Suspense
+        key={timeRangeSelectionKey}
+        fallback={<ProjectAnnotationMetricsGridSkeleton />}
+      >
         <ProjectAnnotationMetricNamesLoader
           {...props}
           annotationLevel={annotationLevel}
