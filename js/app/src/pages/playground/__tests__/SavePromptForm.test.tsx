@@ -220,6 +220,35 @@ describe("SavePromptForm", () => {
     expect(getButton(container, "Create Prompt")).toBeDefined();
   });
 
+  it("does not create a prompt whose name ends with a separator", async () => {
+    const onCreate = vi.fn();
+    await act(async () => {
+      root.render(
+        <ThemeProvider themeMode="light" disableBodyTheme>
+          <SavePromptForm
+            onCreate={onCreate}
+            onUpdate={vi.fn()}
+            onClose={vi.fn()}
+          />
+        </ThemeProvider>
+      );
+    });
+
+    await act(async () => {
+      typeInto({ input: getPromptNameInput(container), value: "My Prompt " });
+    });
+    expect(getPromptNameInput(container).value).toBe("my-prompt-");
+
+    await act(async () => {
+      container
+        .querySelector("form")
+        ?.dispatchEvent(
+          new SubmitEvent("submit", { bubbles: true, cancelable: true })
+        );
+    });
+    expect(onCreate).not.toHaveBeenCalled();
+  });
+
   it("trims a trailing dash from a new tag name on blur", async () => {
     await renderSavePromptForm(root);
     const tagInput = container.querySelector<HTMLInputElement>(
