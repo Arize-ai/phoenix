@@ -1,7 +1,7 @@
 """dataset evaluators inherit evaluator settings
 
 Revision ID: ef09e3bc213f
-Revises: a7f1c3e9d2b4
+Revises: f125a3233286
 Create Date: 2026-09-18 00:00:00.000000
 
 A dataset evaluator overrides its evaluator's description and output configs
@@ -49,7 +49,7 @@ JSON_ = JSON().with_variant(postgresql.JSONB(), "postgresql").with_variant(JSONB
 
 # revision identifiers, used by Alembic.
 revision: str = "ef09e3bc213f"
-down_revision: Union[str, None] = "a7f1c3e9d2b4"
+down_revision: Union[str, None] = "f125a3233286"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

@@ -1,7 +1,7 @@
-"""add cleanup tasks and lifecycle tombstones
+"""add lifecycle tombstones and cleanup failures
 
 Revision ID: f125a3233286
-Revises: e724eb2ee5cf
+Revises: a7f1c3e9d2b4
 Create Date: 2026-11-16 00:24:34.041181
 
 """
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "f125a3233286"
-down_revision: Union[str, None] = "e724eb2ee5cf"
+down_revision: Union[str, None] = "a7f1c3e9d2b4"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -24,10 +24,6 @@ _Integer = sa.Integer().with_variant(
 _CLEANUP_TARGET_KIND_CHECK = "target_kind IN ('PROJECT', 'PROJECT_EVALUATOR', 'DATASET_EVALUATOR')"
 _LIVE_PREDICATE = "deleted_at IS NULL"
 _TOMBSTONED_PREDICATE = "deleted_at IS NOT NULL"
-_PROJECT_EVALUATOR_LIFECYCLE_CHECK = (
-    "(deleted_at IS NULL AND evaluator_id IS NOT NULL) "
-    "OR (deleted_at IS NOT NULL AND evaluator_id IS NULL)"
-)
 _DATASET_EVALUATOR_LIFECYCLE_CHECK = (
     "(deleted_at IS NULL AND dataset_id IS NOT NULL AND evaluator_id IS NOT NULL) "
     "OR (deleted_at IS NOT NULL AND evaluator_id IS NULL)"
@@ -52,32 +48,6 @@ def _upgrade_projects() -> None:
 
 
 def _upgrade_evaluator_bindings() -> None:
-    with op.batch_alter_table(
-        "project_evaluators", table_kwargs={"sqlite_autoincrement": True}
-    ) as batch_op:
-        batch_op.add_column(sa.Column("deleted_at", sa.TIMESTAMP(timezone=True), nullable=True))
-        batch_op.alter_column("evaluator_id", existing_type=_Integer, nullable=True)
-        batch_op.drop_constraint(
-            "fk_project_evaluators_evaluator_id_evaluators", type_="foreignkey"
-        )
-        batch_op.create_foreign_key(
-            "fk_project_evaluators_evaluator_id_evaluators",
-            "evaluators",
-            ["evaluator_id"],
-            ["id"],
-            ondelete="SET NULL",
-        )
-        batch_op.drop_constraint("uq_project_evaluators_project_id_name", type_="unique")
-        batch_op.create_check_constraint("valid_lifecycle", _PROJECT_EVALUATOR_LIFECYCLE_CHECK)
-    op.create_index(
-        "ix_project_evaluators_live_name",
-        "project_evaluators",
-        ["project_id", "name"],
-        unique=True,
-        postgresql_where=sa.text(_LIVE_PREDICATE),
-        sqlite_where=sa.text(_LIVE_PREDICATE),
-    )
-
     with op.batch_alter_table(
         "dataset_evaluators", table_kwargs={"sqlite_autoincrement": True}
     ) as batch_op:
@@ -120,7 +90,7 @@ def _upgrade_evaluator_bindings() -> None:
 
 
 def _create_tombstone_indexes_and_cleanup_failures() -> None:
-    for table in ("projects", "project_evaluators", "dataset_evaluators"):
+    for table in ("projects", "dataset_evaluators"):
         op.create_index(
             f"ix_{table}_tombstoned",
             table,
@@ -151,7 +121,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     connection = op.get_bind()
-    for table in ("projects", "project_evaluators", "dataset_evaluators"):
+    for table in ("projects", "dataset_evaluators"):
         if connection.scalar(sa.text(f"SELECT COUNT(*) FROM {table} WHERE deleted_at IS NOT NULL")):
             raise ValueError(
                 f"Cannot downgrade while {table} has deleted rows awaiting background cleanup; "
@@ -159,7 +129,7 @@ def downgrade() -> None:
             )
 
     op.drop_table("cleanup_failures")
-    for table in ("dataset_evaluators", "project_evaluators", "projects"):
+    for table in ("dataset_evaluators", "projects"):
         op.drop_index(f"ix_{table}_tombstoned", table_name=table)
 
     op.drop_index("ix_dataset_evaluators_live_name", table_name="dataset_evaluators")
@@ -189,25 +159,6 @@ def downgrade() -> None:
         batch_op.drop_column("deleted_at")
         batch_op.create_unique_constraint(
             "uq_dataset_evaluators_dataset_id_name", ["dataset_id", "name"]
-        )
-
-    op.drop_index("ix_project_evaluators_live_name", table_name="project_evaluators")
-    with op.batch_alter_table("project_evaluators") as batch_op:
-        batch_op.drop_constraint("valid_lifecycle", type_="check")
-        batch_op.drop_constraint(
-            "fk_project_evaluators_evaluator_id_evaluators", type_="foreignkey"
-        )
-        batch_op.create_foreign_key(
-            "fk_project_evaluators_evaluator_id_evaluators",
-            "evaluators",
-            ["evaluator_id"],
-            ["id"],
-            ondelete="CASCADE",
-        )
-        batch_op.alter_column("evaluator_id", existing_type=_Integer, nullable=False)
-        batch_op.drop_column("deleted_at")
-        batch_op.create_unique_constraint(
-            "uq_project_evaluators_project_id_name", ["project_id", "name"]
         )
 
     op.drop_index("ix_projects_live_name", table_name="projects")

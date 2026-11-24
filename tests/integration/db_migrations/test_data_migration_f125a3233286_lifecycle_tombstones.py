@@ -1,4 +1,4 @@
-"""Migration tests for f125a3233286 (cleanup tasks and lifecycle tombstones)."""
+"""Migration tests for f125a3233286 (lifecycle tombstones and cleanup failures)."""
 
 import json
 from datetime import datetime, timedelta, timezone
@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from . import _down, _run_async, _up
 
-_DOWN = "e724eb2ee5cf"
+_DOWN = "a7f1c3e9d2b4"
 _UP = "f125a3233286"
 
 
@@ -101,11 +101,12 @@ async def test_f125a3233286_tombstones_projects_and_guards_downgrade(
         ds_binding = _insert(
             conn,
             "INSERT INTO dataset_evaluators "
-            "(dataset_id, evaluator_id, name, input_mapping, project_id) "
-            "VALUES (:d, :e, 'ds-judge', :im, :p)",
+            "(dataset_id, evaluator_id, name, input_mapping, output_configs, project_id) "
+            "VALUES (:d, :e, 'ds-judge', :im, :oc, :p)",
             d=dataset,
             e=builtin_eval,
             im=json.dumps({"literal_mapping": {}, "path_mapping": {}}),
+            oc=json.dumps([]),
             p=ds_eval_proj,
         )
         pe_binding = _insert(
