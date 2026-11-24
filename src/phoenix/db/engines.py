@@ -340,7 +340,7 @@ def aio_sqlite_engine(
     # statement would otherwise drop every table before the pool reconnects.
     # Hold an idle keepalive connection to the same shared-cache URI for the
     # lifetime of the engine and release it on dispose() or garbage collection.
-    release_keepalive: Optional[weakref.finalize] = None
+    release_keepalive: Optional[Callable[[], Any]] = None
     if database.startswith(":memory:") and shared_cache:
         separator = "&" if "?" in database else "?"
         keepalive = sqlean.connect(
