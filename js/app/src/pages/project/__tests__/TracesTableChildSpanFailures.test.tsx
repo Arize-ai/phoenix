@@ -41,6 +41,7 @@ const TIME_RANGE = {
 vi.mock("@phoenix/components/datetime", async (importOriginal) => ({
   ...(await importOriginal<typeof DateTimeModule>()),
   useTimeRange: () => ({ timeRangeISOStrings: TIME_RANGE }),
+  useTimeRangeSelectionKey: () => "1d",
 }));
 
 /** The page's refresh key, which a test advances to make the table refetch. */

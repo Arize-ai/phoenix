@@ -34,20 +34,74 @@ const TIME_RANGE = {
   end: "2026-07-02T00:00:00.000Z",
 };
 
-vi.mock("@phoenix/components/datetime", async (importOriginal) => ({
-  ...(await importOriginal<typeof DateTimeModule>()),
-  useTimeRange: () => ({ timeRangeISOStrings: TIME_RANGE }),
-}));
+/** The picked time range, which a test can change. */
+const timeRangeStore = vi.hoisted(() => {
+  let timeRange = {
+    selectionKey: "1d",
+    timeRangeISOStrings: {
+      start: "2026-07-01T00:00:00.000Z",
+      end: "2026-07-02T00:00:00.000Z",
+    },
+  };
+  const listeners = new Set<() => void>();
+  return {
+    getTimeRange: () => timeRange,
+    setTimeRange: (nextTimeRange: typeof timeRange) => {
+      timeRange = nextTimeRange;
+      listeners.forEach((listener) => listener());
+    },
+    reset: () => {
+      timeRange = {
+        selectionKey: "1d",
+        timeRangeISOStrings: {
+          start: "2026-07-01T00:00:00.000Z",
+          end: "2026-07-02T00:00:00.000Z",
+        },
+      };
+    },
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  };
+});
+
+vi.mock("@phoenix/components/datetime", async (importOriginal) => {
+  const React = await import("react");
+  const useTimeRangeState = () =>
+    React.useSyncExternalStore(
+      timeRangeStore.subscribe,
+      timeRangeStore.getTimeRange
+    );
+  return {
+    ...(await importOriginal<typeof DateTimeModule>()),
+    useTimeRange: () => ({
+      timeRangeISOStrings: useTimeRangeState().timeRangeISOStrings,
+    }),
+    useTimeRangeSelectionKey: () => useTimeRangeState().selectionKey,
+  };
+});
 
 /** The page's refresh key, which a test advances to make the table refetch. */
 const streamState = vi.hoisted(() => {
-  let fetchKey = 0;
+  let keys = { fetchKey: "initial", throttledFetchKey: "initial" };
   const listeners = new Set<() => void>();
   return {
-    getFetchKey: () => fetchKey,
-    setFetchKey: (nextFetchKey: number) => {
-      fetchKey = nextFetchKey;
+    getKeys: () => keys,
+    /** New data: the rows refetch. */
+    setFetchKey: (fetchKey: string) => {
+      keys = { ...keys, fetchKey };
       listeners.forEach((listener) => listener());
+    },
+    /** The aggregates' refresh: the throttled key catches up. */
+    throttle: () => {
+      keys = { ...keys, throttledFetchKey: keys.fetchKey };
+      listeners.forEach((listener) => listener());
+    },
+    reset: () => {
+      keys = { fetchKey: "initial", throttledFetchKey: "initial" };
     },
     subscribe: (listener: () => void) => {
       listeners.add(listener);
@@ -61,12 +115,8 @@ const streamState = vi.hoisted(() => {
 vi.mock("@phoenix/contexts/StreamStateContext", async () => {
   const React = await import("react");
   return {
-    useStreamState: () => ({
-      fetchKey: React.useSyncExternalStore(
-        streamState.subscribe,
-        streamState.getFetchKey
-      ),
-    }),
+    useStreamState: () =>
+      React.useSyncExternalStore(streamState.subscribe, streamState.getKeys),
   };
 });
 
@@ -119,8 +169,22 @@ vi.mock("../SpanFiltersContext", () => ({
   }),
 }));
 
+/** The filter field's callback, which a test calls to apply a filter. */
+const filterField = vi.hoisted(() => ({
+  onValidCondition: null as
+    | ((args: SpanFilterValidConditionArgs) => void)
+    | null,
+}));
+
 vi.mock("../SpanFilterConditionField", () => ({
-  SpanFilterConditionField: () => null,
+  SpanFilterConditionField: ({
+    onValidCondition,
+  }: {
+    onValidCondition: (args: SpanFilterValidConditionArgs) => void;
+  }) => {
+    filterField.onValidCondition = onValidCondition;
+    return null;
+  },
 }));
 
 vi.mock("../SpansTableAside", () => ({
@@ -155,6 +219,7 @@ import { fetchRelay } from "@phoenix/RelayEnvironment";
 
 import type { ProjectPageQueriesSpansQuery as ProjectPageSpansQueryType } from "../__generated__/ProjectPageQueriesSpansQuery.graphql";
 import { ProjectPageQueriesSpansQuery } from "../ProjectPageQueries";
+import type { SpanFilterValidConditionArgs } from "../SpanFilterConditionField";
 import type { SettledSpanFilterSeed } from "../spanFilterSeed";
 import { SpansTable } from "../SpansTable";
 
@@ -331,19 +396,149 @@ async function readColumnSelectorFailures() {
     .map((element) => element.textContent);
 }
 
-describe("SpansTable annotation names on a refresh", () => {
+/** A response to a rows refetch or next page: the rows, no names. */
+function makeRowsResponse(indexes: number[]) {
+  return new Response(
+    JSON.stringify({
+      data: {
+        node: {
+          ...ROWS_PART.data.project,
+          spans: {
+            edges: indexes.map(makeSpanEdge),
+            pageInfo: {
+              endCursor: `cursor-${indexes.at(-1)}`,
+              hasNextPage: false,
+            },
+          },
+        },
+      },
+    }),
+    { headers: { "Content-Type": "application/json" } }
+  );
+}
+
+/** A response to the names-only refresh. */
+function makeNamesResponse(spanAnnotationNames: string[]) {
+  return new Response(
+    JSON.stringify({
+      data: {
+        node: {
+          __typename: "Project",
+          id: PROJECT_ID,
+          spanAnnotationNames,
+          traceAnnotationNames: [],
+        },
+      },
+    }),
+    { headers: { "Content-Type": "application/json" } }
+  );
+}
+
+function readRequest(call: number): { query: string } {
+  return JSON.parse(authFetchMock.mock.calls[call][1].body);
+}
+
+function readRowNames() {
+  return [...container.querySelectorAll("tbody tr")].map(
+    (row) => row.textContent
+  );
+}
+
+function readColumnHeaders() {
+  return [...container.querySelectorAll("thead th")].map(
+    (header) => header.textContent
+  );
+}
+
+/** Answers each later request by what it asks for: rows, or names alone. */
+function answerRequests({
+  rows,
+  names = [],
+}: {
+  rows: number[];
+  names?: string[];
+}) {
+  authFetchMock.mockImplementation(
+    async (_url: string, init: { body: string }) => {
+      const { query } = JSON.parse(init.body);
+      return query.includes("useSpanAnnotationNamesRefreshQuery")
+        ? makeNamesResponse(names)
+        : makeRowsResponse(rows);
+    }
+  );
+}
+
+/** The names-only refresh requests sent after the page's first request. */
+function readNamesRefreshCount() {
+  return authFetchMock.mock.calls
+    .slice(1)
+    .filter(([, init]) =>
+      JSON.parse(init.body).query.includes("useSpanAnnotationNamesRefreshQuery")
+    ).length;
+}
+
+describe("SpansTable annotation names while the stream advances", () => {
   beforeEach(() => {
-    streamState.setFetchKey(0);
+    streamState.reset();
+    timeRangeStore.reset();
   });
 
-  it("shows the names as loading, not failed, while a refresh after a failure loads them", async () => {
+  async function renderLoadedTable() {
     const load = createStreamingMultipartResponse();
-    const refresh = createStreamingMultipartResponse();
-    authFetchMock
-      .mockResolvedValueOnce(load.response)
-      .mockResolvedValueOnce(refresh.response);
+    authFetchMock.mockResolvedValueOnce(load.response);
     await renderTable();
     load.sendPart(ROWS_PART);
+    load.sendPart(NAMES_PART);
+    load.end();
+    await settle();
+  }
+
+  it("refetches the rows on every advance without the names, which stay on screen", async () => {
+    await renderLoadedTable();
+    answerRequests({ rows: [3, 4] });
+    await act(async () => streamState.setFetchKey("advance-1"));
+    await settle();
+    answerRequests({ rows: [5] });
+    await act(async () => streamState.setFetchKey("advance-2"));
+    await settle();
+
+    expect(authFetchMock).toHaveBeenCalledTimes(3);
+    for (const call of [1, 2]) {
+      expect(readRequest(call).query).not.toContain("spanAnnotationNames");
+    }
+    expect(readRowNames()).toEqual(["span-5"]);
+    expect(readColumnHeaders()).toContain("correctness");
+  });
+
+  it("refreshes the names on the throttled fetch key, not on mount", async () => {
+    await renderLoadedTable();
+    expect(authFetchMock).toHaveBeenCalledTimes(1);
+    answerRequests({ rows: [1, 2], names: ["helpfulness"] });
+
+    await act(async () => {
+      streamState.setFetchKey("advance-1");
+      streamState.throttle();
+    });
+    await settle();
+
+    expect(readNamesRefreshCount()).toBe(1);
+    expect(readColumnHeaders()).not.toContain("correctness");
+  });
+
+  it("does not refresh the names when the table mounts after the throttled fetch key moved", async () => {
+    streamState.setFetchKey("advance-1");
+    streamState.throttle();
+    await renderLoadedTable();
+
+    expect(readNamesRefreshCount()).toBe(0);
+  });
+
+  it("refreshes the names once after their payload fails", async () => {
+    const load = createStreamingMultipartResponse();
+    authFetchMock.mockResolvedValueOnce(load.response);
+    await renderTable();
+    load.sendPart(ROWS_PART);
+    answerRequests({ rows: [1, 2], names: ["correctness"] });
     load.sendPart({
       hasNext: false,
       completed: [
@@ -352,31 +547,125 @@ describe("SpansTable annotation names on a refresh", () => {
     });
     load.end();
     await settle();
+
+    expect(readNamesRefreshCount()).toBe(1);
+    expect(readColumnHeaders()).toContain("correctness");
+    expect(await readColumnSelectorFailures()).toEqual([]);
+  });
+
+  it.each([
+    {
+      change: "a filter is applied",
+      applyChange: () =>
+        filterField.onValidCondition?.({
+          condition: "span_kind == 'LLM'",
+          selectsRootSpansOnly: true,
+          isInitialSettlement: false,
+        }),
+    },
+    {
+      change: "another time range is picked",
+      applyChange: () =>
+        timeRangeStore.setTimeRange({
+          selectionKey: "7d",
+          timeRangeISOStrings: {
+            start: "2026-06-25T00:00:00.000Z",
+            end: "2026-07-02T00:00:00.000Z",
+          },
+        }),
+    },
+  ])(
+    "does not refresh the project-wide names when $change",
+    async ({ applyChange }) => {
+      await renderLoadedTable();
+      answerRequests({ rows: [1], names: ["helpfulness"] });
+      await act(async () => applyChange());
+      await settle();
+
+      expect(readNamesRefreshCount()).toBe(0);
+      expect(readColumnHeaders()).toContain("correctness");
+    }
+  );
+
+  it("keeps one names refresh in flight however often the throttled fetch key moves", async () => {
+    await renderLoadedTable();
+    const namesRefreshSignals: AbortSignal[] = [];
+    authFetchMock.mockImplementation(
+      async (_url: string, init: { body: string; signal: AbortSignal }) => {
+        if (
+          JSON.parse(init.body).query.includes(
+            "useSpanAnnotationNamesRefreshQuery"
+          )
+        ) {
+          namesRefreshSignals.push(init.signal);
+          return new Promise<Response>(() => {});
+        }
+        return makeRowsResponse([1, 2]);
+      }
+    );
+    for (const fetchKey of ["advance-1", "advance-2", "advance-3"]) {
+      await act(async () => {
+        streamState.setFetchKey(fetchKey);
+        streamState.throttle();
+      });
+      await settle();
+    }
+
+    expect(namesRefreshSignals).toHaveLength(1);
+    expect(namesRefreshSignals[0].aborted).toBe(false);
+  });
+
+  it("does not refresh the names while their deferred payload is loading", async () => {
+    const load = createStreamingMultipartResponse();
+    authFetchMock.mockResolvedValueOnce(load.response);
+    await renderTable();
+    load.sendPart(ROWS_PART);
+    await settle();
+    answerRequests({ rows: [1, 2], names: ["helpfulness"] });
+    await act(async () => {
+      streamState.setFetchKey("advance-1");
+      streamState.throttle();
+    });
+    await settle();
+    load.sendPart(NAMES_PART);
+    load.end();
+    await settle();
+
+    expect(readNamesRefreshCount()).toBe(0);
+    expect(readColumnHeaders()).toContain("correctness");
+  });
+
+  it("keeps the names on screen and reports a names refresh that fails", async () => {
+    await renderLoadedTable();
+    authFetchMock.mockImplementation(
+      async (_url: string, init: { body: string }) =>
+        JSON.parse(init.body).query.includes(
+          "useSpanAnnotationNamesRefreshQuery"
+        )
+          ? new Response(
+              JSON.stringify({
+                data: null,
+                errors: [{ message: "an unexpected error occurred" }],
+              }),
+              { headers: { "Content-Type": "application/json" } }
+            )
+          : makeRowsResponse([1, 2])
+    );
+    await act(async () => {
+      streamState.setFetchKey("advance-1");
+      streamState.throttle();
+    });
+    await settle();
+
+    expect(readNamesRefreshCount()).toBe(1);
+    expect(readColumnHeaders()).toContain("correctness");
     expect(await readColumnSelectorFailures()).toEqual([
       "Span annotation names failed to load.",
       "Trace annotation names failed to load.",
     ]);
-    // the column selector toggles; close it before the refresh
-    const columnsButton = [...container.querySelectorAll("button")].find(
-      (button) => button.textContent === "Columns"
-    );
-    await act(async () => columnsButton?.click());
-    expect(document.querySelector(".react-aria-Popover")).toBeNull();
-
-    await act(async () => streamState.setFetchKey(1));
-    refresh.sendPart({
-      data: { node: ROWS_PART.data.project },
-      hasNext: true,
-      pending: [{ id: "0", path: ["node"], label: DEFER_LABEL }],
-    });
-    await settle();
-
-    expect(authFetchMock).toHaveBeenCalledTimes(2);
-    expect(await readColumnSelectorFailures()).toEqual([]);
   });
 });
 
-/** Whether the load-more sentinel is in view; observers report it on observe. */
 const sentinel = { isVisible: false };
 class VisibleSentinelObserver {
   constructor(private callback: IntersectionObserverCallback) {}
@@ -394,7 +683,8 @@ class VisibleSentinelObserver {
 describe("SpansTable next page while the names load", () => {
   beforeEach(() => {
     vi.stubGlobal("IntersectionObserver", VisibleSentinelObserver);
-    streamState.setFetchKey(0);
+    streamState.reset();
+    timeRangeStore.reset();
     sentinel.isVisible = true;
   });
   afterEach(() => {

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<98a2b34abce1b4a14c67112bfcfd4b32>>
+ * @generated SignedSource<<773c0dbdf5cb717ea3b2f1dc9190ad80>>
  * @lightSyntaxTransform
  */
 
@@ -10,7 +10,6 @@
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type AnnotationSummaryValueFragment$data = {
-  readonly id: string;
   readonly spanAnnotationSummary: {
     readonly count: number;
     readonly labelCount: number;
@@ -29,8 +28,6 @@ export type AnnotationSummaryValueFragment$key = {
   readonly " $data"?: AnnotationSummaryValueFragment$data;
   readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryValueFragment">;
 };
-
-import AnnotationSummaryValueQuery_graphql from './AnnotationSummaryValueQuery.graphql';
 
 const node: ReaderFragment = {
   "argumentDefinitions": [
@@ -51,19 +48,7 @@ const node: ReaderFragment = {
     }
   ],
   "kind": "Fragment",
-  "metadata": {
-    "refetch": {
-      "connection": null,
-      "fragmentPathInResult": [
-        "node"
-      ],
-      "operation": AnnotationSummaryValueQuery_graphql,
-      "identifierInfo": {
-        "identifierField": "id",
-        "identifierQueryVariableName": "id"
-      }
-    }
-  },
+  "metadata": null,
   "name": "AnnotationSummaryValueFragment",
   "selections": [
     {
@@ -174,19 +159,12 @@ const node: ReaderFragment = {
         }
       ],
       "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "id",
-      "storageKey": null
     }
   ],
   "type": "Project",
   "abstractKey": null
 };
 
-(node as any).hash = "0ec30602fb60295ea057f41660c31bfa";
+(node as any).hash = "12f4ce63f06b7c4a6b82d9924e5e31d0";
 
 export default node;

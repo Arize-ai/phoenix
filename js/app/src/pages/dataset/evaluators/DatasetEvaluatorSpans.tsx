@@ -99,6 +99,7 @@ function DatasetEvaluatorSpansTable({
                 filterCondition: $filterCondition
                 rootSpansOnly: $rootSpansOnly
               )
+            ...useSpanAnnotationNames_project @defer
           }
         }
       }

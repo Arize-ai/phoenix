@@ -1,4 +1,4 @@
-import { act, startTransition, Suspense, use } from "react";
+import { act, startTransition, Suspense, use, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { RelayEnvironmentProvider } from "react-relay";
 import { MemoryRouter } from "react-router";
@@ -15,6 +15,11 @@ import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia"
 import { createStreamingMultipartResponse } from "@phoenix/__tests__/multipartResponse";
 import type * as DateTimeModule from "@phoenix/components/datetime";
 import { PreferencesProvider, ThemeProvider } from "@phoenix/contexts";
+import {
+  type StreamStateContextType,
+  StreamStateProvider,
+  useStreamState,
+} from "@phoenix/contexts/StreamStateContext";
 
 installTestMatchMedia();
 
@@ -64,10 +69,6 @@ vi.mock("@phoenix/components/datetime", async (importOriginal) => {
   };
 });
 
-vi.mock("@phoenix/contexts/StreamStateContext", () => ({
-  useStreamState: () => ({ fetchKey: 0 }),
-}));
-
 const PROJECT_ID = "UHJvamVjdDox";
 
 vi.mock("@phoenix/contexts/TracingContext", () => ({
@@ -101,25 +102,30 @@ const PANEL_PART = {
   pending: [{ id: "totals", path: ["project"], label: TOTALS_DEFER_LABEL }],
 };
 
-const TOTALS_PART = {
-  hasNext: false,
-  incremental: [
-    {
-      id: "totals",
-      data: {
-        timeRangeTraceCount: 1234,
-        costSummary: {
-          total: { cost: null },
-          prompt: { cost: null },
-          completion: { cost: null },
+/** The deferred totals part of the side panel's response. */
+function getTotalsPart(timeRangeTraceCount: number) {
+  return {
+    hasNext: false,
+    incremental: [
+      {
+        id: "totals",
+        data: {
+          timeRangeTraceCount,
+          costSummary: {
+            total: { cost: null },
+            prompt: { cost: null },
+            completion: { cost: null },
+          },
+          latencyMsP50: null,
+          latencyMsP99: null,
         },
-        latencyMsP50: null,
-        latencyMsP99: null,
       },
-    },
-  ],
-  completed: [{ id: "totals" }],
-};
+    ],
+    completed: [{ id: "totals" }],
+  };
+}
+
+const TOTALS_PART = getTotalsPart(1234);
 
 let container: HTMLDivElement;
 let root: Root;
@@ -148,10 +154,22 @@ function SuspendingSibling({ pending }: { pending: Promise<void> | null }) {
   return null;
 }
 
+let streamState: StreamStateContextType;
+
+function StreamStateProbe() {
+  const state = useStreamState();
+  useEffect(() => {
+    streamState = state;
+  }, [state]);
+  return null;
+}
+
 async function renderAside({
   pendingSibling = null,
+  traceStreamingEnabled = true,
 }: {
   pendingSibling?: Promise<void> | null;
+  traceStreamingEnabled?: boolean;
 } = {}) {
   const environment = new Environment({
     network: Network.create(fetchRelay),
@@ -160,15 +178,18 @@ async function renderAside({
   await act(async () => {
     root.render(
       <ThemeProvider themeMode="light" disableBodyTheme>
-        <PreferencesProvider>
-          <RelayEnvironmentProvider environment={environment}>
-            <MemoryRouter>
-              <Suspense fallback="loading">
-                <SuspendingSibling pending={pendingSibling} />
-                <SpansTableAside spanAnnotationNames={[]} />
-              </Suspense>
-            </MemoryRouter>
-          </RelayEnvironmentProvider>
+        <PreferencesProvider traceStreamingEnabled={traceStreamingEnabled}>
+          <StreamStateProvider>
+            <StreamStateProbe />
+            <RelayEnvironmentProvider environment={environment}>
+              <MemoryRouter>
+                <Suspense fallback="loading">
+                  <SuspendingSibling pending={pendingSibling} />
+                  <SpansTableAside spanAnnotationNames={[]} />
+                </Suspense>
+              </MemoryRouter>
+            </RelayEnvironmentProvider>
+          </StreamStateProvider>
         </PreferencesProvider>
       </ThemeProvider>
     );
@@ -257,6 +278,30 @@ describe("SpansTableAside totals", () => {
 
     expect(authFetchMock).toHaveBeenCalledTimes(2);
     expect(readTotals()).toMatchObject({ "Total Traces": "1,234" });
+  });
+
+  it("refreshes the totals at once after a trace transfer while streaming is paused", async () => {
+    const load = createStreamingMultipartResponse();
+    const nextLoad = createStreamingMultipartResponse();
+    authFetchMock
+      .mockResolvedValueOnce(load.response)
+      .mockResolvedValueOnce(nextLoad.response);
+    await renderAside({ traceStreamingEnabled: false });
+    load.sendPart(PANEL_PART);
+    load.sendPart(TOTALS_PART);
+    load.end();
+    await settle();
+
+    await act(async () =>
+      streamState.setFetchKey({ fetchKey: "trace-transfer-1" })
+    );
+    nextLoad.sendPart(PANEL_PART);
+    nextLoad.sendPart(getTotalsPart(1200));
+    nextLoad.end();
+    await settle();
+
+    expect(authFetchMock).toHaveBeenCalledTimes(2);
+    expect(readTotals()).toMatchObject({ "Total Traces": "1,200" });
   });
 
   it.each([
