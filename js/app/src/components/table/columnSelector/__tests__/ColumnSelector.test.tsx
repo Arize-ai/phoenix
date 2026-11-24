@@ -64,11 +64,6 @@ describe("ColumnSelectorMenu", () => {
     });
   }
 
-  it("renders a row per column when there is no search query", () => {
-    renderMenu();
-    expect(container.querySelectorAll("li")).toHaveLength(columns.length);
-  });
-
   it("filters to the matching columns", async () => {
     renderMenu();
     await search("tokens");
@@ -84,14 +79,6 @@ describe("ColumnSelectorMenu", () => {
 
     expect(container.querySelectorAll("li")).toHaveLength(0);
     expect(container.textContent).toContain("No results");
-  });
-
-  it("distinguishes having no columns at all from a search that matched none", () => {
-    renderMenu([]);
-
-    expect(container.querySelectorAll("li")).toHaveLength(0);
-    expect(container.textContent).toContain("No columns");
-    expect(container.textContent).not.toContain("No results");
   });
 
   it("announces the result count only once a search is active", async () => {

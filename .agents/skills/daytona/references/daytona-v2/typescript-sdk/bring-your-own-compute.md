@@ -166,8 +166,8 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/regions/{regionId}/proxy-toke
 
 | **Field** | **Description** |
 | --- | --- |
-| `name` | Sets the display name of the token.<br />**Format:** 1 to 100 characters<br />**Example:** `"region-proxy"` |
 | `expires_at` | Sets when the token expires.<br />**Format:** an RFC 3339 time in the future<br />**Rules:** not with no_expiry<br />**Example:** `"2027-01-01T00:00:00Z"` |
+| `name` | Sets the display name of the token.<br />**Format:** 1 to 100 characters<br />**Example:** `"region-proxy"` |
 | `no_expiry` | Makes the token never expire.<br />**Rules:** not with expires_at |
 
 > **Notes:**
@@ -206,10 +206,10 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/regions/{regionId}/proxy-toke
 
 | **Field** | **Description** |
 | --- | --- |
-| `overlap_seconds` | Sets the seconds that the replaced token keeps working.<br />**Default:** `0`<br />**Minimum:** `0`<br />**Maximum:** `86400` |
-| `name` | Sets the display name of the new token.<br />**Format:** 1 to 100 characters<br />**Example:** `"region-proxy-2"` |
 | `expires_at` | Sets when the new token expires.<br />**Format:** an RFC 3339 time in the future<br />**Rules:** not with no_expiry<br />**Example:** `"2027-01-01T00:00:00Z"` |
+| `name` | Sets the display name of the new token.<br />**Format:** 1 to 100 characters<br />**Example:** `"region-proxy-2"` |
 | `no_expiry` | Makes the new token never expire.<br />**Rules:** not with expires_at |
+| `overlap_seconds` | Sets the seconds that the replaced token keeps working.<br />**Default:** `0`<br />**Minimum:** `0`<br />**Maximum:** `86400` |
 
 > **Notes:**
 >
@@ -221,7 +221,7 @@ Set the proxy addresses to route toolbox and preview URLs of a region to its pro
 
 The proxy URL and the preview domain of a BYOC region apply to every sandbox in the region. Both can be changed or cleared after the region is created.
 
-Set both addresses once the region proxy has a public address. The proxy URL must use the https scheme. The preview domain must be unique, and must not be a public suffix such as co.uk or a domain of the platform. Send null to clear either address.
+Set both addresses once the region proxy has a public address. The proxy URL must use the https scheme and end in /toolbox. The preview domain must be unique, and must not be a public suffix such as co.uk or a domain of the platform. Send null to clear either address.
 
 1. Go to [Daytona Regions ↗](https://app.daytona.com/dashboard/regions)
 2. Click the region
@@ -237,15 +237,15 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/regions/{regionId}' \
   --header 'Content-Type: application/json' \
   --header 'Authorization: Bearer YOUR_ORG_API_KEY' \
   --data '{
-  "toolbox_proxy_url": "https://proxy.example.com",
+  "toolbox_proxy_url": "https://proxy.example.com/toolbox",
   "preview_domain": "preview.example.com"
 }'
 ```
 
 | **Field** | **Description** |
 | --- | --- |
-| `toolbox_proxy_url` | Sets the base URL of the region proxy.<br />**Format:** an https URL with a host and no credentials, query, or fragment<br />**Value:** `null` to clear<br />**Example:** `"https://proxy.example.com"` |
 | `preview_domain` | Sets the base domain of the preview URLs of the region.<br />**Format:** a lowercase DNS name of at least two labels<br />**Value:** `null` to clear<br />**Example:** `"preview.example.com"` |
+| `toolbox_proxy_url` | Sets the base URL of the toolbox of the region proxy.<br />**Format:** an https URL that ends in /toolbox, with a host and no credentials, query, or fragment<br />**Value:** `null` to clear<br />**Example:** `"https://proxy.example.com/toolbox"` |
 
 ## Install hosts
 
@@ -257,11 +257,11 @@ Install the hosts with Helm after you create both tokens. The dashboard also gen
 
 | **Requirement**      | **Description**                                                                                                    |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| **KVM nodes**        | Bare-metal nodes or nodes with nested virtualization, labelled `byoc.daytona.com/kvm=true`.                         |
+| **KVM nodes**        | amd64 nodes on bare metal or with nested virtualization, labelled `byoc.daytona.com/kvm=true`.                      |
 | **Node tools**       | The nftables and conntrack tools on the node image.                                                                |
 | **Privileged pods**  | Pod Security admission that allows privileged pods with host networking and the host PID namespace in the install namespace. |
 | **Proxy node pool**  | A node pool of its own for the region proxy.                                                                       |
-| **Outbound traffic** | TLS to the bus_url and HTTPS to the usage_reporting_url of the installation values of the region.                 |
+| **Outbound traffic** | TLS to the bus_url, and HTTPS to the api_url and the usage_reporting_url, of the installation values of the region. |
 | **Local tools**      | kubectl, and Helm 3.8 or later.                                                                                    |
 
 1. Go to [Daytona Regions ↗](https://app.daytona.com/dashboard/regions)
@@ -300,12 +300,12 @@ helm upgrade --install daytona-byoc CHART \
   --set proxy.enabled=true \
   --set-json 'proxy.sourceCIDRs=["PROXY_NODE_SUBNET"]' \
   --set-json 'proxy.runnerProxyAllowedCIDRs=["HOST_NODE_SUBNET"]' \
-  --set runnerProxy.enabled=true
+  --set runnerProxy.enabled=true \
+  --set runnerProxy.advertise=true
 ```
 
 | **Flag** | **Description** |
 | --- | --- |
-| `--version` | Sets the chart version.<br />**Format:** the chart_version of the installation values |
 | `region` | Sets the region that the hosts enroll in.<br />**Required**<br />**Format:** a BYOC region ID<br />**Example:** `byoc-k3m7q2x7ab` |
 | `image.repository` | Sets the repository of the installer image.<br />**Required**<br />**Format:** the installer_image of the installation values, before its last colon |
 | `image.tag` | Sets the tag of the installer image.<br />**Required**<br />**Format:** the installer_image of the installation values, after its last colon |
@@ -314,6 +314,8 @@ helm upgrade --install daytona-byoc CHART \
 | `enrollment.apiUrl` | Sets the API that the hosts enroll with.<br />**Required**<br />**Format:** the api_url of the installation values |
 | `proxy.sourceCIDRs` | Sets the node subnets of the node pool that runs the region proxy.<br />**Required**<br />**Format:** a JSON list of IPv4 CIDR blocks |
 | `proxy.runnerProxyAllowedCIDRs` | Sets the node subnets of the KVM nodes that the region proxy connects to.<br />**Required**<br />**Format:** a JSON list of IPv4 CIDR blocks |
+| `runnerProxy.advertise` | Makes each host report the address that the region proxy reaches it at.<br />**Required**<br />**Value:** `true` |
+| `--version` | Sets the chart version.<br />**Format:** the chart_version of the installation values |
 
 > **Notes:**
 >
@@ -400,8 +402,8 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/regions?limit=50' \
 
 | **Field** | **Description** |
 | --- | --- |
-| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `cursor` | Continues from a previous page. |
+| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 
 ### Get a region
 
@@ -490,8 +492,8 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/regions/{regionId}/registrati
 
 | **Field** | **Description** |
 | --- | --- |
-| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `cursor` | Continues from a previous page. |
+| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 
 ### Revoke a registration token
 
@@ -536,8 +538,8 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/regions/{regionId}/proxy-toke
 
 | **Field** | **Description** |
 | --- | --- |
-| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `cursor` | Continues from a previous page. |
+| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 
 ### Revoke a proxy token
 
@@ -581,8 +583,8 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/regions/{regionId}/runners?li
 
 | **Field** | **Description** |
 | --- | --- |
-| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `cursor` | Continues from a previous page. |
+| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 
 ### Get a host
 
@@ -605,7 +607,7 @@ Remove a host to take a machine out of a region for good. Removal revokes the cr
 
 A removal of a host of a BYOC region revokes its credentials, and its ID is never used again. A host that still has sandboxes cannot be removed.
 
-[Cordon the host](#cordon-a-host) and wait until its sandboxes end before you remove it. The node can join the region again only with a registration token, as a new host.
+[Cordon the host](#cordon-a-host) and wait until its sandboxes end before you remove it. A removed node enrolls again, as a new host, only after you delete the file /etc/daytona/byoc-enrollment.json on that node and restart its installer pod.
 
 1. Go to [Daytona Runners ↗](https://app.daytona.com/dashboard/runners)
 2. Open the actions of the host

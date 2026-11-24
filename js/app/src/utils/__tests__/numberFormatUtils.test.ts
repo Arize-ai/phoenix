@@ -10,6 +10,7 @@ import {
   formatInt,
   formatIntCompact,
   formatIntGrouped,
+  formatCost,
   formatCostPrecise,
   formatLatencyMs,
   formatPercentShort,
@@ -89,6 +90,23 @@ describe("formatPercentShort", () => {
     expect(formatPercentShort(9.99)).toEqual("10%");
     expect(formatPercentShort(23.4)).toEqual("23%");
     expect(formatPercentShort(100)).toEqual("100%");
+  });
+});
+
+describe("formatCost", () => {
+  it("rounds to cents below ten thousand dollars", () => {
+    expect(formatCost(0)).toEqual("$0");
+    expect(formatCost(0.004)).toEqual("<$0.01");
+    expect(formatCost(42.5)).toEqual("$42.50");
+    expect(formatCost(99.999)).toEqual("$100.00");
+    expect(formatCost(308.71602198)).toEqual("$308.72");
+    expect(formatCost(1234.56789)).toEqual("$1,234.57");
+    expect(formatCost(2500)).toEqual("$2,500.00");
+  });
+
+  it("abbreviates from ten thousand dollars", () => {
+    expect(formatCost(12345.678)).toEqual("$12K");
+    expect(formatCost(1234234.2)).toEqual("$1.2M");
   });
 });
 

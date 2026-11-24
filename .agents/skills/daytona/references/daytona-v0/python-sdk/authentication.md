@@ -41,7 +41,7 @@ The SDKs and the CLI read their configuration from environment variables. The SD
 3. **`.env.local`** and **`.env`** files in the working directory (Python, TypeScript, and Ruby)
 4. Default values
 
-The API URL is the exception: the SDKs read it from code or from the process environment only. A `DAYTONA_API_URL` value in a `.env` file is ignored and reported, so a file in the working directory cannot redirect your API key to another endpoint.
+The API URL is the exception: the SDKs read it from code or from the process environment only. A `DAYTONA_API_URL` value in a `.env` file is ignored and reported, so a file in the working directory cannot redirect your API key to another endpoint. The Python and TypeScript SDKs have no API URL setting: Daytona v0 calls ignore `DAYTONA_API_URL`, and Daytona v2 calls use it as the Daytona v2 API URL.
 
 | **Variable**                  | **Description**                                                                                     |
 | ----------------------------- | --------------------------------------------------------------------------------------------------- |
@@ -55,7 +55,6 @@ The API URL is the exception: the SDKs read it from code or from the process env
 
 ```bash
 DAYTONA_API_KEY=YOUR_API_KEY
-DAYTONA_API_URL=https://app.daytona.io/api
 DAYTONA_TARGET=us
 ```
 
@@ -65,7 +64,6 @@ DAYTONA_TARGET=us
 
 ```bash
 export DAYTONA_API_KEY=YOUR_API_KEY
-export DAYTONA_API_URL=https://app.daytona.io/api
 export DAYTONA_TARGET=us
 ```
 
@@ -73,13 +71,12 @@ export DAYTONA_TARGET=us
 
 ```powershell
 $env:DAYTONA_API_KEY="YOUR_API_KEY"
-$env:DAYTONA_API_URL="https://app.daytona.io/api"
 $env:DAYTONA_TARGET="us"
 ```
 
 ## Authenticate the SDK
 
-Construct the client without arguments to read the environment variables, or pass the configuration in code. Each configuration field falls back to its environment variable on its own, so you can set the API key in code and the target in the environment. When no API key and no JWT token is found, the constructor raises an authentication error.
+Construct the client without arguments to read the environment variables, or pass the configuration in code. Each configuration field falls back to its environment variable on its own, so you can set the API key in code and the target in the environment. When no API key and no JWT token is found, the constructor raises an authentication error. The Python and TypeScript SDKs raise it on the first access to the Daytona v0 namespace instead.
 
 ```python
 from daytona import Daytona, DaytonaConfig
@@ -88,11 +85,7 @@ from daytona import Daytona, DaytonaConfig
 daytona = Daytona()
 
 # Using explicit configuration
-config = DaytonaConfig(
-    api_key="YOUR_API_KEY",
-    api_url="https://app.daytona.io/api",
-    target="us",
-)
+config = DaytonaConfig(api_key="YOUR_API_KEY")
 
 daytona = Daytona(config)
 ```

@@ -4,6 +4,7 @@
 - Mount a Cloudflare R2 bucket
 - Mount a Tigris bucket
 - Mount a Supabase Storage bucket
+- Mount a Nebius Object Storage bucket
 - Mount a Google Cloud Storage bucket
 - Mount an Azure Blob container
 - Mount a Box folder
@@ -16,9 +17,9 @@
 
 
 
-Mount object storage (Amazon S3, Cloudflare R2, Tigris, Supabase Storage, Google Cloud Storage, Azure Blob), cloud storage like Box, and filesystems like Archil, MesaFS, and TiDB Cloud Filesystem into a Daytona sandbox as a regular directory. The sandbox reads from and writes to the bucket as if it were a local directory, so existing tools, scripts, and agents work without changes. This is useful for bringing in datasets, model weights, or build artifacts that already live in your own cloud account.
+Mount object storage (Amazon S3, Cloudflare R2, Tigris, Supabase Storage, Nebius Object Storage, Google Cloud Storage, Azure Blob), cloud storage like Box, and filesystems like Archil, MesaFS, and TiDB Cloud Filesystem into a Daytona sandbox as a regular directory. The sandbox reads from and writes to the bucket as if it were a local directory, so existing tools, scripts, and agents work without changes. This is useful for bringing in datasets, model weights, or build artifacts that already live in your own cloud account.
 
-External storage mounts and [Daytona Volumes](./volumes.md) are complementary FUSE-based mechanisms — both expose remote object storage as a regular sandbox directory, both can be shared across sandboxes, and both persist beyond any individual sandbox's lifetime. The main distinction is **where the data physically lives**: Daytona Volumes are hosted on Daytona's own S3-compatible object store, while external mounts connect to a bucket or filesystem hosted on another provider (Amazon S3, Cloudflare R2, Tigris, Supabase Storage, GCS, Azure Blob, Box, Archil, MesaFS, TiDB Cloud Filesystem).
+External storage mounts and [Daytona Volumes](./volumes.md) are complementary FUSE-based mechanisms — both expose remote object storage as a regular sandbox directory, both can be shared across sandboxes, and both persist beyond any individual sandbox's lifetime. The main distinction is **where the data physically lives**: Daytona Volumes are hosted on Daytona's own S3-compatible object store, while external mounts connect to a bucket or filesystem hosted on another provider (Amazon S3, Cloudflare R2, Tigris, Supabase Storage, Nebius Object Storage, GCS, Azure Blob, Box, Archil, MesaFS, TiDB Cloud Filesystem).
 
 External storage is mounted using FUSE. Daytona supports two approaches, and each provider section below shows both — pick whichever fits your workflow:
 
@@ -428,7 +429,7 @@ const fork = forkSet.forks[0]
 
 // 2. Launch the sandbox with the fork's scoped credentials
 const daytona = new Daytona()
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   snapshot: 'fuse-tigris',
   envVars: {
     AWS_ACCESS_KEY_ID: fork.credentials!.accessKeyId,
@@ -447,7 +448,7 @@ try {
   const response = await sandbox.process.executeCommand(`ls ${mountPath}`)
   console.log(response.result)
 } finally {
-  await daytona.delete(sandbox)
+  await daytona.v0.delete(sandbox)
   await teardownForks(forkSet) // revokes the scoped key and deletes the fork bucket
 }
 ```
@@ -590,6 +591,134 @@ public class App {
                     + "mount-s3 --endpoint-url https://" + projectRef + ".storage.supabase.co/storage/v1/s3 "
                     + "--region " + region + " --force-path-style "
                     + "my-supabase-bucket " + mountPath);
+
+            ExecuteResponse response = sandbox.getProcess().executeCommand("ls " + mountPath);
+            System.out.println(response.getResult());
+        }
+    }
+}
+```
+
+## Mount a Nebius Object Storage bucket
+
+Mount a Nebius Object Storage bucket with the same `mount-s3` tool used for S3. Nebius Object Storage is [S3-compatible ↗](https://docs.nebius.com/object-storage/interfaces/s3-api-compatibility) and serves each region at `https://storage.<region>.nebius.cloud`, so pass the endpoint for your bucket's region with `--endpoint-url` and the region ID with `--region`. For performance settings recommended for high-throughput workloads, see the Nebius [Mountpoint for Amazon S3 guide ↗](https://docs.nebius.com/object-storage/interfaces/mountpoint-s3).
+
+**Credentials** — in the [Nebius AI Cloud console ↗](https://console.nebius.com/iam), go to **Administration** > **IAM**, create a service account, and add it to a group with access to your bucket, such as the default `editors` group. Then [create an access key ↗](https://docs.nebius.com/iam/service-accounts/access-keys) for the service account. Set `NEBIUS_REGION` (the region of the bucket's project, e.g. `eu-north1`), `NEBIUS_ACCESS_KEY_ID` (the key's AWS-compatible ID, not its Nebius resource ID), and `NEBIUS_SECRET_ACCESS_KEY` in your local environment. The snippets below pass the keys into the sandbox via `envVars` under the `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` names that `mount-s3` expects. The default groups grant permissions across the whole tenant, so for production, use a [custom group ↗](https://docs.nebius.com/iam/authorization/groups#custom-groups) with access to the bucket only.
+
+### Pre-built snapshot
+
+Build a snapshot with `mount-s3` preinstalled, then launch Nebius-enabled sandboxes from that snapshot. The mount flow matches S3 except for the Nebius `--endpoint-url` and `--region` flags, and startup stays fast because installation happens once during snapshot build.
+
+#### Build a snapshot
+
+Create a reusable snapshot that installs `mount-s3`. Because Nebius Object Storage is S3-compatible, this setup matches S3 and only the runtime mount command changes.
+
+```java
+import io.daytona.sdk.Daytona;
+import io.daytona.sdk.Image;
+
+public class App {
+    public static void main(String[] args) {
+        try (Daytona daytona = new Daytona()) {
+            Image image = Image.base("daytonaio/sandbox")
+                .runCommands(
+                    "sudo apt-get update "
+                        + "&& sudo apt-get install -y --no-install-recommends libfuse2 ca-certificates wget",
+                    "arch=\"$(dpkg --print-architecture | sed s/amd64/x86_64/)\" "
+                        + "&& wget -O /tmp/mount-s3.deb "
+                        + "\"https://s3.amazonaws.com/mountpoint-s3-release/latest/${arch}/mount-s3.deb\" "
+                        + "&& sudo apt-get install -y /tmp/mount-s3.deb "
+                        + "&& rm /tmp/mount-s3.deb"
+                );
+
+            daytona.snapshot().create("fuse-nebius", image, System.out::println);
+        }
+    }
+}
+```
+
+#### Launch and mount
+
+Pass your Nebius access key into the sandbox as `AWS_*` environment variables, then mount with the regional endpoint URL and region. This keeps authentication compatible with `mount-s3` while targeting your Nebius bucket.
+
+```java
+import io.daytona.sdk.Daytona;
+import io.daytona.sdk.Sandbox;
+import io.daytona.sdk.model.CreateSandboxFromSnapshotParams;
+import io.daytona.sdk.model.ExecuteResponse;
+
+import java.util.Map;
+
+public class App {
+    public static void main(String[] args) {
+        try (Daytona daytona = new Daytona()) {
+            // Nebius serves each region from its own endpoint, e.g. storage.eu-north1.nebius.cloud
+            String region = System.getenv("NEBIUS_REGION");
+
+            CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();
+            params.setSnapshot("fuse-nebius");
+            params.setEnvVars(Map.of(
+                "AWS_ACCESS_KEY_ID", System.getenv("NEBIUS_ACCESS_KEY_ID"),
+                "AWS_SECRET_ACCESS_KEY", System.getenv("NEBIUS_SECRET_ACCESS_KEY")
+            ));
+            Sandbox sandbox = daytona.create(params);
+
+            String mountPath = "/home/daytona/nebius";
+
+            sandbox.getProcess().executeCommand("mkdir -p " + mountPath);
+            sandbox.getProcess().executeCommand(
+                "mount-s3 --endpoint-url https://storage." + region + ".nebius.cloud "
+                    + "--region " + region + " "
+                    + "my-nebius-bucket " + mountPath);
+
+            ExecuteResponse response = sandbox.getProcess().executeCommand("ls " + mountPath);
+            System.out.println(response.getResult());
+        }
+    }
+}
+```
+
+### Runtime install
+
+Start from a default sandbox, install `mount-s3` during startup, then mount with the Nebius `--endpoint-url` and `--region` flags. This path is convenient for prototyping or one-off tasks, but each new sandbox repeats package installation.
+
+```java
+import io.daytona.sdk.Daytona;
+import io.daytona.sdk.Sandbox;
+import io.daytona.sdk.model.CreateSandboxFromSnapshotParams;
+import io.daytona.sdk.model.ExecuteResponse;
+
+import java.util.Map;
+
+public class App {
+    public static void main(String[] args) {
+        try (Daytona daytona = new Daytona()) {
+            String region = System.getenv("NEBIUS_REGION");
+
+            CreateSandboxFromSnapshotParams params = new CreateSandboxFromSnapshotParams();
+            params.setEnvVars(Map.of(
+                "AWS_ACCESS_KEY_ID", System.getenv("NEBIUS_ACCESS_KEY_ID"),
+                "AWS_SECRET_ACCESS_KEY", System.getenv("NEBIUS_SECRET_ACCESS_KEY")
+            ));
+            Sandbox sandbox = daytona.create(params);
+
+            // Install mount-s3
+            sandbox.getProcess().executeCommand(
+                "sudo apt-get update "
+                    + "&& sudo apt-get install -y --no-install-recommends libfuse2 ca-certificates wget");
+            sandbox.getProcess().executeCommand(
+                "arch=\"$(dpkg --print-architecture | sed s/amd64/x86_64/)\" "
+                    + "&& wget -O /tmp/mount-s3.deb "
+                    + "\"https://s3.amazonaws.com/mountpoint-s3-release/latest/${arch}/mount-s3.deb\" "
+                    + "&& sudo apt-get install -y /tmp/mount-s3.deb");
+
+            // Mount with Nebius endpoint
+            String mountPath = "/home/daytona/nebius";
+            sandbox.getProcess().executeCommand(
+                "mkdir -p " + mountPath + " && "
+                    + "mount-s3 --endpoint-url https://storage." + region + ".nebius.cloud "
+                    + "--region " + region + " "
+                    + "my-nebius-bucket " + mountPath);
 
             ExecuteResponse response = sandbox.getProcess().executeCommand("ls " + mountPath);
             System.out.println(response.getResult());
@@ -1596,7 +1725,7 @@ If the drain fails or times out, keep the sandbox running, resolve the error, an
 
 ## Unmount
 
-When a sandbox is deleted via `daytona.delete(sandbox)`, the container teardown automatically removes any active FUSE mounts and shuts down their daemons. For normal cleanup, this is all you need — no manual unmount required.
+When a sandbox is deleted via `daytona.v0.delete(sandbox)`, the container teardown automatically removes any active FUSE mounts and shuts down their daemons. For normal cleanup, this is all you need — no manual unmount required.
 
 To free a mount path **during** a sandbox's lifetime (for example, to remount with different credentials or before persisting a workspace archive), relocate the mount onto a throwaway path:
 

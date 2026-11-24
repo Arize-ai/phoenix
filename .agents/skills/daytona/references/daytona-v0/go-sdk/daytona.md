@@ -29,6 +29,8 @@
 - type MouseDragOption
 - type MouseScrollOption
 - type MouseService
+- type NodeErrors
+- type NodeResources
 - type OutputChannels
 - type ProcessService
 - type PtyHandle
@@ -39,6 +41,8 @@
 - type SandboxListSortDirection
 - type SandboxListSortField
 - type SandboxMetrics
+- type SandboxNode
+- type SandboxNodes
 - type SandboxState
 - type ScreenshotService
 - type SecretService
@@ -255,6 +259,10 @@ result, err := sandbox.Process.ExecuteCommand(ctx, "ls -la")
   - [func \(m \*MouseService\) Move\(ctx context.Context, x, y int\) \(map\[string\]any, error\)](<#MouseService.Move>)
   - [func \(m \*MouseService\) Scroll\(ctx context.Context, x, y int, direction string, amount \*int, opts ...MouseScrollOption\) \(bool, error\)](https://www.daytona.io/docs/en<#MouseService.Scroll>)
   - [func \(m \*MouseService\) Up\(ctx context.Context, button \*string, x, y \*int\) \(map\[string\]any, error\)](<#MouseService.Up>)
+- [type NodeErrors](https://www.daytona.io/docs/en<#NodeErrors>)
+  - [func \(e \*NodeErrors\) Error\(\) string](https://www.daytona.io/docs/en<#NodeErrors.Error>)
+  - [func \(e \*NodeErrors\) Unwrap\(\) \[\]error](<#NodeErrors.Unwrap>)
+- [type NodeResources](https://www.daytona.io/docs/en<#NodeResources>)
 - [type OutputChannels](https://www.daytona.io/docs/en<#OutputChannels>)
 - [type ProcessService](https://www.daytona.io/docs/en<#ProcessService>)
   - [func NewProcessService\(toolboxClient \*toolbox.APIClient, otel \*otelState, language types.CodeLanguage\) \*ProcessService](https://www.daytona.io/docs/en<#NewProcessService>)
@@ -324,6 +332,7 @@ result, err := sandbox.Process.ExecuteCommand(ctx, "ls -la")
   - [func \(s \*Sandbox\) GetSignedPreviewLink\(ctx context.Context, port int, expiresInSeconds int\) \(\*types.SignedPreviewLink, error\)](https://www.daytona.io/docs/en<#Sandbox.GetSignedPreviewLink>)
   - [func \(s \*Sandbox\) GetUserHomeDir\(ctx context.Context\) \(string, error\)](https://www.daytona.io/docs/en<#Sandbox.GetUserHomeDir>)
   - [func \(s \*Sandbox\) GetWorkingDir\(ctx context.Context\) \(string, error\)](https://www.daytona.io/docs/en<#Sandbox.GetWorkingDir>)
+  - [func \(s \*Sandbox\) Nodes\(ctx context.Context\) \(\*SandboxNodes, error\)](https://www.daytona.io/docs/en<#Sandbox.Nodes>)
   - [func \(s \*Sandbox\) Pause\(ctx context.Context\) error](https://www.daytona.io/docs/en<#Sandbox.Pause>)
   - [func \(s \*Sandbox\) PauseWithTimeout\(ctx context.Context, timeout time.Duration\) error](https://www.daytona.io/docs/en<#Sandbox.PauseWithTimeout>)
   - [func \(s \*Sandbox\) RefreshData\(ctx context.Context\) error](https://www.daytona.io/docs/en<#Sandbox.RefreshData>)
@@ -352,6 +361,21 @@ result, err := sandbox.Process.ExecuteCommand(ctx, "ls -la")
 - [type SandboxListSortDirection](https://www.daytona.io/docs/en<#SandboxListSortDirection>)
 - [type SandboxListSortField](https://www.daytona.io/docs/en<#SandboxListSortField>)
 - [type SandboxMetrics](https://www.daytona.io/docs/en<#SandboxMetrics>)
+- [type SandboxNode](https://www.daytona.io/docs/en<#SandboxNode>)
+  - [func \(n \*SandboxNode\) CreateSSHAccess\(ctx context.Context, expiresInMinutes \*int32\) \(\*apiclient.SshAccessDto, error\)](https://www.daytona.io/docs/en<#SandboxNode.CreateSSHAccess>)
+  - [func \(n \*SandboxNode\) GetPreviewLink\(ctx context.Context, port int\) \(\*types.PreviewLink, error\)](https://www.daytona.io/docs/en<#SandboxNode.GetPreviewLink>)
+  - [func \(n \*SandboxNode\) RevokeSSHAccess\(ctx context.Context, token string\) error](https://www.daytona.io/docs/en<#SandboxNode.RevokeSSHAccess>)
+  - [func \(n \*SandboxNode\) Warnings\(\) \[\]string](<#SandboxNode.Warnings>)
+- [type SandboxNodes](https://www.daytona.io/docs/en<#SandboxNodes>)
+  - [func \(c \*SandboxNodes\) Add\(ctx context.Context, nodes \[\]NodeResources, timeout ...time.Duration\) \(\*apiclient.GangMembershipOperation, error\)](<#SandboxNodes.Add>)
+  - [func \(c \*SandboxNodes\) All\(\) \[\]\*SandboxNode](<#SandboxNodes.All>)
+  - [func \(c \*SandboxNodes\) ExecuteCommand\(ctx context.Context, command string, timeout ...time.Duration\) \(map\[int32\]\*types.ExecuteResponse, error\)](<#SandboxNodes.ExecuteCommand>)
+  - [func \(c \*SandboxNodes\) Get\(rank int\) \(\*SandboxNode, error\)](https://www.daytona.io/docs/en<#SandboxNodes.Get>)
+  - [func \(c \*SandboxNodes\) Operation\(ctx context.Context, id string\) \(\*apiclient.GangMembershipOperation, error\)](https://www.daytona.io/docs/en<#SandboxNodes.Operation>)
+  - [func \(c \*SandboxNodes\) Release\(ctx context.Context, count int, timeout ...time.Duration\) \(\*apiclient.GangMembershipOperation, error\)](https://www.daytona.io/docs/en<#SandboxNodes.Release>)
+  - [func \(c \*SandboxNodes\) Replace\(ctx context.Context, rank int, timeout ...time.Duration\) \(\*apiclient.GangMembershipOperation, error\)](https://www.daytona.io/docs/en<#SandboxNodes.Replace>)
+  - [func \(c \*SandboxNodes\) TopologyGeneration\(\) int32](https://www.daytona.io/docs/en<#SandboxNodes.TopologyGeneration>)
+  - [func \(c \*SandboxNodes\) UploadFile\(ctx context.Context, source any, destination string\) error](https://www.daytona.io/docs/en<#SandboxNodes.UploadFile>)
 - [type SandboxState](https://www.daytona.io/docs/en<#SandboxState>)
 - [type ScreenshotService](https://www.daytona.io/docs/en<#ScreenshotService>)
   - [func NewScreenshotService\(toolboxClient \*toolbox.APIClient, otel \*otelState\) \*ScreenshotService](https://www.daytona.io/docs/en<#NewScreenshotService>)
@@ -658,7 +682,7 @@ func (c *Client) Create(ctx context.Context, params any, opts ...func(*options.C
 
 Create creates a new sandbox with the specified parameters.
 
-The params argument accepts either \[types.SnapshotParams\] to create from a snapshot, or \[types.ImageParams\] to create from a Docker image \(a pointer to either is also accepted\):
+The params argument accepts \[types.SnapshotParams\], \[types.ImageParams\], and \[types.MultiNodeImageParams\] as values or pointers. To create a multi\-node GPU sandbox, set GPU on ImageParams.Resources to request at least two whole 8\-GPU nodes and specify at least one GpuType.
 
 ```
 // Create from a snapshot
@@ -3363,6 +3387,40 @@ pos, err := mouse.Up(ctx, nil, nil, nil)
 
 Returns a map with the resulting "x" and "y" cursor coordinates.
 
+<a name="NodeErrors"></a>
+## type NodeErrors
+
+NodeErrors contains the errors from individual ranks. Other ranks can succeed.
+
+```go
+type NodeErrors struct{ Failures map[int32]error }
+```
+
+<a name="NodeErrors.Error"></a>
+### func \(\*NodeErrors\) Error
+
+```go
+func (e *NodeErrors) Error() string
+```
+
+
+<a name="NodeErrors.Unwrap"></a>
+### func \(\*NodeErrors\) Unwrap
+
+```go
+func (e *NodeErrors) Unwrap() []error
+```
+
+
+<a name="NodeResources"></a>
+## type NodeResources
+
+NodeResources is the allocation for one appended rank.
+
+```go
+type NodeResources struct{ CPU, Memory, Disk int32 }
+```
+
 <a name="OutputChannels"></a>
 ## type OutputChannels
 
@@ -5081,6 +5139,15 @@ if err != nil {
 fmt.Printf("Working directory: %s\n", workDir)
 ```
 
+<a name="Sandbox.Nodes"></a>
+### func \(\*Sandbox\) Nodes
+
+```go
+func (s *Sandbox) Nodes(ctx context.Context) (*SandboxNodes, error)
+```
+
+Nodes fetches the current membership. An ordinary sandbox has one node at rank zero. A direct worker lookup exposes only the addressed rank.
+
 <a name="Sandbox.Pause"></a>
 ### func \(\*Sandbox\) Pause
 
@@ -5534,6 +5601,149 @@ type SandboxMetrics struct {
     Timestamp  time.Time
 }
 ```
+
+<a name="SandboxNode"></a>
+## type SandboxNode
+
+SandboxNode describes a physical rank and its data\-plane services.
+
+```go
+type SandboxNode struct {
+    apiclient.SandboxNode
+    Process    *ProcessService
+    FileSystem *FileSystemService
+    // contains filtered or unexported fields
+}
+```
+
+<a name="SandboxNode.CreateSSHAccess"></a>
+### func \(\*SandboxNode\) CreateSSHAccess
+
+```go
+func (n *SandboxNode) CreateSSHAccess(ctx context.Context, expiresInMinutes *int32) (*apiclient.SshAccessDto, error)
+```
+
+CreateSSHAccess creates SSH access for this member. A nil expiry uses the server default.
+
+<a name="SandboxNode.GetPreviewLink"></a>
+### func \(\*SandboxNode\) GetPreviewLink
+
+```go
+func (n *SandboxNode) GetPreviewLink(ctx context.Context, port int) (*types.PreviewLink, error)
+```
+
+GetPreviewLink obtains a preview for this member.
+
+<a name="SandboxNode.RevokeSSHAccess"></a>
+### func \(\*SandboxNode\) RevokeSSHAccess
+
+```go
+func (n *SandboxNode) RevokeSSHAccess(ctx context.Context, token string) error
+```
+
+RevokeSSHAccess revokes a token for this member.
+
+<a name="SandboxNode.Warnings"></a>
+### func \(\*SandboxNode\) Warnings
+
+```go
+func (n *SandboxNode) Warnings() []string
+```
+
+Warnings returns advisory messages from all\-node execution.
+
+<a name="SandboxNodes"></a>
+## type SandboxNodes
+
+SandboxNodes is a point\-in\-time membership view. Fetch it again with [Sandbox.Nodes](https://www.daytona.io/docs/en<#Sandbox.Nodes>) after a topology change. Mutations use the generation read with the view so they cannot act on a different topology.
+
+```go
+type SandboxNodes struct {
+    Degraded bool
+    // contains filtered or unexported fields
+}
+```
+
+<a name="SandboxNodes.Add"></a>
+### func \(\*SandboxNodes\) Add
+
+```go
+func (c *SandboxNodes) Add(ctx context.Context, nodes []NodeResources, timeout ...time.Duration) (*apiclient.GangMembershipOperation, error)
+```
+
+Add appends one node per allocation and waits for the operation.
+
+<a name="SandboxNodes.All"></a>
+### func \(\*SandboxNodes\) All
+
+```go
+func (c *SandboxNodes) All() []*SandboxNode
+```
+
+All returns the members in rank order.
+
+<a name="SandboxNodes.ExecuteCommand"></a>
+### func \(\*SandboxNodes\) ExecuteCommand
+
+```go
+func (c *SandboxNodes) ExecuteCommand(ctx context.Context, command string, timeout ...time.Duration) (map[int32]*types.ExecuteResponse, error)
+```
+
+ExecuteCommand runs a buffered command concurrently on each member. Results are keyed by rank, including successful ranks when another rank fails. For live output, use a session on the individual node's Process service.
+
+<a name="SandboxNodes.Get"></a>
+### func \(\*SandboxNodes\) Get
+
+```go
+func (c *SandboxNodes) Get(rank int) (*SandboxNode, error)
+```
+
+Get returns the member with the requested rank, including for a direct worker lookup.
+
+<a name="SandboxNodes.Operation"></a>
+### func \(\*SandboxNodes\) Operation
+
+```go
+func (c *SandboxNodes) Operation(ctx context.Context, id string) (*apiclient.GangMembershipOperation, error)
+```
+
+Operation retrieves the current status of a previously accepted membership change.
+
+<a name="SandboxNodes.Release"></a>
+### func \(\*SandboxNodes\) Release
+
+```go
+func (c *SandboxNodes) Release(ctx context.Context, count int, timeout ...time.Duration) (*apiclient.GangMembershipOperation, error)
+```
+
+Release removes count highest ranks and waits for the operation.
+
+<a name="SandboxNodes.Replace"></a>
+### func \(\*SandboxNodes\) Replace
+
+```go
+func (c *SandboxNodes) Replace(ctx context.Context, rank int, timeout ...time.Duration) (*apiclient.GangMembershipOperation, error)
+```
+
+Replace requests replacement of a degraded rank and waits for the operation.
+
+<a name="SandboxNodes.TopologyGeneration"></a>
+### func \(\*SandboxNodes\) TopologyGeneration
+
+```go
+func (c *SandboxNodes) TopologyGeneration() int32
+```
+
+TopologyGeneration returns the committed generation, or zero when membership mutations are unavailable.
+
+<a name="SandboxNodes.UploadFile"></a>
+### func \(\*SandboxNodes\) UploadFile
+
+```go
+func (c *SandboxNodes) UploadFile(ctx context.Context, source any, destination string) error
+```
+
+UploadFile streams a local file or byte slice to every member. Invalid sources return a single error. A [NodeErrors](https://www.daytona.io/docs/en<#NodeErrors>) result identifies failed uploads by rank.
 
 <a name="SandboxState"></a>
 ## type SandboxState

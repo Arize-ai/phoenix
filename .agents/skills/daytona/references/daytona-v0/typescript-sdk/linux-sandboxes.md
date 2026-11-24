@@ -65,7 +65,7 @@ Create a container sandbox. A sandbox created without a snapshot uses the Dayton
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const sandbox = await daytona.create()
+const sandbox = await daytona.v0.create()
 ```
 
 **Custom:**
@@ -88,13 +88,13 @@ import { Daytona } from '@daytona/sdk'
 const daytona = new Daytona()
 
 // Create a snapshot from an image
-await daytona.snapshot.create({
+await daytona.v0.snapshot.create({
   name: 'my-snapshot',
   image: 'python:3.12',
 })
 
 // Create a sandbox from the snapshot
-const sandbox = await daytona.create({ snapshot: 'my-snapshot' })
+const sandbox = await daytona.v0.create({ snapshot: 'my-snapshot' })
 ```
 
 ## Create a Linux VM sandbox
@@ -122,7 +122,7 @@ Create a Linux VM sandbox from a default snapshot.
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const sandbox = await daytona.create({ snapshot: 'daytona-vm-small' })
+const sandbox = await daytona.v0.create({ snapshot: 'daytona-vm-small' })
 ```
 
 **Custom:**
@@ -141,19 +141,20 @@ Create a Linux VM sandbox.
 10. Click <Button>Create</Button>
 
 ```typescript
-import { Daytona, SandboxClass } from '@daytona/sdk'
+import { Daytona } from '@daytona/sdk'
+import { SandboxClass } from '@daytona/sdk/v0'
 
 const daytona = new Daytona()
 
 // Create a Linux VM snapshot
-await daytona.snapshot.create({
+await daytona.v0.snapshot.create({
   name: 'my-vm-snapshot',
   image: 'ubuntu:22.04',
   sandboxClass: SandboxClass.LINUX_VM,
 })
 
 // Create a Linux VM sandbox from the snapshot
-const sandbox = await daytona.create({ snapshot: 'my-vm-snapshot' })
+const sandbox = await daytona.v0.create({ snapshot: 'my-vm-snapshot' })
 ```
 
 ## Nested virtualization
@@ -166,7 +167,7 @@ Daytona provides nested virtualization for Linux VM sandboxes. Nested virtualiza
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   snapshot: 'daytona-vm-small',
   kvm: true,
 })
@@ -182,7 +183,7 @@ A filesystem snapshot, also called a cold snapshot, saves the filesystem of a st
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const sandbox = await daytona.create()
+const sandbox = await daytona.v0.create()
 
 // Write a file to the filesystem
 await sandbox.fs.uploadFile(Buffer.from('done'), 'setup.log')
@@ -192,7 +193,7 @@ await sandbox.stop()
 await sandbox.createSnapshot('my-snapshot')
 
 // A sandbox created from the snapshot starts with the same filesystem
-const newSandbox = await daytona.create({ snapshot: 'my-snapshot' })
+const newSandbox = await daytona.v0.create({ snapshot: 'my-snapshot' })
 const content = await newSandbox.fs.downloadFile('setup.log')
 console.log(content.toString()) // done
 ```
@@ -203,7 +204,7 @@ console.log(content.toString()) // done
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const sandbox = await daytona.create({ snapshot: 'daytona-vm-small' })
+const sandbox = await daytona.v0.create({ snapshot: 'daytona-vm-small' })
 
 // Write a file to the filesystem
 await sandbox.fs.uploadFile(Buffer.from('done'), 'setup.log')
@@ -213,7 +214,7 @@ await sandbox.stop()
 await sandbox.createSnapshot('my-vm-snapshot')
 
 // A sandbox created from the snapshot starts with the same filesystem
-const newSandbox = await daytona.create({ snapshot: 'my-vm-snapshot' })
+const newSandbox = await daytona.v0.create({ snapshot: 'my-vm-snapshot' })
 const content = await newSandbox.fs.downloadFile('setup.log')
 console.log(content.toString()) // done
 ```
@@ -252,7 +253,7 @@ Linux sandboxes preserve their filesystem across [stop and start](#stop--start),
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const sandbox = await daytona.create()
+const sandbox = await daytona.v0.create()
 
 // Write a file to the filesystem
 await sandbox.fs.uploadFile(Buffer.from('done'), 'setup.log')
@@ -272,7 +273,7 @@ console.log(content.toString()) // done
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const sandbox = await daytona.create({ snapshot: 'daytona-vm-small' })
+const sandbox = await daytona.v0.create({ snapshot: 'daytona-vm-small' })
 
 // Write a file to the filesystem
 await sandbox.fs.uploadFile(Buffer.from('done'), 'setup.log')
@@ -301,7 +302,7 @@ Linux VM sandboxes preserve their memory across [pause and resume](#pause--resum
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const sandbox = await daytona.create({ snapshot: 'daytona-vm-small' })
+const sandbox = await daytona.v0.create({ snapshot: 'daytona-vm-small' })
 
 // Start a process that runs in the background
 await sandbox.process.createSession('keepalive')
@@ -476,7 +477,7 @@ A fork of a [KVM sandbox](#nested-virtualization) inherits the `kvm` setting. Fo
 const forkedSandbox = await sandbox.fork({ name: "my-forked-sandbox" });
 
 // Or use the Daytona helper method
-const helperForkedSandbox = await daytona.fork(sandbox, { name: "my-forked-sandbox" });
+const helperForkedSandbox = await daytona.v0.fork(sandbox, { name: "my-forked-sandbox" });
 ```
 
 ### Delete
@@ -533,7 +534,7 @@ Auto-pause is not supported for container sandboxes. Use [auto-stop](./sandboxes
 5. Click <Button>Create</Button>
 
 ```typescript
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   snapshot: 'daytona-vm-small',
   // Auto-pause after 1 hour of inactivity
   autoPauseInterval: 60,
@@ -564,7 +565,7 @@ Set `ttl_minutes` when creating a sandbox, or update it later. The value is in m
 Calling `set_ttl` after creation resets the deadline from the current moment. Use wall-clock TTL for agent sessions, CI jobs, and any sandbox that must not outlive a fixed deadline.
 
 ```typescript
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   snapshot: 'daytona-vm-small',
   ttlMinutes: 120,
 })

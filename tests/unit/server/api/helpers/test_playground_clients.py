@@ -1,7 +1,7 @@
 import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import Any, Optional
 
 import pytest
 from openai import AsyncOpenAI, AuthenticationError
@@ -625,6 +625,24 @@ class TestAnthropicStreamingClient:
             "disable_parallel_tool_use": True,
         }
 
+    def test_null_function_in_tool_call_yields_empty_name_and_input(self) -> None:
+        """A tool call whose function is an explicit null must not crash message building.
+
+        Playground tool calls are accumulated from provider streams, where a chunk can
+        carry `"function": null`. `_playground_tool_call_to_oi_tool_call` already guards
+        this with `if (function := tool_call.get("function")) is not None`; the Anthropic
+        message builder must not raise AttributeError on the same input.
+        """
+        client = self._anthropic_client()
+        content = client._anthropic_message_content(
+            "Evaluating.",
+            [{"id": "tc1", "function": None}],
+        )
+        assert content == [
+            {"type": "text", "text": "Evaluating."},
+            {"type": "tool_use", "id": "tc1", "name": "", "input": {}},
+        ]
+
     def test_one_or_more_tool_choice_survives_disable_parallel_tool_calls(self) -> None:
         """Disabling parallel tool use must not downgrade a required tool choice to `auto`."""
         params = self._anthropic_params(
@@ -889,6 +907,159 @@ class TestBedrockClient:
         request = self._converse_request(PromptTools(type="tools", tools=[_function_tool()]))
         tool_spec = request["toolConfig"]["tools"][0]["toolSpec"]
         assert "strict" not in tool_spec
+
+    def test_ai_tool_calls_are_sent_as_tool_use_blocks(self) -> None:
+        """Replayed AI tool calls must reach Converse as `toolUse` content blocks."""
+        client: Any = BedrockClient(
+            client_factory=_null_client_factory("aws"),
+            model_name="anthropic.claude-3-5-sonnet-20240620-v1:0",
+            provider="aws",
+        )
+        messages = client._build_converse_messages(
+            [
+                create_playground_message(
+                    ChatCompletionMessageRole.AI,
+                    "",
+                    tool_calls=[
+                        {
+                            "id": "call_1",
+                            "function": {"name": "get_weather", "arguments": {"city": "Paris"}},
+                        }
+                    ],
+                ),
+            ]
+        )
+        assert messages == [
+            {
+                "role": "assistant",
+                "content": [
+                    {
+                        "toolUse": {
+                            "toolUseId": "call_1",
+                            "name": "get_weather",
+                            "input": {"city": "Paris"},
+                        }
+                    }
+                ],
+            }
+        ]
+
+    @staticmethod
+    def _parallel_tool_call_history() -> list[PlaygroundMessage]:
+        return [
+            create_playground_message(ChatCompletionMessageRole.USER, "Weather in Paris and Rome?"),
+            create_playground_message(
+                ChatCompletionMessageRole.AI,
+                "",
+                tool_calls=[
+                    {
+                        "id": "call_1",
+                        "function": {"name": "get_weather", "arguments": {"city": "Paris"}},
+                    },
+                    {
+                        "id": "call_2",
+                        "function": {"name": "get_weather", "arguments": {"city": "Rome"}},
+                    },
+                ],
+            ),
+            create_playground_message(
+                ChatCompletionMessageRole.TOOL, '{"temp_c": 21}', tool_call_id="call_1"
+            ),
+            create_playground_message(
+                ChatCompletionMessageRole.TOOL, '{"temp_c": 25}', tool_call_id="call_2"
+            ),
+        ]
+
+    def _request_for(
+        self, messages: list[PlaygroundMessage], tools: Optional[PromptTools]
+    ) -> dict[str, Any]:
+        client: Any = BedrockClient(
+            client_factory=_null_client_factory("aws"),
+            model_name="anthropic.claude-3-5-sonnet-20240620-v1:0",
+            provider="aws",
+        )
+        return dict(
+            client._converse_build_request(
+                messages=messages,
+                tools=tools,
+                response_format=None,
+                invocation_parameters=None,
+                span=INVALID_SPAN,
+            )
+        )
+
+    def test_parallel_tool_results_are_sent_in_one_user_turn(self) -> None:
+        """Converse needs every toolResult for an assistant turn in the next user turn."""
+        request = self._request_for(
+            self._parallel_tool_call_history(),
+            PromptTools(type="tools", tools=[_function_tool()]),
+        )
+        assert [message["role"] for message in request["messages"]] == [
+            "user",
+            "assistant",
+            "user",
+        ]
+        assert request["messages"][2]["content"] == [
+            {"toolResult": {"toolUseId": "call_1", "content": [{"text": '{"temp_c": 21}'}]}},
+            {"toolResult": {"toolUseId": "call_2", "content": [{"text": '{"temp_c": 25}'}]}},
+        ]
+
+    def test_consecutive_same_role_messages_are_merged(self) -> None:
+        """Converse requires alternating roles, so adjacent same-role turns become one."""
+        request = self._request_for(
+            [
+                create_playground_message(ChatCompletionMessageRole.USER, "first"),
+                create_playground_message(ChatCompletionMessageRole.USER, "second"),
+                create_playground_message(ChatCompletionMessageRole.AI, "one"),
+                create_playground_message(ChatCompletionMessageRole.AI, "two"),
+                create_playground_message(ChatCompletionMessageRole.USER, "third"),
+            ],
+            None,
+        )
+        assert request["messages"] == [
+            {"role": "user", "content": [{"text": "first"}, {"text": "second"}]},
+            {"role": "assistant", "content": [{"text": "one"}, {"text": "two"}]},
+            {"role": "user", "content": [{"text": "third"}]},
+        ]
+
+    @pytest.mark.parametrize(
+        "tools",
+        [
+            pytest.param(None, id="no-tools"),
+            pytest.param(
+                PromptTools(
+                    type="tools",
+                    tool_choice=PromptToolChoiceNone(type="none"),
+                    tools=[_function_tool()],
+                ),
+                id="tool-choice-none",
+            ),
+        ],
+    )
+    def test_tool_history_without_tool_config_is_sent_as_text(
+        self, tools: Optional[PromptTools]
+    ) -> None:
+        """Without a toolConfig, Converse rejects toolUse/toolResult blocks, so the
+        replayed calls and results are sent as text and no tools are offered."""
+        request = self._request_for(self._parallel_tool_call_history(), tools)
+        assert "toolConfig" not in request
+        assert request["messages"] == [
+            {"role": "user", "content": [{"text": "Weather in Paris and Rome?"}]},
+            {
+                "role": "assistant",
+                "content": [
+                    {"text": '[tool call call_1] get_weather({"city": "Paris"})'},
+                    {"text": '[tool call call_2] get_weather({"city": "Rome"})'},
+                ],
+            },
+            {
+                "role": "user",
+                "content": [
+                    {"text": '[tool result call_1] {"temp_c": 21}'},
+                    {"text": '[tool result call_2] {"temp_c": 25}'},
+                ],
+            },
+        ]
 
 
 class TestGetOpenAIClientClass:

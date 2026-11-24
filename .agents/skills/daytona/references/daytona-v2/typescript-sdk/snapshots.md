@@ -2,7 +2,7 @@
 
 Captures of the memory and disk of a running sandbox that new sandboxes resume from.
 
-Snapshots are captures of the complete state of a running sandbox at one point in time: its memory, its running processes, and its disk. A sandbox restored from a snapshot continues from that point instead of booting and repeating its setup. The same snapshot can be restored many times, and each restore produces an identical copy of the captured state.
+Snapshots are saved copies of a sandbox at one point in time. A new sandbox starts from a snapshot instead of a clean install, so the setup that many sandboxes share runs only once.
 
 Daytona saves a snapshot as a running sandbox frozen at one moment, under a name and apart from the sandbox it came from. A sandbox restored from it is a new sandbox that picks up the captured processes and memory where they stopped, with the CPU, memory, and disk of the source. The snapshot outlives its source, so deleting the source sandbox leaves it in place.
 
@@ -99,14 +99,14 @@ const sandbox = await daytona.v2.createFromSnapshot('my-snapshot')
 | **Parameter** | **Description** |
 | --- | --- |
 | `snapshot` | Sets the snapshot to restore from.<br />**Required**<br />**Format:** a snapshot name or ID<br />**Example:** `'my-snapshot'` |
-| `name` | Sets the display name of the sandbox.<br />**Default:** a generated name, sandbox- followed by 8 hexadecimal characters<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, not starting with a period or a reserved prefix such as sbx_ or img_<br />**Example:** `'my-sandbox'` |
+| `createTimeoutSeconds` | Sets how many seconds the sandbox has to reach running before it is deleted.<br />**Default:** `3600`<br />**Minimum:** `1`<br />**Maximum:** `86400`<br />**Value:** `-1` for the maximum<br />**Example:** `600` |
+| `idempotencyKey` | Makes a retried create return the same sandbox.<br />**Default:** a key derived from name if set, otherwise a new key for each call<br />**Minimum:** 1 character<br />**Maximum:** 256 characters<br />**Format:** printable ASCII<br />**Example:** `'run-42-restore'` |
 | `labels` | Attaches key-value metadata to the sandbox.<br />**Maximum:** 100 labels<br />**Format:** a non-empty key and a value of at most 512 bytes each<br />**Example:** `{ team: 'research' }` |
-| `ports` | Forwards inbound ports to the sandbox.<br />**Maximum:** 32 mappings<br />**Format:** objects with a port from `1` to `65535` and a proto of `tcp` or `udp`, which defaults to `tcp`<br />**Example:** `[{ port: 8080 }]` |
 | `lifecyclePolicy` | Sets the timeouts of the sandbox.<br />**Format:** timeoutSeconds and onTimeout, and idleExpirySeconds and onIdleTimeout<br />**Example:** `{ timeoutSeconds: 3600, onTimeout: 'delete' }` |
-| `region` | Sets the region of the sandbox.<br />**Default:** the snapshot's home region<br />**Format:** a listed region ID<br />**Example:** `'earth'` |
-| `idempotencyKey` | Makes a retried create return the same sandbox.<br />**Default:** a key derived from name if set, otherwise a new key for each call<br />**Maximum:** 256 characters<br />**Format:** printable ASCII<br />**Example:** `'run-42-restore'` |
+| `name` | Sets the display name of the sandbox.<br />**Default:** a generated name, sandbox- followed by 8 hexadecimal characters<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, not starting with a period or a reserved prefix such as sbx_ or img_<br />**Example:** `'my-sandbox'` |
+| `ports` | Forwards inbound ports to the sandbox.<br />**Maximum:** 32 mappings<br />**Format:** objects with a port from `1` to `65535` and a proto of `tcp` or `udp`, which defaults to `tcp`<br />**Example:** `[{ port: 8080 }]` |
+| `region` | Sets the region of the sandbox.<br />**Default:** the snapshot's home region<br />**Value:** `earth`, `us`, `us-east`, `us-east-ash-1`, `us-east-bos-1`, `us-east-iad-1`, or the ID of a [BYOC region](./bring-your-own-compute.md) of the organization<br />**Example:** `'earth'` |
 | `waitSeconds` | Sets how many seconds the call waits for the sandbox to start.<br />**Default:** `60`<br />**Value:** `0` for no wait<br />**Example:** `120` |
-| `createTimeoutSeconds` | Sets how many seconds the sandbox has to reach running before it is deleted.<br />**Default:** `3600`<br />**Maximum:** `86400`<br />**Value:** `-1` for the maximum<br />**Example:** `600` |
 
 > **Notes:**
 >
@@ -160,10 +160,10 @@ for (const snapshot of page.items) {
 
 | **Parameter** | **Description** |
 | --- | --- |
+| `cursor` | Continues from a previous page. |
+| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `name` | Filters by exact snapshot name.<br />**Example:** `'my-snapshot'` |
 | `sandboxId` | Filters by the sandbox the snapshots were captured from.<br />**Format:** a sandbox ID<br />**Example:** `sandbox.id` |
-| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
-| `cursor` | Continues from a previous page. |
 
 > **Notes:**
 >

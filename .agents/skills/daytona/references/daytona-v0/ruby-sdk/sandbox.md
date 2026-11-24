@@ -531,6 +531,50 @@ def process()
 
 - `Daytona:Process`
 
+#### nodes()
+
+```ruby
+def nodes()
+
+```
+
+**Returns**:
+
+- `Daytona:SandboxNodes` - Rank-ordered node handles. A gang head includes all ranks. A direct worker lookup includes only that worker.
+
+#### node_count()
+
+```ruby
+def node_count()
+
+```
+
+**Returns**:
+
+- `Integer` - Number of nodes reported by the last refresh
+
+#### topology_generation()
+
+```ruby
+def topology_generation()
+
+```
+
+**Returns**:
+
+- `Integer, nil` - Current topology generation
+
+#### degraded()
+
+```ruby
+def degraded()
+
+```
+
+**Returns**:
+
+- `Boolean, nil` - Whether the API reports a degraded gang
+
 #### fs()
 
 ```ruby

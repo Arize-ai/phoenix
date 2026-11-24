@@ -82,11 +82,12 @@ The following examples are valid:
 Daytona provides methods to create secrets.
 
 ```python
-from daytona import CreateSecretParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSecretParams
 
 daytona = Daytona()
 
-secret = daytona.secret.create(CreateSecretParams(
+secret = daytona.v0.secret.create(CreateSecretParams(
     name="my-secret",
     value="secret-value",
     description="Optional description",
@@ -107,11 +108,12 @@ Each entry must have exactly one key. The environment variable name (the key) ca
 
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
 
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     language="python",
     secrets={
         "MY_API_KEY": "my-secret",
@@ -126,17 +128,18 @@ Do not use echo services to test substitution. [Response scrubbing](#response-sc
 To verify substitution, call the real service and check the status code. For example, store a GitHub token as a secret allowed for `api.github.com`, then call `https://api.github.com/user` from the sandbox. A `200` response proves the proxy replaced the placeholder with the real token, because GitHub rejects the placeholder with a `401`.
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams, CreateSecretParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams, CreateSecretParams
 
 daytona = Daytona()
 
-daytona.secret.create(CreateSecretParams(
+daytona.v0.secret.create(CreateSecretParams(
     name="github-token",
     value="ghp_your_real_token",
     hosts=["api.github.com"],
 ))
 
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     secrets={"GITHUB_TOKEN": "github-token"},
 ))
 
@@ -171,7 +174,7 @@ Daytona provides methods to list secrets.
 List operations use cursor-based pagination (`GET /secret/paginated`) and return one page at a time: the page's secrets in `items`, the `total` count, and a cursor for the next page (unset when there are no more pages). Pass the cursor from a previous response to fetch the next page. List operations return metadata only. Secret values are never returned after creation.
 
 ```python
-page = daytona.secret.list()
+page = daytona.v0.secret.list()
 for secret in page.items:
     print(secret.name)
 ```
@@ -183,7 +186,7 @@ Daytona provides methods to get a single secret by its ID.
 Get operations return metadata only. Secret values are never returned after creation.
 
 ```python
-secret = daytona.secret.get(secret_id)
+secret = daytona.v0.secret.get(secret_id)
 ```
 
 ## Update a secret
@@ -193,9 +196,9 @@ Daytona provides methods to update a secret's value, description, or host allowl
 Updating the value rotates the credential. The placeholder stays the same, so existing sandboxes that reference the secret pick up the new value on subsequent requests without recreation. The change takes effect in all sandboxes that use the secret within 30 seconds. Send only the fields you want to change. Omitting a field leaves it unchanged.
 
 ```python
-from daytona import UpdateSecretParams
+from daytona.v0 import UpdateSecretParams
 
-secret = daytona.secret.update(secret_id, UpdateSecretParams(
+secret = daytona.v0.secret.update(secret_id, UpdateSecretParams(
     value="new-secret-value",
     hosts=["api.example.com", "*.example.com"],
 ))
@@ -208,7 +211,7 @@ Daytona provides methods to delete a secret.
 Deleted secrets cannot be recovered. Sandboxes that reference a deleted secret stop resolving its value within 30 seconds.
 
 ```python
-daytona.secret.delete(secret_id)
+daytona.v0.secret.delete(secret_id)
 ```
 
 ## HTTP Basic Auth
@@ -221,17 +224,18 @@ To authenticate with Basic Auth:
 2. In the sandbox, pass the mounted variable to a Basic Auth helper: **`curl --user "username:$MY_SECRET"`**
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams, CreateSecretParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams, CreateSecretParams
 
 daytona = Daytona()
 
-daytona.secret.create(CreateSecretParams(
+daytona.v0.secret.create(CreateSecretParams(
     name="basic-auth-password",
     value="password",
     hosts=["api.example.com"],
 ))
 
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     secrets={"BASIC_AUTH_PASSWORD": "basic-auth-password"},
 ))
 

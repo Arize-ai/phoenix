@@ -2,7 +2,12 @@
 
 - Sandbox
 - ListSandboxesQuery
+- NodeExecuteOptions
+- NodeResources
 - SandboxMetrics
+- SandboxNodeCollection
+- SandboxNodeFileSystem
+- SandboxNodeProcess
 - See Also
 
 
@@ -30,6 +35,7 @@ Represents a Daytona Sandbox.
 - `cpu` _number_ - Number of CPUs allocated to the Sandbox
 - `createdAt?` _string_ - When the Sandbox was created
 - `daemonVersion?` _string_ - The version of the daemon running in the Sandbox
+- `degraded?` _boolean_
 - `desiredState?` _SandboxDesiredState_ - The state the system is driving the Sandbox toward
 - `disk` _number_ - Amount of disk space allocated to the Sandbox in GiB
 - `domainAllowList?` _string_ - Comma-separated list of allowed domains for the Sandbox
@@ -53,6 +59,8 @@ Represents a Daytona Sandbox.
     (not returned by list results; call `refreshData()` on each item to populate)
 - `networkBlockAll?` _boolean_ - Whether to block all network access for the Sandbox
     (not returned by list results; call `refreshData()` on each item to populate)
+- `nodeCount` _number = 1_ - Derived physical node count.
+- `nodes` _SandboxNodeCollection_ - Live physical members in rank order, including the head at index 0.
 - `organizationId` _string_ - Organization ID of the Sandbox
 - `otelEndpointOverride?` _string_ - OTel collector endpoint override for the Sandbox. When set, sandbox OTel
     data is sent to this endpoint instead of the default collector and is not available in the Daytona analytics API or
@@ -72,6 +80,7 @@ Represents a Daytona Sandbox.
 - `state?` _SandboxState_ - Current state of the Sandbox (e.g., "started", "stopped")
 - `target` _string_ - Target location of the runner where the Sandbox runs
 - `toolboxProxyUrl` _string_
+- `topologyGeneration?` _number_
 - `updatedAt?` _string_ - When the Sandbox was last updated
 - `user` _string_ - OS user running in the Sandbox
 - `volumes?` _SandboxVolume\[\]_ - Volumes attached to the Sandbox (not returned by
@@ -926,7 +935,8 @@ Set the TTL (maximum time to live) for the Sandbox.
 
 The Sandbox will be destroyed once the TTL elapses, counted as wall-clock time regardless of the
 Sandbox state - even if it is stopped, paused, or archived. Calling this method re-anchors the
-deadline from the current time. Call `refreshData()` afterwards to read the updated `autoDestroyAt`.
+deadline from the current time. On a multi-node head, expiry destroys every member and all
+ephemeral local data. Call `refreshData()` afterwards to read the updated `autoDestroyAt`.
 
 **Parameters**:
 
@@ -992,6 +1002,8 @@ stop(timeout?: number, force?: boolean): Promise<void>;
 Stops the Sandbox.
 
 This method stops the Sandbox and waits for it to be fully stopped.
+For a multi-node GPU Sandbox, this irreversibly destroys the complete
+gang and all ephemeral local data; it cannot be started again.
 
 **Parameters**:
 
@@ -1260,6 +1272,20 @@ or encounters an error.
 - `sort?` _SandboxListSortField_ - Sort by field
 - `states?` _SandboxState\[\]_ - Filter by states
 - `targets?` _string\[\]_ - Filter by targets
+## NodeExecuteOptions
+
+**Properties**:
+
+- `timeout?` _number_ - Execution limit per rank in seconds. Omitted or 0 disables it.
+## NodeResources
+
+CPU, memory, and disk allocated to one appended Sandbox node.
+
+**Properties**:
+
+- `cpu` _number_
+- `disk` _number_
+- `memory` _number_
 ## SandboxMetrics
 
 A single point-in-time sample of historical Sandbox resource usage.
@@ -1274,6 +1300,130 @@ A single point-in-time sample of historical Sandbox resource usage.
 - `memTotal` _number_ - Total memory in bytes.
 - `memUsed` _number_ - Used memory in bytes.
 - `timestamp` _Date_ - Timestamp of this sample.
+## SandboxNodeCollection
+
+**Extends:**
+
+**Properties**:
+
+- `fs` _SandboxNodeFileSystem_
+- `process` _SandboxNodeProcess_
+
+
+- `ReadonlyArray`\<`SandboxNode`\>
+
+### Indexable
+
+```ts
+[n: number]: SandboxNode
+```
+
+### Methods
+
+#### add()
+
+```ts
+add(nodes: readonly NodeResources[], timeout?: number): Promise<GangMembershipOperation>;
+```
+
+Append one rank for each resource specification and wait for completion.
+
+**Parameters**:
+
+- `nodes` _NodeResources\[\]_
+- `timeout?` _number_
+
+
+**Returns**:
+
+- `Promise<GangMembershipOperation>`
+
+#### release()
+
+```ts
+release(count?: number, timeout?: number): Promise<GangMembershipOperation>;
+```
+
+Release the highest ranks and wait for completion.
+
+**Parameters**:
+
+- `count?` _number_
+- `timeout?` _number_
+
+
+**Returns**:
+
+- `Promise<GangMembershipOperation>`
+
+#### replace()
+
+```ts
+replace(rank: number, timeout?: number): Promise<GangMembershipOperation>;
+```
+
+Replace a degraded rank and wait for completion.
+
+**Parameters**:
+
+- `rank` _number_
+- `timeout?` _number_
+
+
+**Returns**:
+
+- `Promise<GangMembershipOperation>`
+## SandboxNodeFileSystem
+
+### Methods
+
+#### uploadFile()
+
+```ts
+uploadFile(
+   src: string | Buffer<ArrayBufferLike>,
+   dst: string,
+   timeout?: number
+): Promise<void>;
+```
+
+Upload the same file to every current node in parallel. Successful uploads are not rolled back.
+
+**Parameters**:
+
+- `src` _string \| Buffer\<ArrayBufferLike\>_
+- `dst` _string_
+- `timeout?` _number_
+
+
+**Returns**:
+
+- `Promise<void>`
+
+***
+
+
+## SandboxNodeProcess
+
+### Methods
+
+#### executeCommand()
+
+```ts
+executeCommand(command: string, options?: NodeExecuteOptions): Promise<Record<number, ExecuteResponse>>;
+```
+
+Execute on every node in parallel and return buffered output by rank. Use per-node sessions for live output.
+
+**Parameters**:
+
+- `command` _string_
+- `options?` _NodeExecuteOptions_
+
+
+**Returns**:
+
+- `Promise<Record<number, ExecuteResponse>>`
 
 ## See Also
 - [Python SDK - sandbox](../python-sdk/sync/sandbox.md)

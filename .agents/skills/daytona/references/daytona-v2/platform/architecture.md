@@ -1,6 +1,6 @@
 # Architecture
 
-Daytona platform architecture overview.
+The planes and components that run Daytona sandboxes and serve their traffic.
 
 Daytona platform is organized into multiple plane components, each serving a specific purpose:
 
@@ -8,103 +8,123 @@ Daytona platform is organized into multiple plane components, each serving a spe
 - [Control plane](#control-plane) accepts requests, stores state, and hands work to runners
 - [Compute plane](#compute-plane) runs sandboxes and serves sandbox traffic
 
-### Interface plane
+## Contents
 
-The interface plane provides client interfaces for users and agents to interact with Daytona. A client interface is the part of a platform that people and programs use directly, and it turns their actions into requests to the services behind it. The following components are part of the interface plane and available to all users and agents:
+- [Interface plane](#interface-plane)
+- [Control plane](#control-plane)
+- [Compute plane](#compute-plane)
 
-- **SDK**: [Python](../python-sdk/README.md), [TypeScript](../typescript-sdk/README.md). Each SDK sends requests to the Daytona API endpoint, which routes each request to the [region](../python-sdk/regions.md) that owns the sandbox. Lifecycle and resource operations (sandboxes, images, snapshots, volumes) go to that region's [API](#api); data-plane calls into a running sandbox (file system, process execution, Git, PTY) go directly to that region's [proxy](#proxy)
-- [Dashboard](https://app.daytona.com/dashboard/): web UI for sandboxes, images, snapshots, volumes, projects, and organization settings, with a terminal, file browser, desktop, SSH panel, and [playground](./playground.md)
-- [SSH](../python-sdk/ssh-access.md): shell, `scp`/`sftp`, and port forwarding into sandboxes through the SSH gateway
-- [Preview URLs](../python-sdk/preview.md): HTTP and WebSocket access to services listening inside a sandbox
+## Interface plane
 
-### Control plane
+The interface plane is the set of clients that people and programs use to reach a platform. Each client turns an action, such as a click or a function call, into a request to the services behind it, so no user talks to those services directly.
 
-The control plane is the central coordination layer of the Daytona platform. It receives all client requests, authenticates them, records the desired state, and publishes jobs that [runners](#sandbox-runners) pick up. Runners report progress back as events, so no sandbox operation requires a synchronous round trip between the API and a runner. The control plane includes the following components:
+The interface plane of a sandbox is every client that reaches it from outside the platform. Lifecycle requests go to the API of the region that owns the sandbox, and calls into a running sandbox go straight to the proxy of that region.
 
-- [API](#api) handles authentication, tenancy, sandboxes, images, snapshots, volumes, and secrets
-- [Database and job queue](#database-and-job-queue) persist platform state and carry work to runners
+Use an SDK or the CLI from code and agents, and the dashboard to manage resources by hand. For a shell or a port of a sandbox, use [SSH access](../python-sdk/ssh-access.md) or a [preview URL](../python-sdk/preview.md).
 
-Every [region](../python-sdk/regions.md) runs its own control plane, job queue, proxy, and runner fleet. The home region also hosts the management plane: organizations, users, projects, API keys, and billing.
+| **Interface**                                        | **Description**                                                                                                                                                       |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [**Python SDK**](../python-sdk/README.md)                   | Sends lifecycle requests to the API of the sandbox's region, and calls into a running sandbox to its proxy.                                                          |
+| [**TypeScript SDK**](../typescript-sdk/README.md)           | Sends lifecycle requests to the API of the sandbox's region, and calls into a running sandbox to its proxy.                                                          |
+| [**CLI**](../cli/README.md)                                 | A command-line program for managing sandboxes from a terminal or a script.                                                                                           |
+| [**Dashboard**](https://app.daytona.com/dashboard/)  | A web UI for sandboxes, images, snapshots, volumes, projects, and organization settings, with a terminal, file browser, desktop, SSH panel, and [playground](./playground.md). |
+| [**SSH**](../python-sdk/ssh-access.md)                          | Shell, `scp`, `sftp`, and port forwarding into sandboxes through the SSH gateway.                                                                                    |
+| [**Preview URLs**](../python-sdk/preview.md)                    | HTTP and WebSocket access to services listening inside a sandbox.                                                                                                    |
 
-##### API
+## Control plane
 
-The API is a Rust-based RESTful service that serves as the primary entry point for all platform operations. Creating a sandbox writes a row, publishes a job to the region's queue, and returns; everything that follows happens on a runner and is reported back as events that the API applies to its state. The API also runs the maintenance loops that enforce automated sandbox lifecycle policies: the [timeout and idle timeout](../python-sdk/linux-sandboxes.md#timeouts) of each sandbox.
+The control plane is the part of a platform that records the state that requests ask for and assigns the work to the hosts that carry it out. It decides what should exist, and the hosts make it exist and report back.
 
-The API authenticates the following credentials:
+The control plane of a sandbox is the API and database of the region that owns it, joined to the runners only by a job queue. Every region runs its own control plane, and the home region also holds the accounts of every organization.
 
-- **Project API keys** carry an explicit set of [permissions](../python-sdk/api-keys.md) and an optional expiry, and are the credential used by SDKs, the proxy, and the SSH gateway
-- **Organization API keys** are managed by organization admins and limited to their endpoints
-- **Sandbox tokens** are issued to each sandbox so it can delete itself
-- **OIDC tokens** authenticate dashboard sign-ins through the OpenID Connect provider
+Send every lifecycle request to the API endpoint, which routes it to the control plane of the region that owns the sandbox. Choose that region when you create the sandbox, as [regions](../python-sdk/regions.md) describes.
 
-Access control follows [organization](../python-sdk/organizations.md) and [project](../python-sdk/projects.md) boundaries: every sandbox, image, snapshot, volume, and secret belongs to a project, and project API keys see only their project.
+### API
 
-To interact with sandboxes from the API, see the [API](../api/README.md#daytona-api) and [Toolbox API](../api/README.md#toolbox-api) references.
+[The Daytona API](../api/README.md) is an HTTP interface for managing sandboxes and the resources around them.
 
-##### Database and job queue
+| **Credential**                          | **Description**                                                                                                                         |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| [**Project API key**](../python-sdk/api-keys.md)   | Carries an explicit set of permissions and an optional expiry, and is the credential that SDKs, the proxy, and the SSH gateway use.     |
+| **Organization API key**                | Managed by [organization](../python-sdk/organizations.md) admins and limited to the organization endpoints.                                       |
+| **Sandbox token**                       | Issued to each sandbox so that it can delete itself.                                                                                    |
+| **OIDC token**                          | Authenticates dashboard sign-ins through the OpenID Connect provider.                                                                   |
 
-- **PostgreSQL** is the primary persistent store for organizations, projects, sandboxes, images, snapshots, volumes, and secrets. Each region keeps its own database; tenancy data is replicated read-only from the home region so API keys authenticate locally in every region
-- **NATS JetStream** carries sandbox jobs from the API to runners (create and delete; for persistent macOS sandboxes also stop, start, pause, resume and fork) and streams runner events back to the API and proxy. Runners pull jobs only from their region's queue
-- **Redis** is optional and used for authentication rate limiting and signed preview URL state
+### Database and job queue
 
-[Secrets](../python-sdk/secrets.md) are encrypted at rest with AES-256-GCM and sealed to each runner's key for delivery. Sandboxes see only placeholders; the host substitutes real values only in outbound HTTPS requests to each secret's allowed domains. Responses are not rewritten, so an allowed destination that echoes a value returns it into the sandbox.
+A database keeps the state of a platform so that it survives restarts, and a job queue holds work until a worker takes it. Between them, a service can record a request and hand its work on without waiting for the worker to finish.
 
-### Compute plane
+The database and job queue of a region serve that region alone, and its runners pull jobs only from its queue. Runners report progress as events, so no sandbox operation waits on a synchronous call between the API and a runner. Account data is replicated read-only from the home region, so API keys authenticate locally in every region.
 
-The compute plane is where sandboxes run and their traffic is served. Sandboxes run on [runners](#sandbox-runners), compute nodes that host multiple sandboxes with dedicated resources and scale horizontally across shared or dedicated [regions](../python-sdk/regions.md). It includes the following components:
+Expect a sandbox to reach its new state after a create or delete returns, because a runner applies the job later and reports it as an event. Read [secrets](../python-sdk/secrets.md) for how a secret value reaches a sandbox without entering it.
 
-- [Sandbox runners](#sandbox-runners) build images and boot sandboxes as virtual machines
-- [Sandbox daemon](#sandbox-daemon) provides code execution and environment access inside each sandbox
-- [Proxy](#proxy) routes Toolbox, SSH, preview, and VNC traffic straight to sandboxes
-- [Image store](#image-store) holds converted image layers shared by all runners in a region
-- [Sandbox storage](#sandbox-storage) holds sandbox disks and VM snapshots
-- [Volumes](#volumes) provide persistent storage shared across sandboxes
+| **Store**          | **Description**                                                                                                                                                                         |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **PostgreSQL**     | The persistent store for organizations, projects, sandboxes, images, snapshots, volumes, and secrets, with secrets encrypted at rest with AES-256-GCM.                                  |
+| **NATS JetStream** | Carries create and delete jobs to runners, plus stop, start, pause, resume, and fork for persistent macOS sandboxes, with secrets sealed to each runner's key, and streams events back. |
+| **Redis**          | An optional store for authentication rate limiting and signed preview URL state.                                                                                                       |
 
-##### Sandbox runners
+## Compute plane
 
-Runners are the compute nodes of Daytona's compute plane. Each runner is a Go agent that pulls jobs from its region's queue and executes sandbox operations: building or pulling [images](../python-sdk/images.md), creating, resizing, and deleting sandboxes, stopping, starting, pausing, resuming, and forking persistent macOS sandboxes, and capturing [snapshots](../python-sdk/snapshots.md). Runners accept no inbound connections from the control plane. Instead, they report state changes as events, and they stream sandbox usage to the metering pipeline that feeds Daytona [billing](./billing.md).
+The compute plane is the part of a platform where workloads run and their traffic is served. It holds the hosts that run the workloads, and the storage those hosts read from and write to. It grows by adding hosts.
 
-A sandbox runs as a hardware-isolated virtual machine with its own kernel and dedicated vCPU, RAM, and disk. Linux sandboxes run as Firecracker microVMs, Windows sandboxes run on Cloud Hypervisor, and macOS sandboxes run on Apple's Virtualization framework on dedicated Apple silicon Macs ([hardware virtualization](../python-sdk/sandboxes.md#hardware-virtualization)). Runners boot most Linux sandboxes by resuming a pre-built memory snapshot of the image rather than cold-booting, which is what makes sub-second creation possible. Traffic between sandboxes is blocked on the host, and per-sandbox [egress policies](../python-sdk/network-limits.md) are enforced there as well. See [isolation](../python-sdk/isolation.md) for details.
+The compute plane of a region is its fleet of runners, compute nodes that each host many sandboxes with dedicated resources, and the storage and proxy they share. Runners scale horizontally within shared and dedicated regions.
 
-##### Sandbox daemon
+Size a sandbox for its workload, because its runner gives it its own [resources](../python-sdk/sandboxes.md#resources) and nothing more. For the boundaries that runners enforce between sandboxes on one host, see [isolation](../python-sdk/isolation.md).
 
-The sandbox daemon is a Rust agent that runs as the init process inside each sandbox. It is injected by the runner as a read-only system layer, so it does not need to be part of your image. It exposes the [Toolbox API](../api/README.md#toolbox-api), providing direct access to the sandbox environment: [file system](../python-sdk/file-system-operations.md) and [Git](../python-sdk/git-operations.md) operations, [process](../python-sdk/process-execution.md) and [code execution](../python-sdk/code-execution.md), [PTY](../python-sdk/pty.md) and [log streaming](../python-sdk/log-streaming.md), [language servers](./language-server-protocol.md), and [computer use](../python-sdk/computer-use.md). It also runs the SSH server that the [SSH gateway](../python-sdk/ssh-access.md) connects to.
+### Sandbox runners
 
-##### Proxy
+Sandbox runners are the hosts that run sandboxes, each with an agent that takes jobs from a queue and carries them out. Pulling work, rather than accepting calls, lets a runner run behind a firewall and lets new runners join without any change to the service that assigns work.
 
-The proxy is a stateless service serving the sandbox data plane. It authenticates each request, resolves the target sandbox to its address on the runner overlay network, and forwards the connection directly to the [sandbox daemon](#sandbox-daemon) or a port inside the sandbox, bypassing the API. It supports HTTP, WebSocket, and server-sent events, and exposes these endpoints:
+The runner of a sandbox is the host that runs it as a virtual machine with its own kernel, under a Go agent that carries out its jobs. Runners accept no inbound connections, and they report each change of state as an event and stream usage to [billing](./billing.md).
 
-| **Endpoint**                           | **Routing and authentication**                                                                                                                                                  |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Toolbox**                            | Path-based routing at `/toolbox/{sandboxId}/...`, with a project API key, a [sandbox access token](../python-sdk/sandboxes.md#create-an-access-token), or a platform token.               |
-| **Preview**                            | Host-based routing at `{port}-{sandboxId}.{preview-domain}`, authenticated with an API key, a preview token, or a signed URL unless the endpoint is [public](../python-sdk/preview.md). |
-| **[SSH gateway](../python-sdk/ssh-access.md)** | Port `2222`, authenticated with `<sandboxId>#<credential>` as the username, where the credential is a project API key or a sandbox token that allows SSH. For macOS sandboxes, use a sandbox token ([macOS SSH](../python-sdk/macos-sandboxes.md#ssh)). |
-| **VNC**                                | WebSocket bridge to the sandbox desktop used by the dashboard and [VNC clients](../python-sdk/vnc-access.md).                                                                           |
+Expect most Linux sandboxes to be created in under a second, because their runner resumes a pre-built memory snapshot of the image instead of a cold boot. Set an [egress policy](../python-sdk/network-limits.md) per sandbox to limit the traffic that its runner lets out. Traffic between sandboxes is blocked on the host.
 
-Authenticated Toolbox, preview, and SSH traffic also resets the [idle timeout](../python-sdk/linux-sandboxes.md#timeouts).
+### Sandbox daemon
 
-##### Image store
+The sandbox daemon is an agent that runs inside each sandbox so that clients can act on it without logging in. It receives requests from outside and carries them out inside the guest, such as running a command or reading a file.
 
-Daytona does not run an internal image registry. When an [image](../python-sdk/images.md) is pulled from a [container registry](#container-registry) or built from a Dockerfile, the runner converts each layer into a read-only, content-addressed filesystem image and stores it in a per-region shared store, together with a manifest that records the layer stack, entrypoint, environment, and working directory. Layers are keyed by content hash, so a layer shared by many images is converted and stored once per region, and sandboxes attach these layers read-only at boot without copying them. Other regions fetch an image from the global artifact store automatically the first time a sandbox there uses it.
+The daemon of a sandbox is a Rust program that runs as its init process, from a read-only layer that the runner adds at boot. An image does not need to include it, and it serves both the Toolbox API and the SSH server that the SSH gateway connects to.
 
-##### Sandbox storage
+Call the daemon through an SDK or the [Toolbox API](../api/README.md#toolbox-api) to work with the files and processes of a running sandbox. Each Toolbox area has its own page, from [file system operations](../python-sdk/file-system-operations.md) to [computer use](../python-sdk/computer-use.md). The daemon answers only while the sandbox runs.
 
-In a layered filesystem, reads of unchanged data come from read-only layers, and every change lands in a writable layer on top. The layers below never change, so many sandboxes can share one set of them. Sandbox writes go to a layer above the read-only image layers:
+### Proxy
 
-- **Ephemeral sandboxes** write to the runner's NVMe scratch disk, discarded on delete
-- **Persistent macOS sandboxes** keep their disk on their Mac across stop and start. When the Mac reservation ends, the disk is exported as an image before the Mac is erased ([macOS sandboxes](../python-sdk/macos-sandboxes.md#when-a-reservation-ends))
-- **[VM snapshots](../python-sdk/snapshots.md)** capture a sandbox's disk, and memory in full snapshots, for restore
+The proxy is a reverse proxy: a server that receives client connections and forwards each one to the service that should handle it. It checks every request at one entry point, so the services behind it are never exposed directly.
 
-##### Volumes
+The proxy of a region is a stateless service that forwards each connection straight to a sandbox, bypassing the API. It resolves the sandbox to its address on the runner overlay network and connects to the daemon or to a port inside the sandbox.
 
-[Volumes](../python-sdk/volumes.md) provide persistent storage that can be shared across sandboxes. Disk volume data lives in S3-compatible object storage as content-addressed blobs; a mounted disk volume is materialized inside the sandbox as a read-write directory, and changes are committed back periodically. A bucket volume mounts an S3 bucket directly. Multiple sandboxes can mount the same volume simultaneously, and its data persists independently of the sandbox lifecycle.
+Reach a running sandbox through the proxy endpoint that fits the client; an SDK uses the Toolbox endpoint for you. Expose a port with a [preview URL](../python-sdk/preview.md), or open a shell through the [SSH gateway](../python-sdk/ssh-access.md).
 
-### Container registry
+| **Endpoint**                         | **Routing and authentication**                                                                                                                                                                                                                         |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Toolbox**                          | Path-based routing at `/toolbox/{sandboxId}/...` with a project API key, a [sandbox access token](../python-sdk/sandboxes.md#create-an-access-token), or a platform token, and authenticated traffic resets the [idle timeout](../python-sdk/linux-sandboxes.md#timeouts). |
+| [**Preview**](../python-sdk/preview.md)         | Host-based routing at `{port}-{sandboxId}.{preview-domain}` with an API key, a preview token, or a signed URL unless the endpoint is public, and authenticated traffic resets the idle timeout.                                                      |
+| [**SSH gateway**](../python-sdk/ssh-access.md)  | Port `2222` with `<sandboxId>#<credential>` as the username, where the credential is a project API key or a sandbox token that allows SSH, and authenticated sessions reset the idle timeout.                                                        |
+| [**VNC**](../python-sdk/vnc-access.md)          | A WebSocket bridge to the sandbox desktop that the dashboard and VNC clients use.                                                                                                                                                                      |
 
-Container registries serve as the source for sandbox base images. When you pull an [image](../python-sdk/images.md), a runner fetches it from the external registry and converts it into the [image store](#image-store); for Dockerfile builds, parent images in FROM directives are pulled the same way. Credentials for private registries are stored per project as [registries](../python-sdk/registries.md). Daytona supports any OCI-compatible registry:
+### Image store
 
-- [Docker Hub](../python-sdk/registries.md#docker-hub)
-- [Google Artifact Registry](../python-sdk/registries.md#google-artifact-registry)
-- [GitHub Container Registry (GHCR)](../python-sdk/registries.md#github-container-registry)
-- [Amazon ECR](../python-sdk/registries.md#amazon-ecr)
-- [Private registries](../python-sdk/registries.md#use-private-registry-images): any OCI distribution registry that supports basic authentication
+The image store holds the filesystem layers that images are made of, so hosts can start workloads from them without fetching each image again. Storing each layer under the hash of its content means that a layer shared by many images is stored once.
+
+The image store of a region holds each image as read-only, content-addressed layers, with a manifest of the configuration its first process starts with. Sandboxes attach the layers read-only at boot without copying them. No image registry runs inside the platform, and runners reach an external registry only to convert an image.
+
+Pull or build an [image](../python-sdk/images.md) once, and every runner of the region starts sandboxes from its converted layers. Store [registry](../python-sdk/registries.md) credentials first to pull a private image. The first sandbox that uses an image in another region waits while that region fetches it from the global artifact store.
+
+### Sandbox storage
+
+Sandbox storage is a layered filesystem: reads of unchanged data come from read-only layers, and every change lands in a writable layer on top. The layers below never change, so many sandboxes share one set of them.
+
+The storage of a sandbox is its writable layer, kept apart from the read-only image layers it boots from. Where that layer lives depends on the kind of sandbox, and it decides what survives a stop or a delete.
+
+Write data that must outlive an ephemeral sandbox to a [volume](../python-sdk/volumes.md), or capture the sandbox in a [snapshot](../python-sdk/snapshots.md). For what each kind of sandbox keeps across a stop, see [persistence](../python-sdk/persistence.md).
+
+| **Storage**                                                        | **Description**                                                                                                                                                                   |
+| ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Ephemeral sandbox**                                              | Writes go to the runner's NVMe scratch disk and are discarded when the sandbox is deleted.                                                                                       |
+| [**Persistent macOS sandbox**](../python-sdk/macos-sandboxes.md#when-a-reservation-ends) | The disk stays on its Mac across stop and start, and is exported as an image before the Mac is erased when the reservation ends.                                      |
+| [**VM snapshot**](../python-sdk/snapshots.md)                                 | Captures the disk of a sandbox, and its memory in a full snapshot, for restore.                                                                                                   |
+
+### Volumes
+
+[Volumes](../python-sdk/volumes.md) are storage that exists independently of any one sandbox that uses it.

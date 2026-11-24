@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-21T10:26:28Z",
-  "models_sha256": "f022b3ba9010af3a31c836437f58a15790203f43f568b787ce044675e08a4070",
+  "generated_at": "2026-11-24T14:52:40Z",
+  "models_sha256": "09924112b5f5ad9a4e3b81fd465ae1b5b880acc2b383465319cbcc03aa458c78",
   "models": [
     {
       "name": "anthropic.claude-3-5-haiku-20241022-v1:0",
@@ -3266,11 +3266,6 @@
           "token_type": "output"
         },
         {
-          "base_rate": 1e-6,
-          "is_prompt": true,
-          "token_type": "audio"
-        },
-        {
           "base_rate": 0.00003,
           "is_prompt": false,
           "token_type": "image"
@@ -3593,35 +3588,17 @@
         {
           "base_rate": 2e-6,
           "is_prompt": true,
-          "token_type": "input",
-          "customization": {
-            "type": "threshold_based",
-            "key": "llm.token_count.prompt",
-            "threshold": 200000.0,
-            "new_rate": 4e-6
-          }
+          "token_type": "input"
         },
         {
           "base_rate": 0.000012,
           "is_prompt": false,
-          "token_type": "output",
-          "customization": {
-            "type": "threshold_based",
-            "key": "llm.token_count.prompt",
-            "threshold": 200000.0,
-            "new_rate": 0.000018
-          }
+          "token_type": "output"
         },
         {
           "base_rate": 2e-7,
           "is_prompt": true,
-          "token_type": "cache_read",
-          "customization": {
-            "type": "threshold_based",
-            "key": "llm.token_count.prompt",
-            "threshold": 200000.0,
-            "new_rate": 4e-7
-          }
+          "token_type": "cache_read"
         },
         {
           "base_rate": 0.00012,
@@ -3638,35 +3615,17 @@
         {
           "base_rate": 2e-6,
           "is_prompt": true,
-          "token_type": "input",
-          "customization": {
-            "type": "threshold_based",
-            "key": "llm.token_count.prompt",
-            "threshold": 200000.0,
-            "new_rate": 4e-6
-          }
+          "token_type": "input"
         },
         {
           "base_rate": 0.000012,
           "is_prompt": false,
-          "token_type": "output",
-          "customization": {
-            "type": "threshold_based",
-            "key": "llm.token_count.prompt",
-            "threshold": 200000.0,
-            "new_rate": 0.000018
-          }
+          "token_type": "output"
         },
         {
           "base_rate": 2e-7,
           "is_prompt": true,
-          "token_type": "cache_read",
-          "customization": {
-            "type": "threshold_based",
-            "key": "llm.token_count.prompt",
-            "threshold": 200000.0,
-            "new_rate": 4e-7
-          }
+          "token_type": "cache_read"
         },
         {
           "base_rate": 0.00012,
@@ -7917,7 +7876,7 @@
             "type": "threshold_based",
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
-            "new_rate": 0.00003
+            "new_rate": 0.00002
           }
         },
         {
@@ -7928,7 +7887,7 @@
             "type": "threshold_based",
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
-            "new_rate": 0.0001125
+            "new_rate": 0.000075
           }
         },
         {
@@ -7939,18 +7898,18 @@
             "type": "threshold_based",
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
-            "new_rate": 3e-6
+            "new_rate": 2e-6
           }
         },
         {
-          "base_rate": 0.00001875,
+          "base_rate": 0.0000125,
           "is_prompt": true,
           "token_type": "cache_write",
           "customization": {
             "type": "threshold_based",
             "key": "llm.token_count.prompt",
             "threshold": 272000.0,
-            "new_rate": 0.0000375
+            "new_rate": 0.000025
           }
         }
       ]
@@ -16986,7 +16945,7 @@
   "non_llm_models": [
     {
       "name": "gemini-embedding-001",
-      "name_pattern": "gemini-embedding-001(?!-\\d{1,2}(?!\\d))",
+      "name_pattern": "gemini-embedding-001",
       "source": "litellm",
       "type": "EMBEDDING",
       "token_prices": [
@@ -16999,7 +16958,7 @@
     },
     {
       "name": "gemini-embedding-2",
-      "name_pattern": "gemini-embedding-2(?!-\\d{1,2}(?!\\d))",
+      "name_pattern": "gemini-embedding-2",
       "source": "litellm",
       "type": "EMBEDDING",
       "token_prices": [
@@ -17012,7 +16971,7 @@
     },
     {
       "name": "gemini-embedding-2-preview",
-      "name_pattern": "gemini-embedding-2-preview(?!-\\d{1,2}(?!\\d))",
+      "name_pattern": "gemini-embedding-2-preview",
       "source": "litellm",
       "type": "EMBEDDING",
       "token_prices": [
@@ -17071,7 +17030,7 @@
     },
     {
       "name": "text-embedding-3-large",
-      "name_pattern": "text-embedding-3-large(?!-\\d{1,2}(?!\\d))",
+      "name_pattern": "text-embedding-3-large",
       "source": "litellm",
       "type": "EMBEDDING",
       "token_prices": [
@@ -17084,7 +17043,7 @@
     },
     {
       "name": "text-embedding-3-small",
-      "name_pattern": "text-embedding-3-small(?!-\\d{1,2}(?!\\d))",
+      "name_pattern": "text-embedding-3-small",
       "source": "litellm",
       "type": "EMBEDDING",
       "token_prices": [
@@ -17097,7 +17056,7 @@
     },
     {
       "name": "text-embedding-ada-002",
-      "name_pattern": "text-embedding-ada-002(?!-\\d{1,2}(?!\\d))",
+      "name_pattern": "text-embedding-ada-002",
       "source": "litellm",
       "type": "EMBEDDING",
       "token_prices": [
@@ -17110,7 +17069,7 @@
     },
     {
       "name": "text-embedding-ada-002-v2",
-      "name_pattern": "text-embedding-ada-002-v2(?!-\\d{1,2}(?!\\d))",
+      "name_pattern": "text-embedding-ada-002-v2",
       "source": "litellm",
       "type": "EMBEDDING",
       "token_prices": [
@@ -17123,7 +17082,7 @@
     },
     {
       "name": "gemini/gemini-decision-1",
-      "name_pattern": "gemini-decision-1(?!-\\d{1,2}(?!\\d))",
+      "name_pattern": "gemini-decision-1",
       "source": "litellm",
       "type": "DECISION",
       "token_prices": [
@@ -17141,7 +17100,7 @@
     },
     {
       "name": "mistral/codestral-embed",
-      "name_pattern": "codestral-embed(?!-\\d{1,2}(?!\\d))",
+      "name_pattern": "codestral-embed",
       "source": "litellm",
       "provider": "mistralai",
       "type": "EMBEDDING",
@@ -17155,7 +17114,7 @@
     },
     {
       "name": "mistral/codestral-embed-2505",
-      "name_pattern": "codestral-embed-2505(?!-\\d{1,2}(?!\\d))",
+      "name_pattern": "codestral-embed-2505",
       "source": "litellm",
       "provider": "mistralai",
       "type": "EMBEDDING",
@@ -17169,7 +17128,7 @@
     },
     {
       "name": "mistral/mistral-embed",
-      "name_pattern": "mistral-embed(?!-\\d{1,2}(?!\\d))",
+      "name_pattern": "mistral-embed",
       "source": "litellm",
       "provider": "mistralai",
       "type": "EMBEDDING",
@@ -17183,7 +17142,7 @@
     },
     {
       "name": "mistral/mistral-embed-2312",
-      "name_pattern": "mistral-embed-2312(?!-\\d{1,2}(?!\\d))",
+      "name_pattern": "mistral-embed-2312",
       "source": "litellm",
       "provider": "mistralai",
       "type": "EMBEDDING",
@@ -17197,7 +17156,7 @@
     },
     {
       "name": "together_ai/BAAI/bge-base-en-v1.5",
-      "name_pattern": "BAAI/bge-base-en-v1\\.5(?!-\\d{1,2}(?!\\d))",
+      "name_pattern": "BAAI/bge-base-en-v1\\.5",
       "source": "litellm",
       "provider": "together",
       "type": "EMBEDDING",
@@ -17211,7 +17170,7 @@
     },
     {
       "name": "typesafe/jev-1.13.0",
-      "name_pattern": "jev-1\\.13\\.0(?!-\\d{1,2}(?!\\d))",
+      "name_pattern": "jev-1\\.13\\.0",
       "source": "litellm",
       "provider": "typesafe",
       "type": "DECISION",
@@ -17230,7 +17189,7 @@
     },
     {
       "name": "typesafe/jev-1.14.0",
-      "name_pattern": "jev-1\\.14\\.0(?!-\\d{1,2}(?!\\d))",
+      "name_pattern": "jev-1\\.14\\.0",
       "source": "litellm",
       "provider": "typesafe",
       "type": "DECISION",
@@ -17249,7 +17208,7 @@
     },
     {
       "name": "typesafe/jev-latest",
-      "name_pattern": "jev-latest(?!-\\d{1,2}(?!\\d))",
+      "name_pattern": "jev-latest",
       "source": "litellm",
       "provider": "typesafe",
       "type": "DECISION",
@@ -17268,7 +17227,7 @@
     },
     {
       "name": "typesafe/jev-preview",
-      "name_pattern": "jev-preview(?!-\\d{1,2}(?!\\d))",
+      "name_pattern": "jev-preview",
       "source": "litellm",
       "provider": "typesafe",
       "type": "DECISION",

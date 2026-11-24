@@ -1,7 +1,13 @@
 ## Contents
 
 - Sandbox
+- SandboxNode
+- SandboxNodeProcess
+- SandboxNodeFileSystem
+- SandboxNodeCollection
 - Resources
+- CreateSandboxResources
+- NodeResources
 - ListSandboxesQuery
 - SandboxMetrics
 
@@ -115,6 +121,23 @@ kvm = None
 ```
 
 pyright: ignore[reportRedeclaration]
+
+##### nodes: `SandboxNodeCollection`
+
+```python
+nodes = None
+```
+
+pyright: ignore[reportGeneralTypeIssues, reportIncompatibleVariableOverride]
+
+#### Sandbox.to\_dict
+
+```python
+@override
+def to_dict() -> dict[str, Any]
+```
+
+Return the API representation, omitting node membership synthesized by the SDK.
 
 #### Sandbox.\_\_init\_\_
 
@@ -479,6 +502,9 @@ def stop(timeout: float | None = 60, force: bool = False)
 
 Stops the Sandbox and waits for it to be fully stopped.
 
+For a multi-node GPU Sandbox this irreversibly destroys the complete
+gang and all ephemeral local data; it cannot be started again.
+
 **Arguments**:
 
 - `timeout` _float | None_ - Maximum time to wait in seconds. 0 means no timeout. Default is 60 seconds.
@@ -675,7 +701,8 @@ Sets the TTL (time to live) for the Sandbox.
 
 The Sandbox will be destroyed after the specified number of minutes, counted as
 wall-clock time from the current moment, regardless of its state (started, stopped,
-paused, or archived). Setting to 0 disables the TTL.
+paused, or archived). Setting to 0 disables the TTL. For a multi-node
+head, expiry destroys every member and all ephemeral local data.
 
 **Arguments**:
 
@@ -1236,6 +1263,155 @@ not consume CPU cycles.
 
 - `DaytonaError` - If timeout is negative or the operation fails/times out.
 
+## SandboxNode
+
+```python
+class SandboxNode()
+```
+
+Lightweight data-plane handle for one node in a multi-node Sandbox.
+
+#### SandboxNode.update
+
+```python
+def update(node: SandboxNodeDto) -> None
+```
+
+Refresh resources, state, incarnation, failure details and fabric metadata.
+
+**Raises**:
+
+- `DaytonaError` - If the node rank or ID differs from this handle.
+
+#### SandboxNode.to\_dict
+
+```python
+def to_dict() -> dict[str, Any]
+```
+
+Return this live handle in the generated node DTO wire shape.
+
+#### SandboxNode.get\_preview\_link
+
+```python
+@intercept_errors(message_prefix="Failed to get node preview link: ")
+@with_instrumentation()
+def get_preview_link(port: int,
+                     request_timeout: float | None = None) -> PortPreviewUrl
+```
+
+Get a preview URL for a port on this node.
+
+#### SandboxNode.create\_ssh\_access
+
+```python
+@intercept_errors(message_prefix="Failed to create node SSH access: ")
+@with_instrumentation()
+def create_ssh_access(expires_in_minutes: int | None = None,
+                      request_timeout: float | None = None) -> SshAccessDto
+```
+
+Create an SSH access token for this node.
+
+#### SandboxNode.revoke\_ssh\_access
+
+```python
+@intercept_errors(message_prefix="Failed to revoke node SSH access: ")
+@with_instrumentation()
+def revoke_ssh_access(token: str,
+                      request_timeout: float | None = None) -> None
+```
+
+Revoke an SSH access token for this node.
+
+## SandboxNodeProcess
+
+```python
+class SandboxNodeProcess()
+```
+
+Process operations applied to every node in a Sandbox.
+
+#### SandboxNodeProcess.exec
+
+```python
+@with_instrumentation()
+def exec(command: str,
+         *,
+         timeout: int | None = None) -> dict[int, ExecuteResponse]
+```
+
+Execute a command on every node, keyed by rank.
+
+``timeout`` limits execution on each rank in seconds; None or 0 disables
+the limit. Results contain buffered command output. For live output, use a
+session on the individual node's process handle. On a partial failure, the
+error exposes node_failures and node_results keyed by rank. RDMA diagnostics
+are recorded in each node's warnings.
+
+## SandboxNodeFileSystem
+
+```python
+class SandboxNodeFileSystem()
+```
+
+File-system operations applied to every node in a Sandbox.
+
+#### SandboxNodeFileSystem.upload\_file
+
+```python
+@with_instrumentation()
+def upload_file(src: str | bytes, dst: str, timeout: int = 30 * 60) -> None
+```
+
+Upload the same file to every node in parallel without rollback.
+
+## SandboxNodeCollection
+
+```python
+class SandboxNodeCollection(list[SandboxNode])
+```
+
+Live, rank-ordered node collection with aggregate and topology operations.
+
+#### SandboxNodeCollection.add
+
+```python
+@with_instrumentation()
+def add(nodes: list[NodeResources],
+        timeout: float | None = 600) -> GangMembershipOperation
+```
+
+Append rank-ordered nodes and wait for completion.
+
+A wait error after acceptance carries the operation_id. If the final refresh fails,
+the completed operation is returned; refresh the sandbox to update cached handles.
+
+#### SandboxNodeCollection.release
+
+```python
+@with_instrumentation()
+def release(count: int = 1,
+            timeout: float | None = 600) -> GangMembershipOperation
+```
+
+Release the highest ranks and wait for completion.
+
+A wait error after acceptance carries the operation_id. If the final refresh fails,
+the completed operation is returned; refresh the sandbox to update cached handles.
+
+#### SandboxNodeCollection.replace
+
+```python
+@with_instrumentation()
+def replace(rank: int, timeout: float | None = 600) -> GangMembershipOperation
+```
+
+Replace a degraded rank and wait for completion.
+
+A wait error after acceptance carries the operation_id. If the final refresh fails,
+the completed operation is returned; refresh the sandbox to update cached handles.
+
 ## Resources
 
 ```python
@@ -1270,6 +1446,41 @@ params = CreateSandboxFromImageParams(
     resources=resources
 )
 ```
+
+## CreateSandboxResources
+
+```python
+@dataclass
+class CreateSandboxResources(Resources)
+```
+
+Resources used when creating a Sandbox from an image.
+
+Scalar resources apply to every node. Per-node lists follow node rank and
+must match the node count. Specify one form for each resource.
+
+**Attributes**:
+
+- `cpu_per_node` _list[int] | None_ - CPU cores for each node in rank order.
+- `memory_per_node` _list[int] | None_ - Memory in GiB for each node in rank order.
+- `disk_per_node` _list[int] | None_ - Disk space in GiB for each node in rank order.
+
+
+**Example**:
+
+```python
+# Two 8-GPU nodes with 2 and 4 CPU cores, each with 64 GiB of memory.
+resources = CreateSandboxResources(gpu=16, cpu_per_node=[2, 4], memory=64)
+```
+
+## NodeResources
+
+```python
+@dataclass(frozen=True)
+class NodeResources()
+```
+
+CPU, memory, and disk allocated to one appended Sandbox node.
 
 ## ListSandboxesQuery
 

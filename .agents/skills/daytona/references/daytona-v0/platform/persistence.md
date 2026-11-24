@@ -42,7 +42,7 @@ Sandboxes preserve their filesystem across **stop and start** cycles, **archive*
 from daytona import Daytona
 
 daytona = Daytona()
-sandbox = daytona.create()
+sandbox = daytona.v0.create()
 
 # Write state to the filesystem
 sandbox.fs.upload_file(b"intermediate results", "results.txt")
@@ -62,7 +62,7 @@ print(response.result)  # intermediate results
 from daytona import Daytona
 
 daytona = Daytona()
-sandbox = daytona.get("my-sandbox")
+sandbox = daytona.v0.get("my-sandbox")
 
 # Archive a stopped sandbox: the filesystem moves to object storage
 # and no longer counts against disk quota
@@ -76,10 +76,11 @@ sandbox.start()
 **Cold snapshot:**
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
-sandbox = daytona.create()
+sandbox = daytona.v0.create()
 
 # Prepare the environment to capture
 sandbox.process.exec("pip install requests")
@@ -89,7 +90,7 @@ sandbox.stop()
 sandbox.create_snapshot("my-env-snapshot")
 
 # Any number of new sandboxes can start from the same snapshot
-clone = daytona.create(CreateSandboxFromSnapshotParams(snapshot="my-env-snapshot"))
+clone = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="my-env-snapshot"))
 response = clone.process.exec("pip show requests")
 print(response.result)  # requests is already installed
 ```
@@ -99,10 +100,11 @@ print(response.result)  # requests is already installed
 **Stop / start:**
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="daytona-vm-small"))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="daytona-vm-small"))
 
 # Write state to the filesystem
 sandbox.fs.upload_file(b"intermediate results", "results.txt")
@@ -119,10 +121,11 @@ print(response.result)  # intermediate results
 **Cold snapshot:**
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="daytona-vm-small"))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="daytona-vm-small"))
 
 # Prepare the environment to capture
 sandbox.process.exec("pip install requests")
@@ -132,7 +135,7 @@ sandbox.stop()
 sandbox.create_snapshot("my-vm-env-snapshot")
 
 # Any number of new sandboxes can start from the same snapshot
-clone = daytona.create(CreateSandboxFromSnapshotParams(snapshot="my-vm-env-snapshot"))
+clone = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="my-vm-env-snapshot"))
 response = clone.process.exec("pip show requests")
 print(response.result)  # requests is already installed
 ```
@@ -142,10 +145,11 @@ print(response.result)  # requests is already installed
 **Stop / start:**
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="windows-small"))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="windows-small"))
 
 # Write state to the filesystem
 sandbox.fs.upload_file(b"intermediate results", "results.txt")
@@ -160,17 +164,18 @@ sandbox.start()
 **Cold snapshot:**
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="windows-small"))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="windows-small"))
 
 # Cold snapshot captures the filesystem of a stopped sandbox
 sandbox.stop()
 sandbox.create_snapshot("my-windows-env-snapshot")
 
 # Any number of new sandboxes can start from the same snapshot
-clone = daytona.create(CreateSandboxFromSnapshotParams(snapshot="my-windows-env-snapshot"))
+clone = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="my-windows-env-snapshot"))
 ```
 
 **GPU:**
@@ -178,13 +183,14 @@ clone = daytona.create(CreateSandboxFromSnapshotParams(snapshot="my-windows-env-
 **Persist to volume:**
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams, Daytona, VolumeMount
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams, VolumeMount
 
 daytona = Daytona()
-volume = daytona.volume.get("gpu-results", create=True)
+volume = daytona.v0.volume.get("gpu-results", create=True)
 
 # GPU sandboxes are ephemeral: mount a volume to keep results
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     snapshot="daytona-gpu",
     ephemeral=True,
     volumes=[VolumeMount(volume_id=volume.id, mount_path="/home/daytona/results")],
@@ -214,10 +220,11 @@ Sandboxes preserve their memory across **pause and resume** cycles, **snapshots 
 **Pause / resume:**
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams, SessionExecuteRequest
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams, SessionExecuteRequest
 
 daytona = Daytona()
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="daytona-vm-small"))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="daytona-vm-small"))
 
 # Launch a process that holds state in memory
 sandbox.process.create_session("server")
@@ -238,10 +245,11 @@ print(response.result)  # the server is still running
 **Hot snapshot:**
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams, SessionExecuteRequest
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams, SessionExecuteRequest
 
 daytona = Daytona()
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="daytona-vm-small"))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="daytona-vm-small"))
 
 # Launch a process that holds state in memory
 sandbox.process.create_session("server")
@@ -268,10 +276,11 @@ curl 'https://app.daytona.io/api/sandbox/{sandboxIdOrName}/snapshot' \
 Sandboxes created from the hot snapshot start with the process already running:
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
-clone = daytona.create(CreateSandboxFromSnapshotParams(snapshot="my-vm-snapshot"))
+clone = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="my-vm-snapshot"))
 response = clone.process.exec("curl -s http://localhost:8000")
 print(response.result)
 ```
@@ -279,10 +288,11 @@ print(response.result)
 **Fork:**
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams, SessionExecuteRequest
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams, SessionExecuteRequest
 
 daytona = Daytona()
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="daytona-vm-small"))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="daytona-vm-small"))
 
 # Launch a process that holds state in memory
 sandbox.process.create_session("server")
@@ -302,10 +312,11 @@ print(response.result)  # the process is running in the fork as well
 **Pause / resume:**
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="windows-small"))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="windows-small"))
 
 # Pause freezes the VM with filesystem and memory intact
 sandbox.pause()
@@ -317,10 +328,11 @@ sandbox.start()
 **Hot snapshot:**
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="windows-small"))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="windows-small"))
 ```
 
 The SDKs create cold snapshots only. Create a hot snapshot of the running VM through the API to capture its filesystem and memory:
@@ -340,19 +352,21 @@ curl 'https://app.daytona.io/api/sandbox/{sandboxIdOrName}/snapshot' \
 Sandboxes created from the hot snapshot start with processes already running:
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
-clone = daytona.create(CreateSandboxFromSnapshotParams(snapshot="my-windows-snapshot"))
+clone = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="my-windows-snapshot"))
 ```
 
 **Fork:**
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="windows-small"))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="windows-small"))
 
 # Fork duplicates the filesystem and memory into an independent sandbox
 fork = sandbox.fork(name="my-forked-sandbox")
@@ -363,13 +377,14 @@ fork = sandbox.fork(name="my-forked-sandbox")
 **Persist to volume:**
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams, Daytona, VolumeMount
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams, VolumeMount
 
 daytona = Daytona()
-volume = daytona.volume.get("gpu-results", create=True)
+volume = daytona.v0.volume.get("gpu-results", create=True)
 
 # GPU sandboxes are ephemeral: mount a volume to keep results
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     snapshot="daytona-gpu",
     ephemeral=True,
     volumes=[VolumeMount(volume_id=volume.id, mount_path="/home/daytona/results")],
@@ -428,12 +443,13 @@ Persistence is the default, not a requirement: a sandbox can opt out of it entir
 **Ephemeral:**
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
 
 # Ephemeral sandboxes are deleted as soon as they stop
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(ephemeral=True))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(ephemeral=True))
 
 # Run the workload and read the results before the sandbox stops
 response = sandbox.process.exec("python3 run.py")
@@ -446,12 +462,13 @@ sandbox.stop()
 **Auto-delete interval:**
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
 
 # Auto-delete removes the sandbox after it has been stopped for 1 hour
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(auto_delete_interval=60))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(auto_delete_interval=60))
 
 # Set the interval to 0 to delete immediately on stop, same as ephemeral
 sandbox.set_auto_delete_interval(0)

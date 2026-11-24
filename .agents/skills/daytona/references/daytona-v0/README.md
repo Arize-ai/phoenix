@@ -20,7 +20,7 @@ Before writing any Daytona code, verify setup:
 ### Installation
 
 ```bash
-pip install daytona
+pip install "daytona<1"
 ```
 
 ### Create client and sandbox
@@ -108,7 +108,7 @@ Wrap Daytona calls with `DaytonaError` for error handling. For async, use `Async
 
 ## SDK Essentials — TypeScript
 
-The TypeScript SDK (`@daytona/sdk`) mirrors the Python API. Key differences: `executeCommand` instead of `exec`, `codeRun` instead of `code_run`, `uploadFile`/`downloadFile`/`listFiles` for file ops, `DaytonaError` for error handling. Install with `npm install @daytona/sdk`.
+The TypeScript SDK (`@daytona/sdk`) mirrors the Python API. Key differences: `executeCommand` instead of `exec`, `codeRun` instead of `code_run`, `uploadFile`/`downloadFile`/`listFiles` for file ops, `DaytonaError` for error handling. Install with `npm install @daytona/sdk@0`.
 
 For full TypeScript SDK reference and examples, see [typescript-sdk/README.md](./typescript-sdk/README.md).
 

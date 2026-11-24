@@ -62,6 +62,12 @@ The accessibility service is unavailable (code `A11Y_UNAVAILABLE`).
     - _Inherited from_: `DaytonaServiceUnavailableError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaServiceUnavailableError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaServiceUnavailableError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaServiceUnavailableError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaServiceUnavailableError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaServiceUnavailableError.source`
 - `statusCode?` _number_
@@ -134,6 +140,12 @@ Authentication failed — missing or invalid credentials (HTTP 401).
     - _Inherited from_: `DaytonaError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaError.source`
 - `statusCode?` _number_
@@ -210,6 +222,12 @@ new DaytonaAuthenticationError(
     - _Inherited from_: `DaytonaForbiddenError.code`
 - ~~`headers?`~~ _AxiosHeaders_
     - _Inherited from_: `DaytonaForbiddenError.headers`
+- ~~`nodeFailures?`~~ _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaForbiddenError.nodeFailures`
+- ~~`nodeResults?`~~ _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaForbiddenError.nodeResults`
+- ~~`operationId?`~~ _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaForbiddenError.operationId`
 - ~~`source?`~~ _string_
     - _Inherited from_: `DaytonaForbiddenError.source`
 - ~~`statusCode?`~~ _number_
@@ -284,6 +302,12 @@ An upstream gateway returned an invalid response (HTTP 502).
     - _Inherited from_: `DaytonaError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaError.source`
 - `statusCode?` _number_
@@ -360,6 +384,12 @@ The request was malformed or invalid (HTTP 400).
     - _Inherited from_: `DaytonaError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaError.source`
 - `statusCode?` _number_
@@ -438,6 +468,12 @@ The session command already finished (code `COMMAND_ALREADY_COMPLETED`).
     - _Inherited from_: `DaytonaGoneError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaGoneError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaGoneError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaGoneError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaGoneError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaGoneError.source`
 - `statusCode?` _number_
@@ -510,6 +546,12 @@ The request conflicts with the current state of the resource (HTTP 409).
     - _Inherited from_: `DaytonaError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaError.source`
 - `statusCode?` _number_
@@ -590,6 +632,12 @@ Network connection failure (can't connect or mid-request drop).
     - _Inherited from_: `DaytonaError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaError.source`
 - `statusCode?` _number_
@@ -666,6 +714,12 @@ Transport-layer timeout (connect / read). Subclass of DaytonaConnectionError.
     - _Inherited from_: `DaytonaConnectionError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaConnectionError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaConnectionError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaConnectionError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaConnectionError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaConnectionError.source`
 - `statusCode?` _number_
@@ -738,6 +792,9 @@ unless the caller (or the translation layer) sets it.
 
 - `code?` _string_
 - `headers?` _AxiosHeaders_
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
 - `source?` _string_
 - `statusCode?` _number_
 
@@ -823,6 +880,12 @@ Access to the sandbox file was denied (code `FILE_ACCESS_DENIED`).
     - _Inherited from_: `DaytonaForbiddenError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaForbiddenError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaForbiddenError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaForbiddenError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaForbiddenError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaForbiddenError.source`
 - `statusCode?` _number_
@@ -895,6 +958,12 @@ The file does not exist in the sandbox (code `FILE_NOT_FOUND`).
     - _Inherited from_: `DaytonaNotFoundError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaNotFoundError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaNotFoundError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaNotFoundError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaNotFoundError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaNotFoundError.source`
 - `statusCode?` _number_
@@ -967,6 +1036,12 @@ The daemon could not read the sandbox file (code `FILE_READ_FAILED`).
     - _Inherited from_: `DaytonaInternalServerError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaInternalServerError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaInternalServerError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaInternalServerError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaInternalServerError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaInternalServerError.source`
 - `statusCode?` _number_
@@ -1039,6 +1114,12 @@ The authenticated caller lacks permission for the operation (HTTP 403).
     - _Inherited from_: `DaytonaError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaError.source`
 - `statusCode?` _number_
@@ -1116,6 +1197,12 @@ Git authentication against the remote failed (code `GIT_AUTH_FAILED`).
     - _Inherited from_: `DaytonaAuthenticationError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaAuthenticationError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaAuthenticationError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaAuthenticationError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaAuthenticationError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaAuthenticationError.source`
 - `statusCode?` _number_
@@ -1188,6 +1275,12 @@ The git branch already exists (code `GIT_BRANCH_EXISTS`).
     - _Inherited from_: `DaytonaConflictError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaConflictError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaConflictError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaConflictError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaConflictError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaConflictError.source`
 - `statusCode?` _number_
@@ -1260,6 +1353,12 @@ The git branch does not exist (code `GIT_BRANCH_NOT_FOUND`).
     - _Inherited from_: `DaytonaNotFoundError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaNotFoundError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaNotFoundError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaNotFoundError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaNotFoundError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaNotFoundError.source`
 - `statusCode?` _number_
@@ -1332,6 +1431,12 @@ The operation requires a clean worktree (code `GIT_DIRTY_WORKTREE`).
     - _Inherited from_: `DaytonaConflictError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaConflictError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaConflictError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaConflictError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaConflictError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaConflictError.source`
 - `statusCode?` _number_
@@ -1404,6 +1509,12 @@ A git merge produced conflicts (code `GIT_MERGE_CONFLICT`).
     - _Inherited from_: `DaytonaConflictError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaConflictError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaConflictError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaConflictError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaConflictError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaConflictError.source`
 - `statusCode?` _number_
@@ -1476,6 +1587,12 @@ The git push was rejected by the remote (code `GIT_PUSH_REJECTED`).
     - _Inherited from_: `DaytonaConflictError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaConflictError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaConflictError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaConflictError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaConflictError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaConflictError.source`
 - `statusCode?` _number_
@@ -1548,6 +1665,12 @@ The git remote rejected the operation — hooks, branch protection or quota (cod
     - _Inherited from_: `DaytonaUnprocessableEntityError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaUnprocessableEntityError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaUnprocessableEntityError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaUnprocessableEntityError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaUnprocessableEntityError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaUnprocessableEntityError.source`
 - `statusCode?` _number_
@@ -1620,6 +1743,12 @@ The git remote repository was not found (code `GIT_REPO_NOT_FOUND`).
     - _Inherited from_: `DaytonaNotFoundError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaNotFoundError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaNotFoundError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaNotFoundError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaNotFoundError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaNotFoundError.source`
 - `statusCode?` _number_
@@ -1692,6 +1821,12 @@ The git remote was unreachable — DNS, TLS, connection or timeout failure (code
     - _Inherited from_: `DaytonaBadGatewayError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaBadGatewayError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaBadGatewayError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaBadGatewayError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaBadGatewayError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaBadGatewayError.source`
 - `statusCode?` _number_
@@ -1764,6 +1899,12 @@ The resource existed but is permanently gone (HTTP 410).
     - _Inherited from_: `DaytonaError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaError.source`
 - `statusCode?` _number_
@@ -1841,6 +1982,12 @@ A Daytona service failed unexpectedly (HTTP 500).
     - _Inherited from_: `DaytonaError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaError.source`
 - `statusCode?` _number_
@@ -1919,6 +2066,12 @@ service was contacted, so there is no HTTP status to report.
     - _Inherited from_: `DaytonaValidationError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaValidationError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaValidationError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaValidationError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaValidationError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaValidationError.source`
 - `statusCode?` _number_
@@ -2007,6 +2160,12 @@ The supplied file path was rejected by the daemon (code `INVALID_FILE_PATH`).
     - _Inherited from_: `DaytonaBadRequestError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaBadRequestError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaBadRequestError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaBadRequestError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaBadRequestError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaBadRequestError.source`
 - `statusCode?` _number_
@@ -2079,6 +2238,12 @@ The LSP server must be initialized first (code `LSP_SERVER_NOT_INITIALIZED`).
     - _Inherited from_: `DaytonaBadRequestError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaBadRequestError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaBadRequestError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaBadRequestError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaBadRequestError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaBadRequestError.source`
 - `statusCode?` _number_
@@ -2151,6 +2316,12 @@ The requested resource does not exist (HTTP 404).
     - _Inherited from_: `DaytonaError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaError.source`
 - `statusCode?` _number_
@@ -2230,6 +2401,12 @@ Command execution exceeded its timeout (code `PROCESS_EXECUTION_TIMEOUT`).
     - _Inherited from_: `DaytonaTimeoutError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaTimeoutError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaTimeoutError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaTimeoutError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaTimeoutError.operationId`
 - `sandboxId?` _string_ - Set only on the `DaytonaTimeoutError` from `Daytona.create()` after the
     sandbox already exists. Undefined on every other timeout, including
     process-execution timeouts and queue timeouts.
@@ -2331,6 +2508,12 @@ The sandbox process does not exist (code `PROCESS_NOT_FOUND`).
     - _Inherited from_: `DaytonaNotFoundError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaNotFoundError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaNotFoundError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaNotFoundError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaNotFoundError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaNotFoundError.source`
 - `statusCode?` _number_
@@ -2403,6 +2586,12 @@ Raised when a sandbox was destroyed by the API because it waited longer than its
     - _Inherited from_: `DaytonaTimeoutError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaTimeoutError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaTimeoutError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaTimeoutError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaTimeoutError.operationId`
 - `sandboxId?` _string_ - Set only on the `DaytonaTimeoutError` from `Daytona.create()` after the
     sandbox already exists. Undefined on every other timeout, including
     process-execution timeouts and queue timeouts.
@@ -2504,6 +2693,12 @@ The caller exceeded a rate limit (HTTP 429).
     - _Inherited from_: `DaytonaError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaError.source`
 - `statusCode?` _number_
@@ -2576,6 +2771,12 @@ ffmpeg is not available for recording (code `RECORDING_FFMPEG_NOT_FOUND`).
     - _Inherited from_: `DaytonaServiceUnavailableError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaServiceUnavailableError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaServiceUnavailableError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaServiceUnavailableError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaServiceUnavailableError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaServiceUnavailableError.source`
 - `statusCode?` _number_
@@ -2648,6 +2849,12 @@ A screen recording is still active (code `RECORDING_STILL_ACTIVE`).
     - _Inherited from_: `DaytonaConflictError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaConflictError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaConflictError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaConflictError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaConflictError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaConflictError.source`
 - `statusCode?` _number_
@@ -2720,6 +2927,12 @@ The service is temporarily unable to handle the request (HTTP 503).
     - _Inherited from_: `DaytonaError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaError.source`
 - `statusCode?` _number_
@@ -2797,6 +3010,12 @@ The session has already ended (code `SESSION_ENDED`).
     - _Inherited from_: `DaytonaGoneError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaGoneError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaGoneError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaGoneError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaGoneError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaGoneError.source`
 - `statusCode?` _number_
@@ -2869,6 +3088,12 @@ Raised when a sandbox was destroyed by spot preemption.
     - _Inherited from_: `DaytonaError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaError.source`
 - `statusCode?` _number_
@@ -2941,6 +3166,12 @@ The operation timed out (HTTP 408, or 504 when a gateway timed out).
     - _Inherited from_: `DaytonaError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaError.operationId`
 - `sandboxId?` _string_ - Set only on the `DaytonaTimeoutError` from `Daytona.create()` after the
     sandbox already exists. Undefined on every other timeout, including
     process-execution timeouts and queue timeouts.
@@ -3049,6 +3280,12 @@ The request was well-formed but semantically invalid (HTTP 422).
     - _Inherited from_: `DaytonaError.code`
 - `headers?` _AxiosHeaders_
     - _Inherited from_: `DaytonaError.headers`
+- `nodeFailures?` _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaError.nodeFailures`
+- `nodeResults?` _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaError.nodeResults`
+- `operationId?` _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaError.operationId`
 - `source?` _string_
     - _Inherited from_: `DaytonaError.source`
 - `statusCode?` _number_
@@ -3127,6 +3364,12 @@ matching both server-returned HTTP 400s and locally rejected arguments.
     - _Inherited from_: `DaytonaBadRequestError.code`
 - ~~`headers?`~~ _AxiosHeaders_
     - _Inherited from_: `DaytonaBadRequestError.headers`
+- ~~`nodeFailures?`~~ _Record\<number, unknown\>_ - Outcomes of an all-node command when one or more ranks failed.
+    - _Inherited from_: `DaytonaBadRequestError.nodeFailures`
+- ~~`nodeResults?`~~ _Record\<number, ExecuteResponse\>_
+    - _Inherited from_: `DaytonaBadRequestError.nodeResults`
+- ~~`operationId?`~~ _string_ - Accepted membership operation to inspect if polling fails.
+    - _Inherited from_: `DaytonaBadRequestError.operationId`
 - ~~`source?`~~ _string_
     - _Inherited from_: `DaytonaBadRequestError.source`
 - ~~`statusCode?`~~ _number_

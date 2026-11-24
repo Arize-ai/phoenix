@@ -63,8 +63,8 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/sso/connections?limit=100' \
 
 | **Field** | **Description** |
 | --- | --- |
-| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `cursor` | Continues from a previous page. |
+| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 
 > **Notes:**
 >

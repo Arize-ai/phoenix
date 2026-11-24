@@ -340,8 +340,8 @@ handle.delete()
 
 | **Parameter** | **Description** |
 | ------------- | --------------- |
-| `keep_logs`   | Sets how long the sandbox keeps the process record and its log.<br />**Default:** `on_exit_ttl`<br />**Value:** `until_cleanup`, `on_exit_ttl`, or `none`<br />**Example:** `"until_cleanup"` |
 | `cursor`      | Starts the page strictly after this cursor. A read from an evicted position fails with an error that names the oldest retained position, and a stream warns and continues from there.<br />**Default:** the first frame, and the read fails the same way once that frame is evicted |
+| `keep_logs`   | Sets how long the sandbox keeps the process record and its log.<br />**Default:** `on_exit_ttl`<br />**Value:** `until_cleanup`, `on_exit_ttl`, or `none`<br />**Example:** `"until_cleanup"` |
 
 > **Notes:**
 >

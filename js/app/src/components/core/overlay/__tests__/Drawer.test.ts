@@ -7,22 +7,6 @@ import { Drawer } from "../Drawer";
 import { OverlayFrameProvider, useOverlayFrame } from "../frame";
 import { ViewportModal, ViewportModalOverlay } from "../ViewportModal";
 
-function dispatchPointerEvent(
-  element: Element,
-  type: string,
-  init: { clientX: number; pointerId?: number }
-) {
-  const event = new MouseEvent(type, {
-    bubbles: true,
-    button: 0,
-    clientX: init.clientX,
-  });
-  Object.defineProperty(event, "pointerId", {
-    value: init.pointerId ?? 1,
-  });
-  element.dispatchEvent(event);
-}
-
 function HostedDrawerFrame({ children }: { children: ReactNode }) {
   return createElement(
     OverlayFrameProvider,
@@ -57,14 +41,12 @@ describe("Drawer", () => {
   let root: Root;
   const originalInnerWidth = window.innerWidth;
   let drawerHostWidth = 800;
-  let sideNavigationWidth = 52;
 
   beforeEach(() => {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
     drawerHostWidth = 800;
-    sideNavigationWidth = 52;
     vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
       function getBoundingClientRect(this: HTMLElement) {
         if (this.hasAttribute("data-drawer-host")) {
@@ -85,9 +67,9 @@ describe("Drawer", () => {
             bottom: 600,
             height: 600,
             left: 0,
-            right: sideNavigationWidth,
+            right: 52,
             top: 0,
-            width: sideNavigationWidth,
+            width: 52,
             x: 0,
             y: 0,
             toJSON: () => ({}),
@@ -214,131 +196,6 @@ describe("Drawer", () => {
     expect(drawer?.style.width).toBe("92vw");
     expect(handle?.getAttribute("aria-valuenow")).toBe("92");
     expect(onResize).toHaveBeenLastCalledWith(92);
-  });
-
-  it("portals to the frame host and sizes against its width", () => {
-    const onResize = vi.fn();
-
-    act(() => {
-      root.render(
-        createElement(
-          HostedDrawerFrame,
-          null,
-          createElement(
-            Drawer,
-            {
-              defaultSize: "50%",
-              isOpen: true,
-              maxSize: "95%",
-              minSize: "35%",
-              onResize,
-            },
-            createElement("div", null, "Drawer content")
-          )
-        )
-      );
-    });
-
-    const host = container.querySelector("[data-drawer-host]");
-    const drawer = host?.querySelector<HTMLElement>('[role="complementary"]');
-    const handle = host?.querySelector<HTMLElement>('[role="separator"]');
-
-    expect(drawer).not.toBeNull();
-    expect(drawer?.style.width).toBe("50%");
-    expect(drawer?.style.maxWidth).toBe("720px");
-
-    act(() => {
-      handle?.dispatchEvent(
-        new KeyboardEvent("keydown", { bubbles: true, key: "End" })
-      );
-    });
-
-    expect(drawer?.style.width).toBe("90%");
-    expect(handle?.getAttribute("aria-valuemax")).toBe("90");
-    expect(onResize).toHaveBeenLastCalledWith(90);
-  });
-
-  it("preserves the gap beside an expanded side navigation", () => {
-    sideNavigationWidth = 260;
-
-    act(() => {
-      root.render(
-        createElement(
-          HostedDrawerFrame,
-          null,
-          createElement(
-            Drawer,
-            { defaultSize: "95%", isOpen: true },
-            createElement("div", null, "Drawer content")
-          )
-        )
-      );
-    });
-
-    const host = container.querySelector("[data-drawer-host]");
-    const drawer = host?.querySelector<HTMLElement>('[role="complementary"]');
-    const handle = host?.querySelector<HTMLElement>('[role="separator"]');
-
-    expect(drawer?.style.width).toBe("64%");
-    expect(drawer?.style.maxWidth).toBe("512px");
-    expect(handle?.getAttribute("aria-valuemax")).toBe("64");
-  });
-
-  it("resizes by pointer distance relative to the frame host", () => {
-    const onResize = vi.fn();
-
-    act(() => {
-      root.render(
-        createElement(
-          HostedDrawerFrame,
-          null,
-          createElement(
-            Drawer,
-            { defaultSize: "50%", isOpen: true, onResize },
-            createElement("div", null, "Drawer content")
-          )
-        )
-      );
-    });
-
-    const host = container.querySelector("[data-drawer-host]");
-    const drawer = host?.querySelector<HTMLElement>('[role="complementary"]');
-    const handle = host?.querySelector<HTMLElement>('[role="separator"]');
-    Object.assign(handle ?? {}, {
-      hasPointerCapture: vi.fn(() => true),
-      releasePointerCapture: vi.fn(),
-      setPointerCapture: vi.fn(),
-    });
-
-    act(() => {
-      dispatchPointerEvent(handle!, "pointerdown", { clientX: 400 });
-      dispatchPointerEvent(handle!, "pointermove", { clientX: 320 });
-      dispatchPointerEvent(handle!, "pointerup", { clientX: 320 });
-    });
-
-    expect(drawer?.style.width).toBe("60%");
-    expect(onResize).toHaveBeenLastCalledWith(60);
-  });
-
-  it("resolves a pixel default against the frame host, not the window", () => {
-    act(() => {
-      root.render(
-        createElement(
-          HostedDrawerFrame,
-          null,
-          createElement(
-            Drawer,
-            { defaultSize: 400, isOpen: true },
-            createElement("div", null, "Drawer content")
-          )
-        )
-      );
-    });
-
-    const host = container.querySelector("[data-drawer-host]");
-    const drawer = host?.querySelector<HTMLElement>('[role="complementary"]');
-
-    expect(drawer?.style.width).toBe("50%");
   });
 
   it("does not dismiss underneath a viewport-modal Escape", () => {

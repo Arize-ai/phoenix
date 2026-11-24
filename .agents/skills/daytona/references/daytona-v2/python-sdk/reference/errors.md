@@ -49,8 +49,6 @@
 - [SessionNotFoundError](#sessionnotfounderror)
 - [SessionEndedError](#sessionendederror)
 - [KernelUnavailableError](#kernelunavailableerror)
-- [LspServerUnavailableError](#lspserverunavailableerror)
-- [LspNotStartedError](#lspnotstartederror)
 - [AddonUnavailableError](#addonunavailableerror)
 - [FileNotFoundError](#filenotfounderror)
 - [InvalidFilePathError](#invalidfilepatherror)
@@ -660,22 +658,6 @@ class KernelUnavailableError(ServiceUnavailableError)
 ```
 
 KERNEL_UNAVAILABLE.
-
-## LspServerUnavailableError
-
-```python
-class LspServerUnavailableError(ServiceUnavailableError)
-```
-
-LSP_SERVER_UNAVAILABLE.
-
-## LspNotStartedError
-
-```python
-class LspNotStartedError(ConflictError)
-```
-
-LSP_NOT_STARTED.
 
 ## AddonUnavailableError
 

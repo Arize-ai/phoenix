@@ -31,7 +31,7 @@ Create a sandbox.
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const sandbox = await daytona.create()
+const sandbox = await daytona.v0.create()
 ```
 
 ### Snapshots
@@ -60,7 +60,7 @@ Create a sandbox from a [default snapshot](./snapshots.md#default-snapshots).
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   snapshot: 'daytona-small',
 })
 ```
@@ -75,10 +75,11 @@ Create a sandbox from an image. The image must be publicly accessible and includ
 4. Click <Button>Create</Button>
 
 ```typescript
-import { Daytona, Image } from '@daytona/sdk'
+import { Daytona } from '@daytona/sdk'
+import { Image } from '@daytona/sdk/v0'
 
 const daytona = new Daytona()
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   image: Image.base('ubuntu:22.04'),
 })
 ```
@@ -102,10 +103,11 @@ Sandboxes have **1 vCPU**, **1GB RAM**, and **3GiB disk** by default. Organizati
 5. Click <Button>Create</Button>
 
 ```typescript
-import { Daytona, Image } from '@daytona/sdk'
+import { Daytona } from '@daytona/sdk'
+import { Image } from '@daytona/sdk/v0'
 
 const daytona = new Daytona()
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   image: Image.base('ubuntu:22.04'),
   resources: { cpu: 2, memory: 4, disk: 8 },
 })
@@ -124,17 +126,17 @@ import { Daytona } from '@daytona/sdk'
 const daytona = new Daytona()
 
 // Python runtime (default)
-let sandbox = await daytona.create({ language: 'python' })
+let sandbox = await daytona.v0.create({ language: 'python' })
 let response = await sandbox.process.codeRun('print("Hello from Python")')
 console.log(response.result)
 
 // TypeScript runtime
-sandbox = await daytona.create({ language: 'typescript' })
+sandbox = await daytona.v0.create({ language: 'typescript' })
 response = await sandbox.process.codeRun('console.log("Hello from TypeScript")')
 console.log(response.result)
 
 // JavaScript runtime
-sandbox = await daytona.create({ language: 'javascript' })
+sandbox = await daytona.v0.create({ language: 'javascript' })
 response = await sandbox.process.codeRun('console.log("Hello from JavaScript")')
 console.log(response.result)
 ```
@@ -152,7 +154,7 @@ Create a sandbox with environment variables. Use [secrets](./secrets.md) for API
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   envVars: { DEBUG: 'true', LOG_LEVEL: 'info' },
 })
 ```
@@ -174,8 +176,8 @@ Create a sandbox in a specific [region](./regions.md).
 ```typescript
 import { Daytona } from '@daytona/sdk'
 
-const daytona = new Daytona({ target: 'us' })
-const sandbox = await daytona.create()
+const daytona = new Daytona()
+const sandbox = await daytona.v0.create({ target: 'us' })
 ```
 
 ### VM sandboxes
@@ -207,19 +209,20 @@ Create a Linux VM sandbox.
 10. Click <Button>Create</Button>
 
 ```typescript
-import { Daytona, SandboxClass } from "@daytona/sdk";
+import { Daytona } from "@daytona/sdk";
+import { SandboxClass } from "@daytona/sdk/v0";
 
 const daytona = new Daytona();
 
 // 1. Create a VM snapshot (Linux VM class)
-await daytona.snapshot.create({
+await daytona.v0.snapshot.create({
   name: "my-vm-snapshot",
   image: "ubuntu:22.04",
   sandboxClass: SandboxClass.LINUX_VM,
 });
 
 // 2. Create a VM sandbox from the snapshot
-const sandbox = await daytona.create({ snapshot: "my-vm-snapshot" });
+const sandbox = await daytona.v0.create({ snapshot: "my-vm-snapshot" });
 ```
 
 **Default:**
@@ -235,7 +238,7 @@ Create a Linux VM sandbox from a default snapshot.
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const sandbox = await daytona.create({ snapshot: 'daytona-vm-small' })
+const sandbox = await daytona.v0.create({ snapshot: 'daytona-vm-small' })
 ```
 
 **Windows:**
@@ -251,7 +254,7 @@ Create a Windows sandbox.
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   snapshot: 'windows-small',
 })
 ```
@@ -266,7 +269,7 @@ Daytona provides nested virtualization for Linux VM sandboxes. Nested virtualiza
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   snapshot: 'daytona-vm-small',
   kvm: true,
 })
@@ -309,10 +312,11 @@ Create a GPU sandbox with custom GPU resources: units and types.
     Daytona uses the first available type in the order you provide. This lets you fall back from a preferred GPU to an alternative when the first choice is not available.
 
 ```typescript
-import { Daytona, GpuType } from "@daytona/sdk";
+import { Daytona } from "@daytona/sdk";
+import { GpuType } from "@daytona/sdk/v0";
 
 const daytona = new Daytona()
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   image: "pytorch/pytorch:2.11.0-cuda12.8-cudnn9-runtime",
   autoDeleteInterval: 0,
   resources: {
@@ -335,7 +339,7 @@ Create a GPU sandbox from a default snapshot.
 import { Daytona } from "@daytona/sdk";
 
 const daytona = new Daytona()
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   snapshot: "daytona-gpu",
   ephemeral: true,
 });
@@ -356,10 +360,11 @@ Spot GPU sandboxes require Tier 2 or higher. Spot GPU sandboxes do not count aga
 Create a spot GPU sandbox with custom GPU resources: units and types.
 
 ```typescript
-import { Daytona, GpuType } from "@daytona/sdk";
+import { Daytona } from "@daytona/sdk";
+import { GpuType } from "@daytona/sdk/v0";
 
 const daytona = new Daytona()
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   image: "pytorch/pytorch:2.11.0-cuda12.8-cudnn9-runtime",
   autoDeleteInterval: 0,
   spot: true,
@@ -378,7 +383,7 @@ Create a spot GPU sandbox from a default snapshot.
 import { Daytona } from "@daytona/sdk";
 
 const daytona = new Daytona()
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   snapshot: "daytona-gpu",
   autoDeleteInterval: 0,
   spot: true,
@@ -430,7 +435,7 @@ Create an ephemeral sandbox. Ephemeral sandboxes are automatically deleted when 
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   ephemeral: true,
   autoStopInterval: 5,
 })
@@ -458,9 +463,9 @@ import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
 
-const parent = await daytona.create()
+const parent = await daytona.v0.create()
 
-const child = await daytona.create({
+const child = await daytona.v0.create({
   linkedSandbox: parent.id,
   ephemeral: true,
 })
@@ -480,7 +485,7 @@ Sandbox operations manage sandboxes after creation. They cover discovery, inspec
 List sandboxes.
 
 ```typescript
-for await (const sandbox of daytona.list()) {
+for await (const sandbox of daytona.v0.list()) {
   console.log(sandbox.id)
 }
 ```
@@ -490,7 +495,7 @@ for await (const sandbox of daytona.list()) {
 Get a sandbox by ID or name.
 
 ```typescript
-const sandbox = await daytona.get('my-sandbox-id-or-name')
+const sandbox = await daytona.v0.get('my-sandbox-id-or-name')
 ```
 
 ### Label sandboxes
@@ -797,7 +802,7 @@ A fork of a [KVM sandbox](#nested-virtualization) inherits the `kvm` setting. Fo
 const forkedSandbox = await sandbox.fork({ name: "my-forked-sandbox" });
 
 // Or use the Daytona helper method
-const helperForkedSandbox = await daytona.fork(sandbox, { name: "my-forked-sandbox" });
+const helperForkedSandbox = await daytona.v0.fork(sandbox, { name: "my-forked-sandbox" });
 ```
 
 **Windows:**
@@ -815,7 +820,7 @@ Daytona tracks the parent-child relationship in a fork tree, so you can trace a 
 const forkedSandbox = await sandbox.fork({ name: "my-forked-sandbox" });
 
 // Or use the Daytona helper method
-const helperForkedSandbox = await daytona.fork(sandbox, { name: "my-forked-sandbox" });
+const helperForkedSandbox = await daytona.v0.fork(sandbox, { name: "my-forked-sandbox" });
 ```
 
 ## Automated lifecycle management
@@ -843,7 +848,7 @@ The auto-stop interval sets the amount of time after which a running sandbox is 
 4. Click <Button>Create</Button>
 
 ```typescript
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   snapshot: 'my-snapshot',
   // Disables the auto-stop feature - default is 15 minutes
   autoStopInterval: 0,
@@ -899,7 +904,7 @@ Auto-pause is not supported for container sandboxes. Use <u>[**auto-stop**](#aut
 5. Click <Button>Create</Button>
 
 ```typescript
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   snapshot: 'daytona-vm-small',
   // Auto-pause after 1 hour of inactivity
   autoPauseInterval: 60,
@@ -923,7 +928,7 @@ await sandbox.setAutoPauseInterval(0)
 5. Click <Button>Create</Button>
 
 ```typescript
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   snapshot: 'windows-small',
   // Auto-pause after 1 hour of inactivity
   autoPauseInterval: 60,
@@ -953,7 +958,7 @@ The auto-archive interval sets the amount of time after which a continuously sto
 4. Click <Button>Create</Button>
 
 ```typescript
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   snapshot: 'my-snapshot',
   // Auto-archive after a sandbox has been stopped for 1 hour
   autoArchiveInterval: 60,
@@ -974,7 +979,7 @@ The auto-delete interval sets the amount of time after which a continuously stop
 4. Click <Button>Create</Button>
 
 ```typescript
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   snapshot: 'my-snapshot',
   // Auto-delete after a sandbox has been stopped for 1 hour
   autoDeleteInterval: 60,
@@ -999,7 +1004,7 @@ Set `ttl_minutes` when creating a sandbox, or update it later. The value is in m
 Calling `set_ttl` after creation resets the deadline from the current moment. Use wall-clock TTL for agent sessions, CI jobs, and any sandbox that must not outlive a fixed deadline.
 
 ```typescript
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   snapshot: 'my-snapshot',
   // Destroy the sandbox 2 hours after creation, regardless of state
   ttlMinutes: 120,
@@ -1034,7 +1039,7 @@ By default, Daytona sandboxes auto-stop after 15 minutes of inactivity. To keep 
 4. Click <Button>Create</Button>
 
 ```typescript
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   snapshot: 'my_awesome_snapshot',
   // Disables the auto-stop feature - default is 15 minutes
   autoStopInterval: 0,

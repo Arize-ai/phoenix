@@ -66,9 +66,9 @@ await sandbox.git.clone('https://github.com/octocat/Spoon-Knife.git', { path: '/
 | `commitId` | Sets the commit to check out after the clone. It takes precedence over branch and leaves the repository on a detached HEAD at that commit. |
 | `depth` | Sets the number of commits to fetch for a shallow clone.<br />**Minimum:** `1`<br />**Maximum:** `2147483647`<br />**Example:** `1` |
 | `insecureSkipTls` | Skips TLS certificate verification for this clone.<br />**Default:** `false` |
-| `username` | Sets the username for the remote.<br />**Example:** `'git'` |
 | `password` | Sets the password or personal access token for the remote. |
 | `timeoutSeconds` | Sets how long the SDK waits for the call in seconds.<br />**Default:** `1800`<br />**Value:** `0` for no limit<br />**Example:** `600` |
+| `username` | Sets the username for the remote.<br />**Example:** `'git'` |
 
 ## Get repository status
 
@@ -304,11 +304,11 @@ await sandbox.git.push('/home/daytona/workspace/repo', {
 | --- | --- |
 | `path` | Sets the path of the repository in the sandbox.<br />**Required**<br />**Example:** `'/home/daytona/workspace/repo'` |
 | `branch` | Sets the local branch to push.<br />**Default:** the current branch<br />**Example:** `'new-feature'` |
+| `password` | Sets the password or personal access token for the remote. |
 | `remote` | Sets the remote to push to.<br />**Default:** `origin`<br />**Format:** the name of a configured remote<br />**Example:** `'upstream'` |
 | `setUpstream` | Sets the pushed branch as the upstream of the local branch.<br />**Default:** `false` |
-| `username` | Sets the username for the remote.<br />**Example:** `'git'` |
-| `password` | Sets the password or personal access token for the remote. |
 | `timeoutSeconds` | Sets how long the SDK waits for the call in seconds.<br />**Default:** `1800`<br />**Value:** `0` for no limit<br />**Example:** `600` |
+| `username` | Sets the username for the remote.<br />**Example:** `'git'` |
 
 ### Pull changes
 
@@ -332,10 +332,10 @@ await sandbox.git.pull('/home/daytona/workspace/repo');
 | --- | --- |
 | `path` | Sets the path of the repository in the sandbox.<br />**Required**<br />**Example:** `'/home/daytona/workspace/repo'` |
 | `branch` | Sets the branch to pull.<br />**Value:** the current branch |
-| `remote` | Sets the remote to pull from.<br />**Default:** the upstream remote of the current branch, or `origin` when branch is set<br />**Format:** the name of a configured remote<br />**Example:** `'upstream'` |
-| `username` | Sets the username for the remote.<br />**Example:** `'git'` |
 | `password` | Sets the password or personal access token for the remote. |
+| `remote` | Sets the remote to pull from.<br />**Default:** the upstream remote of the current branch, or `origin` when branch is set<br />**Format:** the name of a configured remote<br />**Example:** `'upstream'` |
 | `timeoutSeconds` | Sets how long the SDK waits for the call in seconds.<br />**Default:** `1800`<br />**Value:** `0` for no limit<br />**Example:** `600` |
+| `username` | Sets the username for the remote.<br />**Example:** `'git'` |
 
 ## Initialize a repository
 
@@ -382,9 +382,9 @@ await sandbox.git.reset('/home/daytona/workspace/repo', { target: 'HEAD~1' });
 | **Parameter** | **Description** |
 | --- | --- |
 | `path` | Sets the path of the repository in the sandbox.<br />**Required**<br />**Example:** `'/home/daytona/workspace/repo'` |
+| `files` | Sets the files to reset, in the `mixed` mode only.<br />**Format:** paths relative to the repository path<br />**Example:** `['README.md']` |
 | `mode` | Sets the reset mode.<br />**Default:** `mixed`<br />**Value:** `mixed`, `soft`, `hard`, `merge`, or `keep`<br />**Example:** `'hard'` |
 | `target` | Sets the commit to reset to.<br />**Default:** `HEAD`<br />**Example:** `'HEAD~1'` |
-| `files` | Sets the files to reset, in the `mixed` mode only.<br />**Format:** paths relative to the repository path<br />**Example:** `['README.md']` |
 
 ## Restore files
 
@@ -410,9 +410,9 @@ await sandbox.git.restore('/home/daytona/workspace/repo', ['README.md']);
 | --- | --- |
 | `path` | Sets the path of the repository in the sandbox.<br />**Required**<br />**Example:** `'/home/daytona/workspace/repo'` |
 | `files` | Sets the files to restore. Name at least one file.<br />**Required**<br />**Format:** paths relative to the repository path<br />**Example:** `['README.md']` |
+| `source` | Sets the commit, branch, or tag to restore from.<br />**Default:** the index for the working tree, and `HEAD` for the index<br />**Example:** `'HEAD~1'` |
 | `staged` | Restores the index entry of each file.<br />**Default:** `false` |
 | `worktree` | Restores the working tree copy of each file.<br />**Default:** `true`, or `false` when staged is `true` |
-| `source` | Sets the commit, branch, or tag to restore from.<br />**Default:** the index for the working tree, and `HEAD` for the index<br />**Example:** `'HEAD~1'` |
 
 ## Get commit history
 
@@ -497,8 +497,8 @@ const editor = await sandbox.git.getConfig('core.editor');
 | --- | --- |
 | `key` | Sets the configuration key.<br />**Required**<br />**Format:** a section and a name separated by a period<br />**Example:** `'core.editor'` |
 | `value` | Sets the configuration value.<br />**Required**<br />**Example:** `'vim'` |
-| `scope` | Sets the configuration scope.<br />**Default:** `global`<br />**Value:** `global` or `local`<br />**Example:** `'local'` |
 | `path` | Sets the path of the repository for the local scope.<br />**Example:** `'/home/daytona/workspace/repo'` |
+| `scope` | Sets the configuration scope.<br />**Default:** `global`<br />**Value:** `global` or `local`<br />**Example:** `'local'` |
 
 > **Notes:**
 >
@@ -527,8 +527,8 @@ await sandbox.git.setConfig('user.email', 'john@example.com');
 | --- | --- |
 | `key` | Sets the configuration key.<br />**Required**<br />**Format:** a section and a name separated by a period<br />**Example:** `'user.name'` |
 | `value` | Sets the configuration value.<br />**Required**<br />**Example:** `'John Doe'` |
-| `scope` | Sets the configuration scope.<br />**Default:** `global`<br />**Value:** `global` or `local`<br />**Example:** `'local'` |
 | `path` | Sets the path of the repository for the local scope.<br />**Example:** `'/home/daytona/workspace/repo'` |
+| `scope` | Sets the configuration scope.<br />**Default:** `global`<br />**Value:** `global` or `local`<br />**Example:** `'local'` |
 
 > **Notes:**
 >
@@ -561,8 +561,8 @@ await sandbox.git.push('/home/daytona/workspace/repo', {
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `username` | Sets the username for the remote.<br />**Example:** `'git'` |
 | `password` | Sets the password or personal access token for the remote. |
+| `username` | Sets the username for the remote.<br />**Example:** `'git'` |
 
 ## Permissions
 

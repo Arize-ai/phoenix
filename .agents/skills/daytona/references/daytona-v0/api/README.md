@@ -164,6 +164,10 @@ See [Authentication](../README.md#before-you-start) for how to obtain an API key
 | `GET` | `/sandbox/{sandboxId}/telemetry/traces` | [Get sandbox traces](./sandbox.md#daytona/tag/sandbox/GET/sandbox/{sandboxId}/telemetry/traces) | [sandbox](./sandbox.md) |
 | `GET` | `/sandbox/{sandboxId}/telemetry/traces/{traceId}` | [Get trace spans](./sandbox.md#daytona/tag/sandbox/GET/sandbox/{sandboxId}/telemetry/traces/{traceId}) | [sandbox](./sandbox.md) |
 | `GET` | `/sandbox/{sandboxId}/telemetry/metrics` | [Get sandbox metrics](./sandbox.md#daytona/tag/sandbox/GET/sandbox/{sandboxId}/telemetry/metrics) | [sandbox](./sandbox.md) |
+| `POST` | `/sandbox/{sandboxIdOrName}/nodes` | [Append nodes to a multi-node sandbox](./sandbox-membership.md#daytona/tag/sandbox-membership/POST/sandbox/{sandboxIdOrName}/nodes) | [sandbox-membership](./sandbox-membership.md) |
+| `POST` | `/sandbox/{sandboxIdOrName}/nodes/remove` | [Remove the highest ranks from a multi-node sandbox](./sandbox-membership.md#daytona/tag/sandbox-membership/POST/sandbox/{sandboxIdOrName}/nodes/remove) | [sandbox-membership](./sandbox-membership.md) |
+| `POST` | `/sandbox/{sandboxIdOrName}/nodes/{rank}/replace` | [Replace a failed multi-node sandbox rank](./sandbox-membership.md#daytona/tag/sandbox-membership/POST/sandbox/{sandboxIdOrName}/nodes/{rank}/replace) | [sandbox-membership](./sandbox-membership.md) |
+| `GET` | `/sandbox/{sandboxIdOrName}/membership-operations/{operationId}` | [Get a gang membership operation](./sandbox-membership.md#daytona/tag/sandbox-membership/GET/sandbox/{sandboxIdOrName}/membership-operations/{operationId}) | [sandbox-membership](./sandbox-membership.md) |
 | `GET` | `/secret` | [List secrets](./secret.md#daytona/tag/secret/GET/secret) | [secret](./secret.md) |
 | `POST` | `/secret` | [Create secret](./secret.md#daytona/tag/secret/POST/secret) | [secret](./secret.md) |
 | `GET` | `/secret/paginated` | [List secrets with pagination](./secret.md#daytona/tag/secret/GET/secret/paginated) | [secret](./secret.md) |
@@ -214,6 +218,7 @@ See [Authentication](../README.md#before-you-start) for how to obtain an API key
 - [regions](./regions.md) (1 endpoints) {#daytona/tag/regions}
 - [runners](./runners.md) (12 endpoints) {#daytona/tag/runners}
 - [sandbox](./sandbox.md) (46 endpoints) {#daytona/tag/sandbox}
+- [sandbox-membership](./sandbox-membership.md) (4 endpoints) {#daytona/tag/sandbox-membership}
 - [secret](./secret.md) (6 endpoints) {#daytona/tag/secret}
 - [snapshots](./snapshots.md) (8 endpoints) {#daytona/tag/snapshots}
 - [users](./users.md) (8 endpoints) {#daytona/tag/users}

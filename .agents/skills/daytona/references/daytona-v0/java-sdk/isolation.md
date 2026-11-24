@@ -139,12 +139,13 @@ curl 'https://app.daytona.io/api/api-keys' \
 **[Secrets](./secrets.md)** keep credentials out of sandboxes entirely. A sandbox holds an opaque placeholder; an outbound proxy substitutes the real value only for requests to the secret's allowed hosts. Code in the sandbox can use the credential but cannot read it or send it anywhere else.
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
 
 # The sandbox receives a placeholder, never the plaintext value
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     secrets={
         "MY_API_KEY": "my-secret",
     },
@@ -161,13 +162,14 @@ sandbox.process.exec(
 **[Volumes](./volumes.md)** scope shared data with a `subpath`, so each sandbox mounts only its tenant's slice of a shared volume.
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams, Daytona, VolumeMount
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams, VolumeMount
 
 daytona = Daytona()
-volume = daytona.volume.get("tenant-data", create=True)
+volume = daytona.v0.volume.get("tenant-data", create=True)
 
 # Each sandbox mounts only its tenant's slice of the shared volume
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     volumes=[VolumeMount(
         volume_id=volume.id,
         mount_path="/home/daytona/data",

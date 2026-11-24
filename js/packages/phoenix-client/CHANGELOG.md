@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 8.0.3
+
+### Patch Changes
+
+- ea5a688: Acceptance criteria results now report `eligibleRunCount` (non-skipped runs in the suite) next to `sampleCount` (runs that logged the criterion's annotation), and the reporter shows coverage as `70 of 100 runs`. Pass/fail semantics are unchanged: a criterion is computed over the runs that logged its annotation.
+
 ## 8.0.2
 
 ### Patch Changes

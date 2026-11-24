@@ -90,10 +90,10 @@ All errors include [**`headers`**](#rate-limit-headers) and status code properti
 **TypeScript:**
 
 ```typescript
-import { DaytonaRateLimitError } from '@daytona/sdk'
+import { DaytonaRateLimitError } from '@daytona/sdk/v0'
 
 try {
-  await daytona.create()
+  await daytona.v0.create()
 } catch (error) {
   if (error instanceof DaytonaRateLimitError) {
     console.log(error.headers?.get('x-ratelimit-remaining-sandbox-create'))
@@ -105,10 +105,10 @@ try {
 **Python:**
 
 ```python
-from daytona import DaytonaRateLimitError
+from daytona.v0 import DaytonaRateLimitError
 
 try:
-  daytona.create()
+  daytona.v0.create()
 except DaytonaRateLimitError as e:
   headers = {key.lower(): value for key, value in e.headers.items()}
   print(headers.get('x-ratelimit-remaining-sandbox-create'))

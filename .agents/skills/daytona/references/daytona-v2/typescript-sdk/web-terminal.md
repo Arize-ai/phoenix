@@ -106,10 +106,10 @@ connection.write('echo "Hello from the SDK"\n')
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `kind` | Filters by process kind.<br />**Value:** `exec`, `pty`, `code`, or `session`<br />**Example:** `'pty'` |
-| `state` | Filters by process state.<br />**Default:** `all`<br />**Value:** `running`, `terminal`, or `all`<br />**Example:** `'running'` |
 | `process` | Sets the PTY process to connect to.<br />**Required**<br />**Format:** a process ID or a serialized process handle |
 | `data` | Sets the input to write to the terminal.<br />**Required**<br />**Example:** `'echo "Hello from the SDK"\n'` |
+| `kind` | Filters by process kind.<br />**Value:** `exec`, `pty`, `code`, or `session`<br />**Example:** `'pty'` |
+| `state` | Filters by process state.<br />**Default:** `all`<br />**Value:** `running`, `terminal`, or `all`<br />**Example:** `'running'` |
 
 > **Notes:**
 >

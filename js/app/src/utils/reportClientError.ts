@@ -4,6 +4,7 @@ import {
   isRedirectingToLoginError,
 } from "@phoenix/authFetch";
 import { BASE_URL, VERSION } from "@phoenix/config";
+import { isAbortError } from "@phoenix/utils/errorUtils";
 
 /**
  * Request body for `POST /client_errors`. Mirrors the server's `ErrorReport` model,
@@ -146,6 +147,11 @@ export function registerGlobalClientErrorReporting(): void {
     reportClientError({ error: event.error ?? event.message });
   });
   window.addEventListener("unhandledrejection", (event) => {
+    // Aborting an in-flight request, as Relay does when it cancels a query,
+    // rejects every promise tied to the signal. That is expected, not a failure.
+    if (isAbortError(event.reason)) {
+      return;
+    }
     reportClientError({ error: event.reason });
   });
 }

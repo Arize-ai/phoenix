@@ -11,6 +11,7 @@ Use file system operations to upload inputs before code runs and download result
 ## Contents
 
 - [Use cases](#use-cases)
+- [Directories](#directories)
 - [List files and directories](#list-files-and-directories)
 - [Get directory or file information](#get-directory-or-file-information)
 - [Create directories](#create-directories)
@@ -38,6 +39,44 @@ File system operations let an application move or inspect files in a sandbox wit
 - **Large transfers.** Large files stream between local disk and the sandbox without being held in the application's memory. Uploads have no request size limit, so free sandbox disk space bounds the upload size. A failed or cancelled SDK download leaves an existing destination file unchanged.
 
 - **Direct transfers for other clients.** A presigned URL lets a browser or another service upload or download one file without an API key. A URL is valid for at most 7 days. Rotating the sandbox signing key revokes every outstanding URL within 30 seconds.
+
+## Directories
+
+A filesystem layout is the set of standard directories that an operating system and its programs use, each for one kind of file. Programs find their configuration, libraries, and temporary files by these paths, so the layout is the same on every system of one kind.
+
+The filesystem of a Linux sandbox comes from its image, with the sandbox disk on top of it. Files that the image ships are read from the image, and files that the sandbox writes go to its disk, except in /run, which is in memory. The sandbox daemon adds its own directories to every image.
+
+Keep work files in the home directory or the temporary directory, where the default user can write. Leave the directories of the daemon unchanged, because the toolbox depends on them. Other Linux images keep this layout and can add programs and a non-root user, while Windows and macOS sandboxes keep the layout of their own system.
+
+```text
+/
+├── bin              # Link to /usr/bin
+├── boot/
+├── dev/             # Devices, with shared memory in /dev/shm
+├── etc/             # System configuration, with users in /etc/passwd and groups in /etc/group
+├── home/            # Empty, until a create request names a default user
+├── lib              # Link to /usr/lib
+├── lib64            # Link to /usr/lib64
+├── media/
+├── mnt/
+├── opt/
+│   └── rlp/         # Files of the sandbox daemon
+├── proc/            # Processes, from the Linux kernel
+├── root/            # Home and working directory of root, the default user
+│   ├── .bashrc
+│   └── .profile
+├── run/             # Runtime files in memory, cleared when the sandbox boots
+│   └── rlp/         # Runtime files of the sandbox daemon
+├── sbin             # Link to /usr/sbin
+├── srv/
+├── sys/             # Kernel settings, from the Linux kernel
+├── tmp/             # Temporary files that every user can write, on the sandbox disk
+│   └── rlp-daemon/  # State of the sandbox daemon
+├── usr/             # Programs and libraries of the operating system
+│   └── local/
+│       └── bin/     # Python, pip, Git, and daytona, the program of the sandbox daemon
+└── var/             # Logs, caches, and package data
+```
 
 ## List files and directories
 
@@ -217,9 +256,9 @@ sandbox.fs.upload_file("large_dataset.csv", "/home/daytona/workspace/dataset.csv
 | --- | --- |
 | `local_path` | Sets the local file to upload.<br />**Required**<br />**Example:** `"large_dataset.csv"` |
 | `remote_path` | Sets the destination path in the sandbox.<br />**Required**<br />**Format:** an absolute path<br />**Example:** `"/home/daytona/workspace/dataset.csv"` |
-| `on_progress` | Reports upload progress.<br />**Format:** a callback that takes the bytes sent so far and the total size in bytes<br />**Example:** `on_progress` |
-| `cancel` | Stops the upload when the event is set.<br />**Format:** a threading.Event or an asyncio.Event<br />**Example:** `threading.Event()` |
 | `atomic` | Writes through a temporary file in the destination directory, then renames it into place.<br />**Default:** `False` |
+| `cancel` | Stops the upload when the event is set.<br />**Format:** a threading.Event or an asyncio.Event<br />**Example:** `threading.Event()` |
+| `on_progress` | Reports upload progress.<br />**Format:** a callback that takes the bytes sent so far and the total size in bytes<br />**Example:** `on_progress` |
 
 > **Notes:**
 >
@@ -347,8 +386,8 @@ sandbox.fs.download_file("/home/daytona/workspace/large-file.bin", "local_copy.b
 | --- | --- |
 | `remote_path` | Sets the file to download from the sandbox.<br />**Required**<br />**Format:** an absolute path<br />**Example:** `"/home/daytona/workspace/large-file.bin"` |
 | `local_path` | Sets the local destination.<br />**Required**<br />**Example:** `"local_copy.bin"` |
-| `on_progress` | Reports download progress.<br />**Format:** a callback that takes the bytes received so far and the total size in bytes, or None when the total is unknown<br />**Example:** `on_progress` |
 | `cancel` | Stops the download when the event is set.<br />**Format:** a threading.Event or an asyncio.Event<br />**Example:** `threading.Event()` |
+| `on_progress` | Reports download progress.<br />**Format:** a callback that takes the bytes received so far and the total size in bytes, or None when the total is unknown<br />**Example:** `on_progress` |
 
 > **Notes:**
 >
@@ -403,9 +442,9 @@ sandbox.fs.chmod("/home/daytona/workspace/file.txt", mode="644")
 | **Parameter** | **Description** |
 | --- | --- |
 | `path` | Sets the file or directory to change.<br />**Required**<br />**Format:** an absolute path<br />**Example:** `"/home/daytona/workspace/file.txt"` |
+| `group` | Sets the group.<br />**Format:** a numeric group ID or a group name<br />**Example:** `"1000"` |
 | `mode` | Sets the permission mode.<br />**Format:** an octal string<br />**Example:** `"644"` |
 | `owner` | Sets the owner.<br />**Format:** a numeric user ID or a user name<br />**Example:** `"1000"` |
-| `group` | Sets the group.<br />**Format:** a numeric group ID or a group name<br />**Example:** `"1000"` |
 
 > **Notes:**
 >
@@ -538,9 +577,9 @@ handle.stop()
 | --- | --- |
 | `path` | Sets the directory to watch.<br />**Required**<br />**Format:** an absolute path<br />**Example:** `"/home/daytona/workspace/src"` |
 | `on_event` | Receives each event.<br />**Required**<br />**Format:** a function or coroutine function that takes one event<br />**Example:** `lambda event: print(event.name)` |
-| `recursive` | Watches subdirectories of the directory.<br />**Default:** `False` |
-| `on_overflow` | Runs when the watch drops events.<br />**Format:** a function or coroutine function without arguments |
 | `on_exit` | Runs once when the watch ends.<br />**Format:** a function or coroutine function that takes the error that ended the watch, or None after stop() |
+| `on_overflow` | Runs when the watch drops events.<br />**Format:** a function or coroutine function without arguments |
+| `recursive` | Watches subdirectories of the directory.<br />**Default:** `False` |
 
 > **Notes:**
 >

@@ -354,6 +354,9 @@ async def list(
 
 Iterates over Sandboxes matching the given query.
 
+The iterator fetches each multi-node GPU sandbox’s node details in one additional request as it is yielded.
+A gang deleted between listing and fetching its node details is skipped.
+
 **Arguments**:
 
 - `query` - Optional filters, sorting, and per-page size.
@@ -559,8 +562,8 @@ Parameters for creating a new Sandbox from an image.
 
 - `image` _str | Image_ - Custom Docker image to use for the Sandbox. If an Image object is provided,
   the image will be dynamically built.
-- `resources` _Resources | None_ - Resource configuration for the Sandbox. If not provided, sandbox will
-  have default resources.
+- `resources` _Resources | CreateSandboxResources | None_ - Resource configuration for the Sandbox.
+  If not provided, the Sandbox will have default resources.
 
 ## CreateSandboxFromSnapshotParams
 

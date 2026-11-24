@@ -48,10 +48,11 @@ Daytona provides default snapshots for creating sandboxes. You can also create s
 4. Click <Button>Create</Button>
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxFromSnapshotParams(
         snapshot="daytona-small",
     )
@@ -122,10 +123,11 @@ Create a snapshot.
 **Python:**
 
 ```python
-from daytona import Daytona, CreateSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSnapshotParams
 
 daytona = Daytona()
-snapshot = daytona.snapshot.create(
+snapshot = daytona.v0.snapshot.create(
     CreateSnapshotParams(name="my-awesome-snapshot", image="ubuntu:22.04"),
 )
 ```
@@ -136,7 +138,7 @@ snapshot = daytona.snapshot.create(
 import { Daytona } from "@daytona/sdk";
 
 const daytona = new Daytona();
-const snapshot = await daytona.snapshot.create({
+const snapshot = await daytona.v0.snapshot.create({
   name: "my-awesome-snapshot",
   image: "python:3.12",
 });
@@ -230,10 +232,11 @@ Create a Linux VM snapshot.
 2. Set the snapshot's sandbox class to **`LINUX_VM`**
 
 ```python
-from daytona import Daytona, CreateSnapshotParams, SandboxClass
+from daytona import Daytona
+from daytona.v0 import CreateSnapshotParams, SandboxClass
 
 daytona = Daytona()
-snapshot = daytona.snapshot.create(
+snapshot = daytona.v0.snapshot.create(
     CreateSnapshotParams(
         name="my-vm-snapshot",
         image="ubuntu:22.04",
@@ -271,10 +274,11 @@ GPU snapshots on shared regions belong to the [earth region](./regions.md#earth-
 6. Click <Button>Create</Button>
 
 ```python
-from daytona import CreateSnapshotParams, Daytona, Image, Resources
+from daytona import Daytona
+from daytona.v0 import CreateSnapshotParams, Image, Resources
 
 daytona = Daytona()
-snapshot = daytona.snapshot.create(
+snapshot = daytona.v0.snapshot.create(
     CreateSnapshotParams(
         name="my-gpu-snapshot",
         image=Image.base("python:3.12"),
@@ -504,7 +508,7 @@ daytona-v0 snapshot create my-awesome-snapshot --dockerfile ./Dockerfile
 Get a snapshot by name.
 
 ```python
-daytona.snapshot.get("my-awesome-snapshot")
+daytona.v0.snapshot.get("my-awesome-snapshot")
 ```
 
 ## List snapshots
@@ -512,7 +516,7 @@ daytona.snapshot.get("my-awesome-snapshot")
 List snapshots and view their details.
 
 ```python
-daytona.snapshot.list(page=2, limit=10)
+daytona.v0.snapshot.list(page=2, limit=10)
 ```
 
 ## Activate snapshots
@@ -526,7 +530,7 @@ Snapshots automatically become inactive after 2 weeks of not being used.
 3. Click <Button>Activate</Button>
 
 ```python
-daytona.snapshot.activate("my-awesome-snapshot")
+daytona.v0.snapshot.activate("my-awesome-snapshot")
 ```
 
 ## Deactivate snapshots
@@ -550,7 +554,7 @@ Deleted snapshots cannot be recovered. Deleting a snapshot also deletes its [war
 3. Click <Button>Delete</Button>
 
 ```python
-daytona.snapshot.delete(daytona.snapshot.get("my-awesome-snapshot"))
+daytona.v0.snapshot.delete(daytona.v0.snapshot.get("my-awesome-snapshot"))
 ```
 
 ## Snapshot lifecycle
@@ -643,13 +647,14 @@ Define and run multi-container applications. With Docker-in-Docker enabled in a 
 2. Run Docker Compose services inside a sandbox
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 # Initialize the Daytona client
 daytona = Daytona()
 
 # Create a sandbox from a Docker-in-Docker snapshot
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot='docker-dind'))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot='docker-dind'))
 
 # Create a docker-compose.yml file
 compose_content = '''
@@ -681,14 +686,15 @@ Sandboxes can run a Kubernetes cluster inside the sandbox. Kubernetes runs entir
 2. Install and start a k3s cluster inside the sandbox
 
 ```python
-from daytona import Daytona, SessionExecuteRequest
+from daytona import Daytona
+from daytona.v0 import SessionExecuteRequest
 import time
 
 # Initialize the Daytona client
 daytona = Daytona()
 
 # Create the sandbox instance
-sandbox = daytona.create()
+sandbox = daytona.v0.create()
 
 # Run the k3s installation script
 response = sandbox.process.exec('curl -sfL https://get.k3s.io | sh -')

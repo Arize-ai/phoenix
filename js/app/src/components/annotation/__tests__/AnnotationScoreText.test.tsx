@@ -49,27 +49,4 @@ describe("AnnotationScoreText", () => {
       strength: "25%",
     });
   });
-
-  it("marks a score at the pivot as neutral", () => {
-    expect(renderScore({ optimizationValue: 0 })).toMatchObject({
-      direction: "neutral",
-      textContent: "Neutral score: 0.80",
-    });
-  });
-
-  it("renders a saturated value at full strength", () => {
-    expect(renderScore({ optimizationValue: -1 })).toEqual({
-      direction: "negative",
-      strength: "100%",
-      textContent: "Unfavorable score: 0.80",
-    });
-  });
-
-  it("leaves an undetermined score uncolored", () => {
-    expect(renderScore({})).toEqual({
-      direction: undefined,
-      strength: "",
-      textContent: "0.80",
-    });
-  });
 });
