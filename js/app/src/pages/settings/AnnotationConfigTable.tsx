@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import type { RowSelectionState } from "@tanstack/react-table";
 import { flexRender, useTable } from "@tanstack/react-table";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import {
@@ -266,6 +266,12 @@ export const AnnotationConfigTable = ({
     () => data.annotationConfigs.edges.map((edge) => edge.annotationConfig),
     [data.annotationConfigs.edges]
   ) as PersistedAnnotationConfig[]; // fields are guaranteed by the concrete config fragments
+  // flexRender remounts a cell when its function changes, closing an open edit
+  // dialog, so the column is built once and reads the latest handler from a ref
+  const onEditAnnotationConfigRef = useRef(onEditAnnotationConfig);
+  useEffect(() => {
+    onEditAnnotationConfigRef.current = onEditAnnotationConfig;
+  });
   const columns = useMemo(
     () =>
       [
@@ -281,7 +287,9 @@ export const AnnotationConfigTable = ({
                 <TooltipTrigger>
                   <EditAnnotationConfigButton
                     annotationConfig={row.original}
-                    onEditAnnotationConfig={onEditAnnotationConfig}
+                    onEditAnnotationConfig={(...args) =>
+                      onEditAnnotationConfigRef.current(...args)
+                    }
                   />
                   <Tooltip>
                     <TooltipArrow />
@@ -293,7 +301,7 @@ export const AnnotationConfigTable = ({
           },
         },
       ] satisfies ColumnDef<PersistedAnnotationConfig>[],
-    [onEditAnnotationConfig]
+    []
   );
   const table = useTable({
     features: appTableFeatures,
