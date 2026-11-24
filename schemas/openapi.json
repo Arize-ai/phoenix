@@ -8804,14 +8804,14 @@
             }
           },
           "409": {
+            "description": "Conflict",
             "content": {
-              "text/plain": {
+              "application/problem+json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
-            },
-            "description": "Prompt is in use by one or more LLM evaluators"
+            }
           },
           "422": {
             "description": "Unprocessable Entity",
