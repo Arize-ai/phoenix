@@ -311,8 +311,6 @@ async def delete_dataset_evaluators(
         tombstoned_ids = tuple(delete_result.tombstoned_project_ids)
         context.event_queue.put(SpanDeleteEvent(tombstoned_ids))
         context.event_queue.put(ProjectDeleteEvent(tombstoned_ids))
-    if delete_result.binding_ids:
-        context.wake_cleanup_worker()
     return [GlobalID("DatasetEvaluator", str(row_id)) for row_id in delete_result.binding_ids]
 
 
@@ -864,8 +862,6 @@ async def detach_dataset_evaluators(
         tombstoned_ids = tuple(delete_result.tombstoned_project_ids)
         context.event_queue.put(SpanDeleteEvent(tombstoned_ids))
         context.event_queue.put(ProjectDeleteEvent(tombstoned_ids))
-    if delete_result.binding_ids:
-        context.wake_cleanup_worker()
 
 
 async def patch_dataset_evaluator(

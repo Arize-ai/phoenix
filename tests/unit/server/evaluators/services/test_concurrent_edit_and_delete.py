@@ -1225,7 +1225,6 @@ async def test_delete_dataset_locks_experiment_projects_before_evaluators_and_em
         context=SimpleNamespace(
             db=db,
             event_queue=event_queue,
-            wake_cleanup_worker=lambda: None,
         )
     )
     mixin = DatasetMutationMixin()
@@ -1348,7 +1347,6 @@ async def test_delete_project_handles_lower_slipped_trace_project_and_emits_chil
         context=SimpleNamespace(
             db=db,
             event_queue=event_queue,
-            wake_cleanup_worker=lambda: None,
         )
     )
     mixin = ProjectMutationMixin()

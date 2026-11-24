@@ -77,7 +77,6 @@ class ProjectMutationMixin:
         tombstoned_ids = tuple(admitted.tombstoned_project_ids)
         info.context.event_queue.put(SpanDeleteEvent(tombstoned_ids))
         info.context.event_queue.put(ProjectDeleteEvent(tombstoned_ids))
-        info.context.wake_cleanup_worker()
         return Query()
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore

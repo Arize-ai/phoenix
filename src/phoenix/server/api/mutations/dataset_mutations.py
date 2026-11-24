@@ -501,7 +501,6 @@ class DatasetMutationMixin:
                 dataset_id=dataset_id,
                 experiment_runner=getattr(info.context, "experiment_runner", None),
                 event_queue=info.context.event_queue,
-                wake_cleanup_worker=info.context.wake_cleanup_worker,
             )
         except NotFound as error:
             raise NotFound(f"Unknown dataset: {input.dataset_id}") from error

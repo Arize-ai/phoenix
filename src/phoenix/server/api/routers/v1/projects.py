@@ -349,9 +349,6 @@ async def delete_project(
     tombstoned_ids = tuple(admitted.tombstoned_project_ids)
     request.state.event_queue.put(SpanDeleteEvent(tombstoned_ids))
     request.state.event_queue.put(ProjectDeleteEvent(tombstoned_ids))
-    cleanup_worker = getattr(request.app.state, "cleanup_worker", None)
-    if cleanup_worker is not None:
-        cleanup_worker.wake()
     return None
 
 

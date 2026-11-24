@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from secrets import token_hex
-from typing import Any, Callable, Literal, Optional, Sequence, Union, cast, overload
+from typing import Any, Literal, Optional, Sequence, Union, cast, overload
 
 from pydantic import ValidationError
 from sqlalchemy import func, select
@@ -59,7 +59,6 @@ class EvaluatorServiceContext:
     sandbox_runtime: SandboxRuntimeContext
     user_id: int | None = None
     event_queue: Optional[CanPutItem[DmlEvent]] = None
-    wake_cleanup_worker: Callable[[], None] = lambda: None
 
 
 def require_output_configs(configs: list[OutputConfigType]) -> None:

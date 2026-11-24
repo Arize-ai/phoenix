@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import asyncio
 from collections import Counter
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
 from types import SimpleNamespace
@@ -119,19 +117,8 @@ class _DaemonController:
         ) -> None:
             controller.sleep_delays.append(delay_seconds)
             controller._parked.set()
-            wake_waiter = asyncio.create_task(worker._woken.wait())
-            release_waiter = asyncio.create_task(controller._release.wait())
-            try:
-                await asyncio.wait(
-                    {wake_waiter, release_waiter},
-                    return_when=asyncio.FIRST_COMPLETED,
-                )
-            finally:
-                for waiter in (wake_waiter, release_waiter):
-                    if not waiter.done():
-                        waiter.cancel()
-                await asyncio.gather(wake_waiter, release_waiter, return_exceptions=True)
-                controller._release.clear()
+            await controller._release.wait()
+            controller._release.clear()
 
         monkeypatch.setattr(CleanupWorker, "_sleep", _park)
 
@@ -143,13 +130,6 @@ class _DaemonController:
         self._parked.clear()
         self._release.set()
         await self._parked_within(timeout, "the cleanup cycle did not finish")
-
-    @asynccontextmanager
-    async def expect_wake_cycle(self, timeout: float = 30.0) -> AsyncIterator[None]:
-        await self._parked_within(timeout, "the cleanup worker never parked")
-        self._parked.clear()
-        yield
-        await self._parked_within(timeout, "the cleanup worker was not woken or did not finish")
 
     async def _parked_within(self, timeout: float, failure: str) -> None:
         try:
@@ -1794,7 +1774,7 @@ class TestStorageLockoutExemptionsAndCleanupWorker:
             assert await session.get(models.ProjectEvaluator, pe_id) is None
 
     @pytest.mark.real_cleanup_worker
-    async def test_live_cleanup_worker_wakes_and_drains(
+    async def test_live_cleanup_worker_drains_tombstoned_project(
         self,
         db: DbSessionFactory,
         cleanup_worker_controller: _DaemonController,
@@ -1810,8 +1790,7 @@ class TestStorageLockoutExemptionsAndCleanupWorker:
                 project_id = project.id
                 await admit_project_delete(session, dialect=dialect, project_id=project_id)
 
-            async with cleanup_worker_controller.expect_wake_cycle():
-                worker.wake()
+            await cleanup_worker_controller.run_once()
 
         async with db() as session:
             assert await session.get(models.Project, project_id) is None
@@ -1862,13 +1841,8 @@ class TestStorageLockoutExemptionsAndCleanupWorker:
         async with db() as session:
             assert await session.get(models.Project, project_id) is None
 
-        worker.wake()
-        await asyncio.wait_for(cleanup_worker_controller.original_sleep(worker, 30.0), timeout=1.0)
-        worker._woken.clear()
-        await asyncio.wait_for(cleanup_worker_controller.original_sleep(worker, 0.01), timeout=1.0)
-
     @pytest.mark.real_cleanup_worker
-    async def test_api_mutations_wake_lifespan_cleanup_worker(
+    async def test_lifespan_cleanup_worker_drains_projects_deleted_through_the_api(
         self,
         db: DbSessionFactory,
         cleanup_worker_controller: _DaemonController,
@@ -1907,19 +1881,19 @@ class TestStorageLockoutExemptionsAndCleanupWorker:
             surviving_project = await session.get(models.Project, clear_project_id)
             assert surviving_project is not None and surviving_project.deleted_at is None
 
-        async with cleanup_worker_controller.expect_wake_cycle():
-            del_resp = await gql_client.execute(
-                "mutation($id: ID!) { deleteProject(id: $id) { __typename } }",
-                variables={"id": str(GlobalID("Project", str(gql_delete_project_id)))},
-            )
-            assert del_resp.data and not del_resp.errors
+        del_resp = await gql_client.execute(
+            "mutation($id: ID!) { deleteProject(id: $id) { __typename } }",
+            variables={"id": str(GlobalID("Project", str(gql_delete_project_id)))},
+        )
+        assert del_resp.data and not del_resp.errors
+        await cleanup_worker_controller.run_once()
 
         async with db() as session:
             assert await session.get(models.Project, gql_delete_project_id) is None
 
-        async with cleanup_worker_controller.expect_wake_cycle():
-            rest_resp = await httpx_client.delete(f"v1/projects/{rest_delete_project_name}")
-            assert rest_resp.status_code == 204
+        rest_resp = await httpx_client.delete(f"v1/projects/{rest_delete_project_name}")
+        assert rest_resp.status_code == 204
+        await cleanup_worker_controller.run_once()
 
         async with db() as session:
             assert await session.get(models.Project, rest_delete_project_id) is None

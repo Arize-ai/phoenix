@@ -59,7 +59,6 @@ def _evaluator_service_context(context: Context) -> definitions.EvaluatorService
         sandbox_runtime=context.sandbox_runtime,
         user_id=int(request.user.identity) if "user" in request.scope else None,
         event_queue=context.event_queue,
-        wake_cleanup_worker=context.wake_cleanup_worker,
     )
 
 

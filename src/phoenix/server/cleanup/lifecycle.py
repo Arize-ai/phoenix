@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator, Callable, Iterable
+from collections.abc import AsyncIterator, Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Literal, Optional, Protocol
@@ -77,7 +77,6 @@ class AdmittedDatasetDelete:
     experiment_ids: list[int]
     eval_trace_ids: list[str]
     tombstoned_project_ids: list[int]
-    enqueued_cleanup: bool
 
 
 async def _lock_projects(
@@ -894,7 +893,6 @@ async def admit_dataset_delete(
         row.project_name for row in experiment_rows if row.project_name is not None
     }
 
-    enqueued_cleanup = False
     tombstoned_project_ids: set[int] = set()
     live_binding_ids = await lock_dataset_delete_targets(
         session,
@@ -910,7 +908,6 @@ async def admit_dataset_delete(
             collect_unused_evaluator=False,
             delete_associated_prompt=False,
         )
-        enqueued_cleanup = enqueued_cleanup or bool(deleted_bindings.binding_ids)
         tombstoned_project_ids.update(deleted_bindings.tombstoned_project_ids)
 
     candidate_project_ids = await resolve_experiment_project_delete_candidates(
@@ -928,7 +925,6 @@ async def admit_dataset_delete(
             dialect=dialect,
             candidate_project_ids=candidate_project_ids,
         )
-        enqueued_cleanup = enqueued_cleanup or bool(deleted_projects)
         tombstoned_project_ids.update(deleted_projects)
 
     return AdmittedDatasetDelete(
@@ -936,7 +932,6 @@ async def admit_dataset_delete(
         experiment_ids=experiment_ids,
         eval_trace_ids=eval_trace_ids,
         tombstoned_project_ids=sorted(tombstoned_project_ids),
-        enqueued_cleanup=enqueued_cleanup,
     )
 
 
@@ -946,10 +941,9 @@ async def execute_dataset_delete(
     dataset_id: int,
     experiment_runner: Optional[CanStopExperiment] = None,
     event_queue: Optional[CanPutItem[DmlEvent]] = None,
-    wake_cleanup_worker: Callable[[], None] = lambda: None,
 ) -> AdmittedDatasetDelete:
     """Stop active dataset experiments, commit the canonical dataset-deletion transaction,
-    emit tombstoning and dataset-delete events, wake the cleanup worker, and drain
+    emit tombstoning and dataset-delete events, and drain
     standalone SDK evaluation traces in bounded batches."""
     stopped_experiment_ids: set[int] = set()
     if experiment_runner is not None:
@@ -985,8 +979,6 @@ async def execute_dataset_delete(
         sorted_project_ids = tuple(admitted.tombstoned_project_ids)
         event_queue.put(SpanDeleteEvent(sorted_project_ids))
         event_queue.put(ProjectDeleteEvent(sorted_project_ids))
-    if admitted.enqueued_cleanup:
-        wake_cleanup_worker()
     if admitted.eval_trace_ids:
         await delete_standalone_traces_by_trace_id(
             db,

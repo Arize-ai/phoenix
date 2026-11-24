@@ -4,7 +4,7 @@ import logging
 import random
 from asyncio import sleep
 from datetime import datetime, timedelta, timezone
-from typing import Callable, Optional
+from typing import Optional
 
 import sqlalchemy as sa
 
@@ -43,12 +43,10 @@ class ExperimentSweeper(DaemonTask):
         db: DbSessionFactory,
         *,
         event_queue: Optional[CanPutItem[DmlEvent]] = None,
-        wake_cleanup_worker: Callable[[], None] = lambda: None,
     ) -> None:
         super().__init__()
         self._db = db
         self._event_queue = event_queue
-        self._wake_cleanup_worker = wake_cleanup_worker
 
     async def _run(self) -> None:
         while self._running:
@@ -128,7 +126,6 @@ class ExperimentSweeper(DaemonTask):
                 tombstoned_ids = tuple(enqueued_projects)
                 self._event_queue.put(SpanDeleteEvent(tombstoned_ids))
                 self._event_queue.put(ProjectDeleteEvent(tombstoned_ids))
-            self._wake_cleanup_worker()
         if eval_trace_ids:
             await delete_standalone_traces_by_trace_id(
                 self._db,

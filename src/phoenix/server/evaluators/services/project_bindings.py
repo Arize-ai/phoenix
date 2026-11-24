@@ -490,8 +490,6 @@ async def detach_project_evaluators(
         tombstoned_ids = tuple(delete_result.tombstoned_project_ids)
         context.event_queue.put(SpanDeleteEvent(tombstoned_ids))
         context.event_queue.put(ProjectDeleteEvent(tombstoned_ids))
-    if delete_result.binding_ids:
-        context.wake_cleanup_worker()
 
 
 async def create_project_code_evaluator(
@@ -962,8 +960,6 @@ async def delete_project_evaluators(
         tombstoned_ids = tuple(delete_result.tombstoned_project_ids)
         context.event_queue.put(SpanDeleteEvent(tombstoned_ids))
         context.event_queue.put(ProjectDeleteEvent(tombstoned_ids))
-    if delete_result.binding_ids:
-        context.wake_cleanup_worker()
     return [GlobalID("ProjectEvaluator", str(row_id)) for row_id in delete_result.binding_ids]
 
 

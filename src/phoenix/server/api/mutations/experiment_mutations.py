@@ -405,7 +405,6 @@ class ExperimentMutationMixin:
             tombstoned_ids = tuple(enqueued_projects)
             info.context.event_queue.put(SpanDeleteEvent(tombstoned_ids))
             info.context.event_queue.put(ProjectDeleteEvent(tombstoned_ids))
-            info.context.wake_cleanup_worker()
         if eval_trace_ids:
             await delete_traces(
                 info.context.db,

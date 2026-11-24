@@ -638,9 +638,6 @@ async def delete_experiment(
         tombstoned_ids = tuple(enqueued_projects)
         request.state.event_queue.put(SpanDeleteEvent(tombstoned_ids))
         request.state.event_queue.put(ProjectDeleteEvent(tombstoned_ids))
-        cleanup_worker = getattr(request.app.state, "cleanup_worker", None)
-        if cleanup_worker is not None:
-            cleanup_worker.wake()
     if eval_trace_ids:
         await delete_traces(
             db,

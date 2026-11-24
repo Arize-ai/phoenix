@@ -197,7 +197,6 @@ async def delete_dataset(
             raise HTTPException(detail=f"Invalid Dataset ID: {id}", status_code=422)
     else:
         raise HTTPException(detail="Missing Dataset ID", status_code=422)
-    cleanup_worker = getattr(request.app.state, "cleanup_worker", None)
     experiment_runner = getattr(request.app.state, "experiment_runner", None) or getattr(
         request.state, "experiment_runner", None
     )
@@ -207,9 +206,6 @@ async def delete_dataset(
             dataset_id=dataset_id,
             experiment_runner=experiment_runner,
             event_queue=request.state.event_queue,
-            wake_cleanup_worker=(
-                cleanup_worker.wake if cleanup_worker is not None else (lambda: None)
-            ),
         )
     except NotFound as error:
         raise HTTPException(detail="Dataset does not exist", status_code=404) from error
