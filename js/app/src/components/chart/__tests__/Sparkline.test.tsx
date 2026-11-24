@@ -121,6 +121,24 @@ describe("Sparkline", () => {
     ]);
   });
 
+  it("draws a flat series at the edge of its bounds at that edge", () => {
+    render([0, 0], { minRange: 0.2, bounds: [0, 1] });
+    expect(getPaths()[0]).toBe(
+      "M 0.00 18.00 L 32.00 18.00 L 32.00 18.00 L 64.00 18.00"
+    );
+    render([1, 1], { minRange: 0.2, bounds: [0, 1] });
+    expect(getPaths()[0]).toBe(
+      "M 0.00 2.00 L 32.00 2.00 L 32.00 2.00 L 64.00 2.00"
+    );
+  });
+
+  it("keeps a series inside its bounds centered", () => {
+    render([0.6, 0.7], { minRange: 0.2, bounds: [0, 1] });
+    expect(getPaths()[0]).toBe(
+      "M 0.00 14.00 L 32.00 14.00 L 32.00 6.00 L 64.00 6.00"
+    );
+  });
+
   it("lets data wider than the minimum range set the axis", () => {
     render([0, 1], { minRange: 0.2 });
     expect(getPaths()).toEqual([

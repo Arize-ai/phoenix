@@ -12,6 +12,7 @@ import {
   ConnectedTimeRangeSelector,
   TimeRangeProvider,
   useTimeRange,
+  useTimeRangeSelectionKey,
 } from "@phoenix/components/datetime";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import { TopNavActions } from "@phoenix/components/nav";
@@ -72,6 +73,7 @@ function ProjectEvaluatorsTabContent() {
   const [filter, setFilter] = useState("");
   const { refreshKey, refresh } = useServerEvaluatorsRefreshKey();
   const { timeRangeISOStrings } = useTimeRange();
+  const timeRangeSelectionKey = useTimeRangeSelectionKey();
   const isLive = usePreferencesContext(
     (state) => state.serverEvaluatorsStreamingEnabled
   );
@@ -121,7 +123,10 @@ function ProjectEvaluatorsTabContent() {
                     </View>
                   )}
                 >
-                  <Suspense fallback={<TableSkeleton rowCount="fill" />}>
+                  <Suspense
+                    key={timeRangeSelectionKey}
+                    fallback={<TableSkeleton rowCount="fill" />}
+                  >
                     <ProjectEvaluatorsTabTable
                       filter={filter}
                       fetchKey={refreshKey}

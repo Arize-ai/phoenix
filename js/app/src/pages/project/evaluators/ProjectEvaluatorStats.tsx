@@ -7,6 +7,7 @@ import { graphql } from "relay-runtime";
 
 import {
   Alert,
+  Skeleton,
   Text,
   Tooltip,
   TooltipArrow,
@@ -266,13 +267,17 @@ function ProjectEvaluatorDailyRateField({
   evaluated,
   failed,
 }: {
+  /** Null while loading. */
   evaluated: number | null;
+  /** Null while loading. */
   failed: number | null;
 }) {
   return (
     <StatField label={`per day (${DAILY_RATE_DAYS}d)`}>
       {evaluated == null || failed == null ? (
-        <Text size="S">--</Text>
+        <span role="status" aria-busy="true" aria-label="Loading">
+          <Skeleton width={140} height="var(--global-dimension-size-150)" />
+        </span>
       ) : (
         <Text size="S">
           {`${dailyRateFormatter.format(evaluated)} evaluated · `}

@@ -1,3 +1,5 @@
+import { assertUnreachable } from "@phoenix/typeUtils";
+
 export type EvaluatorActivityGroup = {
   readonly projectEvaluator: {
     readonly id: string;
@@ -139,6 +141,37 @@ export function getEvaluatorTimeSeriesRows({
   });
 }
 
+/**
+ * Whether a metric has anything to chart in the range. Counts chart once an
+ * evaluation finished, evaluated or failed, so a range of evaluations with
+ * none failed draws its zeros; lag and cost chart where an evaluation
+ * finished or a trace recorded a cost, $0 included.
+ */
+export function hasEvaluatorMetricData({
+  groups,
+  bins,
+  metric,
+}: {
+  groups: ReadonlyArray<EvaluatorActivityGroup>;
+  bins: ReadonlyArray<EvaluatorActivityBin>;
+  metric: EvaluatorSeriesMetric;
+}): boolean {
+  switch (metric) {
+    case "evaluatedCount":
+    case "failedCount":
+      return groups.some(
+        (group) => group.evaluatedCount + group.failedCount > 0
+      );
+    case "lagP95Seconds":
+    case "cost":
+      return bins.some((bin) =>
+        bin.groups.some((group) => group[metric] != null)
+      );
+    default:
+      return assertUnreachable(metric);
+  }
+}
+
 export type EvaluatorCostRank = {
   dataKey: string;
   name: string;
@@ -147,7 +180,7 @@ export type EvaluatorCostRank = {
   share: number;
 };
 
-/** The series with a cost in the range, most expensive first. */
+/** The series that recorded a cost in the range, $0 included, most expensive first. */
 export function getEvaluatorCostRanking({
   groups,
   series,
@@ -171,10 +204,17 @@ export function getEvaluatorCostRanking({
   );
   return series
     .flatMap(({ dataKey, name }) => {
-      const cost = costByDataKey.get(dataKey) ?? 0;
-      return cost > 0
-        ? [{ dataKey, name, cost, share: (cost / totalCost) * 100 }]
-        : [];
+      const cost = costByDataKey.get(dataKey);
+      return cost == null
+        ? []
+        : [
+            {
+              dataKey,
+              name,
+              cost,
+              share: totalCost > 0 ? (cost / totalCost) * 100 : 0,
+            },
+          ];
     })
     .sort((a, b) => b.cost - a.cost);
 }

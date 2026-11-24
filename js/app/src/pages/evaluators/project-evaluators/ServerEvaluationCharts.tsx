@@ -31,7 +31,7 @@ import {
   ChartEmptyStateOverlay,
   ChartPanel,
   ChartPanelStrip,
-  ChartPanelStripSkeleton,
+  ChartSkeleton,
   ChartResponsiveContainer,
   ChartTooltip,
   ChartTooltipItem,
@@ -53,7 +53,10 @@ import {
   useInteractiveLegend,
   useMetricChartsLayout,
 } from "@phoenix/components/chart";
-import { useTimeRange } from "@phoenix/components/datetime";
+import {
+  useTimeRange,
+  useTimeRangeSelectionKey,
+} from "@phoenix/components/datetime";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
@@ -261,6 +264,7 @@ export function ServerEvaluationChartsPanelGroup({
   const charts = getServerEvaluationCharts(chartKeys);
   const hasCharts = charts.length > 0;
   const { timeRangeISOStrings } = useTimeRange();
+  const timeRangeSelectionKey = useTimeRangeSelectionKey();
   const chartsLayout = useMetricChartsLayout({
     id: "server-evaluations-metrics-layout",
     isChartsPanelShown: hasCharts,
@@ -282,7 +286,10 @@ export function ServerEvaluationChartsPanelGroup({
                 <Alert variant="danger">Couldn't load the charts</Alert>
               )}
             >
-              <Suspense fallback={<ChartPanelStripSkeleton />}>
+              <Suspense
+                key={timeRangeSelectionKey}
+                fallback={<ServerEvaluationChartsSkeleton charts={charts} />}
+              >
                 <ServerEvaluationCharts fetchKey={fetchKey} charts={charts} />
               </Suspense>
             </ErrorBoundary>
@@ -363,6 +370,28 @@ function ServerEvaluationCharts({
   );
 }
 
+/** The selected charts' panels while their data loads. */
+function ServerEvaluationChartsSkeleton({
+  charts,
+}: {
+  charts: ServerEvaluationChart[];
+}) {
+  return (
+    <ChartPanelStrip chartCount={charts.length}>
+      {charts.map((chart) => (
+        <ChartPanel
+          key={chart.key}
+          title={chart.name}
+          help={chart.help}
+          fillHeight
+        >
+          <ChartSkeleton />
+        </ChartPanel>
+      ))}
+    </ChartPanelStrip>
+  );
+}
+
 type XAxisOverrides = {
   domain: number[];
   tickFormatter: (x: number) => string;
@@ -432,7 +461,7 @@ function ServerEvaluationChartPanel({
         <ProjectTotalsChart
           activity={activity}
           projectSeries={projectSeries}
-          getValue={(group) => group.evaluatedCount + group.failedCount}
+          getValue={(group) => group.evaluatedCount + group.failedCount || null}
           format={intFormatter}
           formatShort={intShortFormatter}
           valueName="Evaluations"
@@ -444,7 +473,7 @@ function ServerEvaluationChartPanel({
         <ProjectTotalsChart
           activity={activity}
           projectSeries={projectSeries}
-          getValue={(group) => group.cost ?? 0}
+          getValue={(group) => group.cost}
           format={costFormatter}
           formatShort={costFormatter}
           valueName="Cost"
@@ -456,7 +485,7 @@ function ServerEvaluationChartPanel({
         <ProjectTotalsChart
           activity={activity}
           projectSeries={projectSeries}
-          getValue={(group) => group.evaluationSeconds ?? 0}
+          getValue={(group) => group.evaluationSeconds}
           format={formatLag}
           formatShort={formatLag}
           valueName="Evaluation time"
@@ -626,7 +655,11 @@ type ProjectTotalRow = {
   share: number;
 };
 
-/** Each project series' total, largest first, then the other projects. */
+/**
+ * Each project series' total, largest first, then the other projects. A
+ * series with no value recorded, such as no cost, has no row; one that
+ * recorded 0 does.
+ */
 function getProjectTotalRows({
   activity,
   projectSeries,
@@ -635,23 +668,33 @@ function getProjectTotalRows({
 }: {
   activity: Activity;
   projectSeries: ServerProjectSeries;
-  getValue: (group: Activity["groups"][number]) => number;
+  getValue: (group: Activity["groups"][number]) => number | null;
   getColor: (series: ProjectSeries) => string;
 }): ProjectTotalRow[] {
   const { series, getKey } = projectSeries;
   const totals = new Map<string, number>();
   for (const group of activity.groups) {
+    const value = getValue(group);
+    if (value == null) {
+      continue;
+    }
     const key = getKey(group.project.id);
-    totals.set(key, (totals.get(key) ?? 0) + getValue(group));
+    totals.set(key, (totals.get(key) ?? 0) + value);
   }
   const rows = series
-    .map((entry) => ({
-      key: entry.key,
-      name: entry.name,
-      color: getColor(entry),
-      value: totals.get(entry.key) ?? 0,
-    }))
-    .filter((row) => row.value > 0)
+    .flatMap((entry) => {
+      const value = totals.get(entry.key);
+      return value == null
+        ? []
+        : [
+            {
+              key: entry.key,
+              name: entry.name,
+              color: getColor(entry),
+              value,
+            },
+          ];
+    })
     .sort(
       (a, b) =>
         Number(a.key === OTHER_PROJECTS_KEY) -
@@ -714,7 +757,8 @@ function ProjectTotalsChart({
 }: {
   activity: Activity;
   projectSeries: ServerProjectSeries;
-  getValue: (group: Activity["groups"][number]) => number;
+  /** A group's value, or null where it recorded none. */
+  getValue: (group: Activity["groups"][number]) => number | null;
   format: (value: number) => string;
   formatShort: (value: number) => string;
   valueName: string;
@@ -739,7 +783,11 @@ function ProjectTotalsChart({
           margin={{ ...compactChartMargin, right: 56 }}
           barSize={10}
         >
-          <XAxis type="number" hide domain={[0, "dataMax"]} />
+          <XAxis
+            type="number"
+            hide
+            domain={[0, (dataMax: number) => (dataMax > 0 ? dataMax : 1)]}
+          />
           <YAxis
             {...defaultYAxisProps}
             type="category"
@@ -761,6 +809,7 @@ function ProjectTotalsChart({
             dataKey="value"
             name={valueName}
             radius={2}
+            minPointSize={2}
             isAnimationActive={false}
           >
             {rows.map((row) => (

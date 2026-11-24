@@ -6,6 +6,7 @@ import { Focusable } from "react-aria";
 import {
   Flex,
   RichTooltip,
+  Skeleton,
   Text,
   TooltipArrow,
   TooltipTrigger,
@@ -198,6 +199,26 @@ export function StatValue({
     <Text size="L" fontFamily="mono" color={color ?? undefined}>
       {children}
     </Text>
+  );
+}
+
+const statValueSkeletonCSS = css`
+  display: flex;
+  align-items: center;
+  height: var(--global-line-height-l);
+`;
+
+/** A stat value while it loads, one line of value text tall. */
+export function StatValueSkeleton() {
+  return (
+    <span
+      css={statValueSkeletonCSS}
+      role="status"
+      aria-busy="true"
+      aria-label="Loading"
+    >
+      <Skeleton width={40} height="var(--global-dimension-size-200)" />
+    </span>
   );
 }
 

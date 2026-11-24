@@ -2,7 +2,10 @@ import { Suspense, useEffect, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { Flex, Text } from "@phoenix/components";
-import { useTimeRange } from "@phoenix/components/datetime";
+import {
+  useTimeRange,
+  useTimeRangeSelectionKey,
+} from "@phoenix/components/datetime";
 import {
   ErrorBoundary,
   TextErrorBoundaryFallback,
@@ -24,6 +27,7 @@ import {
   QUEUE_STAT_HELP,
   QueueStatusBadge,
   StatValue,
+  StatValueSkeleton,
 } from "@phoenix/pages/project/evaluators/evaluationQueueStatParts";
 import {
   EvaluationQueueStatsRow,
@@ -104,6 +108,7 @@ function ServerEvaluationQueueStripContent({
   );
   const queue = data.evaluationQueue;
   const { timeRangeISOStrings } = useTimeRange();
+  const timeRangeSelectionKey = useTimeRangeSelectionKey();
   const queuedTargets = queue.targets.filter(
     (target) => target.queuedCount > 0
   );
@@ -186,7 +191,10 @@ function ServerEvaluationQueueStripContent({
           resetKey={`${fetchKey} ${timeRangeISOStrings.start} ${timeRangeISOStrings.end}`}
           fallback={TextErrorBoundaryFallback}
         >
-          <Suspense fallback={<StatValue>--</StatValue>}>
+          <Suspense
+            key={timeRangeSelectionKey}
+            fallback={<StatValueSkeleton />}
+          >
             <EvaluationCostValue fetchKey={fetchKey} />
           </Suspense>
         </ErrorBoundary>
