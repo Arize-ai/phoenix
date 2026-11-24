@@ -55,10 +55,13 @@ const SERVER_CREDENTIAL_SOURCE_DESCRIPTIONS: Partial<
  * Describes env vars as set on the server, e.g. "A is set via a server
  * environment variable" or "A, B are now set via server environment variables".
  */
-function formatSetViaServerEnvironment(
-  envVarNames: string[],
-  { now = false }: { now?: boolean } = {}
-) {
+function formatSetViaServerEnvironment({
+  envVarNames,
+  now = false,
+}: {
+  envVarNames: string[];
+  now?: boolean;
+}) {
   const isSingle = envVarNames.length === 1;
   return [
     envVarNames.join(", "),
@@ -291,7 +294,7 @@ function ServerCredentials({
           title: "Secrets deleted",
           message:
             restoredEnvVarNames.length > 0
-              ? `${existingSecretKeys.length} secret(s) removed. ${formatSetViaServerEnvironment(restoredEnvVarNames, { now: true })}.`
+              ? `${existingSecretKeys.length} secret(s) removed. ${formatSetViaServerEnvironment({ envVarNames: restoredEnvVarNames, now: true })}.`
               : `${existingSecretKeys.length} secret(s) removed`,
         });
       },
@@ -344,8 +347,10 @@ function ServerCredentials({
       {error && <Alert variant="danger">{error}</Alert>}
       {environmentOnlyEnvVarNames.length > 0 && (
         <Alert variant="info">
-          {formatSetViaServerEnvironment(environmentOnlyEnvVarNames)} and can
-          only be removed on the server.
+          {formatSetViaServerEnvironment({
+            envVarNames: environmentOnlyEnvVarNames,
+          })}{" "}
+          and can only be removed on the server.
         </Alert>
       )}
       {providerUnparsableSecrets.map(({ envVarName, parseError }) => (

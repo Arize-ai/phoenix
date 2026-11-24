@@ -141,7 +141,8 @@ function BrowserCredentials({
       {provider.credentialsSet && !hasSavedCredentials && (
         <Alert variant="info">
           {provider.name} is already configured on the server. Credentials saved
-          here are used instead of the server&apos;s for your requests.
+          here are used instead of the server&apos;s in the playground and
+          evaluators.
         </Alert>
       )}
       {credentialRequirements.map(({ envVarName, isRequired }) => (

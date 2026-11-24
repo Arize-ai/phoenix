@@ -1,13 +1,8 @@
 import { act, Suspense } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { RelayEnvironmentProvider } from "react-relay";
-import {
-  Environment,
-  Network,
-  Observable,
-  RecordSource,
-  Store,
-} from "relay-runtime";
+import { createMockEnvironment } from "relay-test-utils";
+import { userEvent } from "storybook/test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
@@ -27,12 +22,18 @@ vi.mock("@phoenix/contexts", async (importOriginal) => ({
   useNotifySuccess: () => notifySuccess,
 }));
 
+const SECRETS_QUERY = "ProviderServerCredentialsPanelSecretsQuery";
+const UPSERT_OR_DELETE_SECRETS_MUTATION =
+  "ProviderServerCredentialsPanelUpsertOrDeleteSecretsMutation";
+
 const ENVIRONMENT_PLACEHOLDER =
   "•••••••• (set via server environment variable)";
 const ENVIRONMENT_DESCRIPTION =
   "Set via a server environment variable. A value saved here overrides it.";
 const OVERRIDE_DESCRIPTION =
   "Overrides the server environment variable. Clear to go back to it.";
+const ENVIRONMENT_ALERT =
+  "AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY are set via server environment variables and can only be removed on the server.";
 
 const AWS_PROVIDER: ProviderServerCredentialsPanelProvider = {
   key: "AWS",
@@ -57,64 +58,88 @@ const AWS_PROVIDER: ProviderServerCredentialsPanelProvider = {
   credentialsSet: true,
 };
 
-function createEnvironment(storedSecrets: Record<string, string>) {
-  const edges = Object.entries(storedSecrets).map(([key, value]) => ({
-    node: {
-      id: `Secret:${key}`,
-      key,
-      value: { __typename: "DecryptedSecret", value },
+function secretsPayload(storedSecrets: Record<string, string>) {
+  return {
+    data: {
+      secrets: {
+        edges: Object.entries(storedSecrets).map(([key, value]) => ({
+          node: {
+            id: `Secret:${key}`,
+            key,
+            value: { __typename: "DecryptedSecret", value },
+          },
+        })),
+      },
     },
-  }));
-  return new Environment({
-    network: Network.create((operation) =>
-      Observable.from(
-        Promise.resolve(
-          operation.operationKind === "mutation"
-            ? {
-                data: {
-                  upsertOrDeleteSecrets: {
-                    __typename: "UpsertOrDeleteSecretsMutationPayload",
-                  },
-                },
-              }
-            : { data: { secrets: { edges } } }
-        )
-      )
-    ),
-    store: new Store(new RecordSource()),
-  });
+  };
 }
+
+const MUTATION_PAYLOAD = {
+  data: {
+    upsertOrDeleteSecrets: {
+      __typename: "UpsertOrDeleteSecretsMutationPayload",
+    },
+  },
+};
 
 describe("ProviderServerCredentialsPanel", () => {
   let container: HTMLDivElement;
   let root: Root;
+  let environment: ReturnType<typeof createMockEnvironment>;
+  const onCredentialsUpdated = vi.fn();
 
   beforeEach(() => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
+    environment = createMockEnvironment();
   });
 
   afterEach(() => {
     act(() => root.unmount());
     container.remove();
     notifySuccess.mockReset();
+    onCredentialsUpdated.mockReset();
   });
+
+  /**
+   * Resolves the most recent pending operation, checking that it is the one
+   * the test expects, and returns its variables.
+   */
+  async function resolveOperation({
+    name,
+    payload,
+  }: {
+    name: string;
+    payload: { data: Record<string, unknown> };
+  }) {
+    const operation = environment.mock.getMostRecentOperation();
+    expect(operation.request.node.params.name).toBe(name);
+    await act(async () => {
+      environment.mock.resolve(operation, payload);
+    });
+    return operation.request.variables;
+  }
 
   async function renderPanel(storedSecrets: Record<string, string> = {}) {
     await act(async () => {
       root.render(
-        <RelayEnvironmentProvider
-          environment={createEnvironment(storedSecrets)}
-        >
+        <RelayEnvironmentProvider environment={environment}>
           <ThemeProvider themeMode="light" disableBodyTheme>
             <Suspense fallback={null}>
-              <ProviderServerCredentialsPanel provider={AWS_PROVIDER} />
+              <ProviderServerCredentialsPanel
+                provider={AWS_PROVIDER}
+                onCredentialsUpdated={onCredentialsUpdated}
+              />
             </Suspense>
           </ThemeProvider>
         </RelayEnvironmentProvider>
       );
+    });
+    await resolveOperation({
+      name: SECRETS_QUERY,
+      payload: secretsPayload(storedSecrets),
     });
   }
 
@@ -127,12 +152,21 @@ describe("ProviderServerCredentialsPanel", () => {
       .map((id) => document.getElementById(id)?.textContent ?? "")
       .join("");
 
+  const getButton = (text: string) =>
+    Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === text
+    );
+
+  const pressButton = async (text: string) => {
+    await act(async () => {
+      getButton(text)?.click();
+    });
+  };
+
   it("marks each field that a server environment variable provides", async () => {
     await renderPanel();
 
-    expect(container.textContent).toContain(
-      "AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY are set via server environment variables and can only be removed on the server."
-    );
+    expect(container.textContent).toContain(ENVIRONMENT_ALERT);
     for (const name of ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"]) {
       const input = getInput(name);
       expect(input?.value).toBe("");
@@ -158,7 +192,47 @@ describe("ProviderServerCredentialsPanel", () => {
     );
   });
 
-  it("says which environment variables apply again after clearing", async () => {
+  it("refetches the secrets after saving and shows the saved overrides", async () => {
+    await renderPanel();
+
+    await act(async () => {
+      await userEvent.type(getInput("AWS_ACCESS_KEY_ID")!, "new-key");
+      await userEvent.type(getInput("AWS_SECRET_ACCESS_KEY")!, "new-secret");
+    });
+    await pressButton("Save");
+
+    const mutationVariables = await resolveOperation({
+      name: UPSERT_OR_DELETE_SECRETS_MUTATION,
+      payload: MUTATION_PAYLOAD,
+    });
+    expect(mutationVariables).toEqual({
+      input: {
+        secrets: [
+          { key: "AWS_ACCESS_KEY_ID", value: "new-key" },
+          { key: "AWS_SECRET_ACCESS_KEY", value: "new-secret" },
+        ],
+      },
+    });
+    expect(onCredentialsUpdated).toHaveBeenCalledTimes(1);
+
+    // The panel must ask the server again rather than trust the old result
+    await resolveOperation({
+      name: SECRETS_QUERY,
+      payload: secretsPayload({
+        AWS_ACCESS_KEY_ID: "new-key",
+        AWS_SECRET_ACCESS_KEY: "new-secret",
+      }),
+    });
+
+    expect(container.textContent).not.toContain(
+      "can only be removed on the server"
+    );
+    expect(getDescription("AWS_ACCESS_KEY_ID")).toBe(OVERRIDE_DESCRIPTION);
+    expect(getDescription("AWS_SECRET_ACCESS_KEY")).toBe(OVERRIDE_DESCRIPTION);
+    expect(getButton("Clear")).toBeDefined();
+  });
+
+  it("refetches the secrets after clearing and falls back to the environment variables", async () => {
     await renderPanel({
       AWS_ACCESS_KEY_ID: "stored-key",
       AWS_SECRET_ACCESS_KEY: "stored-secret",
@@ -168,17 +242,42 @@ describe("ProviderServerCredentialsPanel", () => {
       "can only be removed on the server"
     );
 
-    const clearButton = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent === "Clear"
-    );
-    await act(async () => {
-      clearButton?.click();
-    });
+    await pressButton("Clear");
 
+    const mutationVariables = await resolveOperation({
+      name: UPSERT_OR_DELETE_SECRETS_MUTATION,
+      payload: MUTATION_PAYLOAD,
+    });
+    expect(mutationVariables).toEqual({
+      input: {
+        secrets: [
+          { key: "AWS_ACCESS_KEY_ID", value: null },
+          { key: "AWS_SECRET_ACCESS_KEY", value: null },
+          { key: "AWS_SESSION_TOKEN", value: null },
+        ],
+      },
+    });
+    expect(onCredentialsUpdated).toHaveBeenCalledTimes(1);
     expect(notifySuccess).toHaveBeenCalledWith({
       title: "Secrets deleted",
       message:
         "3 secret(s) removed. AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY are now set via server environment variables.",
     });
+
+    // The panel must ask the server again rather than keep the deleted secrets
+    await resolveOperation({
+      name: SECRETS_QUERY,
+      payload: secretsPayload({}),
+    });
+
+    expect(container.textContent).toContain(ENVIRONMENT_ALERT);
+    for (const name of ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"]) {
+      const input = getInput(name);
+      expect(input?.value).toBe("");
+      expect(input?.placeholder).toBe(ENVIRONMENT_PLACEHOLDER);
+      expect(getDescription(name)).toBe(ENVIRONMENT_DESCRIPTION);
+    }
+    expect(getInput("AWS_SESSION_TOKEN")?.value).toBe("");
+    expect(getButton("Clear")).toBeUndefined();
   });
 });
