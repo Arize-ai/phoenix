@@ -1949,11 +1949,9 @@ existing LLM/CODE/BUILTIN dataset evaluator flows for regressions.
 
 Milestone 2 is complete when decision evaluators can be created, inspected, and
 edited through the project UI and GraphQL, and their annotation details render
-on spans, traces, and sessions. Previews that simulate online evaluation must
-reject an oversized rendered state-and-questions request under the same limit as
-scheduled execution. Verify all project targets, configuration identity and
-hydration under concurrent updates, atomic publication including refusals,
-health/result views, and protection from recursive evaluator traffic.
+on spans, traces, and sessions. Verify all project targets, configuration
+identity and hydration under concurrent updates, atomic publication including
+refusals, health/result views, and protection from recursive evaluator traffic.
 
 Milestone 3 completes unsaved decision evaluator submission and playground
 authoring, loading, and experiment reopening. The server already accepts inline
