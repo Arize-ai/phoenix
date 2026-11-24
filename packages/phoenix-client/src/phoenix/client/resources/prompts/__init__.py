@@ -9,6 +9,7 @@ from httpx import HTTPStatusError
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.constants.server_requirements import (
+    CREATE_PROMPT_TAGS,
     CREATE_PROMPT_VERSION_METADATA,
     DELETE_PROMPT,
     PATCH_PROMPT,
@@ -22,6 +23,12 @@ from phoenix.client.utils.server_requirements import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _build_prompt_tags(*, tags: Optional[Sequence[str]]) -> list[v1.PromptVersionTagData]:
+    if isinstance(tags, str):
+        raise TypeError("tags must be a sequence of tag names, not a string")
+    return [v1.PromptVersionTagData(name=tag) for tag in dict.fromkeys(tags or ())]
 
 
 def _build_patch_prompt_body(
@@ -184,10 +191,13 @@ class Prompts:
             PromptVersion: The created prompt version data.
 
         Raises:
+            TypeError: If tags is a string instead of a sequence of tag names.
+            phoenix.client.exceptions.PhoenixException: If tags are provided and the server
+                is older than Phoenix 22.1.0.
             httpx.HTTPStatusError: If creating the version or assigning a tag fails.
-                Tags are assigned after the version is saved. A tagging failure leaves
-                the version and any tags already assigned in place.
+                The version and tags are saved atomically; a failure leaves neither saved.
         """
+        prompt_tags = _build_prompt_tags(tags=tags)
         url = "v1/prompts"
         prompt = v1.PromptData(name=name)
         if prompt_description:
@@ -197,12 +207,13 @@ class Prompts:
         if version.metadata:
             self._guard.require(CREATE_PROMPT_VERSION_METADATA)
         json_ = v1.CreatePromptRequestBody(prompt=prompt, version=version._dumps())  # pyright: ignore[reportPrivateUsage]
+        if prompt_tags:
+            self._guard.require(CREATE_PROMPT_TAGS)
+            json_["tags"] = prompt_tags
         response = self._client.post(url=url, json=json_)
         response.raise_for_status()
         data = cast(v1.CreatePromptResponseBody, response.json())["data"]
-        for tag in tags or ():
-            self.tags.create(prompt_version_id=data["id"], name=tag)
-        return PromptVersion._loads(data)  # pyright: ignore[reportPrivateUsage]
+        return PromptVersion.from_dict(data)
 
     def update(
         self,
@@ -579,10 +590,13 @@ class AsyncPrompts:
             PromptVersion: The created prompt version data.
 
         Raises:
+            TypeError: If tags is a string instead of a sequence of tag names.
+            phoenix.client.exceptions.PhoenixException: If tags are provided and the server
+                is older than Phoenix 22.1.0.
             httpx.HTTPStatusError: If creating the version or assigning a tag fails.
-                Tags are assigned after the version is saved. A tagging failure leaves
-                the version and any tags already assigned in place.
+                The version and tags are saved atomically; a failure leaves neither saved.
         """
+        prompt_tags = _build_prompt_tags(tags=tags)
         url = "v1/prompts"
         prompt = v1.PromptData(name=name)
         if prompt_description:
@@ -592,12 +606,13 @@ class AsyncPrompts:
         if version.metadata:
             await self._guard.require(CREATE_PROMPT_VERSION_METADATA)
         json_ = v1.CreatePromptRequestBody(prompt=prompt, version=version._dumps())  # pyright: ignore[reportPrivateUsage]
+        if prompt_tags:
+            await self._guard.require(CREATE_PROMPT_TAGS)
+            json_["tags"] = prompt_tags
         response = await self._client.post(url=url, json=json_)
         response.raise_for_status()
         data = cast(v1.CreatePromptResponseBody, response.json())["data"]
-        for tag in tags or ():
-            await self.tags.create(prompt_version_id=data["id"], name=tag)
-        return PromptVersion._loads(data)  # pyright: ignore[reportPrivateUsage]
+        return PromptVersion.from_dict(data)
 
     async def update(
         self,

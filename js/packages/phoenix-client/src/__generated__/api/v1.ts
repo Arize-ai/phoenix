@@ -2801,6 +2801,8 @@ export interface components {
         CreatePromptRequestBody: {
             prompt: components["schemas"]["PromptData"];
             version: components["schemas"]["PromptVersionData"];
+            /** Tags */
+            tags?: components["schemas"]["PromptVersionTagData"][] | null;
         };
         /** CreatePromptResponseBody */
         CreatePromptResponseBody: {

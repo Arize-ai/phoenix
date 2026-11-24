@@ -2377,6 +2377,7 @@ class PromptVersion(PromptVersionData):
 class CreatePromptRequestBody(TypedDict):
     prompt: PromptData
     version: PromptVersionData
+    tags: NotRequired[Sequence[PromptVersionTagData]]
 
 
 class CreatePromptResponseBody(TypedDict):

@@ -11,10 +11,12 @@ import httpx2
 import pytest
 from deepdiff.diff import DeepDiff
 from faker import Faker
+from fastapi import HTTPException
 from openai import pydantic_function_tool
 from openai.lib._pydantic import to_strict_json_schema
 from pydantic import BaseModel, ValidationError, create_model
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 from typing_extensions import assert_never
 
@@ -40,6 +42,7 @@ from phoenix.db.types.prompts import (
     ToolCallFunction,
     ToolResultContentPart,
 )
+from phoenix.server.api.mutations.prompt_version_tag_mutations import upsert_prompt_version_tag
 from phoenix.server.api.routers.v1.prompts import PromptVersionData
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Prompt import Prompt
@@ -106,6 +109,149 @@ class TestPromptVersionData:
 
 
 class TestPrompts:
+    @pytest.mark.parametrize("is_new_prompt", [False, True])
+    async def test_create_prompt_with_tags(
+        self,
+        is_new_prompt: bool,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        existing_prompt, versions = await self._insert_prompt_versions(db)
+        prompt_name = token_hex(16) if is_new_prompt else existing_prompt.name.root
+        await self._tag_prompt_version(db, versions[0], Identifier.model_validate("production"))
+        response = await httpx_client.post(
+            "v1/prompts",
+            json={
+                "prompt": {"name": prompt_name},
+                "version": self._prompt_version_request_body(versions[0]),
+                "tags": [
+                    {"name": "production", "description": "Serves traffic"},
+                    {"name": "staging"},
+                    {"name": "production"},
+                ],
+            },
+        )
+        assert response.status_code == 200, response.text
+        version_id = from_global_id_with_expected_type(
+            GlobalID.from_id(response.json()["data"]["id"]), PromptVersion.__name__
+        )
+        async with db() as session:
+            created_version = await session.get(models.PromptVersion, version_id)
+            assert created_version is not None
+            tags = (
+                await session.scalars(
+                    select(models.PromptVersionTag).where(
+                        models.PromptVersionTag.prompt_version_id == version_id
+                    )
+                )
+            ).all()
+            assert {tag.name.root for tag in tags} == {"production", "staging"}
+            assert len(tags) == 2
+            production_tag = next(tag for tag in tags if tag.name.root == "production")
+            assert production_tag.description == "Serves traffic"
+
+    @pytest.mark.parametrize("is_new_prompt", [False, True])
+    async def test_create_prompt_rolls_back_version_and_tags_on_tagging_failure(
+        self,
+        is_new_prompt: bool,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        existing_prompt, versions = await self._insert_prompt_versions(db)
+        prompt_name = token_hex(16) if is_new_prompt else existing_prompt.name.root
+        await self._tag_prompt_version(db, versions[0], Identifier.model_validate("production"))
+
+        async def fail_second_tag(
+            session: AsyncSession,
+            prompt_id: int,
+            prompt_version_id: int,
+            name: Identifier,
+            description: Optional[str] = None,
+            user_id: Optional[int] = None,
+        ) -> models.PromptVersionTag:
+            if name.root == "staging":
+                raise HTTPException(422, "Tagging failed")
+            tag = await upsert_prompt_version_tag(
+                session, prompt_id, prompt_version_id, name, description, user_id=user_id
+            )
+            await session.flush()
+            return tag
+
+        monkeypatch.setattr(
+            "phoenix.server.api.routers.v1.prompts.upsert_prompt_version_tag", fail_second_tag
+        )
+        response = await httpx_client.post(
+            "v1/prompts",
+            json={
+                "prompt": {"name": prompt_name},
+                "version": self._prompt_version_request_body(versions[0]),
+                "tags": [{"name": "production"}, {"name": "staging"}],
+            },
+        )
+        assert response.status_code == 422, response.text
+        async with db() as session:
+            prompt = await session.scalar(
+                select(models.Prompt).where(
+                    models.Prompt.name == Identifier.model_validate(prompt_name)
+                )
+            )
+            if is_new_prompt:
+                assert prompt is None
+            else:
+                remaining_version_ids = (
+                    await session.scalars(
+                        select(models.PromptVersion.id).where(
+                            models.PromptVersion.prompt_id == existing_prompt.id
+                        )
+                    )
+                ).all()
+                assert set(remaining_version_ids) == {version.id for version in versions}
+            existing_tag = await session.scalar(
+                select(models.PromptVersionTag).where(
+                    models.PromptVersionTag.prompt_id == existing_prompt.id,
+                    models.PromptVersionTag.name == Identifier.model_validate("production"),
+                )
+            )
+            assert existing_tag is not None
+            assert existing_tag.prompt_version_id == versions[0].id
+            assert (
+                await session.scalar(
+                    select(models.PromptVersionTag).where(
+                        models.PromptVersionTag.name == Identifier.model_validate("staging")
+                    )
+                )
+                is None
+            )
+
+    @pytest.mark.parametrize("tag_name", ["", "Production", "invalid tag!"])
+    async def test_create_prompt_rejects_invalid_tags_without_saving_prompt(
+        self,
+        tag_name: str,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        _, versions = await self._insert_prompt_versions(db)
+        prompt_name = token_hex(16)
+        response = await httpx_client.post(
+            "v1/prompts",
+            json={
+                "prompt": {"name": prompt_name},
+                "version": self._prompt_version_request_body(versions[0]),
+                "tags": [{"name": "production"}, {"name": tag_name}],
+            },
+        )
+        assert response.status_code == 422, response.text
+        async with db() as session:
+            assert (
+                await session.scalar(
+                    select(models.Prompt).where(
+                        models.Prompt.name == Identifier.model_validate(prompt_name)
+                    )
+                )
+                is None
+            )
+
     async def test_list_prompt_versions(
         self,
         httpx_client: httpx2.AsyncClient,

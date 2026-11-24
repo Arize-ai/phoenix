@@ -186,7 +186,9 @@ class TestAsyncPromptsCreate:
 
 @pytest.mark.parametrize("is_async", [False, True])
 class TestPromptsCreateWithTags:
-    @pytest.mark.parametrize("tags", [None, [], ["production"], ("staging", "production")])
+    @pytest.mark.parametrize(
+        "tags", [None, [], ["production"], ("staging", "production"), ["production", "production"]]
+    )
     @pytest.mark.asyncio
     async def test_create_assigns_tags_to_created_version(
         self, is_async: bool, tags: Sequence[str] | None
@@ -214,12 +216,30 @@ class TestPromptsCreateWithTags:
         assert result.id == created_version["id"]
         assert [(request.method, request.url.path) for request in requests] == [
             ("POST", "/v1/prompts"),
-            *[("POST", "/v1/prompt_versions/version-1/tags") for _ in tags or []],
         ]
-        assert "tags" not in json.loads(requests[0].content)
-        assert [json.loads(request.content) for request in requests[1:]] == [
-            {"name": tag} for tag in tags or []
-        ]
+        body = json.loads(requests[0].content)
+        if tags:
+            assert body["tags"] == [{"name": tag} for tag in dict.fromkeys(tags)]
+        else:
+            assert "tags" not in body
+
+    @pytest.mark.parametrize("tags", ["production", ""])
+    @pytest.mark.asyncio
+    async def test_create_rejects_bare_string_before_any_request(
+        self, is_async: bool, tags: str
+    ) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            pytest.fail(f"Unexpected request: {request.method} {request.url.path}")
+
+        transport = httpx.MockTransport(handler)
+        version = PromptVersion([{"role": "user", "content": "Hello"}], model_name="gpt-4o")
+        with pytest.raises(TypeError, match="tags"):
+            if is_async:
+                async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+                    await AsyncPrompts(client).create(version=version, name="my-prompt", tags=tags)
+            else:
+                with httpx.Client(transport=transport, base_url="http://test") as sync_client:
+                    Prompts(sync_client).create(version=version, name="my-prompt", tags=tags)
 
     @pytest.mark.asyncio
     async def test_create_does_not_tag_when_creation_fails(self, is_async: bool) -> None:
@@ -247,14 +267,11 @@ class TestPromptsCreateWithTags:
         assert [request.url.path for request in requests] == ["/v1/prompts"]
 
     @pytest.mark.asyncio
-    async def test_create_propagates_tagging_failure(self, is_async: bool) -> None:
-        created_version = _make_prompt_version()
+    async def test_create_propagates_atomic_request_failure(self, is_async: bool) -> None:
         requests: list[httpx.Request] = []
 
         def handler(request: httpx.Request) -> httpx.Response:
             requests.append(request)
-            if request.url.path == "/v1/prompts":
-                return httpx.Response(200, json={"data": created_version})
             return httpx.Response(422)
 
         transport = httpx.MockTransport(handler)
@@ -274,11 +291,11 @@ class TestPromptsCreateWithTags:
                     )
 
         assert error.value.response.status_code == 422
-        assert [request.url.path for request in requests] == [
-            "/v1/prompts",
-            "/v1/prompt_versions/version-1/tags",
+        assert [request.url.path for request in requests] == ["/v1/prompts"]
+        assert json.loads(requests[0].content)["tags"] == [
+            {"name": "staging"},
+            {"name": "production"},
         ]
-        assert json.loads(requests[-1].content) == {"name": "staging"}
 
 
 class TestPromptsUpdate:

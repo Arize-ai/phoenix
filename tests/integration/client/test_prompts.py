@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from enum import Enum
 from random import randint, random
 from secrets import token_hex
@@ -1345,8 +1346,17 @@ class TestClient:
         self,
         is_async: bool,
         _app: _AppInfo,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         from phoenix.client import AsyncClient, Client
+        from phoenix.client.constants.server_requirements import CREATE_PROMPT_TAGS
+        from phoenix.client.utils.server_requirements import Version
+
+        # The source server supports tags before its release version is bumped.
+        monkeypatch.setattr(
+            "phoenix.client.resources.prompts.CREATE_PROMPT_TAGS",
+            replace(CREATE_PROMPT_TAGS, min_server_version=Version(0, 0, 0)),
+        )
 
         client = (
             AsyncClient(base_url=_app.base_url, api_key=_app.admin_secret)

@@ -128,6 +128,9 @@ The Phoenix Client organizes functionality into resources that correspond to key
 
 Manage prompt templates and versions:
 
+Pass tag names to `prompts.create()` to save the version and its tags atomically.
+This requires Phoenix 22.1.0 or later. Duplicate tag names are applied once.
+
 ```python
 from phoenix.client import Client
 from phoenix.client.types import PromptVersion
