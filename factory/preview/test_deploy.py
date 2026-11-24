@@ -1,10 +1,9 @@
 import argparse
-import importlib
-from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from typing import Any
 from unittest.mock import Mock
 
+import deploy as preview_deploy
 import pytest
 
 WORKSPACE_ID = "11111111-2222-4333-8444-555555555555"
@@ -12,10 +11,9 @@ WORKSPACE_ID = "11111111-2222-4333-8444-555555555555"
 
 @pytest.fixture
 def preview(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
-    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[2] / "factory" / "preview"))
     monkeypatch.setenv("RAILWAY_WORKSPACE_ID", WORKSPACE_ID)
     monkeypatch.setenv("GH_REPO", "Arize-ai/phoenix")
-    return importlib.import_module("deploy")
+    return preview_deploy
 
 
 def test_cleanup_ignores_matching_name_without_ownership_marker(
