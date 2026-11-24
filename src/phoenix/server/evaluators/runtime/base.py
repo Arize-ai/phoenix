@@ -12,16 +12,6 @@ from phoenix.db.types.evaluators import InputMapping
 from phoenix.server.online_eval.failure_policy import FailureDisposition
 
 
-class RenderedMessageTooLargeError(Exception):
-    """Rendered LLM or decision messages exceed the configured online-eval limit."""
-
-    online_eval_disposition = FailureDisposition(
-        count_attempt=True,
-        terminal=True,
-        code="RENDERED_MESSAGE_TOO_LARGE",
-    )
-
-
 class EvaluatorResultValidationError(Exception):
     """An evaluator's answer for an output violates that output's config."""
 

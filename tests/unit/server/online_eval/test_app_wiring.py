@@ -9,11 +9,7 @@ from contextlib import AsyncExitStack
 import pytest
 from sqlalchemy import select
 
-from phoenix.config import (
-    ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY,
-    ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES,
-    ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES,
-)
+from phoenix.config import ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY
 from phoenix.db import models
 from phoenix.server.app import create_app
 from phoenix.server.online_eval.consumer import (
@@ -69,43 +65,6 @@ async def test_online_eval_daemons_absent_in_read_only_mode(db: DbSessionFactory
     assert app.state.online_eval_trace_consumer is None
     assert app.state.online_eval_session_producer is None
     assert app.state.online_eval_trace_producer is None
-
-
-@pytest.mark.parametrize(
-    ("env_name", "value"),
-    [
-        pytest.param(
-            ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES,
-            "1023",
-            id="llm-message-below-floor",
-        ),
-        pytest.param(
-            ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES,
-            "not-an-integer",
-            id="llm-message-not-integer",
-        ),
-        pytest.param(
-            ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES,
-            "1023",
-            id="sandbox-below-floor",
-        ),
-        pytest.param(
-            ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES,
-            "not-an-integer",
-            id="sandbox-not-integer",
-        ),
-    ],
-)
-async def test_app_validates_session_byte_limits_at_startup(
-    db: DbSessionFactory,
-    monkeypatch: pytest.MonkeyPatch,
-    env_name: str,
-    value: str,
-) -> None:
-    monkeypatch.setenv(env_name, value)
-
-    with pytest.raises(ValueError, match=env_name):
-        _create_app(db)
 
 
 async def test_app_runs_seeded_criteria_end_to_end(

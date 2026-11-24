@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d853032e966e829f6b7efc773a0510ca>>
+ * @generated SignedSource<<19d9da255525befcc4d5a975103ad026>>
  * @lightSyntaxTransform
  */
 
@@ -20,7 +20,6 @@ export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
 export type EvaluatorPreviewInput = {
-  applyOnlineEvaluationLimits?: boolean;
   credentials?: ReadonlyArray<GenerativeCredentialInput> | null;
   datasetEvaluatorId?: string | null;
   evaluator?: EvaluatorDefinitionInput | null;

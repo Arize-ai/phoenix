@@ -83,8 +83,6 @@ from phoenix.config import (
     get_env_mcp_code_mode,
     get_env_model_cost_manifest_url,
     get_env_online_eval_max_evaluator_concurrency,
-    get_env_online_eval_max_llm_message_bytes,
-    get_env_online_eval_max_sandbox_payload_bytes,
     get_env_phoenix_agents_disable_bash,
     get_env_port,
     get_env_support_email,
@@ -1259,8 +1257,6 @@ def create_app(
     online_eval_session_producer: Optional[SessionEvaluationProducer] = None
     online_eval_trace_producer: Optional[TraceEvaluationProducer] = None
     if not read_only:
-        get_env_online_eval_max_llm_message_bytes()
-        get_env_online_eval_max_sandbox_payload_bytes()
         max_evaluator_concurrency = get_env_online_eval_max_evaluator_concurrency()
         if enable_prometheus:
             ONLINE_EVAL_EVALUATOR_CONCURRENCY_LIMIT.set(max_evaluator_concurrency)

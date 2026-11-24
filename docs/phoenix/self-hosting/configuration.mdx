@@ -110,10 +110,6 @@ The following environment variables will control how your phoenix server runs.
 | --- | ---: | --- |
 | `PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY` | `50` | The number of online evaluations one replica runs at the same time. |
 | `PHOENIX_ONLINE_EVAL_RETENTION_SECONDS` | `604800` | How long, in seconds, Phoenix keeps the records of finished span evaluations. |
-| `PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES` | `65536` | The maximum total size, in UTF-8 bytes, of the messages an LLM evaluator sends. Minimum: `1024`. |
-| `PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES` | `65536` | The maximum size, in UTF-8 bytes, of the input a code evaluator receives. Minimum: `1024`. |
-
-Set the two byte limits to the same values on every replica.
 
 ### Logging
 

@@ -215,10 +215,6 @@ class EvaluatorPreviewInput(BaseModel):
     input_mapping: "EvaluatorInputMappingInput" = Field(alias="inputMapping")
     subjects: list["EvaluatorPreviewSubjectInput"]
     "The records to evaluate, each under its own key. A request takes at most 100; split larger sets across requests."
-    apply_online_evaluation_limits: bool = Field(
-        alias="applyOnlineEvaluationLimits", default=False
-    )
-    "Whether to enforce the execution limits an online evaluation runs under: the rendered LLM message cap and the sandbox payload cap. Set this when the preview stands in for a scheduled run, so a preview cannot succeed where the live evaluation would be rejected. The limits themselves come from the server's configuration, never from this request."
     credentials: Optional[list["GenerativeCredentialInput"]] = None
 
 

@@ -9,11 +9,6 @@ import anyio
 from anyio.streams.memory import MemoryObjectSendStream
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from phoenix.config import (
-    ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION,
-    get_env_online_eval_max_llm_message_bytes,
-    get_env_online_eval_max_sandbox_payload_bytes,
-)
 from phoenix.db import models
 from phoenix.db.types.evaluator_definition import (
     EvaluatorDefinition,
@@ -93,16 +88,6 @@ async def stream_evaluator_preview(
         raise BadRequest("Each evaluator preview subject needs a unique key")
     if not input.subjects:
         return
-    # Read from the server's configuration, never from the request: a preview that
-    # stands in for a scheduled run has to be rejected by the same caps, and a
-    # client-supplied cap would not be one.
-    max_message_bytes: Optional[int] = None
-    max_payload_bytes: Optional[int] = None
-    payload_limit_remediation: Optional[str] = None
-    if input.apply_online_evaluation_limits:
-        max_message_bytes = get_env_online_eval_max_llm_message_bytes()
-        max_payload_bytes = get_env_online_eval_max_sandbox_payload_bytes()
-        payload_limit_remediation = ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION
     definition = input.evaluator.to_definition() if input.evaluator is not None else None
     binding_id = (
         _node_id(input.dataset_evaluator_id, "DatasetEvaluator", "dataset evaluator")
@@ -129,9 +114,6 @@ async def stream_evaluator_preview(
             decrypt=context.decrypt,
             credentials=input.credentials or None,
             sandbox_runtime=context.sandbox_runtime,
-            max_message_bytes=max_message_bytes,
-            max_payload_bytes=max_payload_bytes,
-            payload_limit_remediation=payload_limit_remediation,
         )
     send_stream, receive_stream = anyio.create_memory_object_stream[EvaluatorPreviewSubjectResult](
         max_buffer_size=len(input.subjects)

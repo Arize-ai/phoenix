@@ -8,7 +8,9 @@ from typing import Any, AsyncIterator, Callable, Mapping, Optional, Sequence, ca
 from unittest.mock import ANY, AsyncMock, Mock, call, patch
 
 import httpx
+import httpx2
 import pytest
+from anthropic import AsyncAnthropic
 from opentelemetry.context import Context
 from opentelemetry.trace import format_trace_id
 from sqlalchemy import func, select, text, update
@@ -29,9 +31,12 @@ from phoenix.db.types.annotation_configs import (
 )
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
-from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.model_provider import LLMClientFactory, ModelProvider
 from phoenix.db.types.prompts import (
+    PromptAnthropicInvocationParameters,
+    PromptAnthropicInvocationParametersContent,
     PromptChatTemplate,
+    PromptInvocationParameters,
     PromptMessage,
     PromptOpenAIInvocationParameters,
     PromptOpenAIInvocationParametersContent,
@@ -45,6 +50,7 @@ from phoenix.db.types.prompts import (
 from phoenix.server.api.dataloaders.project_evaluator_run_counts import (
     ProjectEvaluatorRunCountsDataLoader,
 )
+from phoenix.server.api.helpers.chat_clients import AnthropicClient
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     FunctionCallChunk,
     ToolCallChunk,
@@ -57,7 +63,7 @@ from phoenix.server.dml_event import (
 )
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.evaluators import resolution as resolution_module
-from phoenix.server.evaluators.runtime.code import CodeEvaluatorRunner, SandboxPayloadTooLargeError
+from phoenix.server.evaluators.runtime.code import CodeEvaluatorRunner
 from phoenix.server.evaluators.services.project_bindings import (
     ProjectEvaluatorPatch,
     apply_project_evaluator_patch,
@@ -335,6 +341,8 @@ async def _seed_llm_criteria(
     criteria_input_mapping: Optional[InputMapping] = None,
     evaluation_target: models.EvaluationTarget = "SPAN",
     custom_provider: bool = False,
+    model_provider: ModelProvider = ModelProvider.OPENAI,
+    invocation_parameters: Optional[PromptInvocationParameters] = None,
 ) -> tuple[int, int]:
     """Create an LLM evaluator (prompt + version + tools) and an enabled project_evaluator
     row, returning (evaluator_id, project_evaluator_id)."""
@@ -366,7 +374,8 @@ async def _seed_llm_criteria(
                             ),
                         ],
                     ),
-                    invocation_parameters=PromptOpenAIInvocationParameters(
+                    invocation_parameters=invocation_parameters
+                    or PromptOpenAIInvocationParameters(
                         type="openai", openai=PromptOpenAIInvocationParametersContent()
                     ),
                     tools=PromptTools(
@@ -393,7 +402,7 @@ async def _seed_llm_criteria(
                         tool_choice=PromptToolChoiceOneOrMore(type="one_or_more"),
                     ),
                     response_format=None,
-                    model_provider=ModelProvider.OPENAI,
+                    model_provider=model_provider,
                     model_name="gpt-4",
                     metadata_={},
                     custom_provider_id=custom_provider_id,
@@ -2120,7 +2129,7 @@ async def test_session_filtered_sampled_criteria_survives_hydration(
     assert isinstance(configuration, HydratedWorkUnit)
 
 
-async def test_session_code_hydration_supplies_configured_payload_cap(
+async def test_session_code_hydration_fits_sandbox_timeouts_inside_the_execution_deadline(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     async with db() as session:
@@ -2152,7 +2161,6 @@ async def test_session_code_hydration_supplies_configured_payload_cap(
         captured_runner_arguments.update(kwargs)
         return CodeEvaluatorRunner(**kwargs)
 
-    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES", "2048")
     monkeypatch.setattr(resolution_module, "build_sandbox_backend", _build_backend)
     monkeypatch.setattr(resolution_module, "CodeEvaluatorRunner", _build_runner)
     executor = _executor(
@@ -2162,13 +2170,7 @@ async def test_session_code_hydration_supplies_configured_payload_cap(
     (hydrated,) = await executor.hydrate_configuration_snapshots([unit])
 
     assert isinstance(hydrated, HydratedWorkUnit)
-    assert captured_runner_arguments["max_payload_bytes"] == 2048
     assert captured_runner_arguments["timeout"] < captured_runner_arguments["runner_timeout"] < 600
-    assert (
-        captured_runner_arguments["payload_limit_remediation"]
-        == "Narrow the slot with a path mapping, reduce the evaluator source, or raise "
-        "the limit with PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES."
-    )
 
 
 async def test_code_hydration_supplies_sandbox_runtime(
@@ -2205,42 +2207,6 @@ async def test_code_hydration_supplies_sandbox_runtime(
 
     assert isinstance(hydrated, HydratedWorkUnit)
     assert received_runtime is sandbox_runtime
-
-
-async def test_span_code_hydration_supplies_configured_payload_cap(
-    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    async with db() as session:
-        project = await _add_project(session)
-        trace = await _add_trace(session, project)
-        span = await _add_span(session, trace)
-    evaluator_id, project_evaluator_id = await _seed_code_criteria(
-        db,
-        project.id,
-        criteria_input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-    )
-    await _queue_unit(db, span.id, evaluator_id, project_evaluator_id)
-    coordinator = EvalWorkCoordinator(db)
-    (unit,) = await coordinator.claim(claimed_by="consumer", limit=1)
-    manager = _StubSandboxSessionManager()
-    captured_runner_arguments: dict[str, Any] = {}
-
-    async def _build_backend(*_: Any, **__: Any) -> _StubSandboxBackend:
-        return _StubSandboxBackend()
-
-    def _build_runner(**kwargs: Any) -> CodeEvaluatorRunner:
-        captured_runner_arguments.update(kwargs)
-        return CodeEvaluatorRunner(**kwargs)
-
-    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES", "2048")
-    monkeypatch.setattr(resolution_module, "build_sandbox_backend", _build_backend)
-    monkeypatch.setattr(resolution_module, "CodeEvaluatorRunner", _build_runner)
-    executor = _executor(db, sandbox_session_manager=cast(Any, manager))
-
-    (hydrated,) = await executor.hydrate_configuration_snapshots([unit])
-
-    assert isinstance(hydrated, HydratedWorkUnit)
-    assert captured_runner_arguments["max_payload_bytes"] == 2048
 
 
 async def test_llm_criteria_input_mapping_override_is_used_during_execution(
@@ -2863,6 +2829,54 @@ async def test_transient_provider_error_retries_without_burning_attempts(
     assert len(await _annotations(db)) == 1
 
 
+async def test_provider_bad_request_counts_an_attempt_and_records_its_message(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(
+            session,
+            trace,
+            attributes={"input": {"value": "hi"}, "output": {"value": "there"}},
+        )
+    evaluator_id, project_evaluator_id = await _seed_llm_criteria(
+        db,
+        project.id,
+        model_provider=ModelProvider.ANTHROPIC,
+        invocation_parameters=PromptAnthropicInvocationParameters(
+            type="anthropic",
+            anthropic=PromptAnthropicInvocationParametersContent(max_tokens=100),
+        ),
+    )
+    unit_id, _ = await _queue_unit(db, span.id, evaluator_id, project_evaluator_id)
+    message = "prompt is too long: 210000 tokens > 200000 maximum"
+    body = {"type": "error", "error": {"type": "invalid_request_error", "message": message}}
+    transport = httpx2.MockTransport(lambda request: httpx2.Response(400, json=body))
+
+    @asynccontextmanager
+    async def create_client() -> AsyncIterator[AsyncAnthropic]:
+        async with httpx2.AsyncClient(transport=transport) as http_client:
+            yield AsyncAnthropic(api_key="sk-ant-test", max_retries=0, http_client=http_client)
+
+    client = AnthropicClient(
+        client_factory=LLMClientFactory(create_client, ("anthropic", "test")),
+        model_name="claude-sonnet-4-5",
+    )
+
+    async def _get_client(**_: Any) -> AnthropicClient:
+        return client
+
+    monkeypatch.setattr(resolution_module, "get_chat_client", _get_client)
+
+    await _cycle_to_completion(EvaluationConsumer(db, decrypt=lambda value: value))
+
+    unit = await _get_unit(db, unit_id)
+    assert (unit.status, unit.attempts) == ("ERROR", 1)
+    assert unit.error == f"Error code: 400 - {message}"
+    assert await _annotations(db) == []
+
+
 async def test_provider_classifier_handles_provider_specific_error_shape(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -3045,44 +3059,6 @@ async def test_lost_claim_cancels_the_evaluation_without_a_transition(
     assert writes == []
     row = await _get_unit(db, unit_id)
     assert (row.status, row.claimed_by, row.attempts) == ("RUNNING", "another-claim", unit.attempts)
-
-
-async def test_sandbox_payload_limit_is_terminal_without_counting_attempt(
-    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    async with db() as session:
-        project = await _add_project(session)
-        trace = await _add_trace(session, project)
-        span = await _add_span(session, trace)
-    evaluator_id, project_evaluator_id = await _seed_builtin_criteria(db, project.id)
-    unit_id, _ = await _queue_unit(db, span.id, evaluator_id, project_evaluator_id)
-    consumer = EvaluationConsumer(db, decrypt=lambda value: value)
-    (unit,) = await consumer._coordinator.claim(
-        claimed_by=consumer._consumer_id,
-        limit=1,
-    )
-    limit_error = SandboxPayloadTooLargeError("rendered payload exceeded its limit")
-
-    async def _hydrate(_: ClaimedWorkUnit) -> HydratedWorkUnit:
-        return _hydrated_stub(
-            results=[
-                _evaluation_result(
-                    "criterion",
-                    error=str(limit_error),
-                    error_exc=limit_error,
-                )
-            ],
-            evaluator_kind="CODE",
-            output_configs=[_output_config("criterion")],
-        )
-
-    await consumer._process_unit(unit, await _hydrate(unit))
-
-    row = await _get_unit(db, unit_id)
-    assert row.status == "EXPIRED"
-    assert row.attempts == 0
-    assert row.error is not None
-    assert row.error.startswith("SANDBOX_PAYLOAD_TOO_LARGE:")
 
 
 async def test_process_cancellation_releases_claim_without_counting_attempt(

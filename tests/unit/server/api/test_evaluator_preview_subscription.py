@@ -8,7 +8,6 @@ from sqlalchemy import select
 from strawberry.relay.types import GlobalID
 from strawberry.scalars import JSON
 
-from phoenix.config import ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES
 from phoenix.db import models
 from phoenix.server.api.helpers import evaluator_preview
 from phoenix.server.api.helpers.evaluator_preview import (
@@ -631,7 +630,6 @@ class TestInlineCodeEvaluatorPreview:
         language: str = "PYTHON",
         source_code: str = "def evaluate(output):\n    return 1.0",
         contexts: Optional[list[Any]] = None,
-        apply_online_evaluation_limits: bool = False,
     ) -> dict[str, Any]:
         return await _preview(
             gql_client,
@@ -659,7 +657,6 @@ class TestInlineCodeEvaluatorPreview:
                 {"key": str(i), "context": context}
                 for i, context in enumerate(contexts or [{"output": {"answer": "4"}}])
             ],
-            applyOnlineEvaluationLimits=apply_online_evaluation_limits,
         )
 
     @staticmethod
@@ -791,41 +788,6 @@ class TestInlineCodeEvaluatorPreview:
         backend.find_or_create_session.assert_not_called()
         backend.execute_in_session.assert_not_called()
         backend.close_session.assert_not_called()
-
-    async def test_applies_the_online_sandbox_payload_limit_on_request(
-        self,
-        gql_client: AsyncGraphQLClient,
-        sandbox_config: models.SandboxConfig,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES, "1024")
-        backend = self._backend()
-        oversized_context = {"output": "o" * 4096}
-
-        with patch(
-            "phoenix.server.evaluators.resolution.build_sandbox_backend", return_value=backend
-        ):
-            unlimited = await self._preview_inline_code_evaluator(
-                gql_client,
-                sandbox_config_id=str(GlobalID("SandboxConfig", str(sandbox_config.id))),
-                contexts=[oversized_context],
-            )
-            limited = await self._preview_inline_code_evaluator(
-                gql_client,
-                sandbox_config_id=str(GlobalID("SandboxConfig", str(sandbox_config.id))),
-                contexts=[oversized_context, {"output": "small"}],
-                apply_online_evaluation_limits=True,
-            )
-
-        # Authoring against a dataset stays unlimited; a preview standing in for
-        # a scheduled run is rejected exactly as the live evaluation rejects it,
-        # on the subject that is too large and no other.
-        assert unlimited["0"]["results"][0]["error"] is None
-        error = limited["0"]["results"][0]["error"]
-        assert error is not None
-        assert "exceeds the allowed 1024 bytes" in error
-        assert ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES in error
-        assert limited["1"]["results"][0]["error"] is None
 
     @pytest.mark.parametrize(
         ("error", "expected_message"),
