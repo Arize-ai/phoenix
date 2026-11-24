@@ -100,6 +100,11 @@ const logCollector = service("log-collector", {
 });
 
 export default defineRailway(({ projectName }) => {
+  if (!projectName) {
+    throw new Error(
+      "Link the preview Railway project before applying the configuration"
+    );
+  }
   const phoenixResources = instances.flatMap(
     ({ name, engine, imageRef, receiverPort }) => {
       if (!imageRef) {
