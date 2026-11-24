@@ -443,8 +443,8 @@ class TestClassificationEvaluator:
         )
 
         assert evaluator.name == "test_evaluator"
-        assert evaluator.labels == expected_labels
-        assert evaluator.label_score_map == expected_score_map
+        assert evaluator.criteria[0].backend_labels == expected_labels
+        assert evaluator.criteria[0].label_score_map == expected_score_map
         assert evaluator.include_explanation is True
 
     @pytest.mark.parametrize(
@@ -491,9 +491,8 @@ class TestClassificationEvaluator:
         assert criterion.instruction == ""
         assert criterion.choices == expected_leaf
         assert criterion.direction == "minimize"  # inherits the evaluator's direction
-        # Legacy public attributes are unchanged.
-        assert evaluator.labels == expected_labels
-        assert evaluator.label_score_map == expected_score_map
+        assert criterion.backend_labels == expected_labels
+        assert criterion.label_score_map == expected_score_map
 
     def test_criteria_list_choices_passthrough(self):
         """The new List[Criterion] format passes through, one criterion each."""
@@ -518,9 +517,8 @@ class TestClassificationEvaluator:
         # Missing per-criterion direction inherits the evaluator's; explicit one is kept.
         assert evaluator.criteria[0].direction == "maximize"
         assert evaluator.criteria[1].direction == "minimize"
-        # Legacy attributes track the first criterion.
-        assert evaluator.labels == ["poor", "good"]
-        assert evaluator.label_score_map is None
+        assert evaluator.criteria[0].backend_labels == ["poor", "good"]
+        assert evaluator.criteria[0].label_score_map is None
 
     def test_criteria_list_accepts_plain_dicts(self):
         """Criteria may be given as plain dicts (coerced to Criterion)."""
@@ -1207,7 +1205,7 @@ class TestFactoryFunctions:
 
         assert isinstance(evaluator, ClassificationEvaluator)
         assert evaluator.name == "test_classifier"
-        assert evaluator.labels == expected_labels
+        assert evaluator.criteria[0].backend_labels == expected_labels
         assert evaluator.llm == llm
 
 

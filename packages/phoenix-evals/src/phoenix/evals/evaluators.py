@@ -811,13 +811,9 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
         )
 
         self.include_explanation = include_explanation
-        # Only the explicit multi-criterion format (List[Criterion]) uses the plural backend
-        # path; legacy single-classification formats keep the original single-question request
-        # (same schema and question name) so existing evaluators are unchanged.
-        self._uses_criteria_list = _is_criteria_list(choices)
+        # Every choices format normalizes to a list of criteria and is classified through the
+        # plural backend path; a single-criterion format is just the one-criterion case.
         self._criteria: List[Criterion] = self._normalize_choices(choices, direction)
-        self.label_score_map = self._criteria[0].label_score_map
-        self.labels: Union[List[str], Dict[str, str]] = self._legacy_labels(choices)
 
     @property
     def criteria(self) -> List[Criterion]:
@@ -859,7 +855,7 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
                 )
             return criteria
 
-        # Cases 1-3: a single legacy classification
+        # Cases 1-3: a single-criterion classification named after the evaluator.
         leaf: Union[List[str], Dict[str, Union[float, int, Tuple[Union[float, int], str]]]]
         if isinstance(choices, list):
             if not all(isinstance(label, str) for label in choices):
@@ -878,25 +874,6 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
                 direction=direction,
             ),
         ]
-
-    def _legacy_labels(
-        self,
-        choices: Union[
-            List[str],
-            Dict[str, Union[float, int]],
-            Dict[str, Tuple[Union[float, int], str]],
-            List[Criterion],
-        ],
-    ) -> Union[List[str], Dict[str, str]]:
-        """Reproduce the legacy ``labels`` value (list, or label->description dict for tuples)."""
-        if _is_criteria_list(choices):
-            return self._criteria[0].labels
-        if isinstance(choices, list):
-            return [label for label in choices if isinstance(label, str)]
-        first_value = next(iter(choices.values()))
-        if isinstance(first_value, tuple):
-            return {key: value[1] for key, value in choices.items()}  # type: ignore[index]
-        return list(choices.keys())
 
     def _criteria_payload(self) -> Dict[Name, ClassificationCriterion]:
         """The criteria as the backend-level questions sent to ``generate_classifications``,
