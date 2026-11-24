@@ -315,6 +315,11 @@ class CleanupCoordinator:
             logger.exception("Cleanup of %s %s failed; scheduling retry", target.kind, target.id)
             await self._record_failure(target)
             return StepExecutionResult("error", 0)
+        except Exception:
+            # Back off before propagating, so one bad target cannot starve newer tombstones.
+            if target is not None:
+                await self._record_failure(target)
+            raise
         return outcome
 
     async def _run_domain_step(

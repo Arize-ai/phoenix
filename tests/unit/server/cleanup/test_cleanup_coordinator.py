@@ -336,23 +336,35 @@ class TestCleanupSchedulingAndBackoff:
         assert num_failures == 1
         assert delay_seconds <= 1.0
 
-    async def test_non_sqlalchemy_programming_error_propagates_immediately(
+    async def test_unexpected_error_propagates_after_backing_the_target_off(
         self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         async with db() as session:
-            project = await _add_project(session, name=f"prog-bug-{token_hex(4)}")
-            project_id = project.id
-            await tombstone_project(session, project_id=project_id)
+            older_project = await _add_project(session, name=f"prog-bug-{token_hex(4)}")
+            older_project_id = older_project.id
+            await tombstone_project(session, project_id=older_project_id)
+            newer_project = await _add_project(session, name=f"newer-{token_hex(4)}")
+            newer_project_id = newer_project.id
+            await tombstone_project(session, project_id=newer_project_id)
 
         coordinator = CleanupCoordinator(db)
+        original_run_domain_step = coordinator._run_domain_step
 
-        async def _programming_bug(*args: object, **kwargs: object) -> object:
-            raise TypeError("unexpected programming bug")
+        async def _bug_in_the_older_target(session: Any, *, target: Any) -> PrimitiveResult:
+            if target.id == older_project_id:
+                raise TypeError("unexpected programming bug")
+            return await original_run_domain_step(session, target=target)
 
-        monkeypatch.setattr(coordinator, "_run_domain_step", _programming_bug)
+        monkeypatch.setattr(coordinator, "_run_domain_step", _bug_in_the_older_target)
         with pytest.raises(TypeError, match="unexpected programming bug"):
             await coordinator.step()
-        assert await _get_failure(db, "PROJECT", project_id) is None
+        failure = await _get_failure(db, "PROJECT", older_project_id)
+        assert failure is not None and failure.failure_count == 1
+
+        assert (await coordinator.step()).outcome == "completed"
+        async with db() as session:
+            assert await session.get(models.Project, newer_project_id) is None
+            assert await session.get(models.Project, older_project_id) is not None
 
     async def test_failed_step_rolls_back_its_batch(
         self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
