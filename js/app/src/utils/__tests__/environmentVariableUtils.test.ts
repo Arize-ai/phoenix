@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  transformCasePreservingEnvironmentVariableInput,
   transformEnvironmentVariableInput,
   trimEnvironmentVariableSeparators,
 } from "../environmentVariableUtils";
@@ -29,6 +30,23 @@ describe("transformEnvironmentVariableInput", () => {
       "MY_API_KEY_2_E"
     );
     expect(transformEnvironmentVariableInput("a.@-b")).toBe("A_B");
+  });
+});
+
+describe("transformCasePreservingEnvironmentVariableInput", () => {
+  it("keeps letter case and leading underscores", () => {
+    expect(transformCasePreservingEnvironmentVariableInput("http_proxy")).toBe(
+      "http_proxy"
+    );
+    expect(
+      transformCasePreservingEnvironmentVariableInput("_JAVA_OPTIONS")
+    ).toBe("_JAVA_OPTIONS");
+  });
+
+  it("converts separators and removes unsupported characters", () => {
+    expect(
+      transformCasePreservingEnvironmentVariableInput("no proxy.list!")
+    ).toBe("no_proxy_list");
   });
 });
 

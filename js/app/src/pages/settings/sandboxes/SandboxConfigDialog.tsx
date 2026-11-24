@@ -45,7 +45,7 @@ import {
 import { IDENTIFIER_DESCRIPTION } from "@phoenix/constants";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { TransformingInputController } from "@phoenix/hooks/useTransformingInput";
-import { transformEnvironmentVariableInput } from "@phoenix/utils/environmentVariableUtils";
+import { transformCasePreservingEnvironmentVariableInput } from "@phoenix/utils/environmentVariableUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import {
   getIdentifier,
@@ -799,7 +799,7 @@ function EnvVarRow({
           <TransformingInputController
             value={field.value}
             onValueChange={field.onChange}
-            transformValue={transformEnvironmentVariableInput}
+            transformValue={transformCasePreservingEnvironmentVariableInput}
           >
             {(transformingInput) => (
               <TextField
@@ -814,7 +814,7 @@ function EnvVarRow({
                   <FieldError>{fieldState.error.message}</FieldError>
                 ) : (
                   <Text slot="description">
-                    Uppercase letters, digits, and underscores
+                    Letters, digits, and underscores. Case is kept.
                   </Text>
                 )}
               </TextField>

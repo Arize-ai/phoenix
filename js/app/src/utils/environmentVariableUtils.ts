@@ -19,6 +19,20 @@ export function transformEnvironmentVariableInput(value: string): string {
 }
 
 /**
+ * Like {@link transformEnvironmentVariableInput}, but keeps letter case and
+ * leading underscores. For places such as sandbox environment variables, where
+ * names are case-sensitive and lowercase or underscore-prefixed names (e.g.
+ * `http_proxy`, `_JAVA_OPTIONS`) are valid.
+ */
+export function transformCasePreservingEnvironmentVariableInput(
+  value: string
+): string {
+  return removeDiacritics(value)
+    .replace(/[^A-Za-z0-9_.\s-]/g, "")
+    .replace(/[.\s-]+/g, "_");
+}
+
+/**
  * Removes leading and trailing underscores so an environment-variable key
  * starts and ends with a letter or digit.
  */
