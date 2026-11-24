@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
-from phoenix.evals._criteria import ClassificationAnswer
+from phoenix.evals._criteria import ClassificationResult
 from phoenix.evals.evaluators import (
     ClassificationEvaluator,
     Criterion,
@@ -48,7 +48,7 @@ class MockLLM(LLM):
 
     def generate_classifications(self, prompt, criteria, include_explanation=True, method=None):
         return {
-            name: ClassificationAnswer(
+            name: ClassificationResult(
                 name=name,
                 label=self._first_label(c["labels"]),
                 explanation="This is a good result",
@@ -605,7 +605,7 @@ class TestClassificationEvaluator:
         llm = MockLLM()
         llm.generate_classifications = MagicMock(
             return_value={
-                "test_evaluator": ClassificationAnswer(name="test_evaluator", label="invalid")
+                "test_evaluator": ClassificationResult(name="test_evaluator", label="invalid")
             }
         )
 
@@ -712,8 +712,8 @@ class TestClassificationEvaluator:
         llm = MockLLM()
         llm.generate_classifications = MagicMock(
             return_value={
-                "a": ClassificationAnswer(name="a", label="x"),
-                "b": ClassificationAnswer(name="b", label="nope"),  # invalid for criterion b
+                "a": ClassificationResult(name="a", label="x"),
+                "b": ClassificationResult(name="b", label="nope"),  # invalid for criterion b
             }
         )
         evaluator = ClassificationEvaluator(

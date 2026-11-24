@@ -29,7 +29,7 @@ from typing_extensions import Annotated, Mapping, TypeVar
 
 from phoenix.evals.executors import AsyncExecutor, ExecutionDetails, SyncExecutor
 
-from ._criteria import ClassificationAnswer, ClassificationCriterion, Name
+from ._criteria import ClassificationCriterion, ClassificationResult, Name
 from .decision import DecisionModel
 from .llm import LLM, PromptLike
 from .llm.prompts import PromptTemplate, Template
@@ -933,7 +933,7 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
         any_dict = any(isinstance(c.backend_labels, dict) for c in self._criteria)
         return ObjectGenerationMethod.TOOL_CALLING if any_dict else ObjectGenerationMethod.AUTO
 
-    def _scores_from_results(self, answers: Dict[Name, ClassificationAnswer]) -> List[Score]:
+    def _scores_from_results(self, answers: Dict[Name, ClassificationResult]) -> List[Score]:
         """Turn one backend answer per criterion into one Score per criterion."""
         scores: List[Score] = []
         for criterion in self._criteria:

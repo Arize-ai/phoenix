@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from phoenix.evals import ClassificationEvaluator, Criterion, DecisionModel
-from phoenix.evals._criteria import ClassificationAnswer
+from phoenix.evals._criteria import ClassificationResult
 
 
 def _by_name(criteria):
@@ -198,7 +198,7 @@ def test_generate_classifications_sends_one_request_with_n_questions(monkeypatch
     )
 
     assert results == {
-        "helpfulness": ClassificationAnswer(
+        "helpfulness": ClassificationResult(
             name="helpfulness",
             label="good",
             metadata={
@@ -207,7 +207,7 @@ def test_generate_classifications_sends_one_request_with_n_questions(monkeypatch
                 "confidence": 0.9,
             },
         ),
-        "accuracy": ClassificationAnswer(
+        "accuracy": ClassificationResult(
             name="accuracy",
             label="wrong",
             metadata={

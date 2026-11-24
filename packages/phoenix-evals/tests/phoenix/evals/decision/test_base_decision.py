@@ -1,4 +1,4 @@
-from phoenix.evals.decision.types import BaseDecisionAdapter, ClassificationAnswer
+from phoenix.evals.decision.types import BaseDecisionAdapter, ClassificationResult
 
 
 def test_base_adapter_fans_out_to_single_calls_by_default():
@@ -27,8 +27,8 @@ def test_base_adapter_fans_out_to_single_calls_by_default():
 
     assert raw == {
         "results": [
-            ClassificationAnswer(name="q1", label="a", metadata={"model_id": "dummy"}),
-            ClassificationAnswer(name="q2", label="c", metadata={"model_id": "dummy"}),
+            ClassificationResult(name="q1", label="a", metadata={"model_id": "dummy"}),
+            ClassificationResult(name="q2", label="c", metadata={"model_id": "dummy"}),
         ],
         "usage": None,
     }
@@ -63,8 +63,8 @@ def test_base_adapter_fanout_sums_usage_across_calls():
 
     # Two calls at 10/2 tokens each -> summed.
     assert raw["usage"] == {"input_tokens": 20, "output_tokens": 4}
-    # Per-call usage is not leaked into each result (ClassificationAnswer carries no usage).
-    assert all(isinstance(r, ClassificationAnswer) for r in raw["results"])
+    # Per-call usage is not leaked into each result (ClassificationResult carries no usage).
+    assert all(isinstance(r, ClassificationResult) for r in raw["results"])
     assert all(not hasattr(r, "usage") for r in raw["results"])
 
 

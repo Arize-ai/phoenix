@@ -14,7 +14,7 @@ from phoenix.evals.tracing import trace
 from ..llm.prompts import PromptLike
 from .adapters import register_adapters
 from .registries import DECISION_PROVIDER_REGISTRY, adapter_availability_table
-from .types import ClassificationAnswer, ClassificationCriterion, Name
+from .types import ClassificationCriterion, ClassificationResult, Name
 
 register_adapters()
 
@@ -205,9 +205,9 @@ class DecisionModel:
     @classmethod
     def _record_multiple_classifications_usage(
         cls, raw: Dict[str, Any]
-    ) -> List[ClassificationAnswer]:
+    ) -> List[ClassificationResult]:
         """Record usage from a multi-classification adapter result and return its ``results``."""
-        results: List[ClassificationAnswer] = raw.get("results", [])
+        results: List[ClassificationResult] = raw.get("results", [])
         model_id = results[0].metadata.get("model_id") if results else None
         cls._record_usage_values(raw.get("usage"), model_id)
         return results
@@ -320,7 +320,7 @@ class DecisionModel:
         method: Any = None,
         tracer: Optional[Tracer] = None,
         **kwargs: Any,
-    ) -> Dict[Name, ClassificationAnswer]:
+    ) -> Dict[Name, ClassificationResult]:
         """Answer several named classification questions about one prompt in a single request.
 
         Args:
@@ -336,7 +336,7 @@ class DecisionModel:
             **kwargs: Additional keyword arguments forwarded to the decision SDK call.
 
         Returns:
-            Dict[Name, ClassificationAnswer]: One :class:`ClassificationAnswer` per criterion,
+            Dict[Name, ClassificationResult]: One :class:`ClassificationResult` per criterion,
             keyed by criterion name.
         """
         fn = self._sync_adapter.generate_classifications
@@ -365,7 +365,7 @@ class DecisionModel:
         method: Any = None,
         tracer: Optional[Tracer] = None,
         **kwargs: Any,
-    ) -> Dict[Name, ClassificationAnswer]:
+    ) -> Dict[Name, ClassificationResult]:
         """Asynchronously answer several named classification questions in a single request.
 
         See :meth:`generate_classifications`.

@@ -9,7 +9,7 @@ from opentelemetry.trace import Tracer
 from phoenix.evals.rate_limiters import RateLimiter
 from phoenix.evals.tracing import trace
 
-from .._criteria import ClassificationAnswer, ClassificationCriterion, Name
+from .._criteria import ClassificationCriterion, ClassificationResult, Name
 from .adapters import register_adapters
 from .prompts import PromptLike
 from .registries import PROVIDER_REGISTRY, adapter_availability_table
@@ -445,7 +445,7 @@ class LLM:
         criteria: Dict[Name, ClassificationCriterion],
         include_explanation: bool = True,
         **kwargs: Any,
-    ) -> Dict[Name, ClassificationAnswer]:
+    ) -> Dict[Name, ClassificationResult]:
         """Answer several named classification questions about one prompt in a single request.
 
         Args:
@@ -457,7 +457,7 @@ class LLM:
             **kwargs: Additional keyword arguments to pass to the LLM SDK (e.g. ``method``).
 
         Returns:
-            Dict[Name, ClassificationAnswer]: One :class:`ClassificationAnswer` per criterion,
+            Dict[Name, ClassificationResult]: One :class:`ClassificationResult` per criterion,
             keyed by criterion name.
         """
         schema = generate_classifications_schema(criteria, include_explanation)
@@ -470,7 +470,7 @@ class LLM:
         criteria: Dict[Name, ClassificationCriterion],
         include_explanation: bool = True,
         **kwargs: Any,
-    ) -> Dict[Name, ClassificationAnswer]:
+    ) -> Dict[Name, ClassificationResult]:
         """Asynchronously answer several named classification questions in a single request.
 
         See :meth:`generate_classifications`.
@@ -599,10 +599,10 @@ def generate_classifications_schema(
 def _parse_classifications(
     raw: Dict[str, Any],
     criteria: Dict[Name, ClassificationCriterion],
-) -> Dict[Name, ClassificationAnswer]:
+) -> Dict[Name, ClassificationResult]:
     """Turn the nested object from :func:`generate_classifications_schema` into one
-    :class:`ClassificationAnswer` per criterion, keyed by criterion name."""
-    answers: Dict[Name, ClassificationAnswer] = {}
+    :class:`ClassificationResult` per criterion, keyed by criterion name."""
+    answers: Dict[Name, ClassificationResult] = {}
     for criterion in criteria.values():
         name = criterion["name"]
         answer = raw.get(name)
@@ -611,7 +611,7 @@ def _parse_classifications(
                 f"The model returned a malformed or missing answer for criterion '{name}': "
                 f"{answer!r}. Expected an object with a 'label' field."
             )
-        answers[name] = ClassificationAnswer(
+        answers[name] = ClassificationResult(
             name=name,
             label=answer["label"],
             explanation=answer.get("explanation"),

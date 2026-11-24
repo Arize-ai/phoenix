@@ -2,12 +2,12 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Type, Union
 
-from .._criteria import ClassificationAnswer, ClassificationCriterion, Name
+from .._criteria import ClassificationCriterion, ClassificationResult, Name
 from ..llm.prompts import PromptLike
 
 __all__ = [
     "BaseDecisionAdapter",
-    "ClassificationAnswer",
+    "ClassificationResult",
     "ClassificationCriterion",
     "Name",
     "ProviderRegistration",
@@ -76,7 +76,7 @@ class BaseDecisionAdapter(ABC):
         on this fan-out path); ``usage`` is ``None`` only when no call reported any.
         """
         results = [
-            ClassificationAnswer(
+            ClassificationResult(
                 name=criterion["name"],
                 label=result["label"],
                 metadata=result.get("metadata", {}),

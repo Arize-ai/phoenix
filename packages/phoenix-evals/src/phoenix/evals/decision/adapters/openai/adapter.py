@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional, Union
 from ....exceptions import PhoenixDecisionRefusal
 from ....llm.prompts import MessageRole, PromptLike, normalize_role
 from ...registries import register_provider
-from ...types import BaseDecisionAdapter, ClassificationAnswer, ClassificationCriterion, Name
+from ...types import BaseDecisionAdapter, ClassificationCriterion, ClassificationResult, Name
 from .factories import create_openai_client, get_openai_rate_limit_errors
 
 _QUESTION_NAME = "label"
@@ -116,7 +116,7 @@ class OpenAIDecisionAdapter(BaseDecisionAdapter):
     @classmethod
     def _to_results(cls, response: Any, names: List[str]) -> Dict[str, Any]:
         by_name = {getattr(answer, "name", None): answer for answer in response.answers}
-        results: List[ClassificationAnswer] = []
+        results: List[ClassificationResult] = []
         for name in names:
             if name not in by_name:
                 raise ValueError(
@@ -125,7 +125,7 @@ class OpenAIDecisionAdapter(BaseDecisionAdapter):
                 )
             label_metadata = cls._answer_to_label_metadata(by_name[name], response.model)
             results.append(
-                ClassificationAnswer(
+                ClassificationResult(
                     name=name,
                     label=label_metadata["label"],
                     metadata=label_metadata["metadata"],

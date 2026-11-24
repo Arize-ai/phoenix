@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from phoenix.evals._criteria import ClassificationAnswer
+from phoenix.evals._criteria import ClassificationResult
 from phoenix.evals.llm.llm import (
     LLM,
     _parse_classifications,
@@ -379,14 +379,14 @@ class TestParseClassifications:
         }
         results = _parse_classifications(raw, _by_name(criteria))
         assert results == {
-            "a": ClassificationAnswer(name="a", label="x", explanation="because a"),
-            "b": ClassificationAnswer(name="b", label="y", explanation="because b"),
+            "a": ClassificationResult(name="a", label="x", explanation="because a"),
+            "b": ClassificationResult(name="b", label="y", explanation="because b"),
         }
 
     def test_explanation_omitted_when_absent(self):
         criteria = [{"name": "a", "labels": ["x", "y"]}]
         results = _parse_classifications({"a": {"label": "x"}}, _by_name(criteria))
-        assert results == {"a": ClassificationAnswer(name="a", label="x", explanation=None)}
+        assert results == {"a": ClassificationResult(name="a", label="x", explanation=None)}
 
     def test_missing_criterion_raises(self):
         criteria = [{"name": "a", "labels": ["x", "y"]}]
@@ -423,10 +423,10 @@ class TestLLMGenerateClassifications:
         results = llm.generate_classifications("some text", _by_name(criteria))
 
         assert results == {
-            "helpfulness": ClassificationAnswer(
+            "helpfulness": ClassificationResult(
                 name="helpfulness", label="good", explanation="clear"
             ),
-            "accuracy": ClassificationAnswer(name="accuracy", label="wrong", explanation="off"),
+            "accuracy": ClassificationResult(name="accuracy", label="wrong", explanation="off"),
         }
 
         llm._sync_adapter.generate_object.assert_called_once()

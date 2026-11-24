@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Optional, Union
 
 from ....llm.prompts import PromptLike
 from ...registries import register_provider
-from ...types import BaseDecisionAdapter, ClassificationAnswer, ClassificationCriterion, Name
+from ...types import BaseDecisionAdapter, ClassificationCriterion, ClassificationResult, Name
 from .factories import create_typesafe_client, get_typesafe_rate_limit_errors
 
 _QUESTION_NAME = "label"
@@ -70,7 +70,7 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
 
     @classmethod
     def _to_results(cls, response: Any, names: List[str]) -> Dict[str, Any]:
-        results: List[ClassificationAnswer] = []
+        results: List[ClassificationResult] = []
         for name in names:
             if name not in response.choices:
                 raise ValueError(
@@ -79,7 +79,7 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
                 )
             answer = response.choices[name]
             results.append(
-                ClassificationAnswer(
+                ClassificationResult(
                     name=name,
                     label=answer.choice,
                     metadata=cls._answer_metadata(answer, response.model),

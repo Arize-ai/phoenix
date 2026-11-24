@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Union
 from typing_extensions import NotRequired, TypeAlias, TypedDict
 
 __all__ = [
-    "ClassificationAnswer",
+    "ClassificationResult",
     "ClassificationCriterion",
     "Name",
 ]
@@ -34,7 +34,7 @@ class ClassificationCriterion(TypedDict):
 
 
 @dataclass(frozen=True)
-class ClassificationAnswer:
+class ClassificationResult:
     """One backend's answer to one named classification question.
 
     Returned (keyed by criterion name) by ``generate_classifications`` on both backends

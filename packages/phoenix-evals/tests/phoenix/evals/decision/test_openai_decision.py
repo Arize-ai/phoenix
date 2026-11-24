@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from phoenix.evals import ClassificationEvaluator, DecisionModel
-from phoenix.evals._criteria import ClassificationAnswer
+from phoenix.evals._criteria import ClassificationResult
 from phoenix.evals.exceptions import PhoenixDecisionRefusal
 
 
@@ -175,7 +175,7 @@ async def test_async_generate_classifications(monkeypatch):
     )
 
     assert results == {
-        "a": ClassificationAnswer(
+        "a": ClassificationResult(
             name="a",
             label="x",
             metadata={
