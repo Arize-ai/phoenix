@@ -106,14 +106,14 @@ handle.write_stdin('echo "Hello from the SDK"\n')
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `kind` | Filters by process kind.<br />**Value:** `exec`, `pty`, `code`, or `session`<br />**Example:** `"pty"` |
-| `state` | Filters by process state.<br />**Default:** `all`<br />**Value:** `running`, `terminal`, or `all`<br />**Example:** `"running"` |
 | `process` | Sets the PTY process to connect to.<br />**Required**<br />**Format:** a process ID or a serialized process handle |
 | `data` | Sets the input to write to the terminal.<br />**Required**<br />**Example:** `'echo "Hello from the SDK"\n'` |
+| `kind` | Filters by process kind.<br />**Value:** `exec`, `pty`, `code`, or `session`<br />**Example:** `"pty"` |
+| `state` | Filters by process state.<br />**Default:** `all`<br />**Value:** `running`, `terminal`, or `all`<br />**Example:** `"running"` |
 
 > **Notes:**
 >
-> - `{sandboxId}` is the ID of the sandbox whose web terminal is open in the dashboard.
+> - **Placeholders:** `{sandboxId}` is the ID of the sandbox whose web terminal is open in the dashboard.
 
 ## Permissions
 

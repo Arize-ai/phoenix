@@ -88,9 +88,9 @@ export const coreSpanFilterCompletions: Completion[] = [
     detail: "duration in milliseconds",
     info: "Latency (i.e. duration) in milliseconds",
   },
-  // One entry per member, matching `llm.token_count.*` and `cumulative_token_count.*`
-  // below. CodeMirror matches on `label`, so a member named only in another entry's
-  // `info` is one a user can reach by guessing and not by typing.
+  // One entry per member, matching `llm.token_count.*` below. CodeMirror
+  // matches on `label`, so a member named only in another entry's `info` is
+  // one a user can reach by guessing and not by typing.
   {
     label: "total_cost",
     type: "variable",
@@ -171,24 +171,6 @@ export const coreSpanFilterCompletions: Completion[] = [
     detail: "total LLM tokens",
     info: "Total token count (prompt + completion) of an LLM span",
   },
-  {
-    label: "cumulative_token_count.prompt",
-    type: "variable",
-    detail: "prompt tokens incl. descendants",
-    info: "Sum of token count for prompt from self and all child spans",
-  },
-  {
-    label: "cumulative_token_count.completion",
-    type: "variable",
-    detail: "completion tokens incl. descendants",
-    info: "Sum of token count for completion from self and all child spans",
-  },
-  {
-    label: "cumulative_token_count.total",
-    type: "variable",
-    detail: "total tokens incl. descendants",
-    info: "Sum of token count total (prompt + completion) from self and all child spans",
-  },
 ];
 
 /**
@@ -264,8 +246,8 @@ export const spanFilterSnippets: DSLFilterSnippet[] = [
     snippet: "trace_id == '${trace id}'",
   },
   {
-    label: "filter by token count",
-    snippet: "cumulative_token_count.total > ${1_000}",
+    label: "filter LLM spans by token count",
+    snippet: "llm.token_count.total > ${1_000}",
   },
   {
     label: "filter by model name",
@@ -329,8 +311,8 @@ const spanFilterAIExamples = [
     expression: "1000 < llm.token_count.prompt < 4000",
   },
   {
-    description: "traces that burned more than 10k tokens overall",
-    expression: "cumulative_token_count.total > 10_000",
+    description: "LLM calls that used more than 10k tokens",
+    expression: "llm.token_count.total > 10_000",
   },
   {
     description: "answers the Hallucination eval flagged",
@@ -379,7 +361,7 @@ export const spanFilterAIQueryDSL = createAIQueryDSL({
     "attributes and metadata are read by subscript and nest by chaining, e.g. attributes['llm']['provider'] == 'openai'. Span attributes follow OpenInference semantic conventions (llm.model_name, llm.provider, tool.name, retrieval.documents, embedding.model_name, session.id, ...), each also writable in dotted form, e.g. llm.model_name.",
     "A dotted path never goes inside one subscript: attributes['llm.provider'] matches nothing. Chain the keys — attributes['llm']['provider'] — or write the bare dotted form.",
     "annotations['name'] and evals['name'] access span annotations; trace_annotations['name'] accesses annotations attached to the containing trace. All expose .score, .label, .explanation, and .identifier. Written bare, an annotation accessor tests whether it exists.",
-    "llm.token_count.* counts a single LLM span; cumulative_token_count.* sums the span and every descendant, which is what a whole trace costs.",
+    "llm.token_count.* counts a single LLM span.",
     "A field may be tested against a list — span_kind in ['LLM', 'TOOL'] — and a range may be chained — 1000 < latency_ms < 5000.",
     `Root spans are selected with \`${STRICT_ROOT_SPANS_CONDITION}\`.`,
   ],

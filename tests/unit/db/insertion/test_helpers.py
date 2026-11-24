@@ -290,6 +290,30 @@ class TestShouldCalculateSpanCost:
                 True,
                 id="model_name_with_tab",
             ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "decision": {"model_name": "jev-1.13.0"},
+                },
+                True,
+                id="decision_span_with_decision_model_name",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "EMBEDDING"}},
+                    "embedding": {"model_name": "text-embedding-3-small"},
+                },
+                True,
+                id="embedding_span_with_embedding_model_name",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": ["LLM"]}},
+                    "llm": {"model_name": "gpt-4"},
+                },
+                False,
+                id="list_span_kind",
+            ),
         ],
     )
     def test_should_calculate_span_cost(

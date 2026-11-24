@@ -13,11 +13,12 @@ Stream logs in the background while the rest of your system continues executing.
 
 ```python
 import asyncio
-from daytona import Daytona, SessionExecuteRequest
+from daytona import Daytona
+from daytona.v0 import SessionExecuteRequest
 
 async def main():
   daytona = Daytona()
-  sandbox = daytona.create()
+  sandbox = daytona.v0.create()
 
   session_id = "streaming-session"
   sandbox.process.create_session(session_id)
@@ -59,10 +60,11 @@ Retrieve all logs produced up to the current point in time. Use this when the co
 
 ```python
 import time
-from daytona import Daytona, SessionExecuteRequest
+from daytona import Daytona
+from daytona.v0 import SessionExecuteRequest
 
 daytona = Daytona()
-sandbox = daytona.create()
+sandbox = daytona.v0.create()
 session_id = "exec-session-1"
 sandbox.process.create_session(session_id)
 

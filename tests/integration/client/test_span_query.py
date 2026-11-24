@@ -93,13 +93,14 @@ def test_backward_compatibility() -> None:
         "cumulative_token_count.completion",
     )
 
-    # The query should internally convert to new field names
+    # Only context.* legacy aliases rewrite; cumulative_token_count.* stays an attribute path.
     query_dict = query.to_dict()
     assert "select" in query_dict
     select_dict = query_dict["select"]
     assert "span_id" in select_dict
     assert "trace_id" in select_dict
-    assert "cumulative_llm_token_count_completion" in select_dict
+    assert "cumulative_token_count.completion" in select_dict
+    assert "cumulative_llm_token_count_completion" not in select_dict
 
 
 def test_empty_key_validation() -> None:

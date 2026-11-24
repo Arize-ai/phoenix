@@ -67,7 +67,7 @@ async function setupTailscaleVpnInteractive(): Promise<void> {
 
   // Create the sandbox
   console.log('Creating sandbox...')
-  const sandbox = await daytona.create()
+  const sandbox = await daytona.v0.create()
   console.log(`Sandbox created: ${sandbox.id}`)
 
   // Step 1: Install Tailscale
@@ -243,7 +243,7 @@ async function setupTailscaleVpn(authKey: string): Promise<void> {
 
   // Create the sandbox
   console.log('Creating sandbox...')
-  const sandbox = await daytona.create()
+  const sandbox = await daytona.v0.create()
   console.log(`Sandbox created: ${sandbox.id}`)
 
   // Step 1: Install Tailscale
@@ -449,7 +449,7 @@ def setup_openvpn(ovpn_config: str):
     """
     # Create the sandbox
     print("Creating sandbox...")
-    sandbox = daytona.create()
+    sandbox = daytona.v0.create()
     print(f"Sandbox created: {sandbox.id}")
 
     # Step 1: Install OpenVPN
@@ -538,7 +538,7 @@ async function setupOpenvpn(ovpnConfig: string): Promise<void> {
 
   // Create the sandbox
   console.log("Creating sandbox...");
-  const sandbox = await daytona.create();
+  const sandbox = await daytona.v0.create();
   console.log(`Sandbox created: ${sandbox.id}`);
 
   // Step 1: Install OpenVPN
@@ -710,7 +710,7 @@ async function setupNetbird(): Promise<void> {
 
   // Create the sandbox
   console.log("Creating sandbox...");
-  const sandbox = await daytona.create();
+  const sandbox = await daytona.v0.create();
   console.log(`Sandbox created: ${sandbox.id}`);
 
   // Install NetBird via the official install script
@@ -790,7 +790,7 @@ async function setupNetbirdVpnInteractive(): Promise<void> {
 
   // Create the sandbox
   console.log("Creating sandbox...");
-  const sandbox = await daytona.create();
+  const sandbox = await daytona.v0.create();
   console.log(`Sandbox created: ${sandbox.id}`);
 
   // Remove the broken Yarn list so apt-get update inside the installer succeeds,
@@ -938,7 +938,8 @@ The process involves installing the Twingate Client, configuring it with the ser
 The following snippets demonstrate connecting to a Twingate network using a service key.
 
 ```typescript
-import { Daytona, Sandbox } from '@daytona/sdk'
+import { Daytona } from '@daytona/sdk'
+import { Sandbox } from '@daytona/sdk/v0'
 
 // Configuration
 const DAYTONA_API_KEY = 'YOUR_API_KEY' // Replace with your API key
@@ -962,7 +963,7 @@ async function setupTwingate(serviceKeyPath: string): Promise<Sandbox> {
 
   // Create the sandbox
   console.log('Creating sandbox...')
-  const sandbox = await daytona.create()
+  const sandbox = await daytona.v0.create()
   console.log(`Sandbox created: ${sandbox.id}`)
 
   // Step 1: Install the Twingate Client

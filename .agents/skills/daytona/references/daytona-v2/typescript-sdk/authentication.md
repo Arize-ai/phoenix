@@ -35,15 +35,16 @@ Environment variables are named text values that a process inherits from the pro
 | **`DAYTONA_JWT_TOKEN`**   | The OIDC token of a signed-in user instead of an API key, [exchanged](./api-keys.md#exchange-a-token) for a project token. <br /> Optional; needs `DAYTONA_PROJECT_ID` |
 | **`DAYTONA_PROJECT_ID`**  | The project a JWT is scoped to. <br /> Required with `DAYTONA_JWT_TOKEN`                   |
 
-### .env file
+**.env:**
 
-The SDKs and the CLI read only the process environment, not `.env` files. Load the file into the process environment before the Daytona client starts, for example with the `python-dotenv` package in Python or with `node --env-file=.env` in Node.js.
-
-```bash
+```dotenv
 DAYTONA_API_KEY=YOUR_API_KEY
 ```
 
-### Shell
+> **Notes:**
+>
+> - **Compatibility:** The SDKs and the CLI read only the process environment, not `.env` files.
+> - **Order:** Load the file into the process environment before the Daytona client starts, for example with the `python-dotenv` package in Python or with `node --env-file=.env` in Node.js.
 
 **Bash/Zsh:**
 
@@ -79,13 +80,13 @@ const sandbox = await daytonaWithConfig.v2.create({ region: 'earth' })
 | `apiKey` | Sets the API key that authenticates the client.<br />**Default:** the DAYTONA_API_KEY environment variable |
 | `jwtToken` | Sets the OIDC token of a signed-in user in place of an API key.<br />**Default:** the DAYTONA_JWT_TOKEN environment variable |
 | `projectId` | Sets the project that the JWT is scoped to.<br />**Default:** the DAYTONA_PROJECT_ID environment variable |
+| `region` | Sets the region.<br />**Default:** the project's default region, then the organization's, then `earth`<br />**Value:** `earth`, `us`, `us-east`, `us-east-ash-1`, `us-east-bos-1`, `us-east-iad-1`, or the ID of a [BYOC region](./bring-your-own-compute.md) of the organization<br />**Example:** `'earth'` |
 | `requestTimeoutSeconds` | Sets the time limit of one request in seconds.<br />**Default:** `60`<br />**Value:** `0` for no limit<br />**Example:** `120` |
-| `region` | Sets the region.<br />**Default:** the project's default region, then the organization's, then `earth`<br />**Format:** a listed region ID<br />**Example:** `'earth'` |
 
 > **Notes:**
 >
-> - The request requires the `write:sandboxes` permission.
-> - The client takes either an API key or a JWT with a project ID, not both.
+> - **Permissions:** The request requires the `write:sandboxes` permission.
+> - **Compatibility:** The client takes either an API key or a JWT with a project ID, not both.
 
 ### Close the client
 
@@ -103,7 +104,7 @@ await daytona.close()
 
 > **Notes:**
 >
-> - Declare the client with await using to close it when the scope exits.
+> - **Clients:** Declare the client with await using to close it when the scope exits.
 
 ## Authenticate the CLI
 
@@ -141,11 +142,16 @@ daytona sandbox create --api-key YOUR_API_KEY --api-url https://api.daytona.com
 
 | **Flag** | **Description** |
 | --- | --- |
-| `--device` | Signs in with a device code on a host without a browser. |
-| `--token` | Stores a static credential in the profile in place of a sign-in. |
 | `--api-key` | Sends a static credential in place of the saved login.<br />**Default:** the DAYTONA_API_KEY environment variable |
 | `--api-url` | Sets the API base URL.<br />**Default:** the DAYTONA_V2_API_URL environment variable, then the URL saved in the profile, then `https://api.daytona.com` |
+| `--device` | Signs in with a device code on a host without a browser. |
 | `--profile` | Selects a saved profile other than the active one.<br />**Default:** the DAYTONA_PROFILE environment variable, then the active profile, then the profile named default<br />**Format:** 1 to 64 ASCII letters, digits, periods, underscores, and hyphens, other than a single or double period<br />**Example:** `work` |
+| `--token` | Stores a static credential in the profile in place of a sign-in. |
+
+> **Notes:**
+>
+> - **Effects:** Logging out revokes only the API keys that the CLI created for the session, not a credential stored with --token.
+> - **Clients:** Without a terminal, daytona login signs in with a device code.
 
 ### Profiles
 
@@ -176,8 +182,9 @@ daytona profile delete work
 
 > **Notes:**
 >
-> - A profile named by --profile or DAYTONA_PROFILE must exist, unless daytona login creates it.
-> - Deleting a profile tries to revoke the CLI's API keys for it, which otherwise expire after 24 hours.
+> - **Prerequisites:** A profile named by --profile or DAYTONA_PROFILE must exist, unless daytona login creates it.
+> - **Effects:** Deleting a profile tries to revoke the CLI's API keys for it, which otherwise expire after 24 hours.
+> - **Confirmation:** daytona profile delete asks for confirmation at a terminal and requires --yes otherwise.
 
 ### Confirmation prompts
 
@@ -202,8 +209,8 @@ daytona config path
 
 > **Notes:**
 >
-> - Pass --yes or set DAYTONA_YES to `1` to confirm without a prompt, for example in scripts and CI.
-> - The config directory is DAYTONA_CONFIG_DIR when set, else the daytona directory in XDG_CONFIG_HOME, else `~/.config/daytona`.
+> - **Clients:** The config directory is DAYTONA_CONFIG_DIR when set, else the daytona directory in XDG_CONFIG_HOME, else `~/.config/daytona`.
+> - **Confirmation:** Pass --yes or set DAYTONA_YES to `1` to confirm without a prompt, for example in scripts and CI.
 
 ## Authenticate API requests
 

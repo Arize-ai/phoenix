@@ -52,7 +52,7 @@ Daytona provides default snapshots for creating sandboxes. You can also create s
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   snapshot: 'daytona-small',
 })
 ```
@@ -121,10 +121,11 @@ Create a snapshot.
 **Python:**
 
 ```python
-from daytona import Daytona, CreateSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSnapshotParams
 
 daytona = Daytona()
-snapshot = daytona.snapshot.create(
+snapshot = daytona.v0.snapshot.create(
     CreateSnapshotParams(name="my-awesome-snapshot", image="ubuntu:22.04"),
 )
 ```
@@ -135,7 +136,7 @@ snapshot = daytona.snapshot.create(
 import { Daytona } from "@daytona/sdk";
 
 const daytona = new Daytona();
-const snapshot = await daytona.snapshot.create({
+const snapshot = await daytona.v0.snapshot.create({
   name: "my-awesome-snapshot",
   image: "python:3.12",
 });
@@ -229,10 +230,11 @@ Create a Linux VM snapshot.
 2. Set the snapshot's sandbox class to **`LINUX_VM`**
 
 ```typescript
-import { Daytona, SandboxClass } from "@daytona/sdk";
+import { Daytona } from "@daytona/sdk";
+import { SandboxClass } from "@daytona/sdk/v0";
 
 const daytona = new Daytona();
-const snapshot = await daytona.snapshot.create({
+const snapshot = await daytona.v0.snapshot.create({
   name: "my-vm-snapshot",
   image: "ubuntu:22.04",
   sandboxClass: SandboxClass.LINUX_VM,
@@ -271,7 +273,7 @@ GPU snapshots on shared regions belong to the [earth region](./regions.md#earth-
 import { Daytona } from "@daytona/sdk";
 
 const daytona = new Daytona();
-const snapshot = await daytona.snapshot.create({
+const snapshot = await daytona.v0.snapshot.create({
   name: "my-gpu-snapshot",
   image: "python:3.12",
   resources: { cpu: 1, memory: 1, disk: 1, gpu: 1 },
@@ -499,7 +501,7 @@ daytona-v0 snapshot create my-awesome-snapshot --dockerfile ./Dockerfile
 Get a snapshot by name.
 
 ```typescript
-await daytona.snapshot.get('my-awesome-snapshot')
+await daytona.v0.snapshot.get('my-awesome-snapshot')
 ```
 
 ## List snapshots
@@ -507,7 +509,7 @@ await daytona.snapshot.get('my-awesome-snapshot')
 List snapshots and view their details.
 
 ```typescript
-await daytona.snapshot.list(2, 10)
+await daytona.v0.snapshot.list(2, 10)
 ```
 
 ## Activate snapshots
@@ -521,7 +523,7 @@ Snapshots automatically become inactive after 2 weeks of not being used.
 3. Click <Button>Activate</Button>
 
 ```typescript
-await daytona.snapshot.activate("my-awesome-snapshot")
+await daytona.v0.snapshot.activate("my-awesome-snapshot")
 ```
 
 ## Deactivate snapshots
@@ -545,7 +547,7 @@ Deleted snapshots cannot be recovered. Deleting a snapshot also deletes its [war
 3. Click <Button>Delete</Button>
 
 ```typescript
-await daytona.snapshot.delete(await daytona.snapshot.get("my-awesome-snapshot"))
+await daytona.v0.snapshot.delete(await daytona.v0.snapshot.get("my-awesome-snapshot"))
 ```
 
 ## Snapshot lifecycle
@@ -644,7 +646,7 @@ import { Daytona } from '@daytona/sdk'
 const daytona = new Daytona()
 
 // Create a sandbox from a Docker-in-Docker snapshot
-const sandbox = await daytona.create({ snapshot: 'docker-dind' })
+const sandbox = await daytona.v0.create({ snapshot: 'docker-dind' })
 
 // Create a docker-compose.yml file
 const composeContent = `
@@ -683,7 +685,7 @@ import { setTimeout } from 'timers/promises'
 const daytona = new Daytona()
 
 // Create the sandbox instance
-const sandbox = await daytona.create()
+const sandbox = await daytona.v0.create()
 
 // Run the k3s installation script
 const response = await sandbox.process.executeCommand(

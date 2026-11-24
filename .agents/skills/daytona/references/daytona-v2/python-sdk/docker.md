@@ -64,14 +64,13 @@ print(response.stdout)
 | **Parameter** | **Description** |
 | --- | --- |
 | `image` | Sets the registry reference that pull() registers.<br />**Required**<br />**Format:** an OCI image reference<br />**Example:** `"docker:dind"` |
-| `name` | Sets the image name.<br />**Example:** `"docker-dind"` |
-| `image` | Sets the registered image that the sandbox starts from.<br />**Format:** an image name or ID<br />**Example:** `"docker-dind"` |
+| `name` | Sets the image name, which the sandbox starts from.<br />**Example:** `"docker-dind"` |
 | `timeout` | Sets how many seconds the wait for Docker lasts.<br />**Default:** `60`<br />**Value:** `0` for no deadline<br />**Example:** `120` |
 
 > **Notes:**
 >
-> - The image must ship Docker Engine.
-> - Wait for Docker to be ready before you run Docker commands.
+> - **Prerequisites:** The image must ship Docker Engine.
+> - **Order:** Wait for Docker to be ready before you run Docker commands.
 
 ### Start modes
 
@@ -107,8 +106,8 @@ sandbox = daytona.v2.create(
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `image` | Sets the registered image that the sandbox starts from.<br />**Format:** an image name or ID<br />**Example:** `"docker-dind"` |
 | `env` | Sets environment variables inside the sandbox.<br />**Format:** names of letters, digits, and underscores that do not start with a digit<br />**Example:** `{"DAYTONA_DOCKER_START": "entrypoint"}` |
+| `image` | Sets the registered image that the sandbox starts from.<br />**Format:** an image name or ID<br />**Example:** `"docker-dind"` |
 
 ## Get Docker status
 
@@ -175,8 +174,7 @@ except DockerWaitTimeoutError as e:
 
 > **Notes:**
 >
-> - The wait also ends when Docker is `failed`, `not_present`, `disabled`, `unmanaged`, or `unsupported`, because these states do not become `ready` in the current boot.
-> - The wait keeps polling while Docker is `deferred`, and Docker deferred with reason `function-ready-template` stays deferred for the whole boot.
+> - **Polling:** The wait also ends when Docker is `failed`, `not_present`, `disabled`, `unmanaged`, or `unsupported`, because these states do not become `ready` in the current boot. The wait keeps polling while Docker is `deferred`, and Docker deferred with reason `function-ready-template` stays deferred for the whole boot.
 
 ## Docker logs
 
@@ -205,8 +203,8 @@ if status.process_id:
 
 > **Notes:**
 >
-> - When the status owner is `daemon`, the process alias `dockerd` stays readable after Docker exits.
-> - When the owner is `entrypoint`, Docker's output is in the logs of the image entrypoint.
+> - **Results:** When the owner is `entrypoint`, Docker's output is in the logs of the image entrypoint.
+> - **Behaviour:** When the status owner is `daemon`, the process alias `dockerd` stays readable after Docker exits.
 
 ## Docker storage
 

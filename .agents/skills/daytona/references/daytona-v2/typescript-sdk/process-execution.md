@@ -67,7 +67,7 @@ Set the user and shell to control which account runs a command and which program
 
 A command in a sandbox runs as a user of its image, under a shell from that image.
 
-Set the user to run a command as a specific account, and set the shell when the command needs the syntax of a specific shell. The user must exist in the image, and the shell must be installed in it. Without a shell setting, the command runs in bash, or in sh if bash is not installed. The CLI has no shell setting, so pass the shell as the program to run.
+Set the user to run a command as a specific account, and set the shell when the command needs the syntax of a specific shell. The user must exist in the image, and the shell must be installed in it. The CLI has no shell setting, so run the shell as the program instead.
 
 ```typescript
 import { Daytona } from '@daytona/sdk'
@@ -81,12 +81,12 @@ console.log(response.output)
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `user` | Sets the OS user that runs the command.<br />**Example:** `'nobody'` |
 | `shell` | Sets the shell that runs the command.<br />**Default:** `bash`, or `sh` if bash is not installed<br />**Format:** a path, or a name looked up on PATH<br />**Example:** `'sh'` |
+| `user` | Sets the OS user that runs the command.<br />**Example:** `'nobody'` |
 
 > **Notes:**
 >
-> - The user must exist in the image, and the shell must be installed in it.
+> - **Prerequisites:** The user must exist in the image, and the shell must be installed in it.
 
 ### Update the environment
 
@@ -111,13 +111,12 @@ console.log(response.stdout)
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `env` | Adds or replaces environment variables.<br />**Maximum:** under 128 KiB per KEY=VALUE entry, 1 MiB for all variables added to the sandbox, and for the whole environment 32,767 UTF-16 characters on Windows or 512 KiB on macOS<br />**Format:** non-empty names without =, NUL, or line breaks, not starting with RLP_ or DAYTONA_, and values without NUL<br />**Example:** `{ LOG_LEVEL: 'debug' }` |
-| `unset` | Removes environment variables set by an earlier update or when the sandbox was created.<br />**Format:** names in the same format as in env<br />**Example:** `['HTTP_PROXY']` |
+| `env` | Adds or replaces environment variables.<br />**Maximum:** under 128 KiB per KEY=VALUE entry, 1 MiB for all variables added to the sandbox, and for the whole environment 32,767 UTF-16 characters on Windows or 512 KiB on macOS<br />**Format:** non-empty names without =, NUL, or line breaks, not starting with RLP_ or DAYTONA_, and values without NUL<br />**Rules:** no name that is also in unset<br />**Example:** `{ LOG_LEVEL: 'debug' }` |
+| `unset` | Removes environment variables set by an earlier update or when the sandbox was created.<br />**Format:** names in the same format as in env<br />**Rules:** no name that is also in env<br />**Example:** `['HTTP_PROXY']` |
 
 > **Notes:**
 >
-> - The names starting with DAYTONA_ that an update accepts are DAYTONA_SANDBOX_TOKEN, DAYTONA_API_URL, DAYTONA_OTEL_ENDPOINT, DAYTONA_DOCKER_START, DAYTONA_FN_PORT, and DAYTONA_FN_HANDLER.
-> - A name cannot be in both env and unset.
+> - **Compatibility:** The names starting with DAYTONA_ that an update accepts are DAYTONA_SANDBOX_TOKEN, DAYTONA_API_URL, DAYTONA_OTEL_ENDPOINT, DAYTONA_DOCKER_START, DAYTONA_FN_PORT, and DAYTONA_FN_HANDLER.
 
 ### Execute interactive commands
 
@@ -155,7 +154,7 @@ console.log(wait.exitCode)
 
 > **Notes:**
 >
-> - Write the input and close stdin while the command runs; an exited process accepts no input.
+> - **Order:** Write the input and close stdin while the command runs; an exited process accepts no input.
 
 ## Process control
 
@@ -319,9 +318,9 @@ await handle.kill()
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `signal` | Sets the signal to send.<br />**Default:** `'TERM'`<br />**Value:** `'TERM'`, `'KILL'`, `'INT'`, `'HUP'`, `'QUIT'`, `'USR1'`, or `'USR2'`<br />**Example:** `'INT'` |
-| `escalateAfterSeconds` | Sets how many seconds to wait before sending the escalation signal to a process that still runs.<br />**Maximum:** `600`<br />**Example:** `5` |
+| `escalateAfterSeconds` | Sets how many seconds to wait before sending the escalation signal to a process that still runs.<br />**Minimum:** `0`<br />**Maximum:** `600`<br />**Example:** `5` |
 | `escalateTo` | Sets the escalation signal.<br />**Default:** `'KILL'`<br />**Value:** `'TERM'`, `'KILL'`, `'INT'`, `'HUP'`, `'QUIT'`, `'USR1'`, or `'USR2'`<br />**Example:** `'QUIT'` |
+| `signal` | Sets the signal to send.<br />**Default:** `'TERM'`<br />**Value:** `'TERM'`, `'KILL'`, `'INT'`, `'HUP'`, `'QUIT'`, `'USR1'`, or `'USR2'`<br />**Example:** `'INT'` |
 
 ### Stop processes by tag
 
@@ -351,8 +350,8 @@ console.log(stopped)
 
 > **Notes:**
 >
-> - The sandbox must be a Linux sandbox with process containment.
-> - The call is safe to repeat when processes under the tag are still running at the timeout, or when another start or stop under that tag is still in progress.
+> - **Prerequisites:** The sandbox must be a Linux sandbox with process containment.
+> - **Recovery:** The call is safe to repeat when processes under the tag are still running at the timeout, or when another start or stop under that tag is still in progress.
 
 ### Reconnect to a process
 
@@ -383,8 +382,8 @@ const result = await reconnected.wait()
 
 > **Notes:**
 >
-> - `connect()` sends no request.
-> - A process name resolves only while the process runs, so reconnect by ID after it exits.
+> - **Lifetime:** A process name resolves only while the process runs, so reconnect by ID after it exits.
+> - **Clients:** `connect()` sends no request.
 
 ### Entrypoint process
 
@@ -444,14 +443,14 @@ console.log(session.id)
 | --- | --- |
 | `cwd` | Sets the working directory of the shell.<br />**Default:** the sandbox's default working directory<br />**Example:** `'/tmp'` |
 | `env` | Sets environment variables for the shell.<br />**Example:** `{ CI: '1' }` |
-| `shell` | Sets the shell of the session.<br />**Default:** `bash`, or `sh` if bash is not installed<br />**Format:** a path or name of a POSIX shell<br />**Value:** `bash`, `sh`, `dash`, `zsh`, or `ksh`<br />**Example:** `'zsh'` |
 | `login` | Starts the shell as a login shell. |
 | `name` | Sets a name that replaces the session ID in requests while the session runs.<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, other than a single or double period, entrypoint, or dockerd<br />**Example:** `'build-session'` |
+| `shell` | Sets the shell of the session.<br />**Default:** `bash`, or `sh` if bash is not installed<br />**Format:** a path or name of a POSIX shell<br />**Value:** `bash`, `sh`, `dash`, `zsh`, or `ksh`<br />**Example:** `'zsh'` |
 | `tag` | Sets the tag that every command in the session takes.<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, other than a single or double period<br />**Example:** `'build'` |
 
 > **Notes:**
 >
-> - The shell must be installed in the image.
+> - **Prerequisites:** The shell must be installed in the image.
 
 ### Execute session commands
 
@@ -481,9 +480,9 @@ await command.kill({ signal: 'INT' })
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `timeoutSeconds` | Sets how many seconds run() waits for the command to exit.<br />**Default:** no limit<br />**Value:** `0` for no limit<br />**Example:** `60` |
 | `executionTimeoutSeconds` | Sets how many seconds the command can run before Daytona stops it.<br />**Value:** `0` for no limit<br />**Example:** `30` |
 | `name` | Sets a name for the command process.<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, other than a single or double period, entrypoint, or dockerd<br />**Example:** `'print-stage'` |
+| `timeoutSeconds` | Sets how many seconds run() waits for the command to exit.<br />**Default:** no limit<br />**Value:** `0` for no limit<br />**Example:** `60` |
 
 ### Reconnect to a session
 
@@ -515,7 +514,7 @@ const result = await reconnected.run('pwd')
 
 > **Notes:**
 >
-> - Reconnect through the process module of the sandbox that the session belongs to.
+> - **Clients:** Reconnect through the process module of the sandbox that the session belongs to.
 
 ### Get session status
 
@@ -620,7 +619,7 @@ Resource management is the release of what a program holds once the program no l
 
 A process in a sandbox that is kept until cleanup holds its record and logs until it is deleted. Deleting the process removes both, and stops the process first if it still runs.
 
-Delete a process kept until cleanup when you no longer need its record and logs. The API applies this policy to sessions and to named processes. The SDKs apply it to PTYs and sessions, and to other processes only when you pass it. The entrypoint process cannot be deleted.
+Delete a process kept until cleanup when you no longer need its record and logs. The API applies this policy to sessions and to named processes. The SDKs apply it to PTYs and sessions, and to other processes only when the request sets it. The entrypoint process cannot be deleted.
 
 ```typescript
 import { Daytona } from '@daytona/sdk';
@@ -638,8 +637,8 @@ try {
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `name` | Sets a name that replaces the process ID in requests while the process runs.<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, other than a single or double period, entrypoint, or dockerd<br />**Example:** `"my-process"` |
 | `keepLogs` | Sets how long the record and logs are kept after the process exits.<br />**Default:** `"on_exit_ttl"`<br />**Value:** `"until_cleanup"`, `"on_exit_ttl"`, or `"none"`<br />**Example:** `"until_cleanup"` |
+| `name` | Sets a name that replaces the process ID in requests while the process runs.<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, other than a single or double period, entrypoint, or dockerd<br />**Example:** `"my-process"` |
 
 ## Permissions
 

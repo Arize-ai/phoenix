@@ -96,6 +96,7 @@ from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
 from phoenix.server.api.auth_messages import AUTH_ERROR_MESSAGES, AuthErrorCode
 from phoenix.server.api.context import Context, build_context
 from phoenix.server.api.dataloaders import CacheForDataLoaders
+from phoenix.server.api.dataloaders.batch import install_cancellation_tracking_batch
 from phoenix.server.api.redaction import RedactingOpenTelemetryExtension
 from phoenix.server.api.routers import (
     AgentSessionConflict,
@@ -1103,6 +1104,7 @@ def create_app(
     if grpc_host is None:
         grpc_host = get_env_host()
     verify_server_environment_variables()
+    install_cancellation_tracking_batch()
     _validate_oauth2_idp_names(oauth2_client_configs or [])
     bulk_inserter_factory = bulk_inserter_factory or BulkInserter
     startup_callbacks_list: list[_Callback] = list(startup_callbacks)

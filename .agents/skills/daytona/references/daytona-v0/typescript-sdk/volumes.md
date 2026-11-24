@@ -46,7 +46,7 @@ This is the default pattern we recommend because it:
 import { Daytona } from "@daytona/sdk";
 
 const daytona = new Daytona();
-const volume = await daytona.volume.create("my-awesome-volume");
+const volume = await daytona.v0.volume.create("my-awesome-volume");
 ```
 
 ## Wait for a volume to be ready
@@ -57,11 +57,11 @@ Wait until a newly created volume reaches the `ready` state before mounting it t
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-let volume = await daytona.volume.create('my-awesome-volume')
+let volume = await daytona.v0.volume.create('my-awesome-volume')
 
 while (volume.state !== 'ready') {
   await new Promise((resolve) => setTimeout(resolve, 1000))
-  volume = await daytona.volume.get('my-awesome-volume')
+  volume = await daytona.v0.volume.get('my-awesome-volume')
 }
 ```
 
@@ -89,11 +89,11 @@ When you set `subpath`, the value must meet the following requirements:
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const volume = await daytona.volume.get('my-awesome-volume', true)
+const volume = await daytona.v0.volume.get('my-awesome-volume', true)
 const mountDir = '/home/daytona/volume'
 
 // Recommended for per-user / per-tenant data: one volume, unique subpath per sandbox
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   language: 'typescript',
   volumes: [
     { volumeId: volume.id, mountPath: mountDir, subpath: 'users/alice' },
@@ -101,7 +101,7 @@ const sandbox = await daytona.create({
 })
 
 // Entire volume at mount path (omit subpath) when all sandboxes should share the same tree
-const sandboxShared = await daytona.create({
+const sandboxShared = await daytona.v0.create({
   language: 'typescript',
   volumes: [{ volumeId: volume.id, mountPath: mountDir }],
 })
@@ -120,7 +120,7 @@ await sandbox.fs.uploadFile(
 
 // When you're done with the sandbox, you can remove it
 // The volume will persist even after the sandbox is removed
-await daytona.delete(sandbox)
+await daytona.v0.delete(sandbox)
 ```
 
 ## Get a volume by name
@@ -128,7 +128,7 @@ await daytona.delete(sandbox)
 Get a volume by its name.
 
 ```typescript
-await daytona.volume.get('my-awesome-volume', true)
+await daytona.v0.volume.get('my-awesome-volume', true)
 ```
 
 ## Get a volume by ID
@@ -147,7 +147,7 @@ curl 'https://app.daytona.io/api/volumes/<VOLUME_ID>' \
 List all volumes.
 
 ```typescript
-await daytona.volume.list()
+await daytona.v0.volume.list()
 ```
 
 ## Delete volumes
@@ -161,7 +161,7 @@ A volume can be deleted only when it is in the `ready` or `error` state and is n
 3. Confirm the deletion
 
 ```typescript
-await daytona.volume.delete(volume)
+await daytona.v0.volume.delete(volume)
 ```
 
 ## Share data between sandboxes
@@ -176,19 +176,19 @@ Sandboxes that mount the same volume see writes immediately, but FUSE-backed vol
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const volume = await daytona.volume.get('shared-data', true)
+const volume = await daytona.v0.volume.get('shared-data', true)
 const mountDir = '/home/daytona/volume'
 
 // Producer: write data into the volume, then delete the sandbox
-const producer = await daytona.create({
+const producer = await daytona.v0.create({
   language: 'typescript',
   volumes: [{ volumeId: volume.id, mountPath: mountDir }],
 })
 await producer.fs.uploadFile(Buffer.from('shared payload'), `${mountDir}/payload.bin`)
-await daytona.delete(producer)
+await daytona.v0.delete(producer)
 
 // Consumer: a separate sandbox mounts the same volume by ID and reads the data
-const consumer = await daytona.create({
+const consumer = await daytona.v0.create({
   language: 'typescript',
   volumes: [{ volumeId: volume.id, mountPath: mountDir }],
 })
@@ -201,10 +201,10 @@ console.log(data.toString())
 Mount more than one volume to a single sandbox by passing entries in the `volumes` list. Use this pattern to combine shared assets, models, or datasets in one volume with separate per-application or per-user state in another, exposed at distinct mount paths.
 
 ```typescript
-const sharedAssets = await daytona.volume.get('shared-assets', true)
-const logs = await daytona.volume.get('logs', true)
+const sharedAssets = await daytona.v0.volume.get('shared-assets', true)
+const logs = await daytona.v0.volume.get('logs', true)
 
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   language: 'typescript',
   volumes: [
     { volumeId: sharedAssets.id, mountPath: '/home/daytona/assets' },
@@ -220,18 +220,18 @@ Isolate per-tenant or per-user data inside a single shared volume by setting a u
 Isolation is enforced at the FUSE mount boundary. Each sandbox sees its assigned subpath as the volume root, so a sandbox mounted at `users/alice` cannot reach `users/bob` through relative paths such as `../bob`.
 
 ```typescript
-const volume = await daytona.volume.get('tenants', true)
+const volume = await daytona.v0.volume.get('tenants', true)
 const mountDir = '/home/daytona/data'
 
 // Tenant A
-const aliceSandbox = await daytona.create({
+const aliceSandbox = await daytona.v0.create({
   language: 'typescript',
   volumes: [{ volumeId: volume.id, mountPath: mountDir, subpath: 'users/alice' }],
 })
 await aliceSandbox.fs.uploadFile(Buffer.from("alice's data"), `${mountDir}/notes.txt`)
 
 // Tenant B sees only its own subpath; alice's notes.txt is invisible
-const bobSandbox = await daytona.create({
+const bobSandbox = await daytona.v0.create({
   language: 'typescript',
   volumes: [{ volumeId: volume.id, mountPath: mountDir, subpath: 'users/bob' }],
 })

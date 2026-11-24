@@ -18,30 +18,35 @@ Agents and developers interact with sandboxes programmatically using the SDKs, A
 > **Tip: Daytona v2**
 > Daytona v2 is the next version of the Daytona platform: [daytona.com/docs](https://www.daytona.com/docs).
 >
-> To move from Daytona v0 to Daytona v2, [upgrade to Daytona v2](./upgrade-to-v2.md).
+> Upgrading the Daytona SDKs to version 2.1.0 introduces **namespaces**:
+>
+> - Daytona v0 (**`v0`**): **`daytona.v0.create()`**, **`daytona.v0.{method}()`**
+>
+> To move workloads from Daytona v0 to Daytona v2, [upgrade to Daytona v2](./upgrade-to-v2.md).
+>
+> - Daytona v2 (**`v2`**): **`daytona.v2.create()`**, **`daytona.v2.{method}()`**
 
-<AgentPrompt
-  title="Agent Prompt"
-  prompt={`
+## Get started
+
+**Agent Prompt:**
+
+```text
 Help me set up Daytona in this project. Before writing any Daytona code, verify the setup:
 
 1. Check that the Daytona SDK is installed for the language used in this project. If not, install it.
 
-    Python: \`pip install "daytona<1"\`
-    TypeScript: \`npm install @daytona/sdk@0\`
-    Ruby: \`gem install daytona\`
-    Go: \`go get github.com/daytona/clients/sdk-go\`
-    Java: add the \`io.daytona:sdk\` dependency to \`build.gradle.kts\` or \`pom.xml\`
+    Python: `pip install "daytona[v0-sdk]>=2,<3"`
+    TypeScript: `npm install @daytona/sdk@2`
+    Ruby: `gem install daytona`
+    Go: `go get github.com/daytona/clients/sdk-go`
+    Java: add the `io.daytona:sdk` dependency to `build.gradle.kts` or `pom.xml`
 
 2. Check DAYTONA_API_KEY in the shell environment or in environment files. If not set, tell the user they need an API key and point them to https://app.daytona.io/dashboard/keys to create one.
 
-3. Write a script that initializes the Daytona client, creates a sandbox, runs a "Hello World" program inside it, captures the output, and deletes the sandbox.
+3. Write a script that initializes the Daytona client, creates a sandbox, runs a "Hello World" program inside it, captures the output, and deletes the sandbox. In Python and TypeScript, call every client method through the `v0` namespace, for example `daytona.v0.create()`.
 
 4. Run the script to verify the sandbox works.
-`}
-/>
-
-## Get started
+```
 
 1. Create an account → [app.daytona.io](https://app.daytona.io)
 2. Get an API key → [app.daytona.io/dashboard/keys](https://app.daytona.io/dashboard/keys)

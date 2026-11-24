@@ -15,27 +15,28 @@ Billing covers your [wallet](#wallet) and [spending](#spending). It is pay-as-yo
 
 ## Sandbox billing
 
-Daytona meters each sandbox per second for three resources, from the moment the sandbox starts until it is stopped, paused, or deleted. An ephemeral Linux sandbox cannot be stopped or paused, so it is metered until it is deleted. Each resource is priced per hour. macOS sandboxes are not metered; their [Mac reservation](../python-sdk/macos-sandboxes.md#mac-reservations) is charged instead.
+Daytona bills the compute, memory, GPUs, and operating system of each running sandbox per second, and volumes for the data they store, with each rate priced per hour. See [pricing](https://www.daytona.com/pricing) for the prices.
 
-| **Resource** | **Unit**  | **Billed quantity**                                                                          |
-| ------------ | --------- | -------------------------------------------------------------------------------------------- |
-| **CPU**      | core-hour | The greater of measured CPU time and the guaranteed `cpu` reservation over the same window   |
-| **Memory**   | GiB-hour  | The greater of measured memory and the guaranteed `memory_mib` reservation over the same window |
-| **Disk**     | GiB-hour  | Measured disk in use                                                                         |
+| **Rate** | **Unit** | **Billed for** |
+| --- | --- | --- |
+| **Compute** | Core per hour | The CPU guarantee, or the CPU the sandbox uses when it uses more, at the price of its CPU type |
+| **Memory** | GiB per hour | The memory guarantee, or the memory the sandbox uses when it uses more |
+| **Ephemeral disk** | GiB per hour | Nothing, since the NVMe SSD disk of a sandbox is free |
+| [**Volumes**](../python-sdk/volumes.md) | GiB per hour | The data stored, at the on-demand price only |
+| **GPU** | GPU per hour | Each GPU attached to the sandbox |
+| **Operating system** | Core per hour | Nothing on Linux, and each core on macOS and Windows |
+| [**Mac reservation**](../python-sdk/macos-sandboxes.md#mac-reservations) | Mac per 24 hours | Each reserved Mac, paid when each 24-hour period starts |
 
-CPU and memory usage within the guarantee is billed at the guarantee; usage above it, up to the sandbox's [resource limits](../python-sdk/limits.md#sandbox-limits), is billed as measured. A sandbox with a fixed shape, where every limit equals its request, is billed for its full CPU and memory reservation, since usage never exceeds it. Disk, unlike CPU and memory, is always billed as measured. Stopped, paused, and deleted sandboxes are not metered for CPU, memory, or disk. [Bucket volume](../python-sdk/volumes.md) traffic is billed per uploaded GiB, downloaded GiB, and 1,000 requests, independent of sandbox class.
-
-### Pricing dimensions
-
-Each resource's price depends on what you requested at creation. Each dimension multiplies the base price; the multipliers compound. The CPU type multiplier applies to CPU usage only.
-
-| **Dimension**     | **Parameter**   | **Values**                                                                                                                                                 |
-| ----------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Region            | `region`        | Each region's own multiplier; `earth` (`1.0`) is the base price. See [region price multipliers](../python-sdk/regions.md#list-region-price-multipliers)          |
-| Spot              | `spot`          | `false` (`1.0`), `true` (`0.7`)                                                                                                                            |
-| CPU type          | `cpu_type`      | Not requested, `zen3`, `arrowlake1`, `graviton`, `graviton3`, `graviton4` (`1.0`); `zen4`, `arrowlake2` (`1.6667`); `zen5`, `zen5c` (`2.3313`) |
-
-A sandbox that omits a hardware preference is billed at the baseline for that dimension, even if placement lands on premium hardware. Forked and restored sandboxes inherit the preferences of their source. See [Linux sandbox parameters](../python-sdk/linux-sandboxes.md#create-a-linux-sandbox) for how to set these values.
+| **Factor** | **Effect on the bill** |
+| --- | --- |
+| **Running** | Billed per second for every rate except Mac reservations |
+| **Stopped or paused** | Not billed for compute, memory, GPUs, or the operating system, while its volumes stay billed |
+| **Deleted** | Not billed |
+| [**Preemptible**](../python-sdk/preemption.md#spot-sandboxes) | A lower price than on demand for every rate except volumes and Mac reservations |
+| **CPU type** | One of three compute price tiers: AMD Zen 3, Intel Ice Lake, AWS Graviton 4, and Apple M4; AMD Zen 4, Intel Rapids, AWS Graviton 5, and Apple M4 Pro; AMD Zen 5 and Apple M5 Pro |
+| [**Region**](../python-sdk/regions.md#list-region-price-multipliers) | Set by the price multiplier of the region you request |
+| **Core** | 2 vCPUs where SMT is available and enabled, and 1 vCPU otherwise |
+| [**Free credits**](#credit-balances) | Used before paid credits for every rate except GPUs, with a one-time grant on Starter and a monthly grant on Team that expires at the end of each billing period |
 
 ## Plan
 
@@ -52,6 +53,10 @@ daytona billing plan get --org ORGANIZATION_ID
 daytona billing plan list --org ORGANIZATION_ID
 ```
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+
 **API:**
 
 ```bash
@@ -63,9 +68,13 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/billing/plans' \
   --header 'Authorization: Bearer YOUR_OIDC_TOKEN'
 ```
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+
 ### Change the plan
 
-Change the plan. Self-serve changes switch between the Starter and Team plans; the Enterprise plan is arranged with sales. The Team plan has a monthly fee of $250, billed in advance, and includes $100 of monthly credits that expire at the end of the billing period. A change to Team applies immediately; a pre-paid organization needs a payment method on file first. A change to Starter takes effect at the end of the billing period and shows as pending until then.
+Change the plan. Self-serve changes switch between the Starter and Team plans; the Enterprise plan is arranged with sales. The Team plan has a monthly fee, billed in advance, and includes monthly credits that expire at the end of the billing period. See [pricing](https://www.daytona.com/pricing) for the amounts. A change to Team applies immediately; a pre-paid organization needs a payment method on file first. A change to Starter takes effect at the end of the billing period and shows as pending until then.
 
 **CLI:**
 
@@ -80,8 +89,8 @@ daytona billing plan set team --org ORGANIZATION_ID
 
 > **Notes:**
 >
-> - A pre-paid organization must have a payment method on file to change to the Team plan.
-> - The command asks for confirmation at a terminal and requires --yes otherwise.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. A pre-paid organization must have a payment method on file to change to the Team plan.
+> - **Confirmation:** The command asks for confirmation at a terminal and requires --yes otherwise.
 
 **API:**
 
@@ -99,7 +108,7 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/billing/plan' \
 
 > **Notes:**
 >
-> - A pre-paid organization must have a payment method on file to change to the Team plan.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. A pre-paid organization must have a payment method on file to change to the Team plan.
 
 ## Wallet
 
@@ -124,6 +133,10 @@ daytona billing coupon redeem COUPON_CODE --org ORGANIZATION_ID
 | --- | --- |
 | `<code>` | Sets the coupon code.<br />**Required**<br />**Format:** 1 to 64 letters, digits, underscores, and hyphens |
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+
 **API:**
 
 ```bash
@@ -138,6 +151,10 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/billing/coupons/redeem' \
 | --- | --- |
 | `code` | Sets the coupon code.<br />**Required**<br />**Format:** 1 to 64 letters, digits, underscores, and hyphens |
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+
 ### Balance
 
 Balance displays the credit balances available to your organization.
@@ -150,7 +167,7 @@ Balance displays the credit balances available to your organization.
 | **Spent this month**      | Usage charged in the current billing period.                              |
 | **Amount due this month** | The open amount of the current invoice, shown only when non-zero.         |
 
-Daytona consumes free credits before paid credits. When both balances are exhausted, the paid balance shows the amount due as a negative number.
+The balance of an organization is its free credits and its paid credits, and free credits are consumed first. When both are exhausted, the paid balance shows the amount due as a negative number.
 
 1. Go to [Daytona Wallet ↗](https://app.daytona.com/dashboard/billing/wallet)
 2. Navigate to the **Balance** section
@@ -161,12 +178,18 @@ Daytona consumes free credits before paid credits. When both balances are exhaus
 daytona billing wallet --org ORGANIZATION_ID
 ```
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+
 **API:**
 
 ```bash
 curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/billing/wallet' \
   --header 'Authorization: Bearer YOUR_OIDC_TOKEN'
 ```
+
+**Response:**
 
 ```json
 {
@@ -180,6 +203,10 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/billing/wallet' \
   "automatic_top_up": { "enabled": true, "threshold_cents": 2000, "target_cents": 10000, "currency": "usd" }
 }
 ```
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 ### Credit balances
 
@@ -207,9 +234,13 @@ daytona billing balances --org ORGANIZATION_ID --limit 25
 
 | **Flag** | **Description** |
 | --- | --- |
-| `--limit` | Sets the page size.<br />**Default:** `25`<br />**Minimum:** `1`<br />**Maximum:** `100` |
-| `--cursor` | Continues from a previous page. |
 | `--all` | Reads every page. |
+| `--cursor` | Continues from a previous page. |
+| `--limit` | Sets the page size.<br />**Default:** `25`<br />**Minimum:** `1`<br />**Maximum:** `100` |
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 **API:**
 
@@ -221,12 +252,16 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/billing/balances?limit=25' \
 
 | **Field** | **Description** |
 | --- | --- |
-| `limit` | Sets the page size.<br />**Minimum:** `1`<br />**Maximum:** `100`<br />**Example:** `25` |
 | `cursor` | Continues from a previous page. |
+| `limit` | Sets the page size.<br />**Minimum:** `1`<br />**Maximum:** `100`<br />**Example:** `25` |
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 ### Balance notification
 
-Balance notification emails the organization's billing contact when the balance drops below a threshold, or the creator when none is set. The threshold is from 500 to 5,000,000 cents.
+Balance notification emails the organization's billing contact when the balance drops below a threshold, or the creator when none is set.
 
 1. Go to [Daytona Wallet ↗](https://app.daytona.com/dashboard/billing/wallet)
 2. Navigate to the **Balance notification** section
@@ -259,7 +294,8 @@ daytona billing balance-notification delete --org ORGANIZATION_ID
 
 > **Notes:**
 >
-> - daytona billing balance-notification delete prompts at a terminal and requires --yes elsewhere.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+> - **Confirmation:** daytona billing balance-notification delete prompts at a terminal and requires --yes elsewhere.
 
 **API:**
 
@@ -297,6 +333,10 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/billing/balance-notification'
 | `threshold_cents` | Sets the balance in cents below which the notification is sent.<br />**Required**<br />**Minimum:** `500`<br />**Maximum:** `5000000`<br />**Example:** `1000` |
 | `email` | Sets the billing contact email for notifications and receipts.<br />**Value:** `null` for the default contact<br />**Example:** `"finance@example.com"` |
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+
 ### Billing information
 
 Billing information displays the name, email, phone number, and address on file with the payment provider. It is read-only in the dashboard; edit it through the billing portal.
@@ -311,12 +351,20 @@ Billing information displays the name, email, phone number, and address on file 
 daytona billing profile --org ORGANIZATION_ID
 ```
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+
 **API:**
 
 ```bash
 curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/billing/profile' \
   --header 'Authorization: Bearer YOUR_OIDC_TOKEN'
 ```
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 ### Payment method
 
@@ -339,6 +387,10 @@ daytona billing payment-method-session --org ORGANIZATION_ID
 daytona billing portal-session --org ORGANIZATION_ID
 ```
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+
 **API:**
 
 ```bash
@@ -356,9 +408,13 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/billing/portal-sessions' \
   --header 'Authorization: Bearer YOUR_OIDC_TOKEN'
 ```
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+
 ### Automatic top-up
 
-Automatic top-up adds credits to your wallet when the balance drops below a threshold. Amounts are in cents: the threshold must be at least 1000 cents ($10), and the target must exceed it by at least 1000 cents. Automatic top-up is available for pre-paid organizations and is disabled after a failed payment; update the payment method and enable it again.
+Automatic top-up adds credits to your wallet when the balance drops below a threshold. Automatic top-up is available for pre-paid organizations and is disabled after a failed payment; update the payment method and enable it again.
 
 1. Go to [Daytona Wallet ↗](https://app.daytona.com/dashboard/billing/wallet)
 2. Navigate to the **Automatic top-up** section
@@ -385,8 +441,8 @@ daytona billing automatic-top-up delete --org ORGANIZATION_ID
 
 > **Notes:**
 >
-> - The organization must be pre-paid.
-> - Setting and removing the setting ask for confirmation at a terminal and require --yes otherwise.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. The organization must be pre-paid.
+> - **Confirmation:** Setting and removing the setting ask for confirmation at a terminal and require --yes otherwise.
 
 **API:**
 
@@ -415,11 +471,11 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/billing/automatic-top-up' \
 
 > **Notes:**
 >
-> - The organization must be pre-paid.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. The organization must be pre-paid.
 
 ### One time top-up
 
-One time top-up buys wallet credits by card on a hosted checkout page. The minimum is $10 (1000 cents) and the maximum $999,999.99. A payment method must be on file.
+One time top-up buys wallet credits by card on a hosted checkout page. A payment method must be on file.
 
 1. Go to [Daytona Wallet ↗](https://app.daytona.com/dashboard/billing/wallet)
 2. Navigate to the **One-time top-up** section
@@ -438,6 +494,10 @@ daytona billing top-up 5000 --org ORGANIZATION_ID
 | --- | --- |
 | `[amount-cents]` | Sets the top-up amount in cents.<br />**Minimum:** `1000`<br />**Maximum:** `99999999`<br />**Example:** `5000` |
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+
 **API:**
 
 ```bash
@@ -452,6 +512,10 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/billing/top-up-sessions' \
 | **Field** | **Description** |
 | --- | --- |
 | `amount_cents` | Sets the top-up amount in cents.<br />**Required**<br />**Minimum:** `1000`<br />**Maximum:** `99999999`<br />**Example:** `5000` |
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 ### Invoices
 
@@ -487,8 +551,12 @@ daytona billing invoice payment-session INVOICE_ID --org ORGANIZATION_ID
 
 | **Flag** | **Description** |
 | --- | --- |
-| `--unpaid` | Lists only unpaid invoices. |
 | `--out` | Writes the PDF to a file in place of standard output.<br />**Example:** `invoice.pdf` |
+| `--unpaid` | Lists only unpaid invoices. |
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 **API:**
 
@@ -511,8 +579,12 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/billing/invoices/INVOICE_ID/p
 
 | **Field** | **Description** |
 | --- | --- |
-| `unpaid` | Lists only unpaid invoices.<br />**Default:** `false` |
 | `cursor` | Continues from a previous page. |
+| `unpaid` | Lists only unpaid invoices.<br />**Default:** `false` |
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 ### Charges
 
@@ -531,6 +603,10 @@ Charges displays all payment attempts made on your organization, including attem
 daytona billing charges --org ORGANIZATION_ID
 ```
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+
 **API:**
 
 ```bash
@@ -541,6 +617,10 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/billing/charges/CHARGE_ID/pdf
   --header 'Authorization: Bearer YOUR_OIDC_TOKEN' \
   --output receipt.pdf
 ```
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 ## Spending
 
@@ -574,9 +654,9 @@ curl 'https://api.daytona.com/usage/report?start_at=2026-09-01T00:00:00Z&end_at=
 
 | **Field** | **Description** |
 | --- | --- |
-| `start_at` | Sets the inclusive start of the window.<br />**Default:** 24 hours before end_at<br />**Format:** an RFC 3339 timestamp<br />**Example:** `2026-09-01T00:00:00Z` |
 | `end_at` | Sets the exclusive end of the window.<br />**Default:** the current time<br />**Format:** an RFC 3339 timestamp<br />**Example:** `2026-09-08T00:00:00Z` |
 | `resolution` | Sets the interval that usage is grouped by.<br />**Default:** `hour`<br />**Value:** `hour` or `day`<br />**Example:** `day` |
+| `start_at` | Sets the inclusive start of the window.<br />**Default:** 24 hours before end_at<br />**Format:** an RFC 3339 timestamp<br />**Example:** `2026-09-01T00:00:00Z` |
 
 ### Usage timeline
 
@@ -602,7 +682,7 @@ daytona sandbox usage SANDBOX_ID --history
 
 > **Notes:**
 >
-> - Usage history requires a Linux sandbox.
+> - **Prerequisites:** Usage history requires a Linux sandbox.
 
 **API:**
 
@@ -618,9 +698,9 @@ curl 'https://api.daytona.com/sandboxes/SANDBOX_ID/usage/history?resolution=hour
 
 | **Field** | **Description** |
 | --- | --- |
+| `end_at` | Sets the exclusive end of the window.<br />**Default:** the current time<br />**Format:** an RFC 3339 timestamp<br />**Example:** `2026-09-02T00:00:00Z` |
 | `resolution` | Sets the interval that usage history is grouped by.<br />**Default:** `minute`<br />**Value:** `minute` or `hour`<br />**Example:** `hour` |
 | `start_at` | Sets the inclusive start of the window.<br />**Default:** 24 hours before end_at<br />**Format:** an RFC 3339 timestamp<br />**Example:** `2026-09-01T00:00:00Z` |
-| `end_at` | Sets the exclusive end of the window.<br />**Default:** the current time<br />**Format:** an RFC 3339 timestamp<br />**Example:** `2026-09-02T00:00:00Z` |
 
 ### Billing period
 
@@ -643,6 +723,10 @@ daytona billing usage-periods --org ORGANIZATION_ID --limit 3
 | --- | --- |
 | `--limit` | Sets the page size.<br />**Default:** `12`<br />**Minimum:** `1`<br />**Maximum:** `60` |
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+
 **API:**
 
 ```bash
@@ -650,6 +734,8 @@ daytona billing usage-periods --org ORGANIZATION_ID --limit 3
 curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/billing/usage-periods?limit=3' \
   --header 'Authorization: Bearer YOUR_OIDC_TOKEN'
 ```
+
+**Response:**
 
 ```json
 {
@@ -664,7 +750,14 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/billing/usage-periods?limit=3
       "total_amount_cents": 12400,
       "taxes_amount_cents": 0,
       "charges": [
-        { "name": "CPU · Linux VM", "quantity": 342.9, "total_cents": 12345 }
+        {
+          "name": "CPU · Linux VM",
+          "quantity": 342.9,
+          "total_cents": 12345,
+          "units": "342.90",
+          "events_count": 0,
+          "billable_metric": "cpu_usage"
+        }
       ]
     }
   ],
@@ -674,8 +767,12 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/billing/usage-periods?limit=3
 
 | **Field** | **Description** |
 | --- | --- |
-| `limit` | Sets the page size.<br />**Minimum:** `1`<br />**Maximum:** `60`<br />**Example:** `3` |
 | `cursor` | Continues from a previous page. |
+| `limit` | Sets the page size.<br />**Minimum:** `1`<br />**Maximum:** `60`<br />**Example:** `3` |
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 ## Suspension
 

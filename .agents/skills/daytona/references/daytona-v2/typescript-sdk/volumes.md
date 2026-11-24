@@ -111,18 +111,18 @@ daytona volume create corp-data --type bucket --bucket corp-data --bucket-region
 
 | **Flag** | **Description** |
 | --- | --- |
-| `--type` | Sets the volume type.<br />**Value:** `disk` or `bucket`<br />**Example:** `bucket` |
+| `--access-key-secret` | Sets the project secret that holds the access key.<br />**Format:** a project secret name<br />**Example:** `AWS_KEY` |
 | `--bucket` | Sets the name of your bucket.<br />**Format:** 3 to 63 lowercase letters, digits, periods, and hyphens, starting and ending with a letter or digit<br />**Example:** `corp-data` |
 | `--bucket-region` | Sets the S3 region of the bucket.<br />**Default:** the default bucket region of the deployment<br />**Format:** 1 to 64 lowercase letters, digits, and hyphens<br />**Example:** `us-east-1` |
 | `--endpoint` | Sets the endpoint of an S3-compatible service.<br />**Default:** AWS S3<br />**Format:** an http or https URL with a public host<br />**Example:** `https://storage.googleapis.com` |
-| `--prefix` | Limits the volume to keys under a prefix.<br />**Maximum:** 511 characters<br />**Format:** a relative path with no empty, current-directory, or parent-directory segments<br />**Example:** `datasets/` |
 | `--path-style` | Sends requests with path-style addressing instead of virtual-hosted addressing.<br />**Default:** `false` |
-| `--access-key-secret` | Sets the project secret that holds the access key.<br />**Format:** a project secret name<br />**Example:** `AWS_KEY` |
+| `--prefix` | Limits the volume to keys under a prefix.<br />**Maximum:** 511 characters<br />**Format:** a relative path with no empty, current-directory, or parent-directory segments<br />**Example:** `datasets/` |
 | `--secret-key-secret` | Sets the project secret that holds the secret key.<br />**Format:** a project secret name<br />**Example:** `AWS_SECRET` |
+| `--type` | Sets the volume type.<br />**Value:** `disk` or `bucket`<br />**Example:** `bucket` |
 
 > **Notes:**
 >
-> - Two project secrets must hold the access key and the secret key, each with allowed domains that include the host that requests to the bucket are signed for. See [create a secret](./secrets.md#create-a-secret).
+> - **Prerequisites:** Two project secrets must hold the access key and the secret key, each with allowed domains that include the host that requests to the bucket are signed for. See [create a secret](./secrets.md#create-a-secret).
 
 **API:**
 
@@ -159,7 +159,7 @@ curl 'https://api.daytona.com/volumes' \
 
 > **Notes:**
 >
-> - Two project secrets must hold the access key and the secret key, each with allowed domains that include the host that requests to the bucket are signed for. See [create a secret](./secrets.md#create-a-secret).
+> - **Prerequisites:** Two project secrets must hold the access key and the secret key, each with allowed domains that include the host that requests to the bucket are signed for. See [create a secret](./secrets.md#create-a-secret).
 
 ## Attach volumes
 
@@ -192,13 +192,9 @@ const sandbox = await daytona.v2.create({
 
 > **Notes:**
 >
-> - Each volume must exist in the project and have the `ready` status.
-> - Give each mount a different mount path.
-> - A macOS sandbox attaches only disk volumes, read-write, and cannot be persistent with volumes.
-> - A sandbox with bucket volumes must be created in a region whose hosts mount bucket volumes.
-> - A sandbox with volumes cannot be created from an image not yet available in its region.
-> - Create the sandbox without volumes, or retry once the image is available.
-> - createMacos() takes the same volumes list to attach disk volumes to a macOS sandbox.
+> - **Prerequisites:** Each volume must exist in the project and have the `ready` status.
+> - **Compatibility:** Give each mount a different mount path. A macOS sandbox attaches only disk volumes, read-write, and cannot be persistent with volumes. A sandbox with bucket volumes must be created in a region whose hosts mount bucket volumes. A sandbox with volumes cannot be created from an image not yet available in its region. createMacos() takes the same volumes list to attach disk volumes to a macOS sandbox.
+> - **Recovery:** Create the sandbox without volumes, or retry once the image is available.
 
 ## Disk volume data
 
@@ -261,11 +257,11 @@ console.log(result.status, result.manifestId)
 
 > **Notes:**
 >
-> - The volume must be a disk volume attached to a Linux sandbox.
-> - A pull can take longer than its wait. Repeat it with the same request ID while the status is `pending`, which means that the pull has no result yet.
-> - Use a new request ID for each pull; an ID with a `pulled` or `unchanged` result returns it again.
-> - A request ID returns its earlier definitive result only within the current session.
-> - A sandbox starts at most one new pull of a volume per second.
+> - **Prerequisites:** The volume must be a disk volume attached to a Linux sandbox.
+> - **Limits:** A sandbox starts at most one new pull of a volume per second.
+> - **Lifetime:** A request ID returns its earlier definitive result only within the current session.
+> - **Polling:** A pull can take longer than its wait. Repeat it with the same request ID while the status is `pending`, which means that the pull has no result yet.
+> - **Clients:** Use a new request ID for each pull; an ID with a `pulled` or `unchanged` result returns it again.
 
 ## Bucket volume data
 
@@ -289,7 +285,7 @@ List volumes to see the volumes of a project with their names, types, and status
 
 The list reflects the volumes of the project at the time it is read. A volume appears in it from the moment it is created until its deletion is complete.
 
-Use the list to find a volume to attach or to check volume statuses. Pass the cursor of each page to request the next until no cursor is returned, or pass the all flag to the CLI to read every page. The list is paginated, newest first, and each page holds the cursor of the next one. Volumes being deleted show the deleting status, and deleted volumes are left out.
+Use the list to find a volume to attach or to check volume statuses. The list is paginated, newest first, and each page holds the cursor of the next one. Volumes being deleted show the deleting status, and deleted volumes are left out.
 
 ```typescript
 import { Daytona } from '@daytona/sdk'
@@ -307,10 +303,10 @@ do {
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `cursor` | Continues from a previous page. |
+| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 
-#### Iterate over all volumes
+##### Iterate over all volumes
 
 Iterate over all volumes to read every volume of the project without handling page cursors. Iteration over a paginated list reads one page after another until no page remains.
 
@@ -374,8 +370,8 @@ await daytona.v2.volumes.delete('training-data')
 
 > **Notes:**
 >
-> - Every sandbox that attached the volume must be deleted, and its final commit must be complete.
-> - The volume is released shortly after the sandbox reports deleted.
+> - **Prerequisites:** Every sandbox that attached the volume must be deleted, and its final commit must be complete.
+> - **Lifetime:** The volume is released shortly after the sandbox reports deleted.
 
 ## Permissions
 

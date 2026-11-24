@@ -26,9 +26,9 @@ Your account, organization, members, API keys, and billing carry over to Daytona
 | **Dashboard**            | <u>[**app.daytona.io**](https://app.daytona.io)</u> | <u>[**app.daytona.com**](https://app.daytona.com)</u>       |
 | **Documentation**        | <u>[**daytona.io/docs**](./getting-started.md)</u>             | <u>[**daytona.com/docs**](https://www.daytona.com/docs)</u> |
 
-<AgentPrompt
-  title="Agent Prompt"
-  prompt={`
+**Agent Prompt:**
+
+```text
 Help me upgrade the Daytona SDK in this project from 0.x to 2.x. The application must keep calling Daytona v0 after the upgrade. Do not move calls to Daytona v2 and do not import sandboxes: moving workloads to Daytona v2 is a separate step.
 
 1. Find the Daytona SDK and its version in this project. SDK 2.x exists for Python and TypeScript only. If the project uses the Go, Ruby, or Java SDK, stop and tell me: those SDKs stay on 0.x.
@@ -37,32 +37,29 @@ Help me upgrade the Daytona SDK in this project from 0.x to 2.x. The application
 
 3. Run the upgrade tool from the project directory. Preview the changes first, then apply them:
 
-    Python: \`uvx daytona-upgrade@2.0.0a13 --dry\`, then \`uvx daytona-upgrade@2.0.0a13 . --yes\`
-    TypeScript: \`npx @daytona/upgrade@2.0.0-alpha.13 --dry\`, then \`npx @daytona/upgrade@2.0.0-alpha.13 . --yes\`
+    Python: `uvx daytona-upgrade --dry`, then `uvx daytona-upgrade . --yes`
+    TypeScript: `npx @daytona/upgrade --dry`, then `npx @daytona/upgrade . --yes`
 
-    Always include the version: without it, the command runs an older release of the tool that writes a version range matching no SDK release.
+    If the tool refuses because the project uses a custom API URL, stop and tell me: SDK 2.x has no API URL setting, and these applications stay on SDK 0.x. If it refuses because the project uses a newer 0.x minor version than the one SDK 2.x runs as `.v0`, stop and tell me. Report any warning about the 0.x version gap in the summary.
 
-    If the tool refuses because the project uses a custom API URL, stop and tell me: SDK 2.x has no API URL setting, and these applications stay on SDK 0.x. If it refuses because the project uses a newer 0.x minor version than the one SDK 2.x runs as \`.v0\`, stop and tell me. Report any warning about the 0.x version gap in the summary.
+4. Install the SDK 2.x version the tool wrote to the dependency file. Do not change that version.
 
-4. Check that the dependency file pins the exact SDK version below, then install it. Do not use a version range or a pre-release flag: SDK 2.x is in alpha, and a range either matches no release or resolves to an older preview release without the \`v0\` namespace.
+    Python: the `v0-sdk` extra of `daytona` provides the `v0` namespace
+    TypeScript: `@daytona/sdk` requires Node.js 22.15 or later
 
-    Python: \`daytona[v0-sdk]==2.0.0a13\` (the \`v0-sdk\` extra provides the \`v0\` namespace)
-    TypeScript: \`@daytona/sdk@2.0.0-alpha.13\` (requires Node.js 22.15 or later)
-
-5. Resolve every \`FIXME(daytona-upgrade)\` comment and every manual item in the output of the tool. The tool changes only the calls it can prove belong to the Daytona client. Search the code for remaining Daytona client calls without \`.v0\` and fix them by hand:
-    - Add \`.v0\` to every call on the Daytona client. For example, \`daytona.create()\` becomes \`daytona.v0.create()\`. A call without a namespace fails in SDK 2.x.
-    - Import Daytona v0 resource types and errors, such as \`Sandbox\` and \`DaytonaError\`, from \`daytona.v0\` in Python or \`@daytona/sdk/v0\` in TypeScript. Keep importing the \`Daytona\` client and its configuration from the package root.
+5. Resolve every `FIXME(daytona-upgrade)` comment and every manual item in the output of the tool. The tool changes only the calls it can prove belong to the Daytona client. Search the code for remaining Daytona client calls without `.v0` and fix them by hand:
+    - Add `.v0` to every call on the Daytona client. For example, `daytona.create()` becomes `daytona.v0.create()`. A call without a namespace fails in SDK 2.x.
+    - Import Daytona v0 resource types and errors, such as `Sandbox` and `DaytonaError`, from `daytona.v0` in Python or `@daytona/sdk/v0` in TypeScript. Keep importing the `Daytona` client and its configuration from the package root.
 
 6. Update the configuration:
-    - If the client configuration sets \`target\`, remove it and pass \`target\` to each Daytona v0 sandbox create instead, or \`region_id\` (\`regionId\` in TypeScript) to each Daytona v0 snapshot create.
-    - If \`DAYTONA_API_URL\` or \`DAYTONA_V2_API_URL\` is set in the environment of the process, tell me to unset it. Daytona v0 ignores both, and they redirect Daytona v2 calls.
-    - Keep \`DAYTONA_API_KEY\`. The same key works for both namespaces.
+    - If the client configuration sets `target`, remove it and pass `target` to each Daytona v0 sandbox create instead, or `region_id` (`regionId` in TypeScript) to each Daytona v0 snapshot create.
+    - If `DAYTONA_API_URL` or `DAYTONA_V2_API_URL` is set in the environment of the process, tell me to unset it. Daytona v0 ignores both, and they redirect Daytona v2 calls.
+    - Keep `DAYTONA_API_KEY`. The same key works for both namespaces.
 
-7. Run the project's type checker and tests. If the project has no tests that call Daytona, write a short script that creates a sandbox with \`daytona.v0.create()\`, runs a command in it, prints the output, and deletes the sandbox. Run it to verify the upgrade.
+7. Run the project's type checker and tests. If the project has no tests that call Daytona, write a short script that creates a sandbox with `daytona.v0.create()`, runs a command in it, prints the output, and deletes the sandbox. Run it to verify the upgrade.
 
 8. Summarize the changed files and list anything you could not upgrade, with the reason.
-`}
-/>
+```
 
 ## 1. Upgrade the SDK
 
@@ -73,7 +70,7 @@ If you use the [upgrade tool](#11-upgrade-tool), run it before you install SDK 2
 The TypeScript SDK includes the Daytona v0 namespace in the package. No extra install is required. Projects that depend on the older package name replace it with the package of SDK 2.x. The TypeScript SDK requires Node.js 22.15 or later.
 
 ```bash
-npm install @daytona/sdk@2.0.0-alpha.13
+npm install @daytona/sdk@2
 ```
 
 | **Package**              | **SDK 2.x**                          |
@@ -89,19 +86,19 @@ The tool changes only the calls it can prove belong to the Daytona client. It ma
 
 The tool runs from the project directory and requires a clean Git working tree. Run it before you install SDK 2.x: the TypeScript tool uses the installed SDK 0.x types to find client calls. The Python tool requires Python 3.9 or later, and the TypeScript tool requires Node.js 20 or later.
 
-Each release of the tool has the same version as an SDK release and upgrades the project to that SDK release. While SDK 2.x is in alpha, the tool pins the exact SDK version in the dependency file. Run the tool by its exact version: without a version, the command runs an older release of the tool that writes a version range matching no SDK release.
+Run the latest release of the tool. It sets the Daytona dependency to the SDK 2.x release it targets.
 
 ```bash
 # Preview the changes
-npx @daytona/upgrade@2.0.0-alpha.13 --dry
+npx @daytona/upgrade --dry
 
 # Upgrade the project
-npx @daytona/upgrade@2.0.0-alpha.13 . --yes
+npx @daytona/upgrade . --yes
 ```
 
-The tool sets the dependency to **`@daytona/sdk@2.0.0-alpha.13`** and replaces **`@daytonaio/sdk`**.
+The tool sets the dependency to **`@daytona/sdk`** at the SDK 2.x release it targets, and replaces **`@daytonaio/sdk`**.
 
-SDK 2.x runs one 0.x release as the Daytona v0 namespace. SDK 2.0.0a13 (**`2.0.0-alpha.13`** in TypeScript) runs 0.x release 0.230.0. The tool reads the 0.x version of the project from its lockfile, or from the dependency file, and compares it with that release:
+SDK 2.x runs one 0.x release as the Daytona v0 namespace. The tool reads the 0.x version of the project from its lockfile, or from the dependency file, and compares it with that release:
 
 | **Installed 0.x version**                       | **Result**                                                                                                                                       |
 | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -219,10 +216,10 @@ The [upgrade tool](#11-upgrade-tool) adds a comment above each Daytona v0 call w
 
 ```bash
 # Add the comments
-npx @daytona/upgrade@2.0.0-alpha.13 --suggest-v2
+npx @daytona/upgrade --suggest-v2
 
 # Remove the comments
-npx @daytona/upgrade@2.0.0-alpha.13 --remove-suggestions
+npx @daytona/upgrade --remove-suggestions
 ```
 
 Removing the comments deletes every comment line that starts with **`daytona-v2:`**, including comments you wrote. Do not use this prefix for your own comments.

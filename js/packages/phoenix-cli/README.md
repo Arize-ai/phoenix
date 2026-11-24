@@ -80,7 +80,7 @@ px profile edit prod           # open in $EDITOR, validates on save
 px profile delete prod         # remove a profile (--yes to skip prompt)
 ```
 
-Pass `--profile <name>` to `auth login`, `auth logout`, or `auth status` to scope a single invocation to a profile other than the active one.
+Pass `--profile <name>` to `auth login`, `auth logout`, `auth status`, or `setup doctor` to scope a single invocation to a profile other than the active one.
 
 ### Editor autocompletion via `$schema`
 
@@ -235,6 +235,34 @@ with `--header` (repeatable):
 px setup mcp --agent codex --no-input --format raw
 px setup mcp --agent claude --header 'Authorization: Bearer ${PHOENIX_API_KEY}'
 ```
+
+#### `px setup doctor`
+
+Diagnose why `px` cannot work with your Phoenix server. Four checks run in
+order, each reporting pass, fail, or skip with a fix hint: **config** (the
+settings file parses, the `--profile` exists, the endpoint is a valid URL),
+**connectivity** (the server responds), **version** (the server answers as
+Phoenix and reports its version), and **auth** (credentials are accepted, or the
+server allows anonymous access). Once config, connectivity, or version fails,
+the later checks are skipped, so the first failure is the one to fix.
+
+```bash
+px setup doctor
+px setup doctor --profile staging
+px setup doctor --format raw        # {"checks":[{"name","status","message","fix"?}]}
+```
+
+```
+✓ config        Using http://localhost:6006
+✗ connectivity  Could not reach http://localhost:6006: TypeError: fetch failed
+    fix: Start the Phoenix server, or point px at it with --endpoint or PHOENIX_ENDPOINT
+- version       Skipped: connectivity check failed
+- auth          Skipped: connectivity check failed
+```
+
+The exit code reflects the first failure: `3` invalid config, `5` server
+unreachable or not Phoenix, `4` credentials missing or rejected, `1` anything
+else, and `0` when nothing failed.
 
 ---
 
@@ -474,6 +502,41 @@ version objects, including `metadata`, and preserve the original timestamp strin
 
 ---
 
+### `px dataset-labels list|add|remove|replace --dataset <name-or-id>`
+
+Manage assignments of existing labels to a dataset. These commands require Phoenix server 17.16.0 or later.
+They accept dataset names or GlobalIDs directly. Label arguments must be label GlobalIDs.
+Removing an assignment preserves the global label and the dataset.
+
+Find label GlobalIDs with `GET /v1/dataset_labels`, or use the CLI's authenticated GraphQL command:
+
+```bash
+px api graphql '{ datasetLabels(first: 50) { edges { node { id name } } pageInfo { hasNextPage endCursor } } }'
+```
+
+Use the returned `node.id` values with `--label`. If `hasNextPage` is true, repeat the query with `after: "<endCursor>"`.
+
+```bash
+px dataset-labels list --dataset my-dataset
+px dataset-labels add --dataset my-dataset --label RGF0YXNldExhYmVsOjE=
+px dataset-labels remove --dataset my-dataset --label RGF0YXNldExhYmVsOjE=
+px dataset-labels replace --dataset my-dataset --label RGF0YXNldExhYmVsOjE= --label RGF0YXNldExhYmVsOjI=
+px dataset-labels replace --dataset my-dataset --clear
+px dataset-labels list --dataset my-dataset --format raw --no-progress | jq '.[].name'
+```
+
+Adding an assigned label or removing an unassigned label succeeds without changing the assignment set.
+Replacement sets the complete assignment set. Provide one or more `--label` flags, or use `--clear` to remove all assignments.
+The command rejects `--clear` combined with `--label` and replacement without either option.
+
+All four commands support `--format pretty|json|raw`, `--endpoint`, `--api-key`, and `--no-progress`.
+Pretty output shows a label table. JSON/raw output returns a label array for list/replace and one label object for add.
+Remove returns `{ "dataset_identifier": "...", "label_id": "..." }` to acknowledge the request because its API response has no body.
+Errors go to stderr, with structured JSON in json/raw mode and the CLI's semantic exit codes.
+HTTP error messages include the server's JSON or plain-text detail when available, so callers can identify the invalid dataset or label.
+
+---
+
 ### `px experiment list --dataset <name-or-id>`
 
 List experiments for a dataset.
@@ -618,6 +681,24 @@ px project get my-project --format json
 | `--no-progress`     | Suppress progress output            | —        |
 
 Miss-case stderr (raw): `{"error":"Project 'foo' not found","code":"FAILURE","hint":"px project list --format raw"}`.
+
+---
+
+### `px project create`
+
+Create a Phoenix project. On success, prints a confirmation with the new project's ID to stdout. Exits with `ExitCode.INVALID_ARGUMENT` (3) when `--name` is missing.
+
+```bash
+px project create --name my-project
+px project create --name my-project --no-progress
+```
+
+| Option             | Description                        | Default |
+| ------------------ | ---------------------------------- | ------- |
+| `--name <name>`    | Project name (required)            | —       |
+| `--endpoint <url>` | Phoenix API endpoint               | —       |
+| `--api-key <key>`  | Phoenix API key for authentication | —       |
+| `--no-progress`    | Suppress progress output           | —       |
 
 ---
 
@@ -1073,7 +1154,6 @@ Trace JSON structure:
 
 ## Community
 
-- 🌍 [Slack community](https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g)
 - 📚 [Documentation](https://arize.com/docs/phoenix)
 - 🌟 [GitHub](https://github.com/Arize-ai/phoenix)
 - 🐞 [Report bugs](https://github.com/Arize-ai/phoenix/issues)

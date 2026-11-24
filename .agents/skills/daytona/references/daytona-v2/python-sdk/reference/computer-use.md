@@ -24,6 +24,7 @@
 - [ComputerUseReadyStatus](#computerusereadystatus)
 - [ComputerUseFailedStatus](#computerusefailedstatus)
 - [ComputerUseUnknownStatus](#computeruseunknownstatus)
+- [ComputerUseResolution](#computeruseresolution)
 - [ComputerUseRestartResponse](#computeruserestartresponse)
 - [ComputerUseProcessStatus](#computeruseprocessstatus)
 - [ComputerUseProcessRunningStatus](#computeruseprocessrunningstatus)
@@ -67,7 +68,7 @@ Synchronous ComputerUseService.
 #### ComputerUseService.\_\_init\_\_
 
 ```python
-def __init__(impl: AsyncComputerUseService, bridge: SyncBridge) -> None
+def __init__() -> None
 ```
 
 #### ComputerUseService.service
@@ -122,14 +123,30 @@ def recording() -> RecordingService
 #### ComputerUseService.restart
 
 ```python
-def restart() -> ComputerUseRestartResponse
+def restart(*,
+            resolution: ComputerUseResolution | None = None) -> ComputerUseRestartResponse
 ```
+
+Restart the desktop, at `resolution` when given (kept for later
+starts). Omitted, it restarts at its current resolution. Linux sandboxes
+only: other platforms raise `UnsupportedOperationError` for a
+`resolution`.
 
 #### ComputerUseService.start
 
 ```python
-def start() -> ComputerUseLifecycleResult
+def start(*,
+          resolution: ComputerUseResolution | None = None) -> ComputerUseLifecycleResult
 ```
+
+Start the desktop.
+
+`resolution` selects its size (1024x768, 1280x720 or 1920x1080) and is
+kept for later starts and restarts. Omitted, the desktop uses the
+resolution it last started at, or 1280x720. Starting a running desktop at
+a different resolution raises `ConflictError`; call `restart` with
+the new resolution instead. Linux sandboxes only: other platforms raise
+`UnsupportedOperationError` for a `resolution`.
 
 #### ComputerUseService.status
 
@@ -152,7 +169,7 @@ class AsyncComputerUseService()
 #### AsyncComputerUseService.\_\_init\_\_
 
 ```python
-def __init__(transport: AsyncTransport) -> None
+def __init__() -> None
 ```
 
 #### AsyncComputerUseService.status
@@ -164,8 +181,18 @@ async def status() -> ComputerUseStatusResponse
 #### AsyncComputerUseService.start
 
 ```python
-async def start() -> ComputerUseLifecycleResult
+async def start(*,
+                resolution: ComputerUseResolution | None = None) -> ComputerUseLifecycleResult
 ```
+
+Start the desktop.
+
+`resolution` selects its size (1024x768, 1280x720 or 1920x1080) and is
+kept for later starts and restarts. Omitted, the desktop uses the
+resolution it last started at, or 1280x720. Starting a running desktop at
+a different resolution raises `ConflictError`; call `restart` with
+the new resolution instead. Linux sandboxes only: other platforms raise
+`UnsupportedOperationError` for a `resolution`.
 
 #### AsyncComputerUseService.stop
 
@@ -176,8 +203,14 @@ async def stop() -> ComputerUseLifecycleResult
 #### AsyncComputerUseService.restart
 
 ```python
-async def restart() -> ComputerUseRestartResponse
+async def restart(*,
+                  resolution: ComputerUseResolution | None = None) -> ComputerUseRestartResponse
 ```
+
+Restart the desktop, at `resolution` when given (kept for later
+starts). Omitted, it restarts at its current resolution. Linux sandboxes
+only: other platforms raise `UnsupportedOperationError` for a
+`resolution`.
 
 ## A11yService
 
@@ -190,7 +223,7 @@ Synchronous A11yService.
 #### A11yService.\_\_init\_\_
 
 ```python
-def __init__(impl: AsyncA11yService, bridge: SyncBridge) -> None
+def __init__() -> None
 ```
 
 #### A11yService.find
@@ -233,6 +266,12 @@ def tree(*,
          max_depth: int | None = None) -> ComputerUseA11yTree
 ```
 
+Read the accessibility tree, at most 256 levels below the root.
+
+`max_depth` is how many levels below the root to return: an integer
+from 0 to 256 (the SDK's cap), default 256. A deeper UI comes back cut
+at that depth with `truncated` set; `-1` (unbounded) is refused.
+
 ## AsyncA11yService
 
 ```python
@@ -242,7 +281,7 @@ class AsyncA11yService()
 #### AsyncA11yService.\_\_init\_\_
 
 ```python
-def __init__(transport: AsyncTransport) -> None
+def __init__() -> None
 ```
 
 #### AsyncA11yService.tree
@@ -253,6 +292,12 @@ async def tree(*,
                pid: int | None = None,
                max_depth: int | None = None) -> ComputerUseA11yTree
 ```
+
+Read the accessibility tree, at most 256 levels below the root.
+
+`max_depth` is how many levels below the root to return: an integer
+from 0 to 256 (the SDK's cap), default 256. A deeper UI comes back cut
+at that depth with `truncated` set; `-1` (unbounded) is refused.
 
 #### AsyncA11yService.find
 
@@ -296,25 +341,25 @@ Synchronous AddonProcessesService.
 #### AddonProcessesService.\_\_init\_\_
 
 ```python
-def __init__(impl: AsyncAddonProcessesService, bridge: SyncBridge) -> None
+def __init__() -> None
 ```
 
 #### AddonProcessesService.errors
 
 ```python
-def errors(name: str) -> ComputerUseProcessErrors
+def errors(name: str, /) -> ComputerUseProcessErrors
 ```
 
 #### AddonProcessesService.logs
 
 ```python
-def logs(name: str) -> ComputerUseProcessLogs
+def logs(name: str, /) -> ComputerUseProcessLogs
 ```
 
 #### AddonProcessesService.restart
 
 ```python
-def restart(name: str) -> ComputerUseProcessRestartResult
+def restart(name: str, /) -> ComputerUseProcessRestartResult
 ```
 
 #### AddonProcessesService.status
@@ -328,7 +373,7 @@ def status() -> dict[str, ComputerUseProcessStatus]
 
 ```python
 @overload
-def status(name: str) -> ComputerUseProcessRunningStatus
+def status(name: str, /) -> ComputerUseProcessRunningStatus
 ```
 
 ## AsyncAddonProcessesService
@@ -340,7 +385,7 @@ class AsyncAddonProcessesService()
 #### AsyncAddonProcessesService.\_\_init\_\_
 
 ```python
-def __init__(transport: AsyncTransport) -> None
+def __init__() -> None
 ```
 
 #### AsyncAddonProcessesService.status
@@ -354,25 +399,25 @@ async def status() -> dict[str, ComputerUseProcessStatus]
 
 ```python
 @overload
-async def status(name: str) -> ComputerUseProcessRunningStatus
+async def status(name: str, /) -> ComputerUseProcessRunningStatus
 ```
 
 #### AsyncAddonProcessesService.restart
 
 ```python
-async def restart(name: str) -> ComputerUseProcessRestartResult
+async def restart(name: str, /) -> ComputerUseProcessRestartResult
 ```
 
 #### AsyncAddonProcessesService.logs
 
 ```python
-async def logs(name: str) -> ComputerUseProcessLogs
+async def logs(name: str, /) -> ComputerUseProcessLogs
 ```
 
 #### AsyncAddonProcessesService.errors
 
 ```python
-async def errors(name: str) -> ComputerUseProcessErrors
+async def errors(name: str, /) -> ComputerUseProcessErrors
 ```
 
 ## DisplayService
@@ -386,7 +431,7 @@ Synchronous DisplayService.
 #### DisplayService.\_\_init\_\_
 
 ```python
-def __init__(impl: AsyncDisplayService, bridge: SyncBridge) -> None
+def __init__() -> None
 ```
 
 #### DisplayService.info
@@ -410,7 +455,7 @@ class AsyncDisplayService()
 #### AsyncDisplayService.\_\_init\_\_
 
 ```python
-def __init__(transport: AsyncTransport) -> None
+def __init__() -> None
 ```
 
 #### AsyncDisplayService.info
@@ -436,7 +481,7 @@ Synchronous KeyboardService.
 #### KeyboardService.\_\_init\_\_
 
 ```python
-def __init__(impl: AsyncKeyboardService, bridge: SyncBridge) -> None
+def __init__() -> None
 ```
 
 #### KeyboardService.hotkey
@@ -456,8 +501,10 @@ def key(*,
 #### KeyboardService.type
 
 ```python
-def type(*, text: str, delay: int | None = None) -> None
+def type(*, text: str, delay: float | None = None) -> None
 ```
+
+Type `text`; `delay` is the pause between key presses in seconds.
 
 ## AsyncKeyboardService
 
@@ -468,14 +515,16 @@ class AsyncKeyboardService()
 #### AsyncKeyboardService.\_\_init\_\_
 
 ```python
-def __init__(transport: AsyncTransport) -> None
+def __init__() -> None
 ```
 
 #### AsyncKeyboardService.type
 
 ```python
-async def type(*, text: str, delay: int | None = None) -> None
+async def type(*, text: str, delay: float | None = None) -> None
 ```
+
+Type `text`; `delay` is the pause between key presses in seconds.
 
 #### AsyncKeyboardService.key
 
@@ -502,7 +551,7 @@ Synchronous MouseService.
 #### MouseService.\_\_init\_\_
 
 ```python
-def __init__(impl: AsyncMouseService, bridge: SyncBridge) -> None
+def __init__() -> None
 ```
 
 #### MouseService.click
@@ -557,7 +606,7 @@ class AsyncMouseService()
 #### AsyncMouseService.\_\_init\_\_
 
 ```python
-def __init__(transport: AsyncTransport) -> None
+def __init__() -> None
 ```
 
 #### AsyncMouseService.position
@@ -614,25 +663,38 @@ Synchronous RecordingService.
 #### RecordingService.\_\_init\_\_
 
 ```python
-def __init__(impl: AsyncRecordingService, bridge: SyncBridge) -> None
+def __init__() -> None
 ```
 
 #### RecordingService.delete
 
 ```python
-def delete(id: str) -> None
+def delete(id: str, /) -> None
 ```
 
 #### RecordingService.download
 
 ```python
-def download(id: str) -> bytes
+def download(id: str, /, *, max_response_bytes: Optional[int] = None) -> bytes
 ```
+
+Download a recording, holding the whole file in memory.
+
+No total deadline (it fails only when no bytes move for the client's
+`request_timeout`; with a `request_timeout` of `0`, nothing
+bounds it). `max_response_bytes` replaces the client's cap
+on the body for this call (`None` keeps the client's cap, `0` means
+no limit, and any other value (negative, fractional, boolean, string,
+above 2**53 - 1) is a `BadRequestError`); a larger recording raises
+`PayloadTooLargeError` before it is read in full. For a large
+recording, or one from a sandbox you do not trust, download its
+`file_path` with `sandbox.fs.download_file()`, which streams to disk
+with progress and cancellation.
 
 #### RecordingService.get
 
 ```python
-def get(id: str) -> ComputerUseRecording
+def get(id: str, /) -> ComputerUseRecording
 ```
 
 #### RecordingService.list
@@ -662,7 +724,7 @@ class AsyncRecordingService()
 #### AsyncRecordingService.\_\_init\_\_
 
 ```python
-def __init__(transport: AsyncTransport) -> None
+def __init__() -> None
 ```
 
 #### AsyncRecordingService.start
@@ -686,19 +748,32 @@ async def list() -> ComputerUseRecordingList
 #### AsyncRecordingService.get
 
 ```python
-async def get(id: str) -> ComputerUseRecording
+async def get(id: str, /) -> ComputerUseRecording
 ```
 
 #### AsyncRecordingService.download
 
 ```python
-async def download(id: str) -> bytes
+async def download(id: str, /, *, max_response_bytes: Optional[int] = None) -> bytes
 ```
+
+Download a recording, holding the whole file in memory.
+
+No total deadline (it fails only when no bytes move for the client's
+`request_timeout`; with a `request_timeout` of `0`, nothing
+bounds it). `max_response_bytes` replaces the client's cap
+on the body for this call (`None` keeps the client's cap, `0` means
+no limit, and any other value (negative, fractional, boolean, string,
+above 2**53 - 1) is a `BadRequestError`); a larger recording raises
+`PayloadTooLargeError` before it is read in full. For a large
+recording, or one from a sandbox you do not trust, download its
+`file_path` with `sandbox.fs.download_file()`, which streams to disk
+with progress and cancellation.
 
 #### AsyncRecordingService.delete
 
 ```python
-async def delete(id: str) -> None
+async def delete(id: str, /) -> None
 ```
 
 ## ScreenService
@@ -712,7 +787,7 @@ Synchronous ScreenService.
 #### ScreenService.\_\_init\_\_
 
 ```python
-def __init__(impl: AsyncScreenService, bridge: SyncBridge) -> None
+def __init__() -> None
 ```
 
 #### ScreenService.screenshot
@@ -728,6 +803,8 @@ def screenshot(*,
 
 Capture the screen, or `region` of it.
 
+Setting any of `format`, `quality` or `scale` returns a compressed image.
+
 ## AsyncScreenService
 
 ```python
@@ -737,7 +814,7 @@ class AsyncScreenService()
 #### AsyncScreenService.\_\_init\_\_
 
 ```python
-def __init__(transport: AsyncTransport) -> None
+def __init__() -> None
 ```
 
 #### AsyncScreenService.screenshot
@@ -758,21 +835,21 @@ Setting any of `format`, `quality` or `scale` returns a compressed image.
 ## ComputerUseDesktopFailure
 
 ```python
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseDesktopFailure()
 ```
 
 **Attributes**:
 
 - `code` _ComputerUseDesktopFailureCode_
+- `raw_code` _str_
 - `message` _str_
 - `extra_fields` _Optional\[Dict\[str, JsonValue\]\] = None_
-- `raw_code` _Optional\[str\] = None_
 
 ## ComputerUseNotStartedStatus
 
 ```python
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseNotStartedStatus()
 ```
 
@@ -786,7 +863,7 @@ class ComputerUseNotStartedStatus()
 ## ComputerUseStartingStatus
 
 ```python
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseStartingStatus()
 ```
 
@@ -800,7 +877,7 @@ class ComputerUseStartingStatus()
 ## ComputerUseReadyStatus
 
 ```python
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseReadyStatus()
 ```
 
@@ -814,7 +891,7 @@ class ComputerUseReadyStatus()
 ## ComputerUseFailedStatus
 
 ```python
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseFailedStatus()
 ```
 
@@ -828,7 +905,7 @@ class ComputerUseFailedStatus()
 ## ComputerUseUnknownStatus
 
 ```python
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseUnknownStatus()
 ```
 
@@ -847,10 +924,24 @@ attached to the unrecognized state, when it sent one.
 - `cause` _Optional\[ComputerUseDesktopFailure\] = None_
 - `extra_fields` _Optional\[Dict\[str, JsonValue\]\] = None_
 
+## ComputerUseResolution
+
+```python
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ComputerUseResolution()
+```
+
+A desktop resolution in pixels: 1024x768, 1280x720 or 1920x1080.
+
+**Attributes**:
+
+- `width` _int_
+- `height` _int_
+
 ## ComputerUseRestartResponse
 
 ```python
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseRestartResponse()
 ```
 
@@ -864,26 +955,26 @@ class ComputerUseRestartResponse()
 ## ComputerUseProcessStatus
 
 ```python
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseProcessStatus()
 ```
 
 **Attributes**:
 
-- `running` _Optional\[bool\] = None_
-- `priority` _Optional\[int\] = None_
-- `auto_restart` _Optional\[bool\] = None_
+- `running` _bool_
+- `priority` _int_
+- `auto_restart` _bool_
+- `failed` _bool_
+- `restart_attempts` _int_
+- `restart_backoff` _float_ - The current restart backoff, in seconds.
+- `status` _str_
 - `pid` _Optional\[int\] = None_
-- `failed` _Optional\[bool\] = None_
-- `restart_attempts` _Optional\[int\] = None_
-- `restart_backoff_ms` _Optional\[int\] = None_
-- `status` _Optional\[str\] = None_
 - `extra_fields` _Optional\[Dict\[str, JsonValue\]\] = None_
 
 ## ComputerUseProcessRunningStatus
 
 ```python
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseProcessRunningStatus()
 ```
 
@@ -895,7 +986,7 @@ class ComputerUseProcessRunningStatus()
 ## ComputerUsePoint
 
 ```python
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUsePoint()
 ```
 
@@ -907,7 +998,7 @@ class ComputerUsePoint()
 ## ComputerUseRegion
 
 ```python
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseRegion()
 ```
 
@@ -923,7 +1014,7 @@ A screen rectangle for `screen.screenshot(region=...)`.
 ## ComputerUseDisplay
 
 ```python
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseDisplay()
 ```
 
@@ -939,7 +1030,7 @@ class ComputerUseDisplay()
 ## ComputerUseWindow
 
 ```python
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseWindow()
 ```
 
@@ -956,7 +1047,7 @@ class ComputerUseWindow()
 ## ComputerUseAccessibilityBounds
 
 ```python
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseAccessibilityBounds()
 ```
 
@@ -970,7 +1061,7 @@ class ComputerUseAccessibilityBounds()
 ## ComputerUseAccessibilityNode
 
 ```python
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseAccessibilityNode()
 ```
 
@@ -980,17 +1071,17 @@ class ComputerUseAccessibilityNode()
 - `role` _str_
 - `name` _str_
 - `bounds` _ComputerUseAccessibilityBounds_
-- `states` _List\[str\]_
+- `states` _tuple\[str, ...\]_
 - `description` _Optional\[str\] = None_
-- `actions` _Optional\[List\[str\]\] = None_
-- `children` _Optional\[List\[ComputerUseAccessibilityNode\]\] = None_
+- `actions` _Optional\[tuple\[str, ...\]\] = None_
+- `children` _Optional\[tuple\[ComputerUseAccessibilityNode, ...\]\] = None_
 - `value` _Optional\[str\] = None_
 - `value_truncated` _bool = False_
 
 ## ComputerUseRecording
 
 ```python
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ComputerUseRecording()
 ```
 
@@ -999,9 +1090,9 @@ class ComputerUseRecording()
 - `id` _str_
 - `file_name` _str_
 - `file_path` _str_
-- `start_time` _str_
+- `start_time` _datetime_
 - `status` _str_
-- `end_time` _Optional\[str\] = None_
+- `end_time` _Optional\[datetime\] = None_
 - `duration_seconds` _Optional\[float\] = None_
 - `size_bytes` _Optional\[int\] = None_
 

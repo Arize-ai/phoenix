@@ -91,7 +91,7 @@ Point a client that ignores these variables and reads only its own trust store a
 
 A host allowlist is the set of hosts that a secret of a sandbox may be sent to. A request from the sandbox to any other host carries the placeholder instead of the value.
 
-Every secret in a project requires an allowlist, and the proxy replaces the placeholder only for requests whose destination host matches an entry in it. The allowlist decides only whether a placeholder is substituted and does not block traffic: a request to a host outside it still leaves the sandbox, carrying the placeholder instead of the value.
+The host allowlist of a secret is required, and the proxy replaces the placeholder only for requests whose destination host matches an entry in it. The allowlist decides only whether a placeholder is substituted and does not block traffic: a request to a host outside it still leaves the sandbox, carrying the placeholder instead of the value.
 
 Set the allowed hosts when you [create a secret](#create-a-secret) or [update a secret](#update-a-secret), and list only the hosts the secret requires. A single asterisk allows any verified host, including one a compromised sandbox controls. To restrict which hosts a sandbox can reach at all, set a sandbox [network policy](./network-limits.md), which applies independently of the allowlist of each secret.
 
@@ -139,10 +139,10 @@ daytona.v2.secrets.set(
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `name` | Sets the secret name.<br />**Required**<br />**Maximum:** 256 characters<br />**Format:** a letter or underscore, followed by letters, digits, and underscores<br />**Example:** `"MY_API_KEY"` |
-| `value` | Sets the secret value.<br />**Required**<br />**Maximum:** 64 KiB<br />**Example:** `"secret-value"` |
+| `name` | Sets the secret name.<br />**Required**<br />**Minimum:** 1 character<br />**Maximum:** 256 characters<br />**Format:** a letter or underscore, followed by letters, digits, and underscores<br />**Example:** `"MY_API_KEY"` |
+| `value` | Sets the secret value.<br />**Required**<br />**Minimum:** 1 byte<br />**Maximum:** 64 KiB<br />**Example:** `"secret-value"` |
+| `allowed_domains` | Sets the hosts that the secret may be sent to.<br />**Required**<br />**Minimum:** 1 host<br />**Maximum:** 50 hosts<br />**Format:** hostnames, or an asterisk and a period followed by a hostname to match its subdomains<br />**Value:** `["*"]` for any verified host<br />**Example:** `["api.example.com"]` |
 | `description` | Sets the description.<br />**Default:** the stored description<br />**Maximum:** 1 KiB<br />**Value:** `""` for no description<br />**Example:** `"Example API key"` |
-| `allowed_domains` | Sets the hosts that the secret may be sent to.<br />**Required**<br />**Maximum:** 50 hosts<br />**Format:** hostnames, or an asterisk and a period followed by a hostname to match its subdomains<br />**Value:** `["*"]` for any verified host<br />**Example:** `["api.example.com"]` |
 | `if_not_exists` | Makes the write create-only.<br />**Default:** `False` |
 
 ## Use a secret in a sandbox
@@ -198,7 +198,7 @@ print(info.secrets, info.status, info.etag)
 
 > **Notes:**
 >
-> - The sandbox must be a Linux sandbox without GPUs.
+> - **Prerequisites:** The sandbox must be a Linux sandbox without GPUs.
 
 ## Update secrets in a sandbox
 
@@ -229,10 +229,8 @@ print(updated.status)  # pending until the sandbox applies the change
 
 > **Notes:**
 >
-> - The sandbox must be a Linux sandbox without GPUs.
-> - The sandbox must be running, paused, or stopped.
-> - A sandbox in a transition, or with a memory snapshot or fork in progress, must settle first.
-> - Repeat get_secrets() until the status is `applied`.
+> - **Prerequisites:** The sandbox must be a Linux sandbox without GPUs. The sandbox must be running, paused, or stopped. A sandbox in a transition, or with a memory snapshot or fork in progress, must settle first.
+> - **Polling:** Repeat get_secrets() until the status is `applied`.
 
 ## Verify substitution
 
@@ -275,7 +273,7 @@ HTTP Basic Auth is an authentication scheme in which a request from a sandbox ca
 
 A Basic Auth helper in an HTTP client encodes the credential inside the sandbox, so the header carries the encoded username and placeholder, and no longer the placeholder itself. The proxy cannot substitute it, and the upstream service rejects the request. A secret that already holds the encoded username and password pair appears unmodified in the header, so the proxy substitutes it for requests to the allowed hosts of the secret.
 
-Encode the username and password outside the sandbox, store the encoded value as a secret, and set the Authorization header directly to Basic followed by the variable. Do not pass the variable through a Basic Auth helper, which would Base64-encode it again.
+Encode the username and password outside the sandbox, store the encoded value as a secret, and send the variable after the word Basic in the Authorization header. Do not give the variable to a Basic Auth helper, which would Base64-encode it again.
 
 ```python
 import base64
@@ -305,7 +303,7 @@ print(response.output)
 
 > **Notes:**
 >
-> - To send the full header value instead, store `Basic Base64(username:password)` as the secret value, and then send `Authorization: $BASIC_AUTH`.
+> - **Clients:** To send the full header value instead, store `Basic Base64(username:password)` as the secret value, and then send `Authorization: $BASIC_AUTH`.
 
 ## Operations
 
@@ -321,7 +319,7 @@ List secrets to find the secrets of a project by name. A paginated list returns 
 
 A list of secrets covers one project and returns its secrets one page at a time, ordered by name. Each entry holds the metadata of a secret, never its value.
 
-Use a list to find the name of a secret to attach to a sandbox or to update. A page holds 100 secrets by default and at most 200, with a cursor for the next page. To read every page of the list in a single pass instead, [iterate over all secrets](#iterate-over-all-secrets).
+Use a list to find the name of a secret to attach to a sandbox or to update. The list comes in pages. To read every page of the list in a single pass instead, [iterate over all secrets](#iterate-over-all-secrets).
 
 1. Go to [Daytona Dashboard ↗](https://app.daytona.com/dashboard/secrets)
 2. Use the search field to filter the list by name
@@ -338,10 +336,10 @@ for secret in secrets.items:
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `cursor` | Continues from a previous page.<br />**Example:** `secrets.next_cursor` |
+| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 
-#### Iterate over all secrets
+##### Iterate over all secrets
 
 Iterate over all secrets to read every page of the list in one pass. Iteration over a paginated list reads one page after another until no page remains.
 
@@ -406,8 +404,8 @@ daytona.v2.secrets.set(
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `value` | Sets the new secret value.<br />**Required**<br />**Maximum:** 64 KiB<br />**Example:** `"new-secret-value"` |
-| `allowed_domains` | Sets the hosts that the secret may be sent to.<br />**Required**<br />**Maximum:** 50 hosts<br />**Format:** hostnames, or an asterisk and a period followed by a hostname to match its subdomains<br />**Value:** `["*"]` for any verified host<br />**Example:** `["api.example.com", "*.example.com"]` |
+| `value` | Sets the new secret value.<br />**Required**<br />**Minimum:** 1 byte<br />**Maximum:** 64 KiB<br />**Example:** `"new-secret-value"` |
+| `allowed_domains` | Sets the hosts that the secret may be sent to.<br />**Required**<br />**Minimum:** 1 host<br />**Maximum:** 50 hosts<br />**Format:** hostnames, or an asterisk and a period followed by a hostname to match its subdomains<br />**Value:** `["*"]` for any verified host<br />**Example:** `["api.example.com", "*.example.com"]` |
 | `description` | Sets the description.<br />**Default:** the stored description<br />**Maximum:** 1 KiB<br />**Value:** `""` for no description<br />**Example:** `"Example API key"` |
 
 ### Delete a secret
@@ -436,8 +434,8 @@ daytona.v2.secrets.delete("MY_API_KEY")
 
 > **Notes:**
 >
-> - No sandbox or bucket volume may reference the secret.
-> - To detach the secret from a sandbox, [replace the sandbox secrets](#update-secrets-in-a-sandbox) first.
+> - **Prerequisites:** No sandbox or bucket volume may reference the secret.
+> - **Order:** To detach the secret from a sandbox, [replace the sandbox secrets](#update-secrets-in-a-sandbox) first.
 
 ## Permissions
 

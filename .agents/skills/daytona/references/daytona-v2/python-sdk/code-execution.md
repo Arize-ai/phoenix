@@ -56,17 +56,17 @@ print(response.logs.stdout)
 | **Parameter** | **Description** |
 | --- | --- |
 | `code` | Sets the code to run.<br />**Required**<br />**Example:** `"print(1)"` |
-| `language` | Sets the language of the code.<br />**Default:** `"python"`<br />**Value:** `python`, `typescript`, or `javascript`<br />**Example:** `"typescript"` |
 | `context` | Runs the code in an [interpreter context](#interpreter-contexts).<br />**Format:** a context handle, a saved to_json() dict, or a context ID<br />**Example:** `ctx` |
-| `isolated` | Runs the code in a [temporary kernel](#run-code-in-an-isolated-kernel).<br />**Default:** `False` |
 | `cwd` | Sets the working directory of the shared kernel when this run starts it.<br />**Default:** the default working directory of the sandbox<br />**Example:** `"/tmp"` |
 | `env` | Sets environment variables of the shared kernel when this run starts it.<br />**Format:** variable names mapped to string values<br />**Example:** `{"STAGE": "dev"}` |
+| `isolated` | Runs the code in a [temporary kernel](#run-code-in-an-isolated-kernel).<br />**Default:** `False` |
+| `language` | Sets the language of the code.<br />**Default:** `"python"`<br />**Value:** `python`, `typescript`, or `javascript`<br />**Example:** `"typescript"` |
 | `timeout` | Sets how many seconds the call waits for the run.<br />**Default:** no limit<br />**Value:** `0` for no limit<br />**Example:** `30` |
 
 > **Notes:**
 >
-> - The first run in a language installs and starts the kernel, so its timeout must also cover that start.
-> - A run on the shared kernel keeps the cwd and env of the run that started the kernel.
+> - **Timeouts:** The first run in a language installs and starts the kernel, so its timeout must also cover that start.
+> - **Behaviour:** A run on the shared kernel keeps the cwd and env of the run that started the kernel.
 
 ### Artifacts
 
@@ -124,14 +124,14 @@ if response.error:
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `isolated` | Runs the code in a temporary kernel.<br />**Default:** `False` |
 | `cwd` | Sets the working directory of the temporary kernel.<br />**Default:** the default working directory of the sandbox<br />**Example:** `"/tmp"` |
 | `env` | Sets environment variables of the temporary kernel.<br />**Format:** variable names mapped to string values<br />**Example:** `{"STAGE": "dev"}` |
+| `isolated` | Runs the code in a temporary kernel.<br />**Default:** `False` |
 
 > **Notes:**
 >
-> - Each isolated run starts a new kernel, so its timeout must also cover the kernel start.
-> - An isolated run does not take a context.
+> - **Compatibility:** An isolated run does not take a context.
+> - **Timeouts:** Each isolated run starts a new kernel, so its timeout must also cover the kernel start.
 
 ## Interpreter contexts
 
@@ -147,7 +147,7 @@ Create a context to give code its own interpreter state. A new context starts it
 
 The environment variables of a context in a sandbox are set when the context is created, and runs in the context do not change them. Its kernel keeps running until the context is deleted.
 
-Create a context, then run code with the context handle that the create returns, or pass the handle to a run in the sandbox. A context gets a generated ID unless you set one. Set a known ID to [reconnect to the context](#reconnect-to-a-context) from another worker.
+Create a context, then run code in it. Give the context a known ID to [reconnect to it](#reconnect-to-a-context) from another worker.
 
 ```python
 from daytona import Daytona
@@ -173,8 +173,8 @@ finally:
 
 > **Notes:**
 >
-> - Runs in a context do not take env.
-> - The kernel of a context keeps running until the context is deleted.
+> - **Compatibility:** Runs in a context do not take env.
+> - **Lifetime:** The kernel of a context keeps running until the context is deleted.
 
 ### List contexts
 
@@ -227,12 +227,11 @@ context = sandbox.interpreter.connect_context(saved)
 | **Parameter** | **Description** |
 | --- | --- |
 | `context` | Selects the context to reconnect to.<br />**Required**<br />**Format:** a context handle, a saved to_json() dict, or a context ID<br />**Example:** `"my-context"` |
-| `language` | Sets the language of the context.<br />**Value:** `python`, `typescript`, or `javascript`<br />**Example:** `"python"` |
+| `language` | Sets the language of the context.<br />**Rules:** required when context is a context ID<br />**Value:** `python`, `typescript`, or `javascript`<br />**Example:** `"python"` |
 
 > **Notes:**
 >
-> - connect_context() needs language when it gets a context ID.
-> - connect_context() sends no request, so it does not check that the context exists.
+> - **Clients:** connect_context() sends no request, so it does not check that the context exists.
 
 ### Delete a context
 

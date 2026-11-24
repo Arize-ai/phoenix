@@ -44,9 +44,8 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/sso/setup-links' \
 
 > **Notes:**
 >
-> - The request requires the Enterprise [plan](./billing.md#get-the-plan).
-> - The organization must be a collaborative organization.
-> - The setup link expires five minutes after it is created.
+> - **Prerequisites:** The request requires the Enterprise [plan](./billing.md#get-the-plan). The request requires a signed-in user token, not an API key. The organization must be a collaborative organization.
+> - **Lifetime:** The setup link expires five minutes after it is created.
 
 ## List SSO connections
 
@@ -64,12 +63,12 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/sso/connections?limit=100' \
 
 | **Field** | **Description** |
 | --- | --- |
-| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `cursor` | Continues from a previous page. |
+| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 
 > **Notes:**
 >
-> - The request requires the Enterprise [plan](./billing.md#get-the-plan).
+> - **Prerequisites:** The request requires the Enterprise [plan](./billing.md#get-the-plan). The request requires a signed-in user token, not an API key.
 
 ## Permissions
 

@@ -9,97 +9,36 @@
 - [SandboxWaitState](#sandboxwaitstate)
 - [SandboxClass](#sandboxclass)
 - [SandboxLifecycle](#sandboxlifecycle)
-- [SandboxLifecycleDto](#sandboxlifecycledto)
-- [SandboxInfo](#sandboxinfo)
 - [SandboxHandleJSON](#sandboxhandlejson)
 - [WaitOptions](#waitoptions)
-- [WaitForStateOptions](#waitforstateoptions)
 - [SandboxSearchFilters](#sandboxsearchfilters)
 - [SandboxSecretsInfo](#sandboxsecretsinfo)
-- [SandboxStateSnapshot](#sandboxstatesnapshot)
-- [SandboxDto](#sandboxdto)
 - [PreviewEndpoint](#previewendpoint)
 - [PreviewLink](#previewlink)
 - [SignedPreviewLink](#signedpreviewlink)
 - [CreateAccessTokenOptions](#createaccesstokenoptions)
 - [SandboxAccessToken](#sandboxaccesstoken)
 - [SystemMetrics](#systemmetrics)
+- [IfMatchOptions](#ifmatchoptions)
+- [ForkOptions](#forkoptions)
 - [MacBootMode](#macbootmode)
 
 ## Sandbox
-
-**Properties**:
-
-- `id` _string_
-- `toolboxProxyUrl?` _string_
-- `name?` _string_
-- `image` _ImageRef \| null_
-- `snapshot` _SnapshotRef \| null_
-- `target?` _string_
-- `labels` _Record\<string, string\>_
-- `cpu?` _number_ - Reserved CPU (the guarantee), in cores (1 core = 2 vCPUs; a macOS core is one Mac CPU).
-- `cpuMax?` _number_ - CPU limit (the boot shape), in cores; undefined when the API did not report it.
-- `memory?` _number_
-- `memoryMax?` _number_
-- `disk?` _number_
-- `diskMax?` _number_
-- `state?` _SandboxState_
-- `rawState?` _string_
-- `error?` _string_
-- `errorReason?` _string_
-- `imageBuildId?` _string_
-- `sandboxClass?` _SandboxClass_ - Undefined until fetched, and for a class this SDK does not know (calls that depend on the class then throw).
-- `user?` _string_
-- `region?` _string_
-- `persistent?` _boolean_ - macOS only: whether the sandbox preserves its disk when stopped; undefined on a
-  handle whose metadata has not been loaded yet.
-- `spot?` _boolean_
-- `spotEvictedAt?` _string_
-- `lifecyclePolicy?` _SandboxLifecycle_
-- `forkedFrom?` _string_
-- `reservationId?` _string_ - macOS only: the ID of the reservation selected for this sandbox.
-  Unset before a reservation is selected, and on search results
-  (`search()`, a search-routed `list()`), which omit it; `refreshData()` reads it.
-- `accessToken?` _string_
-- `accessTokenExpiresAt?` _string_ - Expiry of `accessToken` (RFC 3339), when known. Undefined for the
-  opaque `dtnv_` create token (no known expiry) and for
-  handles without a token.
 
 ### Constructors
 
 #### Constructor
 
 ```ts
-new Sandbox(
-   sandboxOrId: SandboxDto | SandboxInfo | string,
-   api: AxiosInstance | undefined,
-   toolboxBaseUrl: string | undefined,
-   apiKey: string | undefined,
-   target?: string,
-   options?: SandboxConnectOptions,
-   requestTimeout?: number,
-   httpOptions?: HttpClientOptions): Sandbox;
+new Sandbox(token: Internal, init: never): Sandbox;
 ```
 
-Low-level constructor; prefer `daytona.create*()`, `get(id)` or `list()`.
-Any toolbox URL inside `sandboxOrId` (a stored `toJSON()` blob or an
-API-shaped object) is ignored, so stored data never chooses where the
-SDK sends a credential. Pass `options.toolboxUrl` to set one explicitly —
-the toolbox credential (the API key, a project token, a minted sandbox
-token, or `options.accessToken`) goes there, so pass only a URL you trust.
-The third parameter, `toolboxBaseUrl`, is unused: pass the URL as
-`options.toolboxUrl`.
+Built by the SDK: get a sandbox from `daytona.v2.create*()`, `get()` or `list()`.
 
 **Parameters**:
 
-- `sandboxOrId` _SandboxDto \| SandboxInfo \| string_
-- `api` _AxiosInstance \| undefined_
-- `toolboxBaseUrl` _string \| undefined_
-- `apiKey` _string \| undefined_
-- `target?` _string_
-- `options?` _SandboxConnectOptions_
-- `requestTimeout?` _number_
-- `httpOptions?` _HttpClientOptions_
+- `token` _Internal_
+- `init` _never_
 
 **Returns**:
 
@@ -119,6 +58,33 @@ Dispose by deleting the sandbox when constructed with `autoDelete`.
 
 - `Promise<void>`
 
+#### accessToken
+
+```ts
+get accessToken(): string | undefined;
+```
+
+The sandbox-scoped bearer currently used: from create, a caller override, or minting.
+Undefined until known; never serialized.
+
+**Returns**:
+
+- `string | undefined`
+
+#### accessTokenExpiresAt
+
+```ts
+get accessTokenExpiresAt(): string | undefined;
+```
+
+Expiry of `accessToken` (RFC 3339), when known. Undefined for the
+opaque `dtnv_` create token (no known expiry) and for
+handles without a token.
+
+**Returns**:
+
+- `string | undefined`
+
 #### buildLogs()
 
 ```ts
@@ -136,6 +102,27 @@ Use followBuildLogs for live output and completeness metadata.
 
 - `Promise<string>`
 
+#### captureImage()
+
+```ts
+captureImage(options: CaptureImageOptions = {}): Promise<Image>;
+```
+
+Snapshot this sandbox's filesystem as a new `Image`
+(`POST /sandboxes/{id}/images`). The result boots new sandboxes
+(`daytona.create(image.id)`); a Linux sandbox keeps running. A macOS sandbox must be persistent and
+stopped; the capture answers `DISK_NOT_READY` while its disk is not ready
+yet (retry later). The credential needs `write:sandboxes` in addition to
+`write:images`; without it the capture throws `ForbiddenError` (403).
+
+**Parameters**:
+
+- `options` _CaptureImageOptions = \{\}_
+
+**Returns**:
+
+- `Promise<Image>`
+
 #### computerUse
 
 ```ts
@@ -145,6 +132,30 @@ get computerUse(): ComputerUseService;
 **Returns**:
 
 - `ComputerUseService`
+
+#### cpu
+
+```ts
+get cpu(): number | undefined;
+```
+
+Reserved CPU (the guarantee), in cores (1 core = 2 vCPUs; a macOS core is one Mac CPU).
+
+**Returns**:
+
+- `number | undefined`
+
+#### cpuMax
+
+```ts
+get cpuMax(): number | undefined;
+```
+
+CPU limit (the boot shape), in cores; undefined when the API did not report it.
+
+**Returns**:
+
+- `number | undefined`
 
 #### createAccessToken()
 
@@ -176,6 +187,11 @@ silent narrowing.
 createSnapshot(name: string): Promise<Snapshot>;
 ```
 
+Capture this sandbox, memory and disk, as a new `Snapshot`
+(`POST /sandboxes/{id}/snapshots`). The credential needs `write:sandboxes`
+in addition to `write:snapshots`; without it the capture throws
+`ForbiddenError` (403).
+
 **Parameters**:
 
 - `name` _string_
@@ -187,16 +203,43 @@ createSnapshot(name: string): Promise<Snapshot>;
 #### delete()
 
 ```ts
-delete(): Promise<void>;
+delete(options: LifecycleWaitOptions = {}): Promise<void>;
 ```
 
-Request deletion.
+Delete the sandbox and wait until destroyed (or no longer found). An
+`error` state throws `SandboxTerminalStateError`; one the events hub
+reports is confirmed with one read first, while the wait has budget left
+and unless it already came from a full read.
 Returning, a `destroyed` state, or a subsequent 404 does not guarantee that
 the image can already be deleted. Image deletion may still return 409.
+
+**Parameters**:
+
+- `options` _LifecycleWaitOptions = \{\}_
 
 **Returns**:
 
 - `Promise<void>`
+
+#### disk
+
+```ts
+get disk(): number | undefined;
+```
+
+**Returns**:
+
+- `number | undefined`
+
+#### diskMax
+
+```ts
+get diskMax(): number | undefined;
+```
+
+**Returns**:
+
+- `number | undefined`
 
 #### docker
 
@@ -222,10 +265,20 @@ Return the sandbox entrypoint log as plain text.
 
 - `Promise<string>`
 
+#### error
+
+```ts
+get error(): string | undefined;
+```
+
+**Returns**:
+
+- `string | undefined`
+
 #### exec()
 
 ```ts
-exec(command: ProcessCommand, options: RunOptions = {}): Promise<RunResult>;
+exec(command: ProcessCommand, options: RunOptions = {}): Promise<ProcessResult>;
 ```
 
 Run a command, wait for its shell to exit, and collect its output.
@@ -256,7 +309,7 @@ immediately (logs, wait, kill). Alternatively redirect:
 
 **Returns**:
 
-- `Promise<RunResult>`
+- `Promise<ProcessResult>`
 
 #### followBuildLogs()
 
@@ -265,9 +318,11 @@ followBuildLogs(options: BuildLogFollowOptions): Promise<BuildLogFollowResult>;
 ```
 
 Observe this sandbox's build without changing its execution lifetime.
-Discovery failures, including a 404 for a sandbox with no image build,
-throw BuildLogInterruptedError with the HTTP status and last cursor.
-They do not fall back to another log source.
+An HTTP error of the initial discovery request, including a 404 for a
+sandbox with no image build, throws its typed error (`NotFoundError`, ...)
+unchanged; once the follower is running, a failure throws
+BuildLogInterruptedError with the last cursor. It does not fall back to
+another log source.
 
 **Parameters**:
 
@@ -280,8 +335,7 @@ They do not fall back to another log source.
 #### fork()
 
 ```ts
-fork(
-   options: { name?: string; memory?: boolean; timeout?: number } = {}): Promise<Sandbox>;
+fork(options: ForkOptions = {}): Promise<Sandbox>;
 ```
 
 Fork this sandbox and return the fork handle.
@@ -297,16 +351,35 @@ fork of a paused source rests `paused` (memory fork, call `resume()`) or
 A macOS fork copies the disk only: omit `memory` or pass `memory: false`
 (`memory: true` is refused with `NOT_SUPPORTED_FOR_CLASS`). A fork of a
 running macOS sandbox boots with a fresh machine identity; a fork of a
-paused or stopped one rests `stopped`. The fork may wait for capacity,
-as a create does; insufficient capacity can return `NO_FREE_SLOT`.
+paused or stopped one rests `stopped`. A macOS fork answers
+`DISK_NOT_READY` while the source's disk is not ready yet; retry later.
+
+`waitSeconds` defaults to 60; 0 returns at acceptance without any GET,
+and a value above about 24.8 days waits without a deadline. A running
+source's fork waits for `started`, past a macOS fork's temporary `stopped`
+state while the source releases its disk. A paused or stopped macOS
+source's fork waits for `stopped`; Linux uses the resting states above.
+Like `create()`, the wait returns the handle when its budget expires or
+the fork fails: even the default 60 seconds may return a not-yet-started
+handle. Check the returned handle's `state`.
 
 **Parameters**:
 
-- `options` _\{ name?: string; memory?: boolean; timeout?: number \} = \{\}_
+- `options` _ForkOptions = \{\}_
 
 **Returns**:
 
 - `Promise<Sandbox>`
+
+#### forkedFrom
+
+```ts
+get forkedFrom(): string | undefined;
+```
+
+**Returns**:
+
+- `string | undefined`
 
 #### fs
 
@@ -352,6 +425,40 @@ get git(): GitService;
 
 - `GitService`
 
+#### id
+
+```ts
+get id(): string;
+```
+
+The sandbox id, fixed for the handle's lifetime (read-only at run time too).
+
+**Returns**:
+
+- `string`
+
+#### image
+
+```ts
+get image(): ImageRef | undefined;
+```
+
+The image the sandbox booted; undefined for a snapshot restore or before it is known.
+
+**Returns**:
+
+- `ImageRef | undefined`
+
+#### imageBuildId
+
+```ts
+get imageBuildId(): string | undefined;
+```
+
+**Returns**:
+
+- `string | undefined`
+
 #### interpreter
 
 ```ts
@@ -362,28 +469,63 @@ get interpreter(): InterpreterService;
 
 - `InterpreterService`
 
-#### lsp
+#### labels
 
 ```ts
-get lsp(): LspService;
+get labels(): Readonly<Record<string, string>> | undefined;
+```
+
+The sandbox labels; undefined until the API has reported them (a
+`create*()` or `fork()` handle whose wait read nothing holds only what the
+create response carries: call `refreshData()` to load them). Replace them
+with `setLabels()`.
+
+**Returns**:
+
+- `Readonly<Record<string, string>> | undefined`
+
+#### lifecyclePolicy
+
+```ts
+get lifecyclePolicy(): SandboxLifecycle | undefined;
 ```
 
 **Returns**:
 
-- `LspService`
+- `SandboxLifecycle | undefined`
 
 #### macBootMode
 
 ```ts
-get macBootMode(): MacBootMode | null;
+get macBootMode(): MacBootMode | undefined;
 ```
 
-macOS only: how the sandbox resumed, as reported by the API. Null
+macOS only: how the sandbox resumed, as reported by the API. Undefined
 for any other class and for a sandbox not resumed since it last booted.
 
 **Returns**:
 
-- `MacBootMode | null`
+- `MacBootMode | undefined`
+
+#### memory
+
+```ts
+get memory(): number | undefined;
+```
+
+**Returns**:
+
+- `number | undefined`
+
+#### memoryMax
+
+```ts
+get memoryMax(): number | undefined;
+```
+
+**Returns**:
+
+- `number | undefined`
 
 #### metrics()
 
@@ -391,9 +533,21 @@ for any other class and for a sandbox not resumed since it last booted.
 metrics(): Promise<SystemMetrics>;
 ```
 
+A snapshot of the sandbox's CPU, memory and disk usage.
+
 **Returns**:
 
 - `Promise<SystemMetrics>`
+
+#### name
+
+```ts
+get name(): string | undefined;
+```
+
+**Returns**:
+
+- `string | undefined`
 
 #### pause()
 
@@ -401,9 +555,11 @@ metrics(): Promise<SystemMetrics>;
 pause(options: LifecycleWaitOptions = {}): Promise<void>;
 ```
 
-Pause a persistent macOS sandbox with its memory. Waits up to `timeout` for `paused` and throws
-`SandboxTerminalStateError` if the pause fails. A paused macOS sandbox keeps its Mac slot
-but does not keep its reservation renewing.
+Pause the sandbox with its memory and wait until it is paused.
+A return to started means the pause failed. A paused macOS sandbox keeps
+its memory on its Mac. With auto-renew on, it keeps its reservation
+renewing; otherwise the sandbox is stopped, with its disk, before the
+reservation ends.
 
 **Parameters**:
 
@@ -412,6 +568,19 @@ but does not keep its reservation renewing.
 **Returns**:
 
 - `Promise<void>`
+
+#### persistent
+
+```ts
+get persistent(): boolean | undefined;
+```
+
+macOS only: whether the sandbox preserves its disk when stopped; undefined on a
+ handle whose metadata has not been loaded yet.
+
+**Returns**:
+
+- `boolean | undefined`
 
 #### ports
 
@@ -443,6 +612,26 @@ get pty(): PtyService;
 
 - `PtyService`
 
+#### rawSandboxClass
+
+```ts
+get rawSandboxClass(): string | undefined;
+```
+
+**Returns**:
+
+- `string | undefined`
+
+#### rawState
+
+```ts
+get rawState(): string | undefined;
+```
+
+**Returns**:
+
+- `string | undefined`
+
 #### refreshData()
 
 ```ts
@@ -455,12 +644,22 @@ Refresh sandbox metadata from the API.
 
 - `Promise<void>`
 
+#### region
+
+```ts
+get region(): string | undefined;
+```
+
+**Returns**:
+
+- `string | undefined`
+
 #### replaceSecrets()
 
 ```ts
 replaceSecrets(
    secrets: readonly string[],
-   options: { ifMatch: string }): Promise<SandboxSecretsInfo>;
+   options: IfMatchOptions): Promise<SandboxSecretsInfo>;
 ```
 
 Replace the full set of project secrets attached to this sandbox (`PUT /sandboxes/{id}/secrets`).
@@ -472,11 +671,25 @@ environment; processes started afterwards see the new names.
 **Parameters**:
 
 - `secrets` _readonly string\[\]_
-- `options` _\{ ifMatch: string \}_
+- `options` _IfMatchOptions_
 
 **Returns**:
 
 - `Promise<SandboxSecretsInfo>`
+
+#### reservationId
+
+```ts
+get reservationId(): string | undefined;
+```
+
+macOS only: the ID of the reservation selected for this sandbox.
+Unset before a reservation is selected, and on search results
+(`search()`), which omit it; `refreshData()` reads it.
+
+**Returns**:
+
+- `string | undefined`
 
 #### resetIdleTimer()
 
@@ -492,8 +705,9 @@ server-side to the `api` source), which restarts the idle countdown —
 `idleTimeoutAt` re-anchors to now + `idleExpirySeconds`. The wall-clock
 `timeoutAt` is NOT affected. Succeeds whether or not an idle timeout is
 armed (an unarmed sandbox echoes `idleTimeoutAt: undefined`), and in any
-state — a never-started sandbox already carries its creation-time
-activity stamp, which the reset advances.
+state but deleting or deleted — a never-started sandbox already carries
+its creation-time activity stamp, which the reset advances. A sandbox
+that is deleted or being deleted throws `ConflictError` (`CONFLICT`).
 
 The echo is the full post-reset lifecycle, the same shape
 `updateLifecyclePolicy()` returns. Advance-only: a newer concurrent activity bump
@@ -506,12 +720,12 @@ keeps the clock, and what comes back is the state that won.
 #### resetNetworkPolicy()
 
 ```ts
-resetNetworkPolicy(options: { ifMatch: string }): Promise<NetworkPolicyInfo>;
+resetNetworkPolicy(options: IfMatchOptions): Promise<NetworkPolicyInfo>;
 ```
 
 **Parameters**:
 
-- `options` _\{ ifMatch: string \}_
+- `options` _IfMatchOptions_
 
 **Returns**:
 
@@ -523,9 +737,8 @@ resetNetworkPolicy(options: { ifMatch: string }): Promise<NetworkPolicyInfo>;
 resume(options: LifecycleWaitOptions = {}): Promise<void>;
 ```
 
-Resume a paused persistent macOS sandbox and wait until it is started. A
-macOS resume the Mac cannot finish ends `stopped`; this then throws
-`SandboxTerminalStateError`.
+Resume a paused sandbox and wait until it is started.
+A return to stopped means the resume failed.
 
 **Parameters**:
 
@@ -555,6 +768,8 @@ new key. The key itself is never returned.
 runCode(code: string, options: InterpreterRunOptions = {}): Promise<InterpreterResult>;
 ```
 
+Execute code and return its result: an alias for `InterpreterService.run`, same options.
+
 **Parameters**:
 
 - `code` _string_
@@ -564,13 +779,34 @@ runCode(code: string, options: InterpreterRunOptions = {}): Promise<InterpreterR
 
 - `Promise<InterpreterResult>`
 
+#### sandboxClass
+
+```ts
+get sandboxClass(): SandboxClass | 'unknown' | undefined;
+```
+
+Undefined before the class is known; future wire classes normalize to `unknown`.
+
+**Returns**:
+
+- `SandboxClass | 'unknown' | undefined`
+
 #### setLabels()
 
 ```ts
-setLabels(labels: Record<string, string>): Promise<Record<string, string>>;
+setLabels(labels: Record<string, string>): Promise<Readonly<Record<string, string>>>;
 ```
 
-Replace the sandbox's full label set. Pass `{}` to clear all labels; resolves to the applied labels.
+Replace the sandbox's labels; pass `{}` to clear all but `name`. Resolves
+to the applied labels. The reserved `name` label, which `findByName()` and
+a `name` label search match, is kept unless `labels` sets it: without a
+`name` key the sandbox is read first (one more request, which also
+refreshes this handle's metadata) and the `name` label it reports, if any,
+is sent along (a read without labels reports none); the read and the write are not atomic. The `name` label cannot
+be removed. An empty label key is refused with `BadRequestError` before
+any request. A sandbox that is deleted or being deleted throws
+`ConflictError` (`CONFLICT`); one the API no longer finds throws
+`NotFoundError`.
 
 **Parameters**:
 
@@ -578,26 +814,39 @@ Replace the sandbox's full label set. Pass `{}` to clear all labels; resolves to
 
 **Returns**:
 
-- `Promise<Record<string, string>>`
+- `Promise<Readonly<Record<string, string>>>`
 
-#### snapshotFilesystem()
+#### snapshot
 
 ```ts
-snapshotFilesystem(options: CaptureImageOptions = {}): Promise<Image>;
+get snapshot(): SnapshotRef | undefined;
 ```
 
-Snapshot this sandbox's filesystem as a new `Image`
-(`POST /sandboxes/{id}/images`). The result boots new sandboxes
-(`daytona.create(image.id)`); a Linux sandbox keeps running. A macOS sandbox must be persistent and
-stopped; it cannot start until the snapshot is `ready`.
-
-**Parameters**:
-
-- `options` _CaptureImageOptions = \{\}_
+The memory snapshot the sandbox resumed; undefined when it booted an image or before it is known.
 
 **Returns**:
 
-- `Promise<Image>`
+- `SnapshotRef | undefined`
+
+#### spot
+
+```ts
+get spot(): boolean | undefined;
+```
+
+**Returns**:
+
+- `boolean | undefined`
+
+#### spotEvictedAt
+
+```ts
+get spotEvictedAt(): string | undefined;
+```
+
+**Returns**:
+
+- `string | undefined`
 
 #### start()
 
@@ -606,6 +855,22 @@ start(options: LifecycleWaitOptions = {}): Promise<void>;
 ```
 
 Start a stopped sandbox, or resume a paused one, and wait until it is started.
+If stop or pause is still in progress, wait for it to settle before
+sending start or resume, using the same timeout budget.
+
+A stopped macOS sandbox starts with its disk and size on any Mac of the
+organization; after a start on a different Mac, iCloud asks the user to
+sign in again. It throws `ConflictError` with `DISK_NOT_READY` while its
+disk is not ready yet (retry later), `NO_FREE_SLOT` when no Mac of the
+organization has space for its size, `MAC_DISK_FULL` when the Mac with
+space is low on free disk space, and `NO_ACTIVE_RESERVATION` when the
+organization has no Mac reservation in the region and auto-reserve is off.
+When the organization has no Mac reservation in the region and
+auto-reserve is on, the start buys one, so it can fail as a create that
+buys one does:
+`LimitExceededError` with `limit === 'max_mac_reservations'` at the
+organization's Mac reservation limit, `AUTO_RESERVE_LIMIT_REACHED`,
+`NO_MAC_AVAILABLE`, `INSUFFICIENT_BALANCE` or `CHARGE_FAILED`.
 
 **Parameters**:
 
@@ -615,13 +880,31 @@ Start a stopped sandbox, or resume a paused one, and wait until it is started.
 
 - `Promise<void>`
 
+#### state
+
+```ts
+get state(): SandboxState;
+```
+
+The last observed state; `unknown` before any read and for a state this SDK does not know.
+
+**Returns**:
+
+- `SandboxState`
+
 #### stop()
 
 ```ts
-stop(): Promise<void>;
+stop(options: LifecycleWaitOptions = {}): Promise<void>;
 ```
 
-Stop a persistent macOS sandbox.
+Stop the sandbox and wait until it is stopped. While it is stopped, toolbox
+calls (process, files, git, …) and its preview URLs answer
+`SandboxNotRunningError` (409, `SANDBOX_NOT_RUNNING`); `start()` it first.
+
+**Parameters**:
+
+- `options` _LifecycleWaitOptions = \{\}_
 
 **Returns**:
 
@@ -675,7 +958,8 @@ a sandbox with no idle policy requires `onIdleTimeout`.
 
 Setting either action to `'delete'` — or touching a pair whose current or
 resulting action is `'delete'` — requires the API key to hold
-`delete:sandboxes` in addition to `write:sandboxes`.
+`delete:sandboxes` in addition to `write:sandboxes`. A sandbox that is
+deleted or being deleted throws `ConflictError` (`CONFLICT`).
 
 **Parameters**:
 
@@ -690,17 +974,27 @@ resulting action is `'delete'` — requires the API key to hold
 ```ts
 updateNetworkPolicy(
    networkPolicy: NetworkPolicyInput,
-   options: { ifMatch: string }): Promise<NetworkPolicyInfo>;
+   options: IfMatchOptions): Promise<NetworkPolicyInfo>;
 ```
 
 **Parameters**:
 
 - `networkPolicy` _NetworkPolicyInput_
-- `options` _\{ ifMatch: string \}_
+- `options` _IfMatchOptions_
 
 **Returns**:
 
 - `Promise<NetworkPolicyInfo>`
+
+#### user
+
+```ts
+get user(): string | undefined;
+```
+
+**Returns**:
+
+- `string | undefined`
 
 #### volumes
 
@@ -715,14 +1009,20 @@ get volumes(): SandboxVolumesService;
 #### wait()
 
 ```ts
-wait(options: WaitOptions = {}): Promise<Sandbox>;
+wait(options: WaitOptions = {}): Promise<this>;
 ```
 
 Wait for one or more public sandbox states.
 
-`timeout` is a caller wait budget in seconds. The default is 60; `0`
-waits without a deadline. Timeout raises `RequestTimeoutError`, and
+`timeoutSeconds` is a caller wait budget in seconds. The default is 60; `0`,
+or a value above about 24.8 days (the timer maximum), waits without a deadline. Timeout raises `RequestTimeoutError`, and
 a terminal state before the target raises `SandboxTerminalStateError`.
+A terminal state the events hub reports is confirmed with one read before it raises,
+while the wait has budget left, unless that state already came from a full read or
+is `destroyed`. When the events hub has reported nothing decisive, the last part
+of a bounded budget (up to 5 s) reads the state from the server, so a state the
+hub missed still ends the wait; the same holds for the other lifecycle waits and
+the create and fork waits.
 
 **Parameters**:
 
@@ -730,24 +1030,7 @@ a terminal state before the target raises `SandboxTerminalStateError`.
 
 **Returns**:
 
-- `Promise<Sandbox>`
-
-#### waitForState()
-
-```ts
-waitForState(
-   states: readonly SandboxWaitState[],
-   options: WaitForStateOptions = {}): Promise<void>;
-```
-
-**Parameters**:
-
-- `states` _readonly SandboxWaitState\[\]_
-- `options` _WaitForStateOptions = \{\}_
-
-**Returns**:
-
-- `Promise<void>`
+- `Promise<this>`
 
 ***
 
@@ -763,21 +1046,24 @@ waitForState(
 
 Configuration for the sandbox-state events hub (WebSocket-based waiting).
 
-`enabled` defaults to `true`. `reconcileIntervalMs` defaults to 60 000 (ms);
-`0` disables the periodic re-subscribe timer. `idleCloseMs` closes the
+`enabled` defaults to `true`. `reconcileIntervalSeconds` defaults to 60;
+`0` disables the periodic re-subscribe timer. `idleCloseSeconds` closes the
 events socket that long after its last waiter leaves; unset, the socket
 stays open. In Node an idle socket does not keep the process alive, so a
 script that never calls `daytona.close()` still exits; a runtime where the
 socket cannot be released that way (no `ws` package) closes it after
-10 000 ms instead. `0` keeps the socket open until `close()`.
+10 seconds instead. `0` keeps the socket open until `close()`.
 
 **Properties**:
 
 - `enabled?` _boolean_ - Enable WebSocket-based waiting; default `true`.
-- `reconcileIntervalMs?` _number_ - Reconcile timer interval in ms; default 60 000; 0 disables. Values above 2 147 483 647 clamp to that maximum.
-- `idleCloseMs?` _number_ - Close an idle events socket after this many ms; default never (10 000
-  where an idle socket would keep the process alive); `0` = never. Values
-  above 2 147 483 647 clamp to that maximum.
+- `reconcileIntervalSeconds?` _number_ - Reconcile timer interval in seconds; default 60; `0` disables. A negative
+  or non-finite value is a `BadRequestError`; values above about 24 days
+  clamp to that maximum.
+- `idleCloseSeconds?` _number_ - Close an idle events socket after this many seconds. Default: never,
+  except 10 seconds where an idle socket would keep the process alive.
+  `0` = never. A negative or non-finite value is a `BadRequestError`;
+  values above about 24 days clamp to that maximum.
 
 ***
 
@@ -846,35 +1132,14 @@ server) is passed through as its wire string.
 
 ***
 
-## SandboxLifecycleDto
-
-Wire shape of the lifecycle object on sandbox DTOs and the lifecycle PATCH response.
-
-**Properties**:
-
-- `timeout_seconds?` _number \| null_
-- `on_timeout?` _string \| null_
-- `timeout_at?` _string \| null_
-- `idle_expiry_seconds?` _number \| null_
-- `on_idle_timeout?` _string \| null_
-- `idle_timeout_at?` _string \| null_
-- `last_activity_at?` _string \| null_
-- `last_activity_source?` _string \| null_
-
-***
-
-## SandboxInfo
+## SandboxHandleJSON
 
 **Properties**:
 
 - `sandboxId` _string_
-- `toolboxProxyUrl?` _string_ - Internal: the create path passes the create response's toolbox URL here.
-  `toJSON()` never writes it, and the public `Sandbox` constructor ignores it
-  — pass `options.toolboxUrl` to set a toolbox URL explicitly.
 - `name?` _string_
 - `image?` _ImageRef_
 - `snapshot?` _SnapshotRef_
-- `target?` _string_
 - `cpu?` _number_
 - `cpuMax?` _number_
 - `memory?` _number_
@@ -882,12 +1147,14 @@ Wire shape of the lifecycle object on sandbox DTOs and the lifecycle PATCH respo
 - `disk?` _number_
 - `diskMax?` _number_
 - `state?` _SandboxState_
+- `rawState?` _string_
 - `error?` _string_
 - `imageBuildId?` _string_
-- `sandboxClass?` _SandboxClass_
-- `labels?` _Record\<string, string\>_
+- `sandboxClass?` _SandboxClass \| 'unknown'_
+- `rawSandboxClass?` _string_
+- `labels?` _Readonly\<Record\<string, string\>\>_
 - `region?` _string_
-- `persistent?` _boolean_ - macOS only: preserve the sandbox's disk when stopped.
+- `persistent?` _boolean_
 - `spot?` _boolean_
 - `spotEvictedAt?` _string_
 - `lifecyclePolicy?` _SandboxLifecycle_
@@ -897,50 +1164,35 @@ Wire shape of the lifecycle object on sandbox DTOs and the lifecycle PATCH respo
 
 ***
 
-## SandboxHandleJSON
-
-```ts
-type SandboxHandleJSON = SandboxInfo
-```
-
-***
-
 ## WaitOptions
 
 **Properties**:
 
 - `until?` _SandboxWaitState \| readonly SandboxWaitState\[\]_
-- `timeout?` _number_
-
-***
-
-## WaitForStateOptions
-
-**Properties**:
-
-- `terminalStates?` _readonly SandboxState\[\]_
-- `timeout?` _number_ - Caller wait budget in milliseconds; `0` and `undefined` wait unbounded.
+- `timeoutSeconds?` _number_
 
 ***
 
 ## SandboxSearchFilters
 
-The `GET /sandboxes/search` filters shared by `Daytona.search()` and `Daytona.list()`.
+Filters for `Daytona.search()`.
 
-`status`, `sandboxClass` and `region` take a single value or a list; lists are
-joined with commas on the wire. `labels` is sent as a JSON object string
+`states`, `sandboxClass` and `region` take a single value or a list. `states`
+uses the SDK lifecycle names. `labels` is sent as a JSON object string
 (containment match); numeric bounds and timestamp starts are inclusive;
 timestamp ends are exclusive.
 
 **Properties**:
 
 - `q?` _string_ - Free text over name and image; also an exact match when it is a sandbox id.
-- `status?` _string \| readonly string\[\]_ - A single value or a list (any-of) over the API's lifecycle state names (`running`, `stopped`, ...).
+- `states?` _Exclude\<SandboxState, 'unknown'\> \| readonly Exclude\<SandboxState, 'unknown'\>\[\]_ - SDK lifecycle states; `creating` and `error` each match multiple server states.
 - `sandboxClass?` _SandboxClass \| readonly SandboxClass\[\]_ - A single value or a list (any-of).
-- `region?` _string \| readonly string\[\]_ - A single value or a list (any-of) over region slugs.
+- `region?` _string \| readonly string\[\]_ - A single value or a list (any-of) over region IDs. A region that contains
+  other regions (a geo group, or `earth`) matches every region inside it; an
+  unknown region is a `BadRequestError` from the API.
 - `imageRef?` _string_
 - `imageRefPrefix?` _string_
-- `labels?` _Record\<string, string\>_ - Containment: every listed label must match.
+- `labels?` _Readonly\<Record\<string, string\>\>_ - Containment: every listed label must match.
 - `spot?` _boolean_
 - `forkedFrom?` _string_ - Sandboxes forked from this sandbox id.
 - `minCores?` _number_ - Inclusive bounds on `cores_max` (the CPU limit), in cores (1 core = 2 vCPUs).
@@ -964,64 +1216,14 @@ timestamp ends are exclusive.
 
 **Properties**:
 
-- `secrets` _string\[\]_
+- `secrets` _readonly string\[\]_
 - `desiredRevision` _number_
 - `etag` _string_
-- `httpStatus` _number_
 - `appliedRevision?` _number_
 - `status?` _string_
 - `error?` _string_
 - `captureStatus?` _string_
 - `captureUnresolvedCount?` _number_
-
-***
-
-## SandboxStateSnapshot
-
-```ts
-type SandboxStateSnapshot = api.Snapshot
-```
-
-***
-
-## SandboxDto
-
-**Properties**:
-
-- `id` _string_
-- `class?` _SandboxClass \| string_ - Sandbox class (`linux` | `macos`); the authoritative class when present.
-- `name?` _string_
-- `image?` _api.ImageReference \| null_
-- `status?` _string_
-- `cpu?` _number_ - Reserved CPU (the guarantee), in cores (1 core = 2 vCPUs).
-- `cores_max?` _number \| null_ - CPU limit (the boot shape), in cores, a multiple of 0.5.
-- `memory_mib?` _number_
-- `memory_max_mib?` _number \| null_
-- `disk_mib?` _number_
-- `disk_max_mib?` _number \| null_
-- `error?` _string \| null_
-- `labels?` _unknown_
-- `spot?` _boolean \| null_
-- `spot_evicted_at?` _string \| null_
-- `toolboxProxyUrl?` _string_
-- `toolbox_proxy_url?` _string \| null_
-- `region_id?` _string_
-- `image_build_id?` _string \| null_
-- `user?` _string \| null_
-- `snapshot?` _api.SnapshotReference \| null_
-- `mac_boot_mode?` _string \| null_ - macOS only: set on the `running` that ends a resume; null otherwise.
-- `reservation_id?` _string \| null_ - macOS only: the reservation selected for this sandbox. `GET /sandboxes/search` items omit it.
-- `persistent?` _boolean \| null_ - macOS only; absent on `GET /sandboxes/batch-wait` items.
-- `lifecycle_policy?` _SandboxLifecycleDto \| null_
-- `created_at?` _string \| null_ - Present on `GET /sandboxes/search` items; absent
-  on the plain list. `created_at` is always set on a search item; the other
-  timestamps and `forked_from` are `null` when the sandbox has no such event.
-- `updated_at?` _string \| null_
-- `last_activity_at?` _string \| null_
-- `started_at?` _string \| null_
-- `stopped_at?` _string \| null_
-- `forked_from?` _string \| null_
-- `cursor?` _string_ - Per-item cursor on search results.
 
 ***
 
@@ -1071,15 +1273,16 @@ const response = await fetch(link.url, {
 Self-contained signed URL for one sandbox port.
 
 The token is embedded in the hostname — no extra headers or credentials are
-needed. The link expires at `expiresAt` (RFC 3339). Revoke it early with
-`PortsService.expireSignedPreviewLink`.
+needed. The link expires at `expiresAt` (RFC 3339). Expire it early with
+`PortsService.expireSignedPreviewLinks`, which expires every signed
+preview link of the sandbox.
 
 **Properties**:
 
 - `url` _string_
 - `token` _string_
-- `expiresAt?` _string_ - Absent when the server response carried no expiry (parity with the Python
-  SDK's `expires_at: Optional[str]`).
+- `expiresAt` _string_ - When the link stops resolving (RFC 3339). The contract requires it: a
+  response without it is a `BadRequestError`.
 
 ***
 
@@ -1090,11 +1293,16 @@ Options for `Sandbox.createAccessToken`.
 **Properties**:
 
 - `operations?` _readonly string\[\]_ - Requested operation subset (the sandbox-operation vocabulary: `toolbox`,
-  `toolbox:exec`, `toolbox:fs`, `toolbox:git`, `toolbox:lsp`, `desktop`,
-  `ssh`, `sandbox:stop`, `sandbox:pause`, `sandbox:delete`). Omitted = the
+  `toolbox:exec`, `toolbox:fs`, `toolbox:git`, `desktop`, `ssh`,
+  `sandbox:stop`, `sandbox:pause`, `sandbox:delete`). Omitted = the
   minter's full grantable set; `[]` is a valid ports-only grant. Unknown
-  operations are a 400, never a silent narrowing.
+  operations are a 400, never a silent narrowing. `toolbox:git` without
+  `toolbox:exec` covers the git operations except writing git config:
+  `git.setConfig()` with such a token throws `ForbiddenError` (403);
+  `git.getConfig()` still works.
 - `ports?` _readonly number\[\]_ - Private-preview ports the token may reach. Omitted = all; `[]` = none.
+  The sandbox daemon's ports 2280, 2281 and 22220 are never preview ports
+  and are refused with `BadRequestError` before any request.
 - `ttlSeconds?` _number_ - Token lifetime in seconds; omitted = the deployment default, capped server-side.
 
 ***
@@ -1130,6 +1338,25 @@ the granted private-preview port set; `undefined` means every port.
 - `memoryTotalBytes` _number_
 - `diskUsageBytes` _number_
 - `diskTotalBytes` _number_
+
+***
+
+## IfMatchOptions
+
+**Properties**:
+
+- `ifMatch` _string_
+
+***
+
+## ForkOptions
+
+**Properties**:
+
+- `name?` _string_
+- `memory?` _boolean_
+- `waitSeconds?` _number_ - Wait budget in seconds; default 60; `0` returns immediately after acceptance; a value above about 24.8 days (the timer maximum) waits with no deadline.
+- `autoDelete?` _boolean_
 
 ***
 

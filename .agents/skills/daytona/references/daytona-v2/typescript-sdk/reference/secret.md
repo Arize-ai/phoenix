@@ -2,12 +2,12 @@
 
 ## Contents
 
-- [SecretService](#secretservice)
+- [SecretsService](#secretsservice)
 - [ListSecretsOptions](#listsecretsoptions)
 - [Secret](#secret)
 - [SetSecretOptions](#setsecretoptions)
 
-## SecretService
+## SecretsService
 
 Service for managing project-scoped secrets.
 
@@ -16,16 +16,19 @@ Service for managing project-scoped secrets.
 #### Constructor
 
 ```ts
-new SecretService(api: AxiosInstance): SecretService;
+new SecretsService(token: Internal, init: never): SecretsService;
 ```
+
+Built by the SDK: get it from the client or a sandbox.
 
 **Parameters**:
 
-- `api` _AxiosInstance_
+- `token` _Internal_
+- `init` _never_
 
 **Returns**:
 
-- `SecretService`
+- `SecretsService`
 
 ### Methods
 
@@ -95,7 +98,7 @@ Lists secret metadata for the project (never values).
 set(name: string, value: string, options: SetSecretOptions): Promise<Secret>;
 ```
 
-Creates or updates a secret's value + metadata.
+Creates or updates a secret's value + metadata. The value must not be empty.
 
 **Parameters**:
 
@@ -120,11 +123,15 @@ Creates or updates a secret's value + metadata.
 
 ## Secret
 
-```ts
-type Secret = api.Secret
-```
-
 Secret metadata (never the value).
+
+**Properties**:
+
+- `name` _string_
+- `allowedDomains` _readonly string\[\]_
+- `description?` _string_
+- `createdAt` _string_
+- `updatedAt` _string_
 
 ***
 
@@ -134,8 +141,11 @@ Options for creating/updating a secret.
 
 **Properties**:
 
-- `allowedDomains` _string\[\]_ - The hosts where this secret's value may be sent (exact or `*.` wildcard),
+- `allowedDomains` _readonly string\[\]_ - The hosts where this secret's value may be sent (exact or `*.` wildcard),
   or `["*"]` for any verified host. `"*"` lets the value reach any HTTPS
   host, including one a compromised sandbox controls.
-- `description?` _string_
+- `description?` _string_ - Omitted (or `null`) keeps the stored description of an existing secret,
+  read first with `get()` (one more request, not atomic with the write; an
+  error from it other than not-found fails the call; no read with
+  `ifNotExists`); `''` clears it.
 - `ifNotExists?` _boolean_

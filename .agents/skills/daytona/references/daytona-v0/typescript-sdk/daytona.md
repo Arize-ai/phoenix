@@ -8,6 +8,7 @@
 - DaytonaConfig
 - Resources
 - VolumeMount
+- CreateSandboxResources
 - ForkSandboxParams
 - CODE\_TOOLBOX\_LANGUAGE\_LABEL
 - See Also
@@ -319,6 +320,8 @@ list(query?: ListSandboxesQuery): AsyncIterableIterator<Sandbox>;
 ```
 
 Iterates over Sandboxes matching the given query.
+The iterator makes one additional request for each sandbox with more than 8 GPUs to fetch its nodes. A gang deleted
+between listing and fetching its node details is skipped.
 
 **Parameters**:
 
@@ -454,8 +457,7 @@ Parameters for creating a new Sandbox.
 - `outboundProxyUrl?` _string_
 - `public?` _boolean_
 - `queueTimeout?` _number_
-- `resources?` _Resources_ - Resource allocation for the Sandbox. If not provided, sandbox will
-    have default resources.
+- `resources?` _CreateSandboxResources_ - Scalar allocations apply to every node. Use per-node arrays for rank-specific values.
 - `secrets?` _Record\<string, string\>_
 - `spot?` _boolean_
 - `target?` _string_
@@ -581,6 +583,47 @@ Represents a volume mount for a Sandbox.
 **Extends:**
 
 - `SandboxVolume`
+## CreateSandboxResources
+
+```ts
+type CreateSandboxResources = Resources & {
+  cpuPerNode?: number[];
+  diskPerNode?: number[];
+  memoryPerNode?: number[];
+};
+```
+
+Resource allocation used when creating a Sandbox from an image.
+
+### Type Declaration
+
+#### cpuPerNode?
+
+```ts
+cpuPerNode?: number[];
+```
+
+CPU cores for each node, ordered by rank.
+
+#### diskPerNode?
+
+```ts
+diskPerNode?: number[];
+```
+
+Disk in GiB for each node, ordered by rank.
+
+#### memoryPerNode?
+
+```ts
+memoryPerNode?: number[];
+```
+
+Memory in GiB for each node, ordered by rank.
+
+***
+
+
 ## ForkSandboxParams
 
 ```ts

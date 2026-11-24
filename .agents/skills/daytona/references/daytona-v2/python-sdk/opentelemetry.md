@@ -41,10 +41,9 @@ response = sandbox.process.run(
 
 > **Notes:**
 >
-> - The program must use an OpenTelemetry SDK or another OTLP exporter.
-> - Set OTEL_EXPORTER_OTLP_ENDPOINT to `$DAYTONA_OTEL_ENDPOINT` and OTEL_EXPORTER_OTLP_PROTOCOL to `http/protobuf` in the program's start command.
-> - The endpoint accepts only uncompressed OTLP/HTTP with protobuf bodies.
-> - A sandbox started before Daytona stopped setting the standard exporter variables passes them to new processes until you [unset them](./process-execution.md#update-the-environment) or stop and start the sandbox.
+> - **Prerequisites:** The program must use an OpenTelemetry SDK or another OTLP exporter. Set OTEL_EXPORTER_OTLP_ENDPOINT to `$DAYTONA_OTEL_ENDPOINT` and OTEL_EXPORTER_OTLP_PROTOCOL to `http/protobuf` in the program's start command.
+> - **Compatibility:** The endpoint accepts only uncompressed OTLP/HTTP with protobuf bodies.
+> - **Behaviour:** A sandbox started before Daytona stopped setting the standard exporter variables passes them to new processes until you [unset them](./process-execution.md#update-the-environment) or stop and start the sandbox.
 
 ## Forward sandbox telemetry
 
@@ -61,6 +60,8 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/otel-config' \
   --header 'Authorization: Bearer YOUR_OIDC_TOKEN'
 ```
 
+**Response:**
+
 ```json
 {
   "endpoint": "https://otel.example.com",
@@ -76,7 +77,7 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/otel-config' \
 
 > **Notes:**
 >
-> - The request requires a signed-in user token, not an API key.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 ### Set the configuration
 
@@ -97,15 +98,14 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/otel-config' \
 
 | **Field** | **Description** |
 | --- | --- |
-| `org_id` | Sets the organization to configure.<br />**Format:** an organization ID |
 | `endpoint` | Sets the OTLP/HTTP endpoint that sandbox telemetry is forwarded to.<br />**Required**<br />**Maximum:** 2048 bytes<br />**Format:** an https URL without user info, query, or fragment that resolves only to public IP addresses<br />**Example:** `"https://otel.example.com"` |
 | `headers` | Sets the request headers sent to the endpoint.<br />**Default:** no headers<br />**Maximum:** 16 headers and 16 KiB of names and values<br />**Format:** a map of header names of 1 to 128 bytes, other than transport headers, User-Agent, and names that start with Proxy-, to values of 1 to 4096 bytes of visible ASCII, space, or tab<br />**Value:** `"********"` for the stored value of the header<br />**Example:** `{"Authorization": "Bearer YOUR_COLLECTOR_TOKEN"}` |
+| `org_id` | Sets the organization to configure.<br />**Format:** an organization ID |
 
 > **Notes:**
 >
-> - The request requires a signed-in user token, not an API key.
-> - The request requires the Enterprise [plan](../platform/billing.md#get-the-plan).
-> - Daytona appends /v1/logs, /v1/traces, or /v1/metrics to the endpoint for each signal.
+> - **Prerequisites:** The request requires the Enterprise [plan](../platform/billing.md#get-the-plan). The request requires a signed-in user token, not an API key.
+> - **Behaviour:** Daytona appends /v1/logs, /v1/traces, or /v1/metrics to the endpoint for each signal.
 
 ### Delete the configuration
 
@@ -125,14 +125,14 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/otel-config' \
 
 > **Notes:**
 >
-> - The request requires a signed-in user token, not an API key.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 ## Trace SDK requests
 
 Turn on SDK tracing to emit a client span for each request the SDK sends to Daytona. Each span is named after the HTTP method and the route template, such as daytona.post /sandboxes for a create request, and the SDK adds W3C trace context headers to the request. The spans go to the tracer provider that your application registers; without one, they are not exported.
 
 ```bash
-pip install 'daytona[otel]==2.0.0a13' opentelemetry-sdk opentelemetry-exporter-otlp-proto-http
+pip install "daytona[otel]>=2,<3" opentelemetry-sdk opentelemetry-exporter-otlp-proto-http
 ```
 
 ```python
@@ -157,7 +157,7 @@ with Daytona(DaytonaConfig(otel_enabled=True)) as daytona:
 
 > **Notes:**
 >
-> - The otel extra installs only opentelemetry-api, so add the OpenTelemetry SDK and an exporter.
+> - **Prerequisites:** The otel extra installs only opentelemetry-api, so add the OpenTelemetry SDK and an exporter.
 
 Each span has the following attributes:
 

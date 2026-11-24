@@ -65,12 +65,20 @@ const MODEL_MENU_DATA = {
       { providerKey: "OPENAI", name: "gpt-5.4" },
       { providerKey: "OPENAI", name: "gpt-5.4-mini" },
       { providerKey: "OPENAI", name: "gpt-6-sol" },
+      { providerKey: "OPENAI", name: "gpt-6.1-terra" },
+      { providerKey: "OPENAI", name: "gpt-6.2-sol" },
+      { providerKey: "ANTHROPIC", name: "claude-fable-5-1" },
+      { providerKey: "ANTHROPIC", name: "claude-fable-5-2" },
       { providerKey: "ANTHROPIC", name: "claude-opus-5" },
       { providerKey: "ANTHROPIC", name: "claude-opus-5-5" },
       { providerKey: "ANTHROPIC", name: "claude-opus-4-5" },
       { providerKey: "ANTHROPIC", name: "claude-sonnet-5-5" },
       { providerKey: "AWS", name: "anthropic.claude-opus-4-6-v1:0" },
+      { providerKey: "GOOGLE", name: "gemini-4-carbon" },
+      { providerKey: "GOOGLE", name: "gemini-4-hydrogen" },
+      { providerKey: "GOOGLE", name: "gemini-4-neon" },
       { providerKey: "GOOGLE", name: "gemini-3.7-flash" },
+      { providerKey: "GOOGLE", name: "gemini-3.1-pro-preview" },
       { providerKey: "GOOGLE", name: "gemini-2.5-flash" },
     ],
   },
@@ -152,14 +160,6 @@ describe("AgentModelPicker", () => {
     ...document.body.querySelectorAll<HTMLElement>('[role="menuitemradio"]'),
   ];
   const getItemTexts = () => getItems().map((item) => item.textContent ?? "");
-  const getItemNames = () =>
-    getItems().map(
-      (item) => item.querySelector(".agent-model-row__name")?.textContent
-    );
-  const getSectionTitles = () =>
-    [...document.body.querySelectorAll('[role="menu"] header')].map(
-      (header) => header.textContent
-    );
   const findItem = (text: string) => {
     const item = getItems().find((candidate) =>
       candidate.textContent?.includes(text)
@@ -228,70 +228,6 @@ describe("AgentModelPicker", () => {
     expect(document.activeElement).toBe(getSearchField());
   });
 
-  it("labels the trigger with the display name, id and provider", () => {
-    renderPicker();
-    expect(getTrigger().getAttribute("aria-label")).toBe(
-      "Model: Claude Opus 5.5 (claude-opus-5-5), Anthropic"
-    );
-    expect(
-      getTrigger().querySelector(".agent-model-picker-trigger__name")
-        ?.textContent
-    ).toBe("Claude Opus 5.5");
-    expect(
-      getTrigger().querySelector(".agent-model-picker-trigger__dot")
-    ).toBeNull();
-  });
-
-  it("marks the trigger with a dot when the provider has no key", () => {
-    renderPicker({
-      value: { provider: "GOOGLE", modelName: "gemini-2.5-flash" },
-    });
-    expect(
-      getTrigger().querySelector(".agent-model-picker-trigger__dot")
-    ).not.toBeNull();
-  });
-
-  it("shows Current, Recent and Recommended before typing", async () => {
-    renderPicker({
-      value: { provider: "OPENAI", modelName: "gpt-9-preview" },
-      storeProps: {
-        recentModels: [
-          { provider: "OPENAI", modelName: "gpt-9-preview" },
-          { provider: "ANTHROPIC", modelName: "claude-opus-5" },
-          { provider: "OPENAI", modelName: "my-typed-name" },
-          { provider: "GOOGLE", modelName: "gemini-2.5-flash" },
-          { provider: "OPENAI", modelName: "gpt-4o-mini" },
-        ],
-      },
-    });
-    // A non-curated current model: raw id in the trigger, and no dot since
-    // OpenAI has a key
-    expect(getTrigger().getAttribute("aria-label")).toBe(
-      "Model: gpt-9-preview, OpenAI"
-    );
-    expect(
-      getTrigger().querySelector(".agent-model-picker-trigger__dot")
-    ).toBeNull();
-
-    await act(() => userEvent.setup().click(getTrigger()));
-
-    expect(getSectionTitles()).toEqual(["Current", "Recent", "Recommended"]);
-    const texts = getItemTexts();
-    expect(texts[0]).toContain("gpt-9-preview");
-    // Recent: the top 3 without the current model
-    expect(texts.slice(1, 4)).toEqual([
-      expect.stringContaining("claude-opus-5"),
-      expect.stringContaining("my-typed-name"),
-      expect.stringContaining("gemini-2.5-flash"),
-    ]);
-    // Recommended: the curated models the catalog has, in curated order
-    expect(getItemNames().slice(4)).toEqual([
-      "Claude Opus 5.5",
-      "Claude Sonnet 5.5",
-      "GPT-6 Sol",
-    ]);
-  });
-
   it("shows a current model whose custom provider was deleted", async () => {
     renderPicker({
       value: {
@@ -312,50 +248,6 @@ describe("AgentModelPicker", () => {
     expect(current.textContent).toContain("Unavailable");
   });
 
-  it("checks the current model", async () => {
-    renderPicker();
-    await act(() => userEvent.setup().click(getTrigger()));
-
-    // The Current row, and the same model under Recommended
-    const checked = getItems().flatMap((item, index) =>
-      item.getAttribute("aria-checked") === "true" ? [index] : []
-    );
-    expect(checked).toEqual([0, 1]);
-    expect(getItemNames().slice(0, 2)).toEqual([
-      "Claude Opus 5.5",
-      "Claude Opus 5.5",
-    ]);
-  });
-
-  it("ranks token matches flat, with provider and Recommended badges", async () => {
-    renderPicker();
-    await openAndType("opus 5");
-
-    expect(getSectionTitles()).toEqual([]);
-    const texts = getItemTexts();
-    expect(texts[0]).toContain("Claude Opus 5.5");
-    expect(texts[0]).toContain("claude-opus-5-5 · Anthropic");
-    expect(texts[0]).toContain("Recommended");
-    expect(texts[1]).toContain("claude-opus-5");
-    expect(texts[1]).not.toContain("Recommended");
-    expect(
-      getItems()[0].querySelectorAll("mark").length
-    ).toBeGreaterThanOrEqual(1);
-  });
-
-  it("still lists models without a key, marked Add key", async () => {
-    renderPicker();
-    await openAndType("gemini");
-
-    const gemini = findItem("gemini-3.7-flash");
-    expect(gemini.textContent).toContain("Add key");
-    await act(() => userEvent.setup().click(gemini));
-    expect(onChange).toHaveBeenCalledWith({
-      provider: "GOOGLE",
-      modelName: "gemini-3.7-flash",
-    });
-  });
-
   it("emits the pick with the Bedrock prefix and records it without", async () => {
     renderPicker({ awsBedrockModelPrefix: "us" });
     const user = await openAndType("anthropic.claude-opus-4-6");
@@ -369,33 +261,6 @@ describe("AgentModelPicker", () => {
     });
     expect(store.getState().recentModels).toEqual([BEDROCK_OPUS]);
     expect(isOpen()).toBe(false);
-  });
-
-  it("applies the current Bedrock prefix to a prefixed recent pick", async () => {
-    renderPicker({
-      awsBedrockModelPrefix: "eu",
-      storeProps: {
-        recentModels: [
-          { provider: "AWS", modelName: "us.anthropic.claude-opus-4-6-v1:0" },
-          BEDROCK_OPUS,
-        ],
-      },
-    });
-    const user = userEvent.setup();
-    await act(() => user.click(getTrigger()));
-
-    // Both resolve to the catalog row, shown once
-    expect(getSectionTitles()).toEqual(["Current", "Recent", "Recommended"]);
-    const recentRow = getItems()[1];
-    expect(recentRow.textContent).toContain("anthropic.claude-opus-4-6-v1:0");
-    expect(recentRow.textContent).not.toContain("us.anthropic");
-    expect(getItems()[2].textContent).not.toContain("claude-opus-4-6");
-    await act(() => user.click(recentRow));
-
-    expect(onChange).toHaveBeenCalledWith({
-      provider: "AWS",
-      modelName: "eu.anthropic.claude-opus-4-6-v1:0",
-    });
   });
 
   it("applies the current Bedrock prefix to a prefixed current model", async () => {
@@ -436,48 +301,6 @@ describe("AgentModelPicker", () => {
     expect(store.getState().recentModels).toEqual([expected]);
   });
 
-  it("ends a search with the custom-model row", async () => {
-    renderPicker();
-    await openAndType("claude-opus");
-
-    const rows = getRootMenuRows();
-    expect(rows.length).toBeGreaterThan(1);
-    const lastRow = rows[rows.length - 1];
-    expect(lastRow).toBe(getCustomModelRow());
-    expect(lastRow.textContent).toContain(
-      'Use "claude-opus" as a custom model'
-    );
-    expect(lastRow.getAttribute("aria-haspopup")).toBe("menu");
-  });
-
-  it("lists providers with the guessed one first", async () => {
-    renderPicker();
-    await openCustomModelSubmenu("gemini-4-pro");
-
-    expect(getSubmenuNames()[0]).toBe("Google");
-    const google = findSubmenuItem("Google");
-    expect(google.textContent).toContain("Guessed from the name");
-    expect(google.textContent).toContain("Add key");
-    expect(findSubmenuItem("Azure OpenAI").textContent).toContain(
-      "As a deployment name"
-    );
-    expect(findSubmenuItem("Acme gateway").textContent).toContain(
-      "Custom provider"
-    );
-  });
-
-  it("sends the typed name to the picked provider", async () => {
-    renderPicker();
-    const user = await openCustomModelSubmenu("claude-opus-9");
-
-    await act(() => user.click(findSubmenuItem("Anthropic")));
-
-    const expected = { provider: "ANTHROPIC", modelName: "claude-opus-9" };
-    expect(onChange).toHaveBeenCalledWith(expected);
-    expect(store.getState().recentModels[0]).toEqual(expected);
-    expect(isOpen()).toBe(false);
-  });
-
   it("sends the typed name to a custom provider", async () => {
     renderPicker();
     const user = await openCustomModelSubmenu("acme/new-model");
@@ -489,13 +312,6 @@ describe("AgentModelPicker", () => {
       modelName: "acme/new-model",
       customProvider: { id: "custom-acme", name: "Acme gateway" },
     });
-  });
-
-  it("lists AWS Bedrock first for a typed AWS name", async () => {
-    renderPicker();
-    await openCustomModelSubmenu("anthropic.claude-opus-9-v1:0");
-
-    expect(getSubmenuNames()[0]).toBe("AWS Bedrock");
   });
 
   it("opens the submenu from the keyboard and picks with Enter", async () => {

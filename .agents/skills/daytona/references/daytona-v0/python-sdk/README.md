@@ -14,17 +14,19 @@ The Daytona Python SDK provides a robust interface for programmatically interact
 
 ## Installation
 
-Install the Daytona Python SDK using pip:
+This reference documents the Daytona v0 API, which Python SDK 2.x exposes as the `v0` namespace (`Daytona().v0`). The module pages show the 0.x SDK's examples; see [Reference](#reference) for how they map to SDK 2.x. Install SDK 2.x with the `v0-sdk` extra using pip:
 
 ```bash
-pip install "daytona<1"
+pip install "daytona[v0-sdk]>=2,<3"
 ```
 
 Or using poetry:
 
 ```bash
-poetry add "daytona<1"
+poetry add "daytona[v0-sdk]>=2,<3"
 ```
+
+SDK 2.x connects to Daytona Cloud. To use a custom API URL, stay on SDK 0.x (`pip install "daytona<1"`) and call the client methods on `Daytona()` directly. For the changes between the versions, see [Upgrade to v2](./upgrade-to-v2.md).
 
 ## Getting Started
 
@@ -42,7 +44,7 @@ def main():
     daytona = Daytona()
 
     # Create a new sandbox
-    sandbox = daytona.create()
+    sandbox = daytona.v0.create()
 
     # Execute a command
     response = sandbox.process.exec("echo 'Hello, World!'")
@@ -62,7 +64,7 @@ async def main():
     # Initialize the SDK (uses environment variables by default)
     async with AsyncDaytona() as daytona:
         # Create a new sandbox
-        sandbox = await daytona.create()
+        sandbox = await daytona.v0.create()
 
         # Execute a command
         response = await sandbox.process.exec("echo 'Hello, World!'")
@@ -74,23 +76,23 @@ if __name__ == "__main__":
 
 ## Configuration
 
-The Daytona SDK can be configured using environment variables or by passing options to the constructor:
+The Daytona SDK can be configured using environment variables or by passing options to the constructor. The `v0` namespace reads `DAYTONA_API_KEY` and `DAYTONA_TARGET` from the environment. To create a sandbox in a specific region, pass `target` to the create call:
 
 **Sync:**
 
 ```python
 from daytona import Daytona, DaytonaConfig
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
-# Using environment variables (DAYTONA_API_KEY, DAYTONA_API_URL, DAYTONA_TARGET)
+# Using environment variables (DAYTONA_API_KEY, DAYTONA_TARGET)
 daytona = Daytona()
 
 # Using explicit configuration
-config = DaytonaConfig(
-    api_key="YOUR_API_KEY",
-    api_url="https://app.daytona.io/api",
-    target="us"
-)
+config = DaytonaConfig(api_key="YOUR_API_KEY")
 daytona = Daytona(config)
+
+# Creating a sandbox in a specific region
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(target="us"))
 ```
 
 **Async:**
@@ -98,25 +100,19 @@ daytona = Daytona(config)
 ```python
 import asyncio
 from daytona import AsyncDaytona, DaytonaConfig
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 async def main():
-    try:
-        # Using environment variables (DAYTONA_API_KEY, DAYTONA_API_URL, DAYTONA_TARGET)
-        daytona = AsyncDaytona()
+    # Using environment variables (DAYTONA_API_KEY, DAYTONA_TARGET)
+    async with AsyncDaytona() as daytona:
         # Your async code here
         pass
-    finally:
-        await daytona.close()
 
     # Using explicit configuration
-    config = DaytonaConfig(
-        api_key="YOUR_API_KEY",
-        api_url="https://app.daytona.io/api",
-        target="us"
-    )
+    config = DaytonaConfig(api_key="YOUR_API_KEY")
     async with AsyncDaytona(config) as daytona:
-        # Your code here
-        pass
+        # Creating a sandbox in a specific region
+        sandbox = await daytona.v0.create(CreateSandboxFromSnapshotParams(target="us"))
 
 if __name__ == "__main__":
     asyncio.run(main())
@@ -126,17 +122,15 @@ For more information on configuring the Daytona SDK, see [API keys](../platform/
 
 ## Real-time state updates
 
-Starting with SDK version **0.198.0**, the SDK streams sandbox state changes over a WebSocket (Socket.IO) connection by default. Sandbox lifecycle operations that wait on a state change (start, stop, pause, resize, snapshot, delete with `wait`) complete as soon as the server pushes the new state, instead of waiting for the next polling interval.
+The `v0` namespace streams sandbox state changes over a WebSocket (Socket.IO) connection by default. Sandbox lifecycle operations that wait on a state change (start, stop, pause, resize, snapshot, delete with `wait`) complete as soon as the server pushes the new state, instead of waiting for the next polling interval.
 
-Each `Daytona` or `AsyncDaytona` client opens a single WebSocket connection shared by all of its sandboxes. A sparse polling safety net runs alongside the event stream, so a missed event never hangs a waiting operation.
+Each `Daytona().v0` or `AsyncDaytona().v0` client opens a single WebSocket connection shared by all of its sandboxes. A sparse polling safety net runs alongside the event stream, so a missed event never hangs a waiting operation.
 
 The WebSocket handshake carries `source` and `sdkVersion` query parameters, equivalent to the `X-Daytona-Source` and `X-Daytona-SDK-Version` REST headers. The SDK collects no client-side telemetry.
 
 ### Polling fallback
 
 If the WebSocket connection cannot be established, for example when a proxy, firewall, or network policy blocks it, the SDK falls back to polling automatically. Connection setup runs in the background and never raises an error, so no handling is required.
-
-The WebSocket endpoint derives from the configured API URL, including custom base paths, so reverse proxy deployments such as `https://host/prefix/api` work without additional configuration.
 
 ### Opt out of event streaming
 > **Caution: Deprecated**
@@ -149,26 +143,6 @@ To opt out, set the `DAYTONA_USE_DEPRECATED_POLLING` environment variable:
 ```bash
 export DAYTONA_USE_DEPRECATED_POLLING=true
 ```
-
-Or pass `use_deprecated_polling` when initializing the client. The explicit configuration option always takes precedence over the environment variable; the environment variable applies only when the option is unset.
-
-**Sync:**
-
-```python
-from daytona import Daytona, DaytonaConfig
-
-daytona = Daytona(DaytonaConfig(use_deprecated_polling=True))
-```
-
-**Async:**
-
-```python
-from daytona import AsyncDaytona, DaytonaConfig
-
-daytona = AsyncDaytona(DaytonaConfig(use_deprecated_polling=True))
-```
-
-See the [`DaytonaConfig` reference](./sync/daytona.md#daytonaconfig) for details.
 
 ## Async Python SDK
 
@@ -191,6 +165,8 @@ export DAYTONA_HAPPY_EYEBALLS_DELAY=0.25
 ```
 
 ## Reference
+> **Note: SDK 0.x reference**
+> The module pages are generated from the 0.x SDK, so their examples call the client on `Daytona()` and show 0.x options. With SDK 2.x, call those methods on `Daytona().v0` or `AsyncDaytona().v0`, import the types from `daytona.v0`, and leave out `api_url`, `server_url`, and `use_deprecated_polling`, which SDK 2.x rejects. Set `DAYTONA_USE_DEPRECATED_POLLING` in the environment instead of the option.
 
 The Python SDK reference documents the following modules:
 

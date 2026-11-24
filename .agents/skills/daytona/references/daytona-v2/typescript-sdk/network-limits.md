@@ -111,8 +111,8 @@ const sandbox = await daytona.v2.create({
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `blockAll` | Denies all egress that is not explicitly allowed.<br />**Default:** `true` with allowDomains, otherwise `false` |
 | `allowCidrs` | Allows egress to IPv4 addresses and CIDR blocks, on any port.<br />**Default:** `[]`<br />**Maximum:** 128 domains and CIDR blocks combined<br />**Format:** the [network allow list format](#network-allow-list-format)<br />**Example:** `['208.80.152.0/22']` |
+| `blockAll` | Denies all egress that is not explicitly allowed.<br />**Default:** `true` with allowDomains, otherwise `false` |
 
 ### Allow domains
 
@@ -216,7 +216,7 @@ console.log(policy.status, policy.desired, policy.applied, policy.etag)
 
 > **Notes:**
 >
-> - The sandbox must be a Linux or macOS sandbox.
+> - **Prerequisites:** The sandbox must be a Linux or macOS sandbox.
 
 ### Update network policy
 
@@ -247,10 +247,9 @@ console.log(updated.status) // pending until the sandbox applies it
 
 > **Notes:**
 >
-> - The sandbox must be a Linux or macOS sandbox that is running, paused, or stopped.
-> - Get the network policy until its status is `applied`, because the update applies in the background.
-> - An update fails while the sandbox is changing state, such as booting, pausing, or stopping, so retry once the sandbox is running, paused, or stopped.
-> - An update with an outdated ETag is rejected so that it cannot overwrite the newer policy; get the policy again, then retry the update with its current ETag.
+> - **Prerequisites:** The sandbox must be a Linux or macOS sandbox that is running, paused, or stopped.
+> - **Polling:** Get the network policy until its status is `applied`, because the update applies in the background.
+> - **Recovery:** An update fails while the sandbox is changing state, such as booting, pausing, or stopping, so retry once the sandbox is running, paused, or stopped. An update with an outdated ETag is rejected so that it cannot overwrite the newer policy; get the policy again, then retry the update with its current ETag.
 
 ### Reset network policy
 
@@ -276,8 +275,8 @@ await sandbox.resetNetworkPolicy({ ifMatch: current.etag })
 
 > **Notes:**
 >
-> - The sandbox must be a Linux or macOS sandbox that is running, paused, or stopped.
-> - Get the network policy until its status is `applied`, because the reset applies in the background.
+> - **Prerequisites:** The sandbox must be a Linux or macOS sandbox that is running, paused, or stopped.
+> - **Polling:** Get the network policy until its status is `applied`, because the reset applies in the background.
 
 ### Test network access
 
@@ -310,8 +309,8 @@ python3 -c "import urllib.request as u; print(u.urlopen('https://example.com', t
 
 | **Flag** | **Description** |
 | --- | --- |
-| `-I` | Sends a HEAD request and prints only the response headers. |
 | `--connect-timeout` | Sets the seconds that curl waits for the connection.<br />**Example:** `10` |
+| `-I` | Sends a HEAD request and prints only the response headers. |
 
 ## Permissions
 

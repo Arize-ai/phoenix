@@ -31,7 +31,7 @@ Use spot sandboxes for work that tolerates an interruption in exchange for a low
 
 Spot sandboxes are used for work that tolerates an interruption in exchange for a lower price.
 
-- **Batch jobs.** Data processing, builds, and test runs start again from the beginning when a sandbox is reclaimed. Spot multiplies the CPU, memory, and disk price by 0.7. Each job opts in to spot when its sandbox is created, and the tier cannot change afterwards.
+- **Batch jobs.** Data processing, builds, and test runs start again from the beginning when a sandbox is reclaimed. Each job opts in to spot when its sandbox is created, and the tier cannot change afterwards.
 
 - **Evaluation and reinforcement learning (RL).** Many short test cases or episodes run on spot sandboxes. A reclaimed test case or episode runs again in a new sandbox. Newer spot sandboxes are reclaimed before older ones, so a reclaim interrupts the least accumulated work first.
 
@@ -47,7 +47,7 @@ Spot sandboxes are sandboxes on spot capacity, which is sold at a lower price an
 
 A spot sandbox differs from an on-demand sandbox of its type only in price and reclaim.
 
-Create a spot sandbox to run work at a discount when the work can be reclaimed. Spot multiplies the prices of the CPU, memory, and disk of the sandbox by 0.7, as listed in [pricing dimensions](../platform/billing.md#pricing-dimensions). Linux and Windows sandboxes can be spot, and GPU and macOS sandboxes cannot. A sandbox that is created from a [snapshot](./snapshots.md) is always an on-demand sandbox, including when the snapshot itself was taken from a spot sandbox.
+Create a spot sandbox to run work at a discount when the work can be reclaimed. See [pricing](https://www.daytona.com/pricing) for the spot discount. Linux and Windows sandboxes can be spot, and GPU and macOS sandboxes cannot. A sandbox that is created from a [snapshot](./snapshots.md) is always an on-demand sandbox, including when the snapshot itself was taken from a spot sandbox.
 
 ```typescript
 import { Daytona } from '@daytona/sdk'
@@ -63,8 +63,8 @@ const sandbox = await daytona.v2.create({ spot: true })
 
 > **Notes:**
 >
-> - The request requires the `write:sandboxes` permission.
-> - The create response has no spot field, so the spot property is `undefined` until a read of the sandbox sets it, such as refreshData() or get().
+> - **Permissions:** The request requires the `write:sandboxes` permission.
+> - **Results:** The create response has no spot field, so the spot property is `undefined` until a read of the sandbox sets it, such as refreshData() or get().
 
 ## Reclaim policy
 
@@ -86,7 +86,7 @@ Keep the data that must survive a reclaim in storage outside the sandbox, and st
 
 Reclaim detection tells a reclaim apart from a delete that the owner of a sandbox requested. Both end the sandbox, and only a record of the reclaim shows which of the two happened.
 
-Every reclaimed sandbox carries the time of its reclaim until it is started or resumed, and a sandbox that was never reclaimed carries no reclaim time.
+The reclaim time of a sandbox stays on it until the sandbox is started or resumed, and a sandbox that was never reclaimed has none.
 
 Keep the ID of each spot sandbox you create, and read the sandbox as soon as you notice an interruption. A reclaimed ephemeral sandbox is deleted, and a deleted sandbox is left out of [list](./sandboxes.md#list-sandboxes) and [search](./sandboxes.md#search-sandboxes) results, so its reclaim time is read by ID. The record of a deleted sandbox stays readable by ID until Daytona purges it, after which the sandbox is no longer found.
 
@@ -122,8 +122,8 @@ for (const item of page.items) {
 
 > **Notes:**
 >
-> - The requests require the `read:sandboxes` permission.
-> - Search leaves out deleted sandboxes, so read a reclaimed ephemeral sandbox by its ID.
+> - **Permissions:** The requests require the `read:sandboxes` permission.
+> - **Results:** Search leaves out deleted sandboxes, so read a reclaimed ephemeral sandbox by its ID.
 
 ## Reclaim recovery
 

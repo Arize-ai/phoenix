@@ -4,12 +4,12 @@
 
 - [BuildLogInterruptedError](#buildloginterruptederror)
 - [DaytonaError](#daytonaerror)
+- [ClientClosedError](#clientclosederror)
 - [BadRequestError](#badrequesterror)
-- [UnauthorizedError](#unauthorizederror)
+- [AuthenticationError](#authenticationerror)
 - [ForbiddenError](#forbiddenerror)
 - [NotFoundError](#notfounderror)
 - [RequestTimeoutError](#requesttimeouterror)
-- [SandboxCreateTimeoutError](#sandboxcreatetimeouterror)
 - [DockerWaitTimeoutError](#dockerwaittimeouterror)
 - [ConflictError](#conflicterror)
 - [DockerNotReadyError](#dockernotreadyerror)
@@ -38,6 +38,7 @@
 - [ProcessStartFailedError](#processstartfailederror)
 - [ProcessTerminalError](#processterminalerror)
 - [ProcessExecutionTimeoutError](#processexecutiontimeouterror)
+- [ProcessKillIncompleteError](#processkillincompleteerror)
 - [NameConflictError](#nameconflicterror)
 - [InvalidCursorError](#invalidcursorerror)
 - [CursorExpiredError](#cursorexpirederror)
@@ -48,8 +49,6 @@
 - [SessionNotFoundError](#sessionnotfounderror)
 - [SessionEndedError](#sessionendederror)
 - [KernelUnavailableError](#kernelunavailableerror)
-- [LspServerUnavailableError](#lspserverunavailableerror)
-- [LspNotStartedError](#lspnotstartederror)
 - [AddonUnavailableError](#addonunavailableerror)
 - [FileNotFoundError](#filenotfounderror)
 - [InvalidFilePathError](#invalidfilepatherror)
@@ -63,7 +62,6 @@
 - [AtomicUploadUnsupportedError](#atomicuploadunsupportederror)
 - [OrgSuspendedError](#orgsuspendederror)
 - [ProjectBudgetExceededError](#projectbudgetexceedederror)
-- [RateLimitedError](#ratelimitederror)
 - [OverloadedError](#overloadederror)
 - [NotSupportedForClassError](#notsupportedforclasserror)
 - [FeatureNotEnabledError](#featurenotenablederror)
@@ -109,15 +107,6 @@
 - [SnapshotNotFoundError](#snapshotnotfounderror)
 - [SnapshotNotReadyError](#snapshotnotreadyerror)
 - [SnapshotClassMismatchError](#snapshotclassmismatcherror)
-- [DaytonaValidationError](#daytonavalidationerror)
-- [DaytonaAuthenticationError](#daytonaauthenticationerror)
-- [DaytonaAuthorizationError](#daytonaauthorizationerror)
-- [DaytonaNotFoundError](#daytonanotfounderror)
-- [DaytonaConflictError](#daytonaconflicterror)
-- [DaytonaRateLimitError](#daytonaratelimiterror)
-- [DaytonaTimeoutError](#daytonatimeouterror)
-- [DaytonaConnectionError](#daytonaconnectionerror)
-- [DaytonaNotSupportedError](#daytonanotsupportederror)
 
 ## BuildLogInterruptedError
 
@@ -136,8 +125,10 @@ application effects; persist output and cursor together before resuming.
 def __init__(message: str,
              *,
              cursor: str | None = None,
-             code: str = 'BUILD_LOG_INTERRUPTED',
-             status_code: int | None = None) -> None
+             status_code: int | None = None,
+             code: str | None = None,
+             source: str | None = None,
+             **fields: Unpack[_ErrorFields]) -> None
 ```
 
 ## DaytonaError
@@ -146,7 +137,18 @@ def __init__(message: str,
 class DaytonaError(_shared.DaytonaError)
 ```
 
-Base class for all SDK errors.
+Base class for all v2 SDK errors.
+
+`code` and `source` are open vocabularies: the server may send a code
+or source this SDK release does not know yet. An unknown code keeps its
+exact value on `code` and the error falls back to the class for its HTTP
+status (`NotFoundError` for a 404, ...). `daytona.v2.codes` lists the
+codes this release knows.
+
+Every keyword is optional; an error built by the caller carries only what
+it is given. A subclass with defaults (`ClientTimeoutError`, ...) uses its
+default for a keyword that is omitted or `None`, as the TypeScript SDK does
+for `undefined`.
 
 #### DaytonaError.\_\_init\_\_
 
@@ -156,7 +158,41 @@ def __init__(message: str,
              status_code: Optional[int] = None,
              code: Optional[str] = None,
              source: Optional[str] = None,
-             details: Optional[ErrorDetails] = None) -> None
+             trace_id: Optional[str] = None,
+             retry_after_seconds: Optional[int] = None,
+             feature: Optional[str] = None,
+             entitlement: Optional[str] = None,
+             replacement: Optional[str] = None,
+             first_available_cursor: Optional[str] = None,
+             limit: Optional[str] = None,
+             current: Optional[int] = None,
+             max: Optional[int] = None,
+             max_bytes: Optional[int] = None,
+             bytes: Optional[int] = None,
+             stated: Optional[str] = None,
+             actual: Optional[str] = None,
+             region: Optional[str] = None,
+             request_id: Optional[str] = None,
+             retry_after_ms: Optional[int] = None) -> None
+```
+
+## ClientClosedError
+
+```python
+class ClientClosedError(DaytonaError)
+```
+
+A request was started on a closed client; no HTTP status applies.
+
+#### ClientClosedError.\_\_init\_\_
+
+```python
+def __init__(message: str = 'Daytona client is closed',
+             *,
+             status_code: Optional[int] = None,
+             code: Optional[str] = None,
+             source: Optional[str] = None,
+             **fields: Unpack[_ErrorFields]) -> None
 ```
 
 ## BadRequestError
@@ -167,10 +203,10 @@ class BadRequestError(DaytonaError, _shared.DaytonaBadRequestError)
 
 HTTP 400.
 
-## UnauthorizedError
+## AuthenticationError
 
 ```python
-class UnauthorizedError(DaytonaError, _shared.DaytonaAuthenticationError)
+class AuthenticationError(DaytonaError, _shared.DaytonaAuthenticationError)
 ```
 
 HTTP 401.
@@ -198,23 +234,6 @@ class RequestTimeoutError(DaytonaError, _shared.DaytonaTimeoutError)
 ```
 
 HTTP 408.
-
-## SandboxCreateTimeoutError
-
-```python
-class SandboxCreateTimeoutError(RequestTimeoutError)
-```
-
-`create()` ran out of caller budget while the sandbox was still starting.
-
-The sandbox was created and is left running; `sandbox_id` lets the
-caller pick it up (`d.v2.get(sandbox_id)`) or delete it.
-
-#### SandboxCreateTimeoutError.\_\_init\_\_
-
-```python
-def __init__(sandbox_id: str) -> None
-```
 
 ## DockerWaitTimeoutError
 
@@ -268,9 +287,11 @@ def __init__(status: DockerStatus) -> None
 class SandboxTerminalStateError(ConflictError)
 ```
 
-`wait_for_state()` saw the sandbox reach a terminal state before any target.
+A lifecycle wait (`wait()`, `start()`, `stop()`, ...) saw the sandbox reach a terminal state first.
 
 `state` is the observed public sandbox state (e.g. `"destroyed"`).
+`reason` is the server's explanation of that state, when it gave one
+(for example why a deletion did not finish); the message ends with it.
 
 #### SandboxTerminalStateError.\_\_init\_\_
 
@@ -278,7 +299,8 @@ class SandboxTerminalStateError(ConflictError)
 def __init__(sandbox_id: str,
              state: SandboxState,
              *,
-             raw_state: Optional[str] = None) -> None
+             raw_state: Optional[str] = None,
+             reason: Optional[str] = None) -> None
 ```
 
 ## PreconditionFailedError
@@ -343,7 +365,9 @@ HTTP 422.
 class RateLimitError(DaytonaError, _shared.DaytonaRateLimitError)
 ```
 
-HTTP 429.
+HTTP 429. `RATE_LIMITED` and `TOO_MANY_REQUESTS` raise this class
+itself (read `code` to tell them apart); `LIMIT_EXCEEDED` and
+`OVERLOADED` raise its subclasses.
 
 ## LimitExceededError
 
@@ -356,7 +380,18 @@ class LimitExceededError(RateLimitError)
 Subclasses `RateLimitError`, so `except RateLimitError` keeps matching;
 `limit` is the limit's stable machine name (e.g. `max_concurrent_sandboxes`) and
 `current`/`max` are the counts the refusal was computed from. Attributes are
-`None` when a body omits or malforms them.
+`None` when a body omits or malforms them. `code` defaults to `"LIMIT_EXCEEDED"`.
+
+#### LimitExceededError.\_\_init\_\_
+
+```python
+def __init__(message: str,
+             *,
+             status_code: Optional[int] = None,
+             code: Optional[str] = None,
+             source: Optional[str] = None,
+             **fields: Unpack[_ErrorFields]) -> None
+```
 
 ## ImageTooLargeError
 
@@ -404,7 +439,20 @@ class NotSupportedError(InternalServerError)
 class ConnectionError(DaytonaError, _shared.DaytonaConnectionError)
 ```
 
-Network connection failure.
+The API or the sandbox could not be reached (no HTTP response).
+
+`source` defaults to `"SDK"`; there is no status or code.
+
+#### ConnectionError.\_\_init\_\_
+
+```python
+def __init__(message: str,
+             *,
+             status_code: Optional[int] = None,
+             code: Optional[str] = None,
+             source: Optional[str] = None,
+             **fields: Unpack[_ErrorFields]) -> None
+```
 
 ## ClientTimeoutError
 
@@ -412,7 +460,23 @@ Network connection failure.
 class ClientTimeoutError(DaytonaError, _shared.DaytonaTimeoutError)
 ```
 
-Client-side transport timeout.
+The client gave up waiting for a response.
+
+Its request timeout or a call's own deadline expired; not the server's
+HTTP 408 (`RequestTimeoutError`). Defaults: message
+`"operation timed out"`, `status_code=408`, `code="REQUEST_TIMEOUT"`,
+`source="SDK"` (the same in the TypeScript SDK).
+
+#### ClientTimeoutError.\_\_init\_\_
+
+```python
+def __init__(message: str = 'operation timed out',
+             *,
+             status_code: Optional[int] = None,
+             code: Optional[str] = None,
+             source: Optional[str] = None,
+             **fields: Unpack[_ErrorFields]) -> None
+```
 
 ## TransferCancelledError
 
@@ -421,6 +485,20 @@ class TransferCancelledError(DaytonaError)
 ```
 
 A local file transfer was cancelled before completion.
+
+Defaults: message `"file transfer cancelled"`, `status_code=499`,
+`code="REQUEST_CANCELLED"`, `source="SDK"`.
+
+#### TransferCancelledError.\_\_init\_\_
+
+```python
+def __init__(message: str = 'file transfer cancelled',
+             *,
+             status_code: Optional[int] = None,
+             code: Optional[str] = None,
+             source: Optional[str] = None,
+             **fields: Unpack[_ErrorFields]) -> None
+```
 
 ## SandboxCreateRequestTimeoutError
 
@@ -492,6 +570,14 @@ class ProcessExecutionTimeoutError(RequestTimeoutError)
 ```
 
 PROCESS_EXECUTION_TIMEOUT.
+
+## ProcessKillIncompleteError
+
+```python
+class ProcessKillIncompleteError(RequestTimeoutError)
+```
+
+PROCESS_KILL_INCOMPLETE.
 
 ## NameConflictError
 
@@ -573,22 +659,6 @@ class KernelUnavailableError(ServiceUnavailableError)
 
 KERNEL_UNAVAILABLE.
 
-## LspServerUnavailableError
-
-```python
-class LspServerUnavailableError(ServiceUnavailableError)
-```
-
-LSP_SERVER_UNAVAILABLE.
-
-## LspNotStartedError
-
-```python
-class LspNotStartedError(ConflictError)
-```
-
-LSP_NOT_STARTED.
-
 ## AddonUnavailableError
 
 ```python
@@ -632,7 +702,7 @@ FILE_READ_FAILED.
 ## GitAuthFailedError
 
 ```python
-class GitAuthFailedError(UnauthorizedError)
+class GitAuthFailedError(AuthenticationError)
 ```
 
 GIT_AUTH_FAILED.
@@ -693,12 +763,6 @@ PROJECT_BUDGET_EXCEEDED (402): the project reached its monthly budget.
 
 New sandboxes cannot start in the project until the budget is raised or
 removed, or the next calendar month (UTC) begins.
-
-## RateLimitedError
-
-```python
-class RateLimitedError(RateLimitError)
-```
 
 ## OverloadedError
 
@@ -898,6 +962,11 @@ class SearchUnavailableError(ServiceUnavailableError)
 class SandboxNotRunningError(ConflictError)
 ```
 
+`SANDBOX_NOT_RUNNING` (409, source `DAYTONA_PROXY`): a toolbox call
+(process, files, git, …) or a preview URL request reached a sandbox that
+is not running, such as a stopped one. Start the sandbox and retry. Not a
+`NotFoundError`: the sandbox exists.
+
 ## ImageNotFoundError
 
 ```python
@@ -930,7 +999,8 @@ class ImageBuildFailedError(ConflictError)
 `IMAGE_BUILD_FAILED` (409), or the SDK-minted refusal when
 `create_from_build()`'s image build ends `failed`. `image_id` names
 the failed image (so its build log can be fetched) when the SDK knows it;
-`build_error` is the build's recorded error, when any.
+`build_error` is the build's recorded error, when the image has one. It is
+separate from `message`, which is always set.
 
 #### ImageBuildFailedError.\_\_init\_\_
 
@@ -940,9 +1010,9 @@ def __init__(message: str,
              status_code: Optional[int] = None,
              code: Optional[str] = None,
              source: Optional[str] = None,
-             details: Optional[ErrorDetails] = None,
              image_id: Optional[str] = None,
-             build_error: Optional[str] = None) -> None
+             build_error: Optional[str] = None,
+             **fields: Unpack[_ErrorFields]) -> None
 ```
 
 ## ImageClassMismatchError
@@ -991,58 +1061,4 @@ class SnapshotNotReadyError(ConflictError)
 
 ```python
 class SnapshotClassMismatchError(ConflictError)
-```
-
-## DaytonaValidationError
-
-```python
-DaytonaValidationError = BadRequestError
-```
-
-## DaytonaAuthenticationError
-
-```python
-DaytonaAuthenticationError = UnauthorizedError
-```
-
-## DaytonaAuthorizationError
-
-```python
-DaytonaAuthorizationError = ForbiddenError
-```
-
-## DaytonaNotFoundError
-
-```python
-DaytonaNotFoundError = NotFoundError
-```
-
-## DaytonaConflictError
-
-```python
-DaytonaConflictError = ConflictError
-```
-
-## DaytonaRateLimitError
-
-```python
-DaytonaRateLimitError = RateLimitError
-```
-
-## DaytonaTimeoutError
-
-```python
-DaytonaTimeoutError = ClientTimeoutError
-```
-
-## DaytonaConnectionError
-
-```python
-DaytonaConnectionError = ConnectionError
-```
-
-## DaytonaNotSupportedError
-
-```python
-DaytonaNotSupportedError = NotSupportedError
 ```

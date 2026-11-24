@@ -399,7 +399,7 @@ By default, recordings are saved to `~/.daytona/recordings`. You can specify a c
 import { Daytona } from '@daytona/sdk';
 
 const daytona = new Daytona();
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   snapshot: 'daytonaio/sandbox:0.6.0',
   name: 'my-sandbox',
   envVars: { DAYTONA_RECORDINGS_DIR: '/home/daytona/my-recordings' }
@@ -510,7 +510,7 @@ By default, the virtual desktop runs at **1024x768**. Choose a different resolut
 import { Daytona } from '@daytona/sdk';
 
 const daytona = new Daytona();
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   envVars: { VNC_RESOLUTION: '1920x1080' }
 });
 ```

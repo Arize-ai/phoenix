@@ -1,20 +1,28 @@
 # Snapshot (TypeScript SDK reference)
 
+## Contents
+
+- [Snapshot](#snapshot)
+- [SnapshotsService](#snapshotsservice)
+- [ListSnapshotsOptions](#listsnapshotsoptions)
+
 ## Snapshot
 
 **Properties**:
 
 - `id` _string_
 - `name` _string_
-- `class` _ArtifactClass_
+- `sandboxClass` _SnapshotClass_
+- `rawSandboxClass` _string_
 - `kind` _SnapshotKind_
 - `rawKind` _string_
-- `availableIn` _string\[\]_
+- `availableIn` _readonly string\[\]_
 - `region` _string_
 - `status` _string_
-- `error?` _string \| null_
+- `error?` _string_
 - `createdAt` _string_
 - `updatedAt` _string_
+- `bytes?` _number_
 - `memoryBytes?` _number_
 - `sandboxId?` _string_
 
@@ -23,12 +31,15 @@
 #### Constructor
 
 ```ts
-new Snapshot(snapshot: api.Snapshot): Snapshot;
+new Snapshot(token: Internal, init: never): Snapshot;
 ```
+
+Built by the SDK: get it from the client or a sandbox.
 
 **Parameters**:
 
-- `snapshot` _api.Snapshot_
+- `token` _Internal_
+- `init` _never_
 
 **Returns**:
 
@@ -43,12 +54,15 @@ new Snapshot(snapshot: api.Snapshot): Snapshot;
 #### Constructor
 
 ```ts
-new SnapshotsService(http: AxiosInstance): SnapshotsService;
+new SnapshotsService(token: Internal, init: never): SnapshotsService;
 ```
+
+Built by the SDK: get it from the client or a sandbox.
 
 **Parameters**:
 
-- `http` _AxiosInstance_
+- `token` _Internal_
+- `init` _never_
 
 **Returns**:
 
@@ -73,15 +87,17 @@ delete(snapshotId: string): Promise<void>;
 #### get()
 
 ```ts
-get(
-   snapshotId: string,
-   options: { wait?: 'ready'; timeout?: number } = {}): Promise<Snapshot>;
+get(snapshotId: string, options: GetArtifactOptions = {}): Promise<Snapshot>;
 ```
+
+Fetch a snapshot by ID or name. `'search'` cannot be looked up by name
+(`GET /snapshots/search` is the search route): it throws a
+`BadRequestError` before any request; read such a snapshot by its ID.
 
 **Parameters**:
 
 - `snapshotId` _string_
-- `options` _\{ wait?: 'ready'; timeout?: number \} = \{\}_
+- `options` _GetArtifactOptions = \{\}_
 
 **Returns**:
 
@@ -90,13 +106,12 @@ get(
 #### iter()
 
 ```ts
-iter(
-   options: { cursor?: string; limit?: number; name?: string; sandboxId?: string } = {}): AsyncIterable<Snapshot>;
+iter(options: ListSnapshotsOptions = {}): AsyncIterable<Snapshot>;
 ```
 
 **Parameters**:
 
-- `options` _\{ cursor?: string; limit?: number; name?: string; sandboxId?: string \} = \{\}_
+- `options` _ListSnapshotsOptions = \{\}_
 
 **Returns**:
 
@@ -105,14 +120,29 @@ iter(
 #### list()
 
 ```ts
-list(
-   options: { cursor?: string; limit?: number; name?: string; sandboxId?: string } = {}): Promise<ListResult<Snapshot>>;
+list(options: ListSnapshotsOptions = {}): Promise<ListResult<Snapshot>>;
 ```
+
+List snapshots, one page. Reads `GET /snapshots/search` (every region,
+eventually consistent: a snapshot you just captured may be missing until
+the index catches up; `get()` reads it at once) and, on a deployment without
+search, `GET /snapshots`.
 
 **Parameters**:
 
-- `options` _\{ cursor?: string; limit?: number; name?: string; sandboxId?: string \} = \{\}_
+- `options` _ListSnapshotsOptions = \{\}_
 
 **Returns**:
 
 - `Promise<ListResult<Snapshot>>`
+
+***
+
+## ListSnapshotsOptions
+
+**Properties**:
+
+- `cursor?` _string_
+- `limit?` _number_
+- `name?` _string_
+- `sandboxId?` _string_

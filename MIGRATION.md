@@ -1,5 +1,9 @@
 # Migrations
 
+## v21.x to v22.0.0
+
+No manual steps are needed. v22 calculates costs for decision and embedding spans.
+
 ## v20.x to v21.0.0
 
 ### Bind address and authentication

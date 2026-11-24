@@ -25,12 +25,15 @@ throw `NotFoundError` (404).
 #### Constructor
 
 ```ts
-new DockerService(transport: HttpTransport): DockerService;
+new DockerService(token: Internal, init: never): DockerService;
 ```
+
+Built by the SDK: get it from the client or a sandbox.
 
 **Parameters**:
 
-- `transport` _HttpTransport_
+- `token` _Internal_
+- `init` _never_
 
 **Returns**:
 
@@ -67,7 +70,7 @@ that cannot become `ready` (`failed`, `not_present`, `disabled`,
 budget runs out while Docker is still `starting` or `deferred`,
 including when a status request is still unanswered at
 the deadline. No request runs more than a fraction of a second past the
-deadline. `timeout: 0` waits without a deadline.
+deadline. `timeoutSeconds: 0`, or a value above about 24.8 days, waits without a deadline.
 
 **Parameters**:
 
@@ -101,8 +104,8 @@ type DockerState = 'not_present' | 'disabled' | 'unmanaged' | 'deferred' | 'star
 
 - `owner` _DockerOwner_
 - `rawOwner` _string_
-- `processId?` _string \| null_
-- `reason?` _string \| null_
+- `processId?` _string_
+- `reason?` _string_
 - `state` _DockerState_
 - `rawState` _string_
 
@@ -112,5 +115,5 @@ type DockerState = 'not_present' | 'disabled' | 'unmanaged' | 'deferred' | 'star
 
 **Properties**:
 
-- `timeout?` _number_ - Wait budget in milliseconds. Default 60 000. `0` waits without a
+- `timeoutSeconds?` _number_ - Wait budget in seconds. Default 60. `0` (or a value above about 24.8 days) waits without a
   deadline — avoid it for sandboxes whose Docker can stay `deferred`.

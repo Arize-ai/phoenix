@@ -10,7 +10,7 @@
 - [MouseService](#mouseservice)
 - [RecordingService](#recordingservice)
 - [ScreenService](#screenservice)
-- [ComputerUseTransport](#computerusetransport)
+- [RecordingDownloadOptions](#recordingdownloadoptions)
 - [ComputerUseActivityStatus](#computeruseactivitystatus)
 - [ComputerUseDesktopState](#computerusedesktopstate)
 - [ComputerUseDesktopFailureCode](#computerusedesktopfailurecode)
@@ -56,6 +56,8 @@
 - [ComputerUseRecordingStartRequest](#computeruserecordingstartrequest)
 - [ComputerUseRecordingStopRequest](#computeruserecordingstoprequest)
 - [ComputerUseRegion](#computeruseregion)
+- [ComputerUseResolution](#computeruseresolution)
+- [ComputerUseStartOptions](#computerusestartoptions)
 - [ComputerUseScreenshotFormat](#computerusescreenshotformat)
 - [ComputerUseScreenshotOptions](#computerusescreenshotoptions)
 - [ComputerUseScreenshotResponse](#computerusescreenshotresponse)
@@ -65,6 +67,8 @@
 - [ComputerUseWindow](#computerusewindow)
 
 ## ComputerUseService
+
+Sandbox computer-use namespace (`sandbox.computerUse`): the desktop and its input devices.
 
 **Properties**:
 
@@ -81,12 +85,15 @@
 #### Constructor
 
 ```ts
-new ComputerUseService(transport: ComputerUseTransport): ComputerUseService;
+new ComputerUseService(token: Internal, ...init: never[]): ComputerUseService;
 ```
+
+Built by the SDK: get it from `sandbox.computerUse`.
 
 **Parameters**:
 
-- `transport` _ComputerUseTransport_
+- `token` _Internal_
+- `...init: never[]`
 
 **Returns**:
 
@@ -97,8 +104,16 @@ new ComputerUseService(transport: ComputerUseTransport): ComputerUseService;
 #### restart()
 
 ```ts
-restart(): Promise<ComputerUseRestartResponse>;
+restart(options: ComputerUseStartOptions = {}): Promise<ComputerUseRestartResponse>;
 ```
+
+Restart the desktop, at `resolution` when given (kept for later starts);
+omitted, at its current resolution. Linux sandboxes only: other platforms
+throw `UnsupportedOperationError` for a `resolution`.
+
+**Parameters**:
+
+- `options` _ComputerUseStartOptions = \{\}_
 
 **Returns**:
 
@@ -107,8 +122,19 @@ restart(): Promise<ComputerUseRestartResponse>;
 #### start()
 
 ```ts
-start(): Promise<ComputerUseLifecycleResponse>;
+start(options: ComputerUseStartOptions = {}): Promise<ComputerUseLifecycleResponse>;
 ```
+
+Start the desktop. `resolution` selects its size (1024x768, 1280x720 or
+1920x1080) and is kept for later starts and restarts; omitted, the desktop
+uses the resolution it last started at, or 1280x720. Starting a running
+desktop at a different resolution throws `ConflictError` (restart with it
+instead). Linux sandboxes only: other platforms throw
+`UnsupportedOperationError` for a `resolution`.
+
+**Parameters**:
+
+- `options` _ComputerUseStartOptions = \{\}_
 
 **Returns**:
 
@@ -143,12 +169,15 @@ stop(): Promise<ComputerUseLifecycleResponse>;
 #### Constructor
 
 ```ts
-new AddonProcessesService(transport: ComputerUseTransport): AddonProcessesService;
+new AddonProcessesService(token: Internal, ...init: never[]): AddonProcessesService;
 ```
+
+Built by the SDK: get it from `sandbox.computerUse`.
 
 **Parameters**:
 
-- `transport` _ComputerUseTransport_
+- `token` _Internal_
+- `...init: never[]`
 
 **Returns**:
 
@@ -201,12 +230,12 @@ restart(name: string): Promise<ComputerUseProcessRestartResponse>;
 #### status()
 
 ```ts
-status(): Promise<Record<string, ComputerUseProcessStatus>>;
+status(): Promise<Readonly<Record<string, ComputerUseProcessStatus>>>;
 ```
 
 **Returns**:
 
-- `Promise<Record<string, ComputerUseProcessStatus>>`
+- `Promise<Readonly<Record<string, ComputerUseProcessStatus>>>`
 
 #### status()
 
@@ -231,12 +260,15 @@ status(name: string): Promise<ComputerUseProcessRunningStatus>;
 #### Constructor
 
 ```ts
-new A11yService(transport: ComputerUseTransport): A11yService;
+new A11yService(token: Internal, ...init: never[]): A11yService;
 ```
+
+Built by the SDK: get it from `sandbox.computerUse`.
 
 **Parameters**:
 
-- `transport` _ComputerUseTransport_
+- `token` _Internal_
+- `...init: never[]`
 
 **Returns**:
 
@@ -323,12 +355,15 @@ tree(options: ComputerUseA11yTreeOptions): Promise<ComputerUseA11yTreeResponse>;
 #### Constructor
 
 ```ts
-new DisplayService(transport: ComputerUseTransport): DisplayService;
+new DisplayService(token: Internal, ...init: never[]): DisplayService;
 ```
+
+Built by the SDK: get it from `sandbox.computerUse`.
 
 **Parameters**:
 
-- `transport` _ComputerUseTransport_
+- `token` _Internal_
+- `...init: never[]`
 
 **Returns**:
 
@@ -365,12 +400,15 @@ windows(): Promise<ComputerUseDisplayWindowsResponse>;
 #### Constructor
 
 ```ts
-new KeyboardService(transport: ComputerUseTransport): KeyboardService;
+new KeyboardService(token: Internal, ...init: never[]): KeyboardService;
 ```
+
+Built by the SDK: get it from `sandbox.computerUse`.
 
 **Parameters**:
 
-- `transport` _ComputerUseTransport_
+- `token` _Internal_
+- `...init: never[]`
 
 **Returns**:
 
@@ -429,12 +467,15 @@ type(request: ComputerUseKeyboardTypeRequest): Promise<void>;
 #### Constructor
 
 ```ts
-new MouseService(transport: ComputerUseTransport): MouseService;
+new MouseService(token: Internal, ...init: never[]): MouseService;
 ```
+
+Built by the SDK: get it from `sandbox.computerUse`.
 
 **Parameters**:
 
-- `transport` _ComputerUseTransport_
+- `token` _Internal_
+- `...init: never[]`
 
 **Returns**:
 
@@ -517,12 +558,15 @@ scroll(request: ComputerUseMouseScrollRequest): Promise<ComputerUseScrollRespons
 #### Constructor
 
 ```ts
-new RecordingService(transport: ComputerUseTransport): RecordingService;
+new RecordingService(token: Internal, ...init: never[]): RecordingService;
 ```
+
+Built by the SDK: get it from `sandbox.computerUse`.
 
 **Parameters**:
 
-- `transport` _ComputerUseTransport_
+- `token` _Internal_
+- `...init: never[]`
 
 **Returns**:
 
@@ -547,12 +591,25 @@ delete(id: string): Promise<void>;
 #### download()
 
 ```ts
-download(id: string): Promise<Uint8Array>;
+download(id: string, options?: RecordingDownloadOptions): Promise<Uint8Array>;
 ```
+
+Download a recording, holding the whole file in memory. A file transfer:
+no total deadline, but it fails with `ClientTimeoutError` once no bytes
+move for the request timeout (a request timeout of `0` leaves it
+unbounded). `maxResponseBytes` replaces the client's cap on the body for
+this call (`undefined` or `null` keep the client's cap, `0` means no
+limit, and any other value (negative, fractional, boolean, string, above
+`Number.MAX_SAFE_INTEGER`) is a `BadRequestError`); a larger recording is
+refused with `PayloadTooLargeError`. For a large recording, or one from a
+sandbox you do not trust, download its `filePath` with
+`sandbox.fs.downloadFile()` (Node.js-only), which streams to disk with
+progress and cancellation.
 
 **Parameters**:
 
 - `id` _string_
+- `options?` _RecordingDownloadOptions_
 
 **Returns**:
 
@@ -619,12 +676,15 @@ stop(request: ComputerUseRecordingStopRequest): Promise<ComputerUseRecording>;
 #### Constructor
 
 ```ts
-new ScreenService(transport: ComputerUseTransport): ScreenService;
+new ScreenService(token: Internal, ...init: never[]): ScreenService;
 ```
+
+Built by the SDK: get it from `sandbox.computerUse`.
 
 **Parameters**:
 
-- `transport` _ComputerUseTransport_
+- `token` _Internal_
+- `...init: never[]`
 
 **Returns**:
 
@@ -652,67 +712,13 @@ Capture the screen, or `options.region` of it. Setting any of `format`,
 
 ***
 
-## ComputerUseTransport
+## RecordingDownloadOptions
 
-### Methods
+Options of `recording.download()`; see its documentation.
 
-#### delete()
+**Properties**:
 
-```ts
-delete<T>(path: string): Promise<T>;
-```
-
-**Parameters**:
-
-- `path` _string_
-
-**Returns**:
-
-- `Promise<T>`
-
-#### get()
-
-```ts
-get<T>(path: string, config?: { params?: Record<string, unknown> }): Promise<T>;
-```
-
-**Parameters**:
-
-- `path` _string_
-- `config?` _\{ params?: Record\<string, unknown\> \}_
-
-**Returns**:
-
-- `Promise<T>`
-
-#### getBytes()
-
-```ts
-getBytes(path: string): Promise<ArrayBuffer>;
-```
-
-**Parameters**:
-
-- `path` _string_
-
-**Returns**:
-
-- `Promise<ArrayBuffer>`
-
-#### post()
-
-```ts
-post<T>(path: string, body?: unknown): Promise<T>;
-```
-
-**Parameters**:
-
-- `path` _string_
-- `body?` _unknown_
-
-**Returns**:
-
-- `Promise<T>`
+- `maxResponseBytes?` _number \| null_
 
 ***
 
@@ -756,7 +762,7 @@ type ComputerUseDesktopFailureCode =
 - `code` _ComputerUseDesktopFailureCode_
 - `rawCode` _string_
 - `message` _string_
-- `extraFields?` _Record\<string, unknown\>_
+- `extraFields?` _Readonly\<Record\<string, unknown\>\>_
 
 ***
 
@@ -767,7 +773,7 @@ type ComputerUseDesktopFailureCode =
 - `status` _'inactive'_
 - `desktop` _'failed'_
 - `cause` _ComputerUseDesktopFailure_
-- `extraFields?` _Record\<string, unknown\>_
+- `extraFields?` _Readonly\<Record\<string, unknown\>\>_
 
 ***
 
@@ -778,7 +784,7 @@ type ComputerUseDesktopFailureCode =
 - `status` _'inactive'_
 - `desktop` _'not_started'_
 - `cause?` _never_
-- `extraFields?` _Record\<string, unknown\>_
+- `extraFields?` _Readonly\<Record\<string, unknown\>\>_
 
 ***
 
@@ -789,7 +795,7 @@ type ComputerUseDesktopFailureCode =
 - `status` _'active'_
 - `desktop` _'ready'_
 - `cause?` _never_
-- `extraFields?` _Record\<string, unknown\>_
+- `extraFields?` _Readonly\<Record\<string, unknown\>\>_
 
 ***
 
@@ -800,7 +806,7 @@ type ComputerUseDesktopFailureCode =
 - `message` _string_
 - `status` _'active'_
 - `desktop` _'ready'_
-- `extraFields?` _Record\<string, unknown\>_
+- `extraFields?` _Readonly\<Record\<string, unknown\>\>_
 
 ***
 
@@ -811,7 +817,7 @@ type ComputerUseDesktopFailureCode =
 - `status` _'inactive'_
 - `desktop` _'starting'_
 - `cause?` _never_
-- `extraFields?` _Record\<string, unknown\>_
+- `extraFields?` _Readonly\<Record\<string, unknown\>\>_
 
 ***
 
@@ -828,7 +834,7 @@ their typed values are the wire values.
 - `rawStatus` _string_
 - `rawDesktop` _string_
 - `cause?` _ComputerUseDesktopFailure_ - The failure attached to the unrecognized state, when present.
-- `extraFields?` _Record\<string, unknown\>_
+- `extraFields?` _Readonly\<Record\<string, unknown\>\>_
 
 ***
 
@@ -850,7 +856,7 @@ their typed values are the wire values.
 
 **Properties**:
 
-- `matches` _ComputerUseAccessibilityNode\[\]_
+- `matches` _readonly ComputerUseAccessibilityNode\[\]_
 - `truncated` _boolean_
 
 ***
@@ -903,7 +909,9 @@ type ComputerUseA11yScope = 'focused' | 'pid' | 'all'
 
 - `scope` _ComputerUseA11yScope_
 - `pid?` _number_
-- `maxDepth?` _number_
+- `maxDepth?` _number_ - How many levels below the root to return: an integer from 0 to 256 (the
+  SDK's cap), default 256. A deeper UI comes back cut at that depth with
+  `truncated` set; `-1` (unbounded) is refused.
 
 ***
 
@@ -938,9 +946,9 @@ type ComputerUseA11yScope = 'focused' | 'pid' | 'all'
 - `value?` _string_ - A control's current value (macOS). Never set for password fields.
 - `valueTruncated` _boolean_ - `value` was cut at the platform's cap. `false` when uncut or not reported; the SDK always fills it.
 - `bounds` _ComputerUseAccessibilityBounds_
-- `states` _string\[\]_
-- `actions?` _string\[\]_
-- `children?` _ComputerUseAccessibilityNode\[\]_
+- `states` _readonly string\[\]_
+- `actions?` _readonly string\[\]_
+- `children?` _readonly ComputerUseAccessibilityNode\[\]_
 
 ***
 
@@ -961,7 +969,7 @@ type ComputerUseA11yScope = 'focused' | 'pid' | 'all'
 
 **Properties**:
 
-- `displays` _ComputerUseDisplay\[\]_
+- `displays` _readonly ComputerUseDisplay\[\]_
 
 ***
 
@@ -969,7 +977,7 @@ type ComputerUseA11yScope = 'focused' | 'pid' | 'all'
 
 **Properties**:
 
-- `windows` _ComputerUseWindow\[\]_
+- `windows` _readonly ComputerUseWindow\[\]_
 
 ***
 
@@ -1003,7 +1011,7 @@ type ComputerUseKeyboardModifier = 'ctrl' | 'alt' | 'shift' | 'cmd'
 **Properties**:
 
 - `text` _string_
-- `delay?` _number_
+- `delaySeconds?` _number_ - Pause between key presses, in seconds.
 
 ***
 
@@ -1012,7 +1020,7 @@ type ComputerUseKeyboardModifier = 'ctrl' | 'alt' | 'shift' | 'cmd'
 **Properties**:
 
 - `message` _string_
-- `status` _Record\<string, ComputerUseProcessStatus\>_
+- `status` _Readonly\<Record\<string, ComputerUseProcessStatus\>\>_
 
 ***
 
@@ -1043,7 +1051,7 @@ type ComputerUseMouseButton = 'left' | 'right' | 'middle'
 - `startY` _number_
 - `endX` _number_
 - `endY` _number_
-- `button` _ComputerUseMouseButton_
+- `button?` _ComputerUseMouseButton_ - Default `'left'`.
 
 ***
 
@@ -1116,15 +1124,15 @@ type ComputerUseMouseButton = 'left' | 'right' | 'middle'
 
 **Properties**:
 
-- `running?` _boolean_
-- `priority?` _number_
-- `autoRestart?` _boolean_
+- `running` _boolean_
+- `priority` _number_
+- `autoRestart` _boolean_
 - `pid?` _number_
-- `failed?` _boolean_
-- `restartAttempts?` _number_
-- `restartBackoffMs?` _number_
-- `status?` _string_
-- `extraFields?` _Record\<string, unknown\>_
+- `failed` _boolean_
+- `restartAttempts` _number_
+- `restartBackoffSeconds` _number_ - The current restart backoff, in seconds.
+- `status` _string_
+- `extraFields?` _Readonly\<Record\<string, unknown\>\>_
 
 ***
 
@@ -1147,7 +1155,7 @@ type ComputerUseMouseButton = 'left' | 'right' | 'middle'
 
 **Properties**:
 
-- `recordings` _ComputerUseRecording\[\]_
+- `recordings` _readonly ComputerUseRecording\[\]_
 
 ***
 
@@ -1178,6 +1186,29 @@ type ComputerUseMouseButton = 'left' | 'right' | 'middle'
 
 ***
 
+## ComputerUseResolution
+
+A desktop resolution in pixels: 1024x768, 1280x720 or 1920x1080.
+
+**Properties**:
+
+- `width` _number_
+- `height` _number_
+
+***
+
+## ComputerUseStartOptions
+
+Options for `computerUse.start()` and `computerUse.restart()`.
+
+**Properties**:
+
+- `resolution?` _ComputerUseResolution_ - The desktop size (1024x768, 1280x720 or 1920x1080), kept for later starts
+  and restarts. Omitted: the resolution the desktop last started at, or
+  1280x720. Linux sandboxes only.
+
+***
+
 ## ComputerUseScreenshotFormat
 
 ```ts
@@ -1205,9 +1236,9 @@ any of `format` / `quality` / `scale` returns a compressed image.
 
 **Properties**:
 
-- `screenshot` _string_
+- `screenshot` _string_ - The image, base64-encoded.
+- `sizeBytes` _number_
 - `cursorPosition?` _ComputerUsePoint_
-- `sizeBytes?` _number_
 
 ***
 

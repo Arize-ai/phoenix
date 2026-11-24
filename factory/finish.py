@@ -51,6 +51,8 @@ FINISHED_LABEL = "factory-finished"
 FINISHED_LABEL_COLOR = "5319E7"
 FINISHED_LABEL_DESCRIPTION = "The factory pushed commits to this pull request"
 FINISH_AGENT_LOCK_KEY = "./agents/pr-finisher.md"
+# Automation PRs the lane merges itself once a reviewer approves; a human merges the rest.
+AUTO_MERGE_BRANCHES = {"claude/daily-deps-upgrade"}
 FINISH_OUTCOME = (
     "Pull request #{pr_number} links an issue, has every review finding fixed, passes the "
     "checks for the areas it touches and carries one comment to its author describing what "
@@ -59,7 +61,7 @@ FINISH_OUTCOME = (
 )
 PR_FIELDS = (
     "number,url,state,isDraft,isCrossRepository,baseRefName,baseRefOid,headRefName,headRefOid,"
-    "title,body,author,comments,closingIssuesReferences"
+    "title,body,author,comments,closingIssuesReferences,reviewRequests,assignees"
 )
 
 
@@ -244,6 +246,7 @@ def copy_fork_pr(*, repo: str, pr: dict[str, Any], token: str) -> dict[str, Any]
         input_text=body,
     ).strip()
     copy_number = int(copy_url.rsplit("/", 1)[1])
+    copy_reviewers_and_assignees(pr=pr, copy_number=copy_number, token=token)
     run_gh(
         "pr",
         "close",
@@ -259,6 +262,29 @@ def copy_fork_pr(*, repo: str, pr: dict[str, Any], token: str) -> dict[str, Any]
         raise RuntimeError("The fork copy does not match the admitted commit")
     copied["_factory_snapshot"] = pr["_factory_snapshot"]
     return copied
+
+
+def copy_reviewers_and_assignees(*, pr: dict[str, Any], copy_number: int, token: str) -> None:
+    """Carry the original's pending review requests and assignees over to the copy.
+
+    Best effort: the copy is open and the run goes on without them, so a request GitHub
+    refuses, such as a team the app cannot read, only warns.
+    """
+    reviewers = [
+        reviewer["slug"] if reviewer["__typename"] == "Team" else reviewer["login"]
+        for reviewer in pr["reviewRequests"]
+    ]
+    assignees = [assignee["login"] for assignee in pr["assignees"]]
+    for role, logins in (("reviewer", reviewers), ("assignee", assignees)):
+        if not logins:
+            continue
+        try:
+            run_gh("pr", "edit", str(copy_number), f"--add-{role}", ",".join(logins), token=token)
+        except subprocess.CalledProcessError as error:
+            print(
+                f"::warning::Could not copy {role}s {', '.join(logins)} to #{copy_number}: "
+                f"{error.stderr.strip()}"
+            )
 
 
 def start_session(
@@ -302,7 +328,13 @@ def start_session(
         environment_id=read_lock_id(lock=lock, lock_key=ENVIRONMENT_LOCK_KEY),
         vault_ids=read_vault_ids(lock=lock),
         title=f"finish: {repo}#{pr['number']}",
-        metadata={"repo": repo, "pr": str(pr["number"]), "lane": "finish", "sha": pr["headRefOid"]},
+        metadata={
+            "repo": repo,
+            "issues": json.dumps(issue_numbers, separators=(",", ":")),
+            "prs": json.dumps([pr["number"]]),
+            "lane": "finish",
+            "sha": pr["headRefOid"],
+        },
         budget={
             "type": "limit",
             "max_list_cost": {"amount": str(budget_cents), "currency": "USD"},
@@ -415,6 +447,7 @@ def run_watch(*, args: argparse.Namespace) -> None:
     try:
         app_token = create_app_token(client=client, repo=args.repo)
         app_token.follow_session(session_id=args.session_id)
+        head_branch: str = read_pr(pr_number=args.pr)["headRefName"]
         report = watch_session(
             client=client,
             session_id=args.session_id,
@@ -422,6 +455,7 @@ def run_watch(*, args: argparse.Namespace) -> None:
             find_pr=lambda: find_open_pr(pr_number=args.pr),
             app_token=app_token,
             watch_minutes=args.watch_minutes,
+            auto_merge=head_branch in AUTO_MERGE_BRANCHES,
         )
     finally:
         # The workflow's failure report skips a failed watch step, so when the app's

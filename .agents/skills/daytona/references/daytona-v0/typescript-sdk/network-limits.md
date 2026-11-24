@@ -46,17 +46,17 @@ import { Daytona } from '@daytona/sdk'
 const daytona = new Daytona()
 
 // Allow access to specific IP addresses (Wikipedia, X/Twitter, private network)
-const sandboxWithCidrAllowList = await daytona.create({
+const sandboxWithCidrAllowList = await daytona.v0.create({
   networkAllowList: '208.80.154.232/32,199.16.156.103/32,192.168.1.0/24'
 })
 
 // Allow access to specific domains
-const sandboxWithDomainAllowList = await daytona.create({
+const sandboxWithDomainAllowList = await daytona.v0.create({
   domainAllowList: 'example.com,*.daytona.io'
 })
 
 // Or block all network access
-const blockedSandbox = await daytona.create({
+const blockedSandbox = await daytona.v0.create({
   networkBlockAll: true
 })
 ```
@@ -125,12 +125,12 @@ import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
 
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   outboundProxyUrl: 'http://user:pass@proxy.example.com:3128',
 })
 
 // Returned on single-sandbox reads
-const fetched = await daytona.get(sandbox.id)
+const fetched = await daytona.v0.get(sandbox.id)
 console.log(fetched.outboundProxyUrl)
 ```
 

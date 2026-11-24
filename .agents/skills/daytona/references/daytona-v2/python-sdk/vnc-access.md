@@ -63,9 +63,9 @@ print("VNC processes started:", result.message)
 
 > **Notes:**
 >
-> - The sandbox must be running.
-> - start() returns once the X server and the VNC server accept connections.
-> - On a failed desktop, call restart() instead of start().
+> - **Prerequisites:** The sandbox must be running.
+> - **Results:** start() returns once the X server and the VNC server accept connections.
+> - **Recovery:** On a failed desktop, call restart() instead of start().
 
 ## Desktop operations
 
@@ -95,7 +95,7 @@ print("VNC status:", status.status, status.desktop)
 
 > **Notes:**
 >
-> - The sandbox must be running.
+> - **Prerequisites:** The sandbox must be running.
 
 ### Stop the desktop
 
@@ -118,7 +118,7 @@ print("VNC processes stopped:", result.message)
 
 > **Notes:**
 >
-> - The sandbox must be running.
+> - **Prerequisites:** The sandbox must be running.
 
 ### Restart the desktop
 
@@ -145,7 +145,7 @@ print("VNC restarted:", result.message, result.desktop)
 
 > **Notes:**
 >
-> - The sandbox must be running.
+> - **Prerequisites:** The sandbox must be running.
 
 ## Desktop states
 
@@ -193,16 +193,10 @@ except DesktopNotReadyError as e:
 
 > **Notes:**
 >
-> - The sandbox must be running.
-> - Every Computer Use operation (mouse, keyboard, screenshot, display, accessibility, recording start) requires the desktop to be in the `ready` state.
-> - Nothing retries calls on a desktop that is not ready, and retry does not recover a failed desktop.
-> - On a `ready` desktop, start returns the process status, or a conflict error for a different resolution.
-> - On a `starting` or `failed` desktop, start fails, so retrying it does not clear a failed desktop.
-> - Stop kills the processes of a `failed` desktop, but only restart leaves `failed`.
-> - D-Bus, the window manager, and x11vnc restart with backoff on exit; the desktop stays `ready`.
-> - A process that exits 6 times in a row, each time within 30 seconds of its start, is not restarted again, while the desktop still reports the `ready` state.
-> - Restart such a process through [computer use](./computer-use.md), or [restart](#restart-the-desktop) the desktop.
-> - Xvfb never restarts on its own and cannot restart as a single process, so [restart](#restart-the-desktop) the desktop.
+> - **Prerequisites:** The sandbox must be running. Every Computer Use operation (mouse, keyboard, screenshot, display, accessibility, recording start) requires the desktop to be in the `ready` state.
+> - **Results:** On a `ready` desktop, start returns the process status, or a conflict error for a different resolution.
+> - **Recovery:** Nothing retries calls on a desktop that is not ready, and retry does not recover a failed desktop. On a `starting` or `failed` desktop, start fails, so retrying it does not clear a failed desktop. Stop kills the processes of a `failed` desktop, but only restart leaves `failed`. Restart such a process through [computer use](./computer-use.md), or [restart](#restart-the-desktop) the desktop. Xvfb never restarts on its own and cannot restart as a single process, so [restart](#restart-the-desktop) the desktop.
+> - **Behaviour:** D-Bus, the window manager, and x11vnc restart with backoff on exit; the desktop stays `ready`. A process that exits 6 times in a row, each time within 30 seconds of its start, is not restarted again, while the desktop still reports the `ready` state.
 
 ## Connect your own VNC client
 
@@ -214,7 +208,7 @@ Connect any WebSocket-capable VNC client, such as noVNC, once the desktop is [st
 
 | **Part**              | **Value**                                                   | **Description**                                                                                                         |
 | --------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| **WebSocket address** | `wss://{proxyHost}/vnc/{sandboxId}`                         | The `{proxyHost}` is the host of the sandbox's toolbox_proxy_url from [get a sandbox](./sandboxes.md#get-a-sandbox). |
+| **WebSocket address** | `wss://{proxyHost}/vnc/{sandboxId}`                         | The `{proxyHost}` is the host of the [toolbox URL](./sandboxes.md#toolbox) of the sandbox. |
 | **Header credential** | `Authorization: Bearer <API_KEY>`                           | The header carries the API key.                                                                                         |
 | **Query credential**  | `wss://{proxyHost}/vnc/{sandboxId}?daytona_token=<API_KEY>` | The daytona_token query parameter carries the API key for browser clients that cannot set headers.                      |
 
@@ -247,7 +241,7 @@ sandbox.computer_use.start()
 sandbox.computer_use.mouse.click(x=50, y=50, button="left")
 
 # Type a URL
-sandbox.computer_use.keyboard.type(text="https://www.daytona.io/docs/")
+sandbox.computer_use.keyboard.type(text="https://www.daytona.com/docs/")
 sandbox.computer_use.keyboard.key(key="enter")
 
 # Take a screenshot
@@ -258,15 +252,15 @@ screenshot = sandbox.computer_use.screen.screenshot()
 | --- | --- |
 | `x` | Sets the horizontal position of the click in desktop pixels.<br />**Required**<br />**Example:** `50` |
 | `y` | Sets the vertical position of the click in desktop pixels.<br />**Required**<br />**Example:** `50` |
-| `button` | Sets the mouse button.<br />**Default:** `"left"`<br />**Value:** `"left"`, `"middle"`, or `"right"`<br />**Example:** `"right"` |
-| `text` | Sets the text to type.<br />**Required**<br />**Example:** `"https://www.daytona.io/docs/"` |
+| `text` | Sets the text to type.<br />**Required**<br />**Example:** `"https://www.daytona.com/docs/"` |
 | `key` | Sets the name of the key to press.<br />**Required**<br />**Example:** `"enter"` |
+| `button` | Sets the mouse button.<br />**Default:** `"left"`<br />**Value:** `"left"`, `"middle"`, or `"right"`<br />**Example:** `"right"` |
 
 > **Notes:**
 >
-> - The sandbox must be running.
-> - start() returns once the X and VNC servers accept connections, so later calls need no status poll.
-> - On a failed desktop, call restart() instead of start().
+> - **Prerequisites:** The sandbox must be running.
+> - **Results:** start() returns once the X and VNC servers accept connections, so later calls need no status poll.
+> - **Recovery:** On a failed desktop, call restart() instead of start().
 
 ## Sandbox activity
 

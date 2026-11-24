@@ -58,7 +58,7 @@ for event in handle.stream_logs():
 
 > **Notes:**
 >
-> - stream_logs() does not reopen a dropped connection, so [resume](#resume-a-stream) from the last event's cursor.
+> - **Recovery:** stream_logs() does not reopen a dropped connection, so [resume](#resume-a-stream) from the last event's cursor. If retention has removed that position, the stream yields a warning event and continues from the oldest frame still kept.
 
 **Python (async):**
 
@@ -84,13 +84,13 @@ asyncio.run(main())
 
 > **Notes:**
 >
-> - stream_logs() does not reopen a dropped connection, so [resume](#resume-a-stream) from the last event's cursor.
+> - **Recovery:** stream_logs() does not reopen a dropped connection, so [resume](#resume-a-stream) from the last event's cursor. If retention has removed that position, the stream yields a warning event and continues from the oldest frame still kept.
 
 ### Stream events
 
 Stream events are the typed messages that a server sends over an open connection, each with a name and a payload. A server-sent event also carries an ID that a client sends back to resume.
 
-Most events of a log stream in a sandbox carry the output of the process, and the other events report changes to the process or to the stream itself.
+An event of a log stream in a sandbox carries either the output of the process or a change to the process or to the stream itself.
 
 Handle the events of a log stream by type. Each event carries a cursor, also sent as the event ID, so a client can resume after any event. A stream ends after its end event or its error event.
 
@@ -124,7 +124,7 @@ for event in handle.stream_logs():
 
 > **Notes:**
 >
-> - The stream ends after the eof event.
+> - **Results:** The stream ends after the eof event.
 
 ### Resume a stream
 
@@ -191,7 +191,7 @@ for frame in page.items:
 
 > **Notes:**
 >
-> - A read without a cursor starts at the first frame the process wrote, which [log retention](#log-retention) can evict.
+> - **Polling:** A read without a cursor starts at the first frame the process wrote, which [log retention](#log-retention) can evict.
 
 ### Paginate logs
 
@@ -234,8 +234,8 @@ print(f"{len(frames)} frames in {pages} pages, {len(stdout)} bytes of stdout")
 
 > **Notes:**
 >
-> - A [frame](#log-frames) holds up to 64 KiB of output, so one frame can hold many lines.
-> - While the process runs, an empty page means the read caught up; read on from the next cursor.
+> - **Limits:** A [frame](#log-frames) holds up to 64 KiB of output, so one frame can hold many lines.
+> - **Polling:** While the process runs, an empty page means the read caught up; read on from the next cursor.
 
 ### Binary output
 
@@ -340,12 +340,12 @@ handle.delete()
 
 | **Parameter** | **Description** |
 | ------------- | --------------- |
-| `keep_logs`   | Sets how long the sandbox keeps the process record and its log.<br />**Default:** `on_exit_ttl`<br />**Value:** `until_cleanup`, `on_exit_ttl`, or `none`<br />**Example:** `"until_cleanup"` |
 | `cursor`      | Starts the page strictly after this cursor. A read from an evicted position fails with an error that names the oldest retained position, and a stream warns and continues from there.<br />**Default:** the first frame, and the read fails the same way once that frame is evicted |
+| `keep_logs`   | Sets how long the sandbox keeps the process record and its log.<br />**Default:** `on_exit_ttl`<br />**Value:** `until_cleanup`, `on_exit_ttl`, or `none`<br />**Example:** `"until_cleanup"` |
 
 > **Notes:**
 >
-> - The record of a process started with until_cleanup stays until the process is deleted.
+> - **Lifetime:** The record of a process started with until_cleanup stays until the process is deleted.
 
 ## Permissions
 

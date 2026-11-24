@@ -16,12 +16,12 @@ Check which version the code or project targets before you write or change it.
 | | **Daytona v2** | **Daytona v0** |
 |---|---|---|
 | SDK entry point | `daytona.v2.create()` | `daytona.create()` |
-| SDK version | Python `2.0.0a*`, TypeScript `2.0.0-alpha.*` | Python and TypeScript `0.x` |
+| SDK version | Python and TypeScript `2.x` | Python and TypeScript `0.x`, or `2.x` through the `daytona.v0` namespace |
 | SDK languages | Python, TypeScript | Python, TypeScript, Java, Go, Ruby |
 | API base URL | `https://api.daytona.com` | `https://app.daytona.io/api` |
 | Dashboard | `https://app.daytona.com` | `https://app.daytona.io` |
 | Linux sandbox lifecycle | Ephemeral: no stop, start, or archive. Delete discards the filesystem. | Stop, start, archive |
-| CLI install (macOS) | `brew install daytonaio/cli/daytona-alpha` | `brew install daytonaio/cli/daytona` |
+| CLI install (macOS) | `brew install daytonaio/cli/daytona` | `brew install daytonaio/cli/daytona-v0` |
 
 1. **Existing code:** use the version the code already targets. Check the installed SDK version (`pip show daytona`, `package.json`), the SDK calls (`daytona.v2` or not), and the API host.
 2. **New code:** if the request does not name a version, ask the user which one their organization uses. Java, Go, and Ruby are v0 only.

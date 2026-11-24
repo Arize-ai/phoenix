@@ -210,7 +210,7 @@ def setup_openvpn(ovpn_config: str):
     """
     # Create the sandbox
     print("Creating sandbox...")
-    sandbox = daytona.create()
+    sandbox = daytona.v0.create()
     print(f"Sandbox created: {sandbox.id}")
 
     # Step 1: Install OpenVPN
@@ -299,7 +299,7 @@ async function setupOpenvpn(ovpnConfig: string): Promise<void> {
 
   // Create the sandbox
   console.log("Creating sandbox...");
-  const sandbox = await daytona.create();
+  const sandbox = await daytona.v0.create();
   console.log(`Sandbox created: ${sandbox.id}`);
 
   // Step 1: Install OpenVPN

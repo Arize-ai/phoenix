@@ -64,7 +64,7 @@ Create a container sandbox. A sandbox created without a snapshot uses the Dayton
 from daytona import Daytona
 
 daytona = Daytona()
-sandbox = daytona.create()
+sandbox = daytona.v0.create()
 ```
 
 **Custom:**
@@ -82,12 +82,13 @@ Create a Linux sandbox from your own snapshot. Create the snapshot from any publ
 9. Click <Button>Create</Button>
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams, CreateSnapshotParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams, CreateSnapshotParams
 
 daytona = Daytona()
 
 # Create a snapshot from an image
-daytona.snapshot.create(
+daytona.v0.snapshot.create(
     CreateSnapshotParams(
         name="my-snapshot",
         image="python:3.12",
@@ -95,7 +96,7 @@ daytona.snapshot.create(
 )
 
 # Create a sandbox from the snapshot
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="my-snapshot"))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="my-snapshot"))
 ```
 
 ## Create a Linux VM sandbox
@@ -120,10 +121,11 @@ Create a Linux VM sandbox from a default snapshot.
 4. Click <Button>Create</Button>
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="daytona-vm-small"))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="daytona-vm-small"))
 ```
 
 **Custom:**
@@ -142,8 +144,8 @@ Create a Linux VM sandbox.
 10. Click <Button>Create</Button>
 
 ```python
-from daytona import (
-    Daytona,
+from daytona import Daytona
+from daytona.v0 import (
     CreateSnapshotParams,
     CreateSandboxFromSnapshotParams,
     SandboxClass,
@@ -152,7 +154,7 @@ from daytona import (
 daytona = Daytona()
 
 # Create a Linux VM snapshot
-daytona.snapshot.create(
+daytona.v0.snapshot.create(
     CreateSnapshotParams(
         name="my-vm-snapshot",
         image="ubuntu:22.04",
@@ -161,7 +163,7 @@ daytona.snapshot.create(
 )
 
 # Create a Linux VM sandbox from the snapshot
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="my-vm-snapshot"))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="my-vm-snapshot"))
 ```
 
 ## Nested virtualization
@@ -171,10 +173,11 @@ Daytona provides nested virtualization for Linux VM sandboxes. Nested virtualiza
 > KVM sandboxes must be enabled for your organization. Contact [support@daytona.io](mailto:support@daytona.io).
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxFromSnapshotParams(
         snapshot="daytona-vm-small",
         kvm=True,
@@ -189,10 +192,11 @@ A filesystem snapshot, also called a cold snapshot, saves the filesystem of a st
 **Container:**
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
-sandbox = daytona.create()
+sandbox = daytona.v0.create()
 
 # Write a file to the filesystem
 sandbox.fs.upload_file(b"done", "setup.log")
@@ -202,7 +206,7 @@ sandbox.stop()
 sandbox.create_snapshot("my-snapshot")
 
 # A sandbox created from the snapshot starts with the same filesystem
-new_sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="my-snapshot"))
+new_sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="my-snapshot"))
 content = new_sandbox.fs.download_file("setup.log")
 print(content.decode())  # done
 ```
@@ -210,10 +214,11 @@ print(content.decode())  # done
 **Linux VM:**
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="daytona-vm-small"))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="daytona-vm-small"))
 
 # Write a file to the filesystem
 sandbox.fs.upload_file(b"done", "setup.log")
@@ -223,7 +228,7 @@ sandbox.stop()
 sandbox.create_snapshot("my-vm-snapshot")
 
 # A sandbox created from the snapshot starts with the same filesystem
-new_sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="my-vm-snapshot"))
+new_sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="my-vm-snapshot"))
 content = new_sandbox.fs.download_file("setup.log")
 print(content.decode())  # done
 ```
@@ -262,7 +267,7 @@ Linux sandboxes preserve their filesystem across [stop and start](#stop--start),
 from daytona import Daytona
 
 daytona = Daytona()
-sandbox = daytona.create()
+sandbox = daytona.v0.create()
 
 # Write a file to the filesystem
 sandbox.fs.upload_file(b"done", "setup.log")
@@ -279,10 +284,11 @@ print(content.decode())  # done
 **Linux VM:**
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="daytona-vm-small"))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="daytona-vm-small"))
 
 # Write a file to the filesystem
 sandbox.fs.upload_file(b"done", "setup.log")
@@ -308,10 +314,11 @@ Linux VM sandboxes preserve their memory across [pause and resume](#pause--resum
 | **Linux VM**      | Memory is preserved through pause and resume: pausing freezes the VM with memory intact, resuming continues all processes from the point they were frozen. Use memory snapshots or forks to capture memory. |
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams, SessionExecuteRequest
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams, SessionExecuteRequest
 
 daytona = Daytona()
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="daytona-vm-small"))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="daytona-vm-small"))
 
 # Start a process that runs in the background
 sandbox.process.create_session("keepalive")
@@ -540,9 +547,9 @@ Auto-pause is not supported for container sandboxes. Use [auto-stop](./sandboxes
 5. Click <Button>Create</Button>
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     snapshot="daytona-vm-small",
     # Auto-pause after 1 hour of inactivity
     auto_pause_interval=60,
@@ -573,7 +580,7 @@ Set `ttl_minutes` when creating a sandbox, or update it later. The value is in m
 Calling `set_ttl` after creation resets the deadline from the current moment. Use wall-clock TTL for agent sessions, CI jobs, and any sandbox that must not outlive a fixed deadline.
 
 ```python
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     snapshot="daytona-vm-small",
     ttl_minutes=120,
 ))

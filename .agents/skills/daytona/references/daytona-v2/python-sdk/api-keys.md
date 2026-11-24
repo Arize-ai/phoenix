@@ -6,7 +6,7 @@ API keys are secret tokens that authenticate requests to sandboxes and the other
 
 Daytona issues each project API key for exactly one project, with an explicit list of permissions, and confines its requests to both. A key that a member creates is revoked when the member leaves the organization or loses a permission that the key holds. Organization API keys are a separate kind, for organization-level operations that are not tied to a project.
 
-Use API keys to authenticate requests from the SDKs, the CLI, and the API to the resources of a [project](./projects.md). See [authentication](./authentication.md) for how to pass a key with each request. A key can carry an expiry time, and a key created without one never expires.
+Use API keys to authenticate requests from the SDKs, the CLI, and the API to the resources of a [project](./projects.md). See [authentication](./authentication.md) for how each request carries a key. A key can carry an expiry time, and a key created without one never expires.
 
 ## Contents
 
@@ -24,7 +24,7 @@ Create an API key to authenticate the requests of a program to a project. An API
 
 A new API key belongs to the project it is created in, and its permissions and expiry are fixed when it is created. Only a hash of the token is stored, so the token cannot be read again.
 
-Create a key from the dashboard, the CLI, or the API. In an organization synced with Daytona v0, a key that a member creates in the default project, under a name other than `default`, is also copied to Daytona v0. The copy can read every sandbox, snapshot, and registry in the organization, whatever the key's permissions. To keep a key off Daytona v0, set `sync_to_v0` to `false` at creation, or [update the key](#update-an-api-key) afterwards.
+Create a key from the dashboard, the CLI, or the API. In an organization synced with Daytona v0, a key that a member creates in the default project, under a name other than default, is also copied to Daytona v0. The copy can read every sandbox, snapshot, and registry in the organization, whatever the key's permissions. To keep a key off Daytona v0, turn the copy off when you create the key, or [update the key](#update-an-api-key) afterwards.
 
 1. Go to [Daytona Dashboard ↗](https://app.daytona.com/dashboard/keys)
 2. Select the project in the header switcher
@@ -44,14 +44,14 @@ daytona key mint --project PROJECT_ID \
 
 | **Flag** | **Description** |
 | --- | --- |
-| `--name` | Sets the key name.<br />**Default:** `default`<br />**Example:** `my-api-key` |
 | `--permission` | Sets the permissions that the key holds.<br />**Required**<br />**Format:** a comma-separated list of permissions, repeatable<br />**Value:** the [project permissions](./api-keys.md#scopes)<br />**Example:** `write:sandboxes,delete:sandboxes` |
 | `--expires` | Sets when the key expires.<br />**Default:** no expiry<br />**Format:** an RFC 3339 timestamp, or a whole-second Go duration counted from now<br />**Example:** `720h` |
+| `--name` | Sets the key name.<br />**Default:** `default`<br />**Example:** `my-api-key` |
 
 > **Notes:**
 >
-> - The key can hold only permissions that you hold.
-> - The command prints the token once, when the key is created.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. The key can hold only permissions that you hold.
+> - **Results:** The command prints the token once, when the key is created.
 
 **API:**
 
@@ -67,6 +67,8 @@ curl 'https://api.daytona.com/projects/PROJECT_ID/api-keys' \
 }'
 ```
 
+**Response:**
+
 ```json
 {
   "id": "KEY_ID",
@@ -75,24 +77,25 @@ curl 'https://api.daytona.com/projects/PROJECT_ID/api-keys' \
   "key_prefix": "dtn_...",
   "token": "YOUR_API_KEY",
   "project_permissions": ["read:sandboxes", "write:sandboxes", "delete:sandboxes"],
+  "created_at": "2026-09-10T12:00:00Z",
   "expires_at": "2027-01-01T00:00:00Z",
-  "service_account_id": null
+  "service_account_id": null,
+  "sync_to_v0": false
 }
 ```
 
 | **Field** | **Description** |
 | --- | --- |
-| `name` | Sets the key name.<br />**Default:** `"default"`<br />**Example:** `"my-api-key"` |
 | `project_permissions` | Sets the permissions that the key holds.<br />**Required**<br />**Minimum:** 1 permission<br />**Maximum:** the permissions that the caller holds<br />**Example:** `["write:sandboxes", "delete:sandboxes"]` |
 | `expires_at` | Sets when the key expires.<br />**Default:** no expiry<br />**Format:** an RFC 3339 timestamp<br />**Example:** `"2027-01-01T00:00:00Z"` |
+| `name` | Sets the key name.<br />**Default:** `"default"`<br />**Rules:** unique among the project's live keys, unless `default`<br />**Example:** `"my-api-key"` |
 | `service_account_id` | Sets the service account that owns the key.<br />**Default:** the signed-in user<br />**Format:** a service account ID |
 | `sync_to_v0` | Sets whether the v0 key sync copies the key to Daytona v0.<br />**Default:** `true` |
 
 > **Notes:**
 >
-> - The key can hold only permissions that you hold.
-> - A name other than `default` must be unique among the project's live keys.
-> - The v0 key sync copies only keys that a person creates in the `default` project.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. The key can hold only permissions that you hold.
+> - **Behaviour:** The v0 key sync copies only keys that a person creates in the `default` project.
 
 ## Credentials
 
@@ -157,13 +160,17 @@ List API keys to see the names, permissions, expiry, and last use of the keys of
 
 A list of API keys covers one project and omits the token of every key. Revoked keys are left out, and expired keys stay listed until they are deleted.
 
-Use the list to find a key to revoke, or to check when each key was last used. The list is paginated, newest first; pass the cursor of each page to request the next until no cursor is returned. Revoked and expired keys are deleted 7 days after they stop working.
+Use the list to find a key to revoke, or to check when each key was last used. The list is paginated, newest first. Revoked and expired keys are deleted 7 days after they stop working.
 
 **CLI:**
 
 ```bash
 daytona key list --project PROJECT_ID
 ```
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 **API:**
 
@@ -172,12 +179,15 @@ curl 'https://api.daytona.com/projects/PROJECT_ID/api-keys' \
   --header 'Authorization: Bearer YOUR_OIDC_TOKEN'
 ```
 
+**Response:**
+
 ```json
 {
   "project_api_keys": [
     {
       "id": "KEY_ID",
       "name": "my-api-key",
+      "project_id": "PROJECT_ID",
       "key_prefix": "dtn_...",
       "created_at": "2026-09-10T12:00:00Z",
       "revoked_at": null,
@@ -185,7 +195,8 @@ curl 'https://api.daytona.com/projects/PROJECT_ID/api-keys' \
       "project_permissions": ["read:sandboxes", "write:sandboxes", "delete:sandboxes"],
       "expires_at": "2027-01-01T00:00:00Z",
       "service_account_id": null,
-      "service_account_name": null
+      "service_account_name": null,
+      "sync_to_v0": false
     }
   ],
   "next_cursor": null
@@ -194,8 +205,12 @@ curl 'https://api.daytona.com/projects/PROJECT_ID/api-keys' \
 
 | **Field** | **Description** |
 | --- | --- |
-| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `cursor` | Continues from a previous page. |
+| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 ### Get API key
 
@@ -211,6 +226,10 @@ Get a key to check its permissions, expiry, or revocation time. Address the key 
 curl 'https://api.daytona.com/projects/PROJECT_ID/api-keys/KEY_ID' \
   --header 'Authorization: Bearer YOUR_OIDC_TOKEN'
 ```
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 ### Get current API key
 
@@ -231,7 +250,7 @@ print(key.project_permissions)
 
 > **Notes:**
 >
-> - The client must authenticate with a project API key.
+> - **Prerequisites:** The client must authenticate with a project API key.
 
 ### Exchange a token
 
@@ -256,6 +275,8 @@ curl 'https://api.daytona.com/auth/token' \
 }'
 ```
 
+**Response:**
+
 ```json
 {
   "access_token": "eyJ...",
@@ -274,10 +295,9 @@ curl 'https://api.daytona.com/auth/token' \
 
 > **Notes:**
 >
-> - The subject token must be the same token as the bearer token of the request.
-> - You must be a member of the project.
-> - The request must omit scope and resource.
-> - Exchange again for a new access token when the current one expires.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. You must be a member of the project.
+> - **Compatibility:** The subject token must be the same token as the bearer token of the request. The request must omit scope and resource.
+> - **Lifetime:** Exchange again for a new access token when the current one expires.
 
 ### Update an API key
 
@@ -303,8 +323,8 @@ curl 'https://api.daytona.com/projects/PROJECT_ID/api-keys/KEY_ID' \
 
 > **Notes:**
 >
-> - The key must be one that a person created in the `default` project of an organization that syncs with Daytona v0, under a name other than `default`.
-> - Setting `false` deletes the Daytona v0 copy, and setting `true` copies the key again.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. The key must be one that a person created in the `default` project of an organization that syncs with Daytona v0, under a name other than `default`.
+> - **Effects:** Setting `false` deletes the Daytona v0 copy, and setting `true` copies the key again.
 
 ### Revoke an API key
 
@@ -326,7 +346,8 @@ daytona key revoke KEY_ID
 
 > **Notes:**
 >
-> - The command asks for confirmation at a terminal and requires --yes otherwise.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+> - **Confirmation:** The command asks for confirmation at a terminal and requires --yes otherwise.
 
 **API:**
 
@@ -335,6 +356,10 @@ curl 'https://api.daytona.com/projects/PROJECT_ID/api-keys/KEY_ID' \
   --request DELETE \
   --header 'Authorization: Bearer YOUR_OIDC_TOKEN'
 ```
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 ## Service accounts
 
@@ -360,15 +385,13 @@ daytona service-account create my-service-account --role developer --org ORG_ID
 
 | **Flag** | **Description** |
 | --- | --- |
-| `<name>` | Sets the service account name.<br />**Required**<br />**Maximum:** 64 characters<br />**Format:** letters, digits, hyphens, and underscores<br />**Example:** `my-service-account` |
+| `<name>` | Sets the service account name.<br />**Required**<br />**Minimum:** 1 character<br />**Maximum:** 64 characters<br />**Format:** letters, digits, hyphens, and underscores<br />**Rules:** unique in the organization<br />**Example:** `my-service-account` |
 | `--role` | Sets the roles of the service account.<br />**Required**<br />**Format:** a comma-separated list of role IDs, repeatable<br />**Value:** [built-in role](./organizations.md#roles) IDs or custom role UUIDs<br />**Example:** `developer` |
 
 > **Notes:**
 >
-> - The organization must not be a personal organization.
-> - You must hold every permission that the roles grant.
-> - A service account cannot hold the `admin` role.
-> - The name must be unique in the organization.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. The organization must not be a personal organization. You must hold every permission that the roles grant.
+> - **Compatibility:** A service account cannot hold the `admin` role.
 
 **API:**
 
@@ -385,16 +408,14 @@ curl 'https://api.daytona.com/orgs/ORG_ID/service-accounts' \
 
 | **Field** | **Description** |
 | --- | --- |
-| `name` | Sets the service account name.<br />**Required**<br />**Maximum:** 64 characters<br />**Format:** letters, digits, hyphens, and underscores<br />**Example:** `"my-service-account"` |
-| `description` | Sets the purpose of the service account.<br />**Maximum:** 512 characters<br />**Example:** `"CI runner"` |
+| `name` | Sets the service account name.<br />**Required**<br />**Minimum:** 1 character<br />**Maximum:** 64 characters<br />**Format:** letters, digits, hyphens, and underscores<br />**Rules:** unique in the organization<br />**Example:** `"my-service-account"` |
 | `roles` | Sets the roles of the service account.<br />**Required**<br />**Minimum:** 1 role<br />**Maximum:** every built-in and custom role of the organization<br />**Format:** a list of role IDs<br />**Value:** [built-in role](./organizations.md#roles) IDs or custom role UUIDs<br />**Example:** `["developer"]` |
+| `description` | Sets the purpose of the service account.<br />**Maximum:** 512 characters<br />**Example:** `"CI runner"` |
 
 > **Notes:**
 >
-> - The organization must not be a personal organization.
-> - You must hold every permission that the roles grant.
-> - A service account cannot hold the `admin` role.
-> - The name must be unique in the organization.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. The organization must not be a personal organization. You must hold every permission that the roles grant.
+> - **Compatibility:** A service account cannot hold the `admin` role.
 
 ### Create a service account key
 
@@ -425,8 +446,7 @@ daytona key mint --project PROJECT_ID \
 
 > **Notes:**
 >
-> - Outside the default project, the service account must be a member of the project.
-> - The key must have a name other than `default`.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. Outside the default project, the service account must be a member of the project. The key must have a name other than `default`.
 
 **API:**
 
@@ -448,8 +468,7 @@ curl 'https://api.daytona.com/projects/PROJECT_ID/api-keys' \
 
 > **Notes:**
 >
-> - Outside the default project, the service account must be a member of the project.
-> - The key must have a name other than `default`.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. Outside the default project, the service account must be a member of the project. The key must have a name other than `default`.
 
 ### List service accounts
 
@@ -457,13 +476,17 @@ List service accounts to see the service accounts of an organization with their 
 
 A list of service accounts covers one organization and leaves out archived accounts.
 
-Use the list to find the ID of a service account before you update it or create a key for it. The list is paginated, newest first; pass the cursor of each page to request the next.
+Use the list to find the ID of a service account before you update it or create a key for it. The list is paginated, newest first.
 
 **CLI:**
 
 ```bash
 daytona service-account list --org ORG_ID
 ```
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 **API:**
 
@@ -474,8 +497,12 @@ curl 'https://api.daytona.com/orgs/ORG_ID/service-accounts' \
 
 | **Field** | **Description** |
 | --- | --- |
-| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `cursor` | Continues from a previous page. |
+| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 ### Get a service account
 
@@ -491,12 +518,20 @@ Get a service account to check its roles before you create a key for it or chang
 daytona service-account get SERVICE_ACCOUNT_ID
 ```
 
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+
 **API:**
 
 ```bash
 curl 'https://api.daytona.com/orgs/ORG_ID/service-accounts/SERVICE_ACCOUNT_ID' \
   --header 'Authorization: Bearer YOUR_OIDC_TOKEN'
 ```
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 ### Update a service account
 
@@ -515,13 +550,12 @@ daytona service-account update SERVICE_ACCOUNT_ID --role maintainer
 
 | **Flag** | **Description** |
 | --- | --- |
-| `--name` | Sets the new service account name.<br />**Maximum:** 64 characters<br />**Format:** letters, digits, hyphens, and underscores<br />**Example:** `ci-runner` |
-| `--role` | Replaces the roles of the service account.<br />**Format:** a comma-separated list of role IDs, repeatable<br />**Value:** [built-in role](./organizations.md#roles) IDs or custom role UUIDs<br />**Example:** `maintainer` |
+| `--name` | Sets the new service account name.<br />**Minimum:** 1 character<br />**Maximum:** 64 characters<br />**Format:** letters, digits, hyphens, and underscores<br />**Rules:** at least one of --name or --role<br />**Example:** `ci-runner` |
+| `--role` | Replaces the roles of the service account.<br />**Format:** a comma-separated list of role IDs, repeatable<br />**Rules:** at least one of --name or --role<br />**Value:** [built-in role](./organizations.md#roles) IDs or custom role UUIDs<br />**Example:** `maintainer` |
 
 > **Notes:**
 >
-> - The command requires --name, --role, or both.
-> - You must hold every permission that the new roles grant.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. You must hold every permission that the new roles grant.
 
 **API:**
 
@@ -547,15 +581,14 @@ curl 'https://api.daytona.com/orgs/ORG_ID/service-accounts/SERVICE_ACCOUNT_ID/up
 
 | **Field** | **Description** |
 | --- | --- |
-| `name` | Sets the new service account name.<br />**Maximum:** 64 characters<br />**Format:** letters, digits, hyphens, and underscores<br />**Example:** `"ci-runner"` |
-| `description` | Sets the new purpose of the service account.<br />**Maximum:** 512 characters<br />**Value:** `null` to clear the description<br />**Example:** `"CI runner"` |
-| `roles` | Replaces the roles of the service account.<br />**Minimum:** 1 role<br />**Maximum:** every built-in and custom role of the organization<br />**Format:** a list of role IDs<br />**Value:** [built-in role](./organizations.md#roles) IDs or custom role UUIDs<br />**Example:** `["maintainer"]` |
+| `description` | Sets the new purpose of the service account.<br />**Maximum:** 512 characters<br />**Rules:** at least one of name, description, or roles<br />**Value:** `null` to clear the description<br />**Example:** `"CI runner"` |
+| `name` | Sets the new service account name.<br />**Minimum:** 1 character<br />**Maximum:** 64 characters<br />**Format:** letters, digits, hyphens, and underscores<br />**Rules:** at least one of name, description, or roles<br />**Example:** `"ci-runner"` |
+| `roles` | Replaces the roles of the service account.<br />**Minimum:** 1 role<br />**Maximum:** every built-in and custom role of the organization<br />**Format:** a list of role IDs<br />**Rules:** at least one of name, description, or roles<br />**Value:** [built-in role](./organizations.md#roles) IDs or custom role UUIDs<br />**Example:** `["maintainer"]` |
 
 > **Notes:**
 >
-> - The request requires at least one of name, description, or roles.
-> - You must hold every permission that the new roles grant.
-> - The update preview returns the revoked counts without applying the change.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. You must hold every permission that the new roles grant.
+> - **Results:** The update preview returns the revoked counts without applying the change.
 
 ### Archive a service account
 
@@ -573,7 +606,8 @@ daytona service-account delete SERVICE_ACCOUNT_ID
 
 > **Notes:**
 >
-> - The command asks for confirmation at a terminal and requires --yes otherwise.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
+> - **Confirmation:** The command asks for confirmation at a terminal and requires --yes otherwise.
 
 **API:**
 
@@ -582,6 +616,10 @@ curl 'https://api.daytona.com/orgs/ORG_ID/service-accounts/SERVICE_ACCOUNT_ID' \
   --request DELETE \
   --header 'Authorization: Bearer YOUR_OIDC_TOKEN'
 ```
+
+> **Notes:**
+>
+> - **Prerequisites:** The request requires a signed-in user token, not an API key.
 
 ## Organization API keys
 
@@ -621,9 +659,9 @@ daytona org-key revoke KEY_ID
 
 > **Notes:**
 >
-> - The key can hold only permissions that you hold.
-> - The mint command prints the token once, when the key is created.
-> - The revoke command asks for confirmation at a terminal and requires --yes otherwise.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. The key can hold only permissions that you hold.
+> - **Results:** The mint command prints the token once, when the key is created.
+> - **Confirmation:** The revoke command asks for confirmation at a terminal and requires --yes otherwise.
 
 **API:**
 
@@ -660,7 +698,7 @@ curl 'https://api.daytona.com/orgs/ORG_ID/api-keys/KEY_ID' \
 
 > **Notes:**
 >
-> - The key can hold only permissions that you hold.
+> - **Prerequisites:** The request requires a signed-in user token, not an API key. The key can hold only permissions that you hold.
 
 ## Permissions
 

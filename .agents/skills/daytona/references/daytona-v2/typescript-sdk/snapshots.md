@@ -2,7 +2,7 @@
 
 Captures of the memory and disk of a running sandbox that new sandboxes resume from.
 
-Snapshots are captures of the complete state of a running sandbox at one point in time: its memory, its running processes, and its disk. A sandbox restored from a snapshot continues from that point instead of booting and repeating its setup. The same snapshot can be restored many times, and each restore produces an identical copy of the captured state.
+Snapshots are saved copies of a sandbox at one point in time. A new sandbox starts from a snapshot instead of a clean install, so the setup that many sandboxes share runs only once.
 
 Daytona saves a snapshot as a running sandbox frozen at one moment, under a name and apart from the sandbox it came from. A sandbox restored from it is a new sandbox that picks up the captured processes and memory where they stopped, with the CPU, memory, and disk of the source. The snapshot outlives its source, so deleting the source sandbox leaves it in place.
 
@@ -64,11 +64,9 @@ console.log(snapshot.id, snapshot.kind, snapshot.status)
 
 > **Notes:**
 >
-> - The sandbox must be running.
-> - The sandbox must be persistent, served from a warm template, or restored from a memory snapshot.
-> - A sandbox created from a filesystem snapshot, or an ephemeral sandbox with volumes attached, cannot be captured.
-> - Windows and macOS sandboxes cannot be captured.
-> - Repeat daytona.v2.snapshots.get() with wait set to `'ready'` until the status is `ready` or `failed`.
+> - **Prerequisites:** The sandbox must be running. The sandbox must be persistent, served from a warm template, or restored from a memory snapshot.
+> - **Compatibility:** A sandbox created from a filesystem snapshot, or an ephemeral sandbox with volumes attached, cannot be captured. Windows and macOS sandboxes cannot be captured.
+> - **Polling:** Repeat daytona.v2.snapshots.get() with wait set to `'ready'` until the status is `ready` or `failed`.
 
 | **Kind**         | **Captures**                                         | **Restore behavior**                                                                                                                                                  |
 | ---------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -101,18 +99,18 @@ const sandbox = await daytona.v2.createFromSnapshot('my-snapshot')
 | **Parameter** | **Description** |
 | --- | --- |
 | `snapshot` | Sets the snapshot to restore from.<br />**Required**<br />**Format:** a snapshot name or ID<br />**Example:** `'my-snapshot'` |
-| `name` | Sets the display name of the sandbox.<br />**Default:** a generated name, sandbox- followed by 8 hexadecimal characters<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, not starting with a period or a reserved prefix such as sbx_ or img_<br />**Example:** `'my-sandbox'` |
+| `createTimeoutSeconds` | Sets how many seconds the sandbox has to reach running before it is deleted.<br />**Default:** `3600`<br />**Minimum:** `1`<br />**Maximum:** `86400`<br />**Value:** `-1` for the maximum<br />**Example:** `600` |
+| `idempotencyKey` | Makes a retried create return the same sandbox.<br />**Default:** a key derived from name if set, otherwise a new key for each call<br />**Minimum:** 1 character<br />**Maximum:** 256 characters<br />**Format:** printable ASCII<br />**Example:** `'run-42-restore'` |
 | `labels` | Attaches key-value metadata to the sandbox.<br />**Maximum:** 100 labels<br />**Format:** a non-empty key and a value of at most 512 bytes each<br />**Example:** `{ team: 'research' }` |
-| `ports` | Forwards inbound ports to the sandbox.<br />**Maximum:** 32 mappings<br />**Format:** objects with a port from `1` to `65535` and a proto of `tcp` or `udp`, which defaults to `tcp`<br />**Example:** `[{ port: 8080 }]` |
 | `lifecyclePolicy` | Sets the timeouts of the sandbox.<br />**Format:** timeoutSeconds and onTimeout, and idleExpirySeconds and onIdleTimeout<br />**Example:** `{ timeoutSeconds: 3600, onTimeout: 'delete' }` |
-| `region` | Sets the region of the sandbox.<br />**Default:** the snapshot's home region<br />**Format:** a listed region ID<br />**Example:** `'earth'` |
-| `idempotencyKey` | Makes a retried create return the same sandbox.<br />**Default:** a key derived from name if set, otherwise a new key for each call<br />**Maximum:** 256 characters<br />**Format:** printable ASCII<br />**Example:** `'run-42-restore'` |
+| `name` | Sets the display name of the sandbox.<br />**Default:** a generated name, sandbox- followed by 8 hexadecimal characters<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, not starting with a period or a reserved prefix such as sbx_ or img_<br />**Example:** `'my-sandbox'` |
+| `ports` | Forwards inbound ports to the sandbox.<br />**Maximum:** 32 mappings<br />**Format:** objects with a port from `1` to `65535` and a proto of `tcp` or `udp`, which defaults to `tcp`<br />**Example:** `[{ port: 8080 }]` |
+| `region` | Sets the region of the sandbox.<br />**Default:** the snapshot's home region<br />**Value:** `earth`, `us`, `us-east`, `us-east-ash-1`, `us-east-bos-1`, `us-east-iad-1`, or the ID of a [BYOC region](./bring-your-own-compute.md) of the organization<br />**Example:** `'earth'` |
 | `waitSeconds` | Sets how many seconds the call waits for the sandbox to start.<br />**Default:** `60`<br />**Value:** `0` for no wait<br />**Example:** `120` |
-| `createTimeoutSeconds` | Sets how many seconds the sandbox has to reach running before it is deleted.<br />**Default:** `3600`<br />**Maximum:** `86400`<br />**Value:** `-1` for the maximum<br />**Example:** `600` |
 
 > **Notes:**
 >
-> - The snapshot must be ready.
+> - **Prerequisites:** The snapshot must be ready.
 
 ## Operations
 
@@ -142,8 +140,8 @@ Use a list to find the name or ID of a snapshot to [restore](#restore-snapshots)
 | `sandbox_id`   | The ID of the source sandbox. It stays after the source sandbox is deleted, and becomes `null` once Daytona purges the record of the deleted sandbox. |
 | `region_id`    | Home region. The SDKs name it `region`.                                                                                                    |
 | `region_ids`   | The home region, followed by every other region that holds a copy of the snapshot. The SDKs name it `available_in` in Python and `availableIn` in TypeScript. |
-| `bytes`        | Size of the captured disk in bytes. `null` for `full` snapshots.                                                                           |
-| `memory_bytes` | Size of the captured memory, `full` only.                                                                                                  |
+| `bytes`        | Always `null`, because the size of the captured disk is not returned.                                                                      |
+| `memory_bytes` | Size of the captured memory in bytes, set when a `full` snapshot is `ready` and `null` for a `checkpoint` snapshot. The SDKs name it `memoryBytes` in TypeScript. |
 | `error`        | Failure reason when `status` is `failed`.                                                                                                  |
 | `created_at`   | Time the snapshot was created.                                                                                                             |
 | `updated_at`   | Time of the last change to the snapshot.                                                                                                   |
@@ -162,23 +160,22 @@ for (const snapshot of page.items) {
 
 | **Parameter** | **Description** |
 | --- | --- |
+| `cursor` | Continues from a previous page. |
+| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `name` | Filters by exact snapshot name.<br />**Example:** `'my-snapshot'` |
 | `sandboxId` | Filters by the sandbox the snapshots were captured from.<br />**Format:** a sandbox ID<br />**Example:** `sandbox.id` |
-| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
-| `cursor` | Continues from a previous page. |
 
 > **Notes:**
 >
-> - A snapshot captured moments before can be missing from the list until the search index has it.
-> - Each snapshot uses camelCase field names, except where a field's description says otherwise.
+> - **Results:** A snapshot captured moments before can be missing from the list until the search index has it. Each snapshot uses camelCase field names, except where a field's description says otherwise.
 
-#### Iterate over all snapshots
+##### Iterate over all snapshots
 
 Iterate over all snapshots to read every page of the list in one pass. Iteration over a paginated list reads one page after another until no page remains.
 
 Iteration over the snapshots of a project yields the snapshots of every page in turn. Each page continues where the previous one ended, and the iteration ends after the last page.
 
-Use iteration when a script needs every snapshot of the project rather than one page. The SDK iterators and the CLI `--all` flag follow each cursor until the server returns no cursor. The API returns one page for each request, together with the next_cursor that continues the list: repeat the request with each next_cursor until next_cursor is `null`.
+Use iteration when a script needs every snapshot of the project rather than one page. The SDKs and the CLI follow every page for you, and the API returns one page for each request.
 
 ```typescript
 import { Daytona } from '@daytona/sdk'
@@ -194,9 +191,9 @@ for await (const snapshot of daytona.v2.snapshots.iter()) {
 
 Get a snapshot to read its kind, status, size, and regions, naming it by ID or by name. A get reads one resource by its identifier and changes nothing on the server.
 
-A get of a snapshot returns the same details as a list, for one snapshot. The status in those details shows whether the snapshot can be restored yet or whether its capture is still in progress.
+A get of a snapshot returns the same details as a list, for one snapshot. The status in those details shows whether the snapshot can be restored yet or whether its capture is still in progress. The size in those details covers the memory that a full snapshot captured, not its disk.
 
-Use a get to follow a capture: repeat it with wait set to `ready` until the status is `ready` or `failed`. The name search cannot get a snapshot, and a value that matches the ID of one snapshot and the name of another is refused. A `ready` snapshot can be restored, and a `failed` one holds the reason in `error`. The API `id_only` field disables the name fallback.
+Use a get to follow a capture: repeat it with wait set to ready until the status is ready or failed. The name search cannot get a snapshot, and a value that matches the ID of one snapshot and the name of another is refused. A ready snapshot can be restored, and a failed one holds the reason in its error.
 
 ```typescript
 import { Daytona } from '@daytona/sdk'
@@ -204,7 +201,7 @@ import { Daytona } from '@daytona/sdk'
 const daytona = new Daytona()
 
 const snapshot = await daytona.v2.snapshots.get('{snapshotId}')
-console.log(snapshot.kind, snapshot.status)
+console.log(snapshot.kind, snapshot.status, snapshot.memoryBytes)
 ```
 
 | **Parameter** | **Description** |
@@ -237,7 +234,7 @@ await daytona.v2.snapshots.delete('{snapshotId}')
 
 > **Notes:**
 >
-> - Every sandbox restored from the snapshot must be fully deleted.
+> - **Prerequisites:** Every sandbox restored from the snapshot must be fully deleted.
 
 ## Permissions
 

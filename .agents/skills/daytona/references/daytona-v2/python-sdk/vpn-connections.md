@@ -147,8 +147,8 @@ if __name__ == "__main__":
 
 > **Notes:**
 >
-> - The requests require the `write:sandboxes` permission.
-> - run() returns when the shell exits, so a command that ends with & and redirects its output leaves its daemon running in the background after run() returns.
+> - **Permissions:** The requests require the `write:sandboxes` permission.
+> - **Clients:** run() returns when the shell exits, so a command that ends with & and redirects its output leaves its daemon running in the background after run() returns.
 
 ### Tailscale auth key
 
@@ -235,8 +235,8 @@ if __name__ == "__main__":
 
 > **Notes:**
 >
-> - The requests require the `write:sandboxes` permission.
-> - run() returns when the shell exits, so a command that ends with & and redirects its output leaves its daemon running in the background after run() returns.
+> - **Permissions:** The requests require the `write:sandboxes` permission.
+> - **Clients:** run() returns when the shell exits, so a command that ends with & and redirects its output leaves its daemon running in the background after run() returns.
 
 ### Tailscale web terminal
 
@@ -271,8 +271,8 @@ sudo tailscale up
 
 > **Notes:**
 >
-> - `sudo tailscale up` prints an authentication URL of the form `https://login.tailscale.com/a/<id>`; open it in a browser and follow its instructions.
-> - The terminal then prints `Your device <id> is logged in to the <address> tailnet.`
+> - **Order:** `sudo tailscale up` prints an authentication URL of the form `https://login.tailscale.com/a/<id>`; open it in a browser and follow its instructions.
+> - **Results:** The terminal then prints `Your device <id> is logged in to the <address> tailnet.`
 
 ## OpenVPN
 
@@ -292,7 +292,7 @@ Create the file with a text editor such as nano or vim, or upload it to your san
 
 **CLI:**
 
-```bash
+```text
 client
 proto udp
 explicit-exit-notify
@@ -434,8 +434,8 @@ if __name__ == "__main__":
 
 > **Notes:**
 >
-> - The requests require the `write:sandboxes` permission.
-> - run() returns when the shell exits, so a command that ends with & and redirects its output leaves its daemon running in the background after run() returns.
+> - **Permissions:** The requests require the `write:sandboxes` permission.
+> - **Clients:** run() returns when the shell exits, so a command that ends with & and redirects its output leaves its daemon running in the background after run() returns.
 
 ### OpenVPN web terminal
 
@@ -470,7 +470,7 @@ curl ifconfig.me
 
 > **Notes:**
 >
-> - Write the [client configuration file](#openvpn-client-configuration-file) in nano, save with `Ctrl+O` and `Enter`, and exit with `Ctrl+X`.
+> - **Order:** Write the [client configuration file](#openvpn-client-configuration-file) in nano, save with `Ctrl+O` and `Enter`, and exit with `Ctrl+X`.
 
 ## Netbird
 
@@ -555,8 +555,8 @@ if __name__ == "__main__":
 
 > **Notes:**
 >
-> - The requests require the `write:sandboxes` permission.
-> - run() returns when the shell exits, so a command that ends with & and redirects its output leaves its daemon running in the background after run() returns.
+> - **Permissions:** The requests require the `write:sandboxes` permission.
+> - **Clients:** run() returns when the shell exits, so a command that ends with & and redirects its output leaves its daemon running in the background after run() returns.
 
 ### Netbird browser login
 
@@ -672,5 +672,5 @@ if __name__ == "__main__":
 
 > **Notes:**
 >
-> - The requests require the `write:sandboxes` permission.
-> - run() returns when the shell exits, so a command that ends with & and redirects its output leaves its daemon running in the background after run() returns.
+> - **Permissions:** The requests require the `write:sandboxes` permission.
+> - **Clients:** run() returns when the shell exits, so a command that ends with & and redirects its output leaves its daemon running in the background after run() returns.

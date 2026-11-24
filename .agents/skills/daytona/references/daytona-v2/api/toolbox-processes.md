@@ -53,7 +53,7 @@ Launch an exec, PTY, or code process. `waitMs` waits for completion or timeout; 
 | Name | In | Type | Required | Description |
 |------|----|------|----------|-------------|
 | `waitMs` | query | integer (int64) | No | Wait up to this many milliseconds before replying; timing out still returns 201 with a running record. |
-| `logs` | query | string | No | Inline the first logs page using `text` or `base64`; requires `waitMs`. `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding. |
+| `logs` | query | string | No | Inline the first logs page using `text` or `base64`; requires `waitMs`. Both encodings behave as on `GET /processes/{id}/logs`: `text` keeps UTF-8 characters split across frames whole, and `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding. |
 
 ### Request Body
 
@@ -172,7 +172,7 @@ Returns a JSON page by default, or an SSE stream when `follow=true`. SSE event n
 | `id` | path | string | Yes | Process id or live alias. |
 | `cursor` | query | string | No | Resume after this cursor. Empty or omitted starts from the beginning. |
 | `limit` | query | integer | No | Page size for JSON reads; clamped by the API. |
-| `encoding` | query | string | No | Payload encoding: `text` (default) or `base64`. `base64` uses the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding, including SSE follow frames. |
+| `encoding` | query | string | No | Payload encoding: `text` (default) or `base64`. `text` decodes each channel as UTF-8 across frames: a character split between frames appears whole in the frame that holds its last byte, so concatenating a channel's frames reproduces its output. Bytes that are not valid UTF-8 become U+FFFD, and an incomplete character at the very end of a channel's output is omitted. `base64` returns each frame's exact bytes, using the standard RFC 4648 section 4 alphabet (`+/`) with `=` padding, including SSE follow frames. |
 | `follow` | query | boolean | No | When true, answer an SSE follow stream instead of a JSON page. |
 | `Last-Event-ID` | header | string \| null | No | Optional resume cursor for SSE reconnects; wins over the `cursor` query parameter. |
 

@@ -45,7 +45,7 @@ You can create SSH access tokens programmatically. The token can then be used to
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const sandbox = await daytona.get('sandbox-abc123')
+const sandbox = await daytona.v0.get('sandbox-abc123')
 
 // Create SSH access token
 const sshAccess = await sandbox.createSshAccess(60)

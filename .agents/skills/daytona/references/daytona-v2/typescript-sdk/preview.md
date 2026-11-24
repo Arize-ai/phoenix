@@ -91,7 +91,7 @@ const response = await fetch(previewInfo.url, {
 
 > **Notes:**
 >
-> - The port-scoped access token expires after 1 hour by default, so call previewLink() again for a new one.
+> - **Lifetime:** The port-scoped access token expires after 1 hour by default, so call previewLink() again for a new one.
 
 ### Authenticate requests
 
@@ -99,7 +99,7 @@ Authenticate requests to reach a private preview endpoint. An authenticated requ
 
 A private endpoint of a sandbox accepts a preview token or an API key with the sandbox write permission. Every credential is stripped before the request reaches the application.
 
-Send the standard preview token in the x-daytona-preview-token header, which is accepted only as a header, not as a query parameter. Send an API key as a bearer token in the Authorization header, or as the daytona_token query parameter from clients that cannot set headers, such as browser WebSockets. Requests without a valid credential receive 401, while browsers are redirected to the sign-in page instead.
+Send the standard preview token in a header, or an API key as a bearer token. From clients that cannot set headers, such as browser WebSockets, send the API key in the query string instead. Requests without a valid credential are refused, and browsers are redirected to the sign-in page instead.
 
 **CLI:**
 
@@ -114,7 +114,9 @@ curl 'https://3000-{sandboxUuid}.{previewDomain}/?daytona_token=<API_KEY>'
 
 | **Flag** | **Description** |
 | --- | --- |
+| `daytona_token` | Sets an API key from a client that cannot set headers.<br />**Rules:** a query parameter |
 | `-H` | Sets a request header. |
+| `x-daytona-preview-token` | Sets the standard preview token.<br />**Rules:** a header, not a query parameter |
 
 ### Browser sign-in
 
@@ -170,7 +172,7 @@ await sandbox.ports.expireSignedPreviewLinks();
 
 > **Notes:**
 >
-> - Revoking signed preview URLs revokes every signed preview URL of the sandbox, on every port.
+> - **Effects:** Revoking signed preview URLs revokes every signed preview URL of the sandbox, on every port.
 
 ### Token validation
 
@@ -188,11 +190,9 @@ curl 'https://3000-{token}.{previewDomain}'
 
 > **Notes:**
 >
-> - The token is bound to its port, so a request with another port in the hostname fails.
-> - A signed link never creates a browser session and never redirects to sign in, so an invalid, expired, or revoked token fails for browsers and SDKs alike.
-> - The port must remain exposed, so after you [unexpose the port](#unexpose-ports), its signed links fail until the port is exposed again.
-> - A signed link that has not expired by the time its port is exposed again works again.
-> - Revocation reaches every proxy within about one second, and within 30 seconds if a proxy misses the invalidation event.
+> - **Compatibility:** The token is bound to its port, so a request with another port in the hostname fails.
+> - **Lifetime:** The port must remain exposed, so after you [unexpose the port](#unexpose-ports), its signed links fail until the port is exposed again. A signed link that has not expired by the time its port is exposed again works again.
+> - **Behaviour:** A signed link never creates a browser session and never redirects to sign in, so an invalid, expired, or revoked token fails for browsers and SDKs alike. Revocation reaches every proxy within about one second, and within 30 seconds if a proxy misses the invalidation event.
 
 ## Port operations
 
@@ -234,8 +234,8 @@ for await (const endpoint of sandbox.ports.iterEndpoints()) {
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `cursor` | Continues from a previous page. |
+| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 
 ### Unexpose ports
 
@@ -291,9 +291,9 @@ if (await sandbox.ports.isInUse(3000)) {
 
 Sandbox activity is the traffic that marks a sandbox as in use and resets its idle timer. An idle timer stops unused resources: each sign of use restarts it, and it acts when it runs out.
 
-Only **authenticated** preview requests count as activity for a sandbox. Anonymous requests to public preview endpoints never reset its idle timer.
+The activity of a sandbox includes only **authenticated** preview requests. Anonymous requests to public preview endpoints never reset its idle timer.
 
-Authenticate preview requests and streams, including WebSockets, to reset the [idle timeout](./linux-sandboxes.md#timeouts) of their sandbox. A request is authenticated when it carries a valid Authorization header, x-daytona-preview-token header, daytona_token query parameter, browser sign-in session, or uses a signed preview URL. An authenticated request to a sandbox that is not running wakes it when it can be woken. The request fails while the sandbox starts or when it cannot be woken.
+Authenticate preview requests and streams, including WebSockets, to reset the [idle timeout](./linux-sandboxes.md#timeouts) of their sandbox. A request is authenticated when it carries a credential that [authenticate requests](#authenticate-requests) accepts or a browser sign-in session, or uses a signed preview URL. An authenticated request to a sandbox that is not running wakes it when it can be woken. The request fails while the sandbox starts or when it cannot be woken.
 
 ## Use your own proxy
 
