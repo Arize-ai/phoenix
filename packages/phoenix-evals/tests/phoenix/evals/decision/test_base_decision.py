@@ -13,12 +13,12 @@ def test_plural_classifications_is_the_adapter_contract():
 
         def generate_classifications(self, prompt, criteria, **kwargs):
             return {
-                "results": [
-                    ClassificationResult(
-                        name=name, label=criterion["labels"][0], metadata={"model_id": "dummy"}
+                "results": {
+                    name: ClassificationResult(
+                        label=criterion["labels"][0], metadata={"model_id": "dummy"}
                     )
                     for name, criterion in criteria.items()
-                ],
+                },
                 "usage": {"input_tokens": 20, "output_tokens": 4},
             }
 
@@ -35,10 +35,10 @@ def test_plural_classifications_is_the_adapter_contract():
     )
 
     assert raw == {
-        "results": [
-            ClassificationResult(name="q1", label="a", metadata={"model_id": "dummy"}),
-            ClassificationResult(name="q2", label="c", metadata={"model_id": "dummy"}),
-        ],
+        "results": {
+            "q1": ClassificationResult(label="a", metadata={"model_id": "dummy"}),
+            "q2": ClassificationResult(label="c", metadata={"model_id": "dummy"}),
+        },
         "usage": {"input_tokens": 20, "output_tokens": 4},
     }
 

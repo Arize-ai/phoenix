@@ -1,10 +1,12 @@
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from typing_extensions import NotRequired, TypeAlias, TypedDict
 
 __all__ = [
     "ClassificationCriterion",
+    "ClassificationFailure",
+    "ClassificationFailureKind",
     "ClassificationResponse",
     "ClassificationResult",
     "Name",
@@ -13,6 +15,8 @@ __all__ = [
 
 Name: TypeAlias = str
 """A criterion name; the key under which that criterion's answer is returned."""
+
+ClassificationFailureKind = Literal["refusal", "invalid_label", "error"]
 
 
 class ClassificationCriterion(TypedDict):
@@ -39,24 +43,40 @@ class ClassificationCriterion(TypedDict):
 
 @dataclass(frozen=True)
 class ClassificationResult:
-    """One backend's answer to one named classification question.
+    """One backend's successful answer to one classification question.
 
     Returned (keyed by criterion name) by ``generate_classifications`` on both backends
     (decision models and LLMs). Kept in this leaf module alongside
     :class:`ClassificationCriterion` so every backend can build and return it without importing
     the evaluator layer, and so the evaluator reads a typed object instead of a loose dict.
 
+    The criterion name is the key this is returned under, so it is not repeated here.
+
     Attributes:
-        name: The criterion name this answers; also the key it is returned under.
         label: The label the backend chose for this criterion.
         explanation: Per-criterion explanation when the backend produced one (LLM path);
             ``None`` for decision models, which return no explanation.
         metadata: Backend metadata for this answer (e.g. probabilities, model_id, confidence).
     """
 
-    name: Name
     label: str
     explanation: Optional[str] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class ClassificationFailure:
+    """One criterion that could not be classified, returned in place of a
+    :class:`ClassificationResult` so that the other criteria's results are preserved.
+
+    Attributes:
+        kind: Why the classification failed (see :data:`ClassificationFailureKind`).
+        reason: A human-readable explanation of the failure.
+        metadata: Any backend metadata available for the failed criterion (e.g. model_id).
+    """
+
+    kind: ClassificationFailureKind
+    reason: str
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -68,16 +88,16 @@ class TokenUsage(TypedDict, total=False):
 
 
 class ClassificationResponse(TypedDict):
-    """What a classification backend's ``generate_classifications`` returns: one
-    :class:`ClassificationResult` per criterion plus the request's token usage.
-
-    This is the typed shape of the adapter boundary; ``DecisionModel`` and the evaluator then
-    re-key ``results`` by criterion name for their callers.
+    """What a classification backend's ``generate_classifications`` returns: one outcome per
+    criterion (a :class:`ClassificationResult` or a :class:`ClassificationFailure`) plus the
+    request's token usage.
 
     Keys:
-        results: One answer per criterion, in the order the criteria were given.
+        results: One outcome per criterion, keyed by criterion name. A criterion that could
+            not be classified maps to a :class:`ClassificationFailure` instead of a
+            :class:`ClassificationResult`, so one failure does not discard the others.
         usage: Token usage for the request, or ``None`` when the backend reported none.
     """
 
-    results: List[ClassificationResult]
+    results: Dict[Name, Union[ClassificationResult, ClassificationFailure]]
     usage: Optional[TokenUsage]

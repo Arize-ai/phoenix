@@ -5,6 +5,7 @@ from ...registries import register_provider
 from ...types import (
     BaseDecisionAdapter,
     ClassificationCriterion,
+    ClassificationFailure,
     ClassificationResponse,
     ClassificationResult,
     Name,
@@ -63,20 +64,19 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
 
     @classmethod
     def _to_results(cls, response: Any, names: List[str]) -> ClassificationResponse:
-        results: List[ClassificationResult] = []
+        results: Dict[Name, Union[ClassificationResult, ClassificationFailure]] = {}
         for name in names:
             if name not in response.choices:
-                raise ValueError(
-                    f"The model returned no answer for criterion '{name}'. "
-                    f"It returned answers for: {sorted(response.choices)}."
+                results[name] = ClassificationFailure(
+                    kind="error",
+                    reason=f"The model returned no answer for criterion '{name}'.",
+                    metadata={"model_id": response.model},
                 )
+                continue
             answer = response.choices[name]
-            results.append(
-                ClassificationResult(
-                    name=name,
-                    label=answer.choice,
-                    metadata=cls._answer_metadata(answer, response.model),
-                )
+            results[name] = ClassificationResult(
+                label=answer.choice,
+                metadata=cls._answer_metadata(answer, response.model),
             )
         return {"results": results, "usage": cls._usage_dict(response)}
 

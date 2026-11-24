@@ -41,7 +41,6 @@ class MockLLM(LLM):
     def generate_classifications(self, prompt, criteria, include_explanation=True, method=None):
         return {
             name: ClassificationResult(
-                name=name,
                 label=self._first_label(c["labels"]),
                 explanation="This is a good result",
             )
@@ -593,12 +592,10 @@ class TestClassificationEvaluator:
         assert result[0].score == 1.0
 
     def test_classification_evaluator_invalid_label(self):
-        """Test classification evaluation with invalid label."""
+        """An invalid label becomes a failure Score (no score/label), not an exception."""
         llm = MockLLM()
         llm.generate_classifications = MagicMock(
-            return_value={
-                "test_evaluator": ClassificationResult(name="test_evaluator", label="invalid")
-            }
+            return_value={"test_evaluator": ClassificationResult(label="invalid")}
         )
 
         template = "Test template with {input}"
@@ -608,8 +605,11 @@ class TestClassificationEvaluator:
             name="test_evaluator", llm=llm, prompt_template=template, choices=choices
         )
 
-        with pytest.raises(ValueError, match="received invalid label"):
-            evaluator._evaluate({"input": "test"})
+        [score] = evaluator._evaluate({"input": "test"})
+        assert score.score is None
+        assert score.label is None
+        assert "received invalid label" in score.explanation
+        assert score.metadata["failure_kind"] == "invalid_label"
 
     @pytest.mark.asyncio
     async def test_classification_evaluator_async_evaluate_success(self):
@@ -699,13 +699,13 @@ class TestClassificationEvaluator:
 
         assert [s.name for s in scores] == ["a", "b"]
 
-    def test_multiple_criteria_invalid_label_raises(self):
-        """An off-list label for any one criterion raises (Answered/Unanswered is later work)."""
+    def test_multiple_criteria_invalid_label_isolates_the_failure(self):
+        """An off-list label for one criterion fails only that criterion; siblings are kept."""
         llm = MockLLM()
         llm.generate_classifications = MagicMock(
             return_value={
-                "a": ClassificationResult(name="a", label="x"),
-                "b": ClassificationResult(name="b", label="nope"),  # invalid for criterion b
+                "a": ClassificationResult(label="x"),
+                "b": ClassificationResult(label="nope"),  # invalid for criterion b
             }
         )
         evaluator = ClassificationEvaluator(
@@ -718,8 +718,13 @@ class TestClassificationEvaluator:
             ],
         )
 
-        with pytest.raises(ValueError, match="'b' received invalid label 'nope'"):
-            evaluator._evaluate({"text": "..."})
+        scores = {s.name: s for s in evaluator._evaluate({"text": "..."})}
+        # Sibling 'a' is a normal Score; 'b' is an isolated failure (no score/label).
+        assert scores["a"].label == "x"
+        assert scores["b"].score is None
+        assert scores["b"].label is None
+        assert scores["b"].metadata["failure_kind"] == "invalid_label"
+        assert "'b' received invalid label 'nope'" in scores["b"].explanation
 
     def test_multi_criterion_requires_non_empty_description(self):
         """User-supplied criteria must each carry a non-empty instruction (the question)."""

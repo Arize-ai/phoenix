@@ -54,7 +54,6 @@ def test_routes_a_text_prompt_through_a_single_choice_question(monkeypatch):
 
     assert results == {
         "correctness": ClassificationResult(
-            name="correctness",
             label="incorrect",
             metadata={
                 "probabilities": {"correct": 0.03, "incorrect": 0.97},
@@ -207,7 +206,6 @@ def test_generate_classifications_sends_one_request_with_n_questions(monkeypatch
 
     assert results == {
         "helpfulness": ClassificationResult(
-            name="helpfulness",
             label="good",
             metadata={
                 "probabilities": {"good": 0.7, "bad": 0.3},
@@ -216,7 +214,6 @@ def test_generate_classifications_sends_one_request_with_n_questions(monkeypatch
             },
         ),
         "accuracy": ClassificationResult(
-            name="accuracy",
             label="wrong",
             metadata={
                 "probabilities": {"right": 0.2, "wrong": 0.8},

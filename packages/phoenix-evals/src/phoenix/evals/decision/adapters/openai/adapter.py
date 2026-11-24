@@ -1,11 +1,11 @@
 from typing import Any, Dict, List, Optional, Union
 
-from ....exceptions import PhoenixDecisionRefusal
 from ....llm.prompts import MessageRole, PromptLike, normalize_role
 from ...registries import register_provider
 from ...types import (
     BaseDecisionAdapter,
     ClassificationCriterion,
+    ClassificationFailure,
     ClassificationResponse,
     ClassificationResult,
     Name,
@@ -94,11 +94,6 @@ class OpenAIDecisionAdapter(BaseDecisionAdapter):
 
     @staticmethod
     def _answer_to_label_metadata(answer: Any, model: Any) -> Dict[str, Any]:
-        if getattr(answer, "type", None) == "refusal":
-            name = getattr(answer, "name", None)
-            raise PhoenixDecisionRefusal(
-                f"The decision model refused to classify (question '{name}')."
-            )
         # OpenAI reports probabilities as a list of {value, probability}; flatten to a
         # value -> probability dict so metadata matches the other decision adapters.
         probabilities = {
@@ -114,20 +109,27 @@ class OpenAIDecisionAdapter(BaseDecisionAdapter):
     @classmethod
     def _to_results(cls, response: Any, names: List[str]) -> ClassificationResponse:
         by_name = {getattr(answer, "name", None): answer for answer in response.answers}
-        results: List[ClassificationResult] = []
+        results: Dict[Name, Union[ClassificationResult, ClassificationFailure]] = {}
         for name in names:
             if name not in by_name:
-                raise ValueError(
-                    f"The model returned no answer for criterion '{name}'. "
-                    f"It returned answers for: {sorted(n for n in by_name if n is not None)}."
+                results[name] = ClassificationFailure(
+                    kind="error",
+                    reason=f"The model returned no answer for criterion '{name}'.",
+                    metadata={"model_id": response.model},
                 )
-            label_metadata = cls._answer_to_label_metadata(by_name[name], response.model)
-            results.append(
-                ClassificationResult(
-                    name=name,
-                    label=label_metadata["label"],
-                    metadata=label_metadata["metadata"],
+                continue
+            answer = by_name[name]
+            if getattr(answer, "type", None) == "refusal":
+                results[name] = ClassificationFailure(
+                    kind="refusal",
+                    reason=f"The decision model refused to classify (question '{name}').",
+                    metadata={"model_id": response.model},
                 )
+                continue
+            label_metadata = cls._answer_to_label_metadata(answer, response.model)
+            results[name] = ClassificationResult(
+                label=label_metadata["label"],
+                metadata=label_metadata["metadata"],
             )
         return {"results": results, "usage": cls._usage_dict(response)}
 

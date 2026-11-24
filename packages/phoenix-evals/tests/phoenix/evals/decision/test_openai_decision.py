@@ -4,8 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from phoenix.evals import ClassificationEvaluator, DecisionModel
-from phoenix.evals._criteria import ClassificationResult
-from phoenix.evals.exceptions import PhoenixDecisionRefusal
+from phoenix.evals._criteria import ClassificationFailure, ClassificationResult
 
 
 def _by_name(criteria):
@@ -142,7 +141,7 @@ def test_generate_classifications_matches_answers_by_name_not_order(monkeypatch)
     assert results["accuracy"].label == "wrong"
 
 
-def test_generate_classifications_missing_answer_raises_descriptive_error(monkeypatch):
+def test_generate_classifications_missing_answer_becomes_a_failure(monkeypatch):
     client = MagicMock()
     client.decisions.create.return_value = _multi_response(
         [("helpfulness", "good", {"good": 0.7, "bad": 0.3})]
@@ -150,16 +149,22 @@ def test_generate_classifications_missing_answer_raises_descriptive_error(monkey
     _patch_clients(monkeypatch, sync_client=client)
 
     decision = DecisionModel(provider="openai", model="gpt-6-luna")
-    with pytest.raises(ValueError, match="no answer for criterion 'accuracy'.*'helpfulness'"):
-        decision.generate_classifications(
-            "t",
-            _by_name(
-                [
-                    {"name": "helpfulness", "labels": ["good", "bad"]},
-                    {"name": "accuracy", "labels": ["right", "wrong"]},
-                ]
-            ),
-        )
+    results = decision.generate_classifications(
+        "t",
+        _by_name(
+            [
+                {"name": "helpfulness", "labels": ["good", "bad"]},
+                {"name": "accuracy", "labels": ["right", "wrong"]},
+            ]
+        ),
+    )
+
+    # The answered criterion is kept; the missing one is an isolated failure.
+    assert results["helpfulness"].label == "good"
+    failure = results["accuracy"]
+    assert isinstance(failure, ClassificationFailure)
+    assert failure.kind == "error"
+    assert "no answer for criterion 'accuracy'" in failure.reason
 
 
 async def test_async_generate_classifications(monkeypatch):
@@ -176,7 +181,6 @@ async def test_async_generate_classifications(monkeypatch):
 
     assert results == {
         "a": ClassificationResult(
-            name="a",
             label="x",
             metadata={
                 "probabilities": {"x": 0.6, "y": 0.4},
@@ -202,7 +206,6 @@ def test_routes_a_text_prompt_through_a_single_choice_question(monkeypatch):
 
     assert results == {
         "correctness": ClassificationResult(
-            name="correctness",
             label="incorrect",
             metadata={
                 "probabilities": {"correct": 0.03, "incorrect": 0.97},
@@ -315,7 +318,7 @@ def test_invocation_kwargs_reach_create_but_evaluator_params_do_not(monkeypatch)
     assert "method" not in kwargs
 
 
-def test_refusal_raises(monkeypatch):
+def test_refusal_becomes_a_failure(monkeypatch):
     refusal = SimpleNamespace(type="refusal", name="correctness")
     client = MagicMock()
     client.decisions.create.return_value = SimpleNamespace(
@@ -324,10 +327,14 @@ def test_refusal_raises(monkeypatch):
     _patch_clients(monkeypatch, sync_client=client)
 
     decision = DecisionModel(provider="openai", model="gpt-6-luna")
-    with pytest.raises(PhoenixDecisionRefusal, match="refused"):
-        decision.generate_classifications(
-            "something", {"correctness": {"labels": ["correct", "incorrect"]}}
-        )
+    results = decision.generate_classifications(
+        "something", {"correctness": {"labels": ["correct", "incorrect"]}}
+    )
+
+    failure = results["correctness"]
+    assert isinstance(failure, ClassificationFailure)
+    assert failure.kind == "refusal"
+    assert "refused" in failure.reason
 
 
 def test_max_retries_defaults_to_zero_but_can_be_overridden(monkeypatch):

@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from phoenix.evals._criteria import ClassificationResult
+from phoenix.evals._criteria import ClassificationFailure, ClassificationResult
 from phoenix.evals.llm.llm import (
     LLM,
     _parse_classifications,
@@ -379,30 +379,36 @@ class TestParseClassifications:
         }
         results = _parse_classifications(raw, _by_name(criteria))
         assert results == {
-            "a": ClassificationResult(name="a", label="x", explanation="because a"),
-            "b": ClassificationResult(name="b", label="y", explanation="because b"),
+            "a": ClassificationResult(label="x", explanation="because a"),
+            "b": ClassificationResult(label="y", explanation="because b"),
         }
 
     def test_explanation_omitted_when_absent(self):
         criteria = [{"name": "a", "labels": ["x", "y"]}]
         results = _parse_classifications({"a": {"label": "x"}}, _by_name(criteria))
-        assert results == {"a": ClassificationResult(name="a", label="x", explanation=None)}
+        assert results == {"a": ClassificationResult(label="x", explanation=None)}
 
-    def test_missing_criterion_raises(self):
+    def test_missing_criterion_becomes_a_failure(self):
         criteria = [{"name": "a", "labels": ["x", "y"]}]
-        with pytest.raises(ValueError, match="malformed or missing answer for criterion 'a'"):
-            _parse_classifications({}, _by_name(criteria))
+        [failure] = _parse_classifications({}, _by_name(criteria)).values()
+        assert isinstance(failure, ClassificationFailure)
+        assert failure.kind == "error"
+        assert "malformed or missing answer for criterion 'a'" in failure.reason
 
-    def test_non_dict_answer_raises(self):
-        """A model returning a bare string for a criterion errors clearly, not an AttributeError."""
+    def test_non_dict_answer_becomes_a_failure(self):
+        """A model returning a bare string for a criterion fails it, not an AttributeError."""
         criteria = [{"name": "a", "labels": ["x", "y"]}]
-        with pytest.raises(ValueError, match="malformed or missing answer for criterion 'a'"):
-            _parse_classifications({"a": "x"}, _by_name(criteria))
+        [failure] = _parse_classifications({"a": "x"}, _by_name(criteria)).values()
+        assert isinstance(failure, ClassificationFailure)
+        assert failure.kind == "error"
 
-    def test_dict_answer_without_label_raises(self):
+    def test_dict_answer_without_label_becomes_a_failure(self):
         criteria = [{"name": "a", "labels": ["x", "y"]}]
-        with pytest.raises(ValueError, match="malformed or missing answer for criterion 'a'"):
-            _parse_classifications({"a": {"explanation": "no label here"}}, _by_name(criteria))
+        [failure] = _parse_classifications(
+            {"a": {"explanation": "no label here"}}, _by_name(criteria)
+        ).values()
+        assert isinstance(failure, ClassificationFailure)
+        assert failure.kind == "error"
 
 
 class TestLLMGenerateClassifications:
@@ -423,10 +429,8 @@ class TestLLMGenerateClassifications:
         results = llm.generate_classifications("some text", _by_name(criteria))
 
         assert results == {
-            "helpfulness": ClassificationResult(
-                name="helpfulness", label="good", explanation="clear"
-            ),
-            "accuracy": ClassificationResult(name="accuracy", label="wrong", explanation="off"),
+            "helpfulness": ClassificationResult(label="good", explanation="clear"),
+            "accuracy": ClassificationResult(label="wrong", explanation="off"),
         }
 
         llm._sync_adapter.generate_object.assert_called_once()

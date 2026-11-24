@@ -29,7 +29,12 @@ from typing_extensions import Annotated, Mapping, TypeVar
 
 from phoenix.evals.executors import AsyncExecutor, ExecutionDetails, SyncExecutor
 
-from ._criteria import ClassificationCriterion, ClassificationResult, Name
+from ._criteria import (
+    ClassificationCriterion,
+    ClassificationFailure,
+    ClassificationResult,
+    Name,
+)
 from .decision import DecisionModel
 from .llm import LLM, PromptLike
 from .llm.prompts import PromptTemplate, Template
@@ -930,25 +935,52 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
         any_dict = any(isinstance(c.backend_labels, dict) for c in self._criteria)
         return ObjectGenerationMethod.TOOL_CALLING if any_dict else ObjectGenerationMethod.AUTO
 
-    def _scores_from_results(self, answers: Dict[Name, ClassificationResult]) -> List[Score]:
-        """Turn one backend answer per criterion into one Score per criterion."""
+    def _failure_score(self, criterion: Criterion, failure: ClassificationFailure) -> Score:
+        """A Score for a criterion that could not be classified: no score and no label, with the
+        failure recorded in the explanation and metadata. The score stays ``None`` so that a
+        failure is never aggregated as a zero."""
+        return Score(
+            score=None,
+            name=criterion.name,
+            label=None,
+            explanation=failure.reason,
+            metadata={"model": self.llm.model, "failure_kind": failure.kind, **failure.metadata},
+            kind=self.kind,
+            direction=criterion.direction,
+        )
+
+    def _scores_from_results(
+        self, answers: Dict[Name, Union[ClassificationResult, ClassificationFailure]]
+    ) -> List[Score]:
+        """Turn one backend outcome per criterion into one Score per criterion. A criterion that
+        failed -- a ``ClassificationFailure``, or a result whose label is not one of the
+        criterion's labels -- yields a failure Score, so the other criteria's Scores are kept."""
         scores: List[Score] = []
         for criterion in self._criteria:
-            answer = answers[criterion.name]
-            label = answer.label
+            outcome = answers[criterion.name]
+            if isinstance(outcome, ClassificationFailure):
+                scores.append(self._failure_score(criterion, outcome))
+                continue
+            label = outcome.label
             if label not in criterion.labels:
-                raise ValueError(
-                    f"ClassificationEvaluator '{criterion.name}' received invalid label "
-                    f"'{label}'. Valid labels are: {criterion.labels}. "
+                invalid = ClassificationFailure(
+                    kind="invalid_label",
+                    reason=(
+                        f"ClassificationEvaluator '{criterion.name}' received invalid label "
+                        f"'{label}'. Valid labels are: {criterion.labels}."
+                    ),
+                    metadata=outcome.metadata,
                 )
+                scores.append(self._failure_score(criterion, invalid))
+                continue
             score = criterion.label_score_map.get(label) if criterion.label_score_map else None
             scores.append(
                 Score(
                     score=score,
                     name=criterion.name,
                     label=label,
-                    explanation=answer.explanation,
-                    metadata={"model": self.llm.model, **answer.metadata},
+                    explanation=outcome.explanation,
+                    metadata={"model": self.llm.model, **outcome.metadata},
                     kind=self.kind,
                     direction=criterion.direction,
                 )

@@ -4,6 +4,7 @@ from typing import Any, Callable, Dict, List, Optional, Type
 
 from .._criteria import (
     ClassificationCriterion,
+    ClassificationFailure,
     ClassificationResponse,
     ClassificationResult,
     Name,
@@ -14,6 +15,7 @@ from ..llm.prompts import PromptLike
 __all__ = [
     "BaseDecisionAdapter",
     "ClassificationCriterion",
+    "ClassificationFailure",
     "ClassificationResponse",
     "ClassificationResult",
     "Name",

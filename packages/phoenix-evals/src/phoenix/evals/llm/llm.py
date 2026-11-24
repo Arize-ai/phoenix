@@ -9,7 +9,12 @@ from opentelemetry.trace import Tracer
 from phoenix.evals.rate_limiters import RateLimiter
 from phoenix.evals.tracing import trace
 
-from .._criteria import ClassificationCriterion, ClassificationResult, Name
+from .._criteria import (
+    ClassificationCriterion,
+    ClassificationFailure,
+    ClassificationResult,
+    Name,
+)
 from .adapters import register_adapters
 from .prompts import PromptLike
 from .registries import PROVIDER_REGISTRY, adapter_availability_table
@@ -375,7 +380,7 @@ class LLM:
         criteria: Dict[Name, ClassificationCriterion],
         include_explanation: bool = True,
         **kwargs: Any,
-    ) -> Dict[Name, ClassificationResult]:
+    ) -> Dict[Name, Union[ClassificationResult, ClassificationFailure]]:
         """Answer several named classification questions about one prompt in a single request.
 
         Args:
@@ -387,8 +392,9 @@ class LLM:
             **kwargs: Additional keyword arguments to pass to the LLM SDK (e.g. ``method``).
 
         Returns:
-            Dict[Name, ClassificationResult]: One :class:`ClassificationResult` per criterion,
-            keyed by criterion name.
+            One outcome per criterion, keyed by criterion name: a :class:`ClassificationResult`,
+            or a :class:`ClassificationFailure` for a criterion whose answer was missing or
+            malformed.
         """
         schema = generate_classifications_schema(criteria, include_explanation)
         raw: Dict[str, Any] = self.generate_object(prompt, schema, **kwargs)
@@ -400,7 +406,7 @@ class LLM:
         criteria: Dict[Name, ClassificationCriterion],
         include_explanation: bool = True,
         **kwargs: Any,
-    ) -> Dict[Name, ClassificationResult]:
+    ) -> Dict[Name, Union[ClassificationResult, ClassificationFailure]]:
         """Asynchronously answer several named classification questions in a single request.
 
         See :meth:`generate_classifications`.
@@ -528,19 +534,23 @@ def generate_classifications_schema(
 def _parse_classifications(
     raw: Dict[str, Any],
     criteria: Dict[Name, ClassificationCriterion],
-) -> Dict[Name, ClassificationResult]:
-    """Turn the nested object from :func:`generate_classifications_schema` into one
-    :class:`ClassificationResult` per criterion, keyed by criterion name."""
-    answers: Dict[Name, ClassificationResult] = {}
+) -> Dict[Name, Union[ClassificationResult, ClassificationFailure]]:
+    """Turn the nested object from :func:`generate_classifications_schema` into one outcome per
+    criterion, keyed by criterion name. A criterion whose answer is missing or malformed maps to
+    a :class:`ClassificationFailure` so the other criteria's results are preserved."""
+    answers: Dict[Name, Union[ClassificationResult, ClassificationFailure]] = {}
     for name, criterion in criteria.items():
         answer = raw.get(name)
         if not isinstance(answer, dict) or "label" not in answer:
-            raise ValueError(
-                f"The model returned a malformed or missing answer for criterion '{name}': "
-                f"{answer!r}. Expected an object with a 'label' field."
+            answers[name] = ClassificationFailure(
+                kind="error",
+                reason=(
+                    f"The model returned a malformed or missing answer for criterion '{name}': "
+                    f"{answer!r}. Expected an object with a 'label' field."
+                ),
             )
+            continue
         answers[name] = ClassificationResult(
-            name=name,
             label=answer["label"],
             explanation=answer.get("explanation"),
         )
