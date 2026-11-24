@@ -7091,6 +7091,16 @@
             },
             "description": "Not Found"
           },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Prompt is in use by one or more LLM evaluators"
+          },
           "422": {
             "content": {
               "text/plain": {

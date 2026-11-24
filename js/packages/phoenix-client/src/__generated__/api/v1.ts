@@ -11550,6 +11550,15 @@ export interface operations {
                     "text/plain": string;
                 };
             };
+            /** @description Prompt is in use by one or more LLM evaluators */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
             /** @description Unprocessable Entity */
             422: {
                 headers: {

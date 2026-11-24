@@ -1,8 +1,12 @@
 from typing import Any, Optional
 
 import pytest
+from sqlalchemy import select
 from strawberry.relay.types import GlobalID
 
+from phoenix.config import ENV_PHOENIX_MASK_INTERNAL_SERVER_ERRORS
+from phoenix.db import models
+from phoenix.db.types.identifier import Identifier
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -1993,3 +1997,155 @@ class TestPromptMutations:
         assert data["description"] == expected_description
         assert data["metadata"] == expected_metadata
         assert isinstance(data["id"], str)
+
+    DELETE_PROMPT_MUTATION = """
+      mutation DeletePromptMutation($input: DeletePromptInput!) {
+        deletePrompt(input: $input) {
+          query {
+            prompts {
+              edges {
+                node {
+                  id
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+
+    async def test_delete_prompt_succeeds_for_unused_prompt(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        async with db() as session:
+            prompt = models.Prompt(name=Identifier("unused-prompt"))
+            session.add(prompt)
+            await session.flush()
+            prompt_rowid = prompt.id
+
+        result = await gql_client.execute(
+            self.DELETE_PROMPT_MUTATION,
+            {"input": {"promptId": str(GlobalID("Prompt", str(prompt_rowid)))}},
+        )
+        assert not result.errors
+        assert result.data is not None
+
+        async with db() as session:
+            assert await session.scalar(select(models.Prompt).filter_by(id=prompt_rowid)) is None
+
+    async def test_delete_prompt_fails_with_not_found(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        missing_id = str(GlobalID("Prompt", "999999"))
+        result = await gql_client.execute(
+            self.DELETE_PROMPT_MUTATION,
+            {"input": {"promptId": missing_id}},
+        )
+        assert len(result.errors) == 1
+        assert f"Prompt with ID '{missing_id}' not found" in result.errors[0].message
+        assert result.data is None
+
+    @pytest.mark.parametrize(
+        "evaluator_names, expected_message",
+        [
+            pytest.param(
+                ["correctness-eval"],
+                "Cannot delete prompt because it is used by LLM evaluator 'correctness-eval'",
+                id="single-evaluator",
+            ),
+            pytest.param(
+                ["zeta-eval", "alpha-eval"],
+                "Cannot delete prompt because it is used by LLM evaluators: 'alpha-eval', 'zeta-eval'",
+                id="multiple-evaluators",
+            ),
+        ],
+    )
+    async def test_delete_prompt_fails_with_conflict_when_used_by_llm_evaluator(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        monkeypatch: pytest.MonkeyPatch,
+        evaluator_names: list[str],
+        expected_message: str,
+    ) -> None:
+        monkeypatch.setenv(ENV_PHOENIX_MASK_INTERNAL_SERVER_ERRORS, "true")
+        async with db() as session:
+            prompt = models.Prompt(name=Identifier("evaluator-prompt"))
+            session.add(prompt)
+            await session.flush()
+            prompt_rowid = prompt.id
+            session.add_all(
+                [
+                    models.LLMEvaluator(
+                        name=Identifier(name),
+                        prompt_id=prompt_rowid,
+                        output_configs=[],
+                    )
+                    for name in evaluator_names
+                ]
+            )
+
+        result = await gql_client.execute(
+            self.DELETE_PROMPT_MUTATION,
+            {"input": {"promptId": str(GlobalID("Prompt", str(prompt_rowid)))}},
+        )
+        assert len(result.errors) == 1
+        assert result.errors[0].message == expected_message
+        assert result.data is None
+
+        async with db() as session:
+            assert (
+                await session.scalar(select(models.Prompt).filter_by(id=prompt_rowid)) is not None
+            )
+
+    async def test_delete_prompt_fails_with_conflict_on_integrity_error_race(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from phoenix.server.api.helpers.prompts.delete_helpers import (
+            get_prompt_referencing_llm_evaluator_names,
+        )
+
+        monkeypatch.setenv(ENV_PHOENIX_MASK_INTERNAL_SERVER_ERRORS, "true")
+        async with db() as session:
+            prompt = models.Prompt(name=Identifier("race-prompt"))
+            session.add(prompt)
+            await session.flush()
+            prompt_rowid = prompt.id
+            session.add(
+                models.LLMEvaluator(
+                    name=Identifier("race-eval"),
+                    prompt_id=prompt_rowid,
+                    output_configs=[],
+                )
+            )
+
+        calls = 0
+
+        async def _simulate_race(session: Any, prompt_id: int) -> list[str]:
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                return []
+            return await get_prompt_referencing_llm_evaluator_names(session, prompt_id)
+
+        monkeypatch.setattr(
+            "phoenix.server.api.mutations.prompt_mutations.get_prompt_referencing_llm_evaluator_names",
+            _simulate_race,
+        )
+        result = await gql_client.execute(
+            self.DELETE_PROMPT_MUTATION,
+            {"input": {"promptId": str(GlobalID("Prompt", str(prompt_rowid)))}},
+        )
+        assert len(result.errors) == 1
+        assert (
+            result.errors[0].message
+            == "Cannot delete prompt because it is used by LLM evaluator 'race-eval'"
+        )
+        assert result.data is None
+        assert calls == 2
