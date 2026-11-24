@@ -1,4 +1,5 @@
 from asyncio import sleep
+from collections.abc import AsyncIterator
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
@@ -19,6 +20,8 @@ from sqlalchemy import func, insert, select, update
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.server.api.exceptions import Conflict
+from phoenix.server.api.routers.v1 import traces as traces_router
 from phoenix.server.types import DbSessionFactory
 from tests.unit._helpers import (
     _add_live_session_work_unit,
@@ -888,6 +891,26 @@ async def test_transfer_traces_unparseable_identifier(
 # ---------------------------------------------------------------------------
 # DELETE /v1/projects/{project_identifier}/traces
 # ---------------------------------------------------------------------------
+
+
+async def test_delete_project_traces_returns_conflict_when_the_clear_gives_up(
+    db: DbSessionFactory,
+    httpx_client: httpx2.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _give_up(*args: Any, **kwargs: Any) -> AsyncIterator[Any]:
+        raise Conflict("Some traces are in use by another operation; run the clear again.")
+        yield
+
+    monkeypatch.setattr(traces_router, "clear_project_traces_in_batches", _give_up)
+    project_rowid, _ = await _project_with_traces(db, "busy-proj", 1, "eeee")
+
+    response = await httpx_client.delete(
+        f"v1/projects/{GlobalID('Project', str(project_rowid))}/traces",
+        params={"start_time": "2021-01-01T00:00:00Z", "end_time": "2021-01-02T00:00:00Z"},
+    )
+    assert response.status_code == 409
+    assert response.text == "Some traces are in use by another operation; run the clear again."
 
 
 async def test_delete_project_traces_clears_evaluator_trace_project(

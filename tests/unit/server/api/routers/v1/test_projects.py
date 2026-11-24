@@ -24,6 +24,7 @@ from phoenix.db.types.trace_retention import (
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project
 from phoenix.server.cleanup.coordinator import CleanupCoordinator
+from phoenix.server.dml_event import DmlEvent, ProjectDeleteEvent, SpanDeleteEvent
 from phoenix.server.types import DbSessionFactory
 
 
@@ -413,6 +414,25 @@ class TestProjects:
         assert response.status_code == 404, (
             f"PUT /projects/{project_identifier} should return a 404 status code, got {response.status_code}: {response.text}"
         )
+
+    async def test_delete_project_emits_span_and_project_delete_events(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+        recorded_dml_events: list[DmlEvent],
+    ) -> None:
+        async with db() as session:
+            project = models.Project(name=f"evented-{token_hex(4)}")
+            session.add(project)
+            await session.flush()
+            project_id = project.id
+
+        response = await httpx_client.delete(f"v1/projects/{project.name}")
+        assert response.status_code == 204
+        assert recorded_dml_events == [
+            SpanDeleteEvent((project_id,)),
+            ProjectDeleteEvent((project_id,)),
+        ]
 
     async def test_delete_nonexistent_project(
         self,

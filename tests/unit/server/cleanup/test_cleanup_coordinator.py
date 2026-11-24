@@ -24,7 +24,11 @@ from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import Conflict, NotFound
 from phoenix.server.app import _db
-from phoenix.server.cleanup.coordinator import _CLEANUP_STEP_ADVISORY_LOCK_ID, CleanupCoordinator
+from phoenix.server.cleanup.coordinator import (
+    _CLEANUP_STEP_ADVISORY_LOCK_ID,
+    MAX_ERROR_RETRY_DELAY_SECONDS,
+    CleanupCoordinator,
+)
 from phoenix.server.cleanup.lifecycle import (
     TraceClearBatchResult,
     clear_project_traces_in_batches,
@@ -186,6 +190,44 @@ class TestCleanupSchedulingAndBackoff:
         async with db() as session:
             assert await session.get(models.Project, project_id) is None
         assert await _get_failure(db, "PROJECT", project_id) is None
+
+    async def test_retry_delay_is_capped_after_many_failures(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        dialect = SupportedSQLDialect(db.dialect.value)
+        async with db() as session:
+            project = await _add_project(session, name=f"capped-{token_hex(4)}")
+            project_id = project.id
+            await tombstone_project(session, project_id=project_id)
+            now = await current_database_time(session, dialect)
+            session.add(
+                models.CleanupFailure(
+                    target_kind="PROJECT",
+                    target_id=project_id,
+                    failure_count=30,
+                    retry_at=now - timedelta(seconds=1),
+                )
+            )
+
+        coordinator = CleanupCoordinator(db, error_retry_delay_seconds=10.0)
+
+        async def _boom(*args: object, **kwargs: object) -> object:
+            raise OperationalError("SELECT 1", {}, Exception("injected step failure"))
+
+        monkeypatch.setattr(coordinator, "_run_domain_step", _boom)
+        assert (await coordinator.step()).outcome == "error"
+
+        async with db() as session:
+            now = await current_database_time(session, dialect)
+            failure = await session.get(models.CleanupFailure, ("PROJECT", project_id))
+            assert failure is not None
+            assert failure.failure_count == 31
+            retry_delay_seconds = (failure.retry_at - now).total_seconds()
+        assert (
+            MAX_ERROR_RETRY_DELAY_SECONDS - 60
+            < retry_delay_seconds
+            <= MAX_ERROR_RETRY_DELAY_SECONDS
+        )
 
     async def test_target_is_skipped_until_retry_at_and_worker_learns_the_delay(
         self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch

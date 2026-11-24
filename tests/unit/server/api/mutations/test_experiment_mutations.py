@@ -5,6 +5,7 @@ from sqlalchemy import func, insert, select, update
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.server.dml_event import DmlEvent, ProjectDeleteEvent, SpanDeleteEvent
 from phoenix.server.types import DbSessionFactory
 from tests.unit._helpers import _bind_evaluator_trace_project
 from tests.unit.graphql import AsyncGraphQLClient
@@ -88,10 +89,11 @@ class TestDeleteExperiment:
             f"['{str(GlobalID('Experiment', str(3)))}']"
         )
 
-    async def test_deletes_sdk_eval_traces_while_preserving_evaluator_project_traces(
+    async def test_tombstones_exclusive_projects_and_deletes_only_sdk_eval_traces(
         self,
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
+        recorded_dml_events: list[DmlEvent],
     ) -> None:
         from datetime import datetime, timezone
         from secrets import token_hex
@@ -101,7 +103,10 @@ class TestDeleteExperiment:
             dataset = models.Dataset(name=f"gql-exp-ds-{token_hex(4)}", metadata_={})
             sdk_evaluators_project = models.Project(name="evaluators")
             evaluator_sink_project = models.Project(name=f"gql-eval-sink-{token_hex(4)}")
-            session.add_all([dataset, sdk_evaluators_project, evaluator_sink_project])
+            experiment_project = models.Project(name=f"Experiment-{token_hex(12)}")
+            session.add_all(
+                [dataset, sdk_evaluators_project, evaluator_sink_project, experiment_project]
+            )
             await session.flush()
             await _bind_evaluator_trace_project(session, evaluator_sink_project)
 
@@ -128,6 +133,7 @@ class TestDeleteExperiment:
                 name="exp-with-eval-traces",
                 repetitions=1,
                 metadata_={},
+                project_name=experiment_project.name,
             )
             session.add(experiment)
             await session.flush()
@@ -167,6 +173,7 @@ class TestDeleteExperiment:
             )
             await session.flush()
             experiment_id = experiment.id
+            experiment_project_id = experiment_project.id
             sdk_trace_rowid = sdk_trace.id
             sink_trace_rowid = sink_trace.id
 
@@ -179,6 +186,10 @@ class TestDeleteExperiment:
         async with db() as session:
             assert await session.get(models.Trace, sdk_trace_rowid) is None
             assert await session.get(models.Trace, sink_trace_rowid) is not None
+            tombstoned_project = await session.get(models.Project, experiment_project_id)
+            assert tombstoned_project is not None and tombstoned_project.deleted_at is not None
+        assert SpanDeleteEvent((experiment_project_id,)) in recorded_dml_events
+        assert ProjectDeleteEvent((experiment_project_id,)) in recorded_dml_events
 
 
 class TestPatchExperimentMutation:

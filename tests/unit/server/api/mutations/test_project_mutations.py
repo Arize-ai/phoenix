@@ -1,11 +1,16 @@
+from collections.abc import AsyncIterator
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
+from typing import Any
 
+import pytest
 from sqlalchemy import select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
+from phoenix.server.api.exceptions import Conflict
+from phoenix.server.api.mutations import project_mutations
 from phoenix.server.cleanup.coordinator import CleanupCoordinator
 from phoenix.server.types import DbSessionFactory
 
@@ -135,6 +140,35 @@ class TestProjectMutations:
                 if i < n - 1:
                     session_obj = await session.get(models.ProjectSession, project_sessions[i].id)
                     assert session_obj is None, f"Session {i} should be deleted"
+
+    async def test_clear_project_surfaces_the_conflict_when_the_clear_gives_up(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        async def _give_up(*args: Any, **kwargs: Any) -> AsyncIterator[Any]:
+            raise Conflict("Some traces are in use by another operation; run the clear again.")
+            yield
+
+        monkeypatch.setattr(project_mutations, "clear_project_traces_in_batches", _give_up)
+        async with db() as session:
+            project = models.Project(name=token_hex(8))
+            session.add(project)
+            await session.flush()
+            project_id = project.id
+
+        result = await gql_client.execute(
+            query="""
+            mutation($input: ClearProjectInput!) {
+                clearProject(input: $input) { __typename }
+            }
+            """,
+            variables={"input": {"id": str(GlobalID("Project", str(project_id)))}},
+        )
+        assert [error.message for error in result.errors or []] == [
+            "Some traces are in use by another operation; run the clear again."
+        ]
 
     async def test_clear_project_rejects_unknown_project(
         self,

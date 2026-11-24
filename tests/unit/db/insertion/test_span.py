@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import pytest
-from sqlalchemy import Select, delete, event, select
+from sqlalchemy import Select, delete, event, func, select, update
 from sqlalchemy.engine import Connection, ExecutionContext
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.dml import Update
@@ -447,6 +447,30 @@ async def test_span_for_name_with_only_a_tombstoned_project_creates_a_live_proje
         assert live_project is not None
         assert live_project.name == "reused-name"
         assert live_project.deleted_at is None
+
+
+async def test_late_span_for_a_trace_in_a_tombstoned_project_is_dropped(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        assert (
+            await insert_span(session, _span("first", "doomed-trace", "first"), "doomed")
+            is not None
+        )
+        await session.execute(
+            update(models.Project)
+            .where(models.Project.name == "doomed")
+            .values(deleted_at=datetime(2026, 1, 1, tzinfo=timezone.utc))
+        )
+
+    async with db() as session:
+        late_span = _span("late", "doomed-trace", "late")
+        assert await insert_span(session, late_span, "doomed") is None
+        assert await session.scalar(select(func.count(models.Span.id))) == 1
+        assert (
+            await session.scalar(select(func.count(models.Project.id)).filter_by(name="doomed"))
+            == 1
+        )
 
 
 async def test_late_span_preserves_transferred_project_and_established_session(

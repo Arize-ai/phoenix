@@ -1,5 +1,6 @@
 """Migration tests for f125a3233286 (lifecycle tombstones and cleanup failures)."""
 
+import json
 from datetime import datetime, timezone
 from typing import Any
 
@@ -76,3 +77,63 @@ async def test_f125a3233286_tombstones_projects_and_guards_downgrade(
 
     # Retry state alone does not block the downgrade; it is dropped with its table.
     await _down(_engine, _alembic_config, _DOWN, _schema)
+
+
+async def test_f125a3233286_tombstoned_dataset_evaluators_free_their_name_and_block_downgrade(
+    _engine: AsyncEngine,
+    _alembic_config: Config,
+    _schema: str,
+) -> None:
+    await _up(_engine, _alembic_config, _UP, _schema)
+    t0 = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+
+    def _seed_binding_then_tombstone_it(conn: Connection) -> None:
+        dataset = _insert(
+            conn,
+            "INSERT INTO datasets (name, metadata) VALUES ('ds', :m)",
+            m=json.dumps({}),
+        )
+        sink = _insert(
+            conn,
+            "INSERT INTO projects (name, created_at, updated_at) VALUES ('sink', :t, :t)",
+            t=t0,
+        )
+        evaluator = _insert(
+            conn,
+            "INSERT INTO evaluators (name, metadata, kind) VALUES ('builtin', :m, 'BUILTIN')",
+            m=json.dumps({}),
+        )
+        conn.execute(
+            text(
+                "INSERT INTO builtin_evaluators (id, key, input_schema, output_configs) "
+                "VALUES (:id, 'key', :s, :o)"
+            ),
+            {"id": evaluator, "s": json.dumps({}), "o": json.dumps([])},
+        )
+        insert_binding = (
+            "INSERT INTO dataset_evaluators "
+            "(dataset_id, evaluator_id, name, input_mapping, output_configs, project_id) "
+            "VALUES (:d, :e, 'judge', :im, :oc, :p)"
+        )
+        params: dict[str, Any] = dict(
+            d=dataset,
+            e=evaluator,
+            im=json.dumps({"literal_mapping": {}, "path_mapping": {}}),
+            oc=json.dumps([]),
+            p=sink,
+        )
+        binding = _insert(conn, insert_binding, **params)
+        conn.execute(
+            text(
+                "UPDATE dataset_evaluators SET deleted_at = :t, evaluator_id = NULL WHERE id = :id"
+            ),
+            {"t": t0, "id": binding},
+        )
+        # The tombstone no longer holds the name, so a live binding can reuse it.
+        _insert(conn, insert_binding, **params)
+        conn.commit()
+
+    await _run_async(_engine, _seed_binding_then_tombstone_it)
+
+    with pytest.raises(ValueError, match="Cannot downgrade while dataset_evaluators has deleted"):
+        await _down(_engine, _alembic_config, _DOWN, _schema)
