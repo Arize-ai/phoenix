@@ -29,15 +29,15 @@ from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import Conflict, NotFound
 from phoenix.server.app import _db
-from phoenix.server.cleanup.coordinator import _CLEANUP_ADMISSION_LOCK_ID, CleanupCoordinator
+from phoenix.server.cleanup.coordinator import _CLEANUP_STEP_ADVISORY_LOCK_ID, CleanupCoordinator
 from phoenix.server.cleanup.lifecycle import (
     TraceClearBatchResult,
-    admit_exclusive_experiment_projects_delete,
-    admit_project_delete,
     clear_project_traces_in_batches,
-    logical_delete_dataset_evaluators,
-    logical_delete_project_evaluators,
     resolve_experiment_project_delete_candidates,
+    tombstone_dataset_evaluators,
+    tombstone_exclusive_experiment_projects,
+    tombstone_project,
+    tombstone_project_evaluators,
 )
 from phoenix.server.cleanup.primitives import (
     PrimitiveResult,
@@ -166,7 +166,7 @@ class TestCleanupSchedulingAndBackoff:
         async with db() as session:
             project = await _add_project(session, name=f"poison-{token_hex(4)}")
             project_id = project.id
-            await admit_project_delete(session, project_id=project_id)
+            await tombstone_project(session, project_id=project_id)
 
         coordinator = CleanupCoordinator(db, error_retry_delay_seconds=10.0)
 
@@ -202,7 +202,7 @@ class TestCleanupSchedulingAndBackoff:
         async with db() as session:
             project = await _add_project(session, name=f"skip-{token_hex(4)}")
             project_id = project.id
-            await admit_project_delete(session, project_id=project_id)
+            await tombstone_project(session, project_id=project_id)
 
         coordinator = CleanupCoordinator(db, error_retry_delay_seconds=60.0)
 
@@ -231,7 +231,7 @@ class TestCleanupSchedulingAndBackoff:
         async with db() as session:
             project = await _add_project(session, name=f"contend-{token_hex(4)}")
             project_id = project.id
-            await admit_project_delete(session, project_id=project_id)
+            await tombstone_project(session, project_id=project_id)
 
         coordinator = CleanupCoordinator(
             db, error_retry_delay_seconds=10.0, yield_delay_seconds=1.0
@@ -284,7 +284,7 @@ class TestCleanupSchedulingAndBackoff:
         async with db() as session:
             project = await _add_project(session, name=f"prog-bug-{token_hex(4)}")
             project_id = project.id
-            await admit_project_delete(session, project_id=project_id)
+            await tombstone_project(session, project_id=project_id)
 
         coordinator = CleanupCoordinator(db)
 
@@ -303,7 +303,7 @@ class TestCleanupSchedulingAndBackoff:
         async with db() as session:
             project = await _add_project(session, name=f"rollback-{token_hex(4)}")
             project_id = project.id
-            await admit_project_delete(session, project_id=project_id)
+            await tombstone_project(session, project_id=project_id)
 
         emitted_events: list[DmlEvent] = []
         event_queue = MagicMock()
@@ -336,7 +336,7 @@ class TestCleanupSchedulingAndBackoff:
         async with db() as session:
             project = await _add_project(session, name=f"cancel-{token_hex(4)}")
             project_id = project.id
-            await admit_project_delete(session, project_id=project_id)
+            await tombstone_project(session, project_id=project_id)
 
         coordinator = CleanupCoordinator(db)
         step_started = asyncio.Event()
@@ -364,9 +364,9 @@ class TestCleanupSchedulingAndBackoff:
             newer = await _add_project(session, name=f"newer-{token_hex(4)}")
             older = await _add_project(session, name=f"older-{token_hex(4)}")
             newer_id, older_id = newer.id, older.id
-            await admit_project_delete(session, project_id=older_id)
+            await tombstone_project(session, project_id=older_id)
         async with db() as session:
-            await admit_project_delete(session, project_id=newer_id)
+            await tombstone_project(session, project_id=newer_id)
 
         coordinator = CleanupCoordinator(db)
         assert (await coordinator.step()).outcome == "completed"
@@ -399,7 +399,7 @@ class TestCleanupSchedulingAndBackoff:
             assert await session.get(models.Project, trace_project_id) is not None
 
         async with db() as session:
-            await admit_project_delete(session, project_id=host_id)
+            await tombstone_project(session, project_id=host_id)
         selected: list[tuple[str, int]] = []
         original_run = coordinator._run_domain_step
 
@@ -437,7 +437,7 @@ class TestCleanupSchedulingAndBackoff:
         async with db() as session:
             project = await _add_project(session, name=f"purge-{token_hex(4)}")
             project_id = project.id
-            await admit_project_delete(session, project_id=project_id)
+            await tombstone_project(session, project_id=project_id)
 
         coordinator = CleanupCoordinator(db)
         original_run = coordinator._run_domain_step
@@ -465,7 +465,7 @@ class TestCleanupSchedulingAndBackoff:
         async with db() as session:
             first = await _add_project(session, name=f"seq-1-{token_hex(4)}")
             first_id = first.id
-            await admit_project_delete(session, project_id=first_id)
+            await tombstone_project(session, project_id=first_id)
         await _drain_all(coordinator)
 
         async with db() as session:
@@ -605,7 +605,7 @@ class TestImmediateNameReuseAndHistoricalReferences:
 
 
 class TestExperimentProjectsResolveByName:
-    async def test_admit_exclusive_delete_targets_the_live_project_and_ignores_the_tombstone(
+    async def test_tombstone_exclusive_targets_the_live_project_and_ignores_the_tombstone(
         self, db: DbSessionFactory
     ) -> None:
         shared_name = f"Experiment-{token_hex(12)}"
@@ -622,7 +622,7 @@ class TestExperimentProjectsResolveByName:
             candidate_ids = await resolve_experiment_project_delete_candidates(
                 session, candidate_project_names=[shared_name]
             )
-            tombstoned_ids = await admit_exclusive_experiment_projects_delete(
+            tombstoned_ids = await tombstone_exclusive_experiment_projects(
                 session, candidate_project_ids=candidate_ids
             )
 
@@ -631,7 +631,7 @@ class TestExperimentProjectsResolveByName:
             refreshed = await session.get(models.Project, live_project_id, populate_existing=True)
             assert refreshed is not None and refreshed.deleted_at is not None
 
-    async def test_admit_exclusive_delete_keeps_project_still_named_by_another_experiment(
+    async def test_tombstone_exclusive_keeps_project_still_named_by_another_experiment(
         self, db: DbSessionFactory
     ) -> None:
         shared_name = f"Experiment-{token_hex(12)}"
@@ -658,7 +658,7 @@ class TestExperimentProjectsResolveByName:
             candidate_ids = await resolve_experiment_project_delete_candidates(
                 session, candidate_project_names=[shared_name]
             )
-            tombstoned_ids = await admit_exclusive_experiment_projects_delete(
+            tombstoned_ids = await tombstone_exclusive_experiment_projects(
                 session, candidate_project_ids=candidate_ids
             )
 
@@ -1262,7 +1262,7 @@ class TestBatchedClear:
             cleared_trace_id = cleared_trace.id
             other_trace_id = other_trace.id
 
-            await admit_project_delete(session, project_id=tombstoned_project_id)
+            await tombstone_project(session, project_id=tombstoned_project_id)
 
         await _clear_project(db, live_project_id, batch_limit=1)
         coordinator = CleanupCoordinator(db, batch_limit=1)
@@ -1431,7 +1431,7 @@ class TestBatchedClear:
         first_batch = await anext(clear_batches)
         assert first_batch.status == "PROGRESS"
         async with db() as session:
-            await admit_project_delete(session, project_id=project_id)
+            await tombstone_project(session, project_id=project_id)
         remaining_batches = [batch async for batch in clear_batches]
 
         assert [batch.status for batch in remaining_batches] == ["PROJECT_DELETED"]
@@ -1449,7 +1449,7 @@ class TestBatchedClear:
             session.add(evaluator_project)
             await session.flush()
             await _bind_evaluator_trace_project(session, evaluator_project)
-            await admit_project_delete(session, project_id=tombstoned_project.id)
+            await tombstone_project(session, project_id=tombstoned_project.id)
             tombstoned_project_id = tombstoned_project.id
             evaluator_project_id = evaluator_project.id
 
@@ -1508,7 +1508,7 @@ class TestOnlineEvalFences:
 
         # Tombstone the binding while `unit` is already claimed in RUNNING state.
         async with db() as session:
-            await logical_delete_project_evaluators(
+            await tombstone_project_evaluators(
                 session,
                 binding_ids=[pe.id],
                 collect_unused_evaluator=False,
@@ -1651,7 +1651,7 @@ class TestOnlineEvalFences:
             tombstoned_unit_id = tombstoned_unit.id
             live_unit_id = live_unit.id
 
-            await logical_delete_project_evaluators(
+            await tombstone_project_evaluators(
                 session,
                 binding_ids=[tombstoned_binding_id],
                 collect_unused_evaluator=False,
@@ -1770,7 +1770,7 @@ class TestStorageLockoutExemptionsAndCleanupWorker:
                 trace = await _add_trace(session, project)
                 await _add_span(session, trace=trace)
                 project_id = project.id
-                await admit_project_delete(session, project_id=project_id)
+                await tombstone_project(session, project_id=project_id)
 
             await cleanup_worker_controller.run_once()
 
@@ -1789,7 +1789,7 @@ class TestStorageLockoutExemptionsAndCleanupWorker:
             trace = await _add_trace(session, project)
             await _add_span(session, trace=trace)
             project_id = project.id
-            await admit_project_delete(session, project_id=project_id)
+            await tombstone_project(session, project_id=project_id)
 
         worker = CleanupWorker(db, idle_poll_seconds=30.0)
         original_run_domain_step = worker.coordinator._run_domain_step
@@ -1911,7 +1911,7 @@ class TestStorageLockoutExemptionsAndCleanupWorker:
             session.add_all(examples)
             await session.flush()
             example_ids = [ex.id for ex in examples]
-            await admit_project_delete(session, project_id=proj.id)
+            await tombstone_project(session, project_id=proj.id)
 
         # With batch_limit=2, 6 annotations + 5 dataset_example refs + 1 span + 1 trace + finalize
         # must take multiple bounded steps and preserve DatasetExample rows with span_rowid=None.
@@ -1973,7 +1973,7 @@ class TestStorageLockoutExemptionsAndCleanupWorker:
             p1_id = ins1.project_rowid
             p2_id = ins2.project_rowid
             p2_trace_id = ins2.trace_rowid
-            await admit_project_delete(session, project_id=p1_id)
+            await tombstone_project(session, project_id=p1_id)
 
         coordinator = CleanupCoordinator(db, batch_limit=1)
         await _drain_all(coordinator)
@@ -2335,7 +2335,7 @@ async def test_dataset_evaluator_delete_drains_eval_logs_and_links_in_batches(
         preserved_task_log_id = preserved_task_log.id
         first_experiment_id = experiments[0].id
 
-        await logical_delete_dataset_evaluators(
+        await tombstone_dataset_evaluators(
             session,
             binding_ids=[target_binding_id],
             collect_unused_evaluator=False,
@@ -2971,15 +2971,15 @@ async def test_late_spans_dropped_after_internal_projects_are_physically_purged(
             dataset_evaluator_project.id,
             project_evaluator_project.id,
         ]
-        await admit_project_delete(session, project_id=deleted_experiment_project.id)
-        await admit_project_delete(session, project_id=retained_experiment_project.id)
-        await logical_delete_dataset_evaluators(
+        await tombstone_project(session, project_id=deleted_experiment_project.id)
+        await tombstone_project(session, project_id=retained_experiment_project.id)
+        await tombstone_dataset_evaluators(
             session,
             binding_ids=[dataset_binding.id],
             collect_unused_evaluator=False,
             delete_associated_prompt=False,
         )
-        await logical_delete_project_evaluators(
+        await tombstone_project_evaluators(
             session,
             binding_ids=[project_binding.id],
             collect_unused_evaluator=False,
@@ -3069,14 +3069,14 @@ async def test_postgres_only_one_coordinator_steps_while_the_advisory_lock_is_he
     async with db() as session:
         project = await _add_project(session, name=f"pg-excl-{token_hex(4)}")
         project_id = project.id
-        await admit_project_delete(session, project_id=project_id)
+        await tombstone_project(session, project_id=project_id)
 
     coordinator_a = CleanupCoordinator(db)
     coordinator_b = CleanupCoordinator(db)
 
     async with db() as stepping_session:
         acquired = await stepping_session.scalar(
-            select(func.pg_try_advisory_xact_lock(_CLEANUP_ADMISSION_LOCK_ID))
+            select(func.pg_try_advisory_xact_lock(_CLEANUP_STEP_ADVISORY_LOCK_ID))
         )
         assert acquired is True
         assert (await coordinator_b.step()).outcome == "busy"

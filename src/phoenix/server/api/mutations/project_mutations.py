@@ -21,8 +21,8 @@ from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project, to_gql_project
 from phoenix.server.cleanup.lifecycle import (
-    admit_project_delete,
     clear_project_traces_in_batches,
+    tombstone_project,
 )
 from phoenix.server.dml_event import ProjectDeleteEvent, ProjectInsertEvent, SpanDeleteEvent
 
@@ -65,12 +65,12 @@ class ProjectMutationMixin:
         project_id = from_global_id_with_expected_type(global_id=id, expected_type_name="Project")
         try:
             async with info.context.db() as session:
-                admitted = await admit_project_delete(session, project_id=project_id)
+                tombstoned_project = await tombstone_project(session, project_id=project_id)
         except NotFound as error:
             raise ValueError(f"Unknown project: {id}") from error
         except BadRequest as error:
             raise ValueError(str(error)) from error
-        tombstoned_ids = tuple(admitted.tombstoned_project_ids)
+        tombstoned_ids = tuple(tombstoned_project.tombstoned_project_ids)
         info.context.event_queue.put(SpanDeleteEvent(tombstoned_ids))
         info.context.event_queue.put(ProjectDeleteEvent(tombstoned_ids))
         return Query()

@@ -433,7 +433,7 @@ async def test_patch_decision_evaluator_raises_not_found_when_version_deleted_be
 
 @pytest.mark.postgres_only
 @pytest.mark.parametrize("target", ["project", "dataset"])
-async def test_logical_delete_evaluators_ignores_binding_committed_after_discovery(
+async def test_tombstone_evaluators_ignores_binding_committed_after_discovery(
     postgresql_engine: AsyncEngine,
     monkeypatch: pytest.MonkeyPatch,
     target: str,
@@ -550,14 +550,14 @@ async def test_logical_delete_evaluators_ignores_binding_committed_after_discove
 
     async with db() as delete_session:
         if target == "project":
-            await lifecycle.logical_delete_project_evaluators(
+            await lifecycle.tombstone_project_evaluators(
                 delete_session,
                 binding_ids=[first_binding_id, second_binding_id],
                 collect_unused_evaluator=False,
                 delete_associated_prompt=False,
             )
         else:
-            await lifecycle.logical_delete_dataset_evaluators(
+            await lifecycle.tombstone_dataset_evaluators(
                 delete_session,
                 binding_ids=[first_binding_id, second_binding_id],
                 collect_unused_evaluator=False,
@@ -576,7 +576,7 @@ async def test_logical_delete_evaluators_ignores_binding_committed_after_discove
 
 
 @pytest.mark.postgres_only
-async def test_concurrent_admit_project_delete_and_persist_evaluator_traces(
+async def test_concurrent_tombstone_project_and_persist_evaluator_traces(
     postgresql_engine: AsyncEngine,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -632,10 +632,10 @@ async def test_concurrent_admit_project_delete_and_persist_evaluator_traces(
     monkeypatch.setattr(lifecycle, "_lock_projects", _lock_projects_and_release)
     monkeypatch.setattr(AsyncSession, "flush", _coordinated_flush)
 
-    async def _run_admit_delete() -> None:
+    async def _run_tombstone_project() -> None:
         await asyncio.wait_for(trace_locked_binding.wait(), 5)
         async with db() as delete_session:
-            await lifecycle.admit_project_delete(
+            await lifecycle.tombstone_project(
                 delete_session,
                 project_id=owner_project_id,
             )
@@ -646,12 +646,12 @@ async def test_concurrent_admit_project_delete_and_persist_evaluator_traces(
             tracer=tracer,
             project_evaluator_id=binding.id,
         ),
-        _run_admit_delete(),
+        _run_tombstone_project(),
     )
 
 
 @pytest.mark.postgres_only
-async def test_admit_exclusive_experiment_projects_delete_locks_evaluators_in_id_order(
+async def test_tombstone_exclusive_experiment_projects_locks_evaluators_in_id_order(
     postgresql_engine: AsyncEngine,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -735,7 +735,7 @@ async def test_admit_exclusive_experiment_projects_delete_locks_evaluators_in_id
         candidate_project_ids = await lifecycle.resolve_experiment_project_delete_candidates(
             delete_session, candidate_project_names=exp_project_names
         )
-        tombstoned_ids = await lifecycle.admit_exclusive_experiment_projects_delete(
+        tombstoned_ids = await lifecycle.tombstone_exclusive_experiment_projects(
             delete_session,
             candidate_project_ids=candidate_project_ids,
         )
@@ -863,7 +863,7 @@ async def test_experiment_runner_persist_traces_does_not_deadlock_with_dataset_e
 
     async def _run_delete() -> None:
         async with db() as delete_session:
-            await lifecycle.logical_delete_dataset_evaluators(
+            await lifecycle.tombstone_dataset_evaluators(
                 delete_session,
                 binding_ids=[dataset_binding.id],
                 collect_unused_evaluator=False,

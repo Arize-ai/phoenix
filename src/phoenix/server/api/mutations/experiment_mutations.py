@@ -29,8 +29,8 @@ from phoenix.server.api.types.ExperimentJob import ExperimentJob
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.utils import delete_traces
 from phoenix.server.cleanup.lifecycle import (
-    admit_exclusive_experiment_projects_delete,
     resolve_experiment_project_delete_candidates,
+    tombstone_exclusive_experiment_projects,
 )
 from phoenix.server.dml_event import ExperimentDeleteEvent, ProjectDeleteEvent, SpanDeleteEvent
 
@@ -395,7 +395,7 @@ class ExperimentMutationMixin:
                     )
                 )
             if candidate_project_ids:
-                enqueued_projects = await admit_exclusive_experiment_projects_delete(
+                enqueued_projects = await tombstone_exclusive_experiment_projects(
                     session,
                     candidate_project_ids=candidate_project_ids,
                 )

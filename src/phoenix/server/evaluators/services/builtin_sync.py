@@ -10,15 +10,15 @@ from phoenix.db.types.annotation_configs import OutputConfigType
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.cleanup.lifecycle import (
     _lock_projects,
-    logical_delete_dataset_evaluators,
-    logical_delete_project_evaluators,
+    tombstone_dataset_evaluators,
+    tombstone_project_evaluators,
 )
 from phoenix.server.evaluators.runtime.builtin import get_builtin_evaluators
 from phoenix.server.types import DbSessionFactory
 
 logger = logging.getLogger(__name__)
 
-# Distinct from cleanup admission (0x636C6E705F717565) and model costs (0x70686F656E6978).
+# Distinct from the cleanup step lock (0x636C6E705F717565) and model costs (0x70686F656E6978).
 _BUILTIN_EVALUATOR_SYNC_LOCK_ID = 0x626C746E5F65766C  # "bltn_evl"
 
 
@@ -144,13 +144,13 @@ async def sync_builtin_evaluators(db: DbSessionFactory) -> None:
                         .with_for_update()
                     )
 
-                await logical_delete_dataset_evaluators(
+                await tombstone_dataset_evaluators(
                     session,
                     binding_ids=[int(row.id) for row in dataset_binding_rows],
                     collect_unused_evaluator=False,
                     delete_associated_prompt=False,
                 )
-                await logical_delete_project_evaluators(
+                await tombstone_project_evaluators(
                     session,
                     binding_ids=[int(row.id) for row in project_binding_rows],
                     collect_unused_evaluator=False,

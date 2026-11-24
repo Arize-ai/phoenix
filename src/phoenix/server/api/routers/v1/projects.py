@@ -27,7 +27,7 @@ from phoenix.server.api.types.ProjectTraceRetentionPolicy import (
     ProjectTraceRetentionPolicy as ProjectTraceRetentionPolicyNodeType,
 )
 from phoenix.server.authorization import is_not_locked, require_admin
-from phoenix.server.cleanup.lifecycle import admit_project_delete
+from phoenix.server.cleanup.lifecycle import tombstone_project
 from phoenix.server.dml_event import ProjectDeleteEvent, SpanDeleteEvent
 
 router = APIRouter(tags=["projects"])
@@ -334,7 +334,7 @@ async def delete_project(
         async with request.app.state.db() as session:
             project = await get_project_by_identifier(session, project_identifier)
             project_id = project.id
-            admitted = await admit_project_delete(session, project_id=project_id)
+            tombstoned_project = await tombstone_project(session, project_id=project_id)
     except NotFound as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
     except BadRequest as error:
@@ -344,7 +344,7 @@ async def delete_project(
     except Conflict as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
 
-    tombstoned_ids = tuple(admitted.tombstoned_project_ids)
+    tombstoned_ids = tuple(tombstoned_project.tombstoned_project_ids)
     request.state.event_queue.put(SpanDeleteEvent(tombstoned_ids))
     request.state.event_queue.put(ProjectDeleteEvent(tombstoned_ids))
     return None

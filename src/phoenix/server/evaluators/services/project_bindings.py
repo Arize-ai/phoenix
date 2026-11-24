@@ -23,7 +23,7 @@ from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import AlreadyExists, BadRequest, Conflict, NotFound
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.cleanup.lifecycle import logical_delete_project_evaluators
+from phoenix.server.cleanup.lifecycle import tombstone_project_evaluators
 from phoenix.server.dml_event import ProjectDeleteEvent, SpanDeleteEvent
 from phoenix.server.evaluators.services.definitions import (
     EvaluatorServiceContext,
@@ -477,7 +477,7 @@ async def detach_project_evaluators(
                 listed = ", ".join(str(GlobalID("ProjectEvaluator", str(i))) for i in elsewhere)
                 raise BadRequest(f"These bindings belong to another project: {listed}")
 
-        delete_result = await logical_delete_project_evaluators(
+        delete_result = await tombstone_project_evaluators(
             session,
             binding_ids=rowids,
             collect_unused_evaluator=False,
@@ -945,7 +945,7 @@ async def delete_project_evaluators(
         return []
 
     async with context.db() as session:
-        delete_result = await logical_delete_project_evaluators(
+        delete_result = await tombstone_project_evaluators(
             session,
             binding_ids=project_evaluator_ids,
             collect_unused_evaluator=True,

@@ -20,7 +20,7 @@ from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import AlreadyExists, BadRequest, Conflict, NotFound
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.cleanup.lifecycle import logical_delete_dataset_evaluators
+from phoenix.server.cleanup.lifecycle import tombstone_dataset_evaluators
 from phoenix.server.dml_event import ProjectDeleteEvent, SpanDeleteEvent
 from phoenix.server.evaluators.runtime.builtin import get_builtin_evaluator_by_key
 from phoenix.server.evaluators.services.definitions import (
@@ -298,7 +298,7 @@ async def delete_dataset_evaluators(
         return []
 
     async with context.db() as session:
-        delete_result = await logical_delete_dataset_evaluators(
+        delete_result = await tombstone_dataset_evaluators(
             session,
             binding_ids=dataset_evaluator_rowids,
             collect_unused_evaluator=True,
@@ -847,7 +847,7 @@ async def detach_dataset_evaluators(
             listed = ", ".join(str(GlobalID("DatasetEvaluator", str(i))) for i in elsewhere)
             raise BadRequest(f"These bindings belong to another dataset: {listed}")
 
-        delete_result = await logical_delete_dataset_evaluators(
+        delete_result = await tombstone_dataset_evaluators(
             session,
             binding_ids=rowids,
             collect_unused_evaluator=False,

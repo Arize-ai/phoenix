@@ -12,9 +12,9 @@ from phoenix.config import EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, get_eval_trace_ids_for_experiments
 from phoenix.server.cleanup.lifecycle import (
-    admit_exclusive_experiment_projects_delete,
     delete_standalone_traces_by_trace_id,
     resolve_experiment_project_delete_candidates,
+    tombstone_exclusive_experiment_projects,
 )
 from phoenix.server.cleanup.primitives import CLEANUP_BATCH_ROWS
 from phoenix.server.dml_event import (
@@ -116,7 +116,7 @@ class ExperimentSweeper(DaemonTask):
                     deleted_experiment_ids.append(int(row.id))
 
             if candidate_project_ids:
-                enqueued_projects = await admit_exclusive_experiment_projects_delete(
+                enqueued_projects = await tombstone_exclusive_experiment_projects(
                     session,
                     candidate_project_ids=candidate_project_ids,
                 )

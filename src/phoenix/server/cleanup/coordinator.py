@@ -52,7 +52,7 @@ from phoenix.server.types import CanPutItem, DbSessionFactory
 logger = logging.getLogger(__name__)
 
 # Distinct from ModelCostManifest's 0x70686F656E6978 ("phoenix").
-_CLEANUP_ADMISSION_LOCK_ID = 0x636C6E705F717565  # "clnp_que"
+_CLEANUP_STEP_ADVISORY_LOCK_ID = 0x636C6E705F717565  # "clnp_que"
 
 YIELD_DELAY_SECONDS = 0.25
 ERROR_RETRY_DELAY_SECONDS = 15.0
@@ -149,7 +149,7 @@ class CleanupCoordinator:
             await session.execute(text(f"SET LOCAL lock_timeout = {LOCK_TIMEOUT_MS}"))
             return bool(
                 await session.scalar(
-                    select(func.pg_try_advisory_xact_lock(_CLEANUP_ADMISSION_LOCK_ID))
+                    select(func.pg_try_advisory_xact_lock(_CLEANUP_STEP_ADVISORY_LOCK_ID))
                 )
             )
         # A conditional write that matches nothing still takes SQLite's writer lock, so the
