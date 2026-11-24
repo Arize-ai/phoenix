@@ -4,6 +4,9 @@ description: >-
   multi-platform tags. Registry publishing jobs share no credentials or uploads.
 
 inputs:
+  artifact-prefix:
+    description: Prefix shared by the build and publish jobs for one image.
+    default: image-
   variant:
     description: Image variant whose digests to collect — must match the build job.
     required: true
@@ -24,7 +27,7 @@ runs:
     - name: Download platform images
       uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
       with:
-        pattern: image-${{ inputs.variant }}-*
+        pattern: ${{ inputs.artifact-prefix }}${{ inputs.variant }}-*
         merge-multiple: true
         path: ${{ runner.temp }}/images
 
