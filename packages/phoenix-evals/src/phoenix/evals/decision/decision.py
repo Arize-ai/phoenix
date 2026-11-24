@@ -2,7 +2,7 @@ import functools
 import json
 from dataclasses import asdict, is_dataclass
 from inspect import BoundArguments
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional
 
 import opentelemetry.trace as trace_api
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
@@ -16,9 +16,7 @@ from .adapters import register_adapters
 from .registries import DECISION_PROVIDER_REGISTRY, adapter_availability_table
 from .types import (
     ClassificationCriterion,
-    ClassificationFailure,
     ClassificationResponse,
-    ClassificationResult,
     Name,
     TokenUsage,
 )
@@ -203,17 +201,17 @@ class DecisionModel:
                 span.set_attribute(key, value)
 
     @classmethod
-    def _record_multiple_classifications_usage(
-        cls, raw: ClassificationResponse
-    ) -> Dict[Name, Union[ClassificationResult, ClassificationFailure]]:
-        """Record usage from a multi-classification adapter result and return its ``results``."""
-        results = raw.results
+    def _record_multiple_classifications_usage(cls, raw: ClassificationResponse) -> None:
+        """Record the response's token usage and resolved model on the current span."""
         model_id = next(
-            (o.metadata.get("model_id") for o in results.values() if o.metadata.get("model_id")),
+            (
+                o.metadata.get("model_id")
+                for o in raw.results.values()
+                if o.metadata.get("model_id")
+            ),
             None,
         )
         cls._record_usage_values(raw.usage, model_id)
-        return results
 
     @trace(
         span_kind=OpenInferenceSpanKindValues.DECISION,
@@ -233,7 +231,7 @@ class DecisionModel:
         method: Any = None,
         tracer: Optional[Tracer] = None,
         **kwargs: Any,
-    ) -> Dict[Name, Union[ClassificationResult, ClassificationFailure]]:
+    ) -> ClassificationResponse:
         """Answer several named classification questions about one prompt in a single request.
 
         Args:
@@ -249,16 +247,17 @@ class DecisionModel:
             **kwargs: Additional keyword arguments forwarded to the decision SDK call.
 
         Returns:
-            One outcome per criterion, keyed by criterion name: a
-            :class:`ClassificationResult`, or a :class:`ClassificationFailure` for a criterion
-            that could not be classified.
+            A :class:`ClassificationResponse`: one outcome per criterion, keyed by criterion name
+            (a :class:`ClassificationResult`, or a :class:`ClassificationFailure` for a criterion
+            that could not be classified), plus the request's token usage.
         """
         fn = self._sync_adapter.generate_classifications
         rate_limited = functools.reduce(
             lambda fn, limiter: limiter.limit(fn), self._rate_limiters, fn
         )
         raw: ClassificationResponse = rate_limited(prompt, criteria, **kwargs)
-        return self._record_multiple_classifications_usage(raw)
+        self._record_multiple_classifications_usage(raw)
+        return raw
 
     @trace(
         span_kind=OpenInferenceSpanKindValues.DECISION,
@@ -278,7 +277,7 @@ class DecisionModel:
         method: Any = None,
         tracer: Optional[Tracer] = None,
         **kwargs: Any,
-    ) -> Dict[Name, Union[ClassificationResult, ClassificationFailure]]:
+    ) -> ClassificationResponse:
         """Asynchronously answer several named classification questions in a single request.
 
         See :meth:`generate_classifications`.
@@ -288,7 +287,8 @@ class DecisionModel:
             lambda fn, limiter: limiter.alimit(fn), self._rate_limiters, fn
         )
         raw: ClassificationResponse = await rate_limited(prompt, criteria, **kwargs)
-        return self._record_multiple_classifications_usage(raw)
+        self._record_multiple_classifications_usage(raw)
+        return raw
 
 
 def show_decision_provider_availability() -> None:

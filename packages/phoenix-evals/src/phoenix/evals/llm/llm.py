@@ -12,6 +12,7 @@ from phoenix.evals.tracing import trace
 from .._criteria import (
     ClassificationCriterion,
     ClassificationFailure,
+    ClassificationResponse,
     ClassificationResult,
     Name,
 )
@@ -380,7 +381,7 @@ class LLM:
         criteria: Dict[Name, ClassificationCriterion],
         include_explanation: bool = True,
         **kwargs: Any,
-    ) -> Dict[Name, Union[ClassificationResult, ClassificationFailure]]:
+    ) -> ClassificationResponse:
         """Answer several named classification questions about one prompt in a single request.
 
         Args:
@@ -392,13 +393,14 @@ class LLM:
             **kwargs: Additional keyword arguments to pass to the LLM SDK (e.g. ``method``).
 
         Returns:
-            One outcome per criterion, keyed by criterion name: a :class:`ClassificationResult`,
-            or a :class:`ClassificationFailure` for a criterion whose answer was missing or
-            malformed.
+            A :class:`ClassificationResponse`: one outcome per criterion, keyed by criterion name
+            (a :class:`ClassificationResult`, or a :class:`ClassificationFailure` for a criterion
+            whose answer was missing or malformed). ``usage`` is ``None`` -- LLM token usage is
+            recorded on the ``generate_object`` span, not returned here.
         """
         schema = generate_classifications_schema(criteria, include_explanation)
         raw: Dict[str, Any] = self.generate_object(prompt, schema, **kwargs)
-        return _parse_classifications(raw, criteria)
+        return ClassificationResponse(results=_parse_classifications(raw, criteria))
 
     async def async_generate_classifications(
         self,
@@ -406,14 +408,14 @@ class LLM:
         criteria: Dict[Name, ClassificationCriterion],
         include_explanation: bool = True,
         **kwargs: Any,
-    ) -> Dict[Name, Union[ClassificationResult, ClassificationFailure]]:
+    ) -> ClassificationResponse:
         """Asynchronously answer several named classification questions in a single request.
 
         See :meth:`generate_classifications`.
         """
         schema = generate_classifications_schema(criteria, include_explanation)
         raw: Dict[str, Any] = await self.async_generate_object(prompt, schema, **kwargs)
-        return _parse_classifications(raw, criteria)
+        return ClassificationResponse(results=_parse_classifications(raw, criteria))
 
 
 def show_provider_availability() -> None:

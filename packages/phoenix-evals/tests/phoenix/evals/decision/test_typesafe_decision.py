@@ -50,7 +50,7 @@ def test_routes_a_text_prompt_through_a_single_choice_question(monkeypatch):
     decision = DecisionModel(provider="typesafe", model="jev-latest")
     results = decision.generate_classifications(
         "Is 2 + 2 = 5 correct?", {"correctness": {"labels": ["correct", "incorrect"]}}
-    )
+    ).results
 
     assert results == {
         "correctness": ClassificationResult(
@@ -81,9 +81,11 @@ async def test_async_routes_a_text_prompt_through_a_single_choice_question(monke
     _patch_clients(monkeypatch, async_client=async_client)
 
     decision = DecisionModel(provider="typesafe", model="jev-latest")
-    results = await decision.async_generate_classifications(
-        "Is the sky blue?", {"correctness": {"labels": ["correct", "incorrect"]}}
-    )
+    results = (
+        await decision.async_generate_classifications(
+            "Is the sky blue?", {"correctness": {"labels": ["correct", "incorrect"]}}
+        )
+    ).results
 
     assert results["correctness"].label == "correct"
     assert results["correctness"].metadata["probabilities"] == {"correct": 0.9}
@@ -202,7 +204,7 @@ def test_generate_classifications_sends_one_request_with_n_questions(monkeypatch
                 {"name": "accuracy", "labels": {"right": "ok", "wrong": "nope"}},
             ]
         ),
-    )
+    ).results
 
     assert results == {
         "helpfulness": ClassificationResult(
@@ -244,10 +246,12 @@ async def test_async_generate_classifications(monkeypatch):
     _patch_clients(monkeypatch, async_client=async_client)
 
     decision = DecisionModel(provider="typesafe", model="jev-latest")
-    results = await decision.async_generate_classifications(
-        "text",
-        _by_name([{"name": "a", "labels": ["x", "y"]}, {"name": "b", "labels": ["x", "y"]}]),
-    )
+    results = (
+        await decision.async_generate_classifications(
+            "text",
+            _by_name([{"name": "a", "labels": ["x", "y"]}, {"name": "b", "labels": ["x", "y"]}]),
+        )
+    ).results
 
     assert list(results.keys()) == ["a", "b"]
     assert [a.label for a in results.values()] == ["x", "y"]
@@ -337,7 +341,7 @@ def test_confidence_is_omitted_when_the_provider_does_not_report_one(monkeypatch
     decision = DecisionModel(provider="typesafe", model="jev-latest")
     results = decision.generate_classifications(
         "is this ok?", {"correctness": {"labels": ["correct", "incorrect"]}}
-    )
+    ).results
 
     assert "confidence" not in results["correctness"].metadata
 
@@ -363,7 +367,7 @@ def test_decision_span_records_attributes_and_usage(monkeypatch):
     decision = DecisionModel(provider="typesafe", model="jev-latest")
     results = decision.generate_classifications(
         "is this valid?", {"validity": {"labels": ["valid", "invalid"]}}, tracer=tracer
-    )
+    ).results
 
     assert "usage" not in results
 

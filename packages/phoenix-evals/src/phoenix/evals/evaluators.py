@@ -32,7 +32,7 @@ from phoenix.evals.executors import AsyncExecutor, ExecutionDetails, SyncExecuto
 from ._criteria import (
     ClassificationCriterion,
     ClassificationFailure,
-    ClassificationResult,
+    ClassificationResponse,
     Name,
 )
 from .decision import DecisionModel
@@ -949,15 +949,13 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
             direction=criterion.direction,
         )
 
-    def _scores_from_results(
-        self, answers: Dict[Name, Union[ClassificationResult, ClassificationFailure]]
-    ) -> List[Score]:
+    def _scores_from_results(self, response: ClassificationResponse) -> List[Score]:
         """Turn one backend outcome per criterion into one Score per criterion. A criterion that
         failed -- a ``ClassificationFailure``, or a result whose label is not one of the
         criterion's labels -- yields a failure Score, so the other criteria's Scores are kept."""
         scores: List[Score] = []
         for criterion in self._criteria:
-            outcome = answers[criterion.name]
+            outcome = response.results[criterion.name]
             if isinstance(outcome, ClassificationFailure):
                 scores.append(self._failure_score(criterion, outcome))
                 continue

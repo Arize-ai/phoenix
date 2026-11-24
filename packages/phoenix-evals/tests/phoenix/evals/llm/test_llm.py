@@ -426,9 +426,10 @@ class TestLLMGenerateClassifications:
             {"name": "helpfulness", "labels": ["poor", "good"], "instruction": "how helpful"},
             {"name": "accuracy", "labels": {"right": "ok", "wrong": "nope"}},
         ]
-        results = llm.generate_classifications("some text", _by_name(criteria))
+        response = llm.generate_classifications("some text", _by_name(criteria))
 
-        assert results == {
+        assert response.usage is None  # LLM usage is not surfaced in the classification envelope
+        assert response.results == {
             "helpfulness": ClassificationResult(label="good", explanation="clear"),
             "accuracy": ClassificationResult(label="wrong", explanation="off"),
         }
@@ -446,7 +447,7 @@ class TestLLMGenerateClassifications:
         )
 
         criteria = [{"name": "a", "labels": ["x", "y"]}, {"name": "b", "labels": ["x", "y"]}]
-        results = await llm.async_generate_classifications("text", _by_name(criteria))
+        results = (await llm.async_generate_classifications("text", _by_name(criteria))).results
 
         assert list(results.keys()) == ["a", "b"]
         assert [a.label for a in results.values()] == ["x", "y"]

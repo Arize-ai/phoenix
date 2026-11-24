@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
-from phoenix.evals._criteria import ClassificationResult
+from phoenix.evals._criteria import ClassificationResponse, ClassificationResult
 from phoenix.evals.evaluators import (
     ClassificationEvaluator,
     Criterion,
@@ -39,13 +39,15 @@ class MockLLM(LLM):
         return labels[0] if isinstance(labels, list) else next(iter(labels))
 
     def generate_classifications(self, prompt, criteria, include_explanation=True, method=None):
-        return {
-            name: ClassificationResult(
-                label=self._first_label(c["labels"]),
-                explanation="This is a good result",
-            )
-            for name, c in criteria.items()
-        }
+        return ClassificationResponse(
+            results={
+                name: ClassificationResult(
+                    label=self._first_label(c["labels"]),
+                    explanation="This is a good result",
+                )
+                for name, c in criteria.items()
+            }
+        )
 
     async def async_generate_classifications(
         self, prompt, criteria, include_explanation=True, method=None
@@ -595,7 +597,9 @@ class TestClassificationEvaluator:
         """An invalid label becomes a failure Score (no score/label), not an exception."""
         llm = MockLLM()
         llm.generate_classifications = MagicMock(
-            return_value={"test_evaluator": ClassificationResult(label="invalid")}
+            return_value=ClassificationResponse(
+                results={"test_evaluator": ClassificationResult(label="invalid")}
+            )
         )
 
         template = "Test template with {input}"
@@ -703,10 +707,12 @@ class TestClassificationEvaluator:
         """An off-list label for one criterion fails only that criterion; siblings are kept."""
         llm = MockLLM()
         llm.generate_classifications = MagicMock(
-            return_value={
-                "a": ClassificationResult(label="x"),
-                "b": ClassificationResult(label="nope"),  # invalid for criterion b
-            }
+            return_value=ClassificationResponse(
+                results={
+                    "a": ClassificationResult(label="x"),
+                    "b": ClassificationResult(label="nope"),  # invalid for criterion b
+                }
+            )
         )
         evaluator = ClassificationEvaluator(
             name="review",

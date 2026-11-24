@@ -93,7 +93,7 @@ def test_generate_classifications_sends_one_request_with_n_questions(monkeypatch
                 {"name": "accuracy", "labels": {"right": "ok", "wrong": "nope"}},
             ]
         ),
-    )
+    ).results
 
     assert list(results.keys()) == ["helpfulness", "accuracy"]
     assert results["helpfulness"].label == "good"
@@ -134,7 +134,7 @@ def test_generate_classifications_matches_answers_by_name_not_order(monkeypatch)
                 {"name": "accuracy", "labels": ["right", "wrong"]},
             ]
         ),
-    )
+    ).results
 
     assert list(results.keys()) == ["helpfulness", "accuracy"]
     assert results["helpfulness"].label == "good"
@@ -157,7 +157,7 @@ def test_generate_classifications_missing_answer_becomes_a_failure(monkeypatch):
                 {"name": "accuracy", "labels": ["right", "wrong"]},
             ]
         ),
-    )
+    ).results
 
     # The answered criterion is kept; the missing one is an isolated failure.
     assert results["helpfulness"].label == "good"
@@ -175,9 +175,11 @@ async def test_async_generate_classifications(monkeypatch):
     _patch_clients(monkeypatch, async_client=async_client)
 
     decision = DecisionModel(provider="openai", model="gpt-6-luna")
-    results = await decision.async_generate_classifications(
-        "text", _by_name([{"name": "a", "labels": ["x", "y"]}])
-    )
+    results = (
+        await decision.async_generate_classifications(
+            "text", _by_name([{"name": "a", "labels": ["x", "y"]}])
+        )
+    ).results
 
     assert results == {
         "a": ClassificationResult(
@@ -202,7 +204,7 @@ def test_routes_a_text_prompt_through_a_single_choice_question(monkeypatch):
     decision = DecisionModel(provider="openai", model="gpt-6-luna")
     results = decision.generate_classifications(
         "Is 2 + 2 = 5 correct?", {"correctness": {"labels": ["correct", "incorrect"]}}
-    )
+    ).results
 
     assert results == {
         "correctness": ClassificationResult(
@@ -235,9 +237,11 @@ async def test_async_routes_a_text_prompt_through_a_single_choice_question(monke
     _patch_clients(monkeypatch, async_client=async_client)
 
     decision = DecisionModel(provider="openai", model="gpt-6-luna")
-    results = await decision.async_generate_classifications(
-        "Is the sky blue?", {"correctness": {"labels": ["correct", "incorrect"]}}
-    )
+    results = (
+        await decision.async_generate_classifications(
+            "Is the sky blue?", {"correctness": {"labels": ["correct", "incorrect"]}}
+        )
+    ).results
 
     assert results["correctness"].label == "correct"
     assert results["correctness"].metadata["probabilities"] == {"correct": 0.9}
@@ -329,7 +333,7 @@ def test_refusal_becomes_a_failure(monkeypatch):
     decision = DecisionModel(provider="openai", model="gpt-6-luna")
     results = decision.generate_classifications(
         "something", {"correctness": {"labels": ["correct", "incorrect"]}}
-    )
+    ).results
 
     failure = results["correctness"]
     assert isinstance(failure, ClassificationFailure)
@@ -372,7 +376,7 @@ def test_confidence_is_omitted_when_the_provider_does_not_report_one(monkeypatch
     decision = DecisionModel(provider="openai", model="gpt-6-luna")
     results = decision.generate_classifications(
         "is this ok?", {"correctness": {"labels": ["correct", "incorrect"]}}
-    )
+    ).results
 
     assert "confidence" not in results["correctness"].metadata
 
@@ -397,7 +401,7 @@ def test_decision_span_records_attributes_and_usage(monkeypatch):
     decision = DecisionModel(provider="openai", model="gpt-6-luna")
     results = decision.generate_classifications(
         "is this valid?", {"validity": {"labels": ["valid", "invalid"]}}, tracer=tracer
-    )
+    ).results
 
     assert "usage" not in results
 
