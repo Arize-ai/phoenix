@@ -481,7 +481,7 @@ class TestPrompts:
         response = await httpx_client.delete(url)
         assert response.status_code == 409
         assert (
-            response.text
+            response.json()["detail"]
             == "Cannot delete prompt because it is used by LLM evaluator 'correctness-eval'"
         )
         async with db() as session:
@@ -513,7 +513,7 @@ class TestPrompts:
         response = await httpx_client.delete(url)
         assert response.status_code == 409
         assert (
-            response.text
+            response.json()["detail"]
             == "Cannot delete prompt because it is used by LLM evaluators: 'alpha-eval', 'zeta-eval'"
         )
         async with db() as session:
@@ -557,7 +557,8 @@ class TestPrompts:
         response = await httpx_client.delete(f"v1/prompts/{quote_plus(prompt.name.root)}")
         assert response.status_code == 409
         assert (
-            response.text == "Cannot delete prompt because it is used by LLM evaluator 'race-eval'"
+            response.json()["detail"]
+            == "Cannot delete prompt because it is used by LLM evaluator 'race-eval'"
         )
         assert calls == 2
 
