@@ -597,3 +597,14 @@ def test_no_allowlisted_table_reuses_a_timestamp_column_name_for_another_type() 
         if column.name in names and "TIMESTAMP" not in str(column.type).upper()
     ]
     assert not offenders, f"non-timestamp columns share a timestamp name: {offenders}"
+
+
+def test_ddl_documents_deleted_at_on_projects_and_dataset_evaluators() -> None:
+    ddl = render_schema_ddl(
+        tables=["projects", "dataset_evaluators"],
+        detail="detailed",
+        dialect="sqlite",
+    )
+    deleted_at_notes = [line for line in ddl.splitlines() if line.startswith("-- deleted_at:")]
+    assert len(deleted_at_notes) == 2
+    assert any("projects.name" in line for line in deleted_at_notes)

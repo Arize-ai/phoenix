@@ -51,12 +51,6 @@ from phoenix.server.api.input_types.PromptVersionInput import (
 )
 from phoenix.server.api.subscriptions import _stream_single_chat_completion
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
-from phoenix.server.daemons.experiment_runner import (
-    ExperimentRunner,
-    RunningExperiment,
-    TaskWorkItem,
-)
-from phoenix.server.mcp.sql.ddl import render_schema_ddl
 from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import Tracer
 from tests.unit._helpers import _add_project, _add_project_session, _add_span, _add_trace
@@ -73,7 +67,7 @@ async def _tombstone(db: DbSessionFactory, project_id: int) -> None:
 
 
 class TestDeletedProjectVisibility:
-    async def test_graphql_nodes_in_deleted_project_are_not_found(
+    async def test_graphql_nodes_and_otel_root_queries_skip_deleted_projects(
         self, db: DbSessionFactory, gql_client: AsyncGraphQLClient
     ) -> None:
         async with db() as session:
@@ -81,25 +75,61 @@ class TestDeletedProjectVisibility:
             project_session = await _add_project_session(session, project)
             trace = await _add_trace(session, project, project_session)
             span = await _add_span(session, trace=trace)
-            ids = {
+            annotation_values: dict[str, Any] = dict(
+                name="quality",
+                label="good",
+                score=1.0,
+                explanation=None,
+                metadata_={},
+                annotator_kind="HUMAN",
+                identifier="",
+                source="APP",
+            )
+            span_annotation = models.SpanAnnotation(span_rowid=span.id, **annotation_values)
+            trace_annotation = models.TraceAnnotation(trace_rowid=trace.id, **annotation_values)
+            session.add_all([span_annotation, trace_annotation])
+            await session.flush()
+            project_id = project.id
+            node_ids = {
                 "Trace": trace.id,
                 "Span": span.id,
                 "ProjectSession": project_session.id,
+                "SpanAnnotation": span_annotation.id,
+                "TraceAnnotation": trace_annotation.id,
             }
-            project_id = project.id
+            root_variables = {
+                "spanId": span.span_id,
+                "traceId": trace.trace_id,
+                "sessionId": project_session.session_id,
+            }
 
-        query = "query($id: ID!) { node(id: $id) { __typename } }"
-        for type_name, rowid in ids.items():
+        root_query = """
+        query($spanId: String!, $traceId: String!, $sessionId: String!) {
+          getSpanByOtelId(spanId: $spanId) { id }
+          getTraceByOtelId(traceId: $traceId) { id }
+          getProjectSessionById(sessionId: $sessionId) { id }
+        }
+        """
+        node_query = "query($id: ID!) { node(id: $id) { __typename } }"
+
+        before = await gql_client.execute(root_query, variables=root_variables)
+        assert not before.errors and before.data
+        assert all(root is not None for root in before.data.values())
+        for type_name, rowid in node_ids.items():
             response = await gql_client.execute(
-                query, variables={"id": str(GlobalID(type_name, str(rowid)))}
+                node_query, variables={"id": str(GlobalID(type_name, str(rowid)))}
             )
             assert not response.errors and response.data
             assert response.data["node"]["__typename"] == type_name
 
         await _tombstone(db, project_id)
-        for type_name, rowid in ids.items():
+
+        after = await gql_client.execute(root_query, variables=root_variables)
+        assert not after.errors and after.data
+        assert all(root is None for root in after.data.values())
+        for type_name, rowid in node_ids.items():
             response = await gql_client.execute(
-                query, variables={"id": str(GlobalID(type_name, str(rowid)))}
+                node_query, variables={"id": str(GlobalID(type_name, str(rowid)))}
             )
             assert response.errors, type_name
 
@@ -150,95 +180,6 @@ class TestDeletedProjectVisibility:
         [project_ids] = await loader.load_many([DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID])
         assert live_id in project_ids and dead_id not in project_ids
 
-    async def test_graphql_otel_and_session_root_queries_and_annotation_nodes_skip_deleted_projects(
-        self, db: DbSessionFactory, gql_client: AsyncGraphQLClient
-    ) -> None:
-        async with db() as session:
-            project = await _add_project(session, name=f"otel-{token_hex(4)}")
-            project_session = await _add_project_session(session, project)
-            trace = await _add_trace(session, project, project_session)
-            span = await _add_span(session, trace=trace)
-            span_annotation = models.SpanAnnotation(
-                span_rowid=span.id,
-                name="quality",
-                label="good",
-                score=1.0,
-                explanation=None,
-                metadata_={},
-                annotator_kind="HUMAN",
-                identifier="",
-                source="APP",
-            )
-            trace_annotation = models.TraceAnnotation(
-                trace_rowid=trace.id,
-                name="quality",
-                label="good",
-                score=1.0,
-                explanation=None,
-                metadata_={},
-                annotator_kind="HUMAN",
-                identifier="",
-                source="APP",
-            )
-            session.add_all([span_annotation, trace_annotation])
-            await session.flush()
-            project_id = project.id
-            otel_span_id = span.span_id
-            otel_trace_id = trace.trace_id
-            external_session_id = project_session.session_id
-            annotation_ids = {
-                "SpanAnnotation": span_annotation.id,
-                "TraceAnnotation": trace_annotation.id,
-            }
-
-        root_query = """
-        query($spanId: String!, $traceId: String!, $sessionId: String!) {
-          getSpanByOtelId(spanId: $spanId) { id }
-          getTraceByOtelId(traceId: $traceId) { id }
-          getProjectSessionById(sessionId: $sessionId) { id }
-        }
-        """
-        node_query = "query($id: ID!) { node(id: $id) { __typename } }"
-
-        before = await gql_client.execute(
-            root_query,
-            variables={
-                "spanId": otel_span_id,
-                "traceId": otel_trace_id,
-                "sessionId": external_session_id,
-            },
-        )
-        assert not before.errors and before.data
-        assert before.data["getSpanByOtelId"] is not None
-        assert before.data["getTraceByOtelId"] is not None
-        assert before.data["getProjectSessionById"] is not None
-        for type_name, rowid in annotation_ids.items():
-            node_resp = await gql_client.execute(
-                node_query, variables={"id": str(GlobalID(type_name, str(rowid)))}
-            )
-            assert not node_resp.errors and node_resp.data
-            assert node_resp.data["node"]["__typename"] == type_name
-
-        await _tombstone(db, project_id)
-
-        after = await gql_client.execute(
-            root_query,
-            variables={
-                "spanId": otel_span_id,
-                "traceId": otel_trace_id,
-                "sessionId": external_session_id,
-            },
-        )
-        assert not after.errors and after.data
-        assert after.data["getSpanByOtelId"] is None
-        assert after.data["getTraceByOtelId"] is None
-        assert after.data["getProjectSessionById"] is None
-        for type_name, rowid in annotation_ids.items():
-            node_resp = await gql_client.execute(
-                node_query, variables={"id": str(GlobalID(type_name, str(rowid)))}
-            )
-            assert node_resp.errors, type_name
-
     async def test_dataset_example_span_and_add_spans_fenced_against_deleted_project(
         self,
         db: DbSessionFactory,
@@ -250,19 +191,6 @@ class TestDeletedProjectVisibility:
             trace = await _add_trace(session, project)
             linked_span = await _add_span(session, trace=trace)
             candidate_span = await _add_span(session, trace=trace)
-            session.add(
-                models.SpanAnnotation(
-                    span_rowid=candidate_span.id,
-                    name="secret",
-                    label="classified",
-                    score=0.0,
-                    explanation="sensitive",
-                    metadata_={},
-                    annotator_kind="HUMAN",
-                    identifier="",
-                    source="APP",
-                )
-            )
             dataset = models.Dataset(
                 name=f"ds-{token_hex(4)}",
                 description=None,
@@ -334,7 +262,9 @@ class TestDeletedProjectVisibility:
             """,
             variables={"datasetId": dataset_gid, "spanIds": [candidate_span_gid]},
         )
-        assert add_spans_resp.errors
+        assert [error.message for error in add_spans_resp.errors] == [
+            "Some spans could not be found"
+        ]
 
         add_examples_resp = await gql_client.execute(
             """
@@ -351,7 +281,9 @@ class TestDeletedProjectVisibility:
             """,
             variables={"datasetId": dataset_gid, "spanId": candidate_span_gid},
         )
-        assert add_examples_resp.errors
+        assert [error.message for error in add_examples_resp.errors] == [
+            "Some spans could not be found"
+        ]
 
         async with db() as session:
             resolved = await resolve_span_ids_to_rowids(session, [candidate_otel_span_id])
@@ -634,126 +566,6 @@ class TestDeletedProjectVisibility:
         finally:
             db.should_not_insert_or_update = False
 
-    async def test_experiment_runner_skips_dispatch_and_orphan_claim_when_storage_locked_out(
-        self, db: DbSessionFactory
-    ) -> None:
-        runner = ExperimentRunner(
-            db,
-            decrypt=lambda b: b,
-            tracer_factory=lambda: Tracer(span_cost_calculator=cast(Any, MagicMock())),
-            sandbox_session_manager=cast(Any, MagicMock(replica_id="replica-1")),
-            sandbox_runtime=cast(Any, MagicMock()),
-        )
-        experiment = MagicMock(spec=models.Experiment)
-        experiment.id = 1
-        experiment.project_name = "exp-proj"
-        job = MagicMock(spec=models.ExperimentJob)
-        job.id = 1
-        job.max_concurrency = 2
-
-        class _AllowBucket:
-            def on_rate_limit_error(self, request_start_time: float, verbose: bool = False) -> None:
-                pass
-
-            def make_request_if_ready(self) -> None:
-                pass
-
-        class _BucketRegistry:
-            def __getitem__(self, key: Any) -> _AllowBucket:
-                return _AllowBucket()
-
-        class _StubClient:
-            def get_rate_limit_key(self) -> str:
-                return "k"
-
-        running_exp = RunningExperiment(
-            experiment=experiment,
-            experiment_job=job,
-            db=db,
-            decrypt=lambda b: b,
-            tracer_factory=MagicMock(),
-            token_buckets=cast(Any, _BucketRegistry()),
-            on_done=MagicMock(),
-            evaluator_run_specs=(),
-        )
-        running_exp._task_db_exhausted = True
-        running_exp._eval_db_exhausted = True
-        revision = MagicMock(spec=models.DatasetExampleRevision)
-        revision.dataset_example_id = 1
-        revision.input = {"q": "x"}
-        revision.output = {}
-        revision.metadata_ = {}
-        work_item = TaskWorkItem(
-            running_experiment=running_exp,
-            experiment=experiment,
-            dataset_example_revision=revision,
-            repetition_number=0,
-            prompt_task=MagicMock(spec=models.ExperimentPromptTask),
-            llm_client=cast(Any, _StubClient()),
-            db=db,
-            decrypt=lambda b: b,
-            tracer_factory=MagicMock(),
-            project_id=1,
-        )
-        running_exp._task_queue.append(work_item)
-        runner._experiments = {1: running_exp}
-
-        db.should_not_insert_or_update = True
-        try:
-            assert await runner._try_get_ready_work_item() is None
-            assert len(running_exp._task_queue) == 1
-        finally:
-            db.should_not_insert_or_update = False
-
-        assert await runner._try_get_ready_work_item() is work_item
-
-        async with db() as session:
-            dataset = models.Dataset(
-                name=f"orphan-ds-{token_hex(4)}", description=None, metadata_={}
-            )
-            session.add(dataset)
-            await session.flush()
-            version = models.DatasetVersion(dataset_id=dataset.id, description=None, metadata_={})
-            exp_project = await _add_project(session, name=f"orphan-exp-{token_hex(4)}")
-            session.add(version)
-            await session.flush()
-            db_exp = models.Experiment(
-                dataset_id=dataset.id,
-                dataset_version_id=version.id,
-                name="orphan-exp",
-                repetitions=1,
-                metadata_={},
-                project_name=exp_project.name,
-            )
-            session.add(db_exp)
-            await session.flush()
-            stale_time = (
-                datetime.now(timezone.utc)
-                - ExperimentRunner.STALE_CLAIM_TIMEOUT
-                - timedelta(minutes=1)
-            )
-            session.add(
-                models.ExperimentEvalOnlyConfig(
-                    id=db_exp.id,
-                    status="RUNNING",
-                    claimed_by="crashed-replica",
-                    claimed_at=stale_time,
-                )
-            )
-            await session.flush()
-            orphan_exp_id = db_exp.id
-
-        db.should_not_insert_or_update = True
-        try:
-            await runner._resume_orphaned()
-        finally:
-            db.should_not_insert_or_update = False
-
-        async with db() as session:
-            job_row = await session.get(models.ExperimentJob, orphan_exp_id)
-            assert job_row is not None
-            assert job_row.claimed_by == "crashed-replica"
-
     async def test_playground_stream_recreates_project_if_tombstoned_mid_stream(
         self, db: DbSessionFactory
     ) -> None:
@@ -815,13 +627,3 @@ class TestDeletedProjectVisibility:
                 )
             ).all()
             assert list(trace_project_ids) == [new_project_id]
-
-    def test_mcp_sql_ddl_documents_deleted_at_on_projects_and_dataset_evaluators(self) -> None:
-        ddl = render_schema_ddl(
-            tables=["projects", "dataset_evaluators"],
-            detail="detailed",
-            dialect="sqlite",
-        )
-        deleted_at_notes = [line for line in ddl.splitlines() if line.startswith("-- deleted_at:")]
-        assert len(deleted_at_notes) == 2
-        assert any("projects.name" in line for line in deleted_at_notes)

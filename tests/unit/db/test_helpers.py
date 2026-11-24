@@ -20,12 +20,15 @@ from phoenix.db.helpers import (
     create_experiment_examples_snapshot_insert,
     date_trunc,
     get_dataset_example_revisions,
+    get_eval_trace_ids_for_datasets,
+    get_eval_trace_ids_for_experiments,
     is_lock_contention,
     is_lock_not_available,
     pg_table_sizes_stmt,
     pg_total_table_size_stmt,
 )
 from phoenix.server.types import DbSessionFactory
+from tests.unit._helpers import _add_project, _add_trace, _bind_evaluator_trace_project
 
 fake = Faker()
 
@@ -1811,3 +1814,82 @@ class TestLockContentionPredicates:
     ) -> None:
         assert is_lock_not_available(error) is expected_lock_not_available
         assert is_lock_contention(error) is expected_lock_contention
+
+
+class TestGetEvalTraceIds:
+    async def test_only_sdk_evaluator_traces_are_returned_for_datasets_and_experiments(
+        self, db: DbSessionFactory
+    ) -> None:
+        base_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        async with db() as session:
+            sdk_evaluators_project = await _add_project(session, name="evaluators")
+            live_evaluator_sink = await _add_project(session, name=f"live-sink-{token_hex(4)}")
+            tombstoned_evaluator_sink = models.Project(
+                name=f"tombstoned-sink-{token_hex(4)}", deleted_at=base_time
+            )
+            tombstoned_standard_project = models.Project(
+                name=f"tombstoned-std-{token_hex(4)}", deleted_at=base_time
+            )
+            dataset = models.Dataset(name=f"eval-trace-ds-{token_hex(4)}", metadata_={})
+            session.add_all([tombstoned_evaluator_sink, tombstoned_standard_project, dataset])
+            await session.flush()
+            await _bind_evaluator_trace_project(session, live_evaluator_sink)
+            await _bind_evaluator_trace_project(session, tombstoned_evaluator_sink)
+
+            sdk_trace = await _add_trace(session, sdk_evaluators_project, start_time=base_time)
+            excluded_traces = [
+                await _add_trace(session, project, start_time=base_time)
+                for project in (
+                    live_evaluator_sink,
+                    tombstoned_evaluator_sink,
+                    tombstoned_standard_project,
+                )
+            ]
+
+            dataset_version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+            dataset_example = models.DatasetExample(dataset_id=dataset.id)
+            session.add_all([dataset_version, dataset_example])
+            await session.flush()
+            experiment = models.Experiment(
+                dataset_id=dataset.id,
+                dataset_version_id=dataset_version.id,
+                name=f"exp-{token_hex(4)}",
+                repetitions=1,
+                metadata_={},
+            )
+            session.add(experiment)
+            await session.flush()
+            experiment_run = models.ExperimentRun(
+                experiment_id=experiment.id,
+                dataset_example_id=dataset_example.id,
+                repetition_number=1,
+                output={"output": "ok"},
+                start_time=base_time,
+                end_time=base_time,
+            )
+            session.add(experiment_run)
+            await session.flush()
+            session.add_all(
+                models.ExperimentRunAnnotation(
+                    experiment_run_id=experiment_run.id,
+                    name=f"eval-{index}",
+                    annotator_kind="CODE",
+                    score=1.0,
+                    trace_id=linked_trace.trace_id,
+                    metadata_={},
+                    start_time=base_time,
+                    end_time=base_time,
+                )
+                for index, linked_trace in enumerate([sdk_trace, *excluded_traces])
+            )
+            await session.flush()
+
+            dataset_trace_ids = set(
+                (await session.scalars(get_eval_trace_ids_for_datasets(dataset.id))).all()
+            )
+            experiment_trace_ids = set(
+                (await session.scalars(get_eval_trace_ids_for_experiments(experiment.id))).all()
+            )
+
+        assert dataset_trace_ids == {sdk_trace.trace_id}
+        assert experiment_trace_ids == {sdk_trace.trace_id}

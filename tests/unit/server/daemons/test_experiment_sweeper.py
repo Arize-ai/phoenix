@@ -8,10 +8,9 @@ import sqlalchemy as sa
 
 from phoenix.config import EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS
 from phoenix.db import models
-from phoenix.server.cleanup.coordinator import CleanupCoordinator
 from phoenix.server.daemons.experiment_sweeper import ExperimentSweeper
 from phoenix.server.types import DbSessionFactory
-from tests.unit._helpers import _bind_evaluator_trace_project
+from tests.unit._helpers import _RecordingQueue
 
 
 class Rendezvous(NamedTuple):
@@ -93,7 +92,9 @@ class TestExperimentSweeper:
     async def _project_exists(self, db: DbSessionFactory, project_name: str) -> bool:
         async with db() as session:
             result = await session.scalar(
-                sa.select(models.Project).where(models.Project.name == project_name)
+                sa.select(models.Project).where(
+                    models.Project.name == project_name, models.Project.deleted_at.is_(None)
+                )
             )
             return result is not None
 
@@ -182,10 +183,6 @@ class TestExperimentSweeper:
         await rendezvous.done.wait()
         rendezvous.done.clear()
 
-        coordinator = CleanupCoordinator(db)
-        while (await coordinator.step_or_next_delay())[0]:
-            pass
-
         assert not await self._experiment_exists(db, expired_temp_id), (
             "Expired ephemeral experiment should have been deleted"
         )
@@ -226,7 +223,7 @@ class TestExperimentSweeper:
     ) -> None:
         from secrets import token_hex
 
-        from phoenix.server.dml_event import DmlEvent, ExperimentDeleteEvent, SpanDeleteEvent
+        from phoenix.server.dml_event import ExperimentDeleteEvent, SpanDeleteEvent
 
         expired_time = datetime.now(timezone.utc) - timedelta(
             hours=EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS + 1
@@ -235,11 +232,9 @@ class TestExperimentSweeper:
 
         async with db() as session:
             sdk_evaluators_project = models.Project(name="evaluators")
-            evaluator_sink_project = models.Project(name=f"sweeper-eval-sink-{token_hex(4)}")
             dataset = models.Dataset(name=f"sweeper-ds-{token_hex(4)}", metadata_={})
-            session.add_all([sdk_evaluators_project, evaluator_sink_project, dataset])
+            session.add_all([sdk_evaluators_project, dataset])
             await session.flush()
-            await _bind_evaluator_trace_project(session, evaluator_sink_project)
 
             dataset_version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
             dataset_example = models.DatasetExample(dataset_id=dataset.id)
@@ -255,19 +250,12 @@ class TestExperimentSweeper:
                 start_time=recent_time,
                 end_time=recent_time,
             )
-            sink_trace = models.Trace(
-                project_rowid=evaluator_sink_project.id,
-                trace_id=f"sweeper-sink-{token_hex(8)}",
-                start_time=expired_time,
-                end_time=expired_time,
-            )
             session.add_all(
                 [
                     dataset_version,
                     dataset_example,
                     expired_sdk_trace,
                     recent_sdk_trace,
-                    sink_trace,
                 ]
             )
             await session.flush()
@@ -326,16 +314,6 @@ class TestExperimentSweeper:
                         end_time=expired_time,
                     ),
                     models.ExperimentRunAnnotation(
-                        experiment_run_id=expired_run.id,
-                        name="server-eval",
-                        annotator_kind="LLM",
-                        score=1.0,
-                        trace_id=sink_trace.trace_id,
-                        metadata_={},
-                        start_time=expired_time,
-                        end_time=expired_time,
-                    ),
-                    models.ExperimentRunAnnotation(
                         experiment_run_id=recent_run.id,
                         name="sdk-eval",
                         annotator_kind="CODE",
@@ -352,15 +330,9 @@ class TestExperimentSweeper:
             sdk_evaluators_project_id = sdk_evaluators_project.id
             expired_sdk_trace_rowid = expired_sdk_trace.id
             recent_sdk_trace_rowid = recent_sdk_trace.id
-            sink_trace_rowid = sink_trace.id
 
-        recorded_events: list[DmlEvent] = []
-
-        class _RecordingQueue:
-            def put(self, item: DmlEvent) -> None:
-                recorded_events.append(item)
-
-        sweeper = ExperimentSweeper(db=db, event_queue=_RecordingQueue())
+        event_queue = _RecordingQueue()
+        sweeper = ExperimentSweeper(db=db, event_queue=event_queue)
         await sweeper.start()
         await rendezvous.done.wait()
         rendezvous.done.clear()
@@ -369,7 +341,6 @@ class TestExperimentSweeper:
         async with db() as session:
             assert await session.get(models.Trace, expired_sdk_trace_rowid) is None
             assert await session.get(models.Trace, recent_sdk_trace_rowid) is not None
-            assert await session.get(models.Trace, sink_trace_rowid) is not None
 
-        assert ExperimentDeleteEvent((expired_experiment_id,)) in recorded_events
-        assert SpanDeleteEvent((sdk_evaluators_project_id,)) in recorded_events
+        assert ExperimentDeleteEvent((expired_experiment_id,)) in event_queue.events
+        assert SpanDeleteEvent((sdk_evaluators_project_id,)) in event_queue.events

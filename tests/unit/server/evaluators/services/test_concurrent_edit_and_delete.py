@@ -1,7 +1,8 @@
 import asyncio
 from collections.abc import Coroutine
 from secrets import token_hex
-from typing import Any, cast
+from types import SimpleNamespace
+from typing import Any, Optional, cast
 
 import pytest
 from sqlalchemy import delete, select
@@ -29,12 +30,26 @@ from phoenix.db.types.prompts import (
 )
 from phoenix.server.api.exceptions import NotFound
 from phoenix.server.app import _db
+from phoenix.server.cleanup import lifecycle
 from phoenix.server.cleanup.coordinator import CleanupCoordinator
+from phoenix.server.dml_event import DmlEvent
+from phoenix.server.evaluators.runtime.builtin import get_builtin_evaluators
 from phoenix.server.evaluators.services import dataset_bindings, decisions, project_bindings
 from phoenix.server.evaluators.services.definitions import EvaluatorServiceContext
 from phoenix.server.evaluators.services.prompt_source import FromPromptVersion, NewPrompt
 from phoenix.server.sandbox.types import SandboxRuntimeContext
-from phoenix.server.types import DbSessionFactory
+from phoenix.server.types import CanPutItem, DbSessionFactory
+from tests.unit._helpers import _RecordingQueue
+
+
+def _service_context(
+    db: DbSessionFactory, *, event_queue: Optional[CanPutItem[DmlEvent]] = None
+) -> EvaluatorServiceContext:
+    return EvaluatorServiceContext(
+        db=db,
+        sandbox_runtime=SandboxRuntimeContext(monty=cast(Any, None)),
+        event_queue=event_queue,
+    )
 
 
 def _output_configs(correct_score: float) -> list[Any]:
@@ -91,9 +106,7 @@ async def test_concurrent_edit_and_delete_of_one_binding_both_return(
     postgresql_engine: AsyncEngine, target: str
 ) -> None:
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
-    context = EvaluatorServiceContext(
-        db=db, sandbox_runtime=SandboxRuntimeContext(monty=cast(Any, None))
-    )
+    context = _service_context(db)
     name = Identifier(f"race-{token_hex(4)}")
     mapping = InputMapping(literal_mapping={}, path_mapping={"output": "$.output"})
     binding: Any
@@ -193,9 +206,7 @@ async def test_dataset_attach_waits_for_owner_before_locking_evaluator(
     postgresql_engine: AsyncEngine, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
-    context = EvaluatorServiceContext(
-        db=db, sandbox_runtime=SandboxRuntimeContext(monty=cast(Any, None))
-    )
+    context = _service_context(db)
     async with db() as session:
         dataset = models.Dataset(name=f"attach-order-{token_hex(4)}", metadata_={})
         session.add(dataset)
@@ -268,9 +279,7 @@ async def test_create_decision_evaluator_raises_not_found_when_decision_deleted_
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    context = EvaluatorServiceContext(
-        db=db, sandbox_runtime=SandboxRuntimeContext(monty=cast(Any, None))
-    )
+    context = _service_context(db)
     async with db() as session:
         decision = models.Decision(name=Identifier(f"decision-{token_hex(4)}"), metadata_={})
         decision_version = _create_decision_version(decision=decision)
@@ -306,9 +315,7 @@ async def test_renaming_patch_raises_not_found_when_version_deleted_before_flush
     db: DbSessionFactory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    context = EvaluatorServiceContext(
-        db=db, sandbox_runtime=SandboxRuntimeContext(monty=cast(Any, None))
-    )
+    context = _service_context(db)
     async with db() as session:
         decision = models.Decision(name=Identifier(f"decision-{token_hex(4)}"), metadata_={})
         initial_version = _create_decision_version(decision=decision)
@@ -359,29 +366,26 @@ async def test_tombstone_evaluators_ignores_binding_committed_after_discovery(
     monkeypatch: pytest.MonkeyPatch,
     target: str,
 ) -> None:
-    from phoenix.server.cleanup import lifecycle
-
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
-    context = EvaluatorServiceContext(
-        db=db, sandbox_runtime=SandboxRuntimeContext(monty=cast(Any, None))
-    )
+    context = _service_context(db)
     mapping = InputMapping(literal_mapping={}, path_mapping={"output": "$.output"})
 
-    commit_second_binding = asyncio.Event()
-    second_binding_flushed = asyncio.Event()
-    second_binding_committed = asyncio.Event()
-    second_binding_ids: list[int] = []
+    async with db() as session:
+        owner: models.Project | models.Dataset = (
+            models.Project(name=f"disc-race-proj-{token_hex(4)}")
+            if target == "project"
+            else models.Dataset(name=f"disc-race-ds-{token_hex(4)}", metadata_={})
+        )
+        session.add(owner)
+        await session.flush()
+        owner_id = owner.id
 
+    first_binding: models.ProjectEvaluator | models.DatasetEvaluators
     if target == "project":
-        async with db() as session:
-            owner_project = models.Project(name=f"disc-race-proj-{token_hex(4)}")
-            session.add(owner_project)
-            await session.flush()
-            owner_project_id = owner_project.id
-        first_project_binding = await project_bindings.create_project_llm_evaluator(
+        first_binding = await project_bindings.create_project_llm_evaluator(
             context,
             project_bindings.CreateProjectLLMEvaluatorInput(
-                project_id=GlobalID("Project", str(owner_project_id)),
+                project_id=GlobalID("Project", str(owner_id)),
                 name=Identifier(f"first-{token_hex(4)}"),
                 prompt_source=NewPrompt(_prompt_version()),
                 output_configs=_output_configs(1.0),
@@ -390,73 +394,59 @@ async def test_tombstone_evaluators_ignores_binding_committed_after_discovery(
                 evaluation_target="TRACE",
             ),
         )
-        first_binding_id = first_project_binding.id
-
-        async def _stage_second_project_binding() -> None:
-            async with db() as staging_session:
-                trace_project = models.Project(
-                    name=f"disc-race-trace-{token_hex(4)}",
-                )
-                staging_session.add(trace_project)
-                await staging_session.flush()
-                staged_binding = models.ProjectEvaluator(
-                    project_id=owner_project_id,
-                    evaluator_id=first_project_binding.evaluator_id,
-                    trace_project_id=trace_project.id,
-                    name=Identifier(f"second-{token_hex(4)}"),
-                    evaluation_target="TRACE",
-                    filter_condition="",
-                    sampling_rate=1.0,
-                )
-                staging_session.add(staged_binding)
-                await staging_session.flush()
-                second_binding_ids.append(staged_binding.id)
-                second_binding_flushed.set()
-                await commit_second_binding.wait()
-            second_binding_committed.set()
-
-        stager_task = asyncio.create_task(_stage_second_project_binding())
+        binding_model: Any = models.ProjectEvaluator
+        tombstone_bindings = lifecycle.tombstone_project_evaluators
     else:
-        async with db() as session:
-            owner_dataset = models.Dataset(name=f"disc-race-ds-{token_hex(4)}", metadata_={})
-            session.add(owner_dataset)
-            await session.flush()
-            owner_dataset_id = owner_dataset.id
-        first_dataset_binding = await dataset_bindings.create_dataset_llm_evaluator(
+        first_binding = await dataset_bindings.create_dataset_llm_evaluator(
             context,
             dataset_bindings.CreateDatasetLLMEvaluatorInput(
-                dataset_id=GlobalID("Dataset", str(owner_dataset_id)),
+                dataset_id=GlobalID("Dataset", str(owner_id)),
                 name=Identifier(f"first-{token_hex(4)}"),
                 prompt_source=NewPrompt(_prompt_version()),
                 output_configs=_output_configs(1.0),
                 input_mapping=mapping,
             ),
         )
-        first_binding_id = first_dataset_binding.id
+        binding_model = models.DatasetEvaluators
+        tombstone_bindings = lifecycle.tombstone_dataset_evaluators
 
-        async def _stage_second_dataset_binding() -> None:
-            async with db() as staging_session:
-                trace_project = models.Project(
-                    name=f"disc-race-trace-{token_hex(4)}",
+    commit_second_binding = asyncio.Event()
+    second_binding_flushed = asyncio.Event()
+    second_binding_committed = asyncio.Event()
+    second_binding_ids: list[int] = []
+
+    async def _stage_second_binding() -> None:
+        async with db() as staging_session:
+            trace_project = models.Project(name=f"disc-race-trace-{token_hex(4)}")
+            staging_session.add(trace_project)
+            await staging_session.flush()
+            staged_binding: models.ProjectEvaluator | models.DatasetEvaluators
+            if target == "project":
+                staged_binding = models.ProjectEvaluator(
+                    project_id=owner_id,
+                    evaluator_id=first_binding.evaluator_id,
+                    trace_project_id=trace_project.id,
+                    name=Identifier(f"second-{token_hex(4)}"),
+                    evaluation_target="TRACE",
+                    filter_condition="",
+                    sampling_rate=1.0,
                 )
-                staging_session.add(trace_project)
-                await staging_session.flush()
+            else:
                 staged_binding = models.DatasetEvaluators(
-                    dataset_id=owner_dataset_id,
-                    evaluator_id=first_dataset_binding.evaluator_id,
+                    dataset_id=owner_id,
+                    evaluator_id=first_binding.evaluator_id,
                     project_id=trace_project.id,
                     name=Identifier(f"second-{token_hex(4)}"),
                     input_mapping=mapping,
                 )
-                staging_session.add(staged_binding)
-                await staging_session.flush()
-                second_binding_ids.append(staged_binding.id)
-                second_binding_flushed.set()
-                await commit_second_binding.wait()
-            second_binding_committed.set()
+            staging_session.add(staged_binding)
+            await staging_session.flush()
+            second_binding_ids.append(staged_binding.id)
+            second_binding_flushed.set()
+            await commit_second_binding.wait()
+        second_binding_committed.set()
 
-        stager_task = asyncio.create_task(_stage_second_dataset_binding())
-
+    stager_task = asyncio.create_task(_stage_second_binding())
     await asyncio.wait_for(second_binding_flushed.wait(), 5)
     second_binding_id = second_binding_ids[0]
 
@@ -470,28 +460,17 @@ async def test_tombstone_evaluators_ignores_binding_committed_after_discovery(
     monkeypatch.setattr(lifecycle, "_lock_projects", _lock_projects_after_second_commits)
 
     async with db() as delete_session:
-        if target == "project":
-            await lifecycle.tombstone_project_evaluators(
-                delete_session,
-                binding_ids=[first_binding_id, second_binding_id],
-                collect_unused_evaluator=False,
-                delete_associated_prompt=False,
-            )
-        else:
-            await lifecycle.tombstone_dataset_evaluators(
-                delete_session,
-                binding_ids=[first_binding_id, second_binding_id],
-                collect_unused_evaluator=False,
-                delete_associated_prompt=False,
-            )
+        await tombstone_bindings(
+            delete_session,
+            binding_ids=[first_binding.id, second_binding_id],
+            collect_unused_evaluator=False,
+            delete_associated_prompt=False,
+        )
     await asyncio.wait_for(stager_task, 5)
 
     async with db() as verify_session:
-        model_cls: Any = (
-            models.ProjectEvaluator if target == "project" else models.DatasetEvaluators
-        )
-        first_after = await verify_session.get(model_cls, first_binding_id)
-        second_after = await verify_session.get(model_cls, second_binding_id)
+        first_after = await verify_session.get(binding_model, first_binding.id)
+        second_after = await verify_session.get(binding_model, second_binding_id)
         assert first_after is not None and first_after.deleted_at is not None
         assert second_after is not None and second_after.deleted_at is None
 
@@ -501,14 +480,11 @@ async def test_concurrent_tombstone_project_and_persist_evaluator_traces(
     postgresql_engine: AsyncEngine,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from phoenix.server.cleanup import lifecycle
     from phoenix.server.online_eval.tracing import persist_evaluator_traces
     from phoenix.tracers import Tracer
 
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
-    context = EvaluatorServiceContext(
-        db=db, sandbox_runtime=SandboxRuntimeContext(monty=cast(Any, None))
-    )
+    context = _service_context(db)
     async with db() as session:
         owner_project = models.Project(name=f"deadlock1-proj-{token_hex(4)}")
         session.add(owner_project)
@@ -576,16 +552,13 @@ async def test_tombstone_exclusive_experiment_projects_locks_evaluators_in_id_or
     postgresql_engine: AsyncEngine,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from phoenix.server.cleanup import lifecycle
     from phoenix.server.evaluators.services import definitions as definitions_module
     from phoenix.server.evaluators.services.management import (
         lock_evaluators as original_lock_evaluators,
     )
 
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
-    context = EvaluatorServiceContext(
-        db=db, sandbox_runtime=SandboxRuntimeContext(monty=cast(Any, None))
-    )
+    context = _service_context(db)
     async with db() as session:
         prompt = models.Prompt(
             name=Identifier(f"prompt-dl2-{token_hex(4)}"),
@@ -701,16 +674,13 @@ async def test_experiment_runner_persist_traces_does_not_deadlock_with_dataset_e
 ) -> None:
     from datetime import datetime, timezone
 
-    from phoenix.server.cleanup import lifecycle
     from phoenix.server.daemons.experiment_runner import EvalWorkItem
     from phoenix.server.evaluators.services.management import (
         lock_evaluators as original_lock_evaluators,
     )
 
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
-    context = EvaluatorServiceContext(
-        db=db, sandbox_runtime=SandboxRuntimeContext(monty=cast(Any, None))
-    )
+    context = _service_context(db)
     now_time = datetime.now(timezone.utc)
     async with db() as session:
         dataset = models.Dataset(name=f"exp-dl3-{token_hex(4)}", metadata_={})
@@ -821,9 +791,7 @@ async def test_patch_llm_evaluator_does_not_lock_prompt_versions_for_update(
     )
 
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
-    context = EvaluatorServiceContext(
-        db=db, sandbox_runtime=SandboxRuntimeContext(monty=cast(Any, None))
-    )
+    context = _service_context(db)
     async with db() as session:
         prompt = models.Prompt(
             name=Identifier(f"prompt-dl4-{token_hex(4)}"),
@@ -880,42 +848,54 @@ async def test_patch_llm_evaluator_does_not_lock_prompt_versions_for_update(
 
 
 @pytest.mark.postgres_only
-async def test_delete_prompt_locks_prompt_before_checking_evaluators(
+@pytest.mark.parametrize("kind", ["prompt", "decision"])
+async def test_delete_locks_the_row_before_checking_references(
     postgresql_engine: AsyncEngine,
+    kind: str,
 ) -> None:
-    from types import SimpleNamespace
-
     from phoenix.server.api.mutations.prompt_mutations import (
         DeletePromptInput,
         PromptMutationMixin,
     )
+    from phoenix.server.api.mutations.saved_decision_mutations import (
+        DeleteDecisionInput,
+        SavedDecisionMutationMixin,
+    )
 
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
+    info = cast(Any, SimpleNamespace(context=SimpleNamespace(db=db)))
     async with db() as session:
-        prompt = models.Prompt(
-            name=Identifier(f"prompt-lock-{token_hex(4)}"),
-            prompt_versions=[_prompt_version()],
-        )
-        session.add(prompt)
+        if kind == "prompt":
+            row: models.Prompt | models.Decision = models.Prompt(
+                name=Identifier(f"prompt-lock-{token_hex(4)}"),
+                prompt_versions=[_prompt_version()],
+            )
+        else:
+            row = models.Decision(name=Identifier(f"dec-lock-{token_hex(4)}"), metadata_={})
+            session.add(_create_decision_version(decision=row))
+        session.add(row)
         await session.flush()
-        prompt_id = prompt.id
+        row_id = row.id
 
-    info = SimpleNamespace(context=SimpleNamespace(db=db))
-    mixin = PromptMutationMixin()
+    if kind == "prompt":
+        model: type[models.Prompt] | type[models.Decision] = models.Prompt
+        lock_query_fragment = "SELECT prompts.id \nFROM prompts"
+        delete_coroutine = PromptMutationMixin().delete_prompt(
+            info, DeletePromptInput(prompt_id=GlobalID("Prompt", str(row_id)))
+        )
+    else:
+        model = models.Decision
+        lock_query_fragment = "SELECT decisions.id \nFROM decisions"
+        delete_coroutine = SavedDecisionMutationMixin().delete_decision(
+            info, DeleteDecisionInput(decision_id=GlobalID("Decision", str(row_id)))
+        )
 
     async with db() as key_share_session:
         await key_share_session.execute(
-            select(models.Prompt.id)
-            .where(models.Prompt.id == prompt_id)
-            .with_for_update(read=True, key_share=True)
+            select(model.id).where(model.id == row_id).with_for_update(read=True, key_share=True)
         )
-        delete_task = asyncio.create_task(
-            mixin.delete_prompt(
-                cast(Any, info),
-                DeletePromptInput(prompt_id=GlobalID("Prompt", str(prompt_id))),
-            )
-        )
-        await _wait_until_lock_wait_or_done(db, delete_task, "SELECT prompts.id \nFROM prompts")
+        delete_task = asyncio.create_task(delete_coroutine)
+        await _wait_until_lock_wait_or_done(db, delete_task, lock_query_fragment)
         assert not delete_task.done()
     await asyncio.wait_for(delete_task, 5)
 
@@ -925,10 +905,7 @@ async def test_delete_project_evaluator_skips_surviving_prompt_lock(
     postgresql_engine: AsyncEngine,
 ) -> None:
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
-    context = EvaluatorServiceContext(
-        db=db,
-        sandbox_runtime=SandboxRuntimeContext(monty=cast(Any, None)),
-    )
+    context = _service_context(db)
     mapping = InputMapping(literal_mapping={}, path_mapping={"output": "$.output"})
     async with db() as session:
         first_project = models.Project(name=f"shared-p1-{token_hex(4)}")
@@ -1001,24 +978,14 @@ async def test_delete_project_evaluator_skips_surviving_prompt_lock(
         )
 
 
-@pytest.mark.postgres_only
 async def test_delete_project_evaluator_emits_tombstone_events(
-    postgresql_engine: AsyncEngine,
+    db: DbSessionFactory,
 ) -> None:
-    from phoenix.server.dml_event import DmlEvent, ProjectDeleteEvent, SpanDeleteEvent
+    from phoenix.server.dml_event import ProjectDeleteEvent, SpanDeleteEvent
 
-    db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
-    recorded_events: list[DmlEvent] = []
+    event_queue = _RecordingQueue()
 
-    class _RecordingQueue:
-        def put(self, item: DmlEvent) -> None:
-            recorded_events.append(item)
-
-    context = EvaluatorServiceContext(
-        db=db,
-        sandbox_runtime=SandboxRuntimeContext(monty=cast(Any, None)),
-        event_queue=_RecordingQueue(),
-    )
+    context = _service_context(db, event_queue=event_queue)
     async with db() as session:
         owner_project = models.Project(name=f"evt-p1-{token_hex(4)}")
         session.add(owner_project)
@@ -1043,8 +1010,8 @@ async def test_delete_project_evaluator_emits_tombstone_events(
             project_evaluator_ids=[GlobalID("ProjectEvaluator", str(binding.id))],
         ),
     )
-    assert SpanDeleteEvent((binding.trace_project_id,)) in recorded_events
-    assert ProjectDeleteEvent((binding.trace_project_id,)) in recorded_events
+    assert SpanDeleteEvent((binding.trace_project_id,)) in event_queue.events
+    assert ProjectDeleteEvent((binding.trace_project_id,)) in event_queue.events
 
 
 @pytest.mark.postgres_only
@@ -1060,33 +1027,21 @@ async def test_concurrent_sync_builtin_evaluators_no_unique_violation(
     await asyncio.gather(*(sync_builtin_evaluators(db) for _ in range(4)))
 
     async with db() as session:
-        synced_builtins = (await session.scalars(select(models.BuiltinEvaluator.key))).all()
-        assert len(synced_builtins) > 0
+        synced_builtin_keys = (await session.scalars(select(models.BuiltinEvaluator.key))).all()
+        assert sorted(synced_builtin_keys) == sorted(key for key, _ in get_builtin_evaluators())
 
 
 @pytest.mark.postgres_only
 async def test_delete_dataset_locks_experiment_projects_before_evaluators_and_emits_events(
     postgresql_engine: AsyncEngine,
 ) -> None:
-    from types import SimpleNamespace
-
     from phoenix.server.api.input_types.DeleteDatasetInput import DeleteDatasetInput
     from phoenix.server.api.mutations.dataset_mutations import DatasetMutationMixin
-    from phoenix.server.dml_event import DmlEvent, ProjectDeleteEvent, SpanDeleteEvent
+    from phoenix.server.dml_event import ProjectDeleteEvent, SpanDeleteEvent
 
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
-    recorded_events: list[DmlEvent] = []
-
-    class _RecordingQueue:
-        def put(self, item: DmlEvent) -> None:
-            recorded_events.append(item)
-
     event_queue = _RecordingQueue()
-    context = EvaluatorServiceContext(
-        db=db,
-        sandbox_runtime=SandboxRuntimeContext(monty=cast(Any, None)),
-        event_queue=event_queue,
-    )
+    context = _service_context(db, event_queue=event_queue)
     mapping = InputMapping(literal_mapping={}, path_mapping={"output": "$.output"})
     async with db() as session:
         dataset = models.Dataset(name=f"ds-del-order-{token_hex(4)}", metadata_={})
@@ -1166,8 +1121,8 @@ async def test_delete_dataset_locks_experiment_projects_before_evaluators_and_em
     expected_project_ids = tuple(
         sorted({dataset_binding.project_id, exp_project_id, exp_binding.trace_project_id})
     )
-    assert SpanDeleteEvent(expected_project_ids) in recorded_events
-    assert ProjectDeleteEvent(expected_project_ids) in recorded_events
+    assert SpanDeleteEvent(expected_project_ids) in event_queue.events
+    assert ProjectDeleteEvent(expected_project_ids) in event_queue.events
 
 
 @pytest.mark.postgres_only
@@ -1175,25 +1130,12 @@ async def test_delete_project_handles_lower_slipped_trace_project_and_emits_chil
     postgresql_engine: AsyncEngine,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from types import SimpleNamespace
-
     from phoenix.server.api.mutations.project_mutations import ProjectMutationMixin
-    from phoenix.server.cleanup import lifecycle
-    from phoenix.server.dml_event import DmlEvent, ProjectDeleteEvent, SpanDeleteEvent
+    from phoenix.server.dml_event import ProjectDeleteEvent, SpanDeleteEvent
 
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
-    recorded_events: list[DmlEvent] = []
-
-    class _RecordingQueue:
-        def put(self, item: DmlEvent) -> None:
-            recorded_events.append(item)
-
     event_queue = _RecordingQueue()
-    context = EvaluatorServiceContext(
-        db=db,
-        sandbox_runtime=SandboxRuntimeContext(monty=cast(Any, None)),
-        event_queue=event_queue,
-    )
+    context = _service_context(db, event_queue=event_queue)
     mapping = InputMapping(literal_mapping={}, path_mapping={"output": "$.output"})
     # Allocate lower_trace_project FIRST so lower_trace_project.id < existing_binding.trace_project_id!
     async with db() as session:
@@ -1268,37 +1210,25 @@ async def test_delete_project_handles_lower_slipped_trace_project_and_emits_chil
     expected_project_ids = tuple(
         sorted({owner_project_id, lower_trace_project_id, existing_binding.trace_project_id})
     )
-    assert SpanDeleteEvent(expected_project_ids) in recorded_events
-    assert ProjectDeleteEvent(expected_project_ids) in recorded_events
+    assert SpanDeleteEvent(expected_project_ids) in event_queue.events
+    assert ProjectDeleteEvent(expected_project_ids) in event_queue.events
 
 
 @pytest.mark.postgres_only
-async def test_patch_decision_evaluator_does_not_lock_decision_versions_and_delete_locks_first(
+async def test_patch_decision_evaluator_does_not_lock_decision_versions(
     postgresql_engine: AsyncEngine,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from types import SimpleNamespace
-
-    from phoenix.server.api.mutations.saved_decision_mutations import (
-        DeleteDecisionInput,
-        SavedDecisionMutationMixin,
-    )
-
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
-    context = EvaluatorServiceContext(
-        db=db, sandbox_runtime=SandboxRuntimeContext(monty=cast(Any, None))
-    )
+    context = _service_context(db)
     async with db() as session:
         decision = models.Decision(name=Identifier(f"dec-dl4-{token_hex(4)}"), metadata_={})
         initial_version = _create_decision_version(decision=decision)
         next_version = _create_decision_version(decision=decision)
-        free_decision = models.Decision(name=Identifier(f"dec-free-{token_hex(4)}"), metadata_={})
-        free_version = _create_decision_version(decision=free_decision)
-        session.add_all([initial_version, next_version, free_version])
+        session.add_all([initial_version, next_version])
         await session.flush()
         initial_version_id = initial_version.id
         next_version_id = next_version.id
-        free_decision_id = free_decision.id
 
     evaluator = await decisions.create_decision_evaluator(
         context,
@@ -1344,30 +1274,11 @@ async def test_patch_decision_evaluator_does_not_lock_decision_versions_and_dele
         _assert_decision_version_not_locked(),
     )
 
-    info = SimpleNamespace(context=SimpleNamespace(db=db))
-    mixin = SavedDecisionMutationMixin()
-    async with db() as key_share_session:
-        await key_share_session.execute(
-            select(models.Decision.id)
-            .where(models.Decision.id == free_decision_id)
-            .with_for_update(read=True, key_share=True)
-        )
-        delete_task = asyncio.create_task(
-            mixin.delete_decision(
-                cast(Any, info),
-                DeleteDecisionInput(decision_id=GlobalID("Decision", str(free_decision_id))),
-            )
-        )
-        await _wait_until_lock_wait_or_done(db, delete_task, "SELECT decisions.id \nFROM decisions")
-        assert not delete_task.done()
-    await asyncio.wait_for(delete_task, 5)
-
 
 @pytest.mark.postgres_only
 async def test_tombstone_project_rejects_a_project_deleted_after_it_was_loaded(
     postgresql_engine: AsyncEngine,
 ) -> None:
-    from phoenix.server.cleanup import lifecycle
 
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
     async with db() as session:

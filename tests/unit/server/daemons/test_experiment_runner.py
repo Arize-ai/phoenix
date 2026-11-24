@@ -2677,3 +2677,71 @@ class TestLoadDecisionTaskConfig:
 
         with pytest.raises(ValueError, match="custom provider 'Gone provider'.*deleted"):
             await runner._load_experiment_config(session, 1, credentials=None)
+
+
+async def test_runner_skips_dispatch_and_orphan_claim_when_storage_locked_out(
+    db: DbSessionFactory,
+) -> None:
+    runner = ExperimentRunner(
+        db,
+        decrypt=lambda b: b,
+        tracer_factory=MagicMock(),
+        sandbox_session_manager=cast(Any, MagicMock(replica_id="replica-1")),
+        sandbox_runtime=cast(Any, MagicMock()),
+    )
+    running_experiment = _make_running_experiment()
+    work_item = _make_task_work_item(running_experiment)
+    running_experiment._task_queue.append(work_item)
+    runner._experiments = {1: running_experiment}
+
+    db.should_not_insert_or_update = True
+    try:
+        assert await runner._try_get_ready_work_item() is None
+        assert len(running_experiment._task_queue) == 1
+    finally:
+        db.should_not_insert_or_update = False
+
+    assert await runner._try_get_ready_work_item() is work_item
+
+    async with db() as session:
+        dataset = models.Dataset(name=f"orphan-ds-{token_hex(4)}", description=None, metadata_={})
+        session.add(dataset)
+        await session.flush()
+        version = models.DatasetVersion(dataset_id=dataset.id, description=None, metadata_={})
+        exp_project = models.Project(name=f"orphan-exp-{token_hex(4)}")
+        session.add_all([version, exp_project])
+        await session.flush()
+        db_exp = models.Experiment(
+            dataset_id=dataset.id,
+            dataset_version_id=version.id,
+            name="orphan-exp",
+            repetitions=1,
+            metadata_={},
+            project_name=exp_project.name,
+        )
+        session.add(db_exp)
+        await session.flush()
+        stale_time = (
+            datetime.now(timezone.utc) - ExperimentRunner.STALE_CLAIM_TIMEOUT - timedelta(minutes=1)
+        )
+        session.add(
+            models.ExperimentEvalOnlyConfig(
+                id=db_exp.id,
+                status="RUNNING",
+                claimed_by="crashed-replica",
+                claimed_at=stale_time,
+            )
+        )
+        await session.flush()
+        orphan_exp_id = db_exp.id
+
+    db.should_not_insert_or_update = True
+    try:
+        await runner._resume_orphaned()
+    finally:
+        db.should_not_insert_or_update = False
+
+    async with db() as session:
+        job_row = await session.get(models.ExperimentJob, orphan_exp_id)
+        assert job_row is not None
+        assert job_row.claimed_by == "crashed-replica"

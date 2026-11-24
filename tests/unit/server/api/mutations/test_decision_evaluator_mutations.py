@@ -238,7 +238,7 @@ async def test_detaching_last_binding_keeps_the_standalone_judge(
     empty_dataset: None,
     db: DbSessionFactory,
 ) -> None:
-    _, evaluator = await saved_evaluator(gql_client)
+    decision, evaluator = await saved_evaluator(gql_client)
     binding_id = await bind(gql_client, evaluator)
     result = await gql_client.execute(
         "mutation($input:DeleteDatasetEvaluatorsInput!){deleteDatasetEvaluators(input:$input){query{__typename}}}",
@@ -246,25 +246,9 @@ async def test_detaching_last_binding_keeps_the_standalone_judge(
     )
     assert result.data and not result.errors, result.errors
     judge_id = int(GlobalID.from_id(evaluator["id"]).node_id)
-    async with db() as session:
-        assert await session.get(models.Evaluator, judge_id) is not None
-    result = await gql_client.execute(
-        "mutation($input:DeleteDecisionEvaluatorInput!){deleteDecisionEvaluator(input:$input){query{__typename}}}",
-        variables={"input": {"evaluatorId": evaluator["id"]}},
-    )
-    assert result.data and not result.errors, result.errors
-    async with db() as session:
-        assert await session.get(models.Evaluator, judge_id) is None
-
-
-async def test_deleting_an_unbound_judge_releases_its_tag_and_keeps_the_decision(
-    gql_client: AsyncGraphQLClient,
-    db: DbSessionFactory,
-) -> None:
-    decision, evaluator = await saved_evaluator(gql_client)
-    judge_id = int(GlobalID.from_id(evaluator["id"]).node_id)
     decision_id = int(GlobalID.from_id(decision["id"]).node_id)
     async with db() as session:
+        assert await session.get(models.Evaluator, judge_id) is not None
         judge = await session.get(models.DecisionEvaluator, judge_id)
         assert judge is not None and judge.decision_version_tag_id is not None
         tag_id = judge.decision_version_tag_id
@@ -274,7 +258,7 @@ async def test_deleting_an_unbound_judge_releases_its_tag_and_keeps_the_decision
     )
     assert result.data and not result.errors, result.errors
     async with db() as session:
-        assert await session.get(models.DecisionEvaluator, judge_id) is None
+        assert await session.get(models.Evaluator, judge_id) is None
         assert await session.get(models.DecisionVersionTag, tag_id) is None
         assert await session.get(models.Decision, decision_id) is not None
 

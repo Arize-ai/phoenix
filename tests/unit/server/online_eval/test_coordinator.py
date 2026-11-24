@@ -3,7 +3,8 @@ from collections import Counter
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
 from types import SimpleNamespace
-from typing import Any, Optional
+from typing import Any, Optional, cast
+from unittest.mock import MagicMock
 
 import pytest
 from sqlalchemy import delete, func, select, update
@@ -11,9 +12,13 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from phoenix.db import models
 from phoenix.db.eval_work import MAX_ATTEMPTS
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.app import _db
+from phoenix.server.cleanup.coordinator import CleanupCoordinator
+from phoenix.server.cleanup.lifecycle import tombstone_project_evaluators
 from phoenix.server.online_eval import coordinator as coordinator_module
+from phoenix.server.online_eval.clock import current_database_time
 from phoenix.server.online_eval.coordinator import (
     CLAIM_LEASE_TTL_SECONDS,
     LEASE_ATTEMPTS_EXHAUSTED_ERROR,
@@ -21,10 +26,20 @@ from phoenix.server.online_eval.coordinator import (
     EvalWorkCoordinator,
     PublicationClaimLostError,
     PublicationEvaluatorDisabledError,
+    recover_lapsed_claims,
 )
+from phoenix.server.online_eval.executor import HydrationFailure, OnlineEvalExecutor
+from phoenix.server.online_eval.tracing import marked_evaluator_tracer, persist_evaluator_traces
 from phoenix.server.types import DbSessionFactory
+from phoenix.tracers import Tracer
 
-from ..._helpers import _add_project, _add_project_session, _add_span, _add_trace
+from ..._helpers import (
+    _add_project,
+    _add_project_session,
+    _add_span,
+    _add_trace,
+    _bind_evaluator_trace_project,
+)
 
 
 async def _seed_work_units(
@@ -1007,3 +1022,186 @@ async def test_publish_does_not_wait_on_ingest_or_sweeper_row_locks(
         )
 
     assert wrote.is_set()
+
+
+async def test_online_eval_fences_tombstoned_binding_on_hydration_publish_and_traces(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session, name=f"oe-{token_hex(4)}")
+        trace_proj = models.Project(name=f"oe-sink-{token_hex(4)}")
+        session.add(trace_proj)
+        await session.flush()
+        pe = await _bind_evaluator_trace_project(session, trace_proj, host_project=project)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace=trace)
+        session.add(
+            models.EvalWorkUnit(
+                span_rowid=span.id,
+                project_evaluator_id=pe.id,
+                status="PENDING",
+                attempts=0,
+            )
+        )
+        await session.flush()
+
+    work_coord = EvalWorkCoordinator(db, evaluation_target="SPAN")
+    claimed_units = await work_coord.claim(claimed_by="worker-1", limit=10)
+    assert len(claimed_units) == 1
+    unit = claimed_units[0]
+
+    # Tombstone the binding while `unit` is already claimed in RUNNING state.
+    async with db() as session:
+        await tombstone_project_evaluators(
+            session,
+            binding_ids=[pe.id],
+            collect_unused_evaluator=False,
+            delete_associated_prompt=False,
+        )
+
+    # 1. Hydration returns HydrationFailure(terminal_status='DROPPED') so consumer clears it.
+    executor = OnlineEvalExecutor(
+        db,
+        evaluation_target="SPAN",
+        coordinator=work_coord,
+        decrypt=lambda b: b,
+    )
+    outcomes = await executor.hydrate_configuration_snapshots([unit])
+    assert len(outcomes) == 1
+    assert isinstance(outcomes[0], HydrationFailure)
+    assert outcomes[0].terminal_status == "DROPPED"
+
+    # 2. publish() rejects tombstoned binding with PublicationEvaluatorDisabledError.
+    wrote = False
+
+    async def _write(_session: object) -> None:
+        nonlocal wrote
+        wrote = True
+
+    with pytest.raises(PublicationEvaluatorDisabledError):
+        await work_coord.publish(
+            work_unit_id=unit.work_unit_id,
+            claimed_by=unit.claimed_by,
+            project_evaluator_id=pe.id,
+            write=_write,
+        )
+    assert wrote is False
+
+    # 3. persist_evaluator_traces drops spans when the binding is tombstoned.
+    tracer = marked_evaluator_tracer(
+        Tracer(span_cost_calculator=cast(Any, MagicMock())),
+        project_evaluator_rowid=pe.id,
+        project_evaluator_name="oe-eval",
+    )
+    with tracer.start_as_current_span("eval-call"):
+        pass
+    await persist_evaluator_traces(db=db, tracer=tracer, project_evaluator_id=pe.id)
+    async with db() as session:
+        trace_sink_count = await session.scalar(
+            select(func.count(models.Trace.id)).where(models.Trace.project_rowid == trace_proj.id)
+        )
+        assert trace_sink_count == 0
+
+
+async def test_recover_lapsed_claims_ignores_tombstoned_project_evaluator(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dialect = SupportedSQLDialect(db.dialect.value)
+    async with db() as session:
+        database_now = await current_database_time(session, dialect)
+        lapsed_claimed_at = database_now - timedelta(seconds=CLAIM_LEASE_TTL_SECONDS + 1)
+        project = await _add_project(session, name=f"oe-lapsed-{token_hex(4)}")
+        tombstoned_sink = models.Project(name=f"oe-tomb-sink-{token_hex(4)}")
+        live_sink = models.Project(name=f"oe-live-sink-{token_hex(4)}")
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(root=f"oe-lapsed-bi-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        session.add_all([tombstoned_sink, live_sink, evaluator])
+        await session.flush()
+
+        tombstoned_binding = models.ProjectEvaluator(
+            project_id=project.id,
+            evaluator_id=evaluator.id,
+            trace_project_id=tombstoned_sink.id,
+            name=Identifier(root="tombstoned-eval"),
+            evaluation_target="SPAN",
+            filter_condition="",
+            sampling_rate=1.0,
+            enabled=True,
+        )
+        live_binding = models.ProjectEvaluator(
+            project_id=project.id,
+            evaluator_id=evaluator.id,
+            trace_project_id=live_sink.id,
+            name=Identifier(root="live-eval"),
+            evaluation_target="SPAN",
+            filter_condition="",
+            sampling_rate=1.0,
+            enabled=True,
+        )
+        session.add_all([tombstoned_binding, live_binding])
+        await session.flush()
+
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace=trace)
+        tombstoned_unit = models.EvalWorkUnit(
+            span_rowid=span.id,
+            project_evaluator_id=tombstoned_binding.id,
+            status="RUNNING",
+            claimed_at=lapsed_claimed_at,
+            claimed_by="crashed-worker",
+            attempts=MAX_ATTEMPTS - 1,
+        )
+        live_unit = models.EvalWorkUnit(
+            span_rowid=span.id,
+            project_evaluator_id=live_binding.id,
+            status="RUNNING",
+            claimed_at=lapsed_claimed_at,
+            claimed_by="crashed-worker",
+            attempts=MAX_ATTEMPTS - 1,
+        )
+        session.add_all([tombstoned_unit, live_unit])
+        await session.flush()
+
+        tombstoned_binding_id = tombstoned_binding.id
+        tombstoned_unit_id = tombstoned_unit.id
+        live_unit_id = live_unit.id
+
+        await tombstone_project_evaluators(
+            session,
+            binding_ids=[tombstoned_binding_id],
+            collect_unused_evaluator=False,
+            delete_associated_prompt=False,
+        )
+
+    work_coordinator = EvalWorkCoordinator(db, evaluation_target="SPAN")
+    assert await work_coordinator.claim(claimed_by="worker-2", limit=10) == []
+
+    async with db() as session:
+        database_now = await current_database_time(session, dialect)
+        assert (
+            await recover_lapsed_claims(
+                session,
+                models.EvalWorkUnit,
+                now=database_now,
+                max_attempts=MAX_ATTEMPTS,
+            )
+            == []
+        )
+        loaded_tombstoned_unit = await session.get(models.EvalWorkUnit, tombstoned_unit_id)
+        loaded_live_unit = await session.get(models.EvalWorkUnit, live_unit_id)
+        assert loaded_tombstoned_unit is not None
+        assert loaded_tombstoned_unit.status == "RUNNING"
+        assert loaded_live_unit is not None
+        assert loaded_live_unit.status == "FAILED"
+
+    coordinator = CleanupCoordinator(db)
+    while (await coordinator.step_or_next_delay())[0]:
+        pass
+    async with db() as session:
+        assert await session.get(models.EvalWorkUnit, tombstoned_unit_id) is None
+        assert await session.get(models.ProjectEvaluator, tombstoned_binding_id) is None

@@ -16,6 +16,7 @@ from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.types.node import from_global_id
 from phoenix.server.api.types.ProjectSession import ProjectSession
 from phoenix.server.api.types.Span import Span
+from phoenix.server.dml_event import DmlEvent
 
 _MESSAGE_ID_NAMESPACE = UUID("6f1a7f5e-3f4d-4a5b-8c9d-0e1f2a3b4c5d")
 
@@ -112,9 +113,14 @@ async def _add_project(
 async def _bind_evaluator_trace_project(
     session: AsyncSession,
     trace_project: models.Project,
+    *,
+    host_project: Optional[models.Project] = None,
+    evaluation_target: models.EvaluationTarget = "SPAN",
 ) -> models.ProjectEvaluator:
     """Make ``trace_project`` an evaluator trace project by binding a project evaluator to it."""
-    host_project = models.Project(name=f"eval-host-{token_hex(4)}")
+    if host_project is None:
+        host_project = models.Project(name=f"eval-host-{token_hex(4)}")
+        session.add(host_project)
     evaluator = models.BuiltinEvaluator(
         name=Identifier(root=f"builtin-{token_hex(4)}"),
         kind="BUILTIN",
@@ -122,7 +128,7 @@ async def _bind_evaluator_trace_project(
         input_schema={},
         output_configs=[],
     )
-    session.add_all([host_project, evaluator])
+    session.add(evaluator)
     await session.flush()
     binding = models.ProjectEvaluator(
         project_id=host_project.id,
@@ -130,8 +136,7 @@ async def _bind_evaluator_trace_project(
         trace_project_id=trace_project.id,
         name=Identifier(root=f"binding-{token_hex(4)}"),
         sampling_rate=1.0,
-        evaluation_target="SPAN",
-        evaluation_delay_seconds=0,
+        evaluation_target=evaluation_target,
     )
     session.add(binding)
     await session.flush()
@@ -447,3 +452,13 @@ async def _user_role_id(session: AsyncSession, name: str) -> int:
     role_id = await session.scalar(select(models.UserRole.id).where(models.UserRole.name == name))
     assert role_id is not None, f"user role {name!r} is not seeded"
     return int(role_id)
+
+
+class _RecordingQueue:
+    """An event queue that keeps every ``DmlEvent`` put on it."""
+
+    def __init__(self) -> None:
+        self.events: list[DmlEvent] = []
+
+    def put(self, item: DmlEvent) -> None:
+        self.events.append(item)

@@ -975,7 +975,7 @@ class TestRetentionSkipsTombstonedProjects:
                 await session.flush()
                 policy_id = explicit_policy.id
             await session.flush()
-            live_trace_id, tombstoned_trace_id = (trace.trace_id for trace in expired_traces)
+            tombstoned_trace_id = expired_traces[1].trace_id
 
         dml_event_handler = MagicMock()
         sweeper = TraceDataSweeper(db=db, dml_event_handler=dml_event_handler)
@@ -994,5 +994,4 @@ class TestRetentionSkipsTombstonedProjects:
                 ).all()
             )
         assert remaining_trace_ids == {tombstoned_trace_id}
-        assert live_trace_id not in remaining_trace_ids
         dml_event_handler.put.assert_called_once_with(SpanDeleteEvent((live_project.id,)))
