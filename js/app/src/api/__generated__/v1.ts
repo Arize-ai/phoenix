@@ -1134,7 +1134,7 @@ export interface paths {
         post?: never;
         /**
          * Delete a prompt
-         * @description Delete a prompt and all its versions, tags, and labels by identifier.
+         * @description Delete a prompt and all its versions, tags, and labels by identifier. Returns 409 if one or more LLM evaluators use the prompt.
          */
         delete: operations["deletePrompt"];
         options?: never;
@@ -11543,6 +11543,15 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Prompt is in use by one or more LLM evaluators */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
