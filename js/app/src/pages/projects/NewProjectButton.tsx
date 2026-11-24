@@ -37,6 +37,7 @@ import {
 import { SelectChevronUpDownIcon } from "@phoenix/components/core/icon";
 import { GradientCircle } from "@phoenix/components/project/GradientCircle";
 import {
+  PROJECT_NAME_DESCRIPTION,
   URI_SAFE_LEADING_AND_TRAILING_MESSAGE,
   URI_SAFE_LEADING_AND_TRAILING_PATTERN,
   URI_SAFE_PATTERN,
@@ -226,7 +227,7 @@ function NewProjectDialog({
                               <FieldError>{fieldError.message}</FieldError>
                             ) : (
                               <Text slot="description">
-                                URI characters only, max 100 characters
+                                {PROJECT_NAME_DESCRIPTION}
                               </Text>
                             )}
                           </TextField>

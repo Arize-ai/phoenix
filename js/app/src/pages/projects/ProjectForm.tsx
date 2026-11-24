@@ -19,6 +19,7 @@ import {
   GradientCircleRadioGroup,
 } from "@phoenix/components/project";
 import {
+  PROJECT_NAME_DESCRIPTION,
   URI_SAFE_LEADING_AND_TRAILING_MESSAGE,
   URI_SAFE_LEADING_AND_TRAILING_PATTERN,
   URI_SAFE_PATTERN,
@@ -263,10 +264,7 @@ export function ProjectForm({
                     {error?.message ? (
                       <FieldError>{error.message}</FieldError>
                     ) : (
-                      <Text slot="description">
-                        The name of the project. Must be URI safe (letters,
-                        numbers, hyphens, underscores, dots only).
-                      </Text>
+                      <Text slot="description">{PROJECT_NAME_DESCRIPTION}</Text>
                     )}
                   </TextField>
                 )}

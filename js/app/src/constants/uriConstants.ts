@@ -7,3 +7,6 @@ export const URI_SAFE_LEADING_AND_TRAILING_PATTERN =
 
 export const URI_SAFE_LEADING_AND_TRAILING_MESSAGE =
   "Must start and end with a letter or number";
+
+export const PROJECT_NAME_DESCRIPTION =
+  "Letters, numbers, dots, hyphens and underscores, up to 100 characters. Start and end with a letter or number.";
