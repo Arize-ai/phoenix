@@ -1440,3 +1440,25 @@ async def test_patch_decision_evaluator_does_not_lock_decision_versions_and_dele
         await _wait_until_lock_wait_or_done(db, delete_task, "SELECT decisions.id \nFROM decisions")
         assert not delete_task.done()
     await asyncio.wait_for(delete_task, 5)
+
+
+@pytest.mark.postgres_only
+async def test_tombstone_project_rejects_a_project_deleted_after_it_was_loaded(
+    postgresql_engine: AsyncEngine,
+) -> None:
+    from phoenix.server.cleanup import lifecycle
+
+    db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
+    async with db() as session:
+        project = models.Project(name=f"loaded-then-deleted-{token_hex(4)}")
+        session.add(project)
+        await session.flush()
+        project_id = project.id
+
+    async with db() as late_session:
+        loaded_project = await late_session.get(models.Project, project_id)
+        assert loaded_project is not None and loaded_project.deleted_at is None
+        async with db() as first_session:
+            await lifecycle.tombstone_project(first_session, project_id=project_id)
+        with pytest.raises(NotFound):
+            await lifecycle.tombstone_project(late_session, project_id=project_id)

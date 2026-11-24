@@ -500,7 +500,8 @@ async def tombstone_project(
     }
     await _lock_projects(session, locked_project_ids, key_share=True)
 
-    project = await session.get(models.Project, project_id)
+    # A caller may have loaded the project before it was locked, so re-read its committed state.
+    project = await session.get(models.Project, project_id, populate_existing=True)
     if project is None or project.deleted_at is not None:
         raise NotFound(f"Project with ID {project_id} not found")
     if project.name == DEFAULT_PROJECT_NAME:
