@@ -395,10 +395,9 @@ async def list_project_traces(
         "Only traces whose start time is within the required `[start_time, end_time)` interval "
         "are deleted. Associated spans are cascade deleted, and project sessions left with no "
         "remaining traces are also deleted. Naive datetimes are interpreted as UTC. "
-        "Traces are deleted in batches, each committed on its own. Returns 409 when the project "
-        "holds an evaluator's traces, or when some traces stay in use by another operation; in "
-        "the second case part of the clear may already be done, and the same request can be "
-        "run again to finish it."
+        "Traces are deleted in batches, each committed on its own. Returns 409 when some "
+        "traces stay in use by another operation; part of the clear may already be done, and "
+        "the same request can be run again to finish it."
     ),
     response_description="No content returned after the matching traces are deleted",
     status_code=204,

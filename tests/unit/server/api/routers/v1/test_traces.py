@@ -15,7 +15,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
 from opentelemetry.proto.resource.v1.resource_pb2 import Resource
 from opentelemetry.proto.trace.v1.trace_pb2 import ResourceSpans, ScopeSpans
-from sqlalchemy import insert, select, update
+from sqlalchemy import func, insert, select, update
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -882,7 +882,7 @@ async def test_transfer_traces_unparseable_identifier(
 # ---------------------------------------------------------------------------
 
 
-async def test_delete_project_traces_rejects_evaluator_trace_project(
+async def test_delete_project_traces_clears_evaluator_trace_project(
     db: DbSessionFactory,
     httpx_client: httpx2.AsyncClient,
 ) -> None:
@@ -912,8 +912,18 @@ async def test_delete_project_traces_rejects_evaluator_trace_project(
             "end_time": "2021-01-02T00:00:00Z",
         },
     )
-    assert response.status_code == 409
-    assert "evaluator" in response.text.lower()
+    assert response.status_code == 204
 
     async with db() as session:
-        assert await session.get(models.Trace, trace_rowid) is not None
+        assert await session.get(models.Trace, trace_rowid) is None
+        remaining_project = await session.get(models.Project, project_rowid)
+        assert remaining_project is not None and remaining_project.deleted_at is None
+        num_live_bindings = await session.scalar(
+            select(func.count())
+            .select_from(models.ProjectEvaluator)
+            .where(
+                models.ProjectEvaluator.trace_project_id == project_rowid,
+                models.ProjectEvaluator.deleted_at.is_(None),
+            )
+        )
+        assert num_live_bindings == 1

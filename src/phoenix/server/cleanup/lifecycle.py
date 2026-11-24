@@ -586,8 +586,8 @@ async def clear_project_traces_in_batches(
 
     Raises:
         NotFound: The project does not exist or is already tombstoned when the clear starts.
-        Conflict: The project holds an evaluator's traces, or another operation kept the
-            remaining traces locked for too many consecutive attempts.
+        Conflict: Another operation kept the remaining traces locked for too many consecutive
+            attempts.
     """
     if batch_limit <= 0:
         raise ValueError("batch_limit must be positive")
@@ -611,10 +611,6 @@ async def clear_project_traces_in_batches(
                         raise NotFound(f"Project with ID {project_id} not found")
                     step_result = None
                 else:
-                    if is_first_batch and await _project_holds_evaluator_traces(session, project):
-                        raise Conflict(
-                            "This project holds an evaluator's traces; delete the evaluator instead"
-                        )
                     step_result = await drain_trace_scope_step(
                         session,
                         project_id=project_id,

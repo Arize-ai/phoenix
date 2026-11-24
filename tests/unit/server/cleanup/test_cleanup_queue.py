@@ -1440,24 +1440,40 @@ class TestBatchedClear:
             assert await session.get(models.Span, span_ids[1]) is not None
             assert await session.get(models.Span, span_ids[2]) is not None
 
-    async def test_clear_rejects_missing_tombstoned_and_evaluator_projects(
+    async def test_clear_rejects_missing_and_tombstoned_projects(
         self, db: DbSessionFactory
     ) -> None:
         async with db() as session:
             tombstoned_project = await _add_project(session, name=f"gone-{token_hex(4)}")
-            evaluator_project = models.Project(name=f"eval-sink-{token_hex(4)}")
-            session.add(evaluator_project)
-            await session.flush()
-            await _bind_evaluator_trace_project(session, evaluator_project)
             await tombstone_project(session, project_id=tombstoned_project.id)
             tombstoned_project_id = tombstoned_project.id
-            evaluator_project_id = evaluator_project.id
 
         for missing_project_id in (tombstoned_project_id, 999_999):
             with pytest.raises(NotFound):
                 await _clear_project(db, missing_project_id)
-        with pytest.raises(Conflict, match="evaluator's traces"):
-            await _clear_project(db, evaluator_project_id)
+
+    async def test_clear_deletes_traces_of_an_evaluator_trace_project_and_keeps_it_live(
+        self, db: DbSessionFactory
+    ) -> None:
+        async with db() as session:
+            evaluator_project = models.Project(name=f"eval-sink-{token_hex(4)}")
+            session.add(evaluator_project)
+            await session.flush()
+            binding = await _bind_evaluator_trace_project(session, evaluator_project)
+            trace = await _add_trace(session, evaluator_project)
+            await _add_span(session, trace=trace)
+            evaluator_project_id = evaluator_project.id
+            binding_id = binding.id
+            trace_id = trace.id
+
+        await _clear_project(db, evaluator_project_id)
+
+        async with db() as session:
+            assert await session.get(models.Trace, trace_id) is None
+            surviving_project = await session.get(models.Project, evaluator_project_id)
+            assert surviving_project is not None and surviving_project.deleted_at is None
+            surviving_binding = await session.get(models.ProjectEvaluator, binding_id)
+            assert surviving_binding is not None and surviving_binding.deleted_at is None
 
 
 class TestOnlineEvalFences:
