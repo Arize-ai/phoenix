@@ -32,6 +32,7 @@ import { formatPromptVersionMetadataForEditor } from "@phoenix/pages/playground/
 import { PromptComboBox } from "@phoenix/pages/playground/PromptComboBox";
 import {
   transformIdentifierInput,
+  trimIdentifierSeparators,
   validateIdentifier,
 } from "@phoenix/utils/identifierUtils";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
@@ -179,6 +180,7 @@ export function SavePromptForm({
                   onChange(value);
                 }}
                 transformValue={transformIdentifierInput}
+                finalizeValue={trimIdentifierSeparators}
               >
                 {(transformingInput) => (
                   <PromptComboBox
@@ -189,6 +191,7 @@ export function SavePromptForm({
                     onFocus={() => setIsPromptInputFocused(true)}
                     onBlur={() => {
                       setIsPromptInputFocused(false);
+                      transformingInput.handleBlur();
                       onBlur();
                     }}
                     inputValue={transformingInput.displayValue}
@@ -386,6 +389,7 @@ function NewTagInlineForm({
     value: inputValue,
     onValueChange: setInputValue,
     transformValue: transformIdentifierInput,
+    finalizeValue: trimIdentifierSeparators,
   });
 
   // Whitespace is converted to dashes on input, so no trimming is needed here
@@ -417,7 +421,10 @@ function NewTagInlineForm({
         value={transformingInput.displayValue}
         onChange={transformingInput.handleValueChange}
         onFocus={() => setHasStoppedEditing(false)}
-        onBlur={() => setHasStoppedEditing(true)}
+        onBlur={() => {
+          transformingInput.handleBlur();
+          setHasStoppedEditing(true);
+        }}
         isInvalid={!!displayedError}
         css={css`
           flex: 1 1 auto;

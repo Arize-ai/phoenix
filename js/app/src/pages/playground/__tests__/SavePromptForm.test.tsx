@@ -220,7 +220,7 @@ describe("SavePromptForm", () => {
     expect(getButton(container, "Create Prompt")).toBeDefined();
   });
 
-  it("waits for blur to flag a trailing dash in a new tag name", async () => {
+  it("trims a trailing dash from a new tag name on blur", async () => {
     await renderSavePromptForm(root);
     const tagInput = container.querySelector<HTMLInputElement>(
       'input[aria-label="New tag name"]'
@@ -238,9 +238,23 @@ describe("SavePromptForm", () => {
     await act(async () => {
       tagInput.blur();
     });
-    expect(container.textContent).toContain(
+    expect(tagInput.value).toBe("my");
+    expect(container.textContent).not.toContain(
       IDENTIFIER_ERROR_MESSAGES.leadingTrailing
     );
+  });
+
+  it("drops leading separators from a new tag name as you type", async () => {
+    await renderSavePromptForm(root);
+    const tagInput = container.querySelector<HTMLInputElement>(
+      'input[aria-label="New tag name"]'
+    )!;
+
+    await act(async () => {
+      tagInput.focus();
+      typeInto({ input: tagInput, value: " -_Café" });
+    });
+    expect(tagInput.value).toBe("cafe");
   });
 });
 

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   getIdentifier,
   transformIdentifierInput,
+  trimIdentifierSeparators,
   validateIdentifier,
 } from "../identifierUtils";
 
@@ -18,6 +19,20 @@ describe("transformIdentifierInput", () => {
   it("ignores whitespace on a blank field and inserts a dash after text", () => {
     expect(transformIdentifierInput(" ")).toBe("");
     expect(transformIdentifierInput("A ")).toBe("a-");
+  });
+
+  it("folds accented letters instead of deleting them", () => {
+    expect(transformIdentifierInput("Café Crème")).toBe("cafe-creme");
+  });
+
+  it("does not double dashes around removed characters", () => {
+    expect(transformIdentifierInput("a / b")).toBe("a-b");
+  });
+});
+
+describe("trimIdentifierSeparators", () => {
+  it("removes leading and trailing dashes and underscores", () => {
+    expect(trimIdentifierSeparators("-_my-prompt_-")).toBe("my-prompt");
   });
 });
 

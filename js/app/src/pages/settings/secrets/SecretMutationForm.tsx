@@ -12,9 +12,15 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
-import { SECRET_KEY_PATTERN } from "@phoenix/constants";
+import {
+  SECRET_KEY_LEADING_AND_TRAILING_PATTERN,
+  SECRET_KEY_PATTERN,
+} from "@phoenix/constants";
 import { TransformingInputController } from "@phoenix/hooks/useTransformingInput";
-import { transformEnvironmentVariableInput } from "@phoenix/utils/environmentVariableUtils";
+import {
+  transformEnvironmentVariableInput,
+  trimEnvironmentVariableSeparators,
+} from "@phoenix/utils/environmentVariableUtils";
 
 import type { SecretFormParams } from "./types";
 
@@ -69,6 +75,11 @@ export function SecretMutationForm({
                   if (!SECRET_KEY_PATTERN.test(trimmedValue)) {
                     return "Use environment variable format: letters, numbers, and underscores only";
                   }
+                  if (
+                    !SECRET_KEY_LEADING_AND_TRAILING_PATTERN.test(trimmedValue)
+                  ) {
+                    return "Must start with a letter and end with a letter or digit";
+                  }
                   return true;
                 },
               }}
@@ -80,12 +91,16 @@ export function SecretMutationForm({
                   value={value}
                   onValueChange={onChange}
                   transformValue={transformEnvironmentVariableInput}
+                  finalizeValue={trimEnvironmentVariableSeparators}
                 >
                   {(transformingInput) => (
                     <TextField
                       isInvalid={invalid}
                       onChange={transformingInput.handleValueChange}
-                      onBlur={onBlur}
+                      onBlur={() => {
+                        transformingInput.handleBlur();
+                        onBlur();
+                      }}
                       value={transformingInput.displayValue}
                     >
                       <Label>Key</Label>

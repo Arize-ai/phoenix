@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { transformEnvironmentVariableInput } from "../environmentVariableUtils";
+import {
+  transformEnvironmentVariableInput,
+  trimEnvironmentVariableSeparators,
+} from "../environmentVariableUtils";
 
 describe("transformEnvironmentVariableInput", () => {
   it("uppercases and converts common separators to underscores", () => {
@@ -15,5 +18,22 @@ describe("transformEnvironmentVariableInput", () => {
 
   it("preserves a leading digit for validation", () => {
     expect(transformEnvironmentVariableInput("1 api key")).toBe("1_API_KEY");
+  });
+
+  it("drops leading underscores but keeps trailing ones while typing", () => {
+    expect(transformEnvironmentVariableInput(" _api key ")).toBe("API_KEY_");
+  });
+
+  it("folds accents and does not double separators around removed characters", () => {
+    expect(transformEnvironmentVariableInput("my api.key-2 é")).toBe(
+      "MY_API_KEY_2_E"
+    );
+    expect(transformEnvironmentVariableInput("a.@-b")).toBe("A_B");
+  });
+});
+
+describe("trimEnvironmentVariableSeparators", () => {
+  it("removes leading and trailing underscores", () => {
+    expect(trimEnvironmentVariableSeparators("__API_KEY__")).toBe("API_KEY");
   });
 });

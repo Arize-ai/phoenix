@@ -50,6 +50,7 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
 import {
   getIdentifier,
   transformIdentifierInput,
+  trimIdentifierSeparators,
   validateIdentifier,
 } from "@phoenix/utils/identifierUtils";
 import { validateDependencyPackages } from "@phoenix/utils/packageSpecUtils";
@@ -560,6 +561,7 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                       value={field.value}
                       onValueChange={field.onChange}
                       transformValue={transformIdentifierInput}
+                      finalizeValue={trimIdentifierSeparators}
                     >
                       {(transformingInput) => (
                         <TextField
@@ -569,6 +571,7 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                           onFocus={() => setIsNameFocused(true)}
                           onBlur={() => {
                             setIsNameFocused(false);
+                            transformingInput.handleBlur();
                             field.onBlur();
                             void form.trigger("name");
                           }}

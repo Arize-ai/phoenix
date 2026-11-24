@@ -30,6 +30,12 @@ export type UseTransformingInputOptions = {
   value: string;
   onValueChange: (value: string) => void;
   transformValue: (value: string) => string;
+  /**
+   * Optional cleanup applied when the user stops editing (see `handleBlur`),
+   * for rules that cannot be applied while typing, such as removing trailing
+   * separators.
+   */
+  finalizeValue?: (value: string) => string;
 };
 
 /**
@@ -47,11 +53,15 @@ export type UseTransformingInputOptions = {
  * @param params.value - The committed controlled value.
  * @param params.onValueChange - Receives transformed, committed values.
  * @param params.transformValue - Pure function that transforms input text.
+ * @param params.finalizeValue - Pure function applied to the committed value
+ * by `handleBlur`. Call `handleBlur` before the form's own blur handler so
+ * blur validation sees the finalized value.
  */
 export function useTransformingInput({
   value,
   onValueChange,
   transformValue,
+  finalizeValue,
 }: UseTransformingInputOptions) {
   const inputRef = useRef<HTMLInputElement>(null);
   const isComposingRef = useRef(false);
@@ -159,6 +169,17 @@ export function useTransformingInput({
     commitValue({ rawValue, selection });
   };
 
+  const handleBlur = () => {
+    if (finalizeValue == null || isComposingRef.current) {
+      return;
+    }
+    const finalizedValue = finalizeValue(value);
+    if (finalizedValue !== value) {
+      cancelScheduledSelection();
+      onValueChange(finalizedValue);
+    }
+  };
+
   const inputProps: TransformingInputProps = {
     ref: inputRef,
     onCompositionStart: handleCompositionStart,
@@ -168,6 +189,7 @@ export function useTransformingInput({
   return {
     displayValue: compositionValue ?? value,
     handleValueChange,
+    handleBlur,
     inputProps,
   };
 }

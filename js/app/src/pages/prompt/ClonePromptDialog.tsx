@@ -31,6 +31,7 @@ import type { ClonePromptDialogMutation } from "@phoenix/pages/prompt/__generate
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import {
   transformIdentifierInput,
+  trimIdentifierSeparators,
   validateIdentifier,
 } from "@phoenix/utils/identifierUtils";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
@@ -163,6 +164,7 @@ export const ClonePromptDialog = ({
                           value={value}
                           onValueChange={onChange}
                           transformValue={transformIdentifierInput}
+                          finalizeValue={trimIdentifierSeparators}
                         >
                           {(transformingInput) => (
                             <TextField
@@ -173,6 +175,7 @@ export const ClonePromptDialog = ({
                               onFocus={() => setIsNameFocused(true)}
                               onBlur={() => {
                                 setIsNameFocused(false);
+                                transformingInput.handleBlur();
                                 onBlur();
                               }}
                               isDisabled={disabled}

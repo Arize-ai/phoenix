@@ -36,11 +36,18 @@ import {
 } from "@phoenix/components";
 import { SelectChevronUpDownIcon } from "@phoenix/components/core/icon";
 import { GradientCircle } from "@phoenix/components/project/GradientCircle";
-import { URI_SAFE_PATTERN } from "@phoenix/constants";
+import {
+  URI_SAFE_LEADING_AND_TRAILING_MESSAGE,
+  URI_SAFE_LEADING_AND_TRAILING_PATTERN,
+  URI_SAFE_PATTERN,
+} from "@phoenix/constants";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { TransformingInputController } from "@phoenix/hooks/useTransformingInput";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
-import { transformURISafeInput } from "@phoenix/utils/uriUtils";
+import {
+  transformURISafeInput,
+  trimURISafeSeparators,
+} from "@phoenix/utils/uriUtils";
 
 import type { NewProjectButtonCreateProjectMutation } from "./__generated__/NewProjectButtonCreateProjectMutation.graphql";
 import { GRADIENT_PRESETS } from "./ProjectForm";
@@ -180,6 +187,9 @@ function NewProjectDialog({
                         message:
                           "Use only letters, numbers, hyphens, underscores, and dots.",
                       },
+                      validate: (value) =>
+                        URI_SAFE_LEADING_AND_TRAILING_PATTERN.test(value) ||
+                        URI_SAFE_LEADING_AND_TRAILING_MESSAGE,
                       maxLength: {
                         value: 100,
                         message:
@@ -194,12 +204,16 @@ function NewProjectDialog({
                         value={value}
                         onValueChange={onChange}
                         transformValue={transformURISafeInput}
+                        finalizeValue={trimURISafeSeparators}
                       >
                         {(transformingInput) => (
                           <TextField
                             isInvalid={invalid}
                             onChange={transformingInput.handleValueChange}
-                            onBlur={onBlur}
+                            onBlur={() => {
+                              transformingInput.handleBlur();
+                              onBlur();
+                            }}
                             value={transformingInput.displayValue}
                             autoFocus
                           >

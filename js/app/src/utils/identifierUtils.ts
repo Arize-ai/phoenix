@@ -6,6 +6,8 @@ import {
   LEADING_AND_TRAILING_ALPHANUMERIC_CHARACTERS_PATTERN,
 } from "@phoenix/constants";
 
+import { removeDiacritics } from "./textTransformUtils";
+
 /**
  * Checks that `value` is non-empty and only uses the allowed identifier
  * character set. Intended for live (per-keystroke) validation so users see
@@ -68,8 +70,9 @@ export function replaceWhitespaceWithDashes(value: string): string {
 }
 
 /**
- * Lowercases `value`, collapses whitespace runs into single dashes, and drops
- * any character outside the allowed identifier set. Leading separators are
+ * Lowercases `value`, folds accented letters to their base letter, drops any
+ * character outside the allowed identifier set, and collapses whitespace runs
+ * into single dashes. Leading separators are
  * discarded because they can never form a valid identifier. Trailing
  * separators are preserved so the caller can keep typing (e.g. typing "foo "
  * should yield "foo-" without the dash being stripped mid-edit and jumping
@@ -79,9 +82,21 @@ export function replaceWhitespaceWithDashes(value: string): string {
  * arbitrary string into a final identifier, use {@link getIdentifier}.
  */
 export function transformIdentifierInput(value: string): string {
-  return replaceWhitespaceWithDashes(value.toLowerCase())
-    .replace(/[^_a-z0-9-]/g, "")
-    .replace(/^[_-]+/, "");
+  return replaceWhitespaceWithDashes(
+    removeDiacritics(value)
+      .toLowerCase()
+      .replace(/[^_a-z0-9\s-]/g, "")
+  ).replace(/^[_-]+/, "");
+}
+
+/**
+ * Removes leading and trailing dashes and underscores so an identifier starts
+ * and ends with a letter or digit. Apply it once the user stops editing (e.g.
+ * on blur); {@link transformIdentifierInput} keeps trailing separators while
+ * typing.
+ */
+export function trimIdentifierSeparators(value: string): string {
+  return value.replace(/^[_-]+|[_-]+$/g, "");
 }
 
 /**
@@ -94,5 +109,5 @@ export function transformIdentifierInput(value: string): string {
  * preserve cursor position, use {@link transformIdentifierInput}.
  */
 export function getIdentifier(value: string): string {
-  return transformIdentifierInput(value).replace(/^[_-]+|[_-]+$/g, "");
+  return trimIdentifierSeparators(transformIdentifierInput(value));
 }

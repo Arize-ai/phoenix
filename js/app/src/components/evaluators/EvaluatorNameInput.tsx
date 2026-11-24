@@ -12,6 +12,7 @@ import { TransformingInputController } from "@phoenix/hooks/useTransformingInput
 import type { EvaluatorStoreProps } from "@phoenix/store/evaluatorStore";
 import {
   transformIdentifierInput,
+  trimIdentifierSeparators,
   validateIdentifier,
 } from "@phoenix/utils/identifierUtils";
 
@@ -120,18 +121,12 @@ export const EvaluatorNameInput = ({
           hasBlurredRef.current = false;
         };
 
-        const handleBlur = () => {
-          hasBlurredRef.current = true;
-          field.onBlur();
-          // Re-trigger validation to include blur-only rules
-          trigger("name");
-        };
-
         return (
           <TransformingInputController
             value={field.value}
             onValueChange={field.onChange}
             transformValue={transformIdentifierInput}
+            finalizeValue={trimIdentifierSeparators}
           >
             {(transformingInput) => (
               <TextField
@@ -139,7 +134,13 @@ export const EvaluatorNameInput = ({
                 value={transformingInput.displayValue}
                 onChange={transformingInput.handleValueChange}
                 onFocus={handleFocus}
-                onBlur={handleBlur}
+                onBlur={() => {
+                  transformingInput.handleBlur();
+                  hasBlurredRef.current = true;
+                  field.onBlur();
+                  // Re-trigger validation to include blur-only rules
+                  trigger("name");
+                }}
                 autoComplete="off"
                 isInvalid={!!displayedError}
                 autoFocus

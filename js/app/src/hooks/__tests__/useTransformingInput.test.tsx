@@ -33,11 +33,13 @@ function TransformingInputHarness({
   initialValue,
   onValueCommitted,
   transformValue,
+  finalizeValue,
   shouldWireInputProps = true,
 }: {
   initialValue: string;
   onValueCommitted: (value: string) => void;
   transformValue: (value: string) => string;
+  finalizeValue?: (value: string) => string;
   shouldWireInputProps?: boolean;
 }) {
   const [value, setValue] = useState(initialValue);
@@ -48,10 +50,12 @@ function TransformingInputHarness({
       setValue(nextValue);
     },
     transformValue,
+    finalizeValue,
   });
   return (
     <input
       {...(shouldWireInputProps ? transformingInput.inputProps : {})}
+      onBlur={transformingInput.handleBlur}
       value={transformingInput.displayValue}
       onChange={(event) =>
         transformingInput.handleValueChange(event.currentTarget.value)
@@ -103,11 +107,13 @@ describe("useTransformingInput", () => {
         .toLowerCase()
         .replace(/\s+/g, "-")
         .replace(/[^a-z0-9-]/g, ""),
+    finalizeValue,
     shouldWireInputProps = true,
   }: {
     initialValue: string;
     onValueCommitted?: (value: string) => void;
     transformValue?: (value: string) => string;
+    finalizeValue?: (value: string) => string;
     shouldWireInputProps?: boolean;
   }) => {
     act(() => {
@@ -116,6 +122,7 @@ describe("useTransformingInput", () => {
           initialValue={initialValue}
           onValueCommitted={onValueCommitted}
           transformValue={transformValue}
+          finalizeValue={finalizeValue}
           shouldWireInputProps={shouldWireInputProps}
         />
       );
@@ -125,6 +132,36 @@ describe("useTransformingInput", () => {
     act(() => input?.focus());
     return input as HTMLInputElement;
   };
+
+  it("applies finalizeValue when the input loses focus", () => {
+    const onValueCommitted = vi.fn();
+    const input = renderHarness({
+      initialValue: "",
+      onValueCommitted,
+      finalizeValue: (value) => value.replace(/-+$/, ""),
+    });
+
+    act(() => {
+      setNativeInputValue({ input, value: "my prompt " });
+    });
+    expect(input.value).toBe("my-prompt-");
+
+    act(() => input.blur());
+    expect(input.value).toBe("my-prompt");
+    expect(onValueCommitted).toHaveBeenLastCalledWith("my-prompt");
+  });
+
+  it("does not commit on blur when finalizeValue leaves the value unchanged", () => {
+    const onValueCommitted = vi.fn();
+    const input = renderHarness({
+      initialValue: "my-prompt",
+      onValueCommitted,
+      finalizeValue: (value) => value.replace(/-+$/, ""),
+    });
+
+    act(() => input.blur());
+    expect(onValueCommitted).not.toHaveBeenCalled();
+  });
 
   it("preserves the caret after a transform in the middle of the value", () => {
     const input = renderHarness({ initialValue: "alphabet" });

@@ -29,6 +29,7 @@ import { TransformingInputController } from "@phoenix/hooks/useTransformingInput
 
 import {
   transformIdentifierInput,
+  trimIdentifierSeparators,
   validateIdentifier,
 } from "../../utils/identifierUtils";
 import type { NewPromptVersionTagDialogMutation } from "./__generated__/NewPromptVersionTagDialogMutation.graphql";
@@ -150,6 +151,7 @@ export function NewPromptVersionDialog({
                         value={value}
                         onValueChange={onChange}
                         transformValue={transformIdentifierInput}
+                        finalizeValue={trimIdentifierSeparators}
                       >
                         {(transformingInput) => (
                           <TextField
@@ -158,6 +160,7 @@ export function NewPromptVersionDialog({
                             onFocus={() => setIsNameFocused(true)}
                             onBlur={() => {
                               setIsNameFocused(false);
+                              transformingInput.handleBlur();
                               onBlur();
                             }}
                             name={name}
