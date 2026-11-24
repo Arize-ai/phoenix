@@ -31,10 +31,7 @@ from phoenix.server.evaluators.runtime.builtin import (
     BuiltInEvaluator,
     get_builtin_evaluator_by_key,
 )
-from phoenix.server.evaluators.runtime.code import (
-    DEFAULT_PAYLOAD_LIMIT_REMEDIATION,
-    CodeEvaluatorRunner,
-)
+from phoenix.server.evaluators.runtime.code import CodeEvaluatorRunner
 from phoenix.server.evaluators.runtime.decision import DecisionEvaluator
 from phoenix.server.evaluators.runtime.llm import LLMEvaluator
 from phoenix.server.evaluators.snapshots import (
@@ -58,7 +55,6 @@ async def build_decision_evaluator(
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
     credentials: Optional[Sequence[GenerativeCredentialInput]] = None,
-    max_request_bytes: Optional[int] = None,
 ) -> DecisionEvaluator:
     """Build a native judge from its saved or frozen definition."""
     if isinstance(definition, StoredDecisionEvaluatorDefinition):
@@ -78,7 +74,7 @@ async def build_decision_evaluator(
         decrypt=decrypt,
         credentials=credentials,
     )
-    return DecisionEvaluator(definition, client, max_request_bytes=max_request_bytes)
+    return DecisionEvaluator(definition, client)
 
 
 async def get_evaluators(
@@ -185,9 +181,6 @@ async def build_evaluator_from_definition(
     sandbox_runtime: Optional[SandboxRuntimeContext] = None,
     sandbox_session_manager: Optional[SandboxSessionManager] = None,
     session_key: Optional[str] = None,
-    max_message_bytes: Optional[int] = None,
-    max_payload_bytes: Optional[int] = None,
-    payload_limit_remediation: Optional[str] = None,
     execution_deadline_seconds: Optional[float] = None,
 ) -> BaseEvaluator:
     """
@@ -205,11 +198,6 @@ async def build_evaluator_from_definition(
         sandbox_session_manager: When given, a code evaluator reuses one sandbox session per
             ``session_key`` instead of creating an ephemeral sandbox for each evaluation.
         session_key: Partitions sandbox sessions; required with a session manager.
-        max_message_bytes: Cap on the rendered LLM messages, or None for no cap.
-        max_payload_bytes: Cap on the rendered sandbox payload, or None for no cap.
-        payload_limit_remediation: What the payload-limit error tells the user to do; it
-            names the cap the caller applied, so the caller that sets ``max_payload_bytes``
-            sets this too.
         execution_deadline_seconds: The caller's deadline for one evaluation, or None. A
             code evaluator's sandbox and runner timeouts are clamped to finish inside it.
 
@@ -226,7 +214,6 @@ async def build_evaluator_from_definition(
             session=session,
             decrypt=decrypt,
             credentials=credentials,
-            max_request_bytes=max_message_bytes,
         )
     if isinstance(definition, BuiltInEvaluatorDefinition):
         return await _build_builtin_evaluator(definition, session=session)
@@ -236,7 +223,6 @@ async def build_evaluator_from_definition(
             session=session,
             decrypt=decrypt,
             credentials=credentials,
-            max_message_bytes=max_message_bytes,
         )
     if isinstance(definition, (StoredCodeEvaluatorDefinition, InlineCodeEvaluatorDefinition)):
         return await _build_code_evaluator(
@@ -246,8 +232,6 @@ async def build_evaluator_from_definition(
             sandbox_runtime=sandbox_runtime,
             sandbox_session_manager=sandbox_session_manager,
             session_key=session_key,
-            max_payload_bytes=max_payload_bytes,
-            payload_limit_remediation=payload_limit_remediation,
             execution_deadline_seconds=execution_deadline_seconds,
         )
     assert_never(definition)
@@ -273,7 +257,6 @@ async def _build_inline_llm_evaluator(
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
     credentials: Sequence[GenerativeCredentialInput] | None,
-    max_message_bytes: Optional[int],
 ) -> LLMEvaluator:
     if not definition.output_configs:
         raise BadRequest("At least one output config is required.")
@@ -300,7 +283,6 @@ async def _build_inline_llm_evaluator(
         llm_client=llm_client,
         output_configs=definition.output_configs,
         prompt_name=definition.name,
-        max_message_bytes=max_message_bytes,
     )
 
 
@@ -312,8 +294,6 @@ async def _build_code_evaluator(
     sandbox_runtime: Optional[SandboxRuntimeContext],
     sandbox_session_manager: Optional[SandboxSessionManager],
     session_key: Optional[str],
-    max_payload_bytes: Optional[int],
-    payload_limit_remediation: Optional[str],
     execution_deadline_seconds: Optional[float],
 ) -> CodeEvaluatorRunner:
     evaluator_version_id: Optional[str] = None
@@ -363,8 +343,6 @@ async def _build_code_evaluator(
         evaluator_version_id=evaluator_version_id,
         sandbox_session_manager=sandbox_session_manager,
         session_key=session_key,
-        max_payload_bytes=max_payload_bytes,
-        payload_limit_remediation=(payload_limit_remediation or DEFAULT_PAYLOAD_LIMIT_REMEDIATION),
     )
 
 
