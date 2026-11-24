@@ -13,9 +13,13 @@ permissions:
 concurrency:
   group: >-
     factory-preview-${{ github.event.pull_request.number }}-${{
-      ((github.event.action == 'edited' && !github.event.changes.body) ||
-       (contains(fromJSON('["labeled", "unlabeled"]'), github.event.action) && github.event.label.name != 'factory-preview'))
-      && github.run_id || 'deploy' }}
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      ((contains(fromJSON('["labeled", "unlabeled"]'), github.event.action) &&
+        github.event.label.name == 'factory-preview') ||
+       (contains(github.event.pull_request.labels.*.name, 'factory-preview') &&
+        (contains(fromJSON('["opened", "synchronize", "reopened", "closed"]'), github.event.action) ||
+         (github.event.action == 'edited' && github.event.changes.body))))
+      && 'deploy' || github.run_id }}
   cancel-in-progress: true
 
 jobs:
@@ -72,6 +76,9 @@ jobs:
     outputs:
       short-sha: ${{ steps.plan.outputs.short-sha }}
       seed-summary: ${{ steps.plan.outputs.seed-summary }}
+      baseline: ${{ steps.plan.outputs.baseline }}
+      database: ${{ steps.plan.outputs.database }}
+      revisions: ${{ steps.plan.outputs.revisions }}
     env:
       GH_REPO: ${{ github.repository }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -82,12 +89,6 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.base.ref }}
           path: base
-          persist-credentials: false
-      - name: Check out the target commit as the baseline build context
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          ref: ${{ github.event.pull_request.base.sha }}
-          path: baseline
           persist-credentials: false
       - name: Check out the PR as the build context
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -114,7 +115,16 @@ jobs:
           uv run --script base/factory/preview/plan.py --pr "$PR_NUMBER" --head-sha "$HEAD_SHA" --seed-dir "$RUNNER_TEMP/preview-startup" > "$RUNNER_TEMP/plan.out"
           cat "$RUNNER_TEMP/plan.out" >> "$GITHUB_OUTPUT"
 
+      - name: Check out the target commit as the baseline build context
+        if: steps.plan.outputs.baseline == 'on'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: baseline
+          persist-credentials: false
+
       - name: Build baseline image
+        if: steps.plan.outputs.baseline == 'on'
         uses: ./base/.github/actions/docker-build-image
         with:
           artifact-prefix: preview-base-
@@ -144,7 +154,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        side: [base, head]
+        revision: ${{ fromJSON(needs.build.outputs.revisions) }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -157,12 +167,12 @@ jobs:
       - name: Upload image and publish Docker Hub tags
         uses: ./base/.github/actions/docker-publish-image
         with:
-          artifact-prefix: preview-${{ matrix.side }}-
+          artifact-prefix: preview-${{ matrix.revision }}-
           variant: root
           tags: |
-            arizephoenix/phoenix:pr-${{ github.event.pull_request.number }}-${{ matrix.side }}-${{ github.run_id }}
-            ${{ matrix.side == 'head' && format('arizephoenix/phoenix:pr-{0}', github.event.pull_request.number) || '' }}
-            ${{ matrix.side == 'head' && format('arizephoenix/phoenix:pr-{0}-{1}', github.event.pull_request.number, needs.build.outputs.short-sha) || '' }}
+            arizephoenix/phoenix:pr-${{ github.event.pull_request.number }}-${{ matrix.revision }}-${{ github.run_id }}
+            ${{ matrix.revision == 'head' && format('arizephoenix/phoenix:pr-{0}', github.event.pull_request.number) || '' }}
+            ${{ matrix.revision == 'head' && format('arizephoenix/phoenix:pr-{0}-{1}', github.event.pull_request.number, needs.build.outputs.short-sha) || '' }}
           expected-digests: 1
           dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
           dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
@@ -173,7 +183,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        side: [base, head]
+        revision: ${{ fromJSON(needs.build.outputs.revisions) }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -189,12 +199,12 @@ jobs:
       - name: Upload image and publish GHCR tags
         uses: ./base/.github/actions/docker-publish-image
         with:
-          artifact-prefix: preview-${{ matrix.side }}-
+          artifact-prefix: preview-${{ matrix.revision }}-
           variant: root
           tags: |
-            ghcr.io/arize-ai/phoenix:pr-${{ github.event.pull_request.number }}-${{ matrix.side }}-${{ github.run_id }}
-            ${{ matrix.side == 'head' && format('ghcr.io/arize-ai/phoenix:pr-{0}', github.event.pull_request.number) || '' }}
-            ${{ matrix.side == 'head' && format('ghcr.io/arize-ai/phoenix:pr-{0}-{1}', github.event.pull_request.number, needs.build.outputs.short-sha) || '' }}
+            ghcr.io/arize-ai/phoenix:pr-${{ github.event.pull_request.number }}-${{ matrix.revision }}-${{ github.run_id }}
+            ${{ matrix.revision == 'head' && format('ghcr.io/arize-ai/phoenix:pr-{0}', github.event.pull_request.number) || '' }}
+            ${{ matrix.revision == 'head' && format('ghcr.io/arize-ai/phoenix:pr-{0}-{1}', github.event.pull_request.number, needs.build.outputs.short-sha) || '' }}
           expected-digests: 1
 
   deploy:
@@ -234,11 +244,14 @@ jobs:
           PREVIEW_BASE_IMAGE: arizephoenix/phoenix:pr-${{ github.event.pull_request.number }}-base-${{ github.run_id }}
           PREVIEW_HEAD_IMAGE: arizephoenix/phoenix:pr-${{ github.event.pull_request.number }}-head-${{ github.run_id }}
           SEED_SUMMARY: ${{ needs.build.outputs.seed-summary }}
+          PREVIEW_BASELINE: ${{ needs.build.outputs.baseline }}
+          PREVIEW_DATABASE: ${{ needs.build.outputs.database }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: >-
           uv run --script deploy.py deploy
           --pr "$PR_NUMBER" --base-sha "$BASE_SHA" --head-sha "$HEAD_SHA"
           --seed "$SEED_SUMMARY" --run-url "$RUN_URL"
+          --baseline "$PREVIEW_BASELINE" --database "$PREVIEW_DATABASE"
 
   cleanup:
     name: Delete the preview project

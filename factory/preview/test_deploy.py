@@ -5,6 +5,7 @@ from unittest.mock import Mock
 
 import deploy as preview_deploy
 import pytest
+from settings import PreviewSettings
 
 WORKSPACE_ID = "11111111-2222-4333-8444-555555555555"
 
@@ -61,7 +62,9 @@ def test_cleanup_rechecks_label_after_resolving_project(
 
 def test_comparison_links_each_engine_and_reports_seed_failures(preview: ModuleType) -> None:
     def result(name: str, outcome: str = "preview: seed finished") -> Any:
-        return preview.PreviewResult(name, f"https://{name}.example.com", "SUCCESS", outcome, "")
+        return preview.PreviewResult(
+            f"phoenix-{name}", f"https://{name}.example.com", "SUCCESS", outcome, ""
+        )
 
     results = [
         result("base-sqlite"),
@@ -74,6 +77,7 @@ def test_comparison_links_each_engine_and_reports_seed_failures(preview: ModuleT
             base_sha="bbbbbbbb", head_sha="cccccccc", run_url="run", seed="1 line"
         ),
         results=results,
+        settings=PreviewSettings(),
         project=preview.PreviewProject("owned", "production"),
         grafana="grafana.example.com",
         mcp="mcp.example.com",
@@ -105,4 +109,84 @@ def test_wait_for_deployment_ignores_success_for_an_older_image(
     ) == (
         "new",
         "FAILED",
+    )
+
+
+def test_comment_omits_unselected_revisions_and_engines(preview: ModuleType) -> None:
+    comment = preview.format_comment(
+        args=SimpleNamespace(
+            base_sha="bbbbbbbb", head_sha="cccccccc", run_url="run", seed="1 line"
+        ),
+        results=[
+            preview.PreviewResult(
+                "phoenix-head-postgres",
+                "https://head.example.com",
+                "SUCCESS",
+                "preview: seed finished",
+                "",
+            )
+        ],
+        settings=PreviewSettings(include_baseline=False, database="postgres"),
+        project=preview.PreviewProject("owned", "production"),
+        grafana="grafana.example.com",
+        mcp="mcp.example.com",
+    )
+
+    assert "Baseline: off. Database: postgres." in comment
+    assert "| postgres | [Open](https://head.example.com)" in comment
+    assert "Target commit" not in comment
+    assert "bbbbbbb" not in comment
+    assert "| sqlite" not in comment
+
+
+@pytest.mark.parametrize(
+    ("summary", "kind"),
+    [
+        ("Delete volume lgtm-data", "resource.delete"),
+        ("Delete service phoenix-head-sqlite", "resource.delete"),
+        ("Delete database phoenix-head-postgres-db", "variable.delete"),
+    ],
+)
+def test_plan_rejects_unrelated_destructive_changes(
+    preview: ModuleType, summary: str, kind: str
+) -> None:
+    with pytest.raises(preview.RailwayError, match="outside the disabled previews"):
+        preview.allow_preview_removals(
+            settings=PreviewSettings(include_baseline=False, database="sqlite"),
+            changes=[{"summary": summary, "kind": kind, "severity": "destructive"}],
+        )
+
+
+def test_plan_allows_removing_disabled_instances_and_databases(preview: ModuleType) -> None:
+    changes = [
+        {"summary": summary, "kind": "resource.delete", "severity": "destructive"}
+        for summary in (
+            "Delete service phoenix-base-sqlite",
+            "Delete service phoenix-base-postgres",
+            "Delete database phoenix-base-postgres-db",
+            "Delete service phoenix-head-postgres",
+            "Delete database phoenix-head-postgres-db",
+        )
+    ]
+    assert preview.allow_preview_removals(
+        changes=changes, settings=PreviewSettings(include_baseline=False, database="sqlite")
+    )
+
+
+def test_deploy_skips_a_plan_for_outdated_settings(
+    preview: ModuleType, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        preview,
+        "run_gh",
+        lambda *args: (
+            '{"state":"OPEN","labels":[{"name":"factory-preview"}],'
+            '"headRefOid":"current","body":"Preview database: sqlite"}'
+        ),
+    )
+    assert preview.preview_wanted(
+        17, head_sha="current", settings=PreviewSettings(database="sqlite")
+    )
+    assert not preview.preview_wanted(
+        17, head_sha="current", settings=PreviewSettings(database="both")
     )

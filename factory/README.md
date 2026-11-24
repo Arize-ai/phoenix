@@ -110,7 +110,7 @@ Each part does one job, so it can be changed and tested on its own:
 | Area reviewers | Read-only `server-reviewer`, `frontend-reviewer`, `packages-reviewer` and `docs-reviewer`, chosen by the paths the diff touches, and `security-reviewer`, which the review and finish lanes run on every PR. They report verified findings per `REVIEW.md` § Reporting Findings, plus a risk line. `security-reviewer` looks for vulnerabilities the diff introduces and for code or text aimed at the reviewing agent or the sandbox, with a checklist and exclusions adapted from Anthropic's [claude-code-security-review](https://github.com/anthropics/claude-code-security-review); a verified `Hostile toward the factory` finding is the Close verdict's evidence. `docs-reviewer` holds changes under `docs/` to the `phoenix-docs` skill: one Diátaxis type per page, ASD-STE100 Simplified Technical English and accessible media. The skill is attached to the agent through `skills:` in its frontmatter, so `ant apply` uploads it from `main` and mounts it in every session; a PR's checkout can't change the rules it is reviewed by. Factory Sync also runs when the skill changes, so the mounted copy stays current. It also cross-checks every changed code block against the source and runs it from a temporary script, against a Phoenix server it starts when the block needs one. The docs lane's `docs-writer` runs it before opening its PR |
 | Outcome grader | Scores the session against `rubrics/<lane>.md` and sends it back to revise, up to 3 times |
 | `dispatch.py watch` | Sends failing required checks, then Claude Code Review findings, back to the session for up to 3 rounds. Marks the PR ready once CI passes, labels it `factory-preview` for the bug and feature lanes (creating the label on first use), and reports the run outcome on the issue |
-| `factory-preview.yml` | Builds the target and PR commits and deploys both on SQLite and Postgres in a dedicated Railway project. Posts the comparison and removes the project when the PR closes or loses the label. See [Previewing a PR](#previewing-a-pr) |
+| `factory-preview.yml` | Deploys the selected revisions and database engines in a dedicated Railway project. Posts the comparison and removes the project when the PR closes or loses the label. See [Previewing a PR](#previewing-a-pr) |
 | Admission gate | `security_scan.py` and `security_rules.yml`: frozen inputs, static evidence, tool-free model verdict and trusted decision cache |
 | `factory-review.yml` | Runs when a maintainer labels a PR `factory-review` or dispatches it by number. `review.py` checks that the PR is open and the requester has write access, starts a `pr-reviewer` session pinned to the head commit, then edits its status comment on the PR into the review's verdict and labels it `factory-approved`, `factory-request-changes` or `factory-close`, or says why there is no verdict. See [Reviewing a PR](#reviewing-a-pr) |
 | `pr-reviewer` | Starts from the repository mounted at the admitted SHA, stops if the mount is missing, runs the format, lint, typecheck and test targets for the touched areas, judges each added test, sends the diff to the area reviewers, verifies their findings, and submits one `COMMENT` review with inline findings and a summary that recommends approve, request changes or close |
@@ -149,7 +149,16 @@ A maintainer's part is to label an issue, or a `factory-candidate` someone witho
 
 When a factory bug or feature PR leaves draft, `dispatch.py` adds `factory-preview`. A maintainer can also add the label to a same-repository PR opened by a user with Write, Maintain, or Admin access. Forks and `factory/pr-*` copies are excluded.
 
-The workflow builds the exact target and PR commits using their Dockerfiles and a shared preview wrapper. It publishes both Linux amd64 images to Docker Hub and GHCR. Railway pulls the run-specific Docker Hub tags. Each tagged PR gets one Railway project with four Phoenix services:
+Add optional settings on separate lines in the PR body. These lines select a Postgres preview for the PR commit.
+
+```text
+Preview baseline: off
+Preview database: postgres
+```
+
+The baseline accepts `on` or `off`. The database accepts `sqlite`, `postgres`, or `both`. The defaults are `on` and `both`. The factory sets these fields when it opens a bug or feature PR, based on its acceptance test. A maintainer can edit the fields to change the selection. Saving the PR body while the label is present refreshes the preview. Invalid or duplicate settings stop the new run. When a selection is removed, Railway deletes those preview instances and their dedicated Postgres databases. Grafana and Loki keep their data.
+
+The workflow builds the PR commit and, when enabled, the target commit using their Dockerfiles and a shared preview wrapper. It publishes the Linux amd64 images to Docker Hub and GHCR. Railway pulls the run-specific Docker Hub tags. Each tagged PR gets one Railway project. The defaults produce four Phoenix services:
 
 | Database | Target commit | PR commit |
 | --- | --- | --- |
@@ -160,7 +169,7 @@ The SQLite instances start with an empty database on each deployment. The Postgr
 
 The optional `## Preview seed` section of the PR body contains one fenced Python block. Each instance runs the same script once after it becomes healthy. The script sends data to the local `PHOENIX_BASE_URL` and prints where the reviewer should look. It can import the standard library or dependencies that ship in the server image, including `phoenix.client`, `phoenix.otel`, `opentelemetry`, and `openinference`. The image has no package installer. Phoenix preview URLs are public, so seed only synthetic data.
 
-The workflow updates one PR comment with links to the four instances, the log dashboard, and each instance's seed result. A seed failure marks the job as failed and leaves the running instances available for comparison. Pushes and PR body edits refresh the same project. Closing the PR or removing the label deletes the owned Railway project, including its volumes. Image tags remain in the registries.
+The workflow updates one PR comment with the selected settings, instance links, the log dashboard, and each instance's seed result. A seed failure marks the job as failed and leaves the running instances available for comparison. Pushes and PR body edits refresh the same project. Closing the PR or removing the label deletes the owned Railway project, including its volumes. Image tags remain in the registries.
 
 The workflow runs on `pull_request_target`. The base branch supplies the scripts, build actions, preview wrapper, and Railway TypeScript configuration. PR code runs inside the image build and the disposable preview services. Workspace credentials stay on the deploy and cleanup runners.
 

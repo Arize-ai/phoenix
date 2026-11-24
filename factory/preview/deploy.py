@@ -16,11 +16,13 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any, Optional
 from uuid import UUID
 
 import seed_log
 from gh import run_gh
+from settings import BASELINE_OPTIONS, DATABASE_OPTIONS, PreviewSettings, parse_settings
 
 RAILWAY_API_URL = "https://backboard.railway.com/graphql/v2"
 PREVIEW_LABEL = "factory-preview"
@@ -327,13 +329,20 @@ def wait_for_seed(deployment_id: str) -> tuple[str, str]:
     return SEED_NOT_FINISHED_LINE, ""
 
 
-def preview_wanted(pr_number: int, *, head_sha: Optional[str] = None) -> bool:
-    pr = json.loads(run_gh("pr", "view", str(pr_number), "--json", "state,labels,headRefOid"))
-    return (
-        pr["state"] == "OPEN"
-        and (head_sha is None or pr["headRefOid"] == head_sha)
-        and any(label["name"] == PREVIEW_LABEL for label in pr["labels"])
-    )
+def preview_wanted(
+    pr_number: int, *, head_sha: Optional[str] = None, settings: Optional[PreviewSettings] = None
+) -> bool:
+    pr = json.loads(run_gh("pr", "view", str(pr_number), "--json", "state,labels,headRefOid,body"))
+    if (
+        pr["state"] != "OPEN"
+        or (head_sha is not None and pr["headRefOid"] != head_sha)
+        or not any(label["name"] == PREVIEW_LABEL for label in pr["labels"])
+    ):
+        return False
+    try:
+        return settings is None or parse_settings(pr["body"] or "") == settings
+    except ValueError:
+        return False
 
 
 def find_comment(*, pr_number: int) -> Optional[str]:
@@ -385,16 +394,41 @@ def clip_for_comment(text: str) -> str:
     return clipped
 
 
-SIDES = ("base", "head")
-ENGINES = ("sqlite", "postgres")
-INSTANCE_NAMES = tuple(f"phoenix-{side}-{engine}" for side in SIDES for engine in ENGINES)
 DASHBOARD_UID = "phoenix-preview-compare"
 
 
-def apply_config(*, project: PreviewProject, grafana_password: str, mcp_caller_token: str) -> None:
+def allow_preview_removals(*, changes: list[dict[str, Any]], settings: PreviewSettings) -> bool:
+    allowed = set()
+    for revision in ("base", "head"):
+        for engine in ("sqlite", "postgres"):
+            if revision not in settings.revisions or engine not in settings.engines:
+                name = f"phoenix-{revision}-{engine}"
+                allowed.add(f"Delete service {name}")
+                if engine == "postgres":
+                    allowed.add(f"Delete database {name}-db")
+    destructive = [change for change in changes if change["severity"] == "destructive"]
+    if any(
+        change["kind"] != "resource.delete" or change["summary"] not in allowed
+        for change in destructive
+    ):
+        raise RailwayError("Railway plan would remove resources outside the disabled previews")
+    return bool(destructive)
+
+
+def apply_config(
+    *,
+    project: PreviewProject,
+    args: argparse.Namespace,
+    settings: PreviewSettings,
+    grafana_password: str,
+    mcp_caller_token: str,
+) -> bool:
     railway_cli = str(Path.cwd() / "node_modules" / ".bin" / "railway")
     env = {
         **os.environ,
+        "_": railway_cli,
+        "PREVIEW_BASELINE": args.baseline,
+        "PREVIEW_DATABASE": settings.database,
         "PREVIEW_DATABASE_SCHEMA": f"preview_{int(os.environ['GITHUB_RUN_ID'])}",
         "PREVIEW_GRAFANA_PASSWORD": grafana_password,
         "PREVIEW_MCP_CALLER_TOKEN": mcp_caller_token,
@@ -404,8 +438,23 @@ def apply_config(*, project: PreviewProject, grafana_password: str, mcp_caller_t
         check=True,
         env=env,
     )
-    subprocess.run([railway_cli, "config", "plan"], check=True, env=env)
-    subprocess.run([railway_cli, "config", "apply", "--yes"], check=True, env=env)
+    with TemporaryDirectory() as directory:
+        plan_path = str(Path(directory) / "railway-plan.json")
+        plan = subprocess.run(
+            [railway_cli, "config", "plan", "--json", "--out", plan_path],
+            check=True,
+            env=env,
+            stdout=subprocess.PIPE,
+        )
+        changes = json.loads(plan.stdout)["changeSet"]["changes"]
+        can_remove = allow_preview_removals(changes=changes, settings=settings)
+        if not preview_wanted(args.pr, head_sha=args.head_sha, settings=settings):
+            return False
+        command = [railway_cli, "config", "apply", "--plan", plan_path, "--yes"]
+        if can_remove:
+            command.append("--confirm-destructive")
+        subprocess.run(command, check=True, env=env)
+    return True
 
 
 def grafana_request(
@@ -421,7 +470,9 @@ def grafana_request(
         return dict(json.load(response))
 
 
-def configure_grafana(*, domain: str, password: str, needs_mcp_token: bool) -> Optional[str]:
+def configure_grafana(
+    *, domain: str, password: str, needs_mcp_token: bool, settings: PreviewSettings
+) -> Optional[str]:
     for attempt in range(60):
         try:
             grafana_request(domain=domain, password=password, path="/api/user")
@@ -433,10 +484,15 @@ def configure_grafana(*, domain: str, password: str, needs_mcp_token: bool) -> O
 
     panels = [
         {
-            "id": index + 1,
+            "id": revision_index * len(settings.engines) + engine_index + 1,
             "title": name,
             "type": "logs",
-            "gridPos": {"h": 14, "w": 12, "x": index // 2 * 12, "y": index % 2 * 14},
+            "gridPos": {
+                "h": 14,
+                "w": 24 // len(settings.revisions),
+                "x": revision_index * (24 // len(settings.revisions)),
+                "y": engine_index * 14,
+            },
             "datasource": {"type": "loki", "uid": "loki"},
             "targets": [
                 {
@@ -447,7 +503,9 @@ def configure_grafana(*, domain: str, password: str, needs_mcp_token: bool) -> O
                 }
             ],
         }
-        for index, name in enumerate(INSTANCE_NAMES)
+        for revision_index, revision in enumerate(settings.revisions)
+        for engine_index, engine in enumerate(settings.engines)
+        for name in (f"phoenix-{revision}-{engine}",)
     ]
     grafana_request(
         domain=domain,
@@ -531,25 +589,37 @@ def format_comment(
     *,
     args: argparse.Namespace,
     results: list[PreviewResult],
+    settings: PreviewSettings,
     project: PreviewProject,
     grafana: str,
     mcp: str,
 ) -> str:
+    title = f"### Preview of {args.head_sha[:7]}"
+    if settings.include_baseline:
+        title += f" against {args.base_sha[:7]}"
+    columns = (
+        ["Database", "Target commit", "PR commit"]
+        if settings.include_baseline
+        else ["Database", "PR commit"]
+    )
+    baseline = "on" if settings.include_baseline else "off"
     lines = [
-        f"### Preview of {args.head_sha[:7]} against {args.base_sha[:7]}",
+        title,
         "",
         f"[Railway project](https://railway.com/project/{project.id}) · "
         f"[Compare logs](https://{grafana}/d/{DASHBOARD_UID}/phoenix-preview-logs) · "
         f"[Grafana MCP](https://{mcp}/mcp) · [Workflow run]({args.run_url})",
         "",
-        f"Seed: {args.seed}.",
+        f"Baseline: {baseline}. Database: {settings.database}. Seed: {args.seed}.",
         "",
-        "| Database | Target commit | PR commit |",
-        "| --- | --- | --- |",
+        f"| {' | '.join(columns)} |",
+        "| " + " | ".join("---" for _ in columns) + " |",
     ]
-    for index, engine in enumerate(ENGINES):
+    by_name = {result.name: result for result in results}
+    for engine in settings.engines:
         cells = []
-        for result in (results[index], results[index + len(ENGINES)]):
+        for revision in settings.revisions:
+            result = by_name[f"phoenix-{revision}-{engine}"]
             outcome = result.seed_outcome.removeprefix("preview: ")
             cells.append(f"[Open]({result.url}) · {result.status.lower()}, {outcome}")
         lines.append(f"| {engine} | {' | '.join(cells)} |")
@@ -571,7 +641,8 @@ def format_comment(
 
 
 def run_deploy(args: argparse.Namespace) -> int:
-    if not preview_wanted(args.pr, head_sha=args.head_sha):
+    settings = PreviewSettings(include_baseline=args.baseline == "on", database=args.database)
+    if not preview_wanted(args.pr, head_sha=args.head_sha, settings=settings):
         return 0
     project = find_project(args.pr) or create_project(args.pr)
     services = list_services(project)
@@ -587,17 +658,26 @@ def run_deploy(args: argparse.Namespace) -> int:
     )
     password = grafana_vars.get("GF_SECURITY_ADMIN_PASSWORD") or secrets.token_urlsafe(32)
     mcp_caller_token = mcp_vars.get("MCP_GRAFANA_SERVER_TOKEN") or secrets.token_urlsafe(32)
-    if not preview_wanted(args.pr, head_sha=args.head_sha):
+    if not apply_config(
+        project=project,
+        args=args,
+        settings=settings,
+        grafana_password=password,
+        mcp_caller_token=mcp_caller_token,
+    ):
         return 0
-    apply_config(project=project, grafana_password=password, mcp_caller_token=mcp_caller_token)
     services = list_services(project)
-    images = [os.environ[f"PREVIEW_{side.upper()}_IMAGE"] for side in SIDES for _ in ENGINES]
-    with ThreadPoolExecutor(max_workers=len(INSTANCE_NAMES)) as executor:
+    selected = {
+        f"phoenix-{revision}-{engine}": os.environ[f"PREVIEW_{revision.upper()}_IMAGE"]
+        for revision in settings.revisions
+        for engine in settings.engines
+    }
+    with ThreadPoolExecutor(max_workers=len(selected)) as executor:
         futures = [
             executor.submit(
                 read_result, project=project, service_id=services[name], name=name, image=image
             )
-            for name, image in zip(INSTANCE_NAMES, images, strict=True)
+            for name, image in selected.items()
         ]
         grafana = ensure_domain(
             project_id=project.id,
@@ -615,14 +695,20 @@ def run_deploy(args: argparse.Namespace) -> int:
             domain=grafana,
             password=password,
             needs_mcp_token=not mcp_vars.get("GRAFANA_SERVICE_ACCOUNT_TOKEN"),
+            settings=settings,
         ):
             set_mcp_token(project=project, service_id=services["grafana-mcp"], token=token)
         results = [future.result() for future in futures]
-    if preview_wanted(args.pr, head_sha=args.head_sha):
+    if preview_wanted(args.pr, head_sha=args.head_sha, settings=settings):
         upsert_comment(
             pr_number=args.pr,
             body=format_comment(
-                args=args, results=results, project=project, grafana=grafana, mcp=mcp
+                args=args,
+                results=results,
+                settings=settings,
+                project=project,
+                grafana=grafana,
+                mcp=mcp,
             ),
         )
     return 0 if all(result.succeeded for result in results) else 1
@@ -650,6 +736,8 @@ def main() -> int:
     deploy_parser.add_argument("--head-sha", required=True)
     deploy_parser.add_argument("--seed", required=True)
     deploy_parser.add_argument("--run-url", required=True)
+    deploy_parser.add_argument("--baseline", choices=BASELINE_OPTIONS, default="on")
+    deploy_parser.add_argument("--database", choices=DATABASE_OPTIONS, default="both")
     deploy_parser.set_defaults(run=run_deploy)
     cleanup_parser = subparsers.add_parser("cleanup")
     cleanup_parser.add_argument("--pr", type=int, required=True)

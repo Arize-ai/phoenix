@@ -8,18 +8,37 @@ import {
   volume,
 } from "railway/iac";
 
-const sides = ["base", "head"] as const;
+const baseline = process.env.PREVIEW_BASELINE ?? "on";
+const database = process.env.PREVIEW_DATABASE ?? "both";
+if (baseline !== "on" && baseline !== "off") {
+  throw new Error("PREVIEW_BASELINE must be on or off");
+}
+if (database !== "sqlite" && database !== "postgres" && database !== "both") {
+  throw new Error("PREVIEW_DATABASE must be sqlite, postgres, or both");
+}
+
+const revisions = ["base", "head"] as const;
 const engines = ["sqlite", "postgres"] as const;
-const instances = sides.flatMap((side, sideIndex) =>
-  engines.map((engine, engineIndex) => ({
-    name: `phoenix-${side}-${engine}`,
-    engine,
-    imageRef:
-      side === "base"
-        ? process.env.PREVIEW_BASE_IMAGE
-        : process.env.PREVIEW_HEAD_IMAGE,
-    receiverPort: 4318 + sideIndex * engines.length + engineIndex,
-  }))
+const instances = revisions.flatMap((revision, revisionIndex) =>
+  engines.flatMap((engine, engineIndex) => {
+    if (
+      (revision === "base" && baseline === "off") ||
+      (database !== "both" && engine !== database)
+    ) {
+      return [];
+    }
+    return [
+      {
+        name: `phoenix-${revision}-${engine}`,
+        engine,
+        imageRef:
+          revision === "base"
+            ? process.env.PREVIEW_BASE_IMAGE
+            : process.env.PREVIEW_HEAD_IMAGE,
+        receiverPort: 4318 + revisionIndex * engines.length + engineIndex,
+      },
+    ];
+  })
 );
 
 const databaseSchema = process.env.PREVIEW_DATABASE_SCHEMA;
