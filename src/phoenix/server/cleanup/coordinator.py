@@ -287,8 +287,9 @@ class CleanupCoordinator:
                     session,
                     target=target,
                 )
-                if step_result.status is PrimitiveStatus.PROGRESS:
+                if step_result.status is not PrimitiveStatus.YIELD:
                     await self._delete_failure(session, kind=target.kind, target_id=target.id)
+                if step_result.status is PrimitiveStatus.PROGRESS:
                     outcome = StepExecutionResult("progress", step_result.affected_rows)
                 elif step_result.status is PrimitiveStatus.YIELD:
                     now = await current_database_time(session, dialect)
@@ -345,16 +346,7 @@ class CleanupCoordinator:
         *,
         project_id: int,
     ) -> PrimitiveResult:
-        # Recheck fixed ordering invariants before draining/finalizing.
         dialect = SupportedSQLDialect(session.get_bind().dialect.name)
-        has_bindings = bool(
-            await session.scalar(
-                select(exists().where(models.ProjectEvaluator.project_id == project_id))
-            )
-        )
-        if has_bindings:
-            return PrimitiveResult(PrimitiveStatus.YIELD, 0)
-
         annotation_config_res = await drain_project_annotation_config_links_step(
             session,
             project_id=project_id,
@@ -391,7 +383,6 @@ class CleanupCoordinator:
         if residual:
             return PrimitiveResult(PrimitiveStatus.YIELD, 0)
 
-        await self._delete_failure(session, kind="PROJECT", target_id=project_id)
         # The row delete cascades through its sessions, including any session that another
         # project's traces share (#18218).
         await session.execute(delete(models.Project).where(models.Project.id == project_id))
@@ -464,7 +455,6 @@ class CleanupCoordinator:
         if residual:
             return PrimitiveResult(PrimitiveStatus.YIELD, 0)
 
-        await self._delete_failure(session, kind="PROJECT_EVALUATOR", target_id=binding_id)
         await session.execute(
             delete(models.ProjectEvaluator).where(models.ProjectEvaluator.id == binding_id)
         )
@@ -537,7 +527,6 @@ class CleanupCoordinator:
         if residual:
             return PrimitiveResult(PrimitiveStatus.YIELD, 0)
 
-        await self._delete_failure(session, kind="DATASET_EVALUATOR", target_id=binding_id)
         await session.execute(
             delete(models.DatasetEvaluators).where(models.DatasetEvaluators.id == binding_id)
         )

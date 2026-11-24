@@ -191,6 +191,29 @@ class TestCleanupSchedulingAndBackoff:
             assert await session.get(models.Project, project_id) is None
         assert await _get_failure(db, "PROJECT", project_id) is None
 
+    async def test_a_step_that_purges_its_target_leaves_no_failure_row(
+        self, db: DbSessionFactory
+    ) -> None:
+        dialect = SupportedSQLDialect(db.dialect.value)
+        async with db() as session:
+            project = await _add_project(session, name=f"nothing-to-drain-{token_hex(4)}")
+            project_id = project.id
+            await tombstone_project(session, project_id=project_id)
+            now = await current_database_time(session, dialect)
+            session.add(
+                models.CleanupFailure(
+                    target_kind="PROJECT",
+                    target_id=project_id,
+                    failure_count=2,
+                    retry_at=now - timedelta(seconds=1),
+                )
+            )
+
+        assert (await CleanupCoordinator(db).step()).outcome == "completed"
+        async with db() as session:
+            assert await session.get(models.Project, project_id) is None
+        assert await _get_failure(db, "PROJECT", project_id) is None
+
     async def test_retry_delay_is_capped_after_many_failures(
         self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
     ) -> None:
