@@ -5,7 +5,8 @@ The tombstones (``deleted_at IS NOT NULL`` on ``projects``, ``project_evaluators
 transaction-scoped advisory lock on PostgreSQL (SQLite serializes writers), picks the oldest
 target that is not backing off, drains one bounded batch of it, and deletes the target rows
 once nothing is left. ``cleanup_failures`` holds retry state only, for targets that yielded
-or failed; it is neither a queue nor a lease.
+or failed; it is neither a queue nor a lease. Rows that carry ``deleted_at`` are hard-deleted
+only by this drain.
 """
 
 from __future__ import annotations

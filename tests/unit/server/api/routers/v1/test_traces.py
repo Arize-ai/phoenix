@@ -878,7 +878,7 @@ async def test_transfer_traces_unparseable_identifier(
 
 
 # ---------------------------------------------------------------------------
-# DELETE /v1/projects/{project_identifier}/traces guards
+# DELETE /v1/projects/{project_identifier}/traces
 # ---------------------------------------------------------------------------
 
 

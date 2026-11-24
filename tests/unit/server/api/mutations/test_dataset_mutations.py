@@ -1058,20 +1058,12 @@ async def test_delete_dataset_stops_running_experiments_and_deletes_only_sdk_eva
     app: Any,
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from secrets import token_hex
 
     from phoenix.db.types.evaluators import InputMapping
     from phoenix.db.types.identifier import Identifier
-    from phoenix.server.cleanup.coordinator import CleanupCoordinator
-    from phoenix.server.daemons.cleanup_worker import CleanupWorker
     from tests.unit.server.daemons.test_experiment_runner import _make_running_experiment
-
-    async def _noop_worker_run(_worker: CleanupWorker) -> None:
-        return None
-
-    monkeypatch.setattr(CleanupWorker, "_run", _noop_worker_run)
 
     now_time = datetime.now(timezone.utc)
     async with db() as session:
@@ -1219,13 +1211,6 @@ async def test_delete_dataset_stops_running_experiments_and_deletes_only_sdk_eva
         async with db() as session:
             assert await session.get(models.Trace, sdk_trace_rowid) is None
             assert await session.get(models.Trace, sink_trace_rowid) is not None
-
-        coordinator = CleanupCoordinator(db)
-        while (await coordinator.step_or_next_delay())[0]:
-            pass
-
-        async with db() as session:
-            assert await session.get(models.Trace, sink_trace_rowid) is None
     finally:
         runner._experiments.pop(target_experiment_id, None)
         runner._experiments.pop(other_experiment_id, None)

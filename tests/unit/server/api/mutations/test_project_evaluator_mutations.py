@@ -827,7 +827,7 @@ async def test_delete_last_binding_with_associated_prompt_deletes_it_without_err
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
 ) -> None:
-    """delete_unused_prompt_or_decision=true removes the prompt too; the tag and label cleanup that
+    """delete_associated_prompt=true removes the prompt too; the tag and label cleanup that
     runs afterward is a no-op on the now-missing prompt rather than an error."""
     project = await _add_project(db)
     create_result = await gql_client.execute(

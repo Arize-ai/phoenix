@@ -1412,8 +1412,7 @@ async def playground_project_with_an_experiment(
     db: DbSessionFactory,
 ) -> None:
     async with db() as session:
-        playground_project = models.Project(name=PLAYGROUND_PROJECT_NAME)
-        session.add(playground_project)
+        session.add(models.Project(name=PLAYGROUND_PROJECT_NAME))
         dataset = models.Dataset(name="playground-dataset-name", metadata_={})
         session.add(dataset)
         await session.flush()

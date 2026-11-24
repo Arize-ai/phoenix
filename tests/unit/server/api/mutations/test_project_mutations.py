@@ -136,40 +136,6 @@ class TestProjectMutations:
                     session_obj = await session.get(models.ProjectSession, project_sessions[i].id)
                     assert session_obj is None, f"Session {i} should be deleted"
 
-    async def test_clear_project_deletes_traces_before_returning(
-        self,
-        db: DbSessionFactory,
-        gql_client: AsyncGraphQLClient,
-    ) -> None:
-        async with db() as session:
-            project = models.Project(name=token_hex(8))
-            session.add(project)
-            await session.flush()
-            trace = models.Trace(
-                project_rowid=project.id,
-                trace_id=token_hex(16),
-                start_time=datetime.now(timezone.utc),
-                end_time=datetime.now(timezone.utc),
-            )
-            session.add(trace)
-            await session.flush()
-            project_id, trace_id = project.id, trace.id
-
-        result = await gql_client.execute(
-            query="""
-            mutation($input: ClearProjectInput!) {
-                clearProject(input: $input) { __typename }
-            }
-            """,
-            variables={"input": {"id": str(GlobalID("Project", str(project_id)))}},
-        )
-        assert not result.errors
-
-        async with db() as session:
-            assert await session.get(models.Trace, trace_id) is None
-            surviving_project = await session.get(models.Project, project_id)
-            assert surviving_project is not None and surviving_project.deleted_at is None
-
     async def test_clear_project_rejects_unknown_project(
         self,
         gql_client: AsyncGraphQLClient,

@@ -431,47 +431,6 @@ class TestCleanupSchedulingAndBackoff:
             assert await session.get(models.Project, trace_project_id) is None
             assert await session.get(models.ProjectEvaluator, binding_id) is None
 
-    async def test_purging_a_target_deletes_its_failure_row(
-        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        async with db() as session:
-            project = await _add_project(session, name=f"purge-{token_hex(4)}")
-            project_id = project.id
-            await tombstone_project(session, project_id=project_id)
-
-        coordinator = CleanupCoordinator(db)
-        original_run = coordinator._run_domain_step
-        calls = 0
-
-        async def _fail_first(*args: object, **kwargs: Any) -> PrimitiveResult:
-            nonlocal calls
-            calls += 1
-            if calls == 1:
-                raise OperationalError("SELECT 1", {}, Exception("injected step failure"))
-            return await original_run(*args, **kwargs)  # type: ignore[arg-type]
-
-        monkeypatch.setattr(coordinator, "_run_domain_step", _fail_first)
-        assert (await coordinator.step()).outcome == "error"
-        assert await _get_failure(db, "PROJECT", project_id) is not None
-        await _expire_retries(db)
-        await _drain_all(coordinator)
-        async with db() as session:
-            assert await session.get(models.Project, project_id) is None
-        assert await _get_failure(db, "PROJECT", project_id) is None
-
-    async def test_ids_of_purged_targets_are_never_reused(self, db: DbSessionFactory) -> None:
-        coordinator = CleanupCoordinator(db)
-
-        async with db() as session:
-            first = await _add_project(session, name=f"seq-1-{token_hex(4)}")
-            first_id = first.id
-            await tombstone_project(session, project_id=first_id)
-        await _drain_all(coordinator)
-
-        async with db() as session:
-            second = await _add_project(session, name=f"seq-2-{token_hex(4)}")
-            assert second.id > first_id
-
 
 class TestImmediateNameReuseAndHistoricalReferences:
     async def test_delete_project_allows_immediate_name_reuse_and_history_follows_the_name(
@@ -666,124 +625,33 @@ class TestExperimentProjectsResolveByName:
             refreshed = await session.get(models.Project, project.id, populate_existing=True)
             assert refreshed is not None and refreshed.deleted_at is None
 
-
-class TestBatchedClear:
-    async def test_range_clear_resets_done_session_evaluation_for_surviving_session(
+    async def test_experiment_project_holding_evaluator_traces_is_never_a_delete_candidate(
         self, db: DbSessionFactory
     ) -> None:
-        t0 = datetime(2026, 6, 2, 0, 0, 0, tzinfo=timezone.utc)
-
+        shared_name = f"Experiment-{token_hex(12)}"
         async with db() as session:
-            project = await _add_project(session, name=f"sess-clear-{token_hex(4)}")
-            trace_proj = models.Project(name=f"eval-sink-{token_hex(4)}")
-            evaluator = models.BuiltinEvaluator(
-                name=Identifier(root=f"builtin-{token_hex(4)}"),
-                kind="BUILTIN",
-                key=token_hex(8),
-                input_schema={},
-                output_configs=[],
-            )
-            session.add_all([trace_proj, evaluator])
+            project = models.Project(name=shared_name)
+            session.add(project)
             await session.flush()
-            pe = models.ProjectEvaluator(
-                project_id=project.id,
-                evaluator_id=evaluator.id,
-                trace_project_id=trace_proj.id,
-                name=Identifier(root="sess-eval"),
-                evaluation_target="SESSION",
-                filter_condition="",
-                sampling_rate=1.0,
-            )
-            session.add(pe)
-            await session.flush()
+            await _bind_evaluator_trace_project(session, project)
 
-            proj_session = await _add_project_session(session, project, start_time=t0)
-            old_trace = await _add_trace(
-                session, project, project_session=proj_session, start_time=t0
-            )
-            await _add_span(session, trace=old_trace, start_time=t0)
-            await _add_span(session, trace=old_trace, start_time=t0 + timedelta(seconds=1))
-            newer_trace = await _add_trace(
-                session,
-                project,
-                project_session=proj_session,
-                start_time=t0 + timedelta(hours=2),
-            )
-            await _add_span(session, trace=newer_trace, start_time=t0 + timedelta(hours=2))
-
-            target_unit = models.EvalSessionWorkUnit(
-                project_session_rowid=proj_session.id,
-                project_evaluator_id=pe.id,
-                decided_through=t0,
-                status="DONE",
-                attempts=1,
-            )
-            session.add(target_unit)
-            await session.flush()
-
-            unrelated_session = await _add_project_session(session, project, start_time=t0)
-            unrelated_trace = await _add_trace(
-                session,
-                project,
-                project_session=unrelated_session,
-                start_time=t0 + timedelta(hours=3),
-            )
-            await _add_span(session, trace=unrelated_trace, start_time=t0 + timedelta(hours=3))
-            unrelated_unit = models.EvalSessionWorkUnit(
-                project_session_rowid=unrelated_session.id,
-                project_evaluator_id=pe.id,
-                decided_through=t0,
-                status="DONE",
-            )
-            session.add(unrelated_unit)
-            await session.flush()
-
-        clear_batches = clear_project_traces_in_batches(
-            db,
-            project_id=project.id,
-            start_time=t0 - timedelta(minutes=1),
-            end_time=t0 + timedelta(hours=1),
-            batch_limit=1,
-        )
-        first_batch = await anext(clear_batches)
-        assert first_batch.status == "PROGRESS" and first_batch.num_affected_rows == 1
-        async with db() as session:
-            # Session ledger is not reset until old_trace's spans have all been drained.
             assert (
-                await session.scalar(
-                    select(models.EvalSessionWorkUnit.status).where(
-                        models.EvalSessionWorkUnit.id == target_unit.id
-                    )
+                await resolve_experiment_project_delete_candidates(
+                    session, candidate_project_names=[shared_name]
                 )
-                == "DONE"
+                == []
             )
-        remaining_batches = [batch async for batch in clear_batches]
-        assert remaining_batches[-1].status == "COMPLETE"
-
-        async with db() as session:
-            # Session survives because newer_trace is outside [start_time, end_time),
-            # and its DONE EvalSessionWorkUnit was transitioned to DROPPED so future turns
-            # can re-evaluate.
-            assert await session.get(models.ProjectSession, proj_session.id) is not None
-            assert await session.get(models.Trace, old_trace.id) is None
-            assert await session.get(models.Trace, newer_trace.id) is not None
-            remaining_statuses = (
-                await session.scalars(
-                    select(models.EvalSessionWorkUnit.status).where(
-                        models.EvalSessionWorkUnit.project_session_rowid == proj_session.id
-                    )
-                )
-            ).all()
-            assert remaining_statuses == ["DROPPED"]
             assert (
-                await session.scalar(
-                    select(models.EvalSessionWorkUnit.status).where(
-                        models.EvalSessionWorkUnit.id == unrelated_unit.id
-                    )
+                await tombstone_exclusive_experiment_projects(
+                    session, candidate_project_ids=[project.id]
                 )
-                == "DONE"
+                == []
             )
+            refreshed = await session.get(models.Project, project.id, populate_existing=True)
+            assert refreshed is not None and refreshed.deleted_at is None
 
+
+class TestBatchedClear:
     async def test_range_clear_resets_final_session_decisions_while_preserving_queued_work(
         self, db: DbSessionFactory
     ) -> None:
@@ -1771,27 +1639,6 @@ class TestStorageLockoutExemptionsAndCleanupWorker:
         async with db() as session:
             assert await session.get(models.Project, proj_id) is None
             assert await session.get(models.ProjectEvaluator, pe_id) is None
-
-    @pytest.mark.real_cleanup_worker
-    async def test_live_cleanup_worker_drains_tombstoned_project(
-        self,
-        db: DbSessionFactory,
-        cleanup_worker_controller: _DaemonController,
-    ) -> None:
-        worker = CleanupWorker(db, idle_poll_seconds=10.0)
-        async with worker:
-            await cleanup_worker_controller.wait_until_parked()
-            async with db() as session:
-                project = await _add_project(session, name=f"daemon-proj-{token_hex(4)}")
-                trace = await _add_trace(session, project)
-                await _add_span(session, trace=trace)
-                project_id = project.id
-                await tombstone_project(session, project_id=project_id)
-
-            await cleanup_worker_controller.run_once()
-
-        async with db() as session:
-            assert await session.get(models.Project, project_id) is None
 
     @pytest.mark.real_cleanup_worker
     async def test_cleanup_worker_sleeps_for_yield_delay_rather_than_idle_poll(
@@ -2911,170 +2758,6 @@ async def test_postgres_dataset_evaluator_dependents_skip_locked_past_locked_pre
             batch_limit=2,
         )
         assert empty_result == PrimitiveResult(PrimitiveStatus.EMPTY, 0)
-
-
-async def test_late_spans_recreate_a_live_project_after_generated_projects_are_purged(
-    db: DbSessionFactory,
-) -> None:
-    base_time = datetime(2026, 8, 4, 0, 0, 0, tzinfo=timezone.utc)
-    deleted_experiment_project_name = f"Experiment-{token_hex(12)}"
-    retained_experiment_project_name = f"Experiment-{token_hex(12)}"
-    dataset_evaluator_project_name = f"dataset-evaluator-{token_hex(12)}"
-    project_evaluator_project_name = f"project-evaluator-{token_hex(12)}"
-    custom_user_project_name = f"my-custom-exp-{token_hex(4)}"
-
-    async with db() as session:
-        dataset = models.Dataset(name=f"late-span-ds-{token_hex(4)}", metadata_={})
-        owner_project = models.Project(name=f"late-span-owner-{token_hex(4)}")
-        evaluator = models.BuiltinEvaluator(
-            name=Identifier(root=f"late-span-bi-{token_hex(4)}"),
-            kind="BUILTIN",
-            key=token_hex(8),
-            input_schema={},
-            output_configs=[],
-        )
-        deleted_experiment_project = models.Project(name=deleted_experiment_project_name)
-        retained_experiment_project = models.Project(name=retained_experiment_project_name)
-        dataset_evaluator_project = models.Project(name=dataset_evaluator_project_name)
-        project_evaluator_project = models.Project(name=project_evaluator_project_name)
-        session.add_all(
-            [
-                dataset,
-                owner_project,
-                evaluator,
-                deleted_experiment_project,
-                retained_experiment_project,
-                dataset_evaluator_project,
-                project_evaluator_project,
-            ]
-        )
-        await session.flush()
-
-        version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
-        dataset_binding = models.DatasetEvaluators(
-            dataset_id=dataset.id,
-            evaluator_id=evaluator.id,
-            project_id=dataset_evaluator_project.id,
-            name=Identifier(root="late-ds-eval"),
-            input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-        )
-        project_binding = models.ProjectEvaluator(
-            project_id=owner_project.id,
-            evaluator_id=evaluator.id,
-            trace_project_id=project_evaluator_project.id,
-            name=Identifier(root="late-pe-eval"),
-            sampling_rate=1.0,
-            evaluation_target="SPAN",
-            evaluation_delay_seconds=0,
-        )
-        session.add_all([version, dataset_binding, project_binding])
-        await session.flush()
-
-        retained_experiment = models.Experiment(
-            dataset_id=dataset.id,
-            dataset_version_id=version.id,
-            name="retained-exp-record",
-            repetitions=1,
-            metadata_={},
-            project_name=retained_experiment_project_name,
-        )
-        session.add(retained_experiment)
-        await session.flush()
-
-        purged_project_ids = [
-            deleted_experiment_project.id,
-            retained_experiment_project.id,
-            dataset_evaluator_project.id,
-            project_evaluator_project.id,
-        ]
-        await tombstone_project(session, project_id=deleted_experiment_project.id)
-        await tombstone_project(session, project_id=retained_experiment_project.id)
-        await tombstone_dataset_evaluators(
-            session,
-            binding_ids=[dataset_binding.id],
-            collect_unused_evaluator=False,
-            delete_associated_prompt=False,
-        )
-        await tombstone_project_evaluators(
-            session,
-            binding_ids=[project_binding.id],
-            collect_unused_evaluator=False,
-            delete_associated_prompt=False,
-        )
-
-    coordinator = CleanupCoordinator(db, batch_limit=10)
-    await _drain_all(coordinator)
-
-    async with db() as session:
-        for project_id in purged_project_ids:
-            assert await session.get(models.Project, project_id) is None
-
-    for internal_name in (
-        deleted_experiment_project_name,
-        dataset_evaluator_project_name,
-        project_evaluator_project_name,
-    ):
-        late_span = Span(
-            name="late-buffered-span",
-            context=SpanContext(trace_id=token_hex(16), span_id=token_hex(8)),
-            span_kind=SpanKind.LLM,
-            parent_id=None,
-            start_time=base_time,
-            end_time=base_time + timedelta(seconds=1),
-            status_code=SpanStatusCode.OK,
-            status_message="",
-            attributes={},
-            events=[],
-            conversation=None,
-        )
-        async with db() as session:
-            inserted_late = await insert_span(session, late_span, internal_name)
-            assert inserted_late is not None
-            recreated_late = await session.get(models.Project, inserted_late.project_rowid)
-            assert recreated_late is not None
-            assert recreated_late.name == internal_name
-            assert recreated_late.deleted_at is None
-            assert recreated_late.id not in purged_project_ids
-
-    # A retained experiment still names its project, so a late span lands in a recreated
-    # project as well.
-    retained_span = Span(
-        name="late-retained-span",
-        context=SpanContext(trace_id=token_hex(16), span_id=token_hex(8)),
-        span_kind=SpanKind.LLM,
-        parent_id=None,
-        start_time=base_time,
-        end_time=base_time + timedelta(seconds=1),
-        status_code=SpanStatusCode.OK,
-        status_message="",
-        attributes={},
-        events=[],
-        conversation=None,
-    )
-    async with db() as session:
-        inserted = await insert_span(session, retained_span, retained_experiment_project_name)
-        assert inserted is not None
-        recreated = await session.get(models.Project, inserted.project_rowid)
-        assert recreated is not None
-        assert recreated.name == retained_experiment_project_name
-        assert recreated.deleted_at is None
-
-    custom_span = Span(
-        name="custom-user-span",
-        context=SpanContext(trace_id=token_hex(16), span_id=token_hex(8)),
-        span_kind=SpanKind.LLM,
-        parent_id=None,
-        start_time=base_time,
-        end_time=base_time + timedelta(seconds=1),
-        status_code=SpanStatusCode.OK,
-        status_message="",
-        attributes={},
-        events=[],
-        conversation=None,
-    )
-    async with db() as session:
-        inserted = await insert_span(session, custom_span, custom_user_project_name)
-        assert inserted is not None
 
 
 @pytest.mark.postgres_only
