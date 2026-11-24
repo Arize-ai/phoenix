@@ -77,10 +77,11 @@ See [Configuring the decision model](https://arize.com/docs/phoenix/evaluation/h
 ### Model options
 
 `LLM` passes extra keyword arguments to the provider client's constructor, so a bad
-keyword fails when you construct `LLM`. Reasoning models, such as OpenAI's o-series
-and gpt-5 families, reject a non-default `temperature`, so don't pass one to them. When
-the user names a judge model, use exactly that model. Use `sync_client_kwargs=` and
-`async_client_kwargs=` for client options such as `base_url`.
+keyword fails when you construct `LLM`. Invocation parameters vary by provider and
+model. Some reasoning models reject `temperature`, so omit it unless the provider
+supports it. When the user names a judge model, use exactly that model. Use
+`sync_client_kwargs=` and `async_client_kwargs=` for client options such as
+`base_url`.
 
 ## TypeScript
 
@@ -92,6 +93,7 @@ npm install @arizeai/phoenix-client   # to read from or annotate a Phoenix proje
 - `@arizeai/phoenix-evals` 2.x requires Node.js 22.12 or later and AI SDK v7. It
   depends on `ai` directly, so you install only a provider package, and the provider
   must support AI SDK v7 (for example, `@ai-sdk/openai` 4.x or `@ai-sdk/anthropic`).
+- `@arizeai/phoenix-client` 8.x requires Node.js 22.15 or later.
 - Type-checking `@arizeai/phoenix-client` requires TypeScript 5.3 or later.
 
 ### Connect to Phoenix

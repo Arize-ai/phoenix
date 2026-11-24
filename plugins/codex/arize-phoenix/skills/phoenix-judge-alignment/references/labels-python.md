@@ -28,6 +28,7 @@ Keep one current human label per record:
 ```python
 import pandas as pd
 
+HUMAN_VERDICT_LABELS = {"pass", "fail"}
 human = annotations_df[annotations_df["annotator_kind"] == "HUMAN"].copy()
 human["updated_at"] = pd.to_datetime(human["updated_at"])
 latest = (
@@ -36,8 +37,11 @@ latest = (
     .drop_duplicates(subset=["span_id", "annotation_name"], keep="last")
     .set_index("span_id")
 )
-labeled = latest[latest["result.label"].notna()]
+labeled = latest[latest["result.label"].isin(HUMAN_VERDICT_LABELS)]
 ```
+
+Set `HUMAN_VERDICT_LABELS` to the settled verdicts in the annotation config. Leave
+labels such as `unsure` or `skip` out of the set.
 
 - **Only human labels.** The same annotation name can also hold `LLM` or `CODE`
   results, including the judge you're testing. Filter on `annotator_kind`.

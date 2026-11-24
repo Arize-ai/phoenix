@@ -32,10 +32,10 @@ Edge cases:
 - The itinerary meets one constraint by silently dropping part of the request: "violates".
 ```
 
-Don't add few-shot examples of scored records to the prompt. They pull the judge
-toward the surface features of those records, and when they also appear in the data
-you measure the judge on, they inflate its agreement. Put what an example was meant to
-teach into a definition or an edge-case rule.
+Avoid adding few-shot examples of scored records to the prompt. They tend to pull
+the judge toward the surface features of those records, and when they also appear in
+the data you measure the judge on, they inflate its agreement. Put what an example
+was meant to teach into a definition or an edge-case rule.
 
 ## Rules
 
@@ -43,7 +43,8 @@ teach into a definition or an edge-case rule.
   (`positive`/`neutral`/`negative`, or `correct`/`partially_correct`/`incorrect`) both
   work, as long as each label has a sharp definition. Named labels agree with people
   more often than a numeric scale, so avoid a 1 to 5 scale unless the user needs one.
-  To judge a quality with several parts, write one judge per part.
+  Separate qualities into their own judges when you need an interpretable score for
+  each one. A combined judge can make sense when the qualities share one decision.
 - **Every label the template names must be in `choices`.** The evaluator forces the
   model to pick from `choices`, so a label such as `cannot_evaluate` that appears only
   in the prompt can never come back. Add it to `choices` or remove it from the prompt.
@@ -57,28 +58,29 @@ teach into a definition or an edge-case rule.
   the judge gets records wrong, find the general rule the prompt was missing and add
   that. Don't add a rule that names one record's details, because it fixes that record
   and nothing else.
-- **Keep explanations on** while you build the judge. Reading why it disagreed with a
-  person is how you fix the rubric.
+- **Keep explanations on while they help.** Explanations are useful while you inspect
+  disagreements and revise the rubric. You can turn them off when cost or latency
+  matters more and the judge is already stable.
 
 ## Choose the judge model
 
-Use the smallest, cheapest model whose accuracy you can accept.
+Choose a model by measuring accuracy, cost, and latency on the same labeled records.
 
-1. Run the judge on a labeled set with a frontier model and with one or more cheaper
-   models.
-2. Improve the prompt for the cheaper models as far as it goes.
+1. Run the judge with the models that fit the deployment constraints. A stronger
+   model can provide a useful comparison point during evaluator alignment.
+2. Tune the prompt on the development records for the models you might deploy.
 3. Compare cost against accuracy, such as F1 or recall and precision on the failure
    label, and pick the model you'll run at scale.
 
-A decision model (`DecisionModel` in Python, `decisionModel()` in the AI SDK) is a
-good first pass for most evals, and for any eval where cost, scale, or latency matter
-more than explanations. It returns label probabilities, so you can send the records
-it's least sure about to an LLM judge with explanations for review. Don't use a
-decision model for checks that need arithmetic or multi-step reasoning.
+A decision model (`DecisionModel` in Python, `decisionModel()` in the AI SDK) is
+worth testing for high-volume classification when you don't need explanations. It
+returns label probabilities, so you can send low-confidence records to an LLM judge
+or a reviewer. Compare it with an LLM judge on tasks that need arithmetic or several
+reasoning steps.
 
-The judge needs its own prompt, and the app's output never defines the reference.
-Using a different model from the app is optional, and it can reduce shared blind
-spots.
+The judge needs its own prompt. The app's output is what the judge scores, not
+evidence that the output is correct. Use a separate reference when the rubric needs
+one. A different model from the app is optional and can reduce shared blind spots.
 
 ## Learn from the built-in prompts
 

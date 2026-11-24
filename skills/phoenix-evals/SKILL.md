@@ -2,7 +2,7 @@
 name: phoenix-evals
 description: Write and run evaluators with the Phoenix evals library (arize-phoenix-evals in Python, @arizeai/phoenix-evals in TypeScript), including code checks, LLM-as-a-judge and decision-model classifiers, and pre-built metrics such as faithfulness and retrieval relevance. Use when the user wants to score LLM or agent output, such as traces, spans, sessions, retrieved documents, or a dataframe of records, log the scores to Phoenix as annotations, write or fix a judge prompt, or find out why eval numbers look wrong. Also use for code that calls llm_classify, run_evals, or OpenAIModel.
 license: Apache-2.0
-compatibility: Python needs arize-phoenix-evals and the SDK for your model provider. TypeScript needs @arizeai/phoenix-evals, Node.js 22.12 or later, and an AI SDK v7 provider. Reading or annotating data in Phoenix also needs a Phoenix server and arize-phoenix-client or @arizeai/phoenix-client.
+compatibility: Python needs arize-phoenix-evals and the SDK for your model provider. TypeScript needs @arizeai/phoenix-evals, Node.js 22.12 or later, and an AI SDK v7 provider. Reading or annotating data in Phoenix also needs a Phoenix server and arize-phoenix-client or @arizeai/phoenix-client; the current TypeScript client needs Node.js 22.15 or later.
 metadata:
   targets: "agents mcp"
   author: oss@arize.com
@@ -33,16 +33,18 @@ Other Phoenix skills cover the neighboring jobs:
 
 ### Write an evaluator
 
-1. **Name one failure per evaluator.** "Cites a source that's in the retrieved
-   documents" is checkable, and "good answer" isn't. If you don't know the failures
-   yet, start with error analysis.
+1. **Prefer one failure per evaluator.** "Cites a source that's in the retrieved
+   documents" is checkable, and "good answer" isn't. A multi-score evaluator can
+   make sense when its scores share inputs or computation. If you don't know the
+   failures yet, start with error analysis.
 2. **Use code when code can decide.** Format, JSON validity, a required field, a
    regex, an exact or set match against a reference, a tool that must or must not be
-   called, or a number within tolerance. Code is free, fast, and deterministic.
+   called, or a number within tolerance. Code is usually cheaper, faster, and more
+   reproducible than a model call.
 3. **Use a model for judgment calls,** such as groundedness, relevance, tone, or
    whether a reply followed a spec. An LLM judge returns a label and an explanation. A
-   decision model returns a label and its probability, with no explanation, and costs
-   much less. Either one picks from named labels: two (`pass`/`fail`) or several
+   decision model returns a label and its probability, with no explanation, and can
+   cost less. Either one picks from named labels: two (`pass`/`fail`) or several
    (`positive`/`neutral`/`negative`). Prefer labels with a meaning over a numeric
    scale.
 4. **Start from a pre-built evaluator** when one is close to the failure you care
@@ -92,8 +94,10 @@ matter most when you write evaluators.
 
 ## Rules
 
-- **Keep one name per evaluator.** People find results in Phoenix by annotation name,
-  so reuse the same name on every rerun.
+- **Keep names stable while the meaning stays stable.** People find results in
+  Phoenix by annotation name. Reuse a name for reruns of the same check. If the
+  check's meaning changes, use a new name or record an evaluator version in metadata
+  and rescore the records you compare.
 - **Check the direction.** A higher score means better unless the evaluator sets
   `direction="minimize"`. Read it before you average or threshold scores.
 - **Print what the judge sees.** Render one input before you run a batch. A judge that

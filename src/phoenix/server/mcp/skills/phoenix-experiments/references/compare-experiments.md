@@ -7,9 +7,11 @@ themselves?
 ## Before you compare
 
 - **Same dataset version and split.** Check `dataset_id` and `dataset_version_id` on
-  both experiments. Different examples make the comparison meaningless.
-- **Same evaluators.** Compare only evaluator names both experiments have. A metric
-  only one side has can't decide anything.
+  both experiments. If they differ, compare the shared examples and report what each
+  side adds or omits.
+- **Same evaluator definitions.** A shared name isn't enough if its rubric, model, or
+  scoring changed. Compare matched evaluator versions. Report metrics that appear on
+  only one side, but don't treat them as a paired result.
 - **Count what's missing.** Task errors and evaluator errors have no score. Report
   them per experiment; a candidate that errors more often isn't better because its
   surviving runs score well.
@@ -137,7 +139,8 @@ can be a must-pass check on its own.
   decide.
 - **Without a stated rule, use three outcomes.** Call the change better when it wins
   on the main metric, more examples improved than got worse, and the split is
-  unlikely to be chance. Call it worse when it loses or errors more. Otherwise, say
+  unlikely to be chance. Call it worse when the evidence favors the baseline,
+  including task or evaluator errors that matter to the use case. Otherwise, say
   there isn't enough evidence and name what would settle it, such as more
   repetitions or more examples.
 

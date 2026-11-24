@@ -7,6 +7,7 @@ import { getSpanAnnotations, getSpans } from "@arizeai/phoenix-client/spans";
 
 const client = createClient();
 const project = { projectName: "my-app" };
+const HUMAN_VERDICT_LABELS = new Set(["pass", "fail"]);
 
 const { spans } = await getSpans({ client, project, parentId: null, limit: 500 });
 const { annotations } = await getSpanAnnotations({
@@ -16,15 +17,18 @@ const { annotations } = await getSpanAnnotations({
   includeAnnotationNames: ["reviewer_verdict"],
 });
 
-// Keep the latest human label per span.
+// Keep the latest human annotation per span, including a cleared or unsettled label.
 const latest = new Map<string, (typeof annotations)[number]>();
 for (const annotation of annotations) {
-  if (annotation.annotator_kind !== "HUMAN" || annotation.result?.label == null) continue;
+  if (annotation.annotator_kind !== "HUMAN") continue;
   const current = latest.get(annotation.span_id);
   if (!current || annotation.updated_at > current.updated_at) {
     latest.set(annotation.span_id, annotation);
   }
 }
+const labeled = [...latest.values()].filter((annotation) =>
+  HUMAN_VERDICT_LABELS.has(annotation.result?.label ?? "")
+);
 
 // Save the labels as a dataset. testIds holds the held-out span IDs when you'll tune
 // the judge; drop `splits` when you're only assessing it.
@@ -35,7 +39,7 @@ await createDataset({
   client,
   name: "reviewer-verdicts-2026-11",
   description: "Latest human reviewer_verdict label per root span",
-  examples: [...latest.values()].map((annotation) => {
+  examples: labeled.map((annotation) => {
     const span = spansById.get(annotation.span_id);
     return {
       input: {
@@ -49,6 +53,9 @@ await createDataset({
   }),
 });
 ```
+
+Set `HUMAN_VERDICT_LABELS` to the settled verdicts in the annotation config. Leave
+labels such as `unsure` or `skip` out of the set.
 
 - `getSpans` and `getSpanAnnotations` each return one page; follow `nextCursor`
   until it's `null`.

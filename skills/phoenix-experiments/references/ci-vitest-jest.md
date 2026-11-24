@@ -8,7 +8,9 @@ Write evals as ordinary Vitest or Jest suites that record to Phoenix as experime
 
 LLM calls instrumented with OpenInference appear as child spans of each test's task.
 
-Requires `@arizeai/phoenix-client` 7.x. `@arizeai/phoenix-evals` and AI SDK v7 need Node.js 22.12 or later. The testing API is in beta and might change.
+Requires `@arizeai/phoenix-client` 8.x and Node.js 22.15 or later. Add
+`@arizeai/phoenix-evals` and an AI SDK v7 provider when the suite uses library
+evaluators. The testing API is in beta and might change.
 
 ## When to use the test runner instead of `runExperiment`
 
@@ -23,7 +25,7 @@ Prefer `runExperiment` for large datasets where every example is scored the same
 ## Install
 
 ```bash
-npm install -D @arizeai/phoenix-client@^7 @arizeai/phoenix-evals dotenv
+npm install -D @arizeai/phoenix-client@^8 @arizeai/phoenix-evals dotenv
 ```
 
 `@arizeai/phoenix-client` bundles the Vitest and Jest entry points.
@@ -80,9 +82,9 @@ Use `px.test.each(rows)` for larger datasets. To run against an existing Phoenix
 Every eval suite has to decide which checks gate CI and which only show a trend.
 
 - **Hard invariants.** Behavior with exactly one acceptable outcome that code can verify, such as a required refusal, valid JSON, or a tool that must be called. Use a per-case `expect()`. A failure fails the run and fails CI.
-- **Quality signals.** Answers that can be better or worse with no single correct string, such as helpfulness, groundedness, or tone. Score them with an LLM judge and record them with `evaluate()` or `logAnnotation()`. Don't `expect()` on them per case. Gate them at the suite level with `acceptanceCriteria`, so aggregate quality, for example at least 70% helpful, must hold while a single weak answer doesn't break the build.
+- **Quality signals.** Answers that can be better or worse with no single correct string, such as helpfulness, groundedness, or tone. Record them with `evaluate()` or `logAnnotation()`. An `acceptanceCriteria` gate usually handles these better than a per-case `expect()` because both the app and the judge can vary. Use a per-case gate when that case must block the build and you've checked that the evaluator is reliable enough for the decision.
 
-In this runner, invariants go in per-case `expect()` calls, and signals go in `acceptanceCriteria`.
+In this runner, per-case `expect()` calls fit invariants, and `acceptanceCriteria` fits aggregate quality signals.
 
 ## LLM-as-a-judge inside a suite
 

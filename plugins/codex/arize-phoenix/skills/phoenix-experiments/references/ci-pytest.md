@@ -73,9 +73,9 @@ Any `arize-phoenix-evals` evaluator, such as `FaithfulnessEvaluator`, and any fu
 Every eval suite has to decide which checks gate CI and which only show a trend. Most of the suite design follows from that split.
 
 - **Hard invariants.** Behavior with exactly one acceptable outcome that code can verify, such as a required refusal, valid JSON, or a tool that must be called. `assert` these. A failure records `pass=False` and fails CI, like any unit test.
-- **Quality signals.** Answers that can be better or worse with no single correct string, such as helpfulness, groundedness, or tone. Score them with an LLM judge and record them with `log_evaluation` or `evaluate` only. Don't `assert` on them per case. LLM output is non-deterministic, so one weak answer shouldn't break the build. Watch the aggregate trend in Phoenix instead, and gate on the trend separately, for example with a nightly threshold or `run_experiment`, not on every case.
+- **Quality signals.** Answers that can be better or worse with no single correct string, such as helpfulness, groundedness, or tone. An aggregate gate usually handles these better than a per-case assertion because both the app and the judge can vary. Use a per-case assertion when that case must block the build and you've checked that the evaluator is reliable enough for the decision.
 
-As a rule of thumb, assert the behavior you'd be embarrassed to ship broken, and log everything else as a signal.
+Assert behavior that must hold for each case. Log other measurements as signals, and gate them at the suite level when you have a meaningful threshold.
 
 ## LLM-as-a-judge inside a test
 
@@ -123,7 +123,7 @@ def test_support_response(question, expect_refusal):
 
 In this test, the refusal is an invariant, so it's asserted and gates CI. Helpfulness and latency are signals, so they're logged and trended. Judge only the cases where quality is meaningful.
 
-To gate CI on a judge anyway, capture its score and assert on it: `scores = evaluate(judge, ...); assert scores[0].score == 1.0`. A `phoenix.evals` evaluator returns a list of `Score` objects. Reserve this for invariants that a code check can't express.
+To gate one case on a judge, capture its score and assert on it: `scores = evaluate(judge, ...); assert scores[0].score == 1.0`. A `phoenix.evals` evaluator returns a list of `Score` objects. This works best for requirements that a code check can't express and that the judge has shown it can classify reliably.
 
 To judge groundedness, add a `{{context}}` variable and pass `context=...`, or use the pre-built `FaithfulnessEvaluator`.
 

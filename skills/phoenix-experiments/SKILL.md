@@ -2,7 +2,7 @@
 name: phoenix-experiments
 description: Test changes to an LLM app or prompt with Phoenix datasets and experiments, in Python or TypeScript. Build datasets from traces, files, or synthetic data, run a task and evaluators as an experiment, rerun with repetitions, compare experiments to decide whether a change is better, improve an app's prompt and measure the result, and gate CI with pytest, Vitest, or Jest. Use for "did my prompt change help", "compare these two experiments", "should we ship this", "run an experiment", "create a dataset from traces", "A/B test prompts", "improve my system prompt", "regression test my agent", or "add evals to CI". For writing the evaluators themselves use phoenix-evals.
 license: Apache-2.0
-compatibility: Requires a Phoenix server. Python needs arize-phoenix-client (plus arize-phoenix-evals for library evaluators). TypeScript needs @arizeai/phoenix-client 7.x; @arizeai/phoenix-evals and AI SDK v7 need Node.js 22.12 or later.
+compatibility: Requires a Phoenix server. Python needs arize-phoenix-client (plus arize-phoenix-evals for library evaluators). TypeScript needs @arizeai/phoenix-client 8.x and Node.js 22.15 or later. Library evaluators also need @arizeai/phoenix-evals and an AI SDK v7 provider.
 metadata:
   targets: "agents mcp"
   author: oss@arize.com
@@ -29,8 +29,10 @@ experiments from the terminal (`px dataset list`, `px experiment get`).
    evaluators you'll compare on.
 3. **Run the change** on the same dataset version, with the same evaluators, under a
    name that says what changed.
-4. **Repeat when outputs vary.** When the task or a judge calls an LLM, run each
-   example several times (`repetitions=3` or more) so one lucky sample doesn't decide.
+4. **Repeat when variation matters.** For a nondeterministic task or judge, multiple
+   repetitions show whether a result is stable. Three repetitions are a useful
+   starting point for a small dataset, but cost and the decision's risk should
+   determine the count.
 5. **Compare per evaluator and per example.** Read pass rates side by side, then the
    examples that flipped. See [compare-experiments](references/compare-experiments.md).
 6. **Decide and say why.** Name the metric, the two rates, the number of runs behind
@@ -46,9 +48,9 @@ experiments from the terminal (`px dataset list`, `px experiment get`).
 
 ## Rules
 
-- **Compare like with like.** Same dataset version, same evaluators, same number of
-  repetitions. A comparison across different datasets or judges measures the
-  difference in setup.
+- **Compare like with like.** Prefer the same dataset version, evaluator definitions,
+  and number of repetitions. If they differ, restrict the comparison to shared
+  records where possible and report the setup difference.
 - **Apply the user's decision rule when they give one.** "Ship if the format check
   doesn't drop" is decided on the observed format-check numbers. Report the
   uncertainty next to the call, but don't swap their rule for a significance test.
@@ -58,10 +60,11 @@ experiments from the terminal (`px dataset list`, `px experiment get`).
 - **Count every run.** With repetitions, a pass rate is passes over all runs. For a
   must-pass check, also report how many examples passed every repetition: an
   example that fails one run in three is a real, intermittent failure.
-- **Don't tune on the examples you report.** While you iterate on a prompt, hold
-  some examples out by ID and use `dry_run` for drafts so they don't pile up as
-  experiments. Run the final candidate on the same dataset and version as the
-  baseline, and check the held-out examples separately for generalization.
+- **Separate tuning from the final check.** A holdout split is often the clearest
+  option. For small datasets, cross-validation or repeated resampling can use the
+  available examples more efficiently. Use `dry_run` for drafts so they don't pile
+  up as experiments, and report how you kept the final estimate independent of
+  prompt changes.
 - **Without a stated rule, small differences are noise until shown otherwise.** On
   20 examples, one example is 5 points. Compare per example (see
   [compare-experiments](references/compare-experiments.md)) before calling a change
@@ -76,7 +79,7 @@ experiments from the terminal (`px dataset list`, `px experiment get`).
 - **Don't change other people's datasets or experiments.** Creating a dataset with an
   existing name replaces its examples, and `evaluate_experiment` replaces evaluations
   with the same name. Make a new dataset or experiment unless the user asks.
-- **Keep two kinds of suites.** Regression suites hold cases that must keep passing
-  (aim for 95% or more). Capability suites hold hard cases you're working toward
-  (50 to 80%). When a capability suite passes almost everything, move those cases to
-  regression and add harder ones.
+- **Consider separate regression and capability suites.** Regression suites hold
+  behavior you expect to preserve. Capability suites hold harder cases you're still
+  improving. Choose thresholds from the cost of each failure, and move stable cases
+  into regression when they become behavior you rely on.

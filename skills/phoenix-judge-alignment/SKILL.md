@@ -2,7 +2,7 @@
 name: phoenix-judge-alignment
 description: Check and improve an LLM-as-a-judge evaluator against human labels in Phoenix. Turn human annotations into a labeled dataset, measure how often the judge catches real failures and how often its flags are wrong, read the disagreements, revise the judge prompt, and decide whether the judge is trustworthy enough to block, alert, or gate on. Use for "can we trust this judge", "does the eval agree with our reviewers", "improve the judge prompt", "the judge flags too many good answers", "validate the evaluator", "build a golden dataset from human annotations", or "should we turn this eval on". To write a new judge use phoenix-evals.
 license: Apache-2.0
-compatibility: Requires a Phoenix server with human annotations or a labeled dataset. Python needs arize-phoenix-client and arize-phoenix-evals. TypeScript needs @arizeai/phoenix-client and @arizeai/phoenix-evals.
+compatibility: Requires a Phoenix server with human annotations or a labeled dataset. Python needs arize-phoenix-client and arize-phoenix-evals. TypeScript needs @arizeai/phoenix-client 8.x, @arizeai/phoenix-evals, and Node.js 22.15 or later.
 metadata:
   targets: "agents mcp"
   author: oss@arize.com
@@ -20,8 +20,9 @@ runs and compares experiments; **phoenix-cli** reads annotations from the termin
 
 ## Terms
 
-Treat the failure as the positive class, because finding failures is the judge's
-job. Every rate has a different denominator, so name it.
+Treating the failure as the positive class is a useful default when the judge's job
+is to find failures. Follow the user's convention when they define another positive
+class. Every rate has a different denominator, so name it.
 
 | Term | Formula | Answers |
 | ---- | ------- | ------- |
@@ -40,10 +41,10 @@ Map the user's words to the right row before computing anything:
 
 When the judge will block, page, or gate anything, report precision as well as
 recall. People act on its flags, and precision is how often those flags are right.
-Always give the counts behind each rate, starting with how many labels are failures
-and how many are good. Accuracy alone hides a judge that flags almost nothing when
-failures are rare. On 70 good records and 10 failures, a judge that flags nothing is
-88% accurate and catches no failures.
+Give the counts behind each rate, starting with how many labels are failures and how
+many are good. Accuracy alone hides a judge that flags almost nothing when failures
+are rare. On 70 good records and 10 failures, a judge that flags nothing is 88%
+accurate and catches no failures.
 
 ## Workflow
 
@@ -61,8 +62,9 @@ failures are rare. On 70 good records and 10 failures, a judge that flags nothin
    - **Assessing a judge as it is:** use the verdicts it already logged, on every
      labeled record. Don't rerun it or hold out a subset; you aren't tuning
      anything.
-   - **Improving a judge:** split the labeled records before you look. Hold out
-     about a third, with failures in both parts. Tune only on the rest.
+   - **Improving a judge:** separate tuning records from the final check before you
+     inspect judge output. A 20% to 33% stratified holdout is common when the dataset
+     is large enough. For a small dataset, consider cross-validation instead.
 4. **Measure and read the disagreements.** Compute the rates. Read every
    disagreement, or a sample of each kind, with the judge's explanation and any
    reviewer comment. See [agreement-python](references/agreement-python.md) or
@@ -71,27 +73,31 @@ failures are rare. On 70 good records and 10 failures, a judge that flags nothin
    the full policy or requirements, including rules no labeled record happens to
    exercise, and give the judge the evidence each rule needs, such as tool results,
    retrieved documents, and earlier turns. Use disagreements to sharpen definitions
-   and decided cases. Don't paste labeled records into the prompt.
-6. **Measure the final judge once on the held-out records** and report that number
-   with the tuning-set number beside it.
+   and decided cases. If few-shot examples help, draw them only from tuning records
+   and keep the held-out records out of the prompt.
+6. **Measure the final judge on records it wasn't tuned on.** For a holdout, score it
+   once and report that result beside the tuning result. For cross-validation,
+   aggregate the out-of-fold results and report the spread across folds.
 7. **Decide.** Compare the rates with what the user can tolerate (below), and say
    what the judge's numbers can and can't be used for.
 
 ## Deciding whether to trust a judge
 
 - **Use the user's tolerance when they state one,** such as "flags should be wrong
-  at most 5% of the time" or "catch at least three quarters of failures". Check it
-  against the rate's interval, not just the point estimate, and against the right
-  denominator.
-- **Without a stated tolerance,** expect recall and precision of at least 80% on
-  records the judge wasn't tuned on before it gates anything. When you know how well
-  the reviewers agree with each other, expect rates closer to that agreement.
+  at most 5% of the time" or "catch at least three quarters of failures". Match it
+  to the right denominator. Report an interval with the point estimate. If the user
+  requires statistical confidence, apply the tolerance to the conservative end of
+  the interval.
+- **Without a stated tolerance,** choose a bar from the cost of misses and wrong
+  flags. Recall and precision of 80% on held-out records can be a starting benchmark,
+  not a universal gate. Reviewer agreement and label quality provide useful context.
 - **Small samples decide little.** With 10 labeled failures, one miss moves recall by
-  10 points. Fewer than about 30 labeled records of each class supports "promising"
-  or "not ready", not "trustworthy". Say how many more labels would settle it.
-- **People disagree too.** When two reviewers labeled the same records, their
-  agreement is the ceiling for the judge. Prefer adjudicated labels for records they
-  split on.
+  10 points. About 30 records per class is a useful minimum for a first estimate,
+  but the interval and the decision's risk matter more than a fixed count. Say how
+  many more labels would narrow the interval enough to decide.
+- **People disagree too.** Reviewer agreement is a benchmark for label ambiguity,
+  not a mathematical ceiling on judge agreement. Prefer adjudicated labels for
+  records reviewers split on.
 - **Label a fair sample.** Records chosen because they looked suspicious overstate
   how common failures are and flatter precision. Sample at random, or stratify with
   known weights and reweight when estimating rates.

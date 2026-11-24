@@ -90,8 +90,9 @@ def wilson_interval(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
 ```
 
 A tolerance such as "flags should be wrong at most 5% of the time" is a bound on
-the false-discovery share, with `k` as the wrong flags and `n` as all flags. You can
-say it's met only when the upper end of that interval is below 0.05.
+the false-discovery share, with `k` as the wrong flags and `n` as all flags. Report
+the point estimate and interval. If the decision requires 95% confidence, compare
+the interval's upper end with `0.05`.
 
 ## Check the labels themselves
 
@@ -100,7 +101,7 @@ Before scoring the judge, check two things about the human labels:
 - **Balance.** Count failures and passes. With 70 passes and 10 failures, a judge
   that never flags anything is 88% accurate. Recall and precision expose it.
 - **Reviewer agreement.** When two reviewers labeled the same records, their
-  agreement is the most you can expect from the judge:
+  agreement shows how ambiguous or inconsistently applied the rubric is:
 
   ```python
   pair = both_reviewers[["reviewer_a_fail", "reviewer_b_fail"]].dropna()

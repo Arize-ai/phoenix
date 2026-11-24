@@ -78,7 +78,7 @@ string, a dict with `score`, `label`, and `explanation`, or a `Score`.
 
 | Option | Default | Use |
 | ------ | ------- | --- |
-| `repetitions` | 1 | Runs each example several times. Use 3 or more when the task or a judge calls an LLM. |
+| `repetitions` | 1 | Runs each example several times. Consider 3 or more when nondeterminism matters to the decision. |
 | `dry_run` | `False` | `True` or a number runs that many examples without recording anything. |
 | `timeout` | 60 | Seconds per task call. |
 | `retries` | 3 | Retries for a failing task call. |
