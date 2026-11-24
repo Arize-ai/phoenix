@@ -118,7 +118,6 @@ class ExperimentSweeper(DaemonTask):
             if candidate_project_ids:
                 enqueued_projects = await admit_exclusive_experiment_projects_delete(
                     session,
-                    dialect=dialect,
                     candidate_project_ids=candidate_project_ids,
                 )
         if enqueued_projects:

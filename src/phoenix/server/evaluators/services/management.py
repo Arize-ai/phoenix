@@ -450,7 +450,6 @@ def validate_project_evaluator_target_update(
 async def garbage_collect_evaluators(
     session: AsyncSession,
     *,
-    dialect: SupportedSQLDialect,
     evaluator_ids: set[int],
     delete_associated_prompt: bool,
 ) -> None:
@@ -461,6 +460,7 @@ async def garbage_collect_evaluators(
     ``delete_associated_prompt``, also lock the prompts of deleted LLM evaluators in ascending
     ID order and, in a subsequent statement, delete each one that no remaining evaluator uses.
     """
+    dialect = SupportedSQLDialect(session.get_bind().dialect.name)
     if not evaluator_ids:
         return
 

@@ -87,11 +87,11 @@ def trace_scope_condition(
 async def _delete_by_ids(
     session: AsyncSession,
     *,
-    dialect: SupportedSQLDialect,
     model: type[models.HasId],
     condition: ColumnElement[bool],
     batch_limit: int,
 ) -> PrimitiveResult:
+    dialect = SupportedSQLDialect(session.get_bind().dialect.name)
     candidates = select(model.id).where(condition).limit(batch_limit)
     if dialect is SupportedSQLDialect.POSTGRESQL:
         candidates = candidates.with_for_update(skip_locked=True)
@@ -109,7 +109,6 @@ async def _delete_by_ids(
 async def _drain_overflow_by_ids(
     session: AsyncSession,
     *,
-    dialect: SupportedSQLDialect,
     model: type[models.HasId],
     condition: ColumnElement[bool],
     batch_limit: int,
@@ -119,7 +118,6 @@ async def _drain_overflow_by_ids(
         return None
     result = await _delete_by_ids(
         session,
-        dialect=dialect,
         model=model,
         condition=condition,
         batch_limit=batch_limit,
@@ -132,7 +130,6 @@ async def _drain_overflow_by_ids(
 async def drain_eval_work_units_step(
     session: AsyncSession,
     *,
-    dialect: SupportedSQLDialect,
     project_evaluator_id: int,
     batch_limit: int = CLEANUP_BATCH_ROWS,
 ) -> PrimitiveResult:
@@ -144,7 +141,6 @@ async def drain_eval_work_units_step(
                 condition = and_(condition, text(queued_index_predicate()))
             res = await _delete_by_ids(
                 session,
-                dialect=dialect,
                 model=model,
                 condition=condition,
                 batch_limit=batch_limit,
@@ -157,12 +153,12 @@ async def drain_eval_work_units_step(
 async def drain_dataset_evaluator_dependents_step(
     session: AsyncSession,
     *,
-    dialect: SupportedSQLDialect,
     dataset_evaluator_id: int,
     batch_limit: int = CLEANUP_BATCH_ROWS,
 ) -> PrimitiveResult:
     """Drain root ``experiment_logs`` (cascading downward to ``experiment_eval_logs``) and
     ``experiment_dataset_evaluators`` links before removing a dataset-evaluator tombstone."""
+    dialect = SupportedSQLDialect(session.get_bind().dialect.name)
     eval_log_table = models.ExperimentEvalLog.__table__
     eval_log_condition = eval_log_table.c.dataset_evaluator_id == dataset_evaluator_id
     if dialect is SupportedSQLDialect.POSTGRESQL:
@@ -232,11 +228,11 @@ async def drain_dataset_evaluator_dependents_step(
 async def _drain_span_children_batch(
     session: AsyncSession,
     *,
-    dialect: SupportedSQLDialect,
     span_ids: list[int],
     batch_limit: int,
 ) -> Optional[PrimitiveResult]:
     """Ensure no selected span batch triggers an unbounded child cascade or SET NULL update."""
+    dialect = SupportedSQLDialect(session.get_bind().dialect.name)
     # 1. Clear dataset_examples.span_rowid in bounded updates before deleting spans.
     example_cond = models.DatasetExample.span_rowid.in_(span_ids)
     example_ids_stmt = select(models.DatasetExample.id).where(example_cond).limit(batch_limit)
@@ -265,7 +261,6 @@ async def _drain_span_children_batch(
     )
     detail_result = await _drain_overflow_by_ids(
         session,
-        dialect=dialect,
         model=models.SpanCostDetail,
         condition=detail_condition,
         batch_limit=batch_limit,
@@ -281,7 +276,6 @@ async def _drain_span_children_batch(
     ):
         child_result = await _drain_overflow_by_ids(
             session,
-            dialect=dialect,
             model=child_model,
             condition=child_model.span_rowid.in_(span_ids),
             batch_limit=batch_limit,
@@ -294,12 +288,12 @@ async def _drain_span_children_batch(
 async def drain_traces_step(
     session: AsyncSession,
     *,
-    dialect: SupportedSQLDialect,
     trace_cond: ColumnElement[bool],
     batch_limit: int = CLEANUP_BATCH_ROWS,
     reset_session_evaluations: bool = False,
 ) -> PrimitiveResult:
     """Drain a bounded trace window, yielding when its remaining rows are locked."""
+    dialect = SupportedSQLDialect(session.get_bind().dialect.name)
     # Phases 1-2 work on a window of the oldest in-scope traces. Spans in the window are drained
     # first; once the window's traces are span-less they are deleted, so the next window starts at
     # the next-oldest traces and every step touches rows proportional to its own batch.
@@ -326,7 +320,6 @@ async def drain_traces_step(
             span_ids.sort()
             child_step = await _drain_span_children_batch(
                 session,
-                dialect=dialect,
                 span_ids=span_ids,
                 batch_limit=batch_limit,
             )
@@ -341,7 +334,6 @@ async def drain_traces_step(
         for child_model in (models.TraceAnnotation, models.EvalTraceWorkUnit):
             child_result = await _drain_overflow_by_ids(
                 session,
-                dialect=dialect,
                 model=child_model,
                 condition=child_model.trace_rowid.in_(trace_ids),
                 batch_limit=batch_limit,
@@ -361,7 +353,6 @@ async def drain_traces_step(
         if reset_session_evaluations:
             reset_result = await reset_session_evaluations_step(
                 session,
-                dialect=dialect,
                 ready_trace_cond=ready_trace_cond,
                 batch_limit=batch_limit,
             )
@@ -391,7 +382,6 @@ async def drain_traces_step(
 async def drain_trace_scope_step(
     session: AsyncSession,
     *,
-    dialect: SupportedSQLDialect,
     project_id: int,
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
@@ -408,6 +398,7 @@ async def drain_trace_scope_step(
     cascade. When ``rehome_shared_sessions`` is ``True``, sessions owned by ``project_id`` whose
     only remaining traces belong to other projects are reassigned before ``project_id`` is deleted.
     """
+    dialect = SupportedSQLDialect(session.get_bind().dialect.name)
     trace_cond = trace_scope_condition(
         project_id,
         start_time=start_time,
@@ -416,7 +407,6 @@ async def drain_trace_scope_step(
 
     trace_result = await drain_traces_step(
         session,
-        dialect=dialect,
         trace_cond=trace_cond,
         batch_limit=batch_limit,
         reset_session_evaluations=reset_session_evaluations,
@@ -450,7 +440,6 @@ async def drain_trace_scope_step(
             )
             child_result = await _drain_overflow_by_ids(
                 session,
-                dialect=dialect,
                 model=session_child_model,
                 condition=session_child_col.in_(session_ids),
                 batch_limit=batch_limit,
@@ -552,7 +541,6 @@ async def drain_trace_scope_step(
 async def drain_project_annotation_config_links_step(
     session: AsyncSession,
     *,
-    dialect: SupportedSQLDialect,
     project_id: int,
     batch_limit: int = CLEANUP_BATCH_ROWS,
 ) -> PrimitiveResult:
@@ -560,7 +548,6 @@ async def drain_project_annotation_config_links_step(
     deleting ``projects(id = project_id)``."""
     overflow_result = await _drain_overflow_by_ids(
         session,
-        dialect=dialect,
         model=models.ProjectAnnotationConfig,
         condition=models.ProjectAnnotationConfig.project_id == project_id,
         batch_limit=batch_limit,
@@ -586,11 +573,11 @@ def _resettable_session_evaluations_condition(
 async def reset_session_evaluations_step(
     session: AsyncSession,
     *,
-    dialect: SupportedSQLDialect,
     ready_trace_cond: ColumnElement[bool],
     batch_limit: int,
 ) -> PrimitiveResult:
     """Reset final session evaluation decisions for span-drained traces about to be cleared."""
+    dialect = SupportedSQLDialect(session.get_bind().dialect.name)
     condition = _resettable_session_evaluations_condition(ready_trace_cond)
     candidates = select(models.EvalSessionWorkUnit.id).where(condition).limit(batch_limit)
     if dialect is SupportedSQLDialect.POSTGRESQL:

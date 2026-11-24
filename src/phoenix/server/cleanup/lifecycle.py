@@ -81,11 +81,11 @@ class AdmittedDatasetDelete:
 
 async def _lock_projects(
     session: AsyncSession,
-    dialect: SupportedSQLDialect,
     project_ids: Iterable[int],
     *,
     key_share: bool = False,
 ) -> None:
+    dialect = SupportedSQLDialect(session.get_bind().dialect.name)
     ids = sorted(set(project_ids))
     if ids and dialect is SupportedSQLDialect.POSTGRESQL:
         await session.execute(
@@ -122,12 +122,12 @@ async def resolve_live_project_ids_by_name(
 
 async def _lock_additional_projects(
     session: AsyncSession,
-    dialect: SupportedSQLDialect,
     *,
     locked_project_ids: set[int],
     target_project_ids: Iterable[int],
 ) -> None:
     """Lock newly discovered project IDs without violating ascending ``Project.id`` wait order."""
+    dialect = SupportedSQLDialect(session.get_bind().dialect.name)
     missing_ids = sorted(set(target_project_ids) - locked_project_ids)
     if not missing_ids:
         return
@@ -155,20 +155,20 @@ async def _lock_additional_projects(
                 ) from error
             raise
     if higher_ids:
-        await _lock_projects(session, dialect, higher_ids, key_share=True)
+        await _lock_projects(session, higher_ids, key_share=True)
     locked_project_ids.update(missing_ids)
 
 
 async def logical_delete_project_evaluators(
     session: AsyncSession,
     *,
-    dialect: SupportedSQLDialect,
     binding_ids: Iterable[int],
     collect_unused_evaluator: bool,
     delete_associated_prompt: bool,
 ) -> LogicalEvaluatorDeleteResult:
     """Tombstone live project evaluator bindings under canonical lock order, optionally run
     synchronous shared-definition GC; the tombstones are what the cleanup worker drains."""
+    dialect = SupportedSQLDialect(session.get_bind().dialect.name)
     requested_ids = sorted(set(binding_ids))
     if not requested_ids:
         return LogicalEvaluatorDeleteResult(binding_ids=[], tombstoned_project_ids=[])
@@ -196,7 +196,7 @@ async def logical_delete_project_evaluators(
     evaluator_ids = {int(row.evaluator_id) for row in discovered if row.evaluator_id is not None}
 
     # Canonical lock order: Project (FOR NO KEY UPDATE) -> Evaluator -> Binding.
-    await _lock_projects(session, dialect, project_ids, key_share=True)
+    await _lock_projects(session, project_ids, key_share=True)
     await lock_evaluators(session, evaluator_ids)
 
     bindings_stmt = (
@@ -263,7 +263,6 @@ async def logical_delete_project_evaluators(
     if collect_unused_evaluator and candidate_evaluator_ids:
         await garbage_collect_evaluators(
             session,
-            dialect=dialect,
             evaluator_ids=candidate_evaluator_ids,
             delete_associated_prompt=delete_associated_prompt,
         )
@@ -277,13 +276,13 @@ async def logical_delete_project_evaluators(
 async def logical_delete_dataset_evaluators(
     session: AsyncSession,
     *,
-    dialect: SupportedSQLDialect,
     binding_ids: Iterable[int],
     collect_unused_evaluator: bool,
     delete_associated_prompt: bool,
 ) -> LogicalEvaluatorDeleteResult:
     """Tombstone live dataset evaluator bindings under canonical lock order, optionally run
     synchronous shared-definition GC; the tombstones are what the cleanup worker drains."""
+    dialect = SupportedSQLDialect(session.get_bind().dialect.name)
     requested_ids = sorted(set(binding_ids))
     if not requested_ids:
         return LogicalEvaluatorDeleteResult(binding_ids=[], tombstoned_project_ids=[])
@@ -316,7 +315,7 @@ async def logical_delete_dataset_evaluators(
             .order_by(models.Dataset.id.asc())
             .with_for_update(key_share=True)
         )
-    await _lock_projects(session, dialect, project_ids, key_share=True)
+    await _lock_projects(session, project_ids, key_share=True)
     await lock_evaluators(session, evaluator_ids)
 
     bindings_stmt = (
@@ -385,7 +384,6 @@ async def logical_delete_dataset_evaluators(
     if collect_unused_evaluator and candidate_evaluator_ids:
         await garbage_collect_evaluators(
             session,
-            dialect=dialect,
             evaluator_ids=candidate_evaluator_ids,
             delete_associated_prompt=delete_associated_prompt,
         )
@@ -399,7 +397,6 @@ async def logical_delete_dataset_evaluators(
 async def lock_dataset_delete_targets(
     session: AsyncSession,
     *,
-    dialect: SupportedSQLDialect,
     dataset_id: int,
     candidate_project_names: Iterable[Optional[str]],
 ) -> list[int]:
@@ -443,7 +440,7 @@ async def lock_dataset_delete_targets(
         *(int(row.project_id) for row in live_dataset_bindings),
         *(int(row.trace_project_id) for row in initial_exp_bindings),
     }
-    await _lock_projects(session, dialect, locked_project_ids, key_share=True)
+    await _lock_projects(session, locked_project_ids, key_share=True)
 
     current_exp_bindings = (
         (
@@ -463,7 +460,6 @@ async def lock_dataset_delete_targets(
     if current_exp_bindings:
         await _lock_additional_projects(
             session,
-            dialect,
             locked_project_ids=locked_project_ids,
             target_project_ids=(int(row.trace_project_id) for row in current_exp_bindings),
         )
@@ -479,11 +475,11 @@ async def lock_dataset_delete_targets(
 async def admit_project_delete(
     session: AsyncSession,
     *,
-    dialect: SupportedSQLDialect,
     project_id: int,
 ) -> AdmittedProjectDelete:
     """Tombstone a live non-evaluator project, and detach its live bindings; the
     tombstone is what the cleanup worker drains."""
+    dialect = SupportedSQLDialect(session.get_bind().dialect.name)
     initial_trace_project_ids = list(
         await session.scalars(
             select(models.ProjectEvaluator.trace_project_id).where(
@@ -496,7 +492,7 @@ async def admit_project_delete(
         project_id,
         *(int(trace_project_id) for trace_project_id in initial_trace_project_ids),
     }
-    await _lock_projects(session, dialect, locked_project_ids, key_share=True)
+    await _lock_projects(session, locked_project_ids, key_share=True)
 
     project = await session.get(models.Project, project_id)
     if project is None or project.deleted_at is not None:
@@ -506,7 +502,7 @@ async def admit_project_delete(
 
     if await _project_holds_evaluator_traces(session, project):
         raise Conflict("This project holds an evaluator's traces; delete the evaluator instead")
-    await _lock_projects(session, dialect, [project_id], key_share=False)
+    await _lock_projects(session, [project_id], key_share=False)
 
     current_live_bindings = (
         await session.execute(
@@ -523,13 +519,11 @@ async def admit_project_delete(
     if current_live_bindings:
         await _lock_additional_projects(
             session,
-            dialect,
             locked_project_ids=locked_project_ids,
             target_project_ids=(int(row.trace_project_id) for row in current_live_bindings),
         )
         binding_delete_result = await logical_delete_project_evaluators(
             session,
-            dialect=dialect,
             binding_ids=[int(row.id) for row in current_live_bindings],
             collect_unused_evaluator=False,
             delete_associated_prompt=False,
@@ -609,7 +603,6 @@ async def clear_project_traces_in_batches(
                         )
                     step_result = await drain_trace_scope_step(
                         session,
-                        dialect=dialect,
                         project_id=project_id,
                         start_time=start_time,
                         end_time=end_time,
@@ -680,12 +673,12 @@ async def resolve_experiment_project_delete_candidates(
 async def admit_exclusive_experiment_projects_delete(
     session: AsyncSession,
     *,
-    dialect: SupportedSQLDialect,
     candidate_project_ids: Iterable[int],
 ) -> list[int]:
     """Tombstone the candidates from
     ``resolve_experiment_project_delete_candidates`` that are still live and that no ``Experiment``
     names after the owning experiment/dataset rows were deleted in ``session``."""
+    dialect = SupportedSQLDialect(session.get_bind().dialect.name)
     ids = sorted(set(candidate_project_ids))
     if not ids:
         return []
@@ -699,7 +692,7 @@ async def admit_exclusive_experiment_projects_delete(
         )
     )
     locked_project_ids = {*ids, *(int(pid) for pid in initial_trace_project_ids)}
-    await _lock_projects(session, dialect, locked_project_ids, key_share=True)
+    await _lock_projects(session, locked_project_ids, key_share=True)
 
     eligible_ids = list(
         await session.scalars(
@@ -731,13 +724,11 @@ async def admit_exclusive_experiment_projects_delete(
     if current_live_bindings:
         await _lock_additional_projects(
             session,
-            dialect,
             locked_project_ids=locked_project_ids,
             target_project_ids=(int(row.trace_project_id) for row in current_live_bindings),
         )
         binding_delete_result = await logical_delete_project_evaluators(
             session,
-            dialect=dialect,
             binding_ids=[int(row.id) for row in current_live_bindings],
             collect_unused_evaluator=False,
             delete_associated_prompt=False,
@@ -831,7 +822,6 @@ async def delete_standalone_traces_by_trace_id(
                             )
                         step_result = await drain_traces_step(
                             session,
-                            dialect=dialect,
                             trace_cond=trace_condition,
                             batch_limit=batch_limit,
                             reset_session_evaluations=False,
@@ -866,7 +856,6 @@ async def delete_standalone_traces_by_trace_id(
 async def admit_dataset_delete(
     session: AsyncSession,
     *,
-    dialect: SupportedSQLDialect,
     dataset_id: int,
 ) -> AdmittedDatasetDelete:
     """Delete ``dataset_id`` inside ``session`` under canonical
@@ -896,14 +885,12 @@ async def admit_dataset_delete(
     tombstoned_project_ids: set[int] = set()
     live_binding_ids = await lock_dataset_delete_targets(
         session,
-        dialect=dialect,
         dataset_id=dataset_id,
         candidate_project_names=candidate_project_names,
     )
     if live_binding_ids:
         deleted_bindings = await logical_delete_dataset_evaluators(
             session,
-            dialect=dialect,
             binding_ids=live_binding_ids,
             collect_unused_evaluator=False,
             delete_associated_prompt=False,
@@ -922,7 +909,6 @@ async def admit_dataset_delete(
     if candidate_project_ids:
         deleted_projects = await admit_exclusive_experiment_projects_delete(
             session,
-            dialect=dialect,
             candidate_project_ids=candidate_project_ids,
         )
         tombstoned_project_ids.update(deleted_projects)
@@ -962,11 +948,9 @@ async def execute_dataset_delete(
             await experiment_runner.stop_experiment(experiment_id)
             stopped_experiment_ids.add(experiment_id)
 
-    dialect = SupportedSQLDialect(db.dialect.value)
     async with db() as session:
         admitted = await admit_dataset_delete(
             session,
-            dialect=dialect,
             dataset_id=dataset_id,
         )
 

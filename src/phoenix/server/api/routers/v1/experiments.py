@@ -606,7 +606,6 @@ async def delete_experiment(
         .returning(models.Experiment.project_name)
     )
     db = request.app.state.db
-    dialect = SupportedSQLDialect(db.dialect.value)
     enqueued_projects: list[int] = []
     async with db() as session:
         eval_trace_ids = [
@@ -630,7 +629,6 @@ async def delete_experiment(
         if candidate_project_ids:
             enqueued_projects = await admit_exclusive_experiment_projects_delete(
                 session,
-                dialect=dialect,
                 candidate_project_ids=candidate_project_ids,
             )
     request.state.event_queue.put(ExperimentDeleteEvent((experiment_rowid,)))

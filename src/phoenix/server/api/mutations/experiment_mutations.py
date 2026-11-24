@@ -11,7 +11,7 @@ from strawberry.types import Info
 
 from phoenix.config import EXPERIMENT_TOGGLE_COOLDOWN
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect, get_eval_trace_ids_for_experiments
+from phoenix.db.helpers import get_eval_trace_ids_for_experiments
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, CustomGraphQLError
@@ -352,7 +352,6 @@ class ExperimentMutationMixin:
         # harmless since the experiment is being deleted anyway.
         for exp_id in experiment_ids:
             await info.context.experiment_runner.stop_experiment(exp_id)
-        dialect = SupportedSQLDialect(info.context.db.dialect.value)
         eval_trace_ids_stmt = get_eval_trace_ids_for_experiments(*experiment_ids)
         enqueued_projects: list[int] = []
         async with info.context.db() as session:
@@ -398,7 +397,6 @@ class ExperimentMutationMixin:
             if candidate_project_ids:
                 enqueued_projects = await admit_exclusive_experiment_projects_delete(
                     session,
-                    dialect=dialect,
                     candidate_project_ids=candidate_project_ids,
                 )
         if enqueued_projects:

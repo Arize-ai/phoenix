@@ -166,7 +166,7 @@ class TestCleanupSchedulingAndBackoff:
         async with db() as session:
             project = await _add_project(session, name=f"poison-{token_hex(4)}")
             project_id = project.id
-            await admit_project_delete(session, dialect=dialect, project_id=project_id)
+            await admit_project_delete(session, project_id=project_id)
 
         coordinator = CleanupCoordinator(db, error_retry_delay_seconds=10.0)
 
@@ -199,11 +199,10 @@ class TestCleanupSchedulingAndBackoff:
     async def test_target_is_skipped_until_retry_at_and_worker_learns_the_delay(
         self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        dialect = SupportedSQLDialect(db.dialect.value)
         async with db() as session:
             project = await _add_project(session, name=f"skip-{token_hex(4)}")
             project_id = project.id
-            await admit_project_delete(session, dialect=dialect, project_id=project_id)
+            await admit_project_delete(session, project_id=project_id)
 
         coordinator = CleanupCoordinator(db, error_retry_delay_seconds=60.0)
 
@@ -232,7 +231,7 @@ class TestCleanupSchedulingAndBackoff:
         async with db() as session:
             project = await _add_project(session, name=f"contend-{token_hex(4)}")
             project_id = project.id
-            await admit_project_delete(session, dialect=dialect, project_id=project_id)
+            await admit_project_delete(session, project_id=project_id)
 
         coordinator = CleanupCoordinator(
             db, error_retry_delay_seconds=10.0, yield_delay_seconds=1.0
@@ -282,11 +281,10 @@ class TestCleanupSchedulingAndBackoff:
     async def test_non_sqlalchemy_programming_error_propagates_immediately(
         self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        dialect = SupportedSQLDialect(db.dialect.value)
         async with db() as session:
             project = await _add_project(session, name=f"prog-bug-{token_hex(4)}")
             project_id = project.id
-            await admit_project_delete(session, dialect=dialect, project_id=project_id)
+            await admit_project_delete(session, project_id=project_id)
 
         coordinator = CleanupCoordinator(db)
 
@@ -301,12 +299,11 @@ class TestCleanupSchedulingAndBackoff:
     async def test_failed_step_rolls_back_its_batch_and_emits_no_events(
         self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        dialect = SupportedSQLDialect(db.dialect.value)
         marker_name = f"rolled-back-{token_hex(4)}"
         async with db() as session:
             project = await _add_project(session, name=f"rollback-{token_hex(4)}")
             project_id = project.id
-            await admit_project_delete(session, dialect=dialect, project_id=project_id)
+            await admit_project_delete(session, project_id=project_id)
 
         emitted_events: list[DmlEvent] = []
         event_queue = MagicMock()
@@ -316,7 +313,6 @@ class TestCleanupSchedulingAndBackoff:
         async def _fail_after_writing(
             session: Any,
             *,
-            dialect: SupportedSQLDialect,
             target: Any,
             events_after_commit: list[DmlEvent],
         ) -> PrimitiveResult:
@@ -337,11 +333,10 @@ class TestCleanupSchedulingAndBackoff:
     async def test_cancelled_step_rolls_back_and_leaves_the_target_pending(
         self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        dialect = SupportedSQLDialect(db.dialect.value)
         async with db() as session:
             project = await _add_project(session, name=f"cancel-{token_hex(4)}")
             project_id = project.id
-            await admit_project_delete(session, dialect=dialect, project_id=project_id)
+            await admit_project_delete(session, project_id=project_id)
 
         coordinator = CleanupCoordinator(db)
         step_started = asyncio.Event()
@@ -365,14 +360,13 @@ class TestCleanupSchedulingAndBackoff:
             assert await session.get(models.Project, project_id) is None
 
     async def test_oldest_tombstone_goes_first(self, db: DbSessionFactory) -> None:
-        dialect = SupportedSQLDialect(db.dialect.value)
         async with db() as session:
             newer = await _add_project(session, name=f"newer-{token_hex(4)}")
             older = await _add_project(session, name=f"older-{token_hex(4)}")
             newer_id, older_id = newer.id, older.id
-            await admit_project_delete(session, dialect=dialect, project_id=older_id)
+            await admit_project_delete(session, project_id=older_id)
         async with db() as session:
-            await admit_project_delete(session, dialect=dialect, project_id=newer_id)
+            await admit_project_delete(session, project_id=newer_id)
 
         coordinator = CleanupCoordinator(db)
         assert (await coordinator.step()).outcome == "completed"
@@ -405,20 +399,19 @@ class TestCleanupSchedulingAndBackoff:
             assert await session.get(models.Project, trace_project_id) is not None
 
         async with db() as session:
-            await admit_project_delete(session, dialect=dialect, project_id=host_id)
+            await admit_project_delete(session, project_id=host_id)
         selected: list[tuple[str, int]] = []
         original_run = coordinator._run_domain_step
 
         async def _record(
             session: Any,
             *,
-            dialect: SupportedSQLDialect,
             target: Any,
             events_after_commit: list[DmlEvent],
         ) -> PrimitiveResult:
             selected.append((target.kind, target.id))
             return await original_run(
-                session, dialect=dialect, target=target, events_after_commit=events_after_commit
+                session, target=target, events_after_commit=events_after_commit
             )
 
         coordinator._run_domain_step = _record  # type: ignore[method-assign]
@@ -441,11 +434,10 @@ class TestCleanupSchedulingAndBackoff:
     async def test_purging_a_target_deletes_its_failure_row(
         self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        dialect = SupportedSQLDialect(db.dialect.value)
         async with db() as session:
             project = await _add_project(session, name=f"purge-{token_hex(4)}")
             project_id = project.id
-            await admit_project_delete(session, dialect=dialect, project_id=project_id)
+            await admit_project_delete(session, project_id=project_id)
 
         coordinator = CleanupCoordinator(db)
         original_run = coordinator._run_domain_step
@@ -468,13 +460,12 @@ class TestCleanupSchedulingAndBackoff:
         assert await _get_failure(db, "PROJECT", project_id) is None
 
     async def test_ids_of_purged_targets_are_never_reused(self, db: DbSessionFactory) -> None:
-        dialect = SupportedSQLDialect(db.dialect.value)
         coordinator = CleanupCoordinator(db)
 
         async with db() as session:
             first = await _add_project(session, name=f"seq-1-{token_hex(4)}")
             first_id = first.id
-            await admit_project_delete(session, dialect=dialect, project_id=first_id)
+            await admit_project_delete(session, project_id=first_id)
         await _drain_all(coordinator)
 
         async with db() as session:
@@ -617,7 +608,6 @@ class TestExperimentProjectsResolveByName:
     async def test_admit_exclusive_delete_targets_the_live_project_and_ignores_the_tombstone(
         self, db: DbSessionFactory
     ) -> None:
-        dialect = SupportedSQLDialect(db.dialect.value)
         shared_name = f"Experiment-{token_hex(12)}"
         async with db() as session:
             tombstone = models.Project(
@@ -633,7 +623,7 @@ class TestExperimentProjectsResolveByName:
                 session, candidate_project_names=[shared_name]
             )
             tombstoned_ids = await admit_exclusive_experiment_projects_delete(
-                session, dialect=dialect, candidate_project_ids=candidate_ids
+                session, candidate_project_ids=candidate_ids
             )
 
             assert tombstoned_ids == [live_project_id]
@@ -644,7 +634,6 @@ class TestExperimentProjectsResolveByName:
     async def test_admit_exclusive_delete_keeps_project_still_named_by_another_experiment(
         self, db: DbSessionFactory
     ) -> None:
-        dialect = SupportedSQLDialect(db.dialect.value)
         shared_name = f"Experiment-{token_hex(12)}"
         async with db() as session:
             dataset = models.Dataset(name=f"ds-{token_hex(4)}", metadata_={})
@@ -670,7 +659,7 @@ class TestExperimentProjectsResolveByName:
                 session, candidate_project_names=[shared_name]
             )
             tombstoned_ids = await admit_exclusive_experiment_projects_delete(
-                session, dialect=dialect, candidate_project_ids=candidate_ids
+                session, candidate_project_ids=candidate_ids
             )
 
             assert tombstoned_ids == []
@@ -1218,7 +1207,6 @@ class TestBatchedClear:
     async def test_clear_preserves_shared_session_and_annotations_when_other_project_is_tombstoned(
         self, db: DbSessionFactory
     ) -> None:
-        dialect = SupportedSQLDialect(db.dialect.value)
         base_time = datetime(2026, 6, 4, 0, 0, 0, tzinfo=timezone.utc)
 
         async with db() as session:
@@ -1274,7 +1262,7 @@ class TestBatchedClear:
             cleared_trace_id = cleared_trace.id
             other_trace_id = other_trace.id
 
-            await admit_project_delete(session, dialect=dialect, project_id=tombstoned_project_id)
+            await admit_project_delete(session, project_id=tombstoned_project_id)
 
         await _clear_project(db, live_project_id, batch_limit=1)
         coordinator = CleanupCoordinator(db, batch_limit=1)
@@ -1425,7 +1413,6 @@ class TestBatchedClear:
     async def test_clear_stops_when_project_is_tombstoned_between_batches(
         self, db: DbSessionFactory
     ) -> None:
-        dialect = SupportedSQLDialect(db.dialect.value)
         t0 = datetime(2026, 6, 7, 0, 0, 0, tzinfo=timezone.utc)
         async with db() as session:
             project = await _add_project(session, name=f"tombstoned-clear-{token_hex(4)}")
@@ -1444,7 +1431,7 @@ class TestBatchedClear:
         first_batch = await anext(clear_batches)
         assert first_batch.status == "PROGRESS"
         async with db() as session:
-            await admit_project_delete(session, dialect=dialect, project_id=project_id)
+            await admit_project_delete(session, project_id=project_id)
         remaining_batches = [batch async for batch in clear_batches]
 
         assert [batch.status for batch in remaining_batches] == ["PROJECT_DELETED"]
@@ -1456,14 +1443,13 @@ class TestBatchedClear:
     async def test_clear_rejects_missing_tombstoned_and_evaluator_projects(
         self, db: DbSessionFactory
     ) -> None:
-        dialect = SupportedSQLDialect(db.dialect.value)
         async with db() as session:
             tombstoned_project = await _add_project(session, name=f"gone-{token_hex(4)}")
             evaluator_project = models.Project(name=f"eval-sink-{token_hex(4)}")
             session.add(evaluator_project)
             await session.flush()
             await _bind_evaluator_trace_project(session, evaluator_project)
-            await admit_project_delete(session, dialect=dialect, project_id=tombstoned_project.id)
+            await admit_project_delete(session, project_id=tombstoned_project.id)
             tombstoned_project_id = tombstoned_project.id
             evaluator_project_id = evaluator_project.id
 
@@ -1478,7 +1464,6 @@ class TestOnlineEvalFences:
     async def test_online_eval_fences_tombstoned_binding_on_hydration_publish_and_traces(
         self, db: DbSessionFactory
     ) -> None:
-        dialect = SupportedSQLDialect(db.dialect.value)
         async with db() as session:
             project = await _add_project(session, name=f"oe-{token_hex(4)}")
             trace_proj = models.Project(name=f"oe-sink-{token_hex(4)}")
@@ -1525,7 +1510,6 @@ class TestOnlineEvalFences:
         async with db() as session:
             await logical_delete_project_evaluators(
                 session,
-                dialect=dialect,
                 binding_ids=[pe.id],
                 collect_unused_evaluator=False,
                 delete_associated_prompt=False,
@@ -1669,7 +1653,6 @@ class TestOnlineEvalFences:
 
             await logical_delete_project_evaluators(
                 session,
-                dialect=dialect,
                 binding_ids=[tombstoned_binding_id],
                 collect_unused_evaluator=False,
                 delete_associated_prompt=False,
@@ -1779,7 +1762,6 @@ class TestStorageLockoutExemptionsAndCleanupWorker:
         db: DbSessionFactory,
         cleanup_worker_controller: _DaemonController,
     ) -> None:
-        dialect = SupportedSQLDialect(db.dialect.value)
         worker = CleanupWorker(db, idle_poll_seconds=10.0)
         async with worker:
             await cleanup_worker_controller.wait_until_parked()
@@ -1788,7 +1770,7 @@ class TestStorageLockoutExemptionsAndCleanupWorker:
                 trace = await _add_trace(session, project)
                 await _add_span(session, trace=trace)
                 project_id = project.id
-                await admit_project_delete(session, dialect=dialect, project_id=project_id)
+                await admit_project_delete(session, project_id=project_id)
 
             await cleanup_worker_controller.run_once()
 
@@ -1802,13 +1784,12 @@ class TestStorageLockoutExemptionsAndCleanupWorker:
         cleanup_worker_controller: _DaemonController,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        dialect = SupportedSQLDialect(db.dialect.value)
         async with db() as session:
             project = await _add_project(session, name=f"yield-proj-{token_hex(4)}")
             trace = await _add_trace(session, project)
             await _add_span(session, trace=trace)
             project_id = project.id
-            await admit_project_delete(session, dialect=dialect, project_id=project_id)
+            await admit_project_delete(session, project_id=project_id)
 
         worker = CleanupWorker(db, idle_poll_seconds=30.0)
         original_run_domain_step = worker.coordinator._run_domain_step
@@ -1901,7 +1882,6 @@ class TestStorageLockoutExemptionsAndCleanupWorker:
     async def test_heavy_child_fanout_drains_in_bounded_batches_without_large_final_cascade(
         self, db: DbSessionFactory
     ) -> None:
-        dialect = SupportedSQLDialect(db.dialect.value)
         async with db() as session:
             proj = await _add_project(session, name=f"fanout-{token_hex(4)}")
             tr = await _add_trace(session, proj)
@@ -1931,7 +1911,7 @@ class TestStorageLockoutExemptionsAndCleanupWorker:
             session.add_all(examples)
             await session.flush()
             example_ids = [ex.id for ex in examples]
-            await admit_project_delete(session, dialect=dialect, project_id=proj.id)
+            await admit_project_delete(session, project_id=proj.id)
 
         # With batch_limit=2, 6 annotations + 5 dataset_example refs + 1 span + 1 trace + finalize
         # must take multiple bounded steps and preserve DatasetExample rows with span_rowid=None.
@@ -1952,7 +1932,6 @@ class TestStorageLockoutExemptionsAndCleanupWorker:
     async def test_delete_project_reassigns_shared_cross_project_session_without_deleting_survivor(
         self, db: DbSessionFactory
     ) -> None:
-        dialect = SupportedSQLDialect(db.dialect.value)
         shared_sid = f"shared-session-{token_hex(4)}"
         t0 = datetime(2026, 7, 2, 0, 0, 0, tzinfo=timezone.utc)
 
@@ -1994,7 +1973,7 @@ class TestStorageLockoutExemptionsAndCleanupWorker:
             p1_id = ins1.project_rowid
             p2_id = ins2.project_rowid
             p2_trace_id = ins2.trace_rowid
-            await admit_project_delete(session, dialect=dialect, project_id=p1_id)
+            await admit_project_delete(session, project_id=p1_id)
 
         coordinator = CleanupCoordinator(db, batch_limit=1)
         await _drain_all(coordinator)
@@ -2011,7 +1990,6 @@ class TestTraceScopeDrain:
     async def test_traces_are_deleted_window_by_window_before_all_spans_are_gone(
         self, db: DbSessionFactory
     ) -> None:
-        dialect = SupportedSQLDialect(db.dialect.value)
         base = datetime(2024, 1, 1, tzinfo=timezone.utc)
         async with db() as session:
             proj = await _add_project(session, name=f"window-{token_hex(4)}")
@@ -2024,9 +2002,7 @@ class TestTraceScopeDrain:
         trace_deleted_while_spans_remain = False
         while True:
             async with db() as session:
-                res = await drain_trace_scope_step(
-                    session, dialect=dialect, project_id=project_id, batch_limit=2
-                )
+                res = await drain_trace_scope_step(session, project_id=project_id, batch_limit=2)
             if res.status is PrimitiveStatus.EMPTY:
                 break
             assert res.status is PrimitiveStatus.PROGRESS
@@ -2149,7 +2125,6 @@ async def test_cleanup_batches_cost_details_before_deleting_their_parent(
     async with db() as session:
         first_step = await drain_trace_scope_step(
             session,
-            dialect=db.dialect,
             project_id=project.id,
             batch_limit=2,
         )
@@ -2161,7 +2136,6 @@ async def test_cleanup_batches_cost_details_before_deleting_their_parent(
     async with db() as session:
         second_step = await drain_trace_scope_step(
             session,
-            dialect=db.dialect,
             project_id=project.id,
             batch_limit=2,
         )
@@ -2175,7 +2149,6 @@ async def test_cleanup_batches_cost_details_before_deleting_their_parent(
         # with the Span delete rather than consuming an extra transaction.
         third_step = await drain_trace_scope_step(
             session,
-            dialect=db.dialect,
             project_id=project.id,
             batch_limit=2,
         )
@@ -2224,7 +2197,6 @@ async def test_cleanup_batches_trace_work_units_before_deleting_trace(db: DbSess
     async with db() as session:
         result = await drain_trace_scope_step(
             session,
-            dialect=db.dialect,
             project_id=project.id,
             batch_limit=2,
         )
@@ -2237,7 +2209,6 @@ async def test_cleanup_batches_trace_work_units_before_deleting_trace(db: DbSess
 async def test_dataset_evaluator_delete_drains_eval_logs_and_links_in_batches(
     db: DbSessionFactory,
 ) -> None:
-    dialect = SupportedSQLDialect(db.dialect.value)
     base_time = datetime(2026, 8, 1, 0, 0, 0, tzinfo=timezone.utc)
 
     async with db() as session:
@@ -2366,7 +2337,6 @@ async def test_dataset_evaluator_delete_drains_eval_logs_and_links_in_batches(
 
         await logical_delete_dataset_evaluators(
             session,
-            dialect=dialect,
             binding_ids=[target_binding_id],
             collect_unused_evaluator=False,
             delete_associated_prompt=False,
@@ -2672,7 +2642,6 @@ async def test_sqlite_cleanup_primitives_use_fk_indexes_without_temp_btrees(
             while (
                 await drain_dataset_evaluator_dependents_step(
                     session,
-                    dialect=SupportedSQLDialect.SQLITE,
                     dataset_evaluator_id=dataset_binding_id,
                     batch_limit=2,
                 )
@@ -2681,7 +2650,6 @@ async def test_sqlite_cleanup_primitives_use_fk_indexes_without_temp_btrees(
             while (
                 await drain_eval_work_units_step(
                     session,
-                    dialect=SupportedSQLDialect.SQLITE,
                     project_evaluator_id=span_evaluator_id,
                     batch_limit=2,
                 )
@@ -2690,7 +2658,6 @@ async def test_sqlite_cleanup_primitives_use_fk_indexes_without_temp_btrees(
             while (
                 await drain_project_annotation_config_links_step(
                     session,
-                    dialect=SupportedSQLDialect.SQLITE,
                     project_id=project_id,
                     batch_limit=2,
                 )
@@ -2699,7 +2666,6 @@ async def test_sqlite_cleanup_primitives_use_fk_indexes_without_temp_btrees(
             while (
                 await drain_trace_scope_step(
                     session,
-                    dialect=SupportedSQLDialect.SQLITE,
                     project_id=project_id,
                     batch_limit=2,
                 )
@@ -2891,7 +2857,6 @@ async def test_postgres_dataset_evaluator_dependents_skip_locked_past_locked_pre
             try:
                 first_result = await drain_dataset_evaluator_dependents_step(
                     session,
-                    dialect=SupportedSQLDialect.POSTGRESQL,
                     dataset_evaluator_id=binding_id,
                     batch_limit=2,
                 )
@@ -2912,7 +2877,6 @@ async def test_postgres_dataset_evaluator_dependents_skip_locked_past_locked_pre
         async with db() as session:
             yield_result = await drain_dataset_evaluator_dependents_step(
                 session,
-                dialect=SupportedSQLDialect.POSTGRESQL,
                 dataset_evaluator_id=binding_id,
                 batch_limit=2,
             )
@@ -2921,14 +2885,12 @@ async def test_postgres_dataset_evaluator_dependents_skip_locked_past_locked_pre
     async with db() as session:
         final_logs_result = await drain_dataset_evaluator_dependents_step(
             session,
-            dialect=SupportedSQLDialect.POSTGRESQL,
             dataset_evaluator_id=binding_id,
             batch_limit=2,
         )
         assert final_logs_result == PrimitiveResult(PrimitiveStatus.PROGRESS, 2)
         empty_result = await drain_dataset_evaluator_dependents_step(
             session,
-            dialect=SupportedSQLDialect.POSTGRESQL,
             dataset_evaluator_id=binding_id,
             batch_limit=2,
         )
@@ -2938,7 +2900,6 @@ async def test_postgres_dataset_evaluator_dependents_skip_locked_past_locked_pre
 async def test_late_spans_dropped_after_internal_projects_are_physically_purged(
     db: DbSessionFactory,
 ) -> None:
-    dialect = SupportedSQLDialect(db.dialect.value)
     base_time = datetime(2026, 8, 4, 0, 0, 0, tzinfo=timezone.utc)
     deleted_experiment_project_name = f"Experiment-{token_hex(12)}"
     retained_experiment_project_name = f"Experiment-{token_hex(12)}"
@@ -3010,22 +2971,16 @@ async def test_late_spans_dropped_after_internal_projects_are_physically_purged(
             dataset_evaluator_project.id,
             project_evaluator_project.id,
         ]
-        await admit_project_delete(
-            session, dialect=dialect, project_id=deleted_experiment_project.id
-        )
-        await admit_project_delete(
-            session, dialect=dialect, project_id=retained_experiment_project.id
-        )
+        await admit_project_delete(session, project_id=deleted_experiment_project.id)
+        await admit_project_delete(session, project_id=retained_experiment_project.id)
         await logical_delete_dataset_evaluators(
             session,
-            dialect=dialect,
             binding_ids=[dataset_binding.id],
             collect_unused_evaluator=False,
             delete_associated_prompt=False,
         )
         await logical_delete_project_evaluators(
             session,
-            dialect=dialect,
             binding_ids=[project_binding.id],
             collect_unused_evaluator=False,
             delete_associated_prompt=False,
@@ -3114,9 +3069,7 @@ async def test_postgres_only_one_coordinator_steps_while_the_advisory_lock_is_he
     async with db() as session:
         project = await _add_project(session, name=f"pg-excl-{token_hex(4)}")
         project_id = project.id
-        await admit_project_delete(
-            session, dialect=SupportedSQLDialect.POSTGRESQL, project_id=project_id
-        )
+        await admit_project_delete(session, project_id=project_id)
 
     coordinator_a = CleanupCoordinator(db)
     coordinator_b = CleanupCoordinator(db)
@@ -3158,7 +3111,6 @@ async def test_postgres_locked_span_causes_drain_traces_step_to_yield_without_de
         async with db() as cleaner:
             yield_result = await drain_traces_step(
                 cleaner,
-                dialect=SupportedSQLDialect.POSTGRESQL,
                 trace_cond=trace_cond,
                 batch_limit=10,
             )
@@ -3171,7 +3123,6 @@ async def test_postgres_locked_span_causes_drain_traces_step_to_yield_without_de
     async with db() as cleaner:
         span_progress = await drain_traces_step(
             cleaner,
-            dialect=SupportedSQLDialect.POSTGRESQL,
             trace_cond=trace_cond,
             batch_limit=10,
         )
@@ -3179,7 +3130,6 @@ async def test_postgres_locked_span_causes_drain_traces_step_to_yield_without_de
     async with db() as cleaner:
         trace_progress = await drain_traces_step(
             cleaner,
-            dialect=SupportedSQLDialect.POSTGRESQL,
             trace_cond=trace_cond,
             batch_limit=10,
         )

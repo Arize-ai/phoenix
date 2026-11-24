@@ -141,10 +141,9 @@ class CleanupCoordinator:
             )
         )
 
-    async def _acquire_step_lock(
-        self, session: AsyncSession, *, dialect: SupportedSQLDialect
-    ) -> bool:
+    async def _acquire_step_lock(self, session: AsyncSession) -> bool:
         """Make this transaction the only stepping one; ``False`` means another replica is."""
+        dialect = SupportedSQLDialect(session.get_bind().dialect.name)
         if dialect is SupportedSQLDialect.POSTGRESQL:
             await session.execute(text(f"SET LOCAL statement_timeout = {STATEMENT_TIMEOUT_MS}"))
             await session.execute(text(f"SET LOCAL lock_timeout = {LOCK_TIMEOUT_MS}"))
@@ -281,7 +280,7 @@ class CleanupCoordinator:
         target: Optional[CleanupTarget] = None
         try:
             async with self._db() as session:
-                if not await self._acquire_step_lock(session, dialect=dialect):
+                if not await self._acquire_step_lock(session):
                     return StepExecutionResult("busy")
                 now = await current_database_time(session, dialect)
                 target, next_delay_seconds = await self._select_next_target(session, now=now)
@@ -289,7 +288,6 @@ class CleanupCoordinator:
                     return StepExecutionResult("idle", next_delay_seconds=next_delay_seconds)
                 step_result = await self._run_domain_step(
                     session,
-                    dialect=dialect,
                     target=target,
                     events_after_commit=events_after_commit,
                 )
@@ -329,28 +327,24 @@ class CleanupCoordinator:
         self,
         session: AsyncSession,
         *,
-        dialect: SupportedSQLDialect,
         target: CleanupTarget,
         events_after_commit: list[DmlEvent],
     ) -> PrimitiveResult:
         if target.kind == "PROJECT":
             return await self._step_project_delete(
                 session,
-                dialect=dialect,
                 project_id=target.id,
                 events_after_commit=events_after_commit,
             )
         if target.kind == "PROJECT_EVALUATOR":
             return await self._step_project_evaluator_delete(
                 session,
-                dialect=dialect,
                 binding_id=target.id,
                 events_after_commit=events_after_commit,
             )
         if target.kind == "DATASET_EVALUATOR":
             return await self._step_dataset_evaluator_delete(
                 session,
-                dialect=dialect,
                 binding_id=target.id,
                 events_after_commit=events_after_commit,
             )
@@ -360,11 +354,11 @@ class CleanupCoordinator:
         self,
         session: AsyncSession,
         *,
-        dialect: SupportedSQLDialect,
         project_id: int,
         events_after_commit: list[DmlEvent],
     ) -> PrimitiveResult:
         # Recheck fixed ordering invariants before draining/finalizing.
+        dialect = SupportedSQLDialect(session.get_bind().dialect.name)
         has_bindings = bool(
             await session.scalar(
                 select(exists().where(models.ProjectEvaluator.project_id == project_id))
@@ -375,7 +369,6 @@ class CleanupCoordinator:
 
         annotation_config_res = await drain_project_annotation_config_links_step(
             session,
-            dialect=dialect,
             project_id=project_id,
             batch_limit=self._batch_limit,
         )
@@ -384,7 +377,6 @@ class CleanupCoordinator:
 
         trace_res = await drain_trace_scope_step(
             session,
-            dialect=dialect,
             project_id=project_id,
             batch_limit=self._batch_limit,
             rehome_shared_sessions=True,
@@ -426,10 +418,10 @@ class CleanupCoordinator:
         self,
         session: AsyncSession,
         *,
-        dialect: SupportedSQLDialect,
         binding_id: int,
         events_after_commit: list[DmlEvent],
     ) -> PrimitiveResult:
+        dialect = SupportedSQLDialect(session.get_bind().dialect.name)
         trace_project_id = await session.scalar(
             select(models.ProjectEvaluator.trace_project_id).where(
                 models.ProjectEvaluator.id == binding_id
@@ -440,7 +432,6 @@ class CleanupCoordinator:
 
         work_res = await drain_eval_work_units_step(
             session,
-            dialect=dialect,
             project_evaluator_id=binding_id,
             batch_limit=self._batch_limit,
         )
@@ -449,7 +440,6 @@ class CleanupCoordinator:
 
         annotation_config_res = await drain_project_annotation_config_links_step(
             session,
-            dialect=dialect,
             project_id=trace_project_id,
             batch_limit=self._batch_limit,
         )
@@ -458,7 +448,6 @@ class CleanupCoordinator:
 
         trace_res = await drain_trace_scope_step(
             session,
-            dialect=dialect,
             project_id=trace_project_id,
             batch_limit=self._batch_limit,
             rehome_shared_sessions=True,
@@ -508,10 +497,10 @@ class CleanupCoordinator:
         self,
         session: AsyncSession,
         *,
-        dialect: SupportedSQLDialect,
         binding_id: int,
         events_after_commit: list[DmlEvent],
     ) -> PrimitiveResult:
+        dialect = SupportedSQLDialect(session.get_bind().dialect.name)
         trace_project_id = await session.scalar(
             select(models.DatasetEvaluators.project_id).where(
                 models.DatasetEvaluators.id == binding_id
@@ -522,7 +511,6 @@ class CleanupCoordinator:
 
         dep_res = await drain_dataset_evaluator_dependents_step(
             session,
-            dialect=dialect,
             dataset_evaluator_id=binding_id,
             batch_limit=self._batch_limit,
         )
@@ -531,7 +519,6 @@ class CleanupCoordinator:
 
         annotation_config_res = await drain_project_annotation_config_links_step(
             session,
-            dialect=dialect,
             project_id=trace_project_id,
             batch_limit=self._batch_limit,
         )
@@ -540,7 +527,6 @@ class CleanupCoordinator:
 
         trace_res = await drain_trace_scope_step(
             session,
-            dialect=dialect,
             project_id=trace_project_id,
             batch_limit=self._batch_limit,
             rehome_shared_sessions=True,

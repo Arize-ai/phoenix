@@ -9,7 +9,6 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.helpers import (
-    SupportedSQLDialect,
     exclude_dataset_evaluator_projects,
     exclude_experiment_projects,
     exclude_project_evaluator_trace_projects,
@@ -331,12 +330,11 @@ async def delete_project(
     Raises:
         HTTPException: If the project identifier format is invalid, the project is not found, or it's the default project.
     """  # noqa: E501
-    dialect = SupportedSQLDialect(request.app.state.db.dialect.value)
     try:
         async with request.app.state.db() as session:
             project = await get_project_by_identifier(session, project_identifier)
             project_id = project.id
-            admitted = await admit_project_delete(session, dialect=dialect, project_id=project_id)
+            admitted = await admit_project_delete(session, project_id=project_id)
     except NotFound as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
     except BadRequest as error:

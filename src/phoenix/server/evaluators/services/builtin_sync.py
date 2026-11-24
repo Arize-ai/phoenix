@@ -131,7 +131,7 @@ async def sync_builtin_evaluators(db: DbSessionFactory) -> None:
                     for row in project_binding_rows
                     for project_id in (int(row.project_id), int(row.trace_project_id))
                 }
-                await _lock_projects(session, dialect, all_project_ids, key_share=True)
+                await _lock_projects(session, all_project_ids, key_share=True)
 
                 if dialect is SupportedSQLDialect.POSTGRESQL:
                     await session.execute(
@@ -146,14 +146,12 @@ async def sync_builtin_evaluators(db: DbSessionFactory) -> None:
 
                 await logical_delete_dataset_evaluators(
                     session,
-                    dialect=dialect,
                     binding_ids=[int(row.id) for row in dataset_binding_rows],
                     collect_unused_evaluator=False,
                     delete_associated_prompt=False,
                 )
                 await logical_delete_project_evaluators(
                     session,
-                    dialect=dialect,
                     binding_ids=[int(row.id) for row in project_binding_rows],
                     collect_unused_evaluator=False,
                     delete_associated_prompt=False,

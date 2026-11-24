@@ -15,7 +15,6 @@ from phoenix.config import get_env_enable_prometheus
 from phoenix.db import models
 from phoenix.db.eval_work import queued_index_predicate
 from phoenix.db.helpers import (
-    SupportedSQLDialect,
     code_evaluator_with_latest_version,
     is_foreign_key_violation,
 )
@@ -463,7 +462,6 @@ async def detach_project_evaluators(
             raise BadRequest(f"Invalid project evaluator id: {global_id}")
     if not rowids:
         return
-    dialect = SupportedSQLDialect(context.db.dialect.value)
     async with context.db() as session:
         if project_id is not None:
             elsewhere = (
@@ -481,7 +479,6 @@ async def detach_project_evaluators(
 
         delete_result = await logical_delete_project_evaluators(
             session,
-            dialect=dialect,
             binding_ids=rowids,
             collect_unused_evaluator=False,
             delete_associated_prompt=False,
@@ -947,11 +944,9 @@ async def delete_project_evaluators(
     if not project_evaluator_ids:
         return []
 
-    dialect = SupportedSQLDialect(context.db.dialect.value)
     async with context.db() as session:
         delete_result = await logical_delete_project_evaluators(
             session,
-            dialect=dialect,
             binding_ids=project_evaluator_ids,
             collect_unused_evaluator=True,
             delete_associated_prompt=input.delete_associated_prompt,

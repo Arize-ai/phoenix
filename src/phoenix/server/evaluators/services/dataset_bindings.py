@@ -13,7 +13,6 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.helpers import (
-    SupportedSQLDialect,
     is_foreign_key_violation,
 )
 from phoenix.db.types.annotation_configs import OutputConfigType, as_output_configs
@@ -298,11 +297,9 @@ async def delete_dataset_evaluators(
     if not dataset_evaluator_rowids:
         return []
 
-    dialect = SupportedSQLDialect(context.db.dialect.value)
     async with context.db() as session:
         delete_result = await logical_delete_dataset_evaluators(
             session,
-            dialect=dialect,
             binding_ids=dataset_evaluator_rowids,
             collect_unused_evaluator=True,
             delete_associated_prompt=input.delete_associated_prompt,
@@ -830,7 +827,6 @@ async def detach_dataset_evaluators(
     ]
     if not rowids:
         return
-    dialect = SupportedSQLDialect(context.db.dialect.value)
     async with context.db() as session:
         elsewhere: Sequence[int] = []
         if dataset_id is not None:
@@ -853,7 +849,6 @@ async def detach_dataset_evaluators(
 
         delete_result = await logical_delete_dataset_evaluators(
             session,
-            dialect=dialect,
             binding_ids=rowids,
             collect_unused_evaluator=False,
             delete_associated_prompt=False,

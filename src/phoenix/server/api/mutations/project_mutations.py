@@ -11,7 +11,6 @@ from strawberry.types import Info
 
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.api.auth import IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
@@ -64,12 +63,9 @@ class ProjectMutationMixin:
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
     async def delete_project(self, info: Info[Context, None], id: GlobalID) -> Query:
         project_id = from_global_id_with_expected_type(global_id=id, expected_type_name="Project")
-        dialect = SupportedSQLDialect(info.context.db.dialect.value)
         try:
             async with info.context.db() as session:
-                admitted = await admit_project_delete(
-                    session, dialect=dialect, project_id=project_id
-                )
+                admitted = await admit_project_delete(session, project_id=project_id)
         except NotFound as error:
             raise ValueError(f"Unknown project: {id}") from error
         except BadRequest as error:

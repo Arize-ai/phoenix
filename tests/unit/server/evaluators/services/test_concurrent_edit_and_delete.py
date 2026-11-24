@@ -438,7 +438,6 @@ async def test_logical_delete_evaluators_ignores_binding_committed_after_discove
     monkeypatch: pytest.MonkeyPatch,
     target: str,
 ) -> None:
-    from phoenix.db.helpers import SupportedSQLDialect
     from phoenix.server.cleanup import lifecycle
 
     db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
@@ -553,7 +552,6 @@ async def test_logical_delete_evaluators_ignores_binding_committed_after_discove
         if target == "project":
             await lifecycle.logical_delete_project_evaluators(
                 delete_session,
-                dialect=SupportedSQLDialect.POSTGRESQL,
                 binding_ids=[first_binding_id, second_binding_id],
                 collect_unused_evaluator=False,
                 delete_associated_prompt=False,
@@ -561,7 +559,6 @@ async def test_logical_delete_evaluators_ignores_binding_committed_after_discove
         else:
             await lifecycle.logical_delete_dataset_evaluators(
                 delete_session,
-                dialect=SupportedSQLDialect.POSTGRESQL,
                 binding_ids=[first_binding_id, second_binding_id],
                 collect_unused_evaluator=False,
                 delete_associated_prompt=False,
@@ -583,7 +580,6 @@ async def test_concurrent_admit_project_delete_and_persist_evaluator_traces(
     postgresql_engine: AsyncEngine,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from phoenix.db.helpers import SupportedSQLDialect
     from phoenix.server.cleanup import lifecycle
     from phoenix.server.online_eval.tracing import persist_evaluator_traces
     from phoenix.tracers import Tracer
@@ -641,7 +637,6 @@ async def test_concurrent_admit_project_delete_and_persist_evaluator_traces(
         async with db() as delete_session:
             await lifecycle.admit_project_delete(
                 delete_session,
-                dialect=SupportedSQLDialect.POSTGRESQL,
                 project_id=owner_project_id,
             )
 
@@ -660,7 +655,6 @@ async def test_admit_exclusive_experiment_projects_delete_locks_evaluators_in_id
     postgresql_engine: AsyncEngine,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from phoenix.db.helpers import SupportedSQLDialect
     from phoenix.server.cleanup import lifecycle
     from phoenix.server.evaluators.services import definitions as definitions_module
     from phoenix.server.evaluators.services.management import (
@@ -743,7 +737,6 @@ async def test_admit_exclusive_experiment_projects_delete_locks_evaluators_in_id
         )
         tombstoned_ids = await lifecycle.admit_exclusive_experiment_projects_delete(
             delete_session,
-            dialect=SupportedSQLDialect.POSTGRESQL,
             candidate_project_ids=candidate_project_ids,
         )
 
@@ -787,7 +780,6 @@ async def test_experiment_runner_persist_traces_does_not_deadlock_with_dataset_e
 ) -> None:
     from datetime import datetime, timezone
 
-    from phoenix.db.helpers import SupportedSQLDialect
     from phoenix.server.cleanup import lifecycle
     from phoenix.server.daemons.experiment_runner import EvalWorkItem
     from phoenix.server.evaluators.services.management import (
@@ -873,7 +865,6 @@ async def test_experiment_runner_persist_traces_does_not_deadlock_with_dataset_e
         async with db() as delete_session:
             await lifecycle.logical_delete_dataset_evaluators(
                 delete_session,
-                dialect=SupportedSQLDialect.POSTGRESQL,
                 binding_ids=[dataset_binding.id],
                 collect_unused_evaluator=False,
                 delete_associated_prompt=False,
