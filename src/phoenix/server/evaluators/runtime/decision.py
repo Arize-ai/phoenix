@@ -249,10 +249,11 @@ class DecisionEvaluator(BaseEvaluator):
         questions = json.dumps([question.model_dump(mode="json") for question in request.questions])
         size = len(state.encode("utf-8")) + len(questions.encode("utf-8"))
         if size > self.max_request_bytes:
-            raise RenderedMessageTooLargeError(
-                f"The rendered state and questions are {size} bytes, exceeding the "
-                f"{self.max_request_bytes}-byte limit. Narrow the variables with a path mapping, "
-                "or raise the limit with PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES."
+            raise RenderedMessageTooLargeError.over_limit(
+                subject="The mapped inputs and questions are",
+                num_bytes=size,
+                max_bytes=self.max_request_bytes,
+                remediation="Map the inputs to smaller fields.",
             )
 
     @property

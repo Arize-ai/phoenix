@@ -1,12 +1,14 @@
 """Base evaluator contract, evaluation results, and shared runtime errors."""
 
+import math
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
-from typing import Any, Hashable, Literal, Optional, Protocol, Sequence, TypeAlias
+from typing import Any, Callable, Hashable, Literal, Optional, Protocol, Sequence, TypeAlias
 
 from opentelemetry.trace import Tracer
 from typing_extensions import NotRequired, TypedDict
 
+from phoenix.config import ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES
 from phoenix.db.types.annotation_configs import OutputConfigType
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.server.online_eval.failure_policy import FailureDisposition
@@ -20,6 +22,30 @@ class RenderedMessageTooLargeError(Exception):
         terminal=True,
         code="RENDERED_MESSAGE_TOO_LARGE",
     )
+
+    @classmethod
+    def over_limit(
+        cls,
+        *,
+        subject: str,
+        num_bytes: int,
+        max_bytes: int,
+        remediation: str,
+    ) -> "RenderedMessageTooLargeError":
+        # The size rounds up and the limit down, so a size just over the limit
+        # never reads as equal to it.
+        size = _format_byte_size(num_bytes=num_bytes, rounding=math.ceil)
+        limit = _format_byte_size(num_bytes=max_bytes, rounding=math.floor)
+        return cls(
+            f"{subject} {size}, over the {limit} limit. {remediation} "
+            f"To raise the limit, set {ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES}."
+        )
+
+
+def _format_byte_size(*, num_bytes: int, rounding: Callable[[float], int]) -> str:
+    unit, unit_bytes = ("MB", 1024**2) if num_bytes >= 1024**2 else ("KB", 1024)
+    tenths = rounding(num_bytes * 10 / unit_bytes)
+    return f"{tenths / 10:g} {unit}"
 
 
 class EvaluatorResultValidationError(Exception):

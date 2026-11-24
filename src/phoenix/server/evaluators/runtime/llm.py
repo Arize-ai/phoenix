@@ -257,11 +257,12 @@ class LLMEvaluator(BaseEvaluator):
                         self._max_message_bytes is not None
                         and rendered_message_bytes > self._max_message_bytes
                     ):
-                        raise RenderedMessageTooLargeError(
-                            f"Rendered online-eval messages are {rendered_message_bytes} bytes, "
-                            f"exceeding the {self._max_message_bytes}-byte limit. Narrow the "
-                            "slot with a path mapping, shorten the prompt, or raise the limit "
-                            "with PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES."
+                        raise RenderedMessageTooLargeError.over_limit(
+                            subject="The filled-in prompt is",
+                            num_bytes=rendered_message_bytes,
+                            max_bytes=self._max_message_bytes,
+                            remediation="Map its variables to smaller fields or shorten the "
+                            "template.",
                         )
 
                     formatted_messages = [

@@ -412,4 +412,9 @@ async def test_an_oversized_request_gives_up_without_calling_the_model(
     unit = await _get_unit(db, unit_id)
     assert invoke.await_count == 0
     assert unit.status == "EXPIRED"
-    assert unit.error is not None and "RENDERED_MESSAGE_TOO_LARGE" in unit.error
+    assert unit.error is not None
+    assert unit.error.startswith("RENDERED_MESSAGE_TOO_LARGE: The mapped inputs and questions are ")
+    assert unit.error.endswith(
+        "KB, over the 1 KB limit. Map the inputs to smaller fields. "
+        "To raise the limit, set PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES."
+    )

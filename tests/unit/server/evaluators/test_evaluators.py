@@ -2555,6 +2555,45 @@ class TestLLMEvaluator:
         assert attributes.pop(INPUT_MIME_TYPE) == "application/json"
         assert not attributes
 
+    async def test_evaluate_with_oversized_prompt_returns_error_with_size_and_fix(
+        self,
+        tracer: Tracer,
+        llm_evaluator_prompt_version: models.PromptVersion,
+        openai_streaming_client: "OpenAIChatCompletionsClient",
+        input_mapping: EvaluatorInputMappingInput,
+        output_config: CategoricalOutputConfig,
+    ) -> None:
+        template = llm_evaluator_prompt_version.template
+        assert isinstance(template, PromptChatTemplate)
+        tools = llm_evaluator_prompt_version.tools
+        assert tools is not None
+        llm_evaluator = LLMEvaluator(
+            name="correctness",
+            description=None,
+            template=template,
+            template_format=llm_evaluator_prompt_version.template_format,
+            tools=tools,
+            invocation_parameters=llm_evaluator_prompt_version.invocation_parameters,
+            model_provider=llm_evaluator_prompt_version.model_provider,
+            llm_client=openai_streaming_client,
+            output_configs=[output_config],
+            prompt_name="test-prompt",
+            max_message_bytes=1024,
+        )
+        (evaluation_result,) = await llm_evaluator.evaluate(
+            context={"input": "What is 2 + 2?", "output": "4" * 2_000},
+            input_mapping=input_mapping.to_orm(),
+            name="correctness",
+            output_configs=[output_config],
+            tracer=tracer,
+        )
+
+        assert evaluation_result["error"] == (
+            "The filled-in prompt is 2.1 KB, over the 1 KB limit. Map its variables to "
+            "smaller fields or shorten the template. To raise the limit, set "
+            "PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES."
+        )
+
     async def test_evaluate_with_invalid_api_key_returns_error(
         self,
         db: DbSessionFactory,
