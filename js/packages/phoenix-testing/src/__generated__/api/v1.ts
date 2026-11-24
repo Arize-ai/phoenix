@@ -419,7 +419,7 @@ export interface paths {
         post?: never;
         /**
          * Permanently delete examples from a dataset
-         * @description Permanently delete examples and all of their revisions from every version of the dataset. The experiment runs on these examples, their evaluations, their task and evaluator traces, and their experiment logs are deleted too. The dataset, its versions, its experiments, and its other examples are kept. This cannot be undone. Either every example is deleted or, if any example is not found in the dataset, none is.
+         * @description Permanently delete examples and all of their revisions from every version of the dataset. The experiment runs on these examples, their evaluations, their task and evaluator traces, and their experiment logs are deleted too. The dataset, its versions, its experiments, and its other examples are kept. This cannot be undone. Example IDs that are not in the dataset are skipped, so a repeated request succeeds. Wait for experiments on the dataset to finish first, because runs and traces that arrive after the request are kept.
          */
         delete: operations["deleteDatasetExamples"];
         options?: never;
@@ -9050,7 +9050,7 @@ export interface operations {
     deleteDatasetExamples: {
         parameters: {
             query: {
-                /** @description Identifiers of the examples to delete: dataset example IDs (GlobalIDs) or user-provided IDs. Each example must belong to this dataset. */
+                /** @description Identifiers of the examples to delete: dataset example IDs (GlobalIDs) or user-provided IDs. To delete more examples, send more requests. */
                 example_ids: string[];
             };
             header?: never;
@@ -9078,7 +9078,7 @@ export interface operations {
                     "text/plain": string;
                 };
             };
-            /** @description Dataset or example not found */
+            /** @description Dataset not found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -9087,7 +9087,7 @@ export interface operations {
                     "text/plain": string;
                 };
             };
-            /** @description Invalid dataset ID or no example IDs */
+            /** @description Invalid dataset ID, no example IDs, or too many example IDs */
             422: {
                 headers: {
                     [name: string]: unknown;

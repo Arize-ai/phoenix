@@ -80,6 +80,9 @@ DATASET_VERSION_NODE_NAME = DatasetVersionNodeType.__name__
 DATASET_SPLIT_NODE_NAME = DatasetSplitNodeType.__name__
 DATASET_EXAMPLE_NODE_NAME = DatasetExampleNodeType.__name__
 
+# Keeps the request URL under the 8 KB that proxies commonly accept.
+MAX_DELETE_DATASET_EXAMPLE_IDS = 100
+
 
 # Matches the dataset-split form's default color (app NewDatasetSplitForm).
 DEFAULT_DATASET_SPLIT_COLOR = "#33c5e8"
@@ -1516,14 +1519,19 @@ async def get_dataset_examples(
         "Permanently delete examples and all of their revisions from every version of the "
         "dataset. The experiment runs on these examples, their evaluations, their task and "
         "evaluator traces, and their experiment logs are deleted too. The dataset, its versions, "
-        "its experiments, and its other examples are kept. This cannot be undone. Either every "
-        "example is deleted or, if any example is not found in the dataset, none is."
+        "its experiments, and its other examples are kept. This cannot be undone. Example IDs "
+        "that are not in the dataset are skipped, so a repeated request succeeds. Wait for "
+        "experiments on the dataset to finish first, because runs and traces that arrive after "
+        "the request are kept."
     ),
     status_code=204,
     responses=add_errors_to_responses(
         [
-            {"status_code": 404, "description": "Dataset or example not found"},
-            {"status_code": 422, "description": "Invalid dataset ID or no example IDs"},
+            {"status_code": 404, "description": "Dataset not found"},
+            {
+                "status_code": 422,
+                "description": "Invalid dataset ID, no example IDs, or too many example IDs",
+            },
         ]
     ),
 )
@@ -1533,8 +1541,9 @@ async def delete_dataset_examples(
     example_ids: list[str] = Query(
         description=(
             "Identifiers of the examples to delete: dataset example IDs (GlobalIDs) or "
-            "user-provided IDs. Each example must belong to this dataset."
+            "user-provided IDs. To delete more examples, send more requests."
         ),
+        max_length=MAX_DELETE_DATASET_EXAMPLE_IDS,
     ),
 ) -> None:
     try:
@@ -1544,18 +1553,22 @@ async def delete_dataset_examples(
     async with request.app.state.db() as session:
         if await session.get(models.Dataset, dataset_id) is None:
             raise HTTPException(detail=f"No dataset with id {id} can be found.", status_code=404)
-        example_rowids = await _resolve_dataset_example_rowids(session, dataset_id, example_ids)
+        example_rowids = await _resolve_dataset_example_rowids(
+            session, dataset_id, example_ids, skip_missing=True
+        )
+        if not example_rowids:
+            return
         run_rowids = select(models.ExperimentRun.id).where(
             models.ExperimentRun.dataset_example_id.in_(example_rowids)
         )
-        trace_ids = list(
-            await session.scalars(
-                select(models.ExperimentRun.trace_id)
-                .where(models.ExperimentRun.id.in_(run_rowids))
-                .union(
-                    select(models.ExperimentRunAnnotation.trace_id).where(
-                        models.ExperimentRunAnnotation.experiment_run_id.in_(run_rowids)
-                    )
+        # Kept as a subquery: the runs of a few examples can hold more trace IDs than a
+        # statement can bind as parameters.
+        trace_ids = (
+            select(models.ExperimentRun.trace_id)
+            .where(models.ExperimentRun.dataset_example_id.in_(example_rowids))
+            .union_all(
+                select(models.ExperimentRunAnnotation.trace_id).where(
+                    models.ExperimentRunAnnotation.experiment_run_id.in_(run_rowids)
                 )
             )
         )
@@ -1566,7 +1579,7 @@ async def delete_dataset_examples(
                 models.ExperimentLog.id.in_(
                     select(models.ExperimentTaskLog.id)
                     .where(models.ExperimentTaskLog.dataset_example_id.in_(example_rowids))
-                    .union(
+                    .union_all(
                         select(models.ExperimentEvalLog.id).where(
                             models.ExperimentEvalLog.experiment_run_id.in_(run_rowids)
                         )
@@ -1574,13 +1587,16 @@ async def delete_dataset_examples(
                 )
             )
         )
-        project_rowids = set(
+        # Selected before the delete instead of RETURNING, which would buffer a row per
+        # trace (#13906).
+        project_rowids = list(
             await session.scalars(
-                delete(models.Trace)
+                select(models.Trace.project_rowid)
                 .where(models.Trace.trace_id.in_(trace_ids))
-                .returning(models.Trace.project_rowid)
+                .distinct()
             )
         )
+        await session.execute(delete(models.Trace).where(models.Trace.trace_id.in_(trace_ids)))
         await session.execute(
             delete(models.DatasetExample).where(models.DatasetExample.id.in_(example_rowids))
         )
@@ -1662,12 +1678,15 @@ async def _resolve_dataset_example_rowids(
     session: AsyncSession,
     dataset_id: int,
     example_ids: list[str],
+    *,
+    skip_missing: bool = False,
 ) -> list[int]:
     """Resolve dataset example GlobalIDs or user-provided IDs within a dataset.
 
     Returns the unique example row IDs, preserving the order in which they were
     first seen. Valid DatasetExample GlobalIDs take precedence over matching
-    user-provided IDs. Raises 404 if any example does not exist in the dataset.
+    user-provided IDs. Raises 404 if any example does not exist in the dataset,
+    unless skip_missing is set.
     """
     if not example_ids:
         return []
@@ -1721,7 +1740,7 @@ async def _resolve_dataset_example_rowids(
         else:
             resolved_rowids[external_rowid] = None
 
-    if missing_identifiers:
+    if missing_identifiers and not skip_missing:
         raise HTTPException(
             detail=(
                 f"Dataset examples not found in this dataset: {', '.join(missing_identifiers)}"

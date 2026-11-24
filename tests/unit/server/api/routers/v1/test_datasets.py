@@ -20,6 +20,7 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.insertion.dataset import ExampleContent
 from phoenix.server.api.routers.v1.datasets import (
+    MAX_DELETE_DATASET_EXAMPLE_IDS,
     FileContentEncoding,
     _process_csv,
     _process_jsonl,
@@ -27,6 +28,7 @@ from phoenix.server.api.routers.v1.datasets import (
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetVersion import DatasetVersion as DatasetVersionType
 from phoenix.server.types import DbSessionFactory
+from tests.unit._helpers import _add_project, _add_trace
 
 
 async def test_get_simple_dataset(
@@ -1370,16 +1372,12 @@ async def test_delete_dataset_examples_purges_examples_from_every_version(
         [int], Awaitable[models.DatasetEvaluators]
     ],
 ) -> None:
-    now = datetime.now(timezone.utc)
     dataset_evaluator = await assign_correctness_llm_evaluator_to_dataset(1)
     async with db() as session:
-        project = models.Project(name="experiment project")
-        session.add(project)
-        await session.flush()
-        session.add_all(
-            models.Trace(project_rowid=project.id, trace_id=trace_id, start_time=now, end_time=now)
-            for trace_id in ("purged-task", "purged-eval", "kept-task")
-        )
+        project = await _add_project(session)
+        purged_task_trace = await _add_trace(session, project)
+        purged_eval_trace = await _add_trace(session, project)
+        kept_task_trace = await _add_trace(session, project)
         session.add(models.ExperimentEvalOnlyConfig(id=0))
         session.add_all(
             models.ExperimentTaskLog(
@@ -1401,9 +1399,11 @@ async def test_delete_dataset_examples_purges_examples_from_every_version(
             )
             for run_id in (0, 1)
         )
-        (await session.get_one(models.ExperimentRun, 0)).trace_id = "purged-task"
-        (await session.get_one(models.ExperimentRunAnnotation, 0)).trace_id = "purged-eval"
-        (await session.get_one(models.ExperimentRun, 1)).trace_id = "kept-task"
+        (await session.get_one(models.ExperimentRun, 0)).trace_id = purged_task_trace.trace_id
+        (
+            await session.get_one(models.ExperimentRunAnnotation, 0)
+        ).trace_id = purged_eval_trace.trace_id
+        (await session.get_one(models.ExperimentRun, 1)).trace_id = kept_task_trace.trace_id
 
     response = await httpx_client.delete(
         f"v1/datasets/{GlobalID('Dataset', str(1))}/examples",
@@ -1413,19 +1413,14 @@ async def test_delete_dataset_examples_purges_examples_from_every_version(
 
     async with db() as session:
         assert list(await session.scalars(select(models.DatasetExample.id))) == [2]
-        revisions = list(await session.scalars(select(models.DatasetExampleRevision)))
-        assert {revision.id for revision in revisions} == {2, 4, 6}
-        purged_values = [{"in": "foo"}, {"out": "bar"}, {"in": "FOO"}, {"out": "BAR"}]
-        assert not any(
-            value in (revision.input, revision.output)
-            for revision in revisions
-            for value in purged_values
-        )
+        assert set(await session.scalars(select(models.DatasetExampleRevision.id))) == {2, 4, 6}
         assert set(await session.scalars(select(models.DatasetVersion.id))) == {1, 2, 3}
         assert set(await session.scalars(select(models.Experiment.id))) == {0, 1}
         assert set(await session.scalars(select(models.ExperimentRun.id))) == {1, 3}
         assert set(await session.scalars(select(models.ExperimentRunAnnotation.id))) == {1, 3}
-        assert list(await session.scalars(select(models.Trace.trace_id))) == ["kept-task"]
+        assert list(await session.scalars(select(models.Trace.trace_id))) == [
+            kept_task_trace.trace_id
+        ]
         assert set(await session.scalars(select(models.ExperimentLog.message))) == {
             "task failed on example 2",
             "eval failed on run 1",
@@ -1440,7 +1435,7 @@ async def test_delete_dataset_examples_purges_examples_from_every_version(
         ]
 
 
-async def test_delete_dataset_examples_deletes_nothing_unless_every_example_is_found(
+async def test_delete_dataset_examples_skips_examples_that_are_not_in_the_dataset(
     httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
     empty_dataset: Any,
@@ -1448,22 +1443,77 @@ async def test_delete_dataset_examples_deletes_nothing_unless_every_example_is_f
 ) -> None:
     example_in_dataset = str(GlobalID("DatasetExample", str(1)))
     example_in_other_dataset = str(GlobalID("DatasetExample", str(3)))
+    nonexistent_example = str(GlobalID("DatasetExample", str(999)))
     url = f"v1/datasets/{GlobalID('Dataset', str(1))}/examples"
-    for example_ids in (
-        [example_in_dataset, example_in_other_dataset],
-        [example_in_dataset, str(GlobalID("DatasetExample", str(999)))],
-    ):
+    example_ids = [example_in_dataset, example_in_other_dataset, nonexistent_example]
+    for _ in range(2):
         response = await httpx_client.delete(url, params={"example_ids": example_ids})
-        assert response.status_code == 404
-        assert example_ids[1] in response.text
+        assert response.status_code == 204
+    async with db() as session:
+        assert set(await session.scalars(select(models.DatasetExample.id))) == {2, 3, 4, 5, 6, 7}
+
+
+async def test_delete_dataset_examples_rejects_requests_it_cannot_scope(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+    empty_dataset: Any,
+    dataset_with_revisions: Any,
+) -> None:
+    example_in_dataset = str(GlobalID("DatasetExample", str(1)))
+    url = f"v1/datasets/{GlobalID('Dataset', str(1))}/examples"
     response = await httpx_client.delete(
         f"v1/datasets/{GlobalID('Dataset', str(999))}/examples",
         params={"example_ids": [example_in_dataset]},
     )
     assert response.status_code == 404
     assert (await httpx_client.delete(url)).status_code == 422
+    too_many_example_ids = [example_in_dataset] * (MAX_DELETE_DATASET_EXAMPLE_IDS + 1)
+    response = await httpx_client.delete(url, params={"example_ids": too_many_example_ids})
+    assert response.status_code == 422
     async with db() as session:
         assert set(await session.scalars(select(models.DatasetExample.id))) == {1, 2, 3, 4, 5, 6, 7}
+
+
+@pytest.mark.postgres_only
+async def test_delete_dataset_examples_purges_more_traces_than_a_statement_can_bind(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+    dataset_with_experiments_without_runs: Any,
+) -> None:
+    # asyncpg rejects a statement with more than 32,767 bound parameters.
+    num_traced_runs = 32_768
+    now = datetime.now(timezone.utc)
+    async with db() as session:
+        traced_run_trace = await _add_trace(session, await _add_project(session))
+        await session.execute(
+            insert(models.ExperimentRun),
+            [
+                {
+                    "experiment_id": 0,
+                    "dataset_example_id": 1,
+                    "repetition_number": repetition_number,
+                    "trace_id": (
+                        traced_run_trace.trace_id
+                        if repetition_number == 1
+                        else f"untraced-{repetition_number}"
+                    ),
+                    "output": {},
+                    "start_time": now,
+                    "end_time": now,
+                }
+                for repetition_number in range(1, num_traced_runs + 1)
+            ],
+        )
+
+    response = await httpx_client.delete(
+        f"v1/datasets/{GlobalID('Dataset', str(1))}/examples",
+        params={"example_ids": [str(GlobalID("DatasetExample", str(1)))]},
+    )
+    assert response.status_code == 204
+
+    async with db() as session:
+        assert await session.scalar(select(func.count()).select_from(models.ExperimentRun)) == 0
+        assert await session.scalar(select(func.count()).select_from(models.Trace)) == 0
 
 
 async def test_get_dataset_examples_404s_with_nonexistent_dataset_id(
