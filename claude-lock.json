@@ -15,9 +15,9 @@
     "./agents/bug-fixer.md": {
       "kind": "agent",
       "id": "agent_01Raz9DgBPzzgzcPDfhDu92g",
-      "version": "13",
-      "hash": "58c196efc91bf77ad04b9e566222a97a",
-      "remote_hash": "94d5ebf9a96eebaeb7c512516834e63b"
+      "version": "14",
+      "hash": "e8585eefb2fee2d68f779b18bd432f37",
+      "remote_hash": "78afedb0d59476cf0cb17e12a3bb67f2"
     },
     "./agents/bug-reproducer.md": {
       "kind": "agent",
@@ -36,16 +36,16 @@
     "./agents/docs-reviewer.md": {
       "kind": "agent",
       "id": "agent_01PcPkgtXBYBnAkGVeboEV7r",
-      "version": "3",
-      "hash": "9c413d6d1464c0ca8048d2be3b87c300",
-      "remote_hash": "2b7635d4cb4c311c9ccfd0a7370617e4"
+      "version": "4",
+      "hash": "616c1934e3233fe22381b41ad6181a34",
+      "remote_hash": "859bffd427b7f29ea5924084e1eebb5a"
     },
     "./agents/docs-writer.md": {
       "kind": "agent",
       "id": "agent_017gUzHtyPT7QVNMRuVCDwGK",
-      "version": "8",
-      "hash": "1cf0b208f2325b9f9b1fa7bd7b95e67d",
-      "remote_hash": "e2141d4a11c6bc0740044d9fd7371be0"
+      "version": "9",
+      "hash": "87518a691f6a3f75b63855a524ffe615",
+      "remote_hash": "cbf9dc8d6ebe1659c0f056832d10f52a"
     },
     "./agents/feature-analyst.md": {
       "kind": "agent",
@@ -57,37 +57,37 @@
     "./agents/feature-builder.md": {
       "kind": "agent",
       "id": "agent_01Ck8S1uMop4qWTTwZXo5FUq",
-      "version": "11",
-      "hash": "10fd245d97e19f7aed02ea7134210d34",
-      "remote_hash": "1baf696bc312a8621f1bd64b99553099"
+      "version": "12",
+      "hash": "497fa13bd313b9f14974972a7eb5c08f",
+      "remote_hash": "5761f217b237996025a902aee7d3cf7c"
     },
     "./agents/frontend-reviewer.md": {
       "kind": "agent",
       "id": "agent_01JBG5XRUNjf8qr4xPULMD6N",
-      "version": "6",
-      "hash": "632daba2f43eba40130ce29345f82773",
-      "remote_hash": "f768a855531797c02f4b658ccb29395c"
+      "version": "7",
+      "hash": "a0fb8aa084d5d3c04f62b945c27fc3eb",
+      "remote_hash": "da678ebd4767a9f5af0f98175cf3e1c1"
     },
     "./agents/packages-reviewer.md": {
       "kind": "agent",
       "id": "agent_01Nzaij62n117CaDuWJtsgrL",
-      "version": "6",
-      "hash": "0d4244ce6fcfefe05a17bc4b8c472857",
-      "remote_hash": "b6943f47f85bedae32f393d0c50a9b95"
+      "version": "7",
+      "hash": "dc405f0dcf2e76567b65be5984303dcf",
+      "remote_hash": "0a6863227f833aaec182f54067fede7a"
     },
     "./agents/pr-finisher.md": {
       "kind": "agent",
       "id": "agent_016wWcHQdD25th5D8v7gGH83",
-      "version": "6",
-      "hash": "047cd8260503248b53fc25266962afc5",
-      "remote_hash": "f51c5f69a09e68e6a4b725d7f2905e10"
+      "version": "7",
+      "hash": "5dece81a8ea100525fc78bc8dc189e00",
+      "remote_hash": "9a2eac834ddcb1fabdf46e0025e1d2d8"
     },
     "./agents/pr-reviewer.md": {
       "kind": "agent",
       "id": "agent_01PjZ8vnrD9MoDyngXbvp2Si",
-      "version": "13",
-      "hash": "f86f5f5a5d94d73df7d8b52c3264b871",
-      "remote_hash": "ede2a7adc6e10bab61dae625679780bb"
+      "version": "14",
+      "hash": "3a7b3cffe370bf37cdbda5fa37c0f85b",
+      "remote_hash": "540fb2b21e718e2e7dcec9a22e66159c"
     },
     "./agents/railway-triage.md": {
       "kind": "agent",
@@ -99,16 +99,16 @@
     "./agents/security-reviewer.md": {
       "kind": "agent",
       "id": "agent_012NWnJBvHz1LfhBJDKVYPqV",
-      "version": "3",
-      "hash": "31cca0be41aa8c1ffdb9a50dd438029f",
-      "remote_hash": "8424de02ec0f5ecd2aea4c6ccfd102d2"
+      "version": "4",
+      "hash": "93dbbd02bd8efd4dca0e32afe922a980",
+      "remote_hash": "83577d19333339431f47ec54bd220060"
     },
     "./agents/server-reviewer.md": {
       "kind": "agent",
       "id": "agent_01JJRUnbPL4cZ9gbcTQtUgZn",
-      "version": "6",
-      "hash": "c9776b8bb5c446094e658ef63eaf6ff5",
-      "remote_hash": "f7d2cb84383181c08058cfe7491a774b"
+      "version": "7",
+      "hash": "8452c4f953cc7f2207c1995f64e2e699",
+      "remote_hash": "fd6cdbed543de43fddb34c0082b3941a"
     },
     "./environments/phoenix-dev.yaml": {
       "kind": "environment",
