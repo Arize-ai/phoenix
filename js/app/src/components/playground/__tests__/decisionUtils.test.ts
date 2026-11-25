@@ -172,6 +172,33 @@ describe("decision prompt draft", () => {
     ).toBe("Add at least one question");
   });
 
+  it("flags a repeated scale level label like the server does", () => {
+    const draft = createDecisionDraft();
+    const scale = createDecisionQuestion({
+      type: "scale",
+      name: "severity",
+      instructions: "How bad?",
+    });
+    scale.levels = [
+      createScaleLevel({ label: "low", description: "" }),
+      createScaleLevel({ label: " low ", description: "" }),
+    ];
+    draft.questions = [scale];
+    const errors = validateDecisionDraft({
+      draft,
+      templateFormat: TemplateFormats.Mustache,
+    });
+    expect(errors.byQuestionId[scale.id]?.levelLabels).toEqual({
+      [scale.levels[1].id]: "Duplicate",
+    });
+    expect(
+      getDecisionValidationError({
+        draft,
+        templateFormat: TemplateFormats.Mustache,
+      })
+    ).toBe("severity: level labels must be unique");
+  });
+
   it("caps the question count like the server does", () => {
     const draft = createDecisionDraft();
     draft.questions = Array.from({ length: 256 }, (_, index) =>
@@ -1011,6 +1038,26 @@ describe("request import", () => {
       "billing",
       "true",
     ]);
+  });
+
+  it('refuses an OpenAI choice question offering both true and "true"', () => {
+    expect(() =>
+      parseDecisionImport(
+        JSON.stringify({
+          input: "Refund please",
+          questions: [
+            {
+              type: "choice",
+              name: "refund",
+              instructions: "Refund?",
+              choices: [{ value: true }, { value: "true" }],
+            },
+          ],
+        })
+      )
+    ).toThrow(
+      'Question "refund" has two choices that Phoenix would store as the same value: the boolean true and the string "true".'
+    );
   });
 
   it("names the field a schema error refers to", () => {

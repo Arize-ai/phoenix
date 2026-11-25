@@ -258,7 +258,7 @@ export type DecisionQuestionErrors = {
   choiceOptions?: Partial<Record<string, string>>;
   /** Too few or too many levels. */
   levels?: string;
-  /** Per level id: an empty label. */
+  /** Per level id: an empty or duplicate label. */
   levelLabels?: Partial<Record<string, string>>;
 };
 
@@ -300,9 +300,13 @@ function getScaleQuestionErrors(
   } else if (levelCount > MAX_SCALE_LEVELS) {
     errors.levels = `At most ${MAX_SCALE_LEVELS} levels`;
   }
+  const seenLabels = new Set<string>();
   const levelErrors: Partial<Record<string, string>> = {};
   for (const level of question.levels) {
-    if (!level.label.trim()) levelErrors[level.id] = REQUIRED_ERROR;
+    const label = level.label.trim();
+    if (!label) levelErrors[level.id] = REQUIRED_ERROR;
+    else if (seenLabels.has(label)) levelErrors[level.id] = "Duplicate";
+    seenLabels.add(label);
   }
   if (Object.keys(levelErrors).length) errors.levelLabels = levelErrors;
   return errors;
@@ -432,7 +436,12 @@ export function getDecisionValidationError({
     }
     if (questionErrors.levels) return `${label}: ${questionErrors.levels}`;
     if (questionErrors.levelLabels) {
-      return `${label}: every level needs a label`;
+      const hasEmptyLevelLabel = Object.values(
+        questionErrors.levelLabels
+      ).includes(REQUIRED_ERROR);
+      return hasEmptyLevelLabel
+        ? `${label}: every level needs a label`
+        : `${label}: level labels must be unique`;
     }
   }
   return null;
@@ -1292,11 +1301,41 @@ function toSystemOneFromGemini(body: GeminiDecisionsBody): SystemOneBody {
   };
 }
 
+/**
+ * Phoenix stores choice values as text, so an OpenAI boolean value becomes its
+ * text form. A question offering both a boolean and that same text would then
+ * have two identical choices, so it is refused here, naming the question.
+ */
+function assertDistinctOpenAIChoiceValues({
+  questionName,
+  values,
+}: {
+  questionName: string;
+  values: Array<string | boolean>;
+}): void {
+  const textValues = new Set(
+    values.filter((value): value is string => typeof value === "string")
+  );
+  const clashingBoolean = values.find(
+    (value): value is boolean =>
+      typeof value === "boolean" && textValues.has(String(value))
+  );
+  if (clashingBoolean === undefined) return;
+  const text = String(clashingBoolean);
+  throw new Error(
+    `Question "${questionName}" has two choices that Phoenix would store as the same value: the boolean ${text} and the string "${text}". Remove one of them.`
+  );
+}
+
 function toDraftFromOpenAIDecisions(
   body: OpenAIDecisionsBody
 ): Pick<DecisionImportResult, "draft"> {
   const questions = body.questions.map((question): DecisionQuestionDraft => {
     if (question.type === "choice") {
+      assertDistinctOpenAIChoiceValues({
+        questionName: question.name,
+        values: question.choices.map((choice) => choice.value),
+      });
       return createDecisionQuestion({
         type: "choice",
         name: question.name,
