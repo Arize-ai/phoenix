@@ -29,7 +29,7 @@ from phoenix.otel import register
 tracer_provider = register()
 ```
 
-That's it! By default, `register` reads the `PHOENIX_COLLECTOR_ENDPOINT` environment variable, falling back to `http://localhost:4317` using gRPC if the variable is not set.
+That's it! By default, `register` reads the `PHOENIX_COLLECTOR_ENDPOINT` environment variable. If the variable is not set, `register` uses `http://localhost:6006` and exports over gRPC to `localhost:4317`.
 
 ## Configuration
 
@@ -39,12 +39,12 @@ The SDK automatically reads these environment variables:
 
 | Variable | Description |
 |----------|-------------|
-| `PHOENIX_COLLECTOR_ENDPOINT` | Phoenix server URL |
+| `PHOENIX_COLLECTOR_ENDPOINT` | Phoenix server URL. Its shape sets the transport. See [Protocol selection](#protocol-selection). |
 | `PHOENIX_PROJECT` | Project name for traces (canonical) |
 | `PHOENIX_PROJECT_NAME` | Alias for `PHOENIX_PROJECT`; if both are set, `PHOENIX_PROJECT` wins |
 | `PHOENIX_API_KEY` | API key (automatically adds auth header) |
 | `PHOENIX_CLIENT_HEADERS` | Custom headers for requests |
-| `PHOENIX_GRPC_PORT` | Override default gRPC port |
+| `PHOENIX_GRPC_PORT` | gRPC port on the `PHOENIX_COLLECTOR_ENDPOINT` host. Used when that endpoint has no path. Default: `4317`. |
 
 <Note>
 `register()` also auto-loads `PHOENIX_`-prefixed settings from a `.env.phoenix` file discovered by walking up from the current directory (process environment variables take precedence). Set `PHOENIX_DISCOVER_CONFIG=false` to opt out. See [Environment Variables](/docs/phoenix/sdk-api-reference#environment-variables).
@@ -75,11 +75,25 @@ tracer_provider = register(endpoint="http://localhost:4317")
 
 # Force a specific protocol
 tracer_provider = register(endpoint="http://localhost:9999", protocol="grpc")
+
+# HTTP to PHOENIX_COLLECTOR_ENDPOINT, when its gRPC port is not reachable
+tracer_provider = register(protocol="http/protobuf")
 ```
 
 <Info>
-When using the `endpoint` argument, you must specify the fully qualified URL. HTTP uses `/v1/traces`, while gRPC uses port `4317` by default.
+`register` uses the `endpoint` argument as given. For HTTP, include the `/v1/traces` path. For gRPC, include the port, which is `4317` by default.
 </Info>
+
+### Protocol selection
+
+`register`, `TracerProvider`, `SimpleSpanProcessor`, and `BatchSpanProcessor` pick the OTLP transport once, from the endpoint as written. The first rule that matches applies:
+
+1. If you pass `protocol`, the SDK uses it.
+2. A Phoenix Cloud URL uses HTTP.
+3. A URL with a path, such as `/v1/traces` or `/phoenix`, uses HTTP. From `PHOENIX_COLLECTOR_ENDPOINT`, the SDK keeps the path and appends `/v1/traces` if it is missing. The SDK uses an `endpoint` argument as given.
+4. A URL with no path (`scheme://host[:port]`) uses gRPC. From `PHOENIX_COLLECTOR_ENDPOINT`, the SDK sends to the same host on `PHOENIX_GRPC_PORT` (default `4317`). The SDK uses an `endpoint` argument as `host:port`, as given.
+
+If the gRPC port is not reachable, for example behind a reverse proxy, an ingress, or a managed host, pass `protocol="http/protobuf"`.
 
 ### Register Options
 
@@ -87,7 +101,7 @@ When using the `endpoint` argument, you must specify the fully qualified URL. HT
 |-----------|-------------|
 | `project_name` | Phoenix project name (or the `PHOENIX_PROJECT` env var, alias `PHOENIX_PROJECT_NAME`) |
 | `endpoint` | Collector endpoint URL |
-| `protocol` | Transport protocol: `"grpc"` or `"http/protobuf"` |
+| `protocol` | Transport protocol: `"grpc"` or `"http/protobuf"`. Overrides the transport picked from the endpoint. |
 | `headers` | Custom headers for requests |
 | `batch` | Process spans in batch (default: `False`) |
 | `auto_instrument` | Auto-instrument supported libraries |

@@ -931,9 +931,7 @@ Compatibility Table:
 
 Join our community to connect with thousands of AI builders:
 
-- 🌍 Join our [Slack community](https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g).
 - 📚 Read the [Phoenix documentation](https://arize.com/docs/phoenix).
-- 💡 Ask questions and provide feedback in the _#phoenix-support_ channel.
 - 🌟 Leave a star on our [GitHub](https://github.com/Arize-ai/phoenix).
 - 🐞 Report bugs with [GitHub Issues](https://github.com/Arize-ai/phoenix/issues).
 - 𝕏 Follow us on [𝕏](https://twitter.com/ArizePhoenix).

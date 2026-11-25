@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
-import { Pressable } from "react-aria";
+import { Focusable } from "react-aria";
 
 import {
   Icon,
@@ -290,7 +290,7 @@ function DeltaToken({
   const holdsGlyphSlot = variant === "tabular";
   return (
     <TooltipTrigger delay={200}>
-      <Pressable>
+      <Focusable>
         <span
           role="button"
           tabIndex={0}
@@ -311,7 +311,7 @@ function DeltaToken({
             {valueText}
           </span>
         </span>
-      </Pressable>
+      </Focusable>
       <Tooltip placement={tooltipPlacement}>
         <Text size="XS" css={tooltipLineCSS}>
           {description}

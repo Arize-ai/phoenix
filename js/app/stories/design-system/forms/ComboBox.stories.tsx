@@ -8,6 +8,7 @@ import {
   ComboBoxItem,
 } from "@phoenix/components/core/combobox/ComboBox";
 
+import { LONG_PROMPT_NAMES } from "../../constants/menuFixtures";
 import { OptionGrid } from "../../utils/OptionGrid";
 
 const meta: Meta = {
@@ -186,6 +187,78 @@ export const StatesAndSlots: StoryFn = () => (
 StatesAndSlots.storyName = "States and Slots";
 StatesAndSlots.parameters = { themeLayout: "column" };
 StatesAndSlots.tags = ["!dev"];
+
+const [SHORT_PROMPT, HYPHENATED_PROMPT, SENTENCE_PROMPT] = LONG_PROMPT_NAMES;
+
+const ITEM_LENGTHS = [
+  SHORT_PROMPT,
+  { id: "regular", name: "customer-support-triage" },
+  HYPHENATED_PROMPT,
+  {
+    id: "underscored",
+    name: "customer_support_escalation_classifier_for_billing_disputes_and_refund_requests_v12",
+  },
+  {
+    id: "path",
+    name: "metadata.retrieval.documents[0].document.metadata.source_document_identifier",
+  },
+  SENTENCE_PROMPT,
+];
+
+/**
+ * Items wrap within the popover, which is as wide as the field. A line breaks
+ * at a space or hyphen, or after an identifier's `_`, `.`, `/` or `:`, and
+ * between characters only when a segment is longer than a line.
+ */
+export const ContentLength: StoryObj<ComboBoxProps<object>> = {
+  tags: ["!dev"],
+  render: () => (
+    <View width="300px">
+      <ComboBox label="Prompt">
+        {ITEM_LENGTHS.map((prompt) => (
+          <ComboBoxItem key={prompt.id} id={prompt.id} textValue={prompt.name}>
+            {prompt.name}
+          </ComboBoxItem>
+        ))}
+      </ComboBox>
+    </View>
+  ),
+  // There is no open prop; press the field's button, as a pointer would. Only
+  // one list can be open, so in Both mode the first theme's opens.
+  play: async ({ canvasElement }) => {
+    const [button] = within(canvasElement).getAllByRole("button");
+    await userEvent.click(button);
+  },
+};
+
+const VALUE_LENGTHS = [
+  { label: "Regular", promptId: "regular" },
+  { label: "Long identifier", promptId: "underscored" },
+  { label: "Long path", promptId: "path" },
+  { label: "Long sentence", promptId: "sentence" },
+];
+
+export const ValueLength: StoryFn = () => (
+  <OptionGrid
+    rows={VALUE_LENGTHS}
+    cellWidth="240px"
+    renderCell={(row) => (
+      <ComboBox
+        aria-label="Prompt"
+        width="240px"
+        defaultSelectedKey={row.promptId}
+      >
+        {ITEM_LENGTHS.map((prompt) => (
+          <ComboBoxItem key={prompt.id} id={prompt.id} textValue={prompt.name}>
+            {prompt.name}
+          </ComboBoxItem>
+        ))}
+      </ComboBox>
+    )}
+  />
+);
+ValueLength.parameters = { themeLayout: "column" };
+ValueLength.tags = ["!dev"];
 
 /** The Overview card picture. See `stories/_meta/thumbnail.ts`. */
 export const Thumbnail: StoryObj<ComboBoxProps<object>> = {

@@ -19,7 +19,6 @@ const meta: Meta = {
   parameters: {
     layout: "centered",
     controls: { disable: true },
-    chromatic: { disableSnapshot: true },
   },
 };
 

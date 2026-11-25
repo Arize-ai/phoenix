@@ -16,14 +16,11 @@ SQLITE_EXTENSION_INIT1
 #include "define/extension.h"
 #include "fileio/extension.h"
 #include "fuzzy/extension.h"
-#if !defined(_WIN32)
 #include "ipaddr/extension.h"
-#endif
 #include "regexp/extension.h"
 #include "stats/extension.h"
 #include "text/extension.h"
 #include "time/extension.h"
-#include "unicode/extension.h"
 #include "uuid/extension.h"
 #include "vsv/extension.h"
 
@@ -50,19 +47,17 @@ static int init_one(const char* name, int (*init_fn)(sqlite3* db), sqlite3* db) 
 // init_all initializes all extensions.
 static int init_all(sqlite3* db) {
     init_one("crypto", crypto_init, db);
-    init_one("define", define_init, db);
     init_one("fileio", fileio_init, db);
     init_one("fuzzy", fuzzy_init, db);
-#if !defined(_WIN32)
     init_one("ipaddr", ipaddr_init, db);
-#endif
     init_one("regexp", regexp_init, db);
     init_one("stats", stats_init, db);
     init_one("text", text_init, db);
     init_one("time", time_init, db);
-    init_one("unicode", unicode_init, db);
     init_one("uuid", uuid_init, db);
     init_one("vsv", vsv_init, db);
+    // Load define last so user-defined functions can call other sqlean functions.
+    init_one("define", define_init, db);
     return SQLITE_OK;
 }
 
@@ -107,18 +102,15 @@ __declspec(dllexport)
 
     // SQLEAN_ENABLE is not set, enable individual extensions
     init_extension("SQLEAN_ENABLE_CRYPTO", "crypto", crypto_init, db);
-    init_extension("SQLEAN_ENABLE_DEFINE", "define", define_init, db);
     init_extension("SQLEAN_ENABLE_FILEIO", "fileio", fileio_init, db);
     init_extension("SQLEAN_ENABLE_FUZZY", "fuzzy", fuzzy_init, db);
-#if !defined(_WIN32)
     init_extension("SQLEAN_ENABLE_IPADDR", "ipaddr", ipaddr_init, db);
-#endif
     init_extension("SQLEAN_ENABLE_REGEXP", "regexp", regexp_init, db);
     init_extension("SQLEAN_ENABLE_STATS", "stats", stats_init, db);
     init_extension("SQLEAN_ENABLE_TEXT", "text", text_init, db);
     init_extension("SQLEAN_ENABLE_TIME", "time", time_init, db);
-    init_extension("SQLEAN_ENABLE_UNICODE", "unicode", unicode_init, db);
     init_extension("SQLEAN_ENABLE_UUID", "uuid", uuid_init, db);
     init_extension("SQLEAN_ENABLE_VSV", "vsv", vsv_init, db);
+    init_extension("SQLEAN_ENABLE_DEFINE", "define", define_init, db);
     return SQLITE_OK;
 }

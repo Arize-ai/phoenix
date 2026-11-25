@@ -11,6 +11,7 @@ import anthropic
 import httpx2
 
 from phoenix.evals.llm.adapters.anthropic.adapter import AnthropicAdapter
+from phoenix.evals.llm.types import ObjectGenerationMethod
 
 _SCHEMA = {"type": "object", "properties": {"label": {"type": "string"}}, "required": ["label"]}
 _INSTRUCTION = "Respond by calling the `extract_structured_data` tool."
@@ -63,8 +64,10 @@ def test_asks_for_the_tool_call_in_the_system_prompt() -> None:
     )
     adapter = AnthropicAdapter(client=client, model="claude-test")
 
-    assert adapter.generate_object("q", _SCHEMA) == {"label": "a"}
-    assert requests[0]["tool_choice"] == {"type": "auto"}
+    assert adapter.generate_object("q", _SCHEMA, method=ObjectGenerationMethod.TOOL_CALLING) == {
+        "label": "a"
+    }
+    assert requests[0]["tool_choice"] == {"type": "auto", "disable_parallel_tool_use": True}
     assert requests[0]["system"] == _INSTRUCTION
 
 
@@ -83,8 +86,10 @@ async def test_async_appends_the_tool_instruction_to_the_prompt_system_message()
     adapter = AnthropicAdapter(client=client, model="claude-test")
     prompt = [{"role": "system", "content": "Be strict."}, {"role": "user", "content": "q"}]
 
-    assert await adapter.async_generate_object(prompt, _SCHEMA) == {"label": "a"}
-    assert requests[0]["tool_choice"] == {"type": "auto"}
+    assert await adapter.async_generate_object(
+        prompt, _SCHEMA, method=ObjectGenerationMethod.TOOL_CALLING
+    ) == {"label": "a"}
+    assert requests[0]["tool_choice"] == {"type": "auto", "disable_parallel_tool_use": True}
     assert requests[0]["system"] == f"Be strict.\n\n{_INSTRUCTION}"
 
 
@@ -102,5 +107,7 @@ def test_appends_the_tool_instruction_to_a_system_kwarg() -> None:
     )
     adapter = AnthropicAdapter(client=client, model="claude-test")
 
-    assert adapter.generate_object("q", _SCHEMA, system="Be strict.") == {"label": "a"}
+    assert adapter.generate_object(
+        "q", _SCHEMA, method=ObjectGenerationMethod.TOOL_CALLING, system="Be strict."
+    ) == {"label": "a"}
     assert requests[0]["system"] == f"Be strict.\n\n{_INSTRUCTION}"

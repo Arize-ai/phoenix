@@ -1,5 +1,34 @@
 # Changelog
 
+## [3.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v3.7.0...arize-phoenix-client-v3.8.0) (2026-11-23)
+
+
+### Features
+
+* **client:** add secrets resource to the Python client ([#17447](https://github.com/Arize-ai/phoenix/issues/17447)) ([fe8ed61](https://github.com/Arize-ai/phoenix/commit/fe8ed61fe92ea6b3019fdce4f8079ade66eb2f62))
+
+
+### Bug Fixes
+
+* **client:** serialize harbor agent path kwargs as posix paths ([#17960](https://github.com/Arize-ai/phoenix/issues/17960)) ([a111c1d](https://github.com/Arize-ai/phoenix/commit/a111c1d4bfdf82829587f86c9911d41b2369a284))
+
+
+### Documentation
+
+* remove Slack community links from READMEs ([#18109](https://github.com/Arize-ai/phoenix/issues/18109)) ([02ed180](https://github.com/Arize-ai/phoenix/commit/02ed1808d9fb82263e85479e6ae80310883fcc2b))
+
+## [3.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v3.6.0...arize-phoenix-client-v3.7.0) (2026-11-05)
+
+
+### Features
+
+* **harbor:** record model parameters and agent settings in experiment metadata ([#17457](https://github.com/Arize-ai/phoenix/issues/17457)) ([2b2b9fb](https://github.com/Arize-ai/phoenix/commit/2b2b9fb2159f698a9d63c991e122b3e2daf9d361))
+
+
+### Bug Fixes
+
+* **client:** validate required name and annotator_kind columns in annotation dataframes ([#17433](https://github.com/Arize-ai/phoenix/issues/17433)) ([3146086](https://github.com/Arize-ai/phoenix/commit/3146086b08e1a9e6596bd40ae54dee345bfa2d51))
+
 ## [3.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v3.5.0...arize-phoenix-client-v3.6.0) (2026-10-30)
 
 

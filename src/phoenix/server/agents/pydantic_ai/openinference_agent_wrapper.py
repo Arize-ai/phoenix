@@ -23,6 +23,8 @@ from pydantic_ai.messages import (
     AudioUrl,
     BinaryContent,
     CachePoint,
+    CapabilityLoadDeltaPart,
+    CapabilityPart,
     CompactionPart,
     DocumentUrl,
     FilePart,
@@ -34,6 +36,7 @@ from pydantic_ai.messages import (
     ModelRequestPart,
     ModelResponse,
     ModelResponsePart,
+    ModelSettingsDeltaPart,
     NativeToolCallPart,
     NativeToolReturnPart,
     RetryFeedbackPart,
@@ -254,6 +257,7 @@ def _get_single_text_content(parts: Sequence[ModelRequestPart | ModelResponsePar
             ToolAvailabilityDeltaPart,
             InstructionDeltaPart,
             InstructionBaselinePart,
+            CapabilityPart,
         ),
     ):
         return _get_text_content_from_model_request_part(part)
@@ -267,6 +271,8 @@ def _get_single_text_content(parts: Sequence[ModelRequestPart | ModelResponsePar
             CompactionPart,
             FilePart,
             SpeechPart,
+            CapabilityLoadDeltaPart,
+            ModelSettingsDeltaPart,
         ),
     ):
         return None
@@ -299,6 +305,10 @@ def _get_text_content_from_model_request_part(part: ModelRequestPart) -> str | N
             InstructionDeltaPart,
             InstructionBaselinePart,
             SpeechPart,
+            CapabilityLoadDeltaPart,
+            ModelSettingsDeltaPart,
+            CompactionPart,
+            CapabilityPart,
         ),
     ):
         return None

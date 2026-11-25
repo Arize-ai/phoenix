@@ -177,6 +177,7 @@
               },
               "docs/phoenix/evaluation/llm-evals",
               "docs/phoenix/evaluation/concepts-evals/llm-as-a-judge",
+              "docs/phoenix/evaluation/concepts-evals/decision-models-as-a-judge",
               {
                 "group": "Client-Side Evals (SDK)",
                 "pages": [
@@ -186,6 +187,7 @@
                     "pages": [
                       "docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators",
                       "docs/phoenix/evaluation/how-to-evals/configuring-the-llm",
+                      "docs/phoenix/evaluation/how-to-evals/configuring-the-decision-model",
                       "docs/phoenix/evaluation/how-to-evals/prompt-formats"
                     ]
                   },
@@ -448,6 +450,59 @@
               "docs/phoenix/resources/python-api",
               "docs/phoenix/resources/github",
               "docs/phoenix/resources/openinference"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Learn",
+        "pages": [
+          {
+            "group": "Start here",
+            "pages": [
+              "docs/phoenix/learn"
+            ]
+          },
+          {
+            "group": "Understand behavior",
+            "pages": [
+              "docs/phoenix/learn/capture-first-run",
+              "docs/phoenix/learn/add-context-to-traces",
+              "docs/phoenix/learn/read-agent-run",
+              "docs/phoenix/learn/sessions"
+            ]
+          },
+          {
+            "group": "Find failures",
+            "pages": [
+              "docs/phoenix/learn/find-failures",
+              "docs/phoenix/learn/investigate-failure",
+              "docs/phoenix/learn/build-test-cases"
+            ]
+          },
+          {
+            "group": "Design evaluations",
+            "pages": [
+              "docs/phoenix/learn/choose-evals",
+              "docs/phoenix/learn/code-checks",
+              "docs/phoenix/learn/llm-judge"
+            ]
+          },
+          {
+            "group": "Test a change",
+            "pages": [
+              "docs/phoenix/learn/playground-evals",
+              "docs/phoenix/learn/run-experiment",
+              "docs/phoenix/learn/compare-experiments",
+              "docs/phoenix/learn/harbor-agent-tests"
+            ]
+          },
+          {
+            "group": "Ship and repeat",
+            "pages": [
+              "docs/phoenix/learn/ship-decision",
+              "docs/phoenix/learn/ci-checks",
+              "docs/phoenix/learn/production-evals"
             ]
           }
         ]
@@ -1191,7 +1246,6 @@
                 ]
               },
               "docs/phoenix/sdk-api-reference/typescript/arizeai-openinference-core",
-              "docs/phoenix/sdk-api-reference/typescript/mcp-server",
               "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli"
             ]
           },
@@ -1267,6 +1321,7 @@
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/list-dataset-versions",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/upload-dataset-from-json-csv-or-pyarrow",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/get-examples-from-a-dataset",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/permanently-delete-dataset-examples",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-csv-file",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-jsonl-file",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-openai-fine-tuning-jsonl-file",
@@ -1326,6 +1381,7 @@
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/create-span-annotations",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/create-a-span-note",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/annotate-span-documents",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/get-a-single-span-by-span_identifier",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/delete-a-span-by-span_identifier"
                     ]
                   },
@@ -1558,6 +1614,13 @@
         "tab": "Release Notes",
         "pages": [
           "docs/phoenix/release-notes",
+          {
+            "group": "11.2026",
+            "pages": [
+              "docs/phoenix/release-notes/11-2026/11-18-2026-python-decision-model-evaluators-and-opentelemetry-js-3",
+              "docs/phoenix/release-notes/11-2026/11-02-2026-authentication-by-default-and-decision-annotations"
+            ]
+          },
           {
             "group": "10.2026",
             "pages": [
@@ -1899,6 +1962,10 @@
   },
   "redirects": [
     {
+      "source": "/docs/phoenix/learn/improvement-loop",
+      "destination": "/docs/phoenix/learn"
+    },
+    {
       "source": "/docs/phoenix/user-guide",
       "destination": "/docs/phoenix"
     },
@@ -1952,6 +2019,10 @@
     },
     {
       "source": "/docs/phoenix/integrations/phoenix-mcp-server",
+      "destination": "/docs/phoenix/integrations/mcp"
+    },
+    {
+      "source": "/docs/phoenix/sdk-api-reference/typescript/mcp-server",
       "destination": "/docs/phoenix/integrations/mcp"
     },
     {
@@ -2501,10 +2572,6 @@
     {
       "source": "/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing",
       "destination": "/docs/phoenix/integrations/python/google-adk"
-    },
-    {
-      "source": "/docs/phoenix/learn",
-      "destination": "/docs/phoenix/cookbook"
     },
     {
       "source": "/docs/phoenix/learn/faqs/what-is-my-phoenix-endpoint",

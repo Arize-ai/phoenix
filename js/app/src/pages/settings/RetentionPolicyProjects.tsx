@@ -120,7 +120,7 @@ export function RetentionPolicyProjects({
   return (
     <Card
       title="Projects"
-      titleExtra={<Counter>{projects.length}</Counter>}
+      titleExtra={<Counter variant="quiet" count={projects.length} />}
       extra={
         showFilter || canManage ? (
           <Flex direction="row" gap="size-100" alignItems="center">

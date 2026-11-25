@@ -252,9 +252,10 @@ function SpanDetailsContent({ spanNodeId }: { spanNodeId: string }) {
               <Tab id="attributes">Attributes</Tab>
               <Tab id="events">
                 Events{" "}
-                <Counter variant={hasExceptions ? "danger" : "default"}>
-                  {span.events.length}
-                </Counter>
+                <Counter
+                  variant={hasExceptions ? "danger" : "quiet"}
+                  count={span.events.length}
+                />
               </Tab>
             </TabList>
             <LazyTabPanel id="info">

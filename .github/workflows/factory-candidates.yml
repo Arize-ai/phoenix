@@ -1,16 +1,9 @@
 name: Factory Candidates
 
-# Claude Issue Triage labels the issues the factory could take `factory-candidate`, but a label
-# a workflow adds with its GITHUB_TOKEN starts no other workflow. So after each triage run this
-# dispatches Factory Dispatch for the candidates whose author has write access; dispatch.py
-# checks that author again before it starts a session. Every other candidate waits for a
-# maintainer to add the `factory` label.
 on:
-  # zizmor: ignore[dangerous-triggers] Claude Issue Triage runs only on a schedule or a
-  # maintainer's dispatch, never for a fork. This workflow checks nothing out, reads no
-  # artifacts and runs no code from the triggering run; it only reads issue labels.
+  # zizmor: ignore[dangerous-triggers]
   workflow_run:
-    workflows: [Claude Issue Triage]
+    workflows: [Claude Issue Triage Sweep, Claude Issue Triage on Open]
     types: [completed]
   workflow_dispatch:
 
@@ -26,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       actions: write # gh workflow run
-      issues: read
+      issues: write # mark a dispatched candidate with the factory label
     env:
       GH_REPO: ${{ github.repository }}
       GH_TOKEN: ${{ github.token }}
@@ -44,10 +37,15 @@ jobs:
             fi
             # Every factory comment starts with "The factory", so one means the factory already
             # had a go at it. Running it again is a maintainer's call: re-add the `factory` label.
-            read -r AUTHOR PAST_RUNS < <(gh issue view "$ISSUE" --json author,comments \
-              --jq '[.author.login, ([.comments[] | select(.body | startswith("The factory"))] | length)] | @tsv')
+            # The search index lags, so re-read the label live before trusting the listing.
+            read -r AUTHOR PAST_RUNS LABELED < <(gh issue view "$ISSUE" --json author,comments,labels \
+              --jq '[.author.login, ([.comments[] | select(.body | startswith("The factory"))] | length), (any(.labels[]; .name == "factory"))] | @tsv')
             if [ "$PAST_RUNS" -gt 0 ]; then
               echo "#$ISSUE: skipped, the factory already ran on it"
+              continue
+            fi
+            if [ "$LABELED" = true ]; then
+              echo "#$ISSUE: skipped, already dispatched"
               continue
             fi
             PERMISSION=$(gh api "repos/$GH_REPO/collaborators/$AUTHOR/permission" --jq .permission 2> /dev/null || echo none)
@@ -55,7 +53,10 @@ jobs:
               echo "#$ISSUE: skipped, $AUTHOR has $PERMISSION access; a maintainer can add the factory label"
               continue
             fi
-            gh workflow run factory-dispatch.yml -f issue="$ISSUE"
+            # A label added with GITHUB_TOKEN starts no workflow; it only keeps the next run of
+            # this loop from dispatching the issue again before dispatch.py has commented on it.
+            gh issue edit "$ISSUE" --add-label factory
+            gh workflow run factory-dispatch.yml -f issue="$ISSUE" || { gh issue edit "$ISSUE" --remove-label factory; exit 1; }
             echo "#$ISSUE: dispatched, written by $AUTHOR"
             DISPATCHED=$((DISPATCHED + 1))
           done

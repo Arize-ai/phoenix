@@ -5,13 +5,16 @@ rows."""
 
 from collections.abc import AsyncIterator, Sequence
 from typing import Any, get_args
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from pydantic_ai.messages import (
     FunctionToolResultEvent,
     ModelMessage,
+    ModelResponse,
     NativeToolCallPart,
     NativeToolReturnPart,
+    PartEndEvent,
+    PartStartEvent,
     TextPart,
     ThinkingPart,
     ToolCallPart,
@@ -24,15 +27,18 @@ from pydantic_ai.ui.vercel_ai import VercelAIEventStream
 from pydantic_ai.ui.vercel_ai.request_types import SubmitMessage
 from pydantic_ai.ui.vercel_ai.response_types import BaseChunk
 
+from phoenix.db import models
 from phoenix.db.types.data_stream_protocol import (
     PhoenixUIMessage,
     PydanticAIToolPartKind,
 )
+from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.agents.vercel_ui_message_stream import read_ui_message_stream
 from phoenix.server.api.routers.agents import (
     _resolve_interrupted_tool_parts,
     _to_pydantic_ai_messages,
 )
+from phoenix.server.types import DbSessionFactory
 
 _EXPECTED_UI_MESSAGES: list[dict[str, Any]] = [
     {"id": "user-1", "role": "user", "parts": [{"type": "text", "text": "look this up"}]},
@@ -241,6 +247,53 @@ async def test_writing_a_turn_produces_the_expected_messages() -> None:
 def test_expected_messages_reload_with_nothing_lost() -> None:
     messages = [PhoenixUIMessage.model_validate(message) for message in _EXPECTED_UI_MESSAGES]
     _assert_all_metadata_restored(_to_pydantic_ai_messages(messages))
+
+
+async def test_streamed_google_reply_can_be_saved_and_replayed(db: DbSessionFactory) -> None:
+    provider_name = "google-gla"
+    response_text = "Here is what I found."
+    text_part = TextPart(content=response_text, provider_name=provider_name)
+
+    async def events() -> AsyncIterator[PartStartEvent | PartEndEvent]:
+        yield PartStartEvent(index=0, part=text_part, canonical_system="google")
+        yield PartEndEvent(index=0, part=text_part, canonical_system="google")
+
+    event_stream = VercelAIEventStream(run_input=SubmitMessage(id="run", messages=[]))
+    snapshots = [
+        snapshot
+        async for snapshot in read_ui_message_stream(stream=event_stream.transform_stream(events()))
+    ]
+    payload = snapshots[-1].model_dump(mode="json", by_alias=True, exclude_unset=True)
+    payload["id"] = str(uuid4())
+    message = PhoenixUIMessage.model_validate(payload)
+
+    async with db() as session:
+        agent_session = models.AgentSession(
+            project_name="pxi-test",
+            title="Gemini transcript",
+            model_provider=ModelProvider.GOOGLE,
+            model_name="gemini-4-carbon",
+        )
+        session.add(agent_session)
+        await session.flush()
+        stored_message = models.AgentSessionMessage(
+            agent_session_id=agent_session.id, message=message
+        )
+        session.add(stored_message)
+        await session.flush()
+        message_rowid = stored_message.id
+
+    async with db() as session:
+        reloaded = await session.get(models.AgentSessionMessage, message_rowid)
+        assert reloaded is not None
+        [response] = _to_pydantic_ai_messages([reloaded.message])
+
+    assert isinstance(response, ModelResponse)
+    assert response.provider_name == provider_name
+    assert response.canonical_system == "google"
+    [replayed_text] = response.parts
+    assert isinstance(replayed_text, TextPart)
+    assert replayed_text.content == response_text
 
 
 def _assert_all_metadata_restored(loaded: Sequence[ModelMessage]) -> None:

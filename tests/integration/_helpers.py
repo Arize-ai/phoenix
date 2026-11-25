@@ -2344,6 +2344,7 @@ _COMMON_RESOURCE_ENDPOINTS = (
     (422, "GET", "v1/projects/fake-id-{}/session_annotations"),
     # Spans
     (422, "GET", "v1/spans"),
+    (404, "GET", "v1/spans/fake-id-{}"),
     # Sessions
     (404, "GET", "v1/projects/fake-id-{}/sessions"),
     (404, "GET", "v1/sessions/fake-id-{}"),
@@ -2421,6 +2422,7 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "DELETE", "v1/dataset_labels/fake-id-{}"),
     (422, "DELETE", "v1/datasets/fake-id-{}/labels/test-label"),
     (422, "DELETE", "v1/datasets/fake-id-{}"),
+    (422, "DELETE", "v1/datasets/fake-id-{}/examples"),
     (422, "DELETE", "v1/datasets/fake-id-{}/splits/test-split"),
     (422, "DELETE", "v1/experiments/fake-id-{}"),
     (422, "DELETE", "v1/experiments/fake-id-{}/tags/test-tag"),

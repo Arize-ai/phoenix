@@ -33,7 +33,7 @@ result = upload_atif_trajectories_as_spans(
 
 ## Signature
 
-```python
+```python no-check
 def upload_atif_trajectories_as_spans(
     client: Client,
     trajectories: Sequence[Mapping[str, Any]],

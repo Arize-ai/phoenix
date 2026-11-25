@@ -13,7 +13,6 @@ from phoenix.evals.tracing import trace
 from ..llm.prompts import PromptLike
 from .adapters import register_adapters
 from .registries import DECISION_PROVIDER_REGISTRY, adapter_availability_table
-from .types import BaseDecisionAdapter
 
 register_adapters()
 
@@ -34,11 +33,12 @@ def _get_decision_model_name(bound: BoundArguments) -> str:
 
 
 def _get_decision_input(bound: BoundArguments) -> str:
-    """A JSON view of the request: the flattened state, the model, and the labels."""
+    """A JSON view of the request: the input actually sent, the model, and the labels."""
+    decision_model = bound.arguments["self"]
     prompt = bound.arguments.get("prompt")
     payload = {
-        "state": BaseDecisionAdapter._to_state(prompt) if prompt is not None else "",
-        "model": bound.arguments["self"].model,
+        "input": decision_model._sync_adapter._to_input(prompt) if prompt is not None else "",
+        "model": decision_model.model,
         "questions": bound.arguments.get("labels"),
     }
     return json.dumps(payload, default=str)
@@ -67,6 +67,7 @@ class DecisionModel:
 
         evaluator = ClassificationEvaluator(
             name="sentiment",
+            # or DecisionModel(provider="openai", model="gpt-6-luna")
             llm=DecisionModel(provider="typesafe", model="jev-latest"),
             prompt_template="Classify the sentiment: {text}",
             choices=["positive", "negative", "neutral"],
@@ -106,8 +107,8 @@ class DecisionModel:
 
             from phoenix.evals import DecisionModel
             dm = DecisionModel(
-                provider="typesafe",
-                model="jev-latest",
+                provider="typesafe", model="jev-latest",
+                # or provider="openai", model="gpt-6-luna"
                 api_key="your-api-key",
             )
         """
@@ -120,7 +121,8 @@ class DecisionModel:
             raise ValueError(
                 "Must specify both 'provider' and 'model'. "
                 "Examples:\n"
-                "  DecisionModel(provider='typesafe', model='jev-latest')"
+                "  DecisionModel(provider='typesafe', model='jev-latest')\n"
+                "  DecisionModel(provider='openai', model='gpt-6-luna')"
             )
 
         if provider is None:

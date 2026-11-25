@@ -2090,6 +2090,10 @@ class GetSessionsResponseBody(TypedDict):
     next_cursor: Optional[str]
 
 
+class GetSpanResponseBody(TypedDict):
+    data: Span
+
+
 class GetTraceResponseBody(TypedDict):
     data: TraceData
 

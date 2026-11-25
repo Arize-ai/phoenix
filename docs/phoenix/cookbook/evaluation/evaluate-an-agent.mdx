@@ -477,7 +477,11 @@ nest_asyncio.apply()
 
 ```python
 px_client = Client()
-llm = LLM(provider="openai", model="gpt-4o-mini")
+llm = LLM(provider="openai", model="gpt-6-luna")
+# These evaluators also accept a decision model in place of the LLM:
+#   from phoenix.evals import DecisionModel
+#   llm = DecisionModel(provider="openai", model="gpt-6-luna")
+# A decision model returns a label with per-label probabilities but no explanation.
 tool_selection_evaluator = ToolSelectionEvaluator(llm=llm)
 tool_invocation_evaluator = ToolInvocationEvaluator(llm=llm)
 ```
@@ -1236,7 +1240,7 @@ available_tools_str = json.dumps(tools)
 from phoenix.evals import LLM, ClassificationEvaluator, bind_evaluator
 from phoenix.evals.metrics import ToolSelectionEvaluator, ToolInvocationEvaluator
 
-eval_llm = LLM(provider="openai", model="gpt-4o-mini")
+eval_llm = LLM(provider="openai", model="gpt-6-luna")
 tool_selection_evaluator = ToolSelectionEvaluator(llm=eval_llm)
 tool_invocation_evaluator = ToolInvocationEvaluator(llm=eval_llm)
 

@@ -1,6 +1,6 @@
 import re
 from datetime import datetime, timezone
-from typing import Any, Iterable, Literal, Optional, Sequence, TypedDict, cast
+from typing import Any, Iterable, Literal, Optional, Sequence, TypedDict, cast, get_args
 
 import orjson
 import sqlalchemy as sa
@@ -96,6 +96,7 @@ from phoenix.trace.attributes import get_attribute_value
 
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE.split(".")
 INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")
+LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME.split(".")
 LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL.split(".")
 LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT.split(".")
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION.split(".")
@@ -180,6 +181,9 @@ SandboxBackendType: TypeAlias = Literal[
     "WASM", "E2B", "DAYTONA", "VERCEL", "DENO", "MODAL", "MONTY", "DOCKER"
 ]
 LanguageName: TypeAlias = Literal["PYTHON", "TYPESCRIPT"]
+# The kind of span a generative model prices, named after the OpenInference span kinds.
+GenerativeModelType: TypeAlias = Literal["LLM", "DECISION", "EMBEDDING"]
+_GENERATIVE_MODEL_TYPES_SQL = ", ".join(f"'{t}'" for t in get_args(GenerativeModelType))
 GenerativeModelSDK: TypeAlias = Literal[
     "openai",
     "azure_openai",
@@ -979,6 +983,15 @@ class Span(HasId):
         return cls.attributes[USER_ID]
 
     @hybrid_property
+    def llm_model_name(self) -> Any:
+        return get_attribute_value(self.attributes, LLM_MODEL_NAME)
+
+    @llm_model_name.inplace.expression
+    @classmethod
+    def _llm_model_name_expression(cls) -> ColumnElement[Any]:
+        return cls.attributes[LLM_MODEL_NAME]
+
+    @hybrid_property
     def metadata_(self) -> Any:
         return get_attribute_value(self.attributes, METADATA)
 
@@ -1037,10 +1050,6 @@ class Span(HasId):
         UniqueConstraint(
             "span_id",
             sqlite_on_conflict="IGNORE",
-        ),
-        Index(
-            "ix_cumulative_llm_token_count_total",
-            text("(cumulative_llm_token_count_prompt + cumulative_llm_token_count_completion)"),
         ),
         Index(
             "ix_spans_session_id",
@@ -2640,6 +2649,11 @@ class GenerativeModel(HasId):
         Boolean,
         nullable=False,
     )
+    type: Mapped[GenerativeModelType] = mapped_column(
+        CheckConstraint(f"type IN ({_GENERATIVE_MODEL_TYPES_SQL})", name="valid_type"),
+        default="LLM",
+        server_default="LLM",
+    )
     created_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp,
         server_default=func.now(),
@@ -2662,6 +2676,7 @@ class GenerativeModel(HasId):
     __table_args__ = (
         Index(
             "ix_generative_models_match_criteria",
+            "type",
             "name_pattern",
             "provider",
             "is_built_in",
@@ -2673,11 +2688,19 @@ class GenerativeModel(HasId):
             "ix_generative_models_name_is_built_in",
             "name",
             "is_built_in",
+            "type",
             postgresql_where=sa.text("deleted_at IS NULL"),
             sqlite_where=sa.text("deleted_at IS NULL"),
             unique=True,
         ),
     )
+
+
+@event.listens_for(GenerativeModel, "init")
+def _default_generative_model_type(_: Any, __: Any, kwargs: dict[str, Any]) -> None:
+    """Column defaults apply only on insert; unsaved models (e.g. in a `CostModelLookup`)
+    need a type too."""
+    kwargs.setdefault("type", "LLM")
 
 
 class TokenPrice(HasId):
@@ -2948,7 +2971,9 @@ class SpanCost(HasId):
 
     @hybrid_property
     def total_cost_per_token(self) -> Optional[float]:
-        return ((self.total_cost or 0) / self.total_tokens) if self.total_tokens else None
+        if self.total_cost is None or not self.total_tokens:
+            return None
+        return self.total_cost / self.total_tokens
 
     @total_cost_per_token.inplace.expression
     @classmethod
@@ -2965,7 +2990,9 @@ class SpanCost(HasId):
 
     @hybrid_property
     def prompt_cost_per_token(self) -> Optional[float]:
-        return ((self.prompt_cost or 0) / self.prompt_tokens) if self.prompt_tokens else None
+        if self.prompt_cost is None or not self.prompt_tokens:
+            return None
+        return self.prompt_cost / self.prompt_tokens
 
     @prompt_cost_per_token.inplace.expression
     @classmethod
@@ -2982,11 +3009,9 @@ class SpanCost(HasId):
 
     @hybrid_property
     def completion_cost_per_token(self) -> Optional[float]:
-        return (
-            ((self.completion_cost or 0) / self.completion_tokens)
-            if self.completion_tokens
-            else None
-        )
+        if self.completion_cost is None or not self.completion_tokens:
+            return None
+        return self.completion_cost / self.completion_tokens
 
     @completion_cost_per_token.inplace.expression
     @classmethod

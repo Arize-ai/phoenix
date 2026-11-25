@@ -67,7 +67,7 @@ import { TraceTokenCosts } from "@phoenix/components/trace";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
-import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
+import { SpanStatusIndicator } from "@phoenix/components/trace/SpanStatusIndicator";
 import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { SPAN_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
@@ -75,6 +75,7 @@ import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SpanTraceAnnotationTooltipFilterActions } from "@phoenix/pages/project/AnnotationTooltipFilterActions";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
+import { ModelNameTableCell } from "@phoenix/pages/project/ModelNameTableCell";
 import { useSpanFilterActions } from "@phoenix/pages/project/SpanFiltersContext";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
 import { isSpanRowSelected } from "@phoenix/utils/traceSelectionUtils";
@@ -210,6 +211,17 @@ export const MemoizedTableBody = React.memo(
   TableBody,
   (prev, next) => prev.table.options.data === next.table.options.data
 ) as typeof TableBody;
+const ModelNameCell = <TData extends { modelName?: string | null }, TValue>({
+  row,
+}: CellContext<TData, TValue>) => {
+  const { appendFilterCondition } = useSpanFilterActions();
+  return (
+    <ModelNameTableCell
+      modelName={row.original.modelName}
+      onFilterConditionPressed={appendFilterCondition}
+    />
+  );
+};
 const MetadataCell = <TData extends { metadata: unknown }, TValue>({
   row,
 }: CellContext<TData, TValue>) => {
@@ -347,6 +359,7 @@ export function SpansTable(props: SpansTableProps) {
                 name
                 metadata
                 userId
+                modelName
                 statusCode
                 statusMessage
                 startTime
@@ -584,11 +597,11 @@ export function SpansTable(props: SpansTableProps) {
       header: "status",
       accessorKey: "statusCode",
       enableSorting: false,
-      minSize: 50,
-      maxSize: 50,
+      minSize: 80,
+      maxSize: 80,
       cell: ({ getValue }) => {
         const statusCode = getValue() as SpanStatusCode;
-        return <SpanStatusCodeIcon statusCode={statusCode} />;
+        return <SpanStatusIndicator statusCode={statusCode} isLabelHidden />;
       },
     },
     {
@@ -665,6 +678,12 @@ export function SpansTable(props: SpansTableProps) {
         />
       ),
       enableSorting: false,
+    },
+    {
+      header: "model",
+      accessorKey: "modelName",
+      enableSorting: false,
+      cell: ModelNameCell,
     },
     {
       header: () => (

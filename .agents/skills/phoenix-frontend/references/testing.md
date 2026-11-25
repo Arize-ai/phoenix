@@ -1,6 +1,6 @@
 # Unit Tests
 
-Vitest runs `js/app` tests in jsdom: there is no layout, no real network, and no server. A test is worth adding when it fails if the behavior it covers is removed and still passes after a refactor that keeps that behavior (`REVIEW.md`: tests that only exercise mocks or restate the implementation must not be added).
+Vitest runs `js/app` tests in jsdom: there is no layout, no real network, and no server. A test is worth adding when it fails if the behavior it covers is removed and still passes after a refactor that keeps that behavior (`AGENTS.md` § Always Check: tests that only exercise mocks or restate the implementation must not be added).
 
 ## Worth a Vitest test
 

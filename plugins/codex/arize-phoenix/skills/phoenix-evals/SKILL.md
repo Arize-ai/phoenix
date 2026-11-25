@@ -49,6 +49,9 @@ Build evaluators for AI/LLM applications. Code first, LLM for nuance, validate a
 **RAG Systems:**
 [evaluators-rag](references/evaluators-rag.md) → evaluators-code-* (retrieval) → evaluators-llm-* (faithfulness)
 
+**Running Experiments:**
+Read experiments-datasets-{python|typescript} and experiments-running-{python|typescript} together. Map local rows to dataset input/output fields, then match the task and evaluator parameter names to those fields. For small datasets with LLM tasks or judges, use repetitions to compare runs with less sampling noise.
+
 **Gating CI:**
 evaluators-{code|llm}-{python|typescript} → integrations-{pytest|vitest-jest} → [production-continuous](references/production-continuous.md)
 

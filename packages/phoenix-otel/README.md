@@ -107,13 +107,19 @@ export PHOENIX_COLLECTOR_ENDPOINT="https://your-phoenix-instance.com"
 export PHOENIX_PROJECT_NAME="my-project"
 ```
 
+`register()` picks the transport from the endpoint. A URL with no path, like the one above, uses gRPC to the same host on port `4317` (`PHOENIX_GRPC_PORT`). A URL with a path, or a Phoenix Cloud URL, uses HTTP. If the gRPC port is not reachable, for example behind a reverse proxy or an ingress, pass `protocol="http/protobuf"`.
+
 **Direct Configuration**:
 
 ```python
-tracer_provider = register(
-    endpoint="http://localhost:6006/v1/traces",  # HTTP endpoint
-    protocol="grpc",  # Or force gRPC protocol
-)
+# A URL with a path uses HTTP, sent to the URL as given
+tracer_provider = register(endpoint="http://localhost:6006/v1/traces")
+
+# A URL with no path uses gRPC, sent to host:port as given
+tracer_provider = register(endpoint="http://localhost:4317")
+
+# Pass protocol to choose the transport yourself
+tracer_provider = register(protocol="http/protobuf")
 ```
 
 ## Usage Examples
@@ -135,7 +141,7 @@ tracer_provider = register(
     auto_instrument=True,  # Auto-trace AI/ML libraries
     batch=True,  # Background batching for performance
     api_key="your-api-key",  # Authentication
-    endpoint="https://your-phoenix-instance.com",
+    endpoint="https://your-phoenix-instance.com/v1/traces",
 )
 ```
 
@@ -181,7 +187,7 @@ def weather(location):
 | `PHOENIX_PROJECT_NAME`       | Project name         | `my-llm-app`                                 |
 | `PHOENIX_API_KEY`            | Authentication key   | `your-api-key`                               |
 | `PHOENIX_CLIENT_HEADERS`     | Custom headers       | `Authorization=Bearer token`                 |
-| `PHOENIX_GRPC_PORT`          | gRPC port override   | `4317`                                       |
+| `PHOENIX_GRPC_PORT`          | gRPC port, used when `PHOENIX_COLLECTOR_ENDPOINT` has no path | `4317` |
 | `PHOENIX_DISCOVER_CONFIG`    | Set to `false` to disable `.env.phoenix` discovery | `false`        |
 
 ### Credential File Discovery (`.env.phoenix`)
@@ -233,8 +239,6 @@ npx skills add Arize-ai/phoenix --skill phoenix-tracing
 
 Join our community to connect with thousands of AI builders:
 
-- 🌍 Join our [Slack community](https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g).
-- 💡 Ask questions and provide feedback in the _#phoenix-support_ channel.
 - 🌟 Leave a star on our [GitHub](https://github.com/Arize-ai/phoenix).
 - 🐞 Report bugs with [GitHub Issues](https://github.com/Arize-ai/phoenix/issues).
 - 𝕏 Follow us on [𝕏](https://twitter.com/ArizePhoenix).

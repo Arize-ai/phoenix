@@ -3,7 +3,6 @@ import { css } from "@emotion/react";
 import {
   Card,
   CopyToClipboardButton,
-  Counter,
   Flex,
   Text,
   View,
@@ -34,7 +33,11 @@ function LLMToolSchema({
   return (
     <Card
       title={titleEl}
-      titleExtra={<Counter>#{index + 1}</Counter>}
+      titleExtra={
+        <Text color="text-700" fontFamily="mono">
+          #{index + 1}
+        </Text>
+      }
       {...defaultCardProps}
       backgroundColor="yellow-100"
       borderColor="yellow-300"

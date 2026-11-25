@@ -66,7 +66,6 @@ export const setSpansFilterOperation = defineUIOperation({
     "`status_code`, `status_message`, `span_id`, `trace_id`, `parent_id`. " +
     "Compare with `==`, `!=`, or membership via `in`.\n" +
     "  - Numeric: `latency_ms`, " +
-    "`cumulative_token_count.{prompt,completion,total}`, " +
     "`llm.token_count.{prompt,completion,total}`. Compare with `<`, " +
     "`<=`, `>`, `>=`.\n" +
     "  - Datetime: `start_time`, `end_time`.\n" +
@@ -82,10 +81,9 @@ export const setSpansFilterOperation = defineUIOperation({
     "over `cost_details`, e.g. `sum(d.cost for d in cost_details) / " +
     "sum(d.tokens for d in cost_details) > 0.0001`, which yields null " +
     "rather than an error when tokens are zero. For a span's token counts " +
-    "use `cumulative_llm_token_count_total` (this span and its " +
-    "descendants) or `attributes['llm']['token_count']['total']` (this " +
-    "span alone). `attributes['total_cost']` is the separate, unrelated " +
-    "spelling for a span attribute of that name.\n" +
+    "use `attributes['llm']['token_count']['total']` (or " +
+    "`llm.token_count.total`). `attributes['total_cost']` is the separate, " +
+    "unrelated spelling for a span attribute of that name.\n" +
     "  - Per-token-type cost rows: `cost_details`, iterated with " +
     "`any`/`all`/`len`/`sum`/`max`/`min`, e.g. " +
     "`any(cost_detail.token_type == 'cache_read' for cost_detail in " +

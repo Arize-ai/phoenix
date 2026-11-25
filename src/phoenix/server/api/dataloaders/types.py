@@ -10,7 +10,7 @@ class CostBreakdown:
 
     @cached_property
     def cost_per_token(self) -> Optional[float]:
-        if self.tokens and self.cost:
+        if self.tokens and self.cost is not None:
             return self.cost / self.tokens
         return None
 

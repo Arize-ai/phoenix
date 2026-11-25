@@ -40,4 +40,22 @@ describe("registerGlobalClientErrorReporting", () => {
     window.dispatchEvent(new ErrorEvent("error", { error: null, message }));
     expect(reportedMessages(fetchSpy)).toEqual([]);
   });
+
+  it("does not report a rejection caused by aborting a request", () => {
+    function dispatchUnhandledRejection(reason: unknown) {
+      const promise = Promise.reject(reason);
+      // Handled here so the test runner does not see a real unhandled rejection.
+      promise.catch(() => {});
+      window.dispatchEvent(
+        new PromiseRejectionEvent("unhandledrejection", { promise, reason })
+      );
+    }
+    // Relay cancelling an in-flight request aborts its signal with no reason;
+    // the signal's reason is the AbortError that the rejection carries.
+    const controller = new AbortController();
+    controller.abort();
+    dispatchUnhandledRejection(controller.signal.reason);
+    dispatchUnhandledRejection(new Error("real failure"));
+    expect(reportedMessages(fetchSpy)).toEqual(["real failure"]);
+  });
 });

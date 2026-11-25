@@ -24,7 +24,19 @@ Run with no arguments to write every copy (``make skills``):
   that lacks it, so the skills CLI never offers it to users.
 
 Run with ``--check`` to change nothing and exit non-zero listing every copy that
-is out of date and every rule a skill breaks (``make skills-check``). Add
+is out of date and every rule a skill breaks (``make skills-check``).
+
+Both modes also lint the public skills, and fail on:
+
+- a ``description`` longer than 1,024 characters, the Agent Skills limit;
+- descriptions for one target that add up to more than 4,096 bytes. Agents load
+  every description into context, and Codex caps the whole skill list at 2% of
+  the context window, so Phoenix's share stays small;
+- a relative Markdown link, or a ``references/...`` path in code font, that
+  points at a file the skill doesn't have.
+
+A ``SKILL.md`` body longer than 500 lines is only a warning, because
+``phoenix-cli`` is over the limit today. Add
 ``--npx`` to also run ``npx skills add . --list`` and fail unless it lists
 exactly the public skills.
 
@@ -67,6 +79,13 @@ _FRONTMATTER = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)
 _KEY_VALUE = re.compile(r"^(?P<indent>\s*)(?P<key>[\w-]+):\s*(?P<value>.*?)\s*$")
 _ANSI = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 _NPX_SKILL_LINE = re.compile(r"^[|│]\s{4}(?P<name>[a-z0-9][a-z0-9-]*)\s*$")
+_MARKDOWN_LINK = re.compile(r"\]\((?P<target>[^)\s#]+)(?:#[^)]*)?\)")
+_FENCED_BLOCK = re.compile(r"^[ \t]*```.*?^[ \t]*```", re.DOTALL | re.MULTILINE)
+_CODE_REFERENCE = re.compile(r"`(?P<target>references/[^`\s]+)`")
+
+MAX_DESCRIPTION_CHARS = 1024
+MAX_DESCRIPTION_BYTES_PER_TARGET = 4096
+MAX_BODY_LINES = 500
 
 
 @dataclass(frozen=True)
@@ -298,6 +317,56 @@ def build(errors: list[str]) -> list[Change]:
     return changes
 
 
+def _broken_references(skill: Skill) -> Iterator[str]:
+    for markdown in sorted(skill.path.rglob("*.md")):
+        text = markdown.read_text(encoding="utf-8")
+        # Code such as `evaluators[name](output)` looks like a link, so only prose is scanned.
+        prose = _FENCED_BLOCK.sub(lambda block: "\n" * block[0].count("\n"), text)
+        for match in _MARKDOWN_LINK.finditer(prose):
+            target = match["target"]
+            if "://" in target or target.startswith("mailto:"):
+                continue
+            if not (markdown.parent / target).exists():
+                yield f"{_rel(markdown)}: link to missing file {target}"
+        for match in _CODE_REFERENCE.finditer(text):
+            target = match["target"]
+            if "*" not in target and not (skill.path / target).exists():
+                yield f"{_rel(markdown)}: mentions missing file {target}"
+
+
+def lint(skills: list[Skill]) -> tuple[list[str], list[str]]:
+    """Returns the size and link errors and the warnings for the public skills."""
+    errors = []
+    warnings = []
+    description_bytes = dict.fromkeys(sorted(TARGETS), 0)
+    for skill in skills:
+        skill_file = skill.path / SKILL_FILE
+        description = _metadata(skill_file)[0].get("description", "")
+        if len(description) > MAX_DESCRIPTION_CHARS:
+            errors.append(
+                f"{_rel(skill_file)}: description is {len(description)} characters; "
+                f"keep it to {MAX_DESCRIPTION_CHARS}"
+            )
+        for target in skill.targets:
+            description_bytes[target] += len(description.encode("utf-8"))
+        text = skill_file.read_text(encoding="utf-8")
+        frontmatter = _FRONTMATTER.match(text)
+        body_lines = text[frontmatter.end() if frontmatter else 0 :].count("\n")
+        if body_lines > MAX_BODY_LINES:
+            warnings.append(
+                f"{_rel(skill_file)}: body is {body_lines} lines; keep it to {MAX_BODY_LINES} "
+                "and move detail into references/"
+            )
+        errors.extend(_broken_references(skill))
+    for target, total in description_bytes.items():
+        if total > MAX_DESCRIPTION_BYTES_PER_TARGET:
+            errors.append(
+                f"skills/: descriptions for target {target!r} total {total} bytes; "
+                f"keep them to {MAX_DESCRIPTION_BYTES_PER_TARGET}"
+            )
+    return errors, warnings
+
+
 def npx_listed_skills() -> set[str]:
     result = subprocess.run(
         ["npx", "--yes", "skills", "add", ".", "--list"],
@@ -318,6 +387,10 @@ def main() -> int:
 
     errors: list[str] = []
     changes = build(errors)
+    lint_errors, warnings = lint(load_public_skills([]))
+    errors += lint_errors
+    for warning in warnings:
+        print(f"warning: {warning}", file=sys.stderr)
     if args.check:
         errors += [f"out of date: {change.message}" for change in changes]
     else:

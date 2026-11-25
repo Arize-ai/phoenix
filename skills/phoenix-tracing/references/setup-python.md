@@ -66,26 +66,44 @@ file.
 from phoenix.otel import register
 
 tracer_provider = register(
-    project_name="my-app",              # Project name
-    endpoint="http://localhost:6006",   # Phoenix endpoint
-    auto_instrument=True,               # Auto-instrument supported libs
-    batch=True,                         # Batch processing (default: True)
+    project_name="my-app",                        # Project name
+    endpoint="http://localhost:6006/v1/traces",   # Phoenix OTLP/HTTP endpoint
+    auto_instrument=True,                         # Auto-instrument supported libs
+    batch=True,                                   # Batch processing (default: True)
 )
 ```
 
 **Parameters:**
 
 - `project_name`: Project name (overrides `PHOENIX_PROJECT` / `PHOENIX_PROJECT_NAME`)
-- `endpoint`: Phoenix URL (overrides `PHOENIX_COLLECTOR_ENDPOINT`)
+- `endpoint`: Collector URL (overrides `PHOENIX_COLLECTOR_ENDPOINT`)
 - `auto_instrument`: Enable auto-instrumentation (default: False)
 - `batch`: Use BatchSpanProcessor (default: True, production-recommended)
-- `protocol`: `"http/protobuf"` (default) or `"grpc"`
+- `protocol`: `"http/protobuf"` or `"grpc"`; inferred from the endpoint when omitted
 
-**Endpoint path prefixes (HTTP):** `register` appends `/v1/traces` to the HTTP
-endpoint while preserving any existing path prefix, so a Phoenix served behind a
-reverse proxy works — `endpoint="http://host/prefix"` sends to
-`http://host/prefix/v1/traces`. An endpoint that already ends in `/v1/traces` (with or
-without a trailing slash) is used as-is rather than doubled.
+### Protocol Selection (gRPC vs HTTP)
+
+`register()` picks the transport once, from the endpoint as written:
+
+- **`protocol` passed** — it always wins.
+- **Endpoint has a path, or is a Phoenix Cloud URL** — OTLP/HTTP.
+- **Endpoint is a bare origin** (no path, e.g. `http://localhost:6006`) — OTLP/gRPC.
+
+How the final URL is built depends on where the endpoint came from:
+
+| Endpoint source | Transport | Exported to |
+| --- | --- | --- |
+| `PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006` | gRPC | `localhost:4317` (same host, `PHOENIX_GRPC_PORT`) |
+| `PHOENIX_COLLECTOR_ENDPOINT=http://host/prefix` | HTTP | `http://host/prefix/v1/traces` (`/v1/traces` appended, prefix kept, never doubled) |
+| `endpoint="http://localhost:6006/v1/traces"` | HTTP | the URL as given |
+| `endpoint="http://localhost:4317"` | gRPC | `localhost:4317` as given |
+
+When the gRPC port is not reachable — behind a reverse proxy, ingress, or a
+platform that only exposes port 6006 — pass `protocol="http/protobuf"`:
+
+```python
+register(project_name="my-app", protocol="http/protobuf")
+```
 
 ## Auto-Instrumentation
 
@@ -130,6 +148,8 @@ export OTEL_BSP_MAX_EXPORT_BATCH_SIZE=512     # Send 512 spans/batch
 **No traces:**
 
 - Verify `PHOENIX_COLLECTOR_ENDPOINT` matches Phoenix server
+- A bare-origin endpoint exports over gRPC to port 4317; if that port is not
+  exposed, pass `protocol="http/protobuf"` (see Protocol Selection)
 - Set `PHOENIX_API_KEY` for Phoenix Cloud
 - Confirm instrumentors installed
 

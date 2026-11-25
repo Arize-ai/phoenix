@@ -152,6 +152,7 @@ export function ExperimentMultiSelector(props: {
               <ListBox
                 selectionMode="single"
                 selectionBehavior="replace"
+                disallowEmptySelection
                 selectedKeys={
                   new Set(
                     selectedBaseExperimentId ? [selectedBaseExperimentId] : []

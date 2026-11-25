@@ -892,6 +892,14 @@ ENV_PHOENIX_DEFAULT_RETENTION_POLICY_DAYS = "PHOENIX_DEFAULT_RETENTION_POLICY_DA
 """
 The default retention policy for traces in days.
 """
+ENV_PHOENIX_PLAYGROUND_TIMEOUT_SECONDS = "PHOENIX_PLAYGROUND_TIMEOUT_SECONDS"
+"""
+How long, in seconds, a prompt playground run waits for the next streamed chunk from the model
+before the repetition fails with "Playground task timed out". The wait restarts with every chunk,
+so this is not a limit on the run's total duration. Must be a positive integer; defaults to 90.
+Playground runs over a dataset are executed by the experiment runner, which uses its own
+per-task timeout and ignores this setting.
+"""
 
 ENV_PHOENIX_ALLOWED_SANDBOX_PROVIDERS = "PHOENIX_ALLOWED_SANDBOX_PROVIDERS"
 """
@@ -1080,6 +1088,30 @@ def get_env_default_retention_policy_days() -> int:
     if days < 0:
         raise ValueError("PHOENIX_DEFAULT_RETENTION_POLICY_DAYS must be non-negative")
     return days
+
+
+DEFAULT_PLAYGROUND_TIMEOUT_SECONDS = 90
+
+
+def get_env_playground_timeout_seconds() -> int:
+    """
+    Gets how long a prompt playground run waits for the next streamed chunk, from the
+    PHOENIX_PLAYGROUND_TIMEOUT_SECONDS environment variable.
+
+    Returns:
+        int: Seconds to wait for each chunk. Defaults to DEFAULT_PLAYGROUND_TIMEOUT_SECONDS if
+        not set.
+
+    Raises:
+        ValueError: If the value is not a positive integer.
+    """
+    seconds = _int_val(ENV_PHOENIX_PLAYGROUND_TIMEOUT_SECONDS, DEFAULT_PLAYGROUND_TIMEOUT_SECONDS)
+    if seconds <= 0:
+        raise ValueError(
+            f"Invalid value for environment variable {ENV_PHOENIX_PLAYGROUND_TIMEOUT_SECONDS}: "
+            f"{seconds}. Value must be a positive integer."
+        )
+    return seconds
 
 
 def get_env_tls_config() -> Optional[TLSConfig]:
@@ -1656,8 +1688,8 @@ def get_env_csrf_trusted_origins() -> list[str]:
     origins: list[str] = []
     if not (csrf_trusted_origins := getenv(ENV_PHOENIX_CSRF_TRUSTED_ORIGINS)):
         return origins
-    for origin in csrf_trusted_origins.split(","):
-        if not origin:
+    for entry in csrf_trusted_origins.split(","):
+        if not (origin := entry.strip()):
             continue
         if not urlparse(origin).hostname:
             raise ValueError(
@@ -3796,7 +3828,7 @@ def get_env_allowed_origins() -> Optional[list[str]]:
     if allowed_origins is None:
         return None
 
-    return allowed_origins.split(",")
+    return [origin.strip() for origin in allowed_origins.split(",") if origin.strip()]
 
 
 def get_env_telemetry_enabled() -> bool:
@@ -3883,6 +3915,7 @@ def verify_server_environment_variables() -> None:
     get_env_database_usage_email_warning_threshold_percentage()
     get_env_database_usage_insertion_blocking_threshold_percentage()
     get_env_max_spans_queue_size()
+    get_env_playground_timeout_seconds()
     validate_env_support_email()
     validate_env_allowed_providers()
     validate_env_allowed_sandbox_providers()

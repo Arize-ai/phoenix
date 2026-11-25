@@ -269,7 +269,7 @@ describe("offerDocsMcp", () => {
       cursorConfig,
       JSON.stringify({
         mcpServers: {
-          "phoenix-docs": { command: "npx", args: ["@arizeai/phoenix-mcp"] },
+          "phoenix-docs": { command: "npx", args: ["@example/docs-mcp"] },
         },
       })
     );

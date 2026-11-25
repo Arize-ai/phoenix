@@ -31,6 +31,7 @@ Phoenix Client provides an interface for interacting with the Phoenix platform v
 - **Eval CI (pytest)** - Run LLM evals as ordinary pytest tests and record them as Phoenix experiments (`pip install "arize-phoenix-client[pytest]"`)
 - **Spans** - Query and analyze traces with powerful filtering
 - **Annotations** - Add human feedback and automated evaluations
+- **Secrets** - Create, rotate, and delete encrypted provider credentials
 - **Evaluation Helpers** - Extract span data in formats optimized for RAG evaluation workflows
 
 ## Installation
@@ -143,7 +144,7 @@ in a few concise bullet points that are easy for beginners to understand.
 prompt = client.prompts.create(
     name="article-bullet-summarizer",
     version=PromptVersion(
-        messages=[{"role": "user", "content": content}],
+        [{"role": "user", "content": content}],
         model_name="gpt-4o-mini",
     ),
     prompt_description="Summarize an article in a few bullet points",
@@ -241,6 +242,8 @@ dataset = client.datasets.create_dataset(
 Retrieve traces for a project with optional filtering and sorting:
 
 ```python
+from datetime import datetime, timedelta
+
 from phoenix.client import Client
 
 client = Client()
@@ -248,11 +251,12 @@ client = Client()
 # Get the latest 100 traces
 traces = client.traces.get_traces(project_identifier="my-llm-app")
 for trace in traces:
-    print(f"Trace {trace.trace_id}: {trace.status} ({trace.latency_ms}ms)")
+    start = datetime.fromisoformat(trace["start_time"])
+    end = datetime.fromisoformat(trace["end_time"])
+    latency_ms = (end - start).total_seconds() * 1000
+    print(f"Trace {trace['trace_id']}: {latency_ms:.0f}ms")
 
 # Filter by time range
-from datetime import datetime, timedelta
-
 traces = client.traces.get_traces(
     project_identifier="my-llm-app",
     start_time=datetime.now() - timedelta(hours=24),
@@ -540,6 +544,51 @@ new_project = client.projects.create(
 print(f"Created project with ID: {new_project['id']}")
 ```
 
+### Secrets
+
+Create, rotate, and delete the encrypted provider credentials (such as LLM API keys) that Phoenix stores for the playground and custom AI providers. Each call is a single atomic `PUT /v1/secrets` request. Managing secrets requires an admin API key when authentication is enabled, and Phoenix server 13.21.0 or later.
+
+```python
+import os
+
+from phoenix.client import Client
+
+client = Client()
+
+# Create secrets: a string value creates the key, or replaces its value if it exists
+result = client.secrets.upsert_or_delete(
+    secrets={
+        "OPENAI_API_KEY": os.environ["OPENAI_API_KEY"],
+        "ANTHROPIC_API_KEY": os.environ["ANTHROPIC_API_KEY"],
+    }
+)
+print(result["upserted_keys"])  # ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY']
+
+# Rotate a secret: upsert the existing key with its new value
+client.secrets.upsert_or_delete(secrets={"OPENAI_API_KEY": os.environ["NEW_OPENAI_API_KEY"]})
+
+# Delete a secret: map the key to None (deleting a missing key succeeds)
+result = client.secrets.upsert_or_delete(secrets={"ANTHROPIC_API_KEY": None})
+print(result["deleted_keys"])  # ['ANTHROPIC_API_KEY']
+
+# Rotate one key and retire another in the same atomic request
+client.secrets.upsert_or_delete(
+    secrets={
+        "OPENAI_API_KEY": os.environ["NEW_OPENAI_API_KEY"],
+        "OLD_PROVIDER_API_KEY": None,
+    }
+)
+```
+
+The result lists only the keys that were upserted and deleted. Secret values are never returned, and they are left out of the method's error messages: an `httpx.HTTPStatusError` raised for a rejected batch carries the status code and validation messages, but not the request body or the server's response body. An empty batch raises `ValueError` before any request is sent. `AsyncClient` provides the same method as a coroutine:
+
+```python
+from phoenix.client import AsyncClient
+
+async_client = AsyncClient()
+await async_client.secrets.upsert_or_delete(secrets={"OPENAI_API_KEY": None})
+```
+
 ## Documentation
 
 - **[Full Documentation](https://arize-phoenix.readthedocs.io/projects/client/)** - Complete API reference and guides
@@ -550,8 +599,6 @@ print(f"Created project with ID: {new_project['id']}")
 
 Join our community to connect with thousands of AI builders:
 
-- 🌍 Join our [Slack community](https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g).
-- 💡 Ask questions and provide feedback in the _#phoenix-support_ channel.
 - 🌟 Leave a star on our [GitHub](https://github.com/Arize-ai/phoenix).
 - 🐞 Report bugs with [GitHub Issues](https://github.com/Arize-ai/phoenix/issues).
 - 𝕏 Follow us on [𝕏](https://twitter.com/ArizePhoenix).

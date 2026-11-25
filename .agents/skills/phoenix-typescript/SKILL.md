@@ -7,7 +7,7 @@ metadata:
 
 # Phoenix TypeScript Conventions
 
-These conventions apply to **all** TypeScript in the Phoenix monorepo — the `js/app/` frontend, the `js/packages/` libraries (phoenix-client, phoenix-cli, phoenix-evals, phoenix-mcp, phoenix-otel, phoenix-config), examples, and benchmarks.
+These conventions apply to **all** TypeScript in the Phoenix monorepo — the `js/app/` frontend, the `js/packages/` libraries (phoenix-client, phoenix-cli, phoenix-evals, phoenix-otel, phoenix-config), examples, and benchmarks.
 
 Before writing new code, explore the directory you're working in to understand existing patterns — then follow these rules.
 
@@ -126,6 +126,6 @@ TSDoc on exported symbols in `js/packages/` is public API, not an inline comment
 
 - Import lodash utilities via path imports so bundles only carry what's used: `import debounce from "lodash/debounce"`, not `import { debounce } from "lodash"` — the barrel import defeats tree shaking.
 
-## Reuse
+## Modules
 
-Existing shared utilities must be checked before writing inline helpers. Duplicated logic should be extracted to a shared module. When working in `js/packages/`, check sibling packages for existing utilities before adding new dependencies or reimplementing.
+A module owns one responsibility and is named specifically enough to find by file name alone: `authTokenStorage.ts`, not `helpers.ts` or `auth/storage.ts`. Shared code has one home that every consumer imports from, so check for an existing module first, and when a second module needs code inside another, move it to its own module rather than exporting internals, re-exporting or copying it. Imports flow from specific to general and never in a cycle; break a cycle by extracting what both modules share, not with a lazy or type-only import.

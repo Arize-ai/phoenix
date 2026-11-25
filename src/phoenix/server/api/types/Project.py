@@ -2,8 +2,9 @@ import ast
 import json
 import logging
 import operator
-from collections.abc import Iterable, Mapping, Sequence
-from datetime import datetime, timezone
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from difflib import get_close_matches
 from typing import TYPE_CHECKING, Annotated, Any, Literal, Optional, cast
 
@@ -11,11 +12,13 @@ import strawberry
 from aioitertools.itertools import islice
 from openinference.semconv.trace import SpanAttributes
 from pandas import DataFrame
-from sqlalchemy import Select, case, desc, distinct, func, or_, select
+from sqlalchemy import ColumnElement, Select, case, desc, distinct, func, or_, select, true
 from sqlalchemy.dialects import postgresql, sqlite
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
-from sqlalchemy.sql.expression import tuple_
+from sqlalchemy.sql.expression import UnaryExpression, tuple_
 from sqlalchemy.sql.functions import percentile_cont
+from sqlalchemy.sql.operators import custom_op
 from strawberry import ID, UNSET, lazy
 from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.types import Info
@@ -40,7 +43,7 @@ from phoenix.server.api.input_types.ProjectSessionSort import (
     ProjectSessionSort,
     ProjectSessionSortConfig,
 )
-from phoenix.server.api.input_types.SpanSort import SpanSort, SpanSortConfig
+from phoenix.server.api.input_types.SpanSort import SpanColumn, SpanSort, SpanSortConfig
 from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBinScale
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
@@ -74,6 +77,14 @@ from phoenix.server.api.types.SpanFilterConditionAnalysis import (
 from phoenix.server.api.types.TimeSeries import TimeSeries, TimeSeriesDataPoint
 from phoenix.server.api.types.Trace import Trace
 from phoenix.server.api.types.ValidationResult import ValidationResult
+from phoenix.server.cost_tracking.token_types import (
+    AUDIO_TOKEN_TYPE,
+    CACHE_READ_TOKEN_TYPE,
+    CACHE_WRITE_TOKEN_TYPE,
+    INPUT_TOKEN_TYPE,
+    OUTPUT_TOKEN_TYPE,
+    REASONING_TOKEN_TYPE,
+)
 from phoenix.server.session_filters import (
     SessionFilterConditionError,
     apply_session_filter_to_page,
@@ -89,11 +100,15 @@ from phoenix.server.trace_filters import (
 )
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter, SpanFilterError
-from phoenix.trace.dsl.filter import root_span_scope
+from phoenix.trace.dsl.filter import is_root_span_predicate, root_span_scope
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_PAGE_SIZE = 30
+# The most traces of a project read in start time order for one page of its spans.
+_NEWEST_TRACES_WALK = 5000
+# A list of root spans over a time range shorter than this is read in span order.
+_SHORT_TIME_RANGE = timedelta(hours=2)
 _VOCABULARY_ATTRIBUTE_SCAN_LIMIT = 1000
 # A backstop on the attribute scan's cost: the row bound alone says nothing about how much
 # each root span carries, and the scan reads whole attribute blobs.
@@ -114,12 +129,12 @@ _SESSION_FILTER_CONDITION_NOTE = (
     "session's input/output."
 )
 _TOKEN_COUNT_DETAIL_SORT_ORDER = {
-    "input": 0,
-    "output": 0,
-    "cache_read": 1,
-    "cache_write": 2,
-    "reasoning": 3,
-    "audio": 4,
+    INPUT_TOKEN_TYPE: 0,
+    OUTPUT_TOKEN_TYPE: 0,
+    CACHE_READ_TOKEN_TYPE: 1,
+    CACHE_WRITE_TOKEN_TYPE: 2,
+    REASONING_TOKEN_TYPE: 3,
+    AUDIO_TOKEN_TYPE: 4,
 }
 if TYPE_CHECKING:
     from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
@@ -311,6 +326,167 @@ def _unknown_trace_annotation_name_warning(name: str, observed_names: Sequence[s
     if not observed_names:
         return f"unknown annotation name '{name}' — this project has no trace annotations"
     return _unknown_annotation_name_warning(name, observed_names)
+
+
+@dataclass(frozen=True)
+class _CursorByTrace:
+    """The cursor of a span in a list ordered by trace and then by span: the trace's sort
+    position and the span's, joined by a character that neither can contain."""
+
+    trace: Cursor
+    span: Cursor
+
+    def __str__(self) -> str:
+        return f"{self.trace}.{self.span}"
+
+    @classmethod
+    def from_string(cls, cursor: str) -> Optional["_CursorByTrace"]:
+        trace, joined, span = cursor.partition(".")
+        if not joined:
+            return None
+        by_trace = cls(Cursor.from_string(trace), Cursor.from_string(span))
+        if not (by_trace.trace.sort_column and by_trace.span.sort_column):
+            raise ValueError(f"Invalid cursor: {cursor}")
+        return by_trace
+
+    @property
+    def position(self) -> tuple[Any, int, Any, int]:
+        """Trace start time, trace id, span start time and span id."""
+        assert self.trace.sort_column and self.span.sort_column
+        return (
+            self.trace.sort_column.value,
+            self.trace.rowid,
+            self.span.sort_column.value,
+            self.span.rowid,
+        )
+
+
+async def _spans_by_trace_start_time(
+    session: AsyncSession,
+    project_rowid: int,
+    where_span_matches: Callable[[Select[*tuple[Any, ...]]], Select[*tuple[Any, ...]]],
+    since: Optional[datetime],
+    until: Optional[datetime],
+    after: Optional[tuple[Any, int, Any, int]],
+    limit: int,
+    lateral: bool,
+) -> Sequence[Any]:
+    """The first `limit` spans of one project that `where_span_matches` keeps, each as span
+    id, span start time, trace id and trace start time. They come newest trace first, by the
+    trace's recorded start time and its id, and newest span first within a trace, by span
+    start time and span id, beginning after the position `after`: a trace start time, trace
+    id, span start time and span id. `where_span_matches` must keep only spans that start
+    from `since` and before `until`.
+
+    A trace is recorded as starting no later than any of its spans, so reading a project's
+    traces in start time order reaches its newest spans without reading the spans of other
+    projects. Up to `_NEWEST_TRACES_WALK` traces that started from `since` are read that way.
+    If they do not fill the page, one sorted statement continues from the last span found.
+    It reads the traces not yet read and the spans in the time range whose trace started
+    before it."""
+    trace_rowid: Any = models.Trace.id
+    trace_start_time: Any = models.Trace.start_time
+    span_rowid: Any = models.Span.id
+    span_start_time: Any = models.Span.start_time
+    trace_bounds: list[ColumnElement[bool]] = [models.Trace.project_rowid == project_rowid]
+    if until:
+        trace_bounds.append(trace_start_time < until)
+
+    def from_trace(position: Optional[tuple[Any, int, Any, int]]) -> list[ColumnElement[bool]]:
+        return [tuple_(trace_start_time, trace_rowid) <= position[:2]] if position else []
+
+    def after_span(
+        position: Optional[tuple[Any, int, Any, int]], of_trace: Any
+    ) -> list[ColumnElement[bool]]:
+        if not position:
+            return []
+        # A trace's start time moves back when an earlier span of it arrives, so the trace
+        # of the position is recognized by its id, wherever it sorts now.
+        return [or_(of_trace != position[1], tuple_(span_start_time, span_rowid) < position[2:])]
+
+    walked = (
+        select(trace_rowid, trace_start_time)
+        .where(*trace_bounds, *from_trace(after), *([since <= trace_start_time] if since else []))
+        .order_by(trace_start_time.desc(), trace_rowid.desc())
+        .limit(_NEWEST_TRACES_WALK)
+        .subquery()
+    )
+    spans = where_span_matches(select(span_rowid, span_start_time)).where(
+        *after_span(after, walked.c.id)
+    )
+    if lateral:
+        # The LIMIT inside the LATERAL keeps PostgreSQL to reading the traces in order and each
+        # trace's spans in turn. Joined directly, the plan rests on row estimates.
+        of_trace = (
+            spans.where(models.Span.trace_rowid == walked.c.id)
+            .order_by(span_start_time.desc(), span_rowid.desc())
+            .limit(limit)
+            .correlate(walked)
+            .lateral()
+        )
+        page = (
+            select(of_trace.c.id, of_trace.c.start_time, walked.c.id, walked.c.start_time)
+            .select_from(walked)
+            .join(of_trace, true())
+        )
+        newest_span_first = (of_trace.c.start_time.desc(), of_trace.c.id.desc())
+    else:
+        # Without statistics SQLite starts from every root span of every project, along the
+        # parent id index. The unary plus leaves it no way to look a trace up by id, so it
+        # reads the traces in order and each trace's spans in turn.
+        page = spans.add_columns(walked.c.id, walked.c.start_time).join_from(
+            models.Span,
+            walked,
+            models.Span.trace_rowid == UnaryExpression(walked.c.id, operator=custom_op("+")),
+        )
+        newest_span_first = (span_start_time.desc(), span_rowid.desc())
+    page = page.order_by(walked.c.start_time.desc(), walked.c.id.desc(), *newest_span_first)
+    rows: list[Any] = list(await session.execute(page.limit(limit)))
+    if len(rows) == limit:
+        return rows
+    if rows:
+        last_span_rowid, last_span_start_time, last_trace_rowid, last_trace_start_time = rows[-1]
+        after = (last_trace_start_time, last_trace_rowid, last_span_start_time, last_span_rowid)
+    # OFFSET 0 has PostgreSQL plan the search for the remaining spans apart from the ORDER BY
+    # and LIMIT. Planned together, it expects to fill the page early, sorts the project's
+    # remaining traces and looks in each for a span.
+    rest = (
+        where_span_matches(
+            select(
+                span_rowid,
+                span_start_time,
+                trace_rowid.label("trace_rowid"),
+                trace_start_time.label("trace_start_time"),
+            ).join_from(models.Span, models.Trace)
+        )
+        .where(*trace_bounds, *from_trace(after), *after_span(after, trace_rowid))
+        # A trace whose start time has moved back since the first statement is read again.
+        .where(*([span_rowid.not_in([row[0] for row in rows])] if rows else []))
+        .offset(0)
+        .subquery()
+    )
+    in_order = (
+        select(rest)
+        .order_by(
+            rest.c.trace_start_time.desc(),
+            rest.c.trace_rowid.desc(),
+            rest.c.start_time.desc(),
+            rest.c.id.desc(),
+        )
+        .limit(limit - len(rows))
+    )
+    # A server-side cursor keeps PostgreSQL from giving this statement parallel workers, whose
+    # shared memory adds to that of the request's other statements.
+    rows.extend([row async for row in await session.stream(in_order)])
+    return rows
+
+
+def _is_short(time_range: Optional[TimeRange]) -> bool:
+    """Whether the time range ends, or with no end the present comes, within
+    `_SHORT_TIME_RANGE` of its start."""
+    if not (time_range and time_range.start):
+        return False
+    return (time_range.end or datetime.now(timezone.utc)) - time_range.start < _SHORT_TIME_RANGE
 
 
 @strawberry.type
@@ -624,17 +800,19 @@ class Project(Node):
         filter_condition: Optional[str] = UNSET,
         trace_filter_condition: Optional[str] = UNSET,
     ) -> Connection[Span]:
-        stmt: Select[int, *tuple[Any, ...]] = (
+        stmt: Select[*tuple[Any, ...]] = (
             select(models.Span.id)
             .select_from(models.Span)
             .join(models.Trace)
             .where(models.Trace.project_rowid == self.id)
         )
+        span_bounds: list[ColumnElement[bool]] = []
         if time_range:
             if time_range.start:
-                stmt = stmt.where(time_range.start <= models.Span.start_time)
+                span_bounds.append(time_range.start <= models.Span.start_time)
             if time_range.end:
-                stmt = stmt.where(models.Span.start_time < time_range.end)
+                span_bounds.append(models.Span.start_time < time_range.end)
+        stmt = stmt.where(*span_bounds)
         if trace_filter_condition:
             filtered_trace_rowids = get_filtered_trace_rowids_subquery(
                 trace_filter_condition=trace_filter_condition,
@@ -654,8 +832,57 @@ class Project(Node):
             stmt = sort_config.stmt
             if sort_config.dir is SortDir.desc:
                 cursor_rowid_column = desc(cursor_rowid_column)
+        cursor_by_trace = _CursorByTrace.from_string(after) if after else None
+        if (
+            sort
+            and sort.col is SpanColumn.startTime
+            and not sort.eval_result_key
+            and sort.dir is SortDir.desc
+            and filter_condition
+            and is_root_span_predicate(filter_condition)
+            and not trace_filter_condition
+            # A cursor continues in the order it was issued in. Without one, a short time range
+            # is read in span order: a page it cannot fill would otherwise look for root spans
+            # whose trace started before the range, among every span in the range or every
+            # earlier trace of the project, where in span order its cursor bounds the look.
+            and (cursor_by_trace or not (after or _is_short(time_range)))
+        ):
+
+            def where_span_matches(
+                spans: Select[*tuple[Any, ...]],
+            ) -> Select[*tuple[Any, ...]]:
+                return span_filter(spans).where(*span_bounds)
+
+            async with info.context.db.read() as session:
+                by_trace = await _spans_by_trace_start_time(
+                    session,
+                    self.id,
+                    where_span_matches,
+                    time_range.start if time_range else None,
+                    time_range.end if time_range else None,
+                    cursor_by_trace.position if cursor_by_trace else None,
+                    first + 1,
+                    lateral=info.context.db.dialect is SupportedSQLDialect.POSTGRESQL,
+                )
+            datetime_type = CursorSortColumnDataType.DATETIME
+            return connection_from_cursors_and_nodes(
+                [
+                    (
+                        _CursorByTrace(
+                            Cursor(trace_rowid, CursorSortColumn(datetime_type, trace_start_time)),
+                            Cursor(span_rowid, CursorSortColumn(datetime_type, span_start_time)),
+                        ),
+                        Span(id=span_rowid),
+                    )
+                    for span_rowid, span_start_time, trace_rowid, trace_start_time in by_trace[
+                        :first
+                    ]
+                ],
+                has_previous_page=False,
+                has_next_page=len(by_trace) > first,
+            )
         if after:
-            cursor = Cursor.from_string(after)
+            cursor = cursor_by_trace.span if cursor_by_trace else Cursor.from_string(after)
             if sort_config and cursor.sort_column:
                 sort_column = cursor.sort_column
                 compare = operator.lt if sort_config.dir is SortDir.desc else operator.gt

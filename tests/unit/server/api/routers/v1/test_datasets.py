@@ -2,6 +2,7 @@ import gzip
 import inspect
 import io
 import json
+from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
 from io import BytesIO, StringIO
 from typing import Any, Optional, cast
@@ -18,9 +19,16 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.insertion.dataset import ExampleContent
+from phoenix.server.api.routers.v1.datasets import (
+    MAX_DELETE_DATASET_EXAMPLE_IDS,
+    FileContentEncoding,
+    _process_csv,
+    _process_jsonl,
+)
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetVersion import DatasetVersion as DatasetVersionType
 from phoenix.server.types import DbSessionFactory
+from tests.unit._helpers import _add_project, _add_trace
 
 
 async def test_get_simple_dataset(
@@ -1045,6 +1053,227 @@ async def test_post_dataset_upload_jsonl_preserves_explicit_null(
     assert revisions[1].input == {"b": "y"}
 
 
+async def test_process_csv_ignores_utf8_bom_in_header() -> None:
+    examples = await _process_csv(
+        content=b"\xef\xbb\xbfquestion,answer\r\nhi,there\r\n",
+        content_encoding=FileContentEncoding.NONE,
+        input_keys=frozenset({"question"}),
+        output_keys=frozenset({"answer"}),
+        metadata_keys=frozenset(),
+        split_keys=frozenset(),
+        span_id_key=None,
+    )
+    [example] = list(examples)
+    assert example.input == {"question": "hi"}
+    assert example.output == {"answer": "there"}
+
+
+async def test_process_jsonl_ignores_utf8_bom() -> None:
+    examples = await _process_jsonl(
+        b'\xef\xbb\xbf{"q": "a"}\n{"q": "b"}\n',
+        FileContentEncoding.NONE,
+        frozenset({"q"}),
+        frozenset(),
+        frozenset(),
+        frozenset(),
+        None,
+    )
+    assert [e.input for e in examples] == [{"q": "a"}, {"q": "b"}]
+
+
+async def test_process_jsonl_skips_blank_lines() -> None:
+    examples = await _process_jsonl(
+        b'{"q": "a"}\n\n{"q": "b"}\r\n\n',
+        FileContentEncoding.NONE,
+        frozenset({"q"}),
+        frozenset(),
+        frozenset(),
+        frozenset(),
+        None,
+    )
+    assert [e.input for e in examples] == [{"q": "a"}, {"q": "b"}]
+
+
+async def test_process_jsonl_splits_rows_only_on_newlines() -> None:
+    # json.dumps(..., ensure_ascii=False), as the JSONL export writes, leaves these unescaped.
+    rows = [{"q": "a\u2028b"}, {"q": "c\x85d"}, {"q": "e\u2029f"}]
+    content = "\n".join(json.dumps(row, ensure_ascii=False) for row in rows).encode()
+    examples = await _process_jsonl(
+        content,
+        FileContentEncoding.NONE,
+        frozenset({"q"}),
+        frozenset(),
+        frozenset(),
+        frozenset(),
+        None,
+    )
+    assert [e.input for e in examples] == rows
+
+
+async def test_upload_csv_with_bom_maps_bom_prefixed_non_input_keys_to_column(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """phoenix-client reads the CSV header without utf-8-sig, so the first column's name
+    arrives with the BOM attached, here for the example id and a metadata key."""
+    name = "csv_with_bom_and_bom_prefixed_keys"
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", b"\xef\xbb\xbfid,question,answer\r\nex-1,hi,there\r\n", "text/csv")},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["question"],
+            "output_keys[]": ["answer"],
+            "metadata_keys[]": ["\ufeffid"],
+            "example_id_key": "\ufeffid",
+        },
+    )
+    assert response.status_code == 200, response.text
+    async with db() as session:
+        [(example, revision)] = (
+            await session.execute(
+                select(models.DatasetExample, models.DatasetExampleRevision)
+                .join(models.DatasetExampleRevision)
+                .join_from(models.DatasetExample, models.Dataset)
+                .where(models.Dataset.name == name)
+            )
+        ).all()
+    assert revision.input == {"question": "hi"}
+    assert revision.output == {"answer": "there"}
+    assert revision.metadata_ == {"id": "ex-1"}
+    assert example.external_id == "ex-1"
+
+
+async def test_post_dataset_upload_csv_with_utf8_bom(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Excel's "CSV UTF-8" export starts the file with a byte order mark.
+
+    The key may come with or without the BOM: phoenix-client infers keys from a header
+    read without utf-8-sig, so it sends "\\ufeffquestion".
+    """
+    for suffix, input_key in (("", "question"), ("_inferred", "\ufeffquestion")):
+        name = inspect.stack()[0][3] + suffix
+        response = await httpx_client.post(
+            url="v1/datasets/upload?sync=true",
+            files={"file": (" ", b"\xef\xbb\xbfquestion,answer\r\nhi,there\r\n", "text/csv")},
+            data={
+                "action": "create",
+                "name": name,
+                "input_keys[]": [input_key],
+                "output_keys[]": ["answer"],
+            },
+        )
+        assert response.status_code == 200, response.text
+        async with db() as session:
+            revisions = list(
+                await session.scalars(
+                    select(models.DatasetExampleRevision)
+                    .join(models.DatasetExample)
+                    .join_from(models.DatasetExample, models.Dataset)
+                    .where(models.Dataset.name == name)
+                )
+            )
+        assert len(revisions) == 1
+        assert revisions[0].input == {"question": "hi"}
+        assert revisions[0].output == {"answer": "there"}
+
+
+async def test_post_dataset_upload_csv_with_utf8_bom_keeps_key_that_matches_a_header(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """utf-8-sig drops only the file's leading BOM, so a later header that starts with
+    U+FEFF keeps it, and a key equal to that header must not lose its BOM."""
+    name = inspect.stack()[0][3]
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={
+            "file": (
+                " ",
+                "\ufeffquestion,\ufeffanswer\r\nhi,there\r\n".encode(),
+                "text/csv",
+            )
+        },
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["question"],
+            "output_keys[]": ["\ufeffanswer"],
+        },
+    )
+    assert response.status_code == 200, response.text
+    async with db() as session:
+        revisions = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .join(models.DatasetExample)
+                .join_from(models.DatasetExample, models.Dataset)
+                .where(models.Dataset.name == name)
+            )
+        )
+    assert [r.input for r in revisions] == [{"question": "hi"}]
+    assert [r.output for r in revisions] == [{"\ufeffanswer": "there"}]
+
+
+async def test_post_dataset_upload_jsonl_with_bom_blank_lines_and_line_separators(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """Rows the UI preview accepts: BOM, blank lines, padding the preview trims, and
+    U+2028 / U+0085 inside strings."""
+    name = inspect.stack()[0][3]
+    rows = [{"q": "a\u2028b", "r": "1"}, {"q": "c\x85d", "r": "2"}]
+    lines = [json.dumps(row, ensure_ascii=False) for row in rows]
+    jsonl_content = ("\ufeff" + lines[0] + "\r\n\n" + lines[1] + "\u00a0\n\n").encode()
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", jsonl_content, "application/jsonl")},
+        data={
+            "action": "create",
+            "name": name,
+            "input_keys[]": ["q"],
+            "output_keys[]": ["r"],
+        },
+    )
+    assert response.status_code == 200, response.text
+    async with db() as session:
+        revisions = list(
+            await session.scalars(
+                select(models.DatasetExampleRevision)
+                .join(models.DatasetExample)
+                .join_from(models.DatasetExample, models.Dataset)
+                .where(models.Dataset.name == name)
+                .order_by(models.DatasetExample.id)
+            )
+        )
+    assert [r.input for r in revisions] == [{"q": "a\u2028b"}, {"q": "c\x85d"}]
+    assert [r.output for r in revisions] == [{"r": "1"}, {"r": "2"}]
+
+
+async def test_post_dataset_upload_jsonl_reimports_jsonl_export_with_line_separator(
+    httpx_client: httpx2.AsyncClient,
+) -> None:
+    """The JSONL export writes U+2028 unescaped (ensure_ascii=False); it must upload again."""
+    name = inspect.stack()[0][3]
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={"action": "create", "name": name, "inputs": [{"q": "a\u2028b"}], "outputs": [{}]},
+    )
+    assert response.status_code == 200, response.text
+    dataset_id = response.json()["data"]["dataset_id"]
+    export = await httpx_client.get(f"v1/datasets/{dataset_id}/jsonl")
+    assert export.status_code == 200
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        files={"file": (" ", export.content, "application/jsonl")},
+        data={"action": "create", "name": name + "_copy", "input_keys[]": ["input"]},
+    )
+    assert response.status_code == 200, response.text
+
+
 async def test_post_dataset_upload_pyarrow_create_then_append(
     httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
@@ -1133,6 +1362,158 @@ async def test_delete_dataset(
     assert len((await httpx_client.get("v1/datasets")).json()["data"]) == 0
     with pytest.raises(HTTPStatusError):
         (await httpx_client.delete(url)).raise_for_status()
+
+
+async def test_delete_dataset_examples_purges_examples_from_every_version(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+    dataset_with_experiments_runs_and_evals: Any,
+    assign_correctness_llm_evaluator_to_dataset: Callable[
+        [int], Awaitable[models.DatasetEvaluators]
+    ],
+) -> None:
+    dataset_evaluator = await assign_correctness_llm_evaluator_to_dataset(1)
+    async with db() as session:
+        project = await _add_project(session)
+        purged_task_trace = await _add_trace(session, project)
+        purged_eval_trace = await _add_trace(session, project)
+        kept_task_trace = await _add_trace(session, project)
+        session.add(models.ExperimentEvalOnlyConfig(id=0))
+        session.add_all(
+            models.ExperimentTaskLog(
+                experiment_id=0,
+                level="ERROR",
+                message=f"task failed on example {example_id}",
+                dataset_example_id=example_id,
+                repetition_number=1,
+            )
+            for example_id in (1, 2)
+        )
+        session.add_all(
+            models.ExperimentEvalLog(
+                experiment_id=0,
+                level="ERROR",
+                message=f"eval failed on run {run_id}",
+                experiment_run_id=run_id,
+                dataset_evaluator_id=dataset_evaluator.id,
+            )
+            for run_id in (0, 1)
+        )
+        (await session.get_one(models.ExperimentRun, 0)).trace_id = purged_task_trace.trace_id
+        (
+            await session.get_one(models.ExperimentRunAnnotation, 0)
+        ).trace_id = purged_eval_trace.trace_id
+        (await session.get_one(models.ExperimentRun, 1)).trace_id = kept_task_trace.trace_id
+
+    response = await httpx_client.delete(
+        f"v1/datasets/{GlobalID('Dataset', str(1))}/examples",
+        params={"example_ids": [str(GlobalID("DatasetExample", str(1)))]},
+    )
+    assert response.status_code == 204
+
+    async with db() as session:
+        assert list(await session.scalars(select(models.DatasetExample.id))) == [2]
+        assert set(await session.scalars(select(models.DatasetExampleRevision.id))) == {2, 4, 6}
+        assert set(await session.scalars(select(models.DatasetVersion.id))) == {1, 2, 3}
+        assert set(await session.scalars(select(models.Experiment.id))) == {0, 1}
+        assert set(await session.scalars(select(models.ExperimentRun.id))) == {1, 3}
+        assert set(await session.scalars(select(models.ExperimentRunAnnotation.id))) == {1, 3}
+        assert list(await session.scalars(select(models.Trace.trace_id))) == [
+            kept_task_trace.trace_id
+        ]
+        assert set(await session.scalars(select(models.ExperimentLog.message))) == {
+            "task failed on example 2",
+            "eval failed on run 1",
+        }
+    for version_id in (1, 2):
+        response = await httpx_client.get(
+            f"v1/datasets/{GlobalID('Dataset', str(1))}/examples",
+            params={"version_id": str(GlobalID("DatasetVersion", str(version_id)))},
+        )
+        assert [example["id"] for example in response.json()["data"]["examples"]] == [
+            str(GlobalID("DatasetExample", str(2)))
+        ]
+
+
+async def test_delete_dataset_examples_skips_examples_that_are_not_in_the_dataset(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+    empty_dataset: Any,
+    dataset_with_revisions: Any,
+) -> None:
+    example_in_dataset = str(GlobalID("DatasetExample", str(1)))
+    example_in_other_dataset = str(GlobalID("DatasetExample", str(3)))
+    nonexistent_example = str(GlobalID("DatasetExample", str(999)))
+    url = f"v1/datasets/{GlobalID('Dataset', str(1))}/examples"
+    example_ids = [example_in_dataset, example_in_other_dataset, nonexistent_example]
+    for _ in range(2):
+        response = await httpx_client.delete(url, params={"example_ids": example_ids})
+        assert response.status_code == 204
+    async with db() as session:
+        assert set(await session.scalars(select(models.DatasetExample.id))) == {2, 3, 4, 5, 6, 7}
+
+
+async def test_delete_dataset_examples_rejects_requests_it_cannot_scope(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+    empty_dataset: Any,
+    dataset_with_revisions: Any,
+) -> None:
+    example_in_dataset = str(GlobalID("DatasetExample", str(1)))
+    url = f"v1/datasets/{GlobalID('Dataset', str(1))}/examples"
+    response = await httpx_client.delete(
+        f"v1/datasets/{GlobalID('Dataset', str(999))}/examples",
+        params={"example_ids": [example_in_dataset]},
+    )
+    assert response.status_code == 404
+    assert (await httpx_client.delete(url)).status_code == 422
+    too_many_example_ids = [example_in_dataset] * (MAX_DELETE_DATASET_EXAMPLE_IDS + 1)
+    response = await httpx_client.delete(url, params={"example_ids": too_many_example_ids})
+    assert response.status_code == 422
+    async with db() as session:
+        assert set(await session.scalars(select(models.DatasetExample.id))) == {1, 2, 3, 4, 5, 6, 7}
+
+
+@pytest.mark.postgres_only
+async def test_delete_dataset_examples_purges_more_traces_than_a_statement_can_bind(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+    dataset_with_experiments_without_runs: Any,
+) -> None:
+    # asyncpg rejects a statement with more than 32,767 bound parameters.
+    num_traced_runs = 32_768
+    now = datetime.now(timezone.utc)
+    async with db() as session:
+        traced_run_trace = await _add_trace(session, await _add_project(session))
+        await session.execute(
+            insert(models.ExperimentRun),
+            [
+                {
+                    "experiment_id": 0,
+                    "dataset_example_id": 1,
+                    "repetition_number": repetition_number,
+                    "trace_id": (
+                        traced_run_trace.trace_id
+                        if repetition_number == 1
+                        else f"untraced-{repetition_number}"
+                    ),
+                    "output": {},
+                    "start_time": now,
+                    "end_time": now,
+                }
+                for repetition_number in range(1, num_traced_runs + 1)
+            ],
+        )
+
+    response = await httpx_client.delete(
+        f"v1/datasets/{GlobalID('Dataset', str(1))}/examples",
+        params={"example_ids": [str(GlobalID("DatasetExample", str(1)))]},
+    )
+    assert response.status_code == 204
+
+    async with db() as session:
+        assert await session.scalar(select(func.count()).select_from(models.ExperimentRun)) == 0
+        assert await session.scalar(select(func.count()).select_from(models.Trace)) == 0
 
 
 async def test_get_dataset_examples_404s_with_nonexistent_dataset_id(
@@ -3205,6 +3586,73 @@ async def test_append_with_node_id_from_different_dataset_returns_422(
     assert response.status_code == 422
     assert "No examples found in this dataset" in response.text
     assert cross_dataset_node_id in response.text
+
+
+async def test_create_with_node_id_from_different_dataset_returns_422(
+    httpx_client: httpx2.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    stack_name = inspect.stack()[0][3]
+    name_a = f"{stack_name}_a"
+    name_b = f"{stack_name}_b"
+
+    await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name_a,
+            "inputs": [{"q": "A"}],
+            "outputs": [{"a": "A"}],
+        },
+    )
+
+    async with db() as session:
+        example_in_a = (
+            await session.scalars(
+                select(models.DatasetExample)
+                .join(models.Dataset)
+                .where(models.Dataset.name == name_a)
+            )
+        ).one()
+        cross_dataset_node_id = str(GlobalID("DatasetExample", str(example_in_a.id)))
+
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name_b,
+            "inputs": [{"q": "B"}],
+            "outputs": [{"a": "B"}],
+            "example_ids": [cross_dataset_node_id],
+        },
+    )
+    assert response.status_code == 422
+    assert "The following IDs belong to examples in a different dataset" in response.text
+    assert "No examples found in this dataset" not in response.text
+    assert cross_dataset_node_id in response.text
+
+
+async def test_upload_with_many_bad_node_ids_lists_only_the_first_ten(
+    httpx_client: httpx2.AsyncClient,
+) -> None:
+    name = inspect.stack()[0][3]
+    bogus_ids = [str(GlobalID("DatasetExample", str(90000 + i))) for i in range(15)]
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name,
+            "inputs": [{"q": f"Q{i}"} for i in range(len(bogus_ids))],
+            "outputs": [{"a": f"A{i}"} for i in range(len(bogus_ids))],
+            "example_ids": bogus_ids,
+        },
+    )
+    assert response.status_code == 422
+    for bogus_id in bogus_ids[:10]:
+        assert bogus_id in response.text
+    for bogus_id in bogus_ids[10:]:
+        assert bogus_id not in response.text
+    assert response.text.endswith(" and 5 more")
 
 
 async def test_append_with_multiple_bad_node_ids_lists_all_of_them(

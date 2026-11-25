@@ -45,9 +45,6 @@ ACCEPTED = [
     "status_code == 'OK'",
     "status_message == 'x'",
     "latency_ms > 1",
-    "cumulative_llm_token_count_prompt > 1",
-    "cumulative_llm_token_count_completion > 1",
-    "cumulative_llm_token_count_total > 1",
     "start_time > '2024-01-01T00:00:00Z'",
     "end_time > '2024-01-01T00:00:00Z'",
     "llm.token_count.prompt > 1",
@@ -56,9 +53,6 @@ ACCEPTED = [
     # backward-compatibility aliases: removing any of these breaks stored rows
     "context.span_id == 'x'",
     "context.trace_id == 'x'",
-    "cumulative_token_count.prompt > 1",
-    "cumulative_token_count.completion > 1",
-    "cumulative_token_count.total > 1",
     # attribute access, all equivalent spellings
     "llm.model_name == 'gpt-4'",
     "attributes['llm']['model_name'] == 'gpt-4'",
@@ -399,14 +393,56 @@ def test_field_vocabulary_is_exhaustive() -> None:
     It binds `attributes` and `events` because the compiled expression needs
     them, so reading the documented field list out of it would wrongly suggest
     `events` is a queryable column. A bare `events` is an attribute path like
-    any other unknown identifier.
+    any other unknown identifier, as are `cumulative_*` names.
     """
     import ast as _ast
 
-    from phoenix.trace.dsl.filter import _FilterTranslator
+    from phoenix.trace.dsl.filter import Projector, _FilterTranslator
 
     rendered = _ast.unparse(_FilterTranslator().visit(_ast.parse("events == 'x'", mode="eval")))
     assert "attributes[['events']]" in rendered
+
+    for cumulative_expr, expected_path in (
+        ("cumulative_error_count == 'x'", "attributes[['cumulative_error_count']]"),
+        (
+            "cumulative_llm_token_count_prompt == 'x'",
+            "attributes[['cumulative_llm_token_count_prompt']]",
+        ),
+        (
+            "cumulative_llm_token_count_completion == 'x'",
+            "attributes[['cumulative_llm_token_count_completion']]",
+        ),
+        (
+            "cumulative_llm_token_count_total == 'x'",
+            "attributes[['cumulative_llm_token_count_total']]",
+        ),
+        (
+            "cumulative_token_count.prompt == 'x'",
+            "attributes[['cumulative_token_count', 'prompt']]",
+        ),
+        (
+            "cumulative_token_count.completion == 'x'",
+            "attributes[['cumulative_token_count', 'completion']]",
+        ),
+        (
+            "cumulative_token_count.total == 'x'",
+            "attributes[['cumulative_token_count', 'total']]",
+        ),
+    ):
+        SpanFilter(cumulative_expr)
+        rendered_filter = _ast.unparse(
+            _FilterTranslator().visit(_ast.parse(cumulative_expr, mode="eval"))
+        )
+        assert expected_path in rendered_filter
+
+    assert (
+        _ast.unparse(Projector("cumulative_llm_token_count_total").translated)
+        == "attributes[['cumulative_llm_token_count_total']]"
+    )
+    assert (
+        _ast.unparse(Projector("cumulative_token_count.total").translated)
+        == "attributes[['cumulative_token_count', 'total']]"
+    )
 
 
 @pytest.mark.parametrize("condition,message", REJECTED)
