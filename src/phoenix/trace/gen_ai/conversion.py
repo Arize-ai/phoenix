@@ -190,7 +190,7 @@ def get_openinference_message_attributes(
         next_input_index += 1
 
     for index, out_msg in enumerate(
-        _validate_root_list(attributes.get(gen_ai.GEN_AI_OUTPUT_MESSAGES), OutputMessages)
+        _validate_output_messages(attributes.get(gen_ai.GEN_AI_OUTPUT_MESSAGES))
     ):
         oi_attributes.update(_flatten_message(out_msg, SpanAttributes.LLM_OUTPUT_MESSAGES, index))
 
@@ -623,6 +623,33 @@ def _validate_root_list(
         return model_cls.model_validate_json(value).root
     except ValidationError:
         return []
+
+
+def _validate_output_messages(value: Any) -> list[OutputMessage]:
+    """Output-message list that tolerates a missing per-message ``finish_reason``.
+
+    Current GenAI semconv deprecates the per-message ``finish_reason`` in favor of
+    ``gen_ai.response.finish_reasons`` and no longer requires it, but the pinned
+    generated models still do. Producers such as the Anthropic SDK omit it, so we
+    default a missing one to ``""``, which ``_flatten_message`` skips, instead of
+    letting the whole list fail validation and drop. The fast JSON path runs first;
+    the default is only applied when it fails."""
+    if not isinstance(value, (str, bytes, bytearray)):
+        return []
+    try:
+        return OutputMessages.model_validate_json(value).root
+    except ValidationError:
+        pass
+    try:
+        items = json.loads(value)
+    except (TypeError, ValueError):
+        return []
+    if not isinstance(items, list):
+        return []
+    for item in items:
+        if isinstance(item, dict) and item.get("finish_reason") is None:
+            item["finish_reason"] = ""
+    return _validate_root_list(json.dumps(items), OutputMessages)
 
 
 def _validate_tool_definitions(
