@@ -422,51 +422,51 @@ export function ProjectEvaluatorsTabTable({
   const tableRows = table.getRowModel().rows;
   return (
     <>
-    <table css={tableCSS} aria-label="Project evaluators across all projects">
-      <thead>
-        {table.getHeaderGroups().map((headerGroup) => (
-          <tr key={headerGroup.id}>
-            {headerGroup.headers.map((header) => (
-              <TableColumnHeader key={header.id} header={header} />
-            ))}
-          </tr>
-        ))}
-      </thead>
-      {tableRows.length === 0 ? (
-        <TableEmptyWrap>
-          <CompactEmptyState
-            icon={<Icon svg={<Icons.Scale />} />}
-            description="No project evaluators"
-            isFiltered={trimmedFilter.length > 0}
-          />
-        </TableEmptyWrap>
-      ) : (
-        <tbody>
-          {tableRows.map((row) => (
-            <tr key={row.id}>
-              {row.getVisibleCells().map((cell) => (
-                <td
-                  key={cell.id}
-                  style={{
-                    width: cell.column.getSize(),
-                    maxWidth: cell.column.getSize(),
-                    overflow: "hidden",
-                    whiteSpace: "nowrap",
-                    textAlign: cell.column.columnDef.meta?.textAlign,
-                    userSelect:
-                      cell.column.id === CHECKBOX_COLUMN_ID
-                        ? "none"
-                        : undefined,
-                  }}
-                >
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td>
+      <table css={tableCSS} aria-label="Project evaluators across all projects">
+        <thead>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <tr key={headerGroup.id}>
+              {headerGroup.headers.map((header) => (
+                <TableColumnHeader key={header.id} header={header} />
               ))}
             </tr>
           ))}
-        </tbody>
-      )}
-    </table>
+        </thead>
+        {tableRows.length === 0 ? (
+          <TableEmptyWrap>
+            <CompactEmptyState
+              icon={<Icon svg={<Icons.Scale />} />}
+              description="No project evaluators"
+              isFiltered={trimmedFilter.length > 0}
+            />
+          </TableEmptyWrap>
+        ) : (
+          <tbody>
+            {tableRows.map((row) => (
+              <tr key={row.id}>
+                {row.getVisibleCells().map((cell) => (
+                  <td
+                    key={cell.id}
+                    style={{
+                      width: cell.column.getSize(),
+                      maxWidth: cell.column.getSize(),
+                      overflow: "hidden",
+                      whiteSpace: "nowrap",
+                      textAlign: cell.column.columnDef.meta?.textAlign,
+                      userSelect:
+                        cell.column.id === CHECKBOX_COLUMN_ID
+                          ? "none"
+                          : undefined,
+                    }}
+                  >
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        )}
+      </table>
       {selectedEvaluators.length > 0 ? (
         <>
           <EvaluatorSelectionToolbar

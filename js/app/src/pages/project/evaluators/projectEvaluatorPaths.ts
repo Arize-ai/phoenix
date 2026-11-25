@@ -46,7 +46,7 @@ export const PROJECT_EVALUATOR_TABS = [
   "metrics",
 ] as const;
 
-export type ProjectEvaluatorTab = typeof PROJECT_EVALUATOR_TABS[number];
+export type ProjectEvaluatorTab = (typeof PROJECT_EVALUATOR_TABS)[number];
 
 export function isProjectEvaluatorTab(
   value: unknown

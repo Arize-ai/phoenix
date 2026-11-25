@@ -187,12 +187,12 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
     const nextValidationMessage = !name
       ? "Evaluator name is required."
       : sourceCode.trim().length === 0
-      ? "Source code is required."
-      : selectedSandboxConfigId == null
-      ? "Please select a sandbox configuration."
-      : outputConfigErrors.length
-      ? outputConfigErrors.join("\n")
-      : undefined;
+        ? "Source code is required."
+        : selectedSandboxConfigId == null
+          ? "Please select a sandbox configuration."
+          : outputConfigErrors.length
+            ? outputConfigErrors.join("\n")
+            : undefined;
     if (nextValidationMessage || selectedSandboxConfigId == null) {
       setValidationMessage(
         nextValidationMessage ?? "Please select a sandbox configuration."

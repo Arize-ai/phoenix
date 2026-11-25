@@ -448,8 +448,8 @@ function AnnotationMeanScoreView({
     delta == null || delta === 0 || optimizationDirection == null
       ? null
       : optimizationDirection === "MAXIMIZE"
-      ? delta > 0
-      : delta < 0;
+        ? delta > 0
+        : delta < 0;
   // Plain 2-decimal magnitude: formatFloat's scientific notation for tiny
   // values reads as noise on a difference (e.g. "▲ 8.13e-3").
   const deltaText =
@@ -635,8 +635,8 @@ function PreviousWindowChange({
         isImprovement == null
           ? "text-500"
           : isImprovement
-          ? "success"
-          : "danger"
+            ? "success"
+            : "danger"
       }
     >
       {deltaText}
@@ -701,8 +701,8 @@ function getLeadingShareChange({
 }) {
   const previousShare =
     previousLabelFractions != null && previousLabelFractions.length > 0
-      ? previousLabelFractions.find((entry) => entry.label === label)
-          ?.fraction ?? 0
+      ? (previousLabelFractions.find((entry) => entry.label === label)
+          ?.fraction ?? 0)
       : null;
   const delta = previousShare == null ? null : fraction - previousShare;
   const isImprovement =

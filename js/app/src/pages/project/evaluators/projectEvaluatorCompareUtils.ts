@@ -16,7 +16,7 @@ export const EVALUATOR_COMPARE_HUES = {
 } as const;
 
 export type EvaluatorCompareHue =
-  typeof EVALUATOR_COMPARE_HUES[keyof typeof EVALUATOR_COMPARE_HUES];
+  (typeof EVALUATOR_COMPARE_HUES)[keyof typeof EVALUATOR_COMPARE_HUES];
 
 export const EVALUATOR_COMPARE_COLORS = {
   a: `var(--global-color-${EVALUATOR_COMPARE_HUES.a}-700)`,

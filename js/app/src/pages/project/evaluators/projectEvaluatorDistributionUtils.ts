@@ -63,8 +63,8 @@ export function getDistributionView({
   return labels && side.threshold == null
     ? "labels"
     : scores
-    ? "scores"
-    : "labels";
+      ? "scores"
+      : "labels";
 }
 
 export function getDistributionRows({

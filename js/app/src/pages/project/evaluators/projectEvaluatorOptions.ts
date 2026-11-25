@@ -258,14 +258,14 @@ export function buildCopyLlmCreationMode(
           promptMessagesRefs: template.messages,
         })
       : template.__typename === "PromptStringTemplate"
-      ? [
-          {
-            id: generateMessageId(),
-            role: "user" as const,
-            content: template.template,
-          },
-        ]
-      : null;
+        ? [
+            {
+              id: generateMessageId(),
+              role: "user" as const,
+              content: template.template,
+            },
+          ]
+        : null;
   if (!defaultMessages) {
     return { ok: false, reason: "unsupported-prompt-template" };
   }

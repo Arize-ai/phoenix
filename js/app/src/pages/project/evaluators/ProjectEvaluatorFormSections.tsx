@@ -234,8 +234,8 @@ export const ProjectEvaluatorInputMappingDock = ({
                       evaluatorKind === "prompt"
                         ? `Variables in the prompt appear here, each mapped to the ${recordKind} data it reads.`
                         : evaluatorKind === "decision"
-                        ? `Variables in the decision's state appear here, each mapped to the ${recordKind} data it reads.`
-                        : `Parameters of the evaluator's function appear here, each mapped to the ${recordKind} data it reads.`
+                          ? `Variables in the decision's state appear here, each mapped to the ${recordKind} data it reads.`
+                          : `Parameters of the evaluator's function appear here, each mapped to the ${recordKind} data it reads.`
                     }
                   />
                 }

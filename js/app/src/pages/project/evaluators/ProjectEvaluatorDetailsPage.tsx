@@ -224,7 +224,7 @@ function ProjectEvaluatorDetailsPageContent({
     evaluator.kind === "LLM" ||
     isCodeEvaluator ||
     evaluator.kind === "DECISION";
-  const versionCount = isCodeEvaluator ? evaluator.versionCount ?? 0 : 0;
+  const versionCount = isCodeEvaluator ? (evaluator.versionCount ?? 0) : 0;
 
   const outletContext: ProjectEvaluatorDetailsOutletContext = {
     projectEvaluator,
