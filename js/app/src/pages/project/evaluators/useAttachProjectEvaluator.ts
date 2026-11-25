@@ -16,7 +16,7 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
  * evaluator leaves the gallery's list and the project's evaluators refetch.
  */
 export function useAttachProjectEvaluator<
-  TMutation extends MutationParameters,
+  TMutation extends MutationParameters
 >({
   mutation,
   projectId,

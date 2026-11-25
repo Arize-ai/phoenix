@@ -117,7 +117,7 @@ export const TIME_WINDOW_PRESETS = [
 const isTimeWindowPresetId = (value: string): value is TimeWindowPresetId =>
   TIME_WINDOW_PRESETS.some(({ id }) => id === value);
 
-export type TimeWindowPresetId = (typeof TIME_WINDOW_PRESETS)[number]["id"];
+export type TimeWindowPresetId = typeof TIME_WINDOW_PRESETS[number]["id"];
 
 /**
  * `startIso` is computed once when the preset is chosen so re-renders do not
@@ -809,8 +809,7 @@ export function useEvaluatorPreviewRuns({
   const isRunnable = outputConfigErrors.length === 0 && decisionBlocker == null;
   const runBlocker = isRunnable
     ? null
-    : (decisionBlocker ??
-      "Fix the evaluator's annotation configuration to test");
+    : decisionBlocker ?? "Fix the evaluator's annotation configuration to test";
 
   /** Tests one request's worth of rows, each key once, in one stream. */
   const runOnBatch = (rows: readonly RecordedRunRow[]) => {

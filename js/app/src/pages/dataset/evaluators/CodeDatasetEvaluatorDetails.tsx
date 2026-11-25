@@ -96,7 +96,7 @@ export function CodeDatasetEvaluatorDetails({
   const outputConfigs =
     datasetEvaluator.outputConfigs.length > 0
       ? datasetEvaluator.outputConfigs
-      : (evaluator.outputConfigs ?? []);
+      : evaluator.outputConfigs ?? [];
 
   // currentVersion can be null (e.g. fixtures, backfills) — render an
   // empty state rather than throwing.

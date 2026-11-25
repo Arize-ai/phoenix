@@ -189,7 +189,9 @@ function ProjectEvaluatorActivityPanel({
           <Text size="S">
             {formatQueueCount(runSummary.queuedCount)}
             {runSummary.oldestWaitingOrRetryingAt != null
-              ? ` · ${formatElapsedShort(runSummary.oldestWaitingOrRetryingAt)} waiting`
+              ? ` · ${formatElapsedShort(
+                  runSummary.oldestWaitingOrRetryingAt
+                )} waiting`
               : ""}
           </Text>
         </StatField>

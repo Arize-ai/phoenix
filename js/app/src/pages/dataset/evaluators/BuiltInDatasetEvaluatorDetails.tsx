@@ -179,7 +179,7 @@ export function BuiltInDatasetEvaluatorDetails({
   const outputConfigs = (
     datasetEvaluator.outputConfigs && datasetEvaluator.outputConfigs.length > 0
       ? datasetEvaluator.outputConfigs
-      : (evaluator.outputConfigs ?? [])
+      : evaluator.outputConfigs ?? []
   ) as readonly OutputConfig[];
   const inputMapping = datasetEvaluator.inputMapping;
   const name = evaluator.name.toLowerCase();

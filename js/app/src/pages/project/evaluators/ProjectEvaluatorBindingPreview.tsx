@@ -206,8 +206,8 @@ export function getEvaluatorVariableBindings(
       sourceKind: EVALUATOR_SLOT_NAMES.includes(variable as EvaluatorSlotName)
         ? "default"
         : isUnmapped
-          ? "unmapped"
-          : "same-name",
+        ? "unmapped"
+        : "same-name",
       path: isUnmapped ? null : variable,
     };
   });
@@ -481,9 +481,7 @@ const FOLDED_VALUE_MAX_LINES = 4;
  */
 function BindingValue({ value }: { value: unknown }) {
   const isText = typeof value === "string";
-  const text = isText
-    ? value
-    : (JSON.stringify(value, null, 2) ?? String(value));
+  const text = isText ? value : JSON.stringify(value, null, 2) ?? String(value);
   const isLong =
     text.length > FOLDED_VALUE_MAX_CHARACTERS ||
     text.split("\n").length > FOLDED_VALUE_MAX_LINES;

@@ -448,14 +448,16 @@ function AnnotationMeanScoreView({
     delta == null || delta === 0 || optimizationDirection == null
       ? null
       : optimizationDirection === "MAXIMIZE"
-        ? delta > 0
-        : delta < 0;
+      ? delta > 0
+      : delta < 0;
   // Plain 2-decimal magnitude: formatFloat's scientific notation for tiny
   // values reads as noise on a difference (e.g. "▲ 8.13e-3").
   const deltaText =
     delta == null
       ? null
-      : `${delta > 0 ? "▲" : delta < 0 ? "▼" : "—"} ${Math.abs(delta).toFixed(2)}`;
+      : `${delta > 0 ? "▲" : delta < 0 ? "▼" : "—"} ${Math.abs(delta).toFixed(
+          2
+        )}`;
   const sparkValues = series.map((bin) =>
     typeof bin.meanScore === "number" ? bin.meanScore : null
   );
@@ -549,7 +551,9 @@ function AnnotationMeanScoreView({
             const timeLabel =
               start === end
                 ? binTimeFormatter(new Date(startTime))
-                : `${binTimeFormatter(new Date(startTime))} – ${binTimeFormatter(new Date(endTime))}`;
+                : `${binTimeFormatter(
+                    new Date(startTime)
+                  )} – ${binTimeFormatter(new Date(endTime))}`;
             return (
               <Text size="S">
                 {timeLabel} · μ {formatFloat(weightedSum / count)} · n={count}
@@ -631,8 +635,8 @@ function PreviousWindowChange({
         isImprovement == null
           ? "text-500"
           : isImprovement
-            ? "success"
-            : "danger"
+          ? "success"
+          : "danger"
       }
     >
       {deltaText}
@@ -673,7 +677,9 @@ function getDeltaArrow(delta: number) {
 function formatSharePointsDelta(delta: number) {
   const points = Math.abs(delta * 100);
   const rounded = Math.round(points * 10) / 10;
-  return `${getDeltaArrow(delta)} ${rounded < 10 ? rounded.toFixed(1) : Math.round(points)} pts`;
+  return `${getDeltaArrow(delta)} ${
+    rounded < 10 ? rounded.toFixed(1) : Math.round(points)
+  } pts`;
 }
 
 /**
@@ -695,8 +701,8 @@ function getLeadingShareChange({
 }) {
   const previousShare =
     previousLabelFractions != null && previousLabelFractions.length > 0
-      ? (previousLabelFractions.find((entry) => entry.label === label)
-          ?.fraction ?? 0)
+      ? previousLabelFractions.find((entry) => entry.label === label)
+          ?.fraction ?? 0
       : null;
   const delta = previousShare == null ? null : fraction - previousShare;
   const isImprovement =
@@ -901,7 +907,9 @@ function LabelColumns({
         const timeLabel =
           range.start === range.end
             ? formatBinTime(new Date(startTime))
-            : `${formatBinTime(new Date(startTime))} – ${formatBinTime(new Date(endTime))}`;
+            : `${formatBinTime(new Date(startTime))} – ${formatBinTime(
+                new Date(endTime)
+              )}`;
         return (
           <Flex direction="column" gap="size-50">
             <Text size="S">
@@ -915,7 +923,9 @@ function LabelColumns({
                       color={category.color}
                       shape="square"
                       name={category.key}
-                      value={`${formatPercentShort(shares[index] * 100)} · n=${Math.round(shares[index] * weight)}`}
+                      value={`${formatPercentShort(
+                        shares[index] * 100
+                      )} · n=${Math.round(shares[index] * weight)}`}
                     />
                   </li>
                 ) : null

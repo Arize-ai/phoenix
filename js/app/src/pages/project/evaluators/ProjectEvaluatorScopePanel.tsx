@@ -419,17 +419,17 @@ function TraceRecordSource({
         }),
       }))
     : sample
-      ? [
-          {
-            key: SAMPLE_ROW_KEY,
-            name: "Sample trace",
-            recordId: "sample",
-            snippet: getContextSnippet(sample.context),
-            context: sample.context,
-            isSample: true,
-          },
-        ]
-      : [];
+    ? [
+        {
+          key: SAMPLE_ROW_KEY,
+          name: "Sample trace",
+          recordId: "sample",
+          snippet: getContextSnippet(sample.context),
+          context: sample.context,
+          isSample: true,
+        },
+      ]
+    : [];
   const hasMore = data.project?.rootSpans?.pageInfo.hasNextPage ?? false;
   const rows = keepListedRowsFirst({
     loadedRows,
@@ -538,17 +538,17 @@ function SessionRecordSource({
         }),
       }))
     : sample
-      ? [
-          {
-            key: SAMPLE_ROW_KEY,
-            name: "Sample session",
-            recordId: "sample",
-            snippet: getContextSnippet(sample.context),
-            context: sample.context,
-            isSample: true,
-          },
-        ]
-      : [];
+    ? [
+        {
+          key: SAMPLE_ROW_KEY,
+          name: "Sample session",
+          recordId: "sample",
+          snippet: getContextSnippet(sample.context),
+          context: sample.context,
+          isSample: true,
+        },
+      ]
+    : [];
   const hasMore = data.project?.sessions?.pageInfo.hasNextPage ?? false;
   const rows = keepListedRowsFirst({
     loadedRows,
@@ -643,18 +643,18 @@ function SpanRecordSource({
         }),
       }))
     : sample
-      ? [
-          {
-            key: SAMPLE_ROW_KEY,
-            name: `Sample ${sample.spanKind} span`,
-            recordId: "sample",
-            snippet: getContextSnippet(sample.context),
-            spanKind: sample.spanKind.toLowerCase(),
-            context: sample.context,
-            isSample: true,
-          },
-        ]
-      : [];
+    ? [
+        {
+          key: SAMPLE_ROW_KEY,
+          name: `Sample ${sample.spanKind} span`,
+          recordId: "sample",
+          snippet: getContextSnippet(sample.context),
+          spanKind: sample.spanKind.toLowerCase(),
+          context: sample.context,
+          isSample: true,
+        },
+      ]
+    : [];
   const hasMore = data.project?.spans?.pageInfo.hasNextPage ?? false;
   const rows = keepListedRowsFirst({
     loadedRows,

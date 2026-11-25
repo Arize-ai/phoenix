@@ -301,7 +301,7 @@ function EvaluatorTaskEditorContent({
   // The code of the saved evaluator the task stands for, which Reset
   // restores; a draft has none, so Reset gives it the default.
   const [savedCode, setSavedCode] = useState(() =>
-    evaluator.source.evaluatorId != null ? (evaluator.code ?? null) : null
+    evaluator.source.evaluatorId != null ? evaluator.code ?? null : null
   );
 
   // The mount's mirror only fills in defaults (the sandbox above); it is not
@@ -429,7 +429,7 @@ function EvaluatorTaskEditorContent({
 
   const selectedOutputName = outputNames.includes(selectedOutput)
     ? selectedOutput
-    : (outputNames[0] ?? "");
+    : outputNames[0] ?? "";
 
   const status = getEvaluatorTaskStatus({ evaluator, isDirty });
 

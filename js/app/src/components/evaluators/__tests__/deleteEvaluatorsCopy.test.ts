@@ -32,7 +32,7 @@ describe("getDeleteEvaluatorsCopy", () => {
 });
 
 describe("getDeleteAssociatedLabel", () => {
-  it("offers to delete prompts only when an LLM evaluator is selected", () => {
+  it("offers to delete prompts and decisions only when selected", () => {
     expect(getDeleteAssociatedLabel([{ kind: "CODE" }])).toBeNull();
     expect(getDeleteAssociatedLabel([{ kind: "BUILTIN" }])).toBeNull();
     expect(getDeleteAssociatedLabel([{ kind: "LLM" }])).toBe(
@@ -41,6 +41,15 @@ describe("getDeleteAssociatedLabel", () => {
     expect(getDeleteAssociatedLabel([{ kind: "LLM" }, { kind: "LLM" }])).toBe(
       "Delete associated prompts"
     );
-    expect(getDeleteAssociatedLabel([{ kind: "DECISION" }])).toBeNull();
+    expect(getDeleteAssociatedLabel([{ kind: "DECISION" }])).toBe(
+      "Delete associated decision"
+    );
+    expect(
+      getDeleteAssociatedLabel([
+        { kind: "LLM" },
+        { kind: "DECISION" },
+        { kind: "DECISION" },
+      ])
+    ).toBe("Delete associated prompt and decisions");
   });
 });

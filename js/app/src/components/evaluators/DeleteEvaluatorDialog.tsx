@@ -35,7 +35,7 @@ export type DeleteEvaluatorDialogProps = {
   onDeleted?: () => void;
   isDeleting: boolean;
   onDelete: (options: {
-    deleteAssociatedPrompt: boolean;
+    deleteAssociatedPromptOrDecision: boolean;
   }) => Promise<void>;
 };
 
@@ -65,7 +65,7 @@ export function DeleteEvaluatorDialog({
     setError(null);
     startTransition(() => {
       void onDelete({
-        deleteAssociatedPrompt:
+        deleteAssociatedPromptOrDecision:
           deleteAssociatedLabel != null && deleteAssociated,
       })
         .then(() => {

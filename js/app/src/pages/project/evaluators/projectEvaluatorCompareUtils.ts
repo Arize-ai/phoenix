@@ -16,7 +16,7 @@ export const EVALUATOR_COMPARE_HUES = {
 } as const;
 
 export type EvaluatorCompareHue =
-  (typeof EVALUATOR_COMPARE_HUES)[keyof typeof EVALUATOR_COMPARE_HUES];
+  typeof EVALUATOR_COMPARE_HUES[keyof typeof EVALUATOR_COMPARE_HUES];
 
 export const EVALUATOR_COMPARE_COLORS = {
   a: `var(--global-color-${EVALUATOR_COMPARE_HUES.a}-700)`,
@@ -116,7 +116,9 @@ export function formatFlagCondition({
   threshold: number;
   optimizationDirection: EvaluatorOptimizationDirection | null;
 }): string {
-  return `${getFlaggedThresholdOperator(optimizationDirection)} ${formatThreshold(threshold)}`;
+  return `${getFlaggedThresholdOperator(
+    optimizationDirection
+  )} ${formatThreshold(threshold)}`;
 }
 
 export function formatMatrixSubtitle({
@@ -147,7 +149,9 @@ export function formatMatrixSubtitle({
     thresholdA === thresholdB &&
     operatorA === operatorB
   ) {
-    return `${scope} · flagged at score ${operatorA} ${formatThreshold(thresholdA)}`;
+    return `${scope} · flagged at score ${operatorA} ${formatThreshold(
+      thresholdA
+    )}`;
   }
   const thresholds = [
     thresholdA == null

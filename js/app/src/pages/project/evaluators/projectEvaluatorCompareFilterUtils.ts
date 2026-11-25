@@ -29,7 +29,9 @@ function getAnnotationField({
   target: CompareTarget;
   side: CompareFilterSide;
 }) {
-  return `${ANNOTATIONS_DSL_FIELD_BY_TARGET_TYPE[TARGET_TYPES[target]]}[${getDslStringLiteral({ value: side.annotationName, quote: "'" })}]`;
+  return `${
+    ANNOTATIONS_DSL_FIELD_BY_TARGET_TYPE[TARGET_TYPES[target]]
+  }[${getDslStringLiteral({ value: side.annotationName, quote: "'" })}]`;
 }
 
 function buildBinCondition({
@@ -58,7 +60,10 @@ function buildBinCondition({
         ),
     ].join(" and ");
   }
-  return `${field}.label == ${getDslStringLiteral({ value: label, quote: '"' })}`;
+  return `${field}.label == ${getDslStringLiteral({
+    value: label,
+    quote: '"',
+  })}`;
 }
 
 export function isCompareSelectionValid({

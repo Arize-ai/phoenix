@@ -76,7 +76,9 @@ export function LLMProjectEvaluatorDetails({
   const playgroundUrl = evaluator.prompt?.id
     ? `/playground?promptId=${encodeURIComponent(evaluator.prompt.id)}${
         evaluator.promptVersionTag?.name
-          ? `&promptTagName=${encodeURIComponent(evaluator.promptVersionTag.name)}`
+          ? `&promptTagName=${encodeURIComponent(
+              evaluator.promptVersionTag.name
+            )}`
           : ""
       }`
     : null;
@@ -142,7 +144,7 @@ export function LLMProjectEvaluatorDetails({
                     {name}:{" "}
                     {typeof value === "string"
                       ? value
-                      : (safelyStringifyJSON(value).json ?? "")}
+                      : safelyStringifyJSON(value).json ?? ""}
                   </Text>
                 ))}
               </Flex>

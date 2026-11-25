@@ -258,10 +258,16 @@ function ServerQueueStatusStat({ queue }: { queue: EvaluationQueue }) {
           <>
             {detail != null ? <Text size="S">{detail}</Text> : null}
             <Text size="S">
-              {`All projects, per hour: ${formatAddedPerHour(queue.addedPerMinute)} added · ${formatCompletedPerHour(queue.completedPerMinute)} completed`}
+              {`All projects, per hour: ${formatAddedPerHour(
+                queue.addedPerMinute
+              )} added · ${formatCompletedPerHour(
+                queue.completedPerMinute
+              )} completed`}
             </Text>
             {queue.oldestWaitingAt != null ? (
-              <Text size="S">{`All projects, oldest wait: ${formatElapsedShort(queue.oldestWaitingAt)}`}</Text>
+              <Text size="S">{`All projects, oldest wait: ${formatElapsedShort(
+                queue.oldestWaitingAt
+              )}`}</Text>
             ) : null}
           </>
         }
@@ -310,11 +316,15 @@ function ProjectQueuedStat({
                   </Text>
                   {queuedTargets.map((target) => (
                     <Text key={target.evaluationTarget} size="S">
-                      {`${formatEvaluationTarget(target.evaluationTarget)}: ${formatQueueCount(target.queuedCount)}`}
+                      {`${formatEvaluationTarget(
+                        target.evaluationTarget
+                      )}: ${formatQueueCount(target.queuedCount)}`}
                     </Text>
                   ))}
                   {runningCount > 0 ? (
-                    <Text size="S">{`Running now: ${formatQueueCount(runningCount)}`}</Text>
+                    <Text size="S">{`Running now: ${formatQueueCount(
+                      runningCount
+                    )}`}</Text>
                   ) : null}
                 </Flex>
               ) : null}
@@ -325,7 +335,9 @@ function ProjectQueuedStat({
                   </Text>
                   {queue.projects.map(({ project, queuedCount }) => (
                     <Text key={project.id} size="S">
-                      {`${project.name}${project.id === projectId ? " (this project)" : ""}: ${formatQueueCount(queuedCount)}`}
+                      {`${project.name}${
+                        project.id === projectId ? " (this project)" : ""
+                      }: ${formatQueueCount(queuedCount)}`}
                     </Text>
                   ))}
                 </Flex>

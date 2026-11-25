@@ -46,7 +46,7 @@ export const PROJECT_EVALUATOR_TABS = [
   "metrics",
 ] as const;
 
-export type ProjectEvaluatorTab = (typeof PROJECT_EVALUATOR_TABS)[number];
+export type ProjectEvaluatorTab = typeof PROJECT_EVALUATOR_TABS[number];
 
 export function isProjectEvaluatorTab(
   value: unknown
@@ -125,13 +125,17 @@ export function useProjectEvaluatorPaths() {
         projectEvaluatorId: string,
         tab: ProjectEvaluatorTab = "overview"
       ) =>
-        `${list}/${encodeURIComponent(projectEvaluatorId)}${tabSegment(tab)}${evaluatorSearch(projectEvaluatorId)}`,
+        `${list}/${encodeURIComponent(projectEvaluatorId)}${tabSegment(
+          tab
+        )}${evaluatorSearch(projectEvaluatorId)}`,
       /** The edit slideover, over the overview unless a tab is given. */
       edit: (
         projectEvaluatorId: string,
         tab: ProjectEvaluatorTab = "overview"
       ) =>
-        `${list}/${encodeURIComponent(projectEvaluatorId)}${tabSegment(tab)}/edit${evaluatorSearch(projectEvaluatorId)}`,
+        `${list}/${encodeURIComponent(projectEvaluatorId)}${tabSegment(
+          tab
+        )}/edit${evaluatorSearch(projectEvaluatorId)}`,
     };
   }, [rootPath, search, currentProjectEvaluatorId]);
 }

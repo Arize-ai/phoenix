@@ -473,9 +473,7 @@ const templateLinkCSS = css`
   border-radius: var(--global-rounding-small);
   background-color: var(--global-card-header-background-color);
   color: var(--global-text-color-900);
-  transition:
-    border-color 0.15s ease,
-    background-color 0.15s ease;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
 
   &:hover {
     background-color: var(--global-card-header-background-color-hover);

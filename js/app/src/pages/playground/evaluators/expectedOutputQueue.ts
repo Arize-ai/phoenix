@@ -105,10 +105,10 @@ export function createExpectedOutputQueue({
     const status: ExpectedOutputSaveStatus = inFlight
       ? "saving"
       : error
-        ? "error"
-        : pendingCount
-          ? "pending"
-          : "idle";
+      ? "error"
+      : pendingCount
+      ? "pending"
+      : "idle";
 
     return {
       overlay: inFlight

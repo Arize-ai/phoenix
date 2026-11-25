@@ -10,19 +10,24 @@ export type EvaluatorToDelete = {
 };
 
 /**
- * The "delete associated prompt" checkbox label, or null when no selected
- * evaluator has a prompt to delete.
+ * The "delete associated …" checkbox label, or null when no selected
+ * evaluator has a prompt or decision to delete.
  */
 export function getDeleteAssociatedLabel(
   evaluators: ReadonlyArray<Pick<EvaluatorToDelete, "kind">>
 ): string | null {
   const promptCount = evaluators.filter(({ kind }) => kind === "LLM").length;
-  if (promptCount === 0) {
-    return null;
+  const decisionCount = evaluators.filter(
+    ({ kind }) => kind === "DECISION"
+  ).length;
+  const parts: string[] = [];
+  if (promptCount > 0) {
+    parts.push(promptCount === 1 ? "prompt" : "prompts");
   }
-  return promptCount === 1
-    ? "Delete associated prompt"
-    : "Delete associated prompts";
+  if (decisionCount > 0) {
+    parts.push(decisionCount === 1 ? "decision" : "decisions");
+  }
+  return parts.length > 0 ? `Delete associated ${parts.join(" and ")}` : null;
 }
 
 /**
