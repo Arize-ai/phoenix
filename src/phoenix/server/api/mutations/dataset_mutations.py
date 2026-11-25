@@ -1,4 +1,4 @@
-import asyncio
+import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -45,8 +45,10 @@ from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
-from phoenix.server.api.utils import delete_projects, delete_traces
+from phoenix.server.api.utils import delete_projects, delete_traces, gather_cleanup_tasks
 from phoenix.server.dml_event import DatasetDeleteEvent, DatasetInsertEvent
+
+logger = logging.getLogger(__name__)
 
 _MAX_REPORTED_EXTERNAL_ID_CONFLICTS = 10
 _MAX_REPORTED_EXAMPLE_IDS = 10
@@ -495,10 +497,11 @@ class DatasetMutationMixin:
             eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
             if not (dataset := await session.scalar(stmt)):
                 raise NotFound(f"Unknown dataset: {input.dataset_id}")
-        await asyncio.gather(
-            delete_projects(info.context.db, *project_names),
-            delete_traces(info.context.db, *eval_trace_ids),
-            return_exceptions=True,
+        await gather_cleanup_tasks(
+            ("projects", delete_projects(info.context.db, *project_names)),
+            ("eval traces", delete_traces(info.context.db, *eval_trace_ids)),
+            logger=logger,
+            context=f"dataset {dataset.id}",
         )
         info.context.event_queue.put(DatasetDeleteEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=Dataset(id=dataset.id, db_record=dataset))
