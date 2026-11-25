@@ -423,3 +423,39 @@ class TestExperimentSweeper:
         async with db() as session:
             assert await session.get(models.Experiment, experiment_id) is None
         assert ExperimentDeleteEvent((experiment_id,)) in event_queue.events
+
+    async def test_sweeper_drains_a_backlog_across_batches(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from phoenix.server.daemons import experiment_sweeper
+
+        expired_time = datetime.now(timezone.utc) - timedelta(
+            hours=EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS + 1
+        )
+        async with db() as session:
+            dataset = models.Dataset(name="backlog-ds", metadata_={})
+            session.add(dataset)
+            await session.flush()
+            dataset_version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+            session.add(dataset_version)
+            await session.flush()
+            session.add_all(
+                models.Experiment(
+                    dataset_id=dataset.id,
+                    dataset_version_id=dataset_version.id,
+                    name=f"backlog-{index}",
+                    repetitions=1,
+                    metadata_={},
+                    is_ephemeral=True,
+                    updated_at=expired_time,
+                )
+                for index in range(5)
+            )
+
+        monkeypatch.setattr(experiment_sweeper, "CLEANUP_BATCH_ROWS", 2)
+        await ExperimentSweeper(db=db)._delete_ephemeral_experiments()
+
+        async with db() as session:
+            assert await session.scalar(sa.select(sa.func.count(models.Experiment.id))) == 0

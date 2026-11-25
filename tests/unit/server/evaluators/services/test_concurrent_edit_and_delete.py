@@ -1428,3 +1428,65 @@ async def test_experiment_sweep_does_not_deadlock_with_dataset_delete(
         tombstoned_project = await session.get(models.Project, project_id)
         assert tombstoned_project is not None and tombstoned_project.deleted_at is not None
         assert await session.scalar(select(func.count(models.Experiment.id))) == 0
+
+
+@pytest.mark.postgres_only
+async def test_experiment_sweep_keeps_project_of_experiment_a_user_deleted_first(
+    postgresql_engine: AsyncEngine,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from datetime import datetime, timedelta, timezone
+
+    from phoenix.config import EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS
+    from phoenix.server.daemons import experiment_sweeper
+    from phoenix.server.daemons.experiment_sweeper import ExperimentSweeper
+
+    db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
+    async with db() as session:
+        project = models.Project(name=f"kept-project-{token_hex(4)}")
+        dataset = models.Dataset(name=f"kept-ds-{token_hex(4)}", metadata_={})
+        session.add_all([project, dataset])
+        await session.flush()
+        dataset_version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+        session.add(dataset_version)
+        await session.flush()
+        experiment = models.Experiment(
+            dataset_id=dataset.id,
+            dataset_version_id=dataset_version.id,
+            name=f"exp-{token_hex(4)}",
+            repetitions=1,
+            metadata_={},
+            project_name=project.name,
+            is_ephemeral=True,
+            updated_at=datetime.now(timezone.utc)
+            - timedelta(hours=EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS + 1),
+        )
+        session.add(experiment)
+        await session.flush()
+        project_id = project.id
+        experiment_id = experiment.id
+
+    original_resolve = lifecycle.resolve_experiment_project_delete_candidates
+    has_deleted_experiment = False
+
+    async def _resolve_then_let_user_delete(*args: Any, **kwargs: Any) -> list[int]:
+        nonlocal has_deleted_experiment
+        project_ids = await original_resolve(*args, **kwargs)
+        if not has_deleted_experiment:
+            has_deleted_experiment = True
+            async with db() as user_session:
+                await user_session.execute(
+                    delete(models.Experiment).where(models.Experiment.id == experiment_id)
+                )
+        return project_ids
+
+    monkeypatch.setattr(
+        experiment_sweeper,
+        "resolve_experiment_project_delete_candidates",
+        _resolve_then_let_user_delete,
+    )
+    await ExperimentSweeper(db=db)._delete_ephemeral_experiments()
+
+    async with db() as session:
+        kept_project = await session.get(models.Project, project_id)
+        assert kept_project is not None and kept_project.deleted_at is None

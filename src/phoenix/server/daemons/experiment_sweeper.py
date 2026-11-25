@@ -61,9 +61,17 @@ class ExperimentSweeper(DaemonTask):
         cutoff = datetime.now(timezone.utc) - timedelta(
             hours=EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS
         )
+        num_deleted = 0
+        while True:
+            num_deleted_in_batch = await self._delete_ephemeral_experiment_batch(cutoff)
+            num_deleted += num_deleted_in_batch
+            if num_deleted_in_batch < CLEANUP_BATCH_ROWS:
+                break
+        if num_deleted:
+            logger.info(f"Deleted {num_deleted} ephemeral experiment(s).")
+
+    async def _delete_ephemeral_experiment_batch(self, cutoff: datetime) -> int:
         dialect = SupportedSQLDialect(self._db.dialect.value)
-        deleted_experiment_ids: list[int] = []
-        eval_trace_ids: list[str] = []
         enqueued_projects: list[int] = []
         async with self._db() as session:
             candidate_stmt = (
@@ -73,29 +81,27 @@ class ExperimentSweeper(DaemonTask):
                     models.Experiment.updated_at < cutoff,
                 )
                 .order_by(models.Experiment.id.asc())
+                .limit(CLEANUP_BATCH_ROWS)
             )
             candidate_experiment_ids = [
                 int(experiment_id)
                 for experiment_id in (await session.scalars(candidate_stmt)).all()
             ]
             if not candidate_experiment_ids:
-                return
+                return 0
 
-            candidate_project_ids: set[int] = set()
-            for chunk_start in range(0, len(candidate_experiment_ids), CLEANUP_BATCH_ROWS):
-                chunk_ids = candidate_experiment_ids[chunk_start : chunk_start + CLEANUP_BATCH_ROWS]
-                candidate_project_ids.update(
-                    await resolve_experiment_project_delete_candidates(
-                        session,
-                        candidate_project_names=(
-                            await session.scalars(
-                                sa.select(models.Experiment.project_name).where(
-                                    models.Experiment.id.in_(chunk_ids)
-                                )
+            candidate_project_ids = set(
+                await resolve_experiment_project_delete_candidates(
+                    session,
+                    candidate_project_names=(
+                        await session.scalars(
+                            sa.select(models.Experiment.project_name).where(
+                                models.Experiment.id.in_(candidate_experiment_ids)
                             )
-                        ).all(),
-                    )
+                        )
+                    ).all(),
                 )
+            )
             # Project locks come before experiment row locks, matching dataset delete.
             await lock_experiment_projects(session, candidate_project_ids=candidate_project_ids)
             if dialect is SupportedSQLDialect.POSTGRESQL:
@@ -110,31 +116,42 @@ class ExperimentSweeper(DaemonTask):
                         )
                     ).all()
                 ]
+                if not candidate_experiment_ids:
+                    return 0
 
-            for chunk_start in range(0, len(candidate_experiment_ids), CLEANUP_BATCH_ROWS):
-                chunk_ids = candidate_experiment_ids[chunk_start : chunk_start + CLEANUP_BATCH_ROWS]
-                chunk_eval_trace_ids = (
-                    await session.scalars(get_eval_trace_ids_for_experiments(*chunk_ids))
-                ).all()
-                eval_trace_ids.extend(trace_id for trace_id in chunk_eval_trace_ids if trace_id)
-                deleted_rows = (
-                    await session.execute(
-                        sa.delete(models.Experiment)
-                        .where(
-                            models.Experiment.id.in_(chunk_ids),
-                            models.Experiment.is_ephemeral.is_(True),
-                            models.Experiment.updated_at < cutoff,
-                        )
-                        .returning(models.Experiment.id)
+            eval_trace_ids = [
+                trace_id
+                for trace_id in (
+                    await session.scalars(
+                        get_eval_trace_ids_for_experiments(*candidate_experiment_ids)
                     )
                 ).all()
-                for row in deleted_rows:
-                    deleted_experiment_ids.append(int(row.id))
-
-            if candidate_project_ids:
+                if trace_id
+            ]
+            deleted_rows = (
+                await session.execute(
+                    sa.delete(models.Experiment)
+                    .where(
+                        models.Experiment.id.in_(candidate_experiment_ids),
+                        models.Experiment.is_ephemeral.is_(True),
+                        models.Experiment.updated_at < cutoff,
+                    )
+                    .returning(models.Experiment.id, models.Experiment.project_name)
+                )
+            ).all()
+            deleted_experiment_ids = [int(row.id) for row in deleted_rows]
+            # Only projects of experiments deleted here may be tombstoned; a project whose
+            # experiment was deleted by a user who kept it must stay live.
+            deleted_project_ids = candidate_project_ids.intersection(
+                await resolve_experiment_project_delete_candidates(
+                    session,
+                    candidate_project_names=[row.project_name for row in deleted_rows],
+                )
+            )
+            if deleted_project_ids:
                 enqueued_projects = await tombstone_exclusive_experiment_projects(
                     session,
-                    candidate_project_ids=candidate_project_ids,
+                    candidate_project_ids=deleted_project_ids,
                 )
         if enqueued_projects:
             if self._event_queue is not None:
@@ -149,5 +166,4 @@ class ExperimentSweeper(DaemonTask):
                 eval_trace_ids,
                 event_queue=self._event_queue,
             )
-        if deleted_experiment_ids:
-            logger.info(f"Deleted {len(deleted_experiment_ids)} ephemeral experiment(s).")
+        return len(deleted_experiment_ids)
