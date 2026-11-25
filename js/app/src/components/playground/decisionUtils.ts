@@ -258,7 +258,7 @@ export type DecisionQuestionErrors = {
   choiceOptions?: Partial<Record<string, string>>;
   /** Too few or too many levels. */
   levels?: string;
-  /** Per level id: an empty label. */
+  /** Per level id: an empty or duplicate label. */
   levelLabels?: Partial<Record<string, string>>;
 };
 
@@ -300,9 +300,13 @@ function getScaleQuestionErrors(
   } else if (levelCount > MAX_SCALE_LEVELS) {
     errors.levels = `At most ${MAX_SCALE_LEVELS} levels`;
   }
+  const seenLabels = new Set<string>();
   const levelErrors: Partial<Record<string, string>> = {};
   for (const level of question.levels) {
-    if (!level.label.trim()) levelErrors[level.id] = REQUIRED_ERROR;
+    const label = level.label.trim();
+    if (!label) levelErrors[level.id] = REQUIRED_ERROR;
+    else if (seenLabels.has(label)) levelErrors[level.id] = "Duplicate";
+    seenLabels.add(label);
   }
   if (Object.keys(levelErrors).length) errors.levelLabels = levelErrors;
   return errors;
@@ -1220,6 +1224,8 @@ export type DecisionImportResult = {
    * exactly as it was.
    */
   templateFormat: TemplateFormat;
+  /** What the import changed to fit Phoenix's format, for the user to review. */
+  notices: string[];
 };
 
 /**
@@ -1292,11 +1298,50 @@ function toSystemOneFromGemini(body: GeminiDecisionsBody): SystemOneBody {
   };
 }
 
+/**
+ * Phoenix stores choice values as text, so an OpenAI boolean value becomes its
+ * text form. A question offering both a boolean and that same text would then
+ * have two identical choices, so it is refused here, naming the question.
+ * @returns a notice for each converted value
+ */
+function readOpenAIChoiceValueNotices({
+  questionName,
+  values,
+}: {
+  questionName: string;
+  values: Array<string | boolean>;
+}): string[] {
+  const textValues = new Set(
+    values.filter((value): value is string => typeof value === "string")
+  );
+  const notices: string[] = [];
+  for (const value of values) {
+    if (typeof value !== "boolean") continue;
+    const text = String(value);
+    if (textValues.has(text)) {
+      throw new Error(
+        `Question "${questionName}" offers both ${text} and "${text}" as choices. Phoenix stores choice values as text, so they would be the same choice.`
+      );
+    }
+    notices.push(
+      `Question "${questionName}": the choice ${text} was a boolean and is saved as the text "${text}".`
+    );
+  }
+  return notices;
+}
+
 function toDraftFromOpenAIDecisions(
   body: OpenAIDecisionsBody
-): Pick<DecisionImportResult, "draft"> {
+): Pick<DecisionImportResult, "draft" | "notices"> {
+  const notices: string[] = [];
   const questions = body.questions.map((question): DecisionQuestionDraft => {
     if (question.type === "choice") {
+      notices.push(
+        ...readOpenAIChoiceValueNotices({
+          questionName: question.name,
+          values: question.choices.map((choice) => choice.value),
+        })
+      );
       return createDecisionQuestion({
         type: "choice",
         name: question.name,
@@ -1328,7 +1373,7 @@ function toDraftFromOpenAIDecisions(
       instructions: question.instructions,
     });
   });
-  return { draft: { state: toStateDraft(body.input), questions } };
+  return { draft: { state: toStateDraft(body.input), questions }, notices };
 }
 
 function toDraftFromSystemOne(
@@ -1402,11 +1447,12 @@ export function parseDecisionImport(text: string): DecisionImportResult {
         `Not a valid OpenAI Decisions request: ${describeImportIssue(parsed.error.issues[0])}`
       );
     }
-    const { draft } = toDraftFromOpenAIDecisions(parsed.data);
+    const { draft, notices } = toDraftFromOpenAIDecisions(parsed.data);
     return {
       model: parsed.data.model ?? null,
       draft,
       templateFormat: getImportedTemplateFormat(draft),
+      notices,
     };
   }
   if (isStringKeyedObject(json.questions) && "input" in json) {
@@ -1421,6 +1467,7 @@ export function parseDecisionImport(text: string): DecisionImportResult {
       model: parsed.data.model ?? null,
       draft,
       templateFormat: getImportedTemplateFormat(draft),
+      notices: [],
     };
   }
   const parsed = systemOneSchema.safeParse(json);
@@ -1439,6 +1486,7 @@ export function parseDecisionImport(text: string): DecisionImportResult {
     model: parsed.data.model ?? null,
     draft,
     templateFormat: getImportedTemplateFormat(draft),
+    notices: [],
   };
 }
 
@@ -1712,25 +1760,29 @@ function readDecisionTarget(decisionAttributes: Record<string, unknown>): {
 function readDecisionDraft(inputText: string | null): {
   draft: DecisionPromptDraft;
   templateFormat: TemplateFormat;
-  error: string | null;
+  messages: string[];
 } {
   if (inputText == null) {
     return {
       draft: createDecisionDraft(),
       templateFormat: TemplateFormats.Mustache,
-      error: "The span has no input body; starting from an example request.",
+      messages: [
+        "The span has no input body; starting from an example request.",
+      ],
     };
   }
   try {
-    const { draft, templateFormat } = parseDecisionImport(inputText);
-    return { draft, templateFormat, error: null };
+    const { draft, templateFormat, notices } = parseDecisionImport(inputText);
+    return { draft, templateFormat, messages: notices };
   } catch (error) {
     return {
       draft: createDecisionDraft(),
       templateFormat: TemplateFormats.Mustache,
-      error: `Could not read the decision prompt from the span: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
+      messages: [
+        `Could not read the decision prompt from the span: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      ],
     };
   }
 }
@@ -1782,10 +1834,10 @@ export function buildDecisionInstanceFromSpanAttributes({
   if (!modelName) {
     parsingErrors.push("Could not determine the decision model from the span.");
   }
-  const { draft, templateFormat, error } = readDecisionDraft(
+  const { draft, templateFormat, messages } = readDecisionDraft(
     readAttributeValueText(spanAttributes.input)
   );
-  if (error) parsingErrors.push(error);
+  parsingErrors.push(...messages);
   const output = readAttributeValueText(spanAttributes.output);
   const isFailedRun = status?.code === "ERROR" && output == null;
 

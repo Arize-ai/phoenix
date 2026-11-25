@@ -172,6 +172,27 @@ describe("decision prompt draft", () => {
     ).toBe("Add at least one question");
   });
 
+  it("flags a repeated scale level label like the server does", () => {
+    const draft = createDecisionDraft();
+    const scale = createDecisionQuestion({
+      type: "scale",
+      name: "severity",
+      instructions: "How bad?",
+    });
+    scale.levels = [
+      createScaleLevel({ label: "low", description: "" }),
+      createScaleLevel({ label: " low ", description: "" }),
+    ];
+    draft.questions = [scale];
+    const errors = validateDecisionDraft({
+      draft,
+      templateFormat: TemplateFormats.Mustache,
+    });
+    expect(errors.byQuestionId[scale.id]?.levelLabels).toEqual({
+      [scale.levels[1].id]: "Duplicate",
+    });
+  });
+
   it("caps the question count like the server does", () => {
     const draft = createDecisionDraft();
     draft.questions = Array.from({ length: 256 }, (_, index) =>
@@ -987,7 +1008,7 @@ describe("request import", () => {
   });
 
   it("imports an OpenAI Decisions body", () => {
-    const { draft } = parseDecisionImport(
+    const { draft, notices } = parseDecisionImport(
       JSON.stringify({
         model: "gpt-6",
         input: "Refund please",
@@ -1011,6 +1032,31 @@ describe("request import", () => {
       "billing",
       "true",
     ]);
+    expect(notices).toEqual([
+      'Question "team": the choice true was a boolean and is saved as the text "true".',
+    ]);
+  });
+
+  it('refuses an OpenAI choice question offering both true and "true"', () => {
+    expect(() =>
+      parseDecisionImport(
+        JSON.stringify({
+          input: "Refund please",
+          questions: [
+            {
+              type: "choice",
+              name: "refund",
+              instructions: "Refund?",
+              choices: [{ value: true }, { value: "true" }],
+            },
+          ],
+        })
+      )
+    ).toThrow('Question "refund" offers both true and "true" as choices');
+  });
+
+  it("reports nothing to review for a System One body", () => {
+    expect(parseDecisionImport(systemOne('"Late refund"')).notices).toEqual([]);
   });
 
   it("names the field a schema error refers to", () => {

@@ -102,6 +102,7 @@ def validate_questions(questions: Sequence[DecisionQuestion]) -> None:
                     (*at, "levels"),
                     "out_of_range",
                 )
+            labels: set[str] = set()
             for level_index, level in enumerate(question.levels):
                 if not level.label.strip():
                     raise DecisionRuleError(
@@ -109,6 +110,12 @@ def validate_questions(questions: Sequence[DecisionQuestion]) -> None:
                         (*at, "levels", level_index, "label"),
                         "too_short",
                     )
+                if level.label in labels:
+                    raise DecisionRuleError(
+                        f"Level labels for {name} must be unique: {level.label!r} is repeated",
+                        (*at, "levels", level_index, "label"),
+                    )
+                labels.add(level.label)
 
 
 def validate_template(

@@ -2,6 +2,7 @@ import json
 from typing import Any
 
 import pytest
+from pydantic import TypeAdapter
 
 from phoenix.db.types.decisions import (
     ChoiceOption,
@@ -194,11 +195,38 @@ def test_valid_questions_are_accepted() -> None:
             "Level labels for q cannot be empty",
             id="empty-level-label",
         ),
+        pytest.param(
+            [
+                ScaleQuestion(
+                    type="scale",
+                    name="q",
+                    instructions="How much?",
+                    levels=[ScaleLevel(label="low"), ScaleLevel(label="low")],
+                )
+            ],
+            "Level labels for q must be unique: 'low' is repeated",
+            id="same-level-label",
+        ),
     ],
 )
 def test_invalid_questions_are_rejected(questions: list[DecisionQuestion], message: str) -> None:
     with pytest.raises(ValueError, match=message):
         validate_questions(questions)
+
+
+def test_stored_questions_with_repeated_level_labels_still_load() -> None:
+    """Uniqueness is a write-time rule, so a version saved before it stays readable."""
+    stored = [
+        {
+            "type": "scale",
+            "name": "q",
+            "instructions": "How much?",
+            "levels": [{"label": "low"}, {"label": "low"}],
+        }
+    ]
+    [question] = TypeAdapter(list[DecisionQuestion]).validate_python(stored)
+    assert isinstance(question, ScaleQuestion)
+    assert [level.label for level in question.levels] == ["low", "low"]
 
 
 def test_f_string_list_indices_render_as_json() -> None:
