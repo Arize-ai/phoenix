@@ -26,8 +26,11 @@ export type ProjectEvaluatorLag = {
 export function ProjectEvaluatorLagCell({
   lag,
 }: {
-  /** Null when nothing completed in the range. */
-  lag: ProjectEvaluatorLag | null;
+  /**
+   * Null when nothing completed in the range; undefined while the row's lag
+   * for the table's time range isn't in the store yet.
+   */
+  lag: ProjectEvaluatorLag | null | undefined;
 }) {
   if (lag == null) {
     return (
