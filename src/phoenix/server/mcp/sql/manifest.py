@@ -14,6 +14,10 @@ from typing import Mapping
 __all__ = ["AnalyticsSqlManifest", "Area", "MANIFEST", "TableCuration", "manifest"]
 
 _EMPTY_NOTES: Mapping[str, str] = MappingProxyType({})
+_LIVE_PROJECT_NOTE = "to exclude rows awaiting cleanup, join projects with deleted_at IS NULL"
+_LIVE_BINDING_NOTE = (
+    "to exclude rows awaiting cleanup, join dataset_evaluators with deleted_at IS NULL"
+)
 
 
 @dataclass(frozen=True)
@@ -63,6 +67,7 @@ MANIFEST = AnalyticsSqlManifest(
                             )
                         ),
                         "traces": TableCuration(
+                            grain=f"One trace; {_LIVE_PROJECT_NOTE}",
                             time_column="start_time",
                             virtual_columns=frozenset({"latency_ms"}),
                             column_notes=MappingProxyType(
@@ -74,7 +79,7 @@ MANIFEST = AnalyticsSqlManifest(
                             ),
                         ),
                         "spans": TableCuration(
-                            grain="One OpenTelemetry span",
+                            grain=f"One OpenTelemetry span; {_LIVE_PROJECT_NOTE}",
                             time_column="start_time",
                             virtual_columns=frozenset({"latency_ms"}),
                             column_notes=MappingProxyType(
@@ -100,10 +105,12 @@ MANIFEST = AnalyticsSqlManifest(
                         "span_annotations": TableCuration(
                             grain=(
                                 "One annotation on a span; joining to spans multiplies "
-                                "row count. Use COUNT(DISTINCT spans.id) to count spans"
+                                "row count. Use COUNT(DISTINCT spans.id) to count spans; "
+                                f"{_LIVE_PROJECT_NOTE}"
                             )
                         ),
                         "span_costs": TableCuration(
+                            grain=f"The cost of one span; {_LIVE_PROJECT_NOTE}",
                             column_notes=MappingProxyType(
                                 {
                                     "span_start_time": (
@@ -111,13 +118,14 @@ MANIFEST = AnalyticsSqlManifest(
                                         "time alone"
                                     )
                                 }
-                            )
+                            ),
                         ),
                         "span_cost_details": TableCuration(
                             grain=(
                                 "One token-cost category within a span cost; joining to "
                                 "span_costs multiplies row count. Use "
-                                "COUNT(DISTINCT span_costs.id) to count costs"
+                                "COUNT(DISTINCT span_costs.id) to count costs; "
+                                f"{_LIVE_PROJECT_NOTE}"
                             ),
                             column_notes=MappingProxyType(
                                 {"is_prompt": "true for input tokens, false for output"}
@@ -125,6 +133,7 @@ MANIFEST = AnalyticsSqlManifest(
                         ),
                         "generative_models": TableCuration(),
                         "project_sessions": TableCuration(
+                            grain=f"One session; {_LIVE_PROJECT_NOTE}",
                             time_column="start_time",
                             column_notes=MappingProxyType(
                                 {
@@ -137,7 +146,8 @@ MANIFEST = AnalyticsSqlManifest(
                         "trace_annotations": TableCuration(
                             grain=(
                                 "One annotation on a trace; joining to traces multiplies row "
-                                "count. Use COUNT(DISTINCT traces.id) to count traces"
+                                "count. Use COUNT(DISTINCT traces.id) to count traces; "
+                                f"{_LIVE_PROJECT_NOTE}"
                             ),
                             column_notes=MappingProxyType(
                                 {
@@ -151,7 +161,8 @@ MANIFEST = AnalyticsSqlManifest(
                             grain=(
                                 "One annotation on a session; joining to project_sessions "
                                 "multiplies row count. Use COUNT(DISTINCT project_sessions.id) "
-                                "to count sessions"
+                                "to count sessions; "
+                                f"{_LIVE_PROJECT_NOTE}"
                             ),
                             column_notes=MappingProxyType(
                                 {
@@ -166,7 +177,8 @@ MANIFEST = AnalyticsSqlManifest(
                             grain=(
                                 "One annotation on one retrieved document of a span; joining "
                                 "to spans multiplies row count. Use COUNT(DISTINCT spans.id) "
-                                "to count spans"
+                                "to count spans; "
+                                f"{_LIVE_PROJECT_NOTE}"
                             ),
                             column_notes=MappingProxyType(
                                 {
@@ -287,10 +299,16 @@ MANIFEST = AnalyticsSqlManifest(
                             grain="The example and repetition of one TASK experiment log"
                         ),
                         "experiment_eval_logs": TableCuration(
-                            grain="The run and evaluator of one EVAL experiment log"
+                            grain=(
+                                "The run and evaluator of one EVAL experiment log; "
+                                f"{_LIVE_BINDING_NOTE}"
+                            )
                         ),
                         "experiment_dataset_evaluators": TableCuration(
-                            grain="One experiment-to-dataset-evaluator assignment"
+                            grain=(
+                                "One experiment-to-dataset-evaluator assignment; "
+                                f"{_LIVE_BINDING_NOTE}"
+                            )
                         ),
                     }
                 )

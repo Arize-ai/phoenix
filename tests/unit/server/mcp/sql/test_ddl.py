@@ -151,12 +151,12 @@ def test_filters_narrow_the_rendering() -> None:
         for ln in searched.splitlines()
         if ln.startswith("-- ") and ": " in ln and not ln.startswith("-- area:")
     ]
-    assert matched == ["-- spans: One OpenTelemetry span"]
+    assert [line.split(";")[0] for line in matched] == ["-- spans: One OpenTelemetry span"]
 
     # Virtual columns are queryable too, so discovery must not make them look
     # like a typo. `latency_ms` is available on spans and traces.
     virtual = render_schema_ddl(search="latency_ms", detail="brief", dialect="sqlite")
-    assert "-- spans: One OpenTelemetry span" in virtual
+    assert "-- spans: One OpenTelemetry span; " in virtual
     assert "-- traces" in virtual
 
 
@@ -165,7 +165,7 @@ def test_brief_is_a_catalogue_and_detailed_is_a_schema() -> None:
     brief = render_schema_ddl(detail="brief", dialect="sqlite")
     detailed = render_schema_ddl(detail="detailed", dialect="sqlite")
     assert "CREATE TABLE" not in brief
-    assert "-- spans: One OpenTelemetry span" in brief
+    assert "-- spans: One OpenTelemetry span; " in brief
     assert "CREATE TABLE spans" in detailed
     assert len(brief) < len(detailed)
 
