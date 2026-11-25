@@ -130,8 +130,8 @@ const collectorConfig = JSON.stringify({
 });
 
 const logCollector = service("log-collector", {
-  source: image("otel/opentelemetry-collector-contrib:0.120.0"),
-  start: "/otelcol-contrib --config=env:PREVIEW_COLLECTOR_CONFIG",
+  source: image("otel/opentelemetry-collector:0.120.0"),
+  start: "/otelcol --config=env:PREVIEW_COLLECTOR_CONFIG",
   env: { PREVIEW_COLLECTOR_CONFIG: collectorConfig },
 });
 
