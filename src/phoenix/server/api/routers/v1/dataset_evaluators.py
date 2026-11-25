@@ -3,11 +3,12 @@
 from typing import Annotated, Literal, Optional, Union
 
 from fastapi import APIRouter, Depends, Query, Response
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, model_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from strawberry.relay import GlobalID
+from typing_extensions import Self
 
 from phoenix.db import models
 from phoenix.db.types.db_helper_types import UNDEFINED
@@ -118,6 +119,12 @@ class _PatchDatasetEvaluatorFields(EvaluatorRequest):
     description: Optional[str] = Field(
         default=UNDEFINED, description="Omit to preserve; null restores inheritance."
     )
+
+    @model_validator(mode="after")
+    def require_changes(self) -> Self:
+        if not (self.model_fields_set - {"evaluator_type"}):
+            raise ValueError("At least one field must be provided")
+        return self
 
 
 class PatchLLMDatasetEvaluatorRequest(_PatchDatasetEvaluatorFields):
@@ -421,8 +428,6 @@ async def patch_dataset_evaluator(
     """
     with evaluator_api_errors():
         fields = body.model_fields_set - {"evaluator_type"}
-        if not fields:
-            raise BadRequest("At least one field must be provided")
         async with request.app.state.db() as session:
             binding = await _dataset_evaluator(session, dataset_evaluator_id)
         _refuse_mismatched_evaluator_type(

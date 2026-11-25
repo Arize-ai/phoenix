@@ -426,4 +426,9 @@ async def test_patch_needs_a_field_besides_evaluator_type(
         f"v1/dataset_evaluators/{created.json()['data']['id']}", json={"evaluator_type": "llm"}
     )
     assert response.status_code == 422, response.text
-    assert "At least one field must be provided" in response.text
+    problem = response.json()
+    assert problem["code"] == "validation_error"
+    assert any(
+        error["field"] == "body" and "At least one field must be provided" in error["message"]
+        for error in problem["errors"]
+    ), problem
