@@ -56,8 +56,6 @@ const detailsSectionsCSS = css`
   }
 
   .experiment-compare-details__section {
-    border-bottom: var(--global-border-size-thin) solid
-      var(--global-border-color-default);
     &:focus-visible {
       outline-offset: calc(-1 * var(--focus-ring-thickness));
       border-radius: 0;
