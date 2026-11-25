@@ -1326,6 +1326,7 @@
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/create-span-annotations",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/create-a-span-note",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/annotate-span-documents",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/get-a-single-span-by-span_identifier",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/delete-a-span-by-span_identifier"
                     ]
                   },

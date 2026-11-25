@@ -733,6 +733,7 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [Create Span Annotations](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/create-span-annotations): POST /v1/span_annotations — write one or more annotations on spans
 - [Create A Span Note](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/create-a-span-note): POST /v1/span_notes — attach a free-text note to a span
 - [Annotate Span Documents](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/annotate-span-documents): POST /v1/document_annotations — write annotations on retrieved documents within a span
+- [Get A Span By Identifier](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/get-a-single-span-by-span_identifier): GET /v1/spans/{span_identifier} — fetch a single span by ID or span_id
 - [Delete A Span By Identifier](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/delete-a-span-by-span_identifier): DELETE /v1/spans/{span_identifier} — delete a single span by ID or span_id
 
 ### REST API — Traces
