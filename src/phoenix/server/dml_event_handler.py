@@ -121,11 +121,7 @@ class _SpanDmlEventHandler(_DmlEventHandler[SpanDmlEvent]):
 
     @staticmethod
     def _clear(cache: CacheForDataLoaders, project_id: int) -> None:
-        cache.latency_ms_quantile.invalidate(project_id)
-        cache.token_count.invalidate(project_id)
-        cache.token_cost.invalidate(project_id)
-        cache.record_count.invalidate(project_id)
-        cache.min_start_or_max_end_time.invalidate(project_id)
+        cache.invalidate_project_span_metrics(project_id=project_id)
 
 
 class _SpanDeleteEventHandler(_SpanDmlEventHandler):
