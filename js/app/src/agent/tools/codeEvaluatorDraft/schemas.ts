@@ -62,6 +62,7 @@ const classificationValueSchema = z.object({
 const classificationOutputConfigDraftSchema = z.object({
   kind: z.literal("classification"),
   name: outputConfigNameSchema,
+  description: z.string().nullish(),
   optimizationDirection: optimizationDirectionSchema,
   values: z.array(classificationValueSchema),
 });
@@ -69,6 +70,7 @@ const classificationOutputConfigDraftSchema = z.object({
 const continuousOutputConfigDraftSchema = z.object({
   kind: z.literal("continuous"),
   name: outputConfigNameSchema,
+  description: z.string().nullish(),
   optimizationDirection: optimizationDirectionSchema,
   lowerBound: z.number().nullish(),
   upperBound: z.number().nullish(),
@@ -77,6 +79,7 @@ const continuousOutputConfigDraftSchema = z.object({
 const freeformOutputConfigDraftSchema = z.object({
   kind: z.literal("freeform"),
   name: outputConfigNameSchema,
+  description: z.string().nullish(),
   optimizationDirection: optimizationDirectionSchema,
   threshold: z.number().nullish(),
   lowerBound: z.number().nullish(),

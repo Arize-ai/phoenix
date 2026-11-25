@@ -332,13 +332,16 @@ export const inferIncludeExplanationFromPrompt = (
  * This function transforms frontend annotation configs into the format
  * expected by the GraphQL mutations.
  */
-const toAnnotationConfigInput = (
+export const toAnnotationConfigInput = (
   config: AnnotationConfig
 ): AnnotationConfigInput => {
+  const description = config.description ?? null;
+
   if ("values" in config) {
     return {
       categorical: {
         name: config.name,
+        description,
         optimizationDirection: config.optimizationDirection,
         values: config.values.map((v) => ({
           label: v.label,
@@ -353,6 +356,7 @@ const toAnnotationConfigInput = (
     return {
       freeform: {
         name: freeformConfig.name,
+        description,
         optimizationDirection: freeformConfig.optimizationDirection,
         ...(freeformConfig.threshold != null
           ? { threshold: freeformConfig.threshold }
@@ -371,6 +375,7 @@ const toAnnotationConfigInput = (
   return {
     continuous: {
       name: continuousConfig.name,
+      description,
       optimizationDirection: continuousConfig.optimizationDirection,
       lowerBound: continuousConfig.lowerBound ?? null,
       upperBound: continuousConfig.upperBound ?? null,

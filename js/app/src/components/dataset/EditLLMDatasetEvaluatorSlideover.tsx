@@ -167,6 +167,7 @@ const EditEvaluatorDialog = ({
           outputConfigs {
             ... on CategoricalAnnotationConfig {
               name
+              description
               optimizationDirection
               values {
                 label
@@ -175,6 +176,7 @@ const EditEvaluatorDialog = ({
             }
             ... on ContinuousAnnotationConfig {
               name
+              description
               optimizationDirection
               lowerBound
               upperBound
@@ -189,6 +191,7 @@ const EditEvaluatorDialog = ({
               outputConfigs {
                 ... on CategoricalAnnotationConfig {
                   name
+                  description
                   optimizationDirection
                   values {
                     label
