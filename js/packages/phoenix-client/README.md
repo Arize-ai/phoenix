@@ -1041,7 +1041,10 @@ const bindings = await getDatasetEvaluators({
 
 await updateDatasetEvaluator({
   datasetEvaluatorId: binding.id,
-  patch: { evaluator_type: binding.evaluator_type, name: "nightly-exact-match" },
+  patch: {
+    evaluator_type: binding.evaluator_type,
+    name: "nightly-exact-match",
+  },
 });
 
 // Deleting a binding removes its dedicated evaluator trace project and
