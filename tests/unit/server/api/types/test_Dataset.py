@@ -1530,6 +1530,9 @@ class TestDatasetExperimentsFilterCondition:
                 'metadata["harbor_agent"]["model_params"]["stream"] in [True]',
                 {"gpt-hot", "string-numbers", "bool-like-numbers"},
             ),
+            ('created_at == "2020-06-01T01:00:00+01:00"', {"gpt-hot"}),
+            ('"2020-05-31T17:00:00-07:00" == created_at', {"gpt-hot"}),
+            ('updated_at == "2030-01-01T01:00:00+01:00"', {"gpt-cold"}),
             ("description is not None", {"claude"}),
             ("None is not description", {"claude"}),
             ("description != None", {"claude"}),
@@ -1602,6 +1605,27 @@ class TestDatasetExperimentsFilterCondition:
         expected_names: set[str],
     ) -> None:
         assert await self._names(gql_client, dataset_id, condition) == expected_names
+
+    @pytest.mark.parametrize(
+        "condition, expected_condition",
+        [
+            ("None is None", ""),
+            ("None == None", ""),
+            ("None is not None", 'name == "missing"'),
+            ("None != None", 'name == "missing"'),
+            ("not (None is None)", 'name == "missing"'),
+            ("description is None is None", "description is None"),
+        ],
+    )
+    async def test_constant_null_comparisons(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_id: GlobalID,
+        condition: str,
+        expected_condition: str,
+    ) -> None:
+        expected = await self._names(gql_client, dataset_id, expected_condition)
+        assert await self._names(gql_client, dataset_id, condition) == expected
 
     async def test_digit_only_key_also_indexes_arrays_on_postgresql(
         self,
@@ -1683,6 +1707,16 @@ class TestDatasetExperimentsFilterCondition:
                 "string literals must contain valid UTF-8",
                 id="surrogate-literal",
             ),
+            pytest.param(
+                'metadata["a\\x00b"] == "x"',
+                "string literals cannot contain a NUL character",
+                id="nul-key",
+            ),
+            pytest.param(
+                'metadata["\\ud800"] == "x"',
+                "string literals must contain valid UTF-8",
+                id="surrogate-key",
+            ),
         ],
     )
     async def test_rejects_invalid_condition(
@@ -1722,6 +1756,18 @@ class TestDatasetExperimentsFilterCondition:
                 False,
                 "string literals must contain valid UTF-8",
                 id="surrogate-literal",
+            ),
+            pytest.param(
+                'metadata["a\\x00b"] == "x"',
+                False,
+                "string literals cannot contain a NUL character",
+                id="nul-key",
+            ),
+            pytest.param(
+                'metadata["\\ud800"] == "x"',
+                False,
+                "string literals must contain valid UTF-8",
+                id="surrogate-key",
             ),
         ],
     )

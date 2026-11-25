@@ -2,21 +2,17 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { RelayEnvironmentProvider } from "react-relay";
 import { MemoryRouter } from "react-router";
-import { Environment, Network, RecordSource, Store } from "relay-runtime";
+import { createMockEnvironment, MockPayloadGenerator } from "relay-test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type * as PhoenixContexts from "@phoenix/contexts";
 import { CredentialsProvider } from "@phoenix/contexts/CredentialsContext";
+import {
+  createToastQueue,
+  ToastQueueProvider,
+} from "@phoenix/contexts/NotificationContext";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
 import { ExperimentActionMenu } from "../ExperimentActionMenu";
-
-vi.mock("@phoenix/contexts", async (importOriginal) => ({
-  ...(await importOriginal<typeof PhoenixContexts>()),
-  useNotify: () => vi.fn(),
-  useNotifyError: () => vi.fn(),
-  useNotifySuccess: () => vi.fn(),
-}));
 
 describe("ExperimentActionMenu edits", () => {
   let container: HTMLDivElement;
@@ -44,38 +40,27 @@ describe("ExperimentActionMenu edits", () => {
 
   it("notifies the collection owner after saving an experiment edit", async () => {
     const onExperimentEdited = vi.fn();
-    const network = vi.fn().mockResolvedValue({
-      data: {
-        patchExperiment: {
-          experiment: {
-            id: "experiment-1",
-            name: "updated",
-            description: null,
-          },
-        },
-      },
-    });
-    const environment = new Environment({
-      network: Network.create(network),
-      store: new Store(new RecordSource()),
-    });
+    const environment = createMockEnvironment();
+    const queue = createToastQueue();
     await act(async () => {
       root.render(
         <ThemeProvider themeMode="light" disableBodyTheme>
           <RelayEnvironmentProvider environment={environment}>
-            <CredentialsProvider>
-              <MemoryRouter>
-                <ExperimentActionMenu
-                  experimentId="experiment-1"
-                  metadata={{}}
-                  canDeleteExperiment={false}
-                  canEditExperiment
-                  experimentName="original"
-                  experimentDescription={null}
-                  onExperimentEdited={onExperimentEdited}
-                />
-              </MemoryRouter>
-            </CredentialsProvider>
+            <ToastQueueProvider queue={queue}>
+              <CredentialsProvider>
+                <MemoryRouter>
+                  <ExperimentActionMenu
+                    experimentId="experiment-1"
+                    metadata={{}}
+                    canDeleteExperiment={false}
+                    canEditExperiment
+                    experimentName="original"
+                    experimentDescription={null}
+                    onExperimentEdited={onExperimentEdited}
+                  />
+                </MemoryRouter>
+              </CredentialsProvider>
+            </ToastQueueProvider>
           </RelayEnvironmentProvider>
         </ThemeProvider>
       );
@@ -109,7 +94,20 @@ describe("ExperimentActionMenu edits", () => {
     expect(saveButton.disabled).toBe(false);
     expect(onExperimentEdited).not.toHaveBeenCalled();
     await act(async () => saveButton.click());
-    expect(network).toHaveBeenCalledOnce();
+    expect(environment.mock.getAllOperations()).toHaveLength(1);
+    expect(saveButton.textContent).toBe("Saving...");
+    expect(onExperimentEdited).not.toHaveBeenCalled();
+    await act(async () => {
+      environment.mock.resolveMostRecentOperation((operation) =>
+        MockPayloadGenerator.generate(operation, {
+          Experiment: () => ({
+            id: "experiment-1",
+            name: "updated",
+            description: null,
+          }),
+        })
+      );
+    });
     expect(onExperimentEdited).toHaveBeenCalledOnce();
     expect(document.querySelector('[role="dialog"]')).toBeNull();
   });

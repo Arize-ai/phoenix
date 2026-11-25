@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from difflib import get_close_matches
 from typing import Any, Callable, Literal, Optional, cast
 
-from sqlalchemy import BigInteger, ColumnElement, Numeric, and_, func, literal, not_, or_
+from sqlalchemy import BigInteger, ColumnElement, Numeric, and_, func, literal, not_, null, or_
 from sqlalchemy.sql.visitors import iterate
 
 from phoenix.db import models
@@ -186,7 +186,7 @@ class _Compiler:
 
     def constant(self, value: Any) -> _Value:
         if value is None:
-            return _Value("none", literal(None))
+            return _Value("none", null())
         if isinstance(value, bool):
             return _Value("boolean", literal(value))
         if isinstance(value, str):
