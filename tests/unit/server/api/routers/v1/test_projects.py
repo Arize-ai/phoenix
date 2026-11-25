@@ -194,6 +194,29 @@ class TestProjects:
         url = f"v1/projects/{quote(project_id)}"
         await httpx_client.delete(url)
 
+    async def test_create_project_with_duplicate_name_returns_409(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project_name = f"duplicate-{token_hex(4)}"
+        first = await httpx_client.post("v1/projects", json={"name": project_name})
+        assert first.is_success, first.text
+
+        second = await httpx_client.post("v1/projects", json={"name": project_name})
+        assert second.status_code == 409, second.text
+        assert project_name in second.text
+
+        async with db() as session:
+            count = len(
+                (
+                    await session.scalars(
+                        select(models.Project).where(models.Project.name == project_name)
+                    )
+                ).all()
+            )
+        assert count == 1
+
     @pytest.mark.parametrize("special_chars_name,description", name_and_description_test_cases)
     async def test_update_project_by_name(
         self,

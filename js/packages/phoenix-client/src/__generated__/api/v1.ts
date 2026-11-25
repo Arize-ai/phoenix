@@ -11762,6 +11762,15 @@ export interface operations {
                     "text/plain": string;
                 };
             };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
             /** @description Unprocessable Entity */
             422: {
                 headers: {
