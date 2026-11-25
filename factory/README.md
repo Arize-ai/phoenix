@@ -327,6 +327,29 @@ cla_check.py     reminds the author of a PR whose CLA is unsigned, closes it a d
 
 `claude-lock.json` is state, not config: Factory Sync keeps it on the `factory-state` branch and pulls it before each plan, apply and dispatch. Don't commit it to `main`.
 
+## Issue target branches
+
+To target a feature branch, add one standalone line to the issue description:
+
+```text
+Target branch: version-online-evals
+```
+
+Dispatch uses the first declaration on the issue or its GitHub parent chain, or the repository's default branch if none exists.
+Checklists, labels, titles, comments and prose mentions do not configure a target. Declarations in code blocks or block quotes are ignored.
+
+Use the exact `Target branch: <branch-name>` syntax outside code blocks.
+Branch names must start with a letter or number and contain only letters, numbers, `.`, `_`, `/` or `-`.
+They must also be valid Git branch names and exist in the target repository.
+Dispatch stops at the nearest declaration. Malformed or duplicate declarations, unreadable ancestry, cycles and ancestry beyond 50 issues fail the run.
+
+Dispatch resolves and validates the target before creating the coding session, which mounts that branch.
+The kickoff names the target for PR creation and review comparisons. The watcher rejects a mismatched PR base before advancing the PR.
+PR review and finishing sessions mount the screened PR head and compare against the PR's actual base.
+`start --dry-run` resolves and validates the target without creating a session.
+
+Run `make test-factory` to run the Factory tests. They stub GitHub and Managed Agents API calls.
+
 ## Bootstrap
 
 1. Create a dedicated Claude workspace for the factory, install `ant` (>= 1.40.0), and authenticate against it. Any API key in that workspace can start sessions that use the vault's GitHub credential, so keep the shared `ANTHROPIC_API_KEY` in a different workspace.
