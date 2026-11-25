@@ -432,6 +432,9 @@ evaluator's kind with 422, and a patch needs a field besides `evaluator_type`.
 | `output_configs` on a decision binding | Not a field of the decision variant | Not taken by decision mutations |
 | Reads | A binding returns only what it stores, so a decision binding's `output_configs` is null; `/v1/evaluators` returns the derived configs beside the judge's policy | Derived configs on bindings, and beside the policy on evaluators |
 
+Project bindings take no output or description overrides, so their request
+bodies are the same for every evaluator kind and carry no `evaluator_type`.
+
 Bindings have no `scoring_policy`: scoring is the judge's own (see
 [Bindings](#143-bindings)). If bindings later override a judge's scoring, the
 override becomes a field of the decision variant in its own shape.
