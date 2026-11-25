@@ -1,0 +1,125 @@
+---
+title: "11.23.2026: Decision and Embedding Model Costs"
+description: "Phoenix 22 prices decision and embedding spans, TypeScript classification evaluators run on the Gemini Decisions API, and the playground adds GPT-6.2 Sol, Claude Fable 5.2, and the Gemini 4 lineup."
+---
+
+Phoenix 22 calculates costs for decision and embedding spans, so trace, session, and project totals include every model call. TypeScript classification evaluators can also judge with Google's Gemini Decisions API.
+
+# Phoenix 22: Costs for Decision and Embedding Spans
+
+November 20, 2026
+
+**Breaking change in arize-phoenix 22.0.0**
+
+Phoenix now prices DECISION and EMBEDDING spans, not only LLM spans. Each model has a type (LLM, Decision, or Embedding), and a span is priced only against models of its own type, because one model name such as `gpt-6-luna` can bill chat and decision calls at different rates.
+
+- **Decision spans** use `decision.token_count.*`, and fall back to `llm.token_count.*` from older instrumentation.
+- **Embedding spans** bill input tokens only. Built-in embedding prices now sync from LiteLLM with the rest of the price table.
+- **Settings → Models has a Type column and filter.** The model form has a Type select, which you cannot change after the model is created. Embedding models have no completion prices.
+- **Breaking: span and trace filters drop the `cumulative_*` fields.** Use `llm.token_count.*` for one LLM span, or the trace filter's `token_count_*` for a whole trace. The span filter now reads `cumulative_token_count.*` as an attribute path, and the trace filter rejects `span.cumulative_*`.
+
+The upgrade runs its migration automatically. Existing models become LLM models.
+
+<CardGroup cols={2}>
+  <Card title="Cost Tracking" icon="dollar-sign" href="/docs/phoenix/tracing/how-to-tracing/cost-tracking">
+    Decision and embedding span pricing
+  </Card>
+</CardGroup>
+
+# Gemini Decision Models in TypeScript Evals
+
+November 18, 2026
+
+**Available in @arizeai/phoenix-evals 2.8.0+**
+
+Any TypeScript classification evaluator, including every built-in, can now use Google's `gemini-decision-1` as the judge. The decision model picks a label directly and returns a probability for each label. This requires `@ai-sdk/google` 4.0.118 or newer.
+
+```typescript
+import { google } from "@ai-sdk/google";
+import { createCorrectnessEvaluator } from "@arizeai/phoenix-evals";
+
+const correctness = createCorrectnessEvaluator({
+  model: google.decisionModel("gemini-decision-1"),
+});
+
+const result = await correctness.evaluate({
+  input: "What is the capital of Australia?",
+  output: "Sydney.",
+});
+```
+
+<CardGroup cols={2}>
+  <Card title="Classification Evaluators" icon="scale-balanced" href="/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/classification">
+    Decision models as the judge
+  </Card>
+</CardGroup>
+
+# New Models in the Playground and PXI
+
+November 19, 2026
+
+**Available in arize-phoenix 21.3.0+**
+
+- **The playground adds GPT-6.2 Sol, GPT-6.1 Terra, Claude Fable 5.2, and Gemini 4 Carbon, Hydrogen, and Neon.**
+- **PXI recommends two models per provider:** Claude Fable 5.2 and Opus 5.5, GPT-6.2 Sol and GPT-6.1 Terra, and Gemini 4 Carbon and Neon.
+
+# Manage Secrets from the Python Client
+
+November 23, 2026
+
+**Available in arize-phoenix-client 3.8.0+**
+
+`client.secrets.upsert_or_delete()` creates, rotates, and deletes provider secrets in one atomic request. Map a key to a string to create or replace it, or to `None` to delete it. Errors never include the submitted values. The async client has the same method.
+
+```python
+import os
+
+from phoenix.client import Client
+
+client = Client()
+result = client.secrets.upsert_or_delete(
+    secrets={
+        "OPENAI_API_KEY": os.environ["OPENAI_API_KEY"],
+        "OLD_PROVIDER_API_KEY": None,
+    }
+)
+print(result["upserted_keys"], result["deleted_keys"])
+```
+
+<CardGroup cols={2}>
+  <Card title="Secrets" icon="key" href="/docs/phoenix/settings/secrets">
+    Encrypted provider credentials
+  </Card>
+</CardGroup>
+
+# px: Dataset Label Assignments
+
+November 19, 2026
+
+**Available in @arizeai/phoenix-cli 1.24.0+**
+
+`px dataset-labels list`, `add`, `remove`, and `replace` manage which existing labels a dataset has. They accept a dataset name or ID and label IDs. `replace --clear` removes all of a dataset's labels, and the labels themselves are kept.
+
+```bash
+px dataset-labels list --dataset my-dataset
+px dataset-labels add --dataset my-dataset --label RGF0YXNldExhYmVsOjE=
+px dataset-labels replace --dataset my-dataset --clear
+```
+
+<CardGroup cols={2}>
+  <Card title="Phoenix CLI" icon="terminal" href="/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli">
+    Commands and output formats
+  </Card>
+</CardGroup>
+
+# Additional Improvements
+
+November 19 to 23, 2026
+
+**Available in arize-phoenix 21.3.0–22.0.1 and @arizeai/phoenix-client 8.0.3**
+
+- **The server no longer freezes** when a GraphQL request with many pending loads, such as a traces page with large traces, is cancelled.
+- **The traces and spans tables load faster** by default, because Phoenix reads a project's newest root spans from that project's traces only.
+- **Bedrock regional Claude model IDs are priced at Bedrock's rate.**
+- **`PHOENIX_CSRF_TRUSTED_ORIGINS` ignores spaces** next to commas, so those origins are no longer rejected with a 401.
+- **TypeScript acceptance criteria report coverage**, such as `70 of 100 runs`, so you can see runs that did not log the criterion's annotation.
