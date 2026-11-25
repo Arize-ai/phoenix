@@ -60,6 +60,16 @@ Vectors stored as JSON array strings:
 - Consider omitting vectors in production (keep `embedding.text` for debugging)
 - Use separate vector database for actual similarity search
 
+## Cost Tracking
+
+Phoenix prices EMBEDDING spans only against embedding-model prices, never LLM or decision-model prices. Embedding models bill input tokens only, so completion counts and token details are ignored. With no matching embedding-model price, the span keeps its input tokens and gets no cost. Embedding tokens and costs count toward trace, session, experiment, and project cost summaries, but stay out of LLM span token counts.
+
+| Attribute | Type | Used for |
+|-----------|------|----------|
+| `embedding.model_name` | String | Price lookup; falls back to the `llm.*` model names |
+| `llm.provider` | String | Optional; breaks ties between same-named models when set |
+| `llm.token_count.prompt` | Integer | Input tokens; `llm.token_count.total` stands in when omitted or `0` |
+
 ## Examples
 
 ### Single Embedding

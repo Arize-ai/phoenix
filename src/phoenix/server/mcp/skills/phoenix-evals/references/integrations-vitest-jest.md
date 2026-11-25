@@ -138,6 +138,7 @@ px.describe("text-to-sql", () => { /* tests log token_f1, valid_sql, latency_ms 
 
 - `metric: "average"` checks the mean against `threshold`; `direction` is `"maximize"` (default, clears at `>=`) or `"minimize"` (latency/cost/errors, clears at `<=`).
 - `metric: "passRate"` counts runs where `passFn(annotation)` is true and requires that fraction to reach `minPassRate` (`1` = all). `passFn` receives the full annotation (`score`, `label`, `explanation`, `metadata`).
+- A criterion covers only the runs that logged its annotation. A run that never logs it (for example, a test that threw before `logAnnotation()`) is left out, not counted as a failure; the thrown test already fails in Vitest/Jest. The scorecard shows coverage as `sampleCount` of `eligibleRunCount` non-skipped runs (`PASS token_f1 average 0.840 (need >= 0.800; 70 of 100 runs)`), so low coverage is visible even when the gate passes.
 
 ## Suite & test config
 
