@@ -2034,12 +2034,8 @@ OPENAI_REASONING_MODELS = [
     "gpt-5-mini",
     "gpt-5-nano",
     "gpt-5-pro",
-    "o1",
-    "o1-pro",
     "o3",
     "o3-pro",
-    "o3-mini",
-    "o4-mini",
 ]
 
 
