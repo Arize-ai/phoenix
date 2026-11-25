@@ -62,6 +62,13 @@ const detailsSectionsCSS = css`
     }
   }
 
+  /* The cards already separate the lanes */
+  .experiment-compare-details__section
+    .experiment-compare-lane-row__cell
+    + .experiment-compare-lane-row__cell {
+    border: none;
+  }
+
   .experiment-compare-details__section .experiment-compare-lane-row__cell,
   .experiment-compare-details__shared {
     padding: var(--global-dimension-size-100);
