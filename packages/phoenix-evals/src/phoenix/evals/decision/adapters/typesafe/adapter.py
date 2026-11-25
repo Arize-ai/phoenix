@@ -6,6 +6,7 @@ from ...types import (
     BaseDecisionAdapter,
     ClassificationCriterion,
     ClassificationFailure,
+    ClassificationMetadata,
     ClassificationResponse,
     ClassificationResult,
     Name,
@@ -51,8 +52,11 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
         )
 
     @staticmethod
-    def _answer_metadata(answer: Any, model: Any) -> Dict[str, Any]:
-        metadata: Dict[str, Any] = {"probabilities": answer.probabilities, "model_id": model}
+    def _answer_metadata(answer: Any, model: Any) -> ClassificationMetadata:
+        metadata: ClassificationMetadata = {
+            "probabilities": answer.probabilities,
+            "model_id": model,
+        }
         confidence = getattr(answer, "confidence", None)
         if confidence is not None:
             metadata["confidence"] = confidence

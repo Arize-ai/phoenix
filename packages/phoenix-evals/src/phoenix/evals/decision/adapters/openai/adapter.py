@@ -6,6 +6,7 @@ from ...types import (
     BaseDecisionAdapter,
     ClassificationCriterion,
     ClassificationFailure,
+    ClassificationMetadata,
     ClassificationResponse,
     ClassificationResult,
     Name,
@@ -94,10 +95,10 @@ class OpenAIDecisionAdapter(BaseDecisionAdapter):
         # OpenAI reports probabilities as a list of {value, probability}; flatten to a
         # value -> probability dict so metadata matches the other decision adapters.
         probabilities = {
-            getattr(option, "value", None): getattr(option, "probability", None)
+            option.value: option.probability
             for option in (getattr(answer, "probabilities", None) or [])
         }
-        metadata: Dict[str, Any] = {"probabilities": probabilities, "model_id": model}
+        metadata: ClassificationMetadata = {"probabilities": probabilities, "model_id": model}
         confidence = getattr(answer, "confidence", None)
         if confidence is not None:
             metadata["confidence"] = confidence

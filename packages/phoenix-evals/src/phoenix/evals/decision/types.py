@@ -5,6 +5,7 @@ from typing import Any, Callable, Dict, List, Optional, Type
 from .._criteria import (
     ClassificationCriterion,
     ClassificationFailure,
+    ClassificationMetadata,
     ClassificationResponse,
     ClassificationResult,
     Name,
@@ -16,6 +17,7 @@ __all__ = [
     "BaseDecisionAdapter",
     "ClassificationCriterion",
     "ClassificationFailure",
+    "ClassificationMetadata",
     "ClassificationResponse",
     "ClassificationResult",
     "Name",

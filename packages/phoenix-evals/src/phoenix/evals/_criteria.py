@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Dict, Literal, Optional, Union
+from typing import Dict, Literal, Optional, Union
 
 from typing_extensions import NotRequired, TypeAlias, TypedDict
 
@@ -7,6 +7,7 @@ __all__ = [
     "ClassificationCriterion",
     "ClassificationFailure",
     "ClassificationFailureKind",
+    "ClassificationMetadata",
     "ClassificationResponse",
     "ClassificationResult",
     "Description",
@@ -29,6 +30,22 @@ Score: TypeAlias = Union[float, int]
 """The numeric score a label maps to."""
 
 ClassificationFailureKind = Literal["refusal", "invalid_label", "error"]
+
+
+class ClassificationMetadata(TypedDict, total=False):
+    """Backend-provided extras attached to a :class:`ClassificationResult` or
+    :class:`ClassificationFailure`. Every key is optional: the LLM path reports none, decision
+    models report ``probabilities`` and ``model_id`` (and ``confidence`` when the provider does).
+
+    Keys:
+        probabilities: Each label mapped to the probability the backend assigned it.
+        model_id: The model that produced the answer (the resolved response model).
+        confidence: The provider's confidence in the chosen label, when it reports one.
+    """
+
+    probabilities: Dict[Label, float]
+    model_id: str
+    confidence: float
 
 
 class ClassificationCriterion(TypedDict):
@@ -73,7 +90,7 @@ class ClassificationResult:
 
     label: str
     explanation: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: ClassificationMetadata = field(default_factory=ClassificationMetadata)
 
 
 @dataclass(frozen=True)
@@ -89,7 +106,7 @@ class ClassificationFailure:
 
     kind: ClassificationFailureKind
     reason: str
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: ClassificationMetadata = field(default_factory=ClassificationMetadata)
 
 
 @dataclass(frozen=True)
