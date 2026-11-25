@@ -167,14 +167,14 @@ async def drain_eval_work_units_step(
             condition: ColumnElement[bool] = model.project_evaluator_id == project_evaluator_id
             if queued_only:
                 condition = and_(condition, text(queued_index_predicate()))
-            res = await _delete_by_ids(
+            delete_result = await _delete_by_ids(
                 session,
                 model=model,
                 condition=condition,
                 batch_limit=batch_limit,
             )
-            if res.status is not PrimitiveStatus.EMPTY:
-                return res
+            if delete_result.status is not PrimitiveStatus.EMPTY:
+                return delete_result
     return PrimitiveResult(PrimitiveStatus.EMPTY, 0)
 
 

@@ -308,7 +308,7 @@ async def tombstone_dataset_evaluators(
 _LiveBinding: TypeAlias = Row[int, int, Optional[int]]
 
 
-async def _live_bindings_owned_by(
+async def _read_live_bindings_owned_by(
     session: AsyncSession, owner_project_ids: Iterable[int]
 ) -> Sequence[_LiveBinding]:
     owner_ids = sorted(set(owner_project_ids))
@@ -363,7 +363,7 @@ async def lock_dataset_delete_targets(
         )
     ).all()
 
-    experiment_bindings_seen_before_locking = await _live_bindings_owned_by(
+    experiment_bindings_seen_before_locking = await _read_live_bindings_owned_by(
         session, exp_project_ids
     )
 
@@ -374,7 +374,9 @@ async def lock_dataset_delete_targets(
     }
     await _lock_projects(session, locked_project_ids, mode="no_key_update")
 
-    experiment_bindings_under_project_lock = await _live_bindings_owned_by(session, exp_project_ids)
+    experiment_bindings_under_project_lock = await _read_live_bindings_owned_by(
+        session, exp_project_ids
+    )
     await _lock_trace_projects_of(
         session,
         locked_project_ids=locked_project_ids,
@@ -401,7 +403,7 @@ async def tombstone_project(
     """Tombstone a live non-evaluator project, and detach its live bindings; the
     tombstone is what the cleanup worker drains."""
     dialect = SupportedSQLDialect(session.get_bind().dialect.name)
-    bindings_seen_before_locking = await _live_bindings_owned_by(session, [project_id])
+    bindings_seen_before_locking = await _read_live_bindings_owned_by(session, [project_id])
     locked_project_ids = {
         project_id,
         *(int(row.trace_project_id) for row in bindings_seen_before_locking),
@@ -420,7 +422,7 @@ async def tombstone_project(
     await _lock_projects(session, [project_id], mode="update")
 
     # Binding writers lock this project row too, so this read is complete.
-    live_bindings_under_project_lock = await _live_bindings_owned_by(session, [project_id])
+    live_bindings_under_project_lock = await _read_live_bindings_owned_by(session, [project_id])
     tombstoned_trace_project_ids: list[int] = []
     if live_bindings_under_project_lock:
         await _lock_trace_projects_of(
@@ -578,13 +580,13 @@ async def lock_experiment_projects(
     delete.
     """
     ids = set(candidate_project_ids)
-    bindings_seen_before_locking = await _live_bindings_owned_by(session, ids)
+    bindings_seen_before_locking = await _read_live_bindings_owned_by(session, ids)
     locked_project_ids = {
         *ids,
         *(int(row.trace_project_id) for row in bindings_seen_before_locking),
     }
     await _lock_projects(session, locked_project_ids, mode="no_key_update")
-    bindings_under_project_lock = await _live_bindings_owned_by(session, ids)
+    bindings_under_project_lock = await _read_live_bindings_owned_by(session, ids)
     await _lock_trace_projects_of(
         session, locked_project_ids=locked_project_ids, bindings=bindings_under_project_lock
     )
@@ -611,7 +613,7 @@ async def tombstone_exclusive_experiment_projects(
     if not ids:
         return []
 
-    bindings_seen_before_locking = await _live_bindings_owned_by(session, ids)
+    bindings_seen_before_locking = await _read_live_bindings_owned_by(session, ids)
     locked_project_ids = set(ids)
     await _lock_projects(session, locked_project_ids, mode="no_key_update")
     await _lock_trace_projects_of(
@@ -633,7 +635,7 @@ async def tombstone_exclusive_experiment_projects(
     if not eligible_ids:
         return []
 
-    live_bindings_under_project_lock = await _live_bindings_owned_by(session, eligible_ids)
+    live_bindings_under_project_lock = await _read_live_bindings_owned_by(session, eligible_ids)
     tombstoned_trace_project_ids: list[int] = []
     if live_bindings_under_project_lock:
         await _lock_trace_projects_of(

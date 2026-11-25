@@ -1210,10 +1210,10 @@ class Query:
                     return Project(id=node_id, db_record=project_record)
                 raise NotFound(f"Unknown project: {id}")
         elif type_name == Trace.__name__:
-            await _raise_if_in_deleted_project(info, type_name, node_id)
+            await _raise_if_in_deleted_project(info, type_name, node_id, id)
             return Trace(id=node_id)
         elif type_name == Span.__name__:
-            await _raise_if_in_deleted_project(info, type_name, node_id)
+            await _raise_if_in_deleted_project(info, type_name, node_id, id)
             return Span(id=node_id)
         elif type_name == Dataset.__name__:
             return Dataset(id=node_id)
@@ -1234,7 +1234,7 @@ class Query:
                 raise Unauthorized(MSG_ADMIN_ONLY)
             return User(id=node_id)
         elif type_name == ProjectSession.__name__:
-            await _raise_if_in_deleted_project(info, type_name, node_id)
+            await _raise_if_in_deleted_project(info, type_name, node_id, id)
             return ProjectSession(id=node_id)
         elif type_name == OAuth2Grant.__name__:
             return OAuth2Grant(id=node_id)
@@ -1265,10 +1265,10 @@ class Query:
         elif type_name == ProjectTraceRetentionPolicy.__name__:
             return ProjectTraceRetentionPolicy(id=node_id)
         elif type_name == SpanAnnotation.__name__:
-            await _raise_if_in_deleted_project(info, type_name, node_id)
+            await _raise_if_in_deleted_project(info, type_name, node_id, id)
             return SpanAnnotation(id=node_id)
         elif type_name == TraceAnnotation.__name__:
-            await _raise_if_in_deleted_project(info, type_name, node_id)
+            await _raise_if_in_deleted_project(info, type_name, node_id, id)
             return TraceAnnotation(id=node_id)
         elif type_name == GenerativeModel.__name__:
             return GenerativeModel(id=node_id)
@@ -2432,7 +2432,7 @@ def _comparison_count_expression(
 
 
 async def _raise_if_in_deleted_project(
-    info: Info[Context, None], type_name: str, node_id: int
+    info: Info[Context, None], type_name: str, node_id: int, global_id: strawberry.ID
 ) -> None:
     """Treat a trace, span, session, or annotation owned by a tombstoned project as not found."""
     if type_name == Trace.__name__:
@@ -2469,7 +2469,7 @@ async def _raise_if_in_deleted_project(
                 )
             )
         ):
-            raise NotFound(f"Unknown {type_name}: {node_id}")
+            raise NotFound(f"Unknown {type_name}: {global_id}")
 
 
 async def _decision_node(

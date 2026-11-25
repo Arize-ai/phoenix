@@ -13405,7 +13405,7 @@ export interface operations {
                     "text/plain": string;
                 };
             };
-            /** @description Conflict */
+            /** @description Some traces are in use by another operation (retry the request), or the project holds an evaluator's traces (delete the evaluator instead) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -16163,7 +16163,7 @@ export interface operations {
                     "text/plain": string;
                 };
             };
-            /** @description The project is in use by another operation; retry the delete */
+            /** @description The project is in use by another operation (retry the delete), or it holds an evaluator's traces (delete the evaluator instead) */
             409: {
                 headers: {
                     [name: string]: unknown;

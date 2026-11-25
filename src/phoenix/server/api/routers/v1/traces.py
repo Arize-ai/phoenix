@@ -401,7 +401,16 @@ async def list_project_traces(
     ),
     response_description="No content returned after the matching traces are deleted",
     status_code=204,
-    responses=add_errors_to_responses([404, 409, 422]),
+    responses=add_errors_to_responses(
+        [
+            404,
+            {
+                "status_code": 409,
+                "description": "Some traces are in use by another operation (retry the request), or the project holds an evaluator's traces (delete the evaluator instead)",  # noqa: E501
+            },
+            422,
+        ]
+    ),
 )
 async def delete_project_traces(
     request: Request,

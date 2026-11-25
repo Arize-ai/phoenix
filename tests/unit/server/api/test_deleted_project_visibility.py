@@ -132,6 +132,8 @@ class TestDeletedProjectVisibility:
                 node_query, variables={"id": str(GlobalID(type_name, str(rowid)))}
             )
             assert response.errors, type_name
+            expected_global_id = str(GlobalID(type_name, str(rowid)))
+            assert response.errors[0].message == f"Unknown {type_name}: {expected_global_id}"
 
     async def test_rest_session_in_deleted_project_is_not_found(
         self, db: DbSessionFactory, httpx_client: httpx2.AsyncClient

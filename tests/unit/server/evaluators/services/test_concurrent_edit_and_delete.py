@@ -1635,7 +1635,7 @@ async def test_tombstone_project_conflicts_when_a_late_trace_project_is_locked_b
         owner_project_id = owner_project.id
     assert trace_project_id < owner_project_id
 
-    original_read = lifecycle._live_bindings_owned_by
+    original_read = lifecycle._read_live_bindings_owned_by
     has_bound_late_trace_project = False
 
     async def _read_then_bind_late_trace_project(*args: Any, **kwargs: Any) -> Any:
@@ -1652,7 +1652,9 @@ async def test_tombstone_project_conflicts_when_a_late_trace_project_is_locked_b
                 )
         return rows
 
-    monkeypatch.setattr(lifecycle, "_live_bindings_owned_by", _read_then_bind_late_trace_project)
+    monkeypatch.setattr(
+        lifecycle, "_read_live_bindings_owned_by", _read_then_bind_late_trace_project
+    )
 
     async def _tombstone_owner() -> None:
         async with db() as tombstone_session:

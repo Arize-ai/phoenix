@@ -79,7 +79,7 @@ class StepExecutionResult:
     next_delay_seconds: Optional[float] = None
 
 
-def _eligible_targets() -> Select[tuple[str, int, datetime]]:
+def _select_eligible_targets() -> Select[tuple[str, int, datetime]]:
     """Every tombstoned row that cleanup may work on now, as ``(kind, id, deleted_at)``.
 
     A project is eligible only once no binding references it as owner or trace project; a
@@ -164,7 +164,7 @@ class CleanupCoordinator:
         self, session: AsyncSession, *, now: datetime
     ) -> tuple[Optional[CleanupTarget], Optional[float]]:
         """The oldest target not backing off, or else the delay until the earliest retry."""
-        eligible = _eligible_targets().subquery("eligible")
+        eligible = _select_eligible_targets().subquery("eligible")
         failure = models.CleanupFailure
         backing_off_join = and_(
             failure.target_kind == eligible.c.kind,
@@ -377,21 +377,21 @@ class CleanupCoordinator:
         project_id: int,
     ) -> PrimitiveResult:
         dialect = SupportedSQLDialect(session.get_bind().dialect.name)
-        annotation_config_res = await drain_project_annotation_config_links_step(
+        annotation_config_result = await drain_project_annotation_config_links_step(
             session,
             project_id=project_id,
             batch_limit=self._batch_limit,
         )
-        if annotation_config_res.status is not PrimitiveStatus.EMPTY:
-            return annotation_config_res
+        if annotation_config_result.status is not PrimitiveStatus.EMPTY:
+            return annotation_config_result
 
-        trace_res = await drain_trace_scope_step(
+        trace_scope_result = await drain_trace_scope_step(
             session,
             project_id=project_id,
             batch_limit=self._batch_limit,
         )
-        if trace_res.status is not PrimitiveStatus.EMPTY:
-            return trace_res
+        if trace_scope_result.status is not PrimitiveStatus.EMPTY:
+            return trace_scope_result
 
         # Lock the project row FOR UPDATE before final residual checks and deletion.
         if dialect is SupportedSQLDialect.POSTGRESQL:
@@ -435,25 +435,25 @@ class CleanupCoordinator:
         if trace_project_id is None:
             return PrimitiveResult(PrimitiveStatus.EMPTY, 0)
 
-        dependents_res = await drain_dependents()
-        if dependents_res.status is not PrimitiveStatus.EMPTY:
-            return dependents_res
+        dependents_result = await drain_dependents()
+        if dependents_result.status is not PrimitiveStatus.EMPTY:
+            return dependents_result
 
-        annotation_config_res = await drain_project_annotation_config_links_step(
+        annotation_config_result = await drain_project_annotation_config_links_step(
             session,
             project_id=trace_project_id,
             batch_limit=self._batch_limit,
         )
-        if annotation_config_res.status is not PrimitiveStatus.EMPTY:
-            return annotation_config_res
+        if annotation_config_result.status is not PrimitiveStatus.EMPTY:
+            return annotation_config_result
 
-        trace_res = await drain_trace_scope_step(
+        trace_scope_result = await drain_trace_scope_step(
             session,
             project_id=trace_project_id,
             batch_limit=self._batch_limit,
         )
-        if trace_res.status is not PrimitiveStatus.EMPTY:
-            return trace_res
+        if trace_scope_result.status is not PrimitiveStatus.EMPTY:
+            return trace_scope_result
 
         if dialect is SupportedSQLDialect.POSTGRESQL:
             await session.execute(

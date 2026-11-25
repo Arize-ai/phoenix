@@ -307,7 +307,7 @@ async def update_project(
             404,
             {
                 "status_code": 409,
-                "description": "The project is in use by another operation; retry the delete",
+                "description": "The project is in use by another operation (retry the delete), or it holds an evaluator's traces (delete the evaluator instead)",  # noqa: E501
             },
             422,
         ]
