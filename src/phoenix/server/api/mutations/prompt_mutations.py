@@ -18,6 +18,10 @@ from phoenix.db.types.prompts import normalize_invocation_parameters_for_write
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
+from phoenix.server.api.helpers.prompts.delete_helpers import (
+    format_prompt_in_use_by_llm_evaluators_message,
+    get_prompt_referencing_llm_evaluator_names,
+)
 from phoenix.server.api.input_types.PromptVersionInput import (
     ChatPromptVersionInput,
 )
@@ -162,8 +166,20 @@ class PromptMutationMixin:
             global_id=input.prompt_id, expected_type_name=Prompt.__name__
         )
         async with info.context.db() as session:
+            evaluator_names = await get_prompt_referencing_llm_evaluator_names(
+                session=session, prompt_id=prompt_id
+            )
+            if evaluator_names:
+                raise Conflict(format_prompt_in_use_by_llm_evaluators_message(evaluator_names))
             stmt = delete(models.Prompt).where(models.Prompt.id == prompt_id)
-            result = await session.execute(stmt)
+            try:
+                async with session.begin_nested():
+                    result = await session.execute(stmt)
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+                evaluator_names = await get_prompt_referencing_llm_evaluator_names(
+                    session=session, prompt_id=prompt_id
+                )
+                raise Conflict(format_prompt_in_use_by_llm_evaluators_message(evaluator_names))
 
             if result.rowcount == 0:  # type: ignore[attr-defined]
                 raise NotFound(f"Prompt with ID '{input.prompt_id}' not found")

@@ -319,7 +319,7 @@ class TestChatCompletionSubscription:
                         ]
                     },
                     "modelProvider": "OPENAI",
-                    "modelName": "gpt-4",
+                    "modelName": "gpt-4o",
                     "invocationParameters": {"openai": {"temperature": 0.1}},
                     "tools": None,
                 },
@@ -409,7 +409,7 @@ class TestChatCompletionSubscription:
         assert not span
 
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
-        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
+        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4o"
         assert isinstance(invocation_parameters := attributes.pop("llm.invocation_parameters"), str)
         assert json.loads(invocation_parameters) == {
             "temperature": 0.1,
@@ -470,7 +470,7 @@ class TestChatCompletionSubscription:
                         ]
                     },
                     "modelProvider": "OPENAI",
-                    "modelName": "gpt-4",
+                    "modelName": "gpt-4o",
                     "invocationParameters": {"openai": {"temperature": 0.1}},
                     "tools": None,
                 },
@@ -561,7 +561,7 @@ class TestChatCompletionSubscription:
         assert not span
 
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
-        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
+        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4o"
         assert isinstance(invocation_parameters := attributes.pop("llm.invocation_parameters"), str)
         assert json.loads(invocation_parameters) == {
             "temperature": 0.1,
@@ -621,7 +621,7 @@ class TestChatCompletionSubscription:
                         ]
                     },
                     "modelProvider": "OPENAI",
-                    "modelName": "gpt-4",
+                    "modelName": "gpt-4o",
                     "invocationParameters": {"openai": {}},
                     "tools": {
                         "tools": [
@@ -728,7 +728,7 @@ class TestChatCompletionSubscription:
         assert not span
 
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
-        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
+        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4o"
         assert isinstance(invocation_paramaters := attributes.pop(LLM_INVOCATION_PARAMETERS), str)
         assert json.loads(invocation_paramaters) == {
             "tool_choice": "auto",
@@ -819,7 +819,7 @@ class TestChatCompletionSubscription:
                         ]
                     },
                     "modelProvider": "OPENAI",
-                    "modelName": "gpt-4",
+                    "modelName": "gpt-4o",
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
@@ -911,7 +911,7 @@ class TestChatCompletionSubscription:
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
         assert isinstance(invocation_paramaters := attributes.pop(LLM_INVOCATION_PARAMETERS), str)
         assert json.loads(invocation_paramaters) == {}
-        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
+        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4o"
         assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
         assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
         assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION) == token_count_completion
@@ -1266,7 +1266,7 @@ class TestChatCompletionOverDatasetSubscription:
                         ]
                     },
                     "modelProvider": "OPENAI",
-                    "modelName": "gpt-4",
+                    "modelName": "gpt-4o",
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
@@ -1419,7 +1419,7 @@ class TestChatCompletionOverDatasetSubscription:
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
         assert isinstance(invocation_paramaters := attributes.pop(LLM_INVOCATION_PARAMETERS), str)
         assert json.loads(invocation_paramaters) == {}
-        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
+        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4o"
         assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
         assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
         assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION) == token_count_completion
@@ -1509,7 +1509,7 @@ class TestChatCompletionOverDatasetSubscription:
         assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
         assert isinstance(invocation_paramaters := attributes.pop(LLM_INVOCATION_PARAMETERS), str)
         assert json.loads(invocation_paramaters) == {}
-        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
+        assert attributes.pop(LLM_MODEL_NAME) == "gpt-4o"
         assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == token_count_total
         assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == token_count_prompt
         assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION) == token_count_completion
@@ -1672,7 +1672,7 @@ class TestChatCompletionOverDatasetSubscription:
                         ]
                     },
                     "modelProvider": "OPENAI",
-                    "modelName": "gpt-4",
+                    "modelName": "gpt-4o",
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
@@ -1780,7 +1780,7 @@ class TestChatCompletionOverDatasetSubscription:
                         ]
                     },
                     "modelProvider": "OPENAI",
-                    "modelName": "gpt-4",
+                    "modelName": "gpt-4o",
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
@@ -1872,7 +1872,7 @@ class TestChatCompletionOverDatasetSubscription:
                         ]
                     },
                     "modelProvider": "OPENAI",
-                    "modelName": "gpt-4",
+                    "modelName": "gpt-4o",
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
@@ -2024,7 +2024,7 @@ class TestChatCompletionOverDatasetSubscription:
                         ]
                     },
                     "modelProvider": "OPENAI",
-                    "modelName": "gpt-4",
+                    "modelName": "gpt-4o",
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
@@ -2095,7 +2095,7 @@ class TestChatCompletionOverDatasetSubscription:
                         ]
                     },
                     "modelProvider": "OPENAI",
-                    "modelName": "gpt-4",
+                    "modelName": "gpt-4o",
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
@@ -2196,7 +2196,7 @@ class TestChatCompletionOverDatasetSubscription:
                         ]
                     },
                     "modelProvider": "OPENAI",
-                    "modelName": "gpt-4",
+                    "modelName": "gpt-4o",
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
@@ -2443,7 +2443,7 @@ class TestChatCompletionOverDatasetSubscription:
             assert llm_llm_span.cumulative_llm_token_count_completion > 0
             attributes = dict(flatten(llm_llm_span.attributes, recurse_on_sequence=True))
             assert attributes.pop(OPENINFERENCE_SPAN_KIND) == "LLM"
-            assert attributes.pop(LLM_MODEL_NAME) == "gpt-4"
+            assert attributes.pop(LLM_MODEL_NAME) == "gpt-4o"
             assert attributes.pop(LLM_PROVIDER) == "openai"
             assert attributes.pop(LLM_SYSTEM) == "openai"
             assert attributes.pop(URL_FULL) == "https://api.openai.com/v1/chat/completions"
@@ -2895,7 +2895,7 @@ class TestChatCompletionOverDatasetSubscription:
                         ]
                     },
                     "modelProvider": "OPENAI",
-                    "modelName": "gpt-4",
+                    "modelName": "gpt-4o",
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },

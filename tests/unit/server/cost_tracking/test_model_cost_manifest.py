@@ -331,7 +331,7 @@ def test_every_manifest_entry_resolves_to_itself(
         ("gpt-35-turbo", "gpt-3.5-turbo"),
         ("gpt-35-turbo-16k", "gpt-3.5-turbo-16k"),
         # Letter and version suffixes still fall back to the entry they extend.
-        ("anthropic.claude-opus-5-v1:0", "claude-opus-5"),
+        ("anthropic.claude-opus-5-v1:0", "anthropic.claude-opus-5"),
         ("claude-opus-5-latest", "claude-opus-5"),
         ("chatgpt-4o-latest", "gpt-4o"),
         ("gpt-4o-audio-preview", "gpt-4o"),

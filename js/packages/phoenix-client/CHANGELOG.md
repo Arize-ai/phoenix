@@ -1,5 +1,12 @@
 # @arizeai/phoenix-client
 
+## 8.0.4
+
+### Patch Changes
+
+- 264ff3c: fix(phoenix-client): send prompt extra_body fields as top-level SDK parameters
+- c822820: Add generated types for the `DELETE /v1/datasets/{id}/examples` REST route, which permanently deletes dataset examples.
+
 ## 8.0.3
 
 ### Patch Changes
