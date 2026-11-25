@@ -99,10 +99,15 @@ class ExperimentSweeper(DaemonTask):
             # Project locks come before experiment row locks, matching dataset delete.
             await lock_experiment_projects(session, candidate_project_ids=candidate_project_ids)
             if dialect is SupportedSQLDialect.POSTGRESQL:
+                # Only experiments whose projects were locked above may be row-locked.
                 candidate_experiment_ids = [
                     int(experiment_id)
                     for experiment_id in (
-                        await session.scalars(candidate_stmt.with_for_update(skip_locked=True))
+                        await session.scalars(
+                            candidate_stmt.where(
+                                models.Experiment.id.in_(candidate_experiment_ids)
+                            ).with_for_update(skip_locked=True)
+                        )
                     ).all()
                 ]
 
