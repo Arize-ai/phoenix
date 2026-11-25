@@ -569,13 +569,33 @@ async def lock_experiment_projects(
     *,
     candidate_project_ids: Iterable[int],
 ) -> None:
-    """Lock the candidates from ``resolve_experiment_project_delete_candidates``.
+    """Lock the candidates from ``resolve_experiment_project_delete_candidates``, their bindings'
+    trace projects and evaluators.
 
     Call this before deleting experiment rows so that experiment deletes take ``Project`` then
-    ``Experiment`` locks, the order ``delete_dataset_and_tombstone_projects`` uses; the reverse
-    order deadlocks against a concurrent dataset delete.
+    ``Evaluator`` then ``Experiment`` locks, the order ``lock_dataset_delete_targets`` uses before
+    its cascade reaches the experiments; the reverse order deadlocks against a concurrent dataset
+    delete.
     """
-    await _lock_projects(session, candidate_project_ids, mode="no_key_update")
+    ids = set(candidate_project_ids)
+    bindings_seen_before_locking = await _live_bindings_owned_by(session, ids)
+    locked_project_ids = {
+        *ids,
+        *(int(row.trace_project_id) for row in bindings_seen_before_locking),
+    }
+    await _lock_projects(session, locked_project_ids, mode="no_key_update")
+    bindings_under_project_lock = await _live_bindings_owned_by(session, ids)
+    await _lock_trace_projects_of(
+        session, locked_project_ids=locked_project_ids, bindings=bindings_under_project_lock
+    )
+    await lock_evaluators(
+        session,
+        {
+            int(row.evaluator_id)
+            for row in bindings_under_project_lock
+            if row.evaluator_id is not None
+        },
+    )
 
 
 async def tombstone_exclusive_experiment_projects(
@@ -592,11 +612,11 @@ async def tombstone_exclusive_experiment_projects(
         return []
 
     bindings_seen_before_locking = await _live_bindings_owned_by(session, ids)
-    locked_project_ids = {
-        *ids,
-        *(int(row.trace_project_id) for row in bindings_seen_before_locking),
-    }
+    locked_project_ids = set(ids)
     await _lock_projects(session, locked_project_ids, mode="no_key_update")
+    await _lock_trace_projects_of(
+        session, locked_project_ids=locked_project_ids, bindings=bindings_seen_before_locking
+    )
 
     eligible_ids = list(
         await session.scalars(

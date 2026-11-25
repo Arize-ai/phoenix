@@ -1670,3 +1670,185 @@ async def test_tombstone_project_conflicts_when_a_late_trace_project_is_locked_b
     async with db() as session:
         surviving_owner = await session.get(models.Project, owner_project_id)
         assert surviving_owner is not None and surviving_owner.deleted_at is None
+
+
+async def _seed_expired_experiment(
+    session: AsyncSession, *, dataset: models.Dataset, project: Optional[models.Project]
+) -> None:
+    from datetime import datetime, timedelta, timezone
+
+    from phoenix.config import EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS
+
+    dataset_version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+    session.add(dataset_version)
+    await session.flush()
+    session.add(
+        models.Experiment(
+            dataset_id=dataset.id,
+            dataset_version_id=dataset_version.id,
+            name=f"exp-{token_hex(4)}",
+            repetitions=1,
+            metadata_={},
+            project_name=project.name if project is not None else None,
+            is_ephemeral=True,
+            updated_at=datetime.now(timezone.utc)
+            - timedelta(hours=EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS + 1),
+        )
+    )
+    await session.flush()
+
+
+@pytest.mark.postgres_only
+async def test_experiment_sweep_locks_bound_evaluators_before_deleting_experiments(
+    postgresql_engine: AsyncEngine,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from phoenix.db.helpers import get_sqlstate
+    from phoenix.server.daemons import experiment_sweeper
+    from phoenix.server.daemons.experiment_sweeper import ExperimentSweeper
+    from phoenix.server.evaluators.services import definitions as definitions_module
+
+    db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
+    context = _service_context(db)
+    async with db() as session:
+        prompt = models.Prompt(
+            name=Identifier(f"prompt-dl6-{token_hex(4)}"),
+            prompt_versions=[_prompt_version()],
+        )
+        first_project = models.Project(name=f"first-exp-project-{token_hex(4)}")
+        sink_project = models.Project(name=f"sink-project-{token_hex(4)}")
+        first_dataset = models.Dataset(name=f"first-ds-{token_hex(4)}", metadata_={})
+        second_dataset = models.Dataset(name=f"second-ds-{token_hex(4)}", metadata_={})
+        session.add_all([prompt, first_project, sink_project, first_dataset, second_dataset])
+        await session.flush()
+        prompt_version_id = prompt.prompt_versions[0].id
+        first_project_id = first_project.id
+        sink_project_id = sink_project.id
+        second_dataset_id = second_dataset.id
+    evaluator = await definitions_module.create_llm_evaluator(
+        context,
+        definitions_module.CreateLLMEvaluatorInput(
+            name=Identifier(f"eval-{token_hex(4)}"),
+            prompt_version_id=GlobalID("PromptVersion", str(prompt_version_id)),
+            output_configs=_output_configs(1.0),
+        ),
+    )
+    await project_bindings.add_project_evaluator(
+        context,
+        GlobalID("LLMEvaluator", str(evaluator.id)),
+        project_bindings.ProjectBindingSettings(
+            project_id=GlobalID("Project", str(first_project_id)),
+            name=Identifier(f"bind-{token_hex(4)}"),
+            sampling_rate=1.0,
+            evaluation_target="TRACE",
+            input_mapping=InputMapping(literal_mapping={}, path_mapping={"output": "$.output"}),
+        ),
+    )
+    async with db() as session:
+        session.add(
+            models.DatasetEvaluators(
+                dataset_id=second_dataset_id,
+                evaluator_id=evaluator.id,
+                name=Identifier(root=f"ds-binding-{token_hex(4)}"),
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                output_configs=[],
+                project_id=sink_project_id,
+            )
+        )
+        first_project_row = await session.get(models.Project, first_project_id)
+        first_dataset_row = await session.get(models.Dataset, first_dataset.id)
+        second_dataset_row = await session.get(models.Dataset, second_dataset_id)
+        assert first_project_row and first_dataset_row and second_dataset_row
+        await _seed_expired_experiment(
+            session, dataset=first_dataset_row, project=first_project_row
+        )
+        await _seed_expired_experiment(session, dataset=second_dataset_row, project=None)
+
+    experiments_deleted = asyncio.Event()
+    release_sweeper = asyncio.Event()
+    original_tombstone = lifecycle.tombstone_exclusive_experiment_projects
+
+    async def _pause_before_tombstone(*args: Any, **kwargs: Any) -> list[int]:
+        experiments_deleted.set()
+        await asyncio.wait_for(release_sweeper.wait(), 5)
+        return await original_tombstone(*args, **kwargs)
+
+    monkeypatch.setattr(
+        experiment_sweeper, "tombstone_exclusive_experiment_projects", _pause_before_tombstone
+    )
+
+    async def _run_dataset_delete() -> None:
+        await asyncio.wait_for(experiments_deleted.wait(), 5)
+        delete_task = asyncio.create_task(
+            lifecycle.execute_dataset_delete(db=db, dataset_id=second_dataset_id)
+        )
+        try:
+            await _wait_until_lock_wait_or_done(db, delete_task, "FROM evaluators")
+        finally:
+            release_sweeper.set()
+        await delete_task
+
+    results = await asyncio.gather(
+        ExperimentSweeper(db=db)._delete_ephemeral_experiments(),
+        _run_dataset_delete(),
+        return_exceptions=True,
+    )
+
+    for result in results:
+        if isinstance(result, DBAPIError):
+            assert get_sqlstate(result) != "40P01", result
+    assert all(result is None or isinstance(result, NotFound) for result in results), results
+    async with db() as session:
+        assert await session.get(models.Dataset, second_dataset_id) is None
+        assert await session.scalar(select(func.count(models.Experiment.id))) == 0
+
+
+@pytest.mark.postgres_only
+async def test_experiment_sweep_locks_lower_id_trace_project_before_experiment_projects(
+    postgresql_engine: AsyncEngine,
+) -> None:
+    from phoenix.db.helpers import get_sqlstate
+    from phoenix.server.daemons.experiment_sweeper import ExperimentSweeper
+    from tests.unit._helpers import _bind_evaluator_trace_project
+
+    db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
+    async with db() as session:
+        trace_project = models.Project(name=f"low-trace-project-{token_hex(4)}")
+        session.add(trace_project)
+        await session.flush()
+        first_project = models.Project(name=f"first-exp-project-{token_hex(4)}")
+        second_project = models.Project(name=f"second-exp-project-{token_hex(4)}")
+        dataset = models.Dataset(name=f"ds-{token_hex(4)}", metadata_={})
+        session.add_all([first_project, second_project, dataset])
+        await session.flush()
+        await _bind_evaluator_trace_project(session, trace_project, host_project=first_project)
+        await _seed_expired_experiment(session, dataset=dataset, project=first_project)
+        await _seed_expired_experiment(session, dataset=dataset, project=second_project)
+        trace_project_id = trace_project.id
+        second_project_id = second_project.id
+    assert trace_project_id < second_project_id
+
+    sweep_task = None
+    async with db() as holder_session:
+        await holder_session.execute(
+            select(models.Project.id)
+            .where(models.Project.id == trace_project_id)
+            .with_for_update(key_share=True)
+        )
+        sweep_task = asyncio.create_task(ExperimentSweeper(db=db)._delete_ephemeral_experiments())
+        await _wait_until_lock_wait_or_done(db, sweep_task, "FROM projects")
+        try:
+            await asyncio.wait_for(
+                holder_session.execute(
+                    select(models.Project.id)
+                    .where(models.Project.id == second_project_id)
+                    .with_for_update(key_share=True)
+                ),
+                5,
+            )
+        except DBAPIError as error:
+            assert get_sqlstate(error) != "40P01", error
+            raise
+    await asyncio.wait_for(sweep_task, 5)
+    async with db() as session:
+        assert await session.scalar(select(func.count(models.Experiment.id))) == 0
