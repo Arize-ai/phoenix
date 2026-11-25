@@ -1231,34 +1231,29 @@ class TestIntrospectionAndSchema:
         assert set(schema["input_schema"]["required"]) == {"a"}
         assert schema["input_schema"]["properties"]["k"]["type"] in {"integer", "number"}
 
-    def test_describe_outputs_default_is_single_self_describing_entry(self):
+    def test_describe_criteria_empty_for_non_classification(self):
         @create_evaluator(name="simple_eval", direction="maximize")
         def simple_eval(output: str) -> Score:
             return Score(score=1.0)
 
-        [out] = simple_eval.describe()["outputs"]
-        assert out == {
-            "name": "simple_eval",
-            "direction": "maximize",
-            "labels": None,
-            "score_map": None,
-        }
+        # A non-classification evaluator has no criteria.
+        assert simple_eval.describe()["criteria"] == []
 
-    def test_describe_outputs_single_criterion_classifier(self):
+    def test_describe_criteria_single_criterion_classifier(self):
         evaluator = ClassificationEvaluator(
             name="relevance",
             llm=MockLLM(),
             prompt_template="judge: {x}",
             choices={"relevant": (1, "addresses it"), "irrelevant": 0},
         )
-        [out] = evaluator.describe()["outputs"]
-        assert out["name"] == "relevance"
-        assert "kind" not in out  # kind is the evaluator's, at the top level only
+        [criterion] = evaluator.describe()["criteria"]
+        assert criterion["name"] == "relevance"
+        assert "kind" not in criterion  # kind is the evaluator's, at the top level only
         # labels is a uniform {label: description|None} map.
-        assert out["labels"] == {"relevant": "addresses it", "irrelevant": None}
-        assert out["score_map"] == {"relevant": 1, "irrelevant": 0}
+        assert criterion["labels"] == {"relevant": "addresses it", "irrelevant": None}
+        assert criterion["score_map"] == {"relevant": 1, "irrelevant": 0}
 
-    def test_describe_outputs_multi_criterion_one_entry_each(self):
+    def test_describe_criteria_multi_criterion_one_entry_each(self):
         evaluator = ClassificationEvaluator(
             name="quality",
             llm=MockLLM(),
@@ -1279,15 +1274,15 @@ class TestIntrospectionAndSchema:
                 ),
             ],
         )
-        outputs = evaluator.describe()["outputs"]
-        assert [o["name"] for o in outputs] == ["helpfulness", "accuracy"]
+        criteria = evaluator.describe()["criteria"]
+        assert [c["name"] for c in criteria] == ["helpfulness", "accuracy"]
         # Per-criterion direction is reflected (inherited vs explicit).
-        assert outputs[0]["direction"] == "maximize"
-        assert outputs[1]["direction"] == "minimize"
+        assert criteria[0]["direction"] == "maximize"
+        assert criteria[1]["direction"] == "minimize"
         # Bare label list -> all-None label map, no score map.
-        assert outputs[0]["labels"] == {"poor": None, "good": None}
-        assert outputs[0]["score_map"] is None
-        assert outputs[1]["score_map"] == {"wrong": 0, "right": 1}
+        assert criteria[0]["labels"] == {"poor": None, "good": None}
+        assert criteria[0].get("score_map") is None
+        assert criteria[1]["score_map"] == {"wrong": 0, "right": 1}
 
 
 class TestEvaluatorRequiredFieldsAndBinding:

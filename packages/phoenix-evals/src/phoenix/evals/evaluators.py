@@ -330,15 +330,24 @@ def _criterion_label_score_map(criterion: Criterion) -> Optional[Dict[str, Union
     return criterion.get("score_map")
 
 
-def _criterion_describe(criterion: Criterion) -> Dict[str, Any]:
-    """The Score this criterion produces, for Evaluator.describe's outputs. ``kind`` is not
-    included; it is the evaluator's and sits at the top level of describe()."""
-    return {
-        "name": criterion["name"],
-        "direction": criterion.get("direction"),
-        "labels": criterion["labels"],
-        "score_map": criterion.get("score_map"),
-    }
+class EvaluatorDescription(TypedDict):
+    """The JSON-serializable description returned by :meth:`Evaluator.describe`.
+
+    Keys:
+        name: The evaluator's name.
+        kind: The evaluator's kind (human/llm/heuristic/code), or ``None``.
+        direction: The evaluator's default score direction.
+        input_schema: A JSON Schema of the fields the evaluator consumes (the prompt-template
+            variables), or a placeholder when none could be inferred. Typed ``Any`` for now.
+        criteria: The classification criteria this evaluator scores (empty for
+            non-classification evaluators).
+    """
+
+    name: str
+    kind: Optional[KindType]
+    direction: DirectionType
+    input_schema: Any
+    criteria: List[Criterion]
 
 
 def _choices_to_labels_and_score_map(
@@ -583,30 +592,20 @@ class Evaluator(ABC):
 
     # --- Introspection helpers ---
 
-    def _describe_outputs(self) -> List[Dict[str, Any]]:
-        """The Scores this evaluator produces, one entry each. The default is a single output
-        described by the evaluator itself; evaluators that emit several Scores (e.g. a
-        multi-criterion classifier) override this to describe one output per Score. ``kind`` is
-        not repeated per output; it is the evaluator's and sits at the top level of describe()."""
-        return [
-            {
-                "name": self.name,
-                "direction": self.direction,
-                "labels": None,
-                "score_map": None,
-            }
-        ]
+    def _describe_criteria(self) -> List[Criterion]:
+        """The classification criteria this evaluator scores, one per produced Score. Only
+        classification evaluators have criteria; the default is empty."""
+        return []
 
-    def describe(self) -> Dict[str, Any]:
+    def describe(self) -> "EvaluatorDescription":
         """
-        Return a JSON-serializable description of the evaluator, including
-        its name, kind, direction, input fields derived from the Pydantic input schema
-        when available, and the ``outputs`` it produces (one entry per Score, each with its
-        name, kind, direction, labels, and score mapping).
+        Return a JSON-serializable description of the evaluator: its name, kind, direction,
+        the input fields derived from the Pydantic input schema when available, and the
+        ``criteria`` it classifies (empty for non-classification evaluators).
         """
         # TODO add other serializable properties from subclasses
         if self.input_schema is not None:
-            schema = self.input_schema.model_json_schema()
+            schema: Any = self.input_schema.model_json_schema()
         else:
             schema = {"unspecified": {"type": "any", "required": False}}
         return {
@@ -614,7 +613,7 @@ class Evaluator(ABC):
             "kind": self.kind,
             "direction": self.direction,
             "input_schema": schema,
-            "outputs": self._describe_outputs(),
+            "criteria": self._describe_criteria(),
         }
 
 
@@ -847,8 +846,8 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
         """The normalised list of criteria this evaluator classifies (one Score each)."""
         return self._criteria
 
-    def _describe_outputs(self) -> List[Dict[str, Any]]:
-        return [_criterion_describe(criterion) for criterion in self._criteria]
+    def _describe_criteria(self) -> List[Criterion]:
+        return list(self._criteria)
 
     def _normalize_choices(
         self,
