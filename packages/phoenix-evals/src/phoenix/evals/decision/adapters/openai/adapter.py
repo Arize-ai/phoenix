@@ -81,13 +81,11 @@ class OpenAIDecisionAdapter(BaseDecisionAdapter):
         }
 
     @staticmethod
-    def _usage_dict(response: Any) -> Optional[TokenUsage]:
+    def _usage_dict(response: Any) -> TokenUsage:
         usage = getattr(response, "usage", None)
-        if usage is None:
-            return None
         return TokenUsage(
-            input_tokens=getattr(usage, "input_tokens", None),
-            output_tokens=getattr(usage, "output_tokens", None),
+            input_tokens=getattr(usage, "input_tokens", 0) or 0,
+            output_tokens=getattr(usage, "output_tokens", 0) or 0,
         )
 
     @staticmethod

@@ -111,10 +111,11 @@ class ClassificationFailure:
 
 @dataclass(frozen=True)
 class TokenUsage:
-    """Token counts a backend reports for a request. Either field may be ``None``."""
+    """Token counts a backend reports for a request. Both default to ``0`` (also used when the
+    backend reports no usage) so usage sums cleanly across requests."""
 
-    input_tokens: Optional[int] = None
-    output_tokens: Optional[int] = None
+    input_tokens: int = 0
+    output_tokens: int = 0
 
 
 @dataclass(frozen=True)
@@ -127,8 +128,8 @@ class ClassificationResponse:
         results: One outcome per criterion, keyed by criterion name. A criterion that could
             not be classified maps to a :class:`ClassificationFailure` instead of a
             :class:`ClassificationResult`, so one failure does not discard the others.
-        usage: Token usage for the request, or ``None`` when the backend reported none.
+        usage: Token usage for the request; zero counts when the backend reported none.
     """
 
     results: Dict[Name, Union[ClassificationResult, ClassificationFailure]]
-    usage: Optional[TokenUsage] = None
+    usage: TokenUsage = field(default_factory=TokenUsage)

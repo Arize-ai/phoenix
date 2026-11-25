@@ -188,16 +188,17 @@ class DecisionModel:
         ]
 
     @staticmethod
-    def _record_usage_values(usage: Optional[TokenUsage], model_id: Any) -> None:
-        """Record token usage and the response model on the current span."""
+    def _record_usage_values(usage: TokenUsage, model_id: Any) -> None:
+        """Record token usage and the response model on the current span. Zero counts (also used
+        when the backend reported no usage) are not recorded, to avoid misleading spans."""
         span = trace_api.get_current_span()
         attributes = {
             SpanAttributes.DECISION_RESPONSE_MODEL_NAME: model_id,
-            SpanAttributes.DECISION_TOKEN_COUNT_INPUT: usage.input_tokens if usage else None,
-            SpanAttributes.DECISION_TOKEN_COUNT_OUTPUT: usage.output_tokens if usage else None,
+            SpanAttributes.DECISION_TOKEN_COUNT_INPUT: usage.input_tokens,
+            SpanAttributes.DECISION_TOKEN_COUNT_OUTPUT: usage.output_tokens,
         }
         for key, value in attributes.items():
-            if value is not None:
+            if value:
                 span.set_attribute(key, value)
 
     @classmethod

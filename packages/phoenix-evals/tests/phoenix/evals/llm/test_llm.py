@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from phoenix.evals._criteria import ClassificationFailure, ClassificationResult
+from phoenix.evals._criteria import ClassificationFailure, ClassificationResult, TokenUsage
 from phoenix.evals.llm.llm import (
     LLM,
     _parse_classifications,
@@ -443,7 +443,8 @@ class TestLLMGenerateClassifications:
         ]
         response = llm.generate_classifications("some text", _by_name(criteria))
 
-        assert response.usage is None  # LLM usage is not surfaced in the classification envelope
+        # LLM usage is not surfaced in the classification envelope -> zero counts.
+        assert response.usage == TokenUsage()
         assert response.results == {
             "helpfulness": ClassificationResult(label="good", explanation="clear"),
             "accuracy": ClassificationResult(label="wrong", explanation="off"),
