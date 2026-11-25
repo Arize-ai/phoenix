@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from typing import Any, Optional, cast
 
 import pytest
-from sqlalchemy import delete, event, func, select
+from sqlalchemy import delete, event, func, select, update
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from strawberry.relay import GlobalID
@@ -1490,3 +1490,75 @@ async def test_experiment_sweep_keeps_project_of_experiment_a_user_deleted_first
     async with db() as session:
         kept_project = await session.get(models.Project, project_id)
         assert kept_project is not None and kept_project.deleted_at is None
+
+
+@pytest.mark.postgres_only
+async def test_persist_eval_results_reports_skipped_traces_of_a_tombstoned_binding_project(
+    postgresql_engine: AsyncEngine,
+) -> None:
+    from datetime import datetime, timezone
+
+    from phoenix.server.daemons.experiment_runner import EvalWorkItem
+
+    db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
+    context = _service_context(db)
+    now_time = datetime.now(timezone.utc)
+    async with db() as session:
+        dataset = models.Dataset(name=f"exp-dl5-{token_hex(4)}", metadata_={})
+        session.add(dataset)
+        await session.flush()
+        dataset_version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+        dataset_example = models.DatasetExample(dataset_id=dataset.id)
+        session.add_all([dataset_version, dataset_example])
+        await session.flush()
+        experiment = models.Experiment(
+            dataset_id=dataset.id,
+            dataset_version_id=dataset_version.id,
+            name=f"exp-{token_hex(4)}",
+            repetitions=1,
+            metadata_={},
+        )
+        session.add(experiment)
+        await session.flush()
+        experiment_run = models.ExperimentRun(
+            experiment_id=experiment.id,
+            dataset_example_id=dataset_example.id,
+            repetition_number=1,
+            output={"output": "hello"},
+            start_time=now_time,
+            end_time=now_time,
+        )
+        session.add(experiment_run)
+        await session.flush()
+        dataset_id = dataset.id
+
+    dataset_binding = await dataset_bindings.create_dataset_llm_evaluator(
+        context,
+        dataset_bindings.CreateDatasetLLMEvaluatorInput(
+            dataset_id=GlobalID("Dataset", str(dataset_id)),
+            name=Identifier(f"ds-eval-{token_hex(4)}"),
+            prompt_source=NewPrompt(_prompt_version()),
+            output_configs=_output_configs(1.0),
+            input_mapping=InputMapping(literal_mapping={}, path_mapping={"output": "$.output"}),
+        ),
+    )
+    async with db() as session:
+        await session.execute(
+            update(models.Project)
+            .where(models.Project.id == dataset_binding.project_id)
+            .values(deleted_at=now_time)
+        )
+
+    work_item = object.__new__(EvalWorkItem)
+    work_item._db = db
+    work_item._dataset_evaluator_id = dataset_binding.id
+    work_item._experiment_run = experiment_run
+    eval_trace = models.Trace(
+        project_rowid=dataset_binding.project_id,
+        trace_id=token_hex(16),
+        start_time=now_time,
+        end_time=now_time,
+    )
+
+    assert await work_item._persist_eval_results(annotations=[], db_traces=[eval_trace]) is False
+    assert eval_trace.id is None

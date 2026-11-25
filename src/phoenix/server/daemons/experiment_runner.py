@@ -1583,7 +1583,7 @@ class EvalWorkItem(WorkItem):
     ) -> bool:
         """Persist annotations and traces to DB in parallel.
 
-        Returns False without writing if the binding or run was deleted concurrently.
+        Returns False if the binding or run was deleted concurrently, or if its traces were skipped.
         """
 
         async with self._db.read() as session:
@@ -1601,7 +1601,10 @@ class EvalWorkItem(WorkItem):
             if binding_live is None or run_live is None:
                 return False
 
+        traces_persisted = not db_traces
+
         async def _persist_traces() -> None:
+            nonlocal traces_persisted
             if db_traces:
                 async with self._db() as session:
                     binding_still_live = await session.scalar(
@@ -1618,6 +1621,7 @@ class EvalWorkItem(WorkItem):
                     )
                     if binding_still_live is not None:
                         session.add_all(db_traces)
+                        traces_persisted = True
 
         async def _persist_annotations() -> None:
             async with self._db() as session:
@@ -1633,7 +1637,8 @@ class EvalWorkItem(WorkItem):
             async with anyio.create_task_group() as tg:
                 tg.start_soon(_persist_traces)
                 tg.start_soon(_persist_annotations)
-        return True
+        # Unsaved traces have no ids to broadcast.
+        return traces_persisted
 
 
 # =============================================================================
