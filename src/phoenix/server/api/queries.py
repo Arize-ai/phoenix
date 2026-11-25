@@ -29,13 +29,13 @@ from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.helpers import (
     SupportedSQLDialect,
-    exclude_dataset_evaluator_projects,
-    exclude_experiment_projects,
-    exclude_project_evaluator_trace_projects,
     pg_table_sizes_stmt,
+    project_kind_expression,
 )
+from phoenix.db.lifecycle import DEFAULT_LISTED_PROJECT_KINDS
 from phoenix.db.models import LatencyMs
 from phoenix.db.types.annotation_configs import OptimizationDirection
+from phoenix.db.types.model_provider import MODEL_TYPES
 from phoenix.db.types.prompts import PromptMessageRole
 from phoenix.server.agents.config import AgentsEnvConfig
 from phoenix.server.agents.github import GITHUB_PAT_SECRET_KEY, decrypt_workspace_secret
@@ -43,19 +43,15 @@ from phoenix.server.api.agent_helpers import get_agent_session_owner_filter
 from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
-from phoenix.server.api.helpers.decision_clients import (
-    DECISION_CLIENTS,
-    allowed_decision_providers,
+from phoenix.server.api.helpers.chat_clients import (
+    initialize_chat_clients,
 )
+from phoenix.server.api.helpers.client_registry import CLIENT_REGISTRY
 from phoenix.server.api.helpers.experiment_run_filters import (
     ExperimentRunFilterConditionSyntaxError,
     compile_sqlalchemy_filter_condition,
     update_examples_query_with_filter_condition,
 )
-from phoenix.server.api.helpers.playground_clients import (
-    initialize_playground_clients,
-)
-from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.input_types.DatasetEvaluatorFilter import DatasetEvaluatorFilter
 from phoenix.server.api.input_types.DatasetEvaluatorSort import DatasetEvaluatorSort
 from phoenix.server.api.input_types.DatasetFilter import DatasetFilter
@@ -146,6 +142,7 @@ from phoenix.server.api.types.pagination import (
 )
 from phoenix.server.api.types.PlaygroundModel import PlaygroundModel
 from phoenix.server.api.types.Project import Project, project_evaluator_connection
+from phoenix.server.api.types.ProjectKind import ProjectKind
 from phoenix.server.api.types.ProjectSession import ProjectSession
 from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
 from phoenix.server.api.types.Prompt import Prompt
@@ -199,7 +196,7 @@ from phoenix.utilities.template_formatters import TemplateFormatterError, get_te
 
 logger = logging.getLogger(__name__)
 
-initialize_playground_clients()
+initialize_chat_clients()
 
 
 def _to_gql_classification_evaluator_config(
@@ -268,7 +265,7 @@ class ModelsInput:
     provider_key: Optional[GenerativeProviderKey] = None
     model_name: Optional[str] = None
     openai_api_type: Optional[OpenAIApiType] = None
-    model_type: ModelType = ModelType.LLM
+    model_type: ModelType = ModelType.CHAT
 
 
 @strawberry.type
@@ -330,14 +327,13 @@ class ExperimentRunMetricComparisons:
 class Query:
     @strawberry.field
     async def model_providers(self, info: Info[Context, None]) -> list[GenerativeProvider]:
-        # A provider is listed if it offers models of either type; decision-only
-        # providers come from the decision clients.
-        available_providers = PLAYGROUND_CLIENT_REGISTRY.list_allowed_providers(
-            info.context.allowed_provider_names
-        )
-        for provider_key in allowed_decision_providers(info.context.allowed_provider_names):
-            if provider_key not in available_providers:
-                available_providers.append(provider_key)
+        available_providers: list[GenerativeProviderKey] = []
+        for model_type in MODEL_TYPES:
+            for provider_key in CLIENT_REGISTRY.list_allowed_providers(
+                info.context.allowed_provider_names, model_type=model_type
+            ):
+                if provider_key not in available_providers:
+                    available_providers.append(provider_key)
         return [
             GenerativeProvider(
                 name=provider_key.value,
@@ -456,6 +452,8 @@ class Query:
                     models.GenerativeModel.is_built_in.asc(),  # display custom models first
                     models.GenerativeModel.provider.nullslast(),
                     models.GenerativeModel.name,
+                    models.GenerativeModel.type,
+                    models.GenerativeModel.id,
                 )
             )
             data = [GenerativeModel(id=model.id, db_record=model) for model in result.unique()]
@@ -485,19 +483,23 @@ class Query:
                     provider_key_value=provider_key,
                     model_type=ModelType.DECISION,
                 )
-                for provider_key in allowed_decision_providers(info.context.allowed_provider_names)
+                for provider_key in CLIENT_REGISTRY.list_allowed_providers(
+                    info.context.allowed_provider_names, model_type="DECISION"
+                )
                 if input.provider_key is None or input.provider_key is provider_key
-                for model_name in DECISION_CLIENTS[provider_key].model_names
+                for model_name in CLIENT_REGISTRY.list_models(provider_key, model_type="DECISION")
             ]
         if input is not None and input.provider_key is not None:
-            supported_model_names = PLAYGROUND_CLIENT_REGISTRY.list_models(input.provider_key)
+            supported_model_names = CLIENT_REGISTRY.list_models(
+                input.provider_key, model_type="CHAT"
+            )
             supported_models = [
                 PlaygroundModel(name_value=model_name, provider_key_value=input.provider_key)
                 for model_name in supported_model_names
             ]
             return supported_models
 
-        registered_models = PLAYGROUND_CLIENT_REGISTRY.list_all_models()
+        registered_models = CLIENT_REGISTRY.list_all_models(model_type="CHAT")
         all_models: list[PlaygroundModel] = []
         for provider_key, model_name in registered_models:
             if model_name is not None and provider_key is not None:
@@ -624,13 +626,17 @@ class Query:
             projects_query = projects_query.order_by(
                 sort_col.desc() if sort.dir is SortDir.desc else sort_col.asc()
             )
-        if filter:
+        if filter and filter.col and filter.value:
             projects_query = projects_query.where(
                 getattr(models.Project, filter.col.value).ilike(f"%{filter.value}%")
             )
-        projects_query = exclude_experiment_projects(projects_query)
-        projects_query = exclude_dataset_evaluator_projects(projects_query)
-        projects_query = exclude_project_evaluator_trace_projects(projects_query)
+        kinds = [ProjectKind.STANDARD, ProjectKind.PLAYGROUND]
+        if filter and isinstance(filter.kinds, list):
+            kinds = filter.kinds
+        projects_query = projects_query.where(
+            models.Project.deleted_at.is_(None),
+            project_kind_expression().in_([kind.value for kind in kinds]),
+        )
         async with info.context.db.read() as session:
             projects = await session.stream_scalars(projects_query)
             data = [Project(id=project.id, db_record=project) async for project in projects]
@@ -1194,10 +1200,20 @@ class Query:
         if type_name == "Dimension" or type_name == "EmbeddingDimension":
             raise NotFound(f"Unknown node type: {type_name}")
         if type_name == Project.__name__:
-            return Project(id=node_id)
+            async with info.context.db.read() as session:
+                if project_record := await session.scalar(
+                    select(models.Project).where(
+                        models.Project.id == node_id,
+                        models.Project.deleted_at.is_(None),
+                    )
+                ):
+                    return Project(id=node_id, db_record=project_record)
+                raise NotFound(f"Unknown project: {id}")
         elif type_name == Trace.__name__:
+            await _raise_if_in_deleted_project(info, type_name, node_id, id)
             return Trace(id=node_id)
         elif type_name == Span.__name__:
+            await _raise_if_in_deleted_project(info, type_name, node_id, id)
             return Span(id=node_id)
         elif type_name == Dataset.__name__:
             return Dataset(id=node_id)
@@ -1218,6 +1234,7 @@ class Query:
                 raise Unauthorized(MSG_ADMIN_ONLY)
             return User(id=node_id)
         elif type_name == ProjectSession.__name__:
+            await _raise_if_in_deleted_project(info, type_name, node_id, id)
             return ProjectSession(id=node_id)
         elif type_name == OAuth2Grant.__name__:
             return OAuth2Grant(id=node_id)
@@ -1248,8 +1265,10 @@ class Query:
         elif type_name == ProjectTraceRetentionPolicy.__name__:
             return ProjectTraceRetentionPolicy(id=node_id)
         elif type_name == SpanAnnotation.__name__:
+            await _raise_if_in_deleted_project(info, type_name, node_id, id)
             return SpanAnnotation(id=node_id)
         elif type_name == TraceAnnotation.__name__:
+            await _raise_if_in_deleted_project(info, type_name, node_id, id)
             return TraceAnnotation(id=node_id)
         elif type_name == GenerativeModel.__name__:
             return GenerativeModel(id=node_id)
@@ -1262,11 +1281,15 @@ class Query:
         elif type_name == BuiltInEvaluator.__name__:
             return BuiltInEvaluator(id=node_id)
         elif type_name == DatasetEvaluator.__name__:
-            if dataset_evaluator_record := (
-                await info.context.data_loaders.dataset_evaluators_by_id.load(node_id)
-            ):
-                return DatasetEvaluator(id=node_id, db_record=dataset_evaluator_record)
-            raise NotFound(f"Unknown dataset evaluator: {id}")
+            async with info.context.db.read() as session:
+                if dataset_evaluator_record := await session.scalar(
+                    select(models.DatasetEvaluators).where(
+                        models.DatasetEvaluators.id == node_id,
+                        models.DatasetEvaluators.deleted_at.is_(None),
+                    )
+                ):
+                    return DatasetEvaluator(id=node_id, db_record=dataset_evaluator_record)
+                raise NotFound(f"Unknown dataset evaluator: {id}")
         elif type_name == ProjectEvaluator.__name__:
             async with info.context.db.read() as session:
                 if project_evaluator_record := await session.scalar(
@@ -1430,17 +1453,14 @@ class Query:
         # escaping LIKE metacharacters (% and _) so they match literally rather
         # than acting as wildcards.
         projects_stmt = (
-            exclude_project_evaluator_trace_projects(
-                exclude_dataset_evaluator_projects(
-                    exclude_experiment_projects(
-                        select(models.Project).where(
-                            or_(
-                                models.Project.name.icontains(search_term, autoescape=True),
-                                models.Project.description.icontains(search_term, autoescape=True),
-                            )
-                        )
-                    )
-                )
+            select(models.Project)
+            .where(
+                models.Project.deleted_at.is_(None),
+                project_kind_expression().in_(DEFAULT_LISTED_PROJECT_KINDS),
+                or_(
+                    models.Project.name.icontains(search_term, autoescape=True),
+                    models.Project.description.icontains(search_term, autoescape=True),
+                ),
             )
             .order_by(
                 case((models.Project.name.icontains(search_term, autoescape=True), 0), else_=1),
@@ -1678,8 +1698,10 @@ class Query:
                 # Match parent name OR any child (datasetEvaluator) name
                 child_name_exists = exists(
                     select(models.DatasetEvaluators.id)
-                    .where(models.DatasetEvaluators.evaluator_id == PolymorphicEvaluator.id)
-                    .where(models.DatasetEvaluators.deleted_at.is_(None))
+                    .where(
+                        models.DatasetEvaluators.evaluator_id == PolymorphicEvaluator.id,
+                        models.DatasetEvaluators.deleted_at.is_(None),
+                    )
                     .where(cast(models.DatasetEvaluators.name, String).ilike(f"%{filter.value}%"))
                 )
                 query = query.where(
@@ -1760,9 +1782,13 @@ class Query:
             first=first,
             after=after if isinstance(after, CursorString) else None,
         )
-        stmt = select(models.ProjectEvaluator).order_by(
-            models.ProjectEvaluator.created_at.desc(),
-            models.ProjectEvaluator.id.desc(),
+        stmt = (
+            select(models.ProjectEvaluator)
+            .where(models.ProjectEvaluator.deleted_at.is_(None))
+            .order_by(
+                models.ProjectEvaluator.created_at.desc(),
+                models.ProjectEvaluator.id.desc(),
+            )
         )
         if isinstance(project_id, GlobalID):
             project_rowid = from_global_id_with_expected_type(project_id, Project.__name__)
@@ -2056,7 +2082,15 @@ class Query:
         info: Info[Context, None],
         span_id: str,
     ) -> Optional[Span]:
-        stmt = select(models.Span.id).filter_by(span_id=span_id)
+        stmt = (
+            select(models.Span.id)
+            .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+            .join(models.Project, models.Trace.project_rowid == models.Project.id)
+            .where(
+                models.Span.span_id == span_id,
+                models.Project.deleted_at.is_(None),
+            )
+        )
         async with info.context.db.read() as session:
             span_rowid = await session.scalar(stmt)
         if span_rowid:
@@ -2069,7 +2103,14 @@ class Query:
         info: Info[Context, None],
         trace_id: str,
     ) -> Optional[Trace]:
-        stmt = select(models.Trace.id).where(models.Trace.trace_id == trace_id)
+        stmt = (
+            select(models.Trace.id)
+            .join(models.Project, models.Trace.project_rowid == models.Project.id)
+            .where(
+                models.Trace.trace_id == trace_id,
+                models.Project.deleted_at.is_(None),
+            )
+        )
         async with info.context.db.read() as session:
             trace_rowid = await session.scalar(stmt)
         if trace_rowid:
@@ -2082,7 +2123,10 @@ class Query:
         info: Info[Context, None],
         name: str,
     ) -> Optional[Project]:
-        stmt = select(models.Project).where(models.Project.name == name)
+        stmt = select(models.Project).where(
+            models.Project.name == name,
+            models.Project.deleted_at.is_(None),
+        )
         async with info.context.db.read() as session:
             project_row = await session.scalar(stmt)
         if project_row:
@@ -2095,7 +2139,14 @@ class Query:
         info: Info[Context, None],
         session_id: str,
     ) -> Optional[ProjectSession]:
-        stmt = select(models.ProjectSession).where(models.ProjectSession.session_id == session_id)
+        stmt = (
+            select(models.ProjectSession)
+            .join(models.Project, models.ProjectSession.project_id == models.Project.id)
+            .where(
+                models.ProjectSession.session_id == session_id,
+                models.Project.deleted_at.is_(None),
+            )
+        )
         async with info.context.db.read() as session:
             session_row = await session.scalar(stmt)
         if session_row:
@@ -2221,10 +2272,10 @@ class Query:
 
     @strawberry.field
     async def project_count(self, info: Info[Context, None]) -> int:
-        stmt = select(func.count(models.Project.id))
-        stmt = exclude_experiment_projects(stmt)
-        stmt = exclude_dataset_evaluator_projects(stmt)
-        stmt = exclude_project_evaluator_trace_projects(stmt)
+        stmt = select(func.count(models.Project.id)).where(
+            models.Project.deleted_at.is_(None),
+            project_kind_expression().in_(DEFAULT_LISTED_PROJECT_KINDS),
+        )
         async with info.context.db.read() as session:
             return await session.scalar(stmt) or 0
 
@@ -2378,6 +2429,47 @@ def _comparison_count_expression(
         ),
         0,
     )
+
+
+async def _raise_if_in_deleted_project(
+    info: Info[Context, None], type_name: str, node_id: int, global_id: strawberry.ID
+) -> None:
+    """Treat a trace, span, session, or annotation owned by a tombstoned project as not found."""
+    if type_name == Trace.__name__:
+        project_rowid = select(models.Trace.project_rowid).where(models.Trace.id == node_id)
+    elif type_name == Span.__name__:
+        project_rowid = (
+            select(models.Trace.project_rowid)
+            .join(models.Span, models.Span.trace_rowid == models.Trace.id)
+            .where(models.Span.id == node_id)
+        )
+    elif type_name == SpanAnnotation.__name__:
+        project_rowid = (
+            select(models.Trace.project_rowid)
+            .join(models.Span, models.Span.trace_rowid == models.Trace.id)
+            .join(models.SpanAnnotation, models.SpanAnnotation.span_rowid == models.Span.id)
+            .where(models.SpanAnnotation.id == node_id)
+        )
+    elif type_name == TraceAnnotation.__name__:
+        project_rowid = (
+            select(models.Trace.project_rowid)
+            .join(models.TraceAnnotation, models.TraceAnnotation.trace_rowid == models.Trace.id)
+            .where(models.TraceAnnotation.id == node_id)
+        )
+    else:
+        project_rowid = select(models.ProjectSession.project_id).where(
+            models.ProjectSession.id == node_id
+        )
+    async with info.context.db.read() as session:
+        if await session.scalar(
+            select(
+                exists().where(
+                    models.Project.id == project_rowid.scalar_subquery(),
+                    models.Project.deleted_at.is_not(None),
+                )
+            )
+        ):
+            raise NotFound(f"Unknown {type_name}: {global_id}")
 
 
 async def _decision_node(

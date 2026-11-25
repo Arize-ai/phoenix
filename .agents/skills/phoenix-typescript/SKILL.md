@@ -19,6 +19,8 @@ Self-documenting names eliminate mental parsing for the next reader.
 - Complex conditions should be extracted into named booleans so code reads as prose.
 - Booleans must use verb prefixes: `isAllowed`, `hasError`, `canSubmit` — not `allowed`, `error`.
 - Function names must start with an action verb that describes what the function does: `getUser`, `normalizeTimestamp`, `logEvent`, `parseResponse`, `buildQuery` — not `user()`, `timestamp()`, `event()`.
+- A hook's file is named after the hook, and the hook's name says what it returns.
+- Names come from vocabulary the codebase, React, Relay and GraphQL already use, not from a paraphrase of the behavior. If a name needs a paragraph to explain it, rename it.
 
 ```ts
 // Bad — single letters and ambiguous names
@@ -44,7 +46,7 @@ const isDisabled = !hasPermission || isSubmitting;
 ## Functions
 
 - Functions with 2+ parameters must take a single destructured object — this makes call sites readable and resilient to reordering. Callbacks whose signature is fixed by a library or the DOM are exempt.
-- Object parameters should be documented with JSDoc using `@param` dot notation so editors surface descriptions on hover and during autocomplete.
+- Object parameters should be documented with TSDoc using `@param` dot notation so editors surface descriptions on hover and during autocomplete.
 - Behavior should be built from composition (functions and hooks), not inheritance.
 - Transforms should prefer functional purity over mutation — use `map` not `reduce` for element-wise transforms, return new objects instead of mutating.
 - Pure utilities must not reach for hardcoded module constants or ambient state (`Date.now()`, `new Date()`, config singletons) deep inside their bodies. Expose every such value as an optional parameter whose default is the constant, so callers — and especially tests — can override it and the function's output depends only on its inputs. The module constant becomes the default, prefixed `DEFAULT_`.
@@ -126,6 +128,6 @@ TSDoc on exported symbols in `js/packages/` is public API, not an inline comment
 
 - Import lodash utilities via path imports so bundles only carry what's used: `import debounce from "lodash/debounce"`, not `import { debounce } from "lodash"` — the barrel import defeats tree shaking.
 
-## Reuse
+## Modules
 
-Existing shared utilities must be checked before writing inline helpers. Duplicated logic should be extracted to a shared module. When working in `js/packages/`, check sibling packages for existing utilities before adding new dependencies or reimplementing.
+A module owns one responsibility and is named specifically enough to find by file name alone: `authTokenStorage.ts`, not `helpers.ts` or `auth/storage.ts`. Shared code has one home that every consumer imports from, so check for an existing module first, and when a second module needs code inside another, move it to its own module rather than exporting internals, re-exporting or copying it. Imports flow from specific to general and never in a cycle; break a cycle by extracting what both modules share, not with a lazy or type-only import.

@@ -200,19 +200,122 @@ describe("acceptance criteria", () => {
     });
 
     expect(formatAcceptanceResult(result)).toBe(
-      "FAIL valid_sql passRate 0.000 (need pass rate >= 1.000; 1 sample)"
+      "FAIL valid_sql passRate 0.000 (need pass rate >= 1.000; 1 of 1 run)"
     );
     expect(createAcceptanceFailureError([result])?.message).toContain(
-      "Acceptance criteria failed:\n  FAIL valid_sql passRate 0.000 (need pass rate >= 1.000; 1 sample)"
+      "Acceptance criteria failed:\n  FAIL valid_sql passRate 0.000 (need pass rate >= 1.000; 1 of 1 run)"
     );
+  });
+  it("reports eligible runs alongside the runs that logged the annotation", () => {
+    // 70 runs pass and annotate; 30 runs fail before logging anything (#15425).
+    const results = [
+      ...Array.from({ length: 70 }, () =>
+        createResult([{ name: "correctness", score: 1 }])
+      ),
+      ...Array.from({ length: 30 }, () => createResult([], "failed")),
+    ];
+
+    const [passRate, average] = evaluateAcceptanceCriteria({
+      criteria: [
+        {
+          annotationName: "correctness",
+          metric: "passRate",
+          passFn: (annotation) => annotation.score === 1,
+          minPassRate: 1,
+        },
+        { annotationName: "correctness", metric: "average", threshold: 0.95 },
+      ],
+      results,
+    });
+
+    expect(passRate).toMatchObject({
+      value: 1,
+      sampleCount: 70,
+      eligibleRunCount: 100,
+      passed: true,
+    });
+    expect(average).toMatchObject({
+      value: 1,
+      sampleCount: 70,
+      eligibleRunCount: 100,
+      passed: true,
+    });
+    expect(formatAcceptanceResult(passRate)).toBe(
+      "PASS correctness passRate 1.000 (need pass rate >= 1.000; 70 of 100 runs)"
+    );
+  });
+
+  it("shows coverage when one annotated run follows many silent failures", () => {
+    const silentFailures = Array.from({ length: 100 }, () =>
+      createResult([], "failed")
+    );
+    const criteria = [
+      {
+        annotationName: "correctness",
+        metric: "passRate" as const,
+        passFn: (annotation: Annotation) => annotation.score === 1,
+        minPassRate: 1,
+      },
+    ];
+
+    const [allSilent] = evaluateAcceptanceCriteria({
+      criteria,
+      results: silentFailures,
+    });
+    expect(allSilent).toMatchObject({
+      value: null,
+      sampleCount: 0,
+      eligibleRunCount: 100,
+      passed: false,
+      failureReason: "no matching annotations found",
+    });
+
+    const [onePassing] = evaluateAcceptanceCriteria({
+      criteria,
+      results: [
+        ...silentFailures,
+        createResult([{ name: "correctness", score: 1 }]),
+      ],
+    });
+    expect(onePassing).toMatchObject({
+      value: 1,
+      sampleCount: 1,
+      eligibleRunCount: 101,
+    });
+    expect(formatAcceptanceResult(onePassing)).toBe(
+      "PASS correctness passRate 1.000 (need pass rate >= 1.000; 1 of 101 runs)"
+    );
+  });
+
+  it("leaves skipped runs out of the eligible run count", () => {
+    const [result] = evaluateAcceptanceCriteria({
+      criteria: [
+        { annotationName: "quality", metric: "average", threshold: 0.5 },
+      ],
+      results: [
+        createResult([{ name: "quality", score: 1 }]),
+        createResult([], "failed"),
+        createResult([{ name: "quality", score: 0 }], "skipped"),
+      ],
+    });
+
+    expect(result).toMatchObject({
+      value: 1,
+      sampleCount: 1,
+      eligibleRunCount: 2,
+      passed: true,
+    });
   });
 });
 
-function createResult(annotations: Annotation[]): TestResult {
+function createResult(
+  annotations: Annotation[],
+  status: TestResult["status"] = "passed"
+): TestResult {
   return {
     suiteName: "acceptance suite",
     testName: "case",
-    status: "passed",
+    status,
     annotations,
     durationMs: 1,
   };

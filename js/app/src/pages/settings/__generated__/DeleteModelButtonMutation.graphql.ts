@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3c1b37ff031f368ee9171050cb603e3a>>
+ * @generated SignedSource<<2aeae0b2e8ce0cfbce6b9b5a9b32fc6c>>
  * @lightSyntaxTransform
  */
 
@@ -178,6 +178,13 @@ return {
                             "args": null,
                             "kind": "ScalarField",
                             "name": "name",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "modelType",
                             "storageKey": null
                           },
                           {
@@ -368,12 +375,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9a76de4df54063431539cc40e9a64ce0",
+    "cacheID": "250adb05dbc01e5a6c1eb2a6544c320a",
     "id": null,
     "metadata": {},
     "name": "DeleteModelButtonMutation",
     "operationKind": "mutation",
-    "text": "mutation DeleteModelButtonMutation(\n  $input: DeleteModelMutationInput!\n) {\n  deleteModel(input: $input) {\n    query {\n      ...ModelsTable_generativeModels\n    }\n    model {\n      id\n    }\n  }\n}\n\nfragment ModelsTable_generativeModels on Query {\n  generativeModels(first: 1000) {\n    edges {\n      generativeModel: node {\n        id\n        name\n        provider\n        namePattern\n        providerKey\n        startTime\n        createdAt\n        updatedAt\n        lastUsedAt\n        kind\n        tokenPrices {\n          tokenType\n          kind\n          costPerMillionTokens\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "mutation DeleteModelButtonMutation(\n  $input: DeleteModelMutationInput!\n) {\n  deleteModel(input: $input) {\n    query {\n      ...ModelsTable_generativeModels\n    }\n    model {\n      id\n    }\n  }\n}\n\nfragment ModelsTable_generativeModels on Query {\n  generativeModels(first: 1000) {\n    edges {\n      generativeModel: node {\n        id\n        name\n        modelType\n        provider\n        namePattern\n        providerKey\n        startTime\n        createdAt\n        updatedAt\n        lastUsedAt\n        kind\n        tokenPrices {\n          tokenType\n          kind\n          costPerMillionTokens\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

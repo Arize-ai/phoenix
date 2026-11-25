@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b9630d264158eba61a6fa7f2339e99fa>>
+ * @generated SignedSource<<d71bfb6a51abe5df388c336b812ea8db>>
  * @lightSyntaxTransform
  */
 
@@ -9,6 +9,7 @@
 
 import { ReaderFragment } from 'relay-runtime';
 export type GenerativeModelKind = "BUILT_IN" | "CUSTOM";
+export type GenerativeModelType = "DECISION" | "EMBEDDING" | "LLM";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 export type TokenKind = "COMPLETION" | "PROMPT";
 import { FragmentRefs } from "relay-runtime";
@@ -20,6 +21,7 @@ export type ModelsTable_generativeModels$data = {
         readonly id: string;
         readonly kind: GenerativeModelKind;
         readonly lastUsedAt: string | null;
+        readonly modelType: GenerativeModelType;
         readonly name: string;
         readonly namePattern: string;
         readonly provider: string | null;
@@ -128,6 +130,13 @@ return {
                   "args": null,
                   "kind": "ScalarField",
                   "name": "name",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "modelType",
                   "storageKey": null
                 },
                 {
@@ -271,6 +280,6 @@ return {
 };
 })();
 
-(node as any).hash = "e067fb55e7a09f7237e0cc8eb1eb4c75";
+(node as any).hash = "c7e2c9eb9b5469ab5c2c16260aabaa59";
 
 export default node;

@@ -14,6 +14,18 @@ from typing import Mapping
 __all__ = ["AnalyticsSqlManifest", "Area", "MANIFEST", "TableCuration", "manifest"]
 
 _EMPTY_NOTES: Mapping[str, str] = MappingProxyType({})
+_LIVE_PROJECT_NOTE = "to exclude rows awaiting cleanup, join projects with deleted_at IS NULL"
+_LIVE_BINDING_NOTE = (
+    "to exclude rows awaiting cleanup, join dataset_evaluators with deleted_at IS NULL"
+)
+_DELETED_PROJECT_SPAN_NOTE = (
+    "can point into a deleted project's spans until cleanup; LEFT JOIN spans, traces and "
+    "projects and exclude rows whose project has deleted_at set, keeping rows with no span"
+)
+_DELETED_PROJECT_TRACE_NOTE = (
+    "can point into a deleted project's traces until cleanup; LEFT JOIN traces and projects "
+    "and exclude rows whose project has deleted_at set, keeping rows with no trace"
+)
 
 
 @dataclass(frozen=True)
@@ -51,8 +63,23 @@ MANIFEST = AnalyticsSqlManifest(
             "telemetry": Area(
                 tables=MappingProxyType(
                     {
-                        "projects": TableCuration(),
+                        "projects": TableCuration(
+                            grain=(
+                                "One project; deleted rows await cleanup, so filter "
+                                "deleted_at IS NULL (name is unique only among live rows)"
+                            ),
+                            column_notes=MappingProxyType(
+                                {
+                                    "deleted_at": (
+                                        "NULL on live rows, set while background cleanup drains a "
+                                        "deleted project; filter deleted_at IS NULL (projects.name "
+                                        "is unique only among live rows)"
+                                    )
+                                }
+                            ),
+                        ),
                         "traces": TableCuration(
+                            grain=f"One trace; {_LIVE_PROJECT_NOTE}",
                             time_column="start_time",
                             virtual_columns=frozenset({"latency_ms"}),
                             column_notes=MappingProxyType(
@@ -64,7 +91,7 @@ MANIFEST = AnalyticsSqlManifest(
                             ),
                         ),
                         "spans": TableCuration(
-                            grain="One OpenTelemetry span",
+                            grain=f"One OpenTelemetry span; {_LIVE_PROJECT_NOTE}",
                             time_column="start_time",
                             virtual_columns=frozenset({"latency_ms"}),
                             column_notes=MappingProxyType(
@@ -90,10 +117,12 @@ MANIFEST = AnalyticsSqlManifest(
                         "span_annotations": TableCuration(
                             grain=(
                                 "One annotation on a span; joining to spans multiplies "
-                                "row count. Use COUNT(DISTINCT spans.id) to count spans"
+                                "row count. Use COUNT(DISTINCT spans.id) to count spans; "
+                                f"{_LIVE_PROJECT_NOTE}"
                             )
                         ),
                         "span_costs": TableCuration(
+                            grain=f"The cost of one span; {_LIVE_PROJECT_NOTE}",
                             column_notes=MappingProxyType(
                                 {
                                     "span_start_time": (
@@ -101,13 +130,14 @@ MANIFEST = AnalyticsSqlManifest(
                                         "time alone"
                                     )
                                 }
-                            )
+                            ),
                         ),
                         "span_cost_details": TableCuration(
                             grain=(
                                 "One token-cost category within a span cost; joining to "
                                 "span_costs multiplies row count. Use "
-                                "COUNT(DISTINCT span_costs.id) to count costs"
+                                "COUNT(DISTINCT span_costs.id) to count costs; "
+                                f"{_LIVE_PROJECT_NOTE}"
                             ),
                             column_notes=MappingProxyType(
                                 {"is_prompt": "true for input tokens, false for output"}
@@ -115,6 +145,7 @@ MANIFEST = AnalyticsSqlManifest(
                         ),
                         "generative_models": TableCuration(),
                         "project_sessions": TableCuration(
+                            grain=f"One session; {_LIVE_PROJECT_NOTE}",
                             time_column="start_time",
                             column_notes=MappingProxyType(
                                 {
@@ -127,7 +158,8 @@ MANIFEST = AnalyticsSqlManifest(
                         "trace_annotations": TableCuration(
                             grain=(
                                 "One annotation on a trace; joining to traces multiplies row "
-                                "count. Use COUNT(DISTINCT traces.id) to count traces"
+                                "count. Use COUNT(DISTINCT traces.id) to count traces; "
+                                f"{_LIVE_PROJECT_NOTE}"
                             ),
                             column_notes=MappingProxyType(
                                 {
@@ -141,7 +173,8 @@ MANIFEST = AnalyticsSqlManifest(
                             grain=(
                                 "One annotation on a session; joining to project_sessions "
                                 "multiplies row count. Use COUNT(DISTINCT project_sessions.id) "
-                                "to count sessions"
+                                "to count sessions; "
+                                f"{_LIVE_PROJECT_NOTE}"
                             ),
                             column_notes=MappingProxyType(
                                 {
@@ -156,7 +189,8 @@ MANIFEST = AnalyticsSqlManifest(
                             grain=(
                                 "One annotation on one retrieved document of a span; joining "
                                 "to spans multiplies row count. Use COUNT(DISTINCT spans.id) "
-                                "to count spans"
+                                "to count spans; "
+                                f"{_LIVE_PROJECT_NOTE}"
                             ),
                             column_notes=MappingProxyType(
                                 {
@@ -178,7 +212,9 @@ MANIFEST = AnalyticsSqlManifest(
                             )
                         ),
                         "project_annotation_configs": TableCuration(
-                            grain="One project-to-annotation-config attachment"
+                            grain=(
+                                f"One project-to-annotation-config attachment; {_LIVE_PROJECT_NOTE}"
+                            )
                         ),
                         "project_trace_retention_policies": TableCuration(
                             column_notes=MappingProxyType(
@@ -208,7 +244,11 @@ MANIFEST = AnalyticsSqlManifest(
                     {
                         "datasets": TableCuration(),
                         "dataset_versions": TableCuration(),
-                        "dataset_examples": TableCuration(),
+                        "dataset_examples": TableCuration(
+                            column_notes=MappingProxyType(
+                                {"span_rowid": _DELETED_PROJECT_SPAN_NOTE}
+                            )
+                        ),
                         "dataset_example_revisions": TableCuration(
                             grain="One immutable revision of a dataset example"
                         ),
@@ -226,20 +266,36 @@ MANIFEST = AnalyticsSqlManifest(
             "experiments": Area(
                 tables=MappingProxyType(
                     {
-                        "experiments": TableCuration(),
+                        "experiments": TableCuration(
+                            column_notes=MappingProxyType(
+                                {
+                                    "project_name": (
+                                        "not a foreign key; join projects on name AND "
+                                        "projects.deleted_at IS NULL, or a reused name also "
+                                        "matches the deleted project"
+                                    )
+                                }
+                            )
+                        ),
                         "experiments_dataset_examples": TableCuration(
                             grain="One experiment-to-dataset-example assignment"
                         ),
                         "experiment_runs": TableCuration(
                             time_column="start_time",
                             virtual_columns=frozenset({"latency_ms"}),
+                            column_notes=MappingProxyType(
+                                {"trace_id": _DELETED_PROJECT_TRACE_NOTE}
+                            ),
                         ),
                         "experiment_run_annotations": TableCuration(
                             grain=(
                                 "One annotation on an experiment run; joining to "
                                 "experiment_runs multiplies row count. Use "
                                 "COUNT(DISTINCT experiment_runs.id) to count runs"
-                            )
+                            ),
+                            column_notes=MappingProxyType(
+                                {"trace_id": _DELETED_PROJECT_TRACE_NOTE}
+                            ),
                         ),
                         "experiments_dataset_splits": TableCuration(
                             grain="One experiment-to-dataset-split assignment"
@@ -263,6 +319,12 @@ MANIFEST = AnalyticsSqlManifest(
                             grain="The prompt task of one PROMPT experiment job; id is the job id"
                         ),
                         "experiment_logs": TableCuration(
+                            grain=(
+                                "One experiment log; EVAL rows of a deleted dataset evaluator stay "
+                                "until cleanup, so LEFT JOIN experiment_eval_logs and "
+                                "dataset_evaluators (on dataset_evaluator_id) and exclude rows "
+                                "whose dataset evaluator has deleted_at set, keeping TASK logs"
+                            ),
                             time_column="occurred_at",
                             column_notes=MappingProxyType(
                                 {
@@ -277,10 +339,16 @@ MANIFEST = AnalyticsSqlManifest(
                             grain="The example and repetition of one TASK experiment log"
                         ),
                         "experiment_eval_logs": TableCuration(
-                            grain="The run and evaluator of one EVAL experiment log"
+                            grain=(
+                                "The run and evaluator of one EVAL experiment log; "
+                                f"{_LIVE_BINDING_NOTE}"
+                            )
                         ),
                         "experiment_dataset_evaluators": TableCuration(
-                            grain="One experiment-to-dataset-evaluator assignment"
+                            grain=(
+                                "One experiment-to-dataset-evaluator assignment; "
+                                f"{_LIVE_BINDING_NOTE}"
+                            )
                         ),
                     }
                 )
@@ -315,13 +383,14 @@ MANIFEST = AnalyticsSqlManifest(
                         "dataset_evaluators": TableCuration(
                             grain=(
                                 "One evaluator attached to a dataset, with the dataset's own "
-                                "name, mapping and output config for it"
+                                "name, mapping and output config for it; deleted rows await "
+                                "cleanup, so filter deleted_at IS NULL"
                             ),
                             column_notes=MappingProxyType(
                                 {
                                     "deleted_at": (
-                                        "set when the binding was deleted and awaits purging; "
-                                        "filter deleted_at IS NULL for live bindings"
+                                        "NULL on live rows, set while background cleanup drains a "
+                                        "deleted binding; filter deleted_at IS NULL"
                                     )
                                 }
                             ),

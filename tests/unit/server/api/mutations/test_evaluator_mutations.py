@@ -34,9 +34,8 @@ from phoenix.db.types.prompts import (
     PromptTools,
     TextContentPart,
 )
-from phoenix.server.daemons.evaluator_purger import EvaluatorPurger
+from phoenix.server.cleanup.coordinator import CleanupCoordinator
 from phoenix.server.encryption import EncryptionService
-from phoenix.server.evaluators.services.purge import purge_deleted_bindings
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -3279,6 +3278,11 @@ async def empty_dataset(db: DbSessionFactory) -> AsyncIterator[models.Dataset]:
         await session.flush()
     yield dataset
     async with db() as session:
+        await session.execute(
+            sa.delete(models.DatasetEvaluators).where(
+                models.DatasetEvaluators.dataset_id == dataset.id
+            )
+        )
         await session.execute(sa.delete(models.Dataset).where(models.Dataset.id == dataset.id))
 
 
@@ -3391,6 +3395,11 @@ async def llm_evaluator(
     yield evaluator
     async with db() as session:
         await session.execute(
+            sa.delete(models.DatasetEvaluators).where(
+                models.DatasetEvaluators.evaluator_id == evaluator.id
+            )
+        )
+        await session.execute(
             sa.delete(models.LLMEvaluator).where(models.LLMEvaluator.id == evaluator.id)
         )
         await session.execute(
@@ -3414,86 +3423,11 @@ class TestDeleteDatasetEvaluators:
       }
     """
 
-    async def _delete_and_purge(
-        self, db: DbSessionFactory, gql_client: AsyncGraphQLClient, variables: dict[str, Any]
-    ) -> Any:
-        result = await gql_client.execute(self._DELETE_MUTATION, variables)
-        await purge_deleted_bindings(db)
-        return result
-
-    async def test_delete_hides_the_binding_at_once_and_frees_its_name(
-        self,
-        db: DbSessionFactory,
-        gql_client: AsyncGraphQLClient,
-        empty_dataset: models.Dataset,
-        synced_builtin_evaluators: None,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        async def _hold(_: EvaluatorPurger) -> None:
-            return None
-
-        monkeypatch.setattr(EvaluatorPurger, "purge_deleted_bindings", _hold)
-        name = IdentifierModel.model_validate(f"reused-{token_hex(4)}")
-        async with db() as session:
-            builtin_evaluator_id = await session.scalar(select(models.BuiltinEvaluator.id).limit(1))
-            assert builtin_evaluator_id is not None
-            binding = models.DatasetEvaluators(
-                dataset_id=empty_dataset.id,
-                evaluator_id=builtin_evaluator_id,
-                name=name,
-                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-                project=models.Project(name=f"trace-project-{token_hex(4)}"),
-            )
-            session.add(binding)
-            await session.flush()
-            binding_id, trace_project_id = binding.id, binding.project_id
-        binding_gid = str(GlobalID("DatasetEvaluator", str(binding_id)))
-        dataset_gid = str(GlobalID("Dataset", str(empty_dataset.id)))
-
-        result = await gql_client.execute(
-            self._DELETE_MUTATION, {"input": {"datasetEvaluatorIds": [binding_gid]}}
-        )
-        assert result.data and not result.errors
-        assert result.data["deleteDatasetEvaluators"]["datasetEvaluatorIds"] == [binding_gid]
-
-        listed = await gql_client.execute(
-            """
-            query($id: ID!) {
-              node(id: $id) {
-                ... on Dataset {
-                  evaluatorCount
-                  datasetEvaluators { edges { node { id } } }
-                }
-              }
-            }
-            """,
-            {"id": dataset_gid},
-        )
-        assert listed.data and not listed.errors
-        assert listed.data["node"]["evaluatorCount"] == 0
-        assert listed.data["node"]["datasetEvaluators"]["edges"] == []
-        node = await gql_client.execute(
-            "query($id: ID!) { node(id: $id) { id } }", {"id": binding_gid}
-        )
-        assert node.errors
-
-        async with db() as session:
-            session.add(
-                models.DatasetEvaluators(
-                    dataset_id=empty_dataset.id,
-                    evaluator_id=builtin_evaluator_id,
-                    name=name,
-                    input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-                    project=models.Project(name=f"trace-project-{token_hex(4)}"),
-                )
-            )
-        async with db() as session:
-            assert await session.get(models.Project, trace_project_id) is not None
-
-        await purge_deleted_bindings(db)
-        async with db() as session:
-            assert await session.get(models.DatasetEvaluators, binding_id) is None
-            assert await session.get(models.Project, trace_project_id) is None
+    @staticmethod
+    async def _drain_cleanup(db: DbSessionFactory) -> None:
+        coordinator = CleanupCoordinator(db)
+        while (await coordinator.step_or_next_delay())[0]:
+            pass
 
     async def test_delete_builtin_evaluator(
         self,
@@ -3527,9 +3461,8 @@ class TestDeleteDatasetEvaluators:
             dataset_evaluator_gid = str(GlobalID("DatasetEvaluator", str(dataset_evaluator_id)))
 
         # Delete the evaluator
-        result = await self._delete_and_purge(
-            db,
-            gql_client,
+        result = await gql_client.execute(
+            self._DELETE_MUTATION,
             {"input": {"datasetEvaluatorIds": [dataset_evaluator_gid]}},
         )
 
@@ -3540,8 +3473,12 @@ class TestDeleteDatasetEvaluators:
             dataset_evaluator_gid in result.data["deleteDatasetEvaluators"]["datasetEvaluatorIds"]
         )
 
-        # Verify the DatasetEvaluators row and associated project are deleted
-        # but the shared built-in evaluator definition is preserved.
+        # Verify the DatasetEvaluators row and associated project are tombstoned immediately
+        # and physically deleted after cleanup runs, while the built-in definition is preserved.
+        async with db() as session:
+            tombstoned = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
+            assert tombstoned is not None and tombstoned.deleted_at is not None
+        await self._drain_cleanup(db)
         async with db() as session:
             deleted_evaluator = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
             assert deleted_evaluator is None
@@ -3606,9 +3543,8 @@ class TestDeleteDatasetEvaluators:
             link_a_gid = str(GlobalID("DatasetEvaluator", str(link_a_id)))
 
         # Delete only dataset A's link to the built-in.
-        result = await self._delete_and_purge(
-            db,
-            gql_client,
+        result = await gql_client.execute(
+            self._DELETE_MUTATION,
             {"input": {"datasetEvaluatorIds": [link_a_gid]}},
         )
 
@@ -3616,6 +3552,7 @@ class TestDeleteDatasetEvaluators:
         assert result.data is not None
         assert result.data["deleteDatasetEvaluators"]["datasetEvaluatorIds"] == [link_a_gid]
 
+        await self._drain_cleanup(db)
         async with db() as session:
             assert await session.get(models.DatasetEvaluators, link_a_id) is None
 
@@ -3710,9 +3647,8 @@ class TestDeleteDatasetEvaluators:
             dataset_evaluator_gid = str(GlobalID("DatasetEvaluator", str(dataset_evaluator_id)))
 
         # Delete the dataset evaluator
-        result = await self._delete_and_purge(
-            db,
-            gql_client,
+        result = await gql_client.execute(
+            self._DELETE_MUTATION,
             {"input": {"datasetEvaluatorIds": [dataset_evaluator_gid]}},
         )
 
@@ -3723,7 +3659,10 @@ class TestDeleteDatasetEvaluators:
             dataset_evaluator_gid in result.data["deleteDatasetEvaluators"]["datasetEvaluatorIds"]
         )
 
-        # Verify the DatasetEvaluators, Evaluator, and Project rows are deleted
+        # Verify Evaluator is collected synchronously and DatasetEvaluators/Project are purged by cleanup
+        async with db() as session:
+            assert await session.get(models.Evaluator, evaluator_id) is None
+        await self._drain_cleanup(db)
         async with db() as session:
             deleted_dataset_evaluator = await session.get(
                 models.DatasetEvaluators, dataset_evaluator_id
@@ -3735,155 +3674,6 @@ class TestDeleteDatasetEvaluators:
 
             deleted_project = await session.get(models.Project, project_id)
             assert deleted_project is None
-
-    async def test_delete_collects_project_cascade_evaluators_before_gc(
-        self,
-        db: DbSessionFactory,
-        gql_client: AsyncGraphQLClient,
-        empty_dataset: models.Dataset,
-        sandbox_config: models.SandboxConfig,
-        synced_builtin_evaluators: None,
-    ) -> None:
-        async with db() as session:
-            builtin_evaluator_id = await session.scalar(select(models.BuiltinEvaluator.id).limit(1))
-            assert builtin_evaluator_id is not None
-
-            owned_project = models.Project(
-                name=f"cascade-owned-project-{token_hex(4)}",
-                description="Project owned by a dataset evaluator",
-            )
-            survivor_project = models.Project(
-                name=f"cascade-survivor-project-{token_hex(4)}",
-                description="Project that keeps a shared evaluator alive",
-            )
-            dataset_evaluator = models.DatasetEvaluators(
-                dataset_id=empty_dataset.id,
-                evaluator_id=builtin_evaluator_id,
-                name=IdentifierModel.model_validate(f"cascade-owner-{token_hex(4)}"),
-                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-                project=owned_project,
-            )
-            session.add_all([dataset_evaluator, survivor_project])
-            await session.flush()
-
-            dedicated_code = models.CodeEvaluator(
-                name=IdentifierModel.model_validate(f"cascade-code-{token_hex(4)}"),
-                description="Dedicated CODE evaluator",
-                metadata_={},
-                language=sandbox_config.language,
-                sandbox_config_id=sandbox_config.id,
-                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-                output_configs=[],
-                versions=[
-                    models.CodeEvaluatorVersion(
-                        source_code="def evaluate(output):\n    return {'score': 1.0}"
-                    )
-                ],
-            )
-            dedicated_prompt = models.Prompt(
-                name=IdentifierModel.model_validate(f"cascade-prompt-{token_hex(4)}"),
-                description="Prompt owned by the dedicated LLM evaluator",
-                metadata_={},
-            )
-            dedicated_llm = models.LLMEvaluator(
-                name=IdentifierModel.model_validate(f"cascade-llm-{token_hex(4)}"),
-                description="Dedicated LLM evaluator",
-                metadata_={},
-                output_configs=[
-                    CategoricalOutputConfig(
-                        type="CATEGORICAL",
-                        name="correctness",
-                        optimization_direction=OptimizationDirection.MAXIMIZE,
-                        values=[
-                            CategoricalAnnotationValue(label="correct", score=1.0),
-                            CategoricalAnnotationValue(label="incorrect", score=0.0),
-                        ],
-                    )
-                ],
-                prompt=dedicated_prompt,
-            )
-            shared_code = models.CodeEvaluator(
-                name=IdentifierModel.model_validate(f"cascade-shared-{token_hex(4)}"),
-                description="CODE evaluator shared across projects",
-                metadata_={},
-                language=sandbox_config.language,
-                sandbox_config_id=sandbox_config.id,
-                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
-                output_configs=[],
-            )
-            session.add_all([dedicated_code, dedicated_llm, shared_code])
-            await session.flush()
-
-            owned_criteria = [
-                models.ProjectEvaluator(
-                    trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
-                    project_id=owned_project.id,
-                    evaluator_id=evaluator.id,
-                    name=IdentifierModel.model_validate(name),
-                    filter_condition="",
-                    sampling_rate=1.0,
-                    evaluation_target="SPAN",
-                    input_mapping=None,
-                    enabled=True,
-                )
-                for evaluator, name in (
-                    (dedicated_code, "dedicated-code"),
-                    (dedicated_llm, "dedicated-llm"),
-                    (shared_code, "shared-code-owned-project"),
-                )
-            ]
-            survivor_criteria = models.ProjectEvaluator(
-                trace_project=models.Project(name=f"project-evaluator-{token_hex(12)}"),
-                project_id=survivor_project.id,
-                evaluator_id=shared_code.id,
-                name=IdentifierModel.model_validate("shared-code-survivor-project"),
-                filter_condition="",
-                sampling_rate=1.0,
-                evaluation_target="SPAN",
-                input_mapping=None,
-                enabled=True,
-            )
-            session.add_all([*owned_criteria, survivor_criteria])
-            await session.flush()
-
-            dataset_evaluator_id = dataset_evaluator.id
-            dataset_evaluator_gid = str(GlobalID("DatasetEvaluator", str(dataset_evaluator_id)))
-            owned_project_id = owned_project.id
-            survivor_project_id = survivor_project.id
-            owned_criteria_ids = [project_evaluator.id for project_evaluator in owned_criteria]
-            survivor_criteria_id = survivor_criteria.id
-            dedicated_code_id = dedicated_code.id
-            dedicated_llm_id = dedicated_llm.id
-            dedicated_prompt_id = dedicated_prompt.id
-            shared_code_id = shared_code.id
-
-        result = await self._delete_and_purge(
-            db,
-            gql_client,
-            {
-                "input": {
-                    "datasetEvaluatorIds": [dataset_evaluator_gid],
-                    "deleteAssociatedPromptOrDecision": True,
-                }
-            },
-        )
-
-        assert result.data and not result.errors
-        assert result.data["deleteDatasetEvaluators"]["datasetEvaluatorIds"] == [
-            dataset_evaluator_gid
-        ]
-        async with db() as session:
-            assert await session.get(models.DatasetEvaluators, dataset_evaluator_id) is None
-            assert await session.get(models.Project, owned_project_id) is None
-            for project_evaluator_id in owned_criteria_ids:
-                assert await session.get(models.ProjectEvaluator, project_evaluator_id) is None
-            assert await session.get(models.Evaluator, dedicated_code_id) is None
-            assert await session.get(models.Evaluator, dedicated_llm_id) is None
-            assert await session.get(models.Prompt, dedicated_prompt_id) is None
-
-            assert await session.get(models.Project, survivor_project_id) is not None
-            assert await session.get(models.ProjectEvaluator, survivor_criteria_id) is not None
-            assert await session.get(models.CodeEvaluator, shared_code_id) is not None
 
     async def test_delete_multiple_evaluators_mixed(
         self,
@@ -3986,9 +3776,8 @@ class TestDeleteDatasetEvaluators:
             llm_de_gid = str(GlobalID("DatasetEvaluator", str(llm_de_id)))
 
         # Delete both evaluators in one call
-        result = await self._delete_and_purge(
-            db,
-            gql_client,
+        result = await gql_client.execute(
+            self._DELETE_MUTATION,
             {"input": {"datasetEvaluatorIds": [builtin_de_gid, llm_de_gid]}},
         )
 
@@ -3999,7 +3788,10 @@ class TestDeleteDatasetEvaluators:
         assert builtin_de_gid in deleted_ids
         assert llm_de_gid in deleted_ids
 
-        # Verify all rows including projects are deleted
+        # Verify all rows including projects are deleted after background cleanup drains
+        async with db() as session:
+            assert await session.get(models.Evaluator, llm_evaluator_id) is None
+        await self._drain_cleanup(db)
         async with db() as session:
             # Builtin dataset evaluator should be deleted
             deleted_builtin_de = await session.get(models.DatasetEvaluators, builtin_de_id)
@@ -4076,7 +3868,7 @@ class TestDeleteDatasetEvaluators:
         gql_client: AsyncGraphQLClient,
         empty_dataset: models.Dataset,
     ) -> None:
-        """Test deleting an LLM evaluator with deleteAssociatedPromptOrDecision=True also deletes the prompt."""
+        """Test deleting an LLM evaluator with deleteAssociatedPrompt=True also deletes the prompt."""
         evaluator_name = IdentifierModel.model_validate(f"test-llm-with-prompt-del-{token_hex(4)}")
 
         # Create an LLM evaluator with prompt
@@ -4148,14 +3940,13 @@ class TestDeleteDatasetEvaluators:
             project_id = llm_evaluator.dataset_evaluators[0].project_id
             dataset_evaluator_gid = str(GlobalID("DatasetEvaluator", str(dataset_evaluator_id)))
 
-        # Delete with deleteAssociatedPromptOrDecision=True (default)
-        result = await self._delete_and_purge(
-            db,
-            gql_client,
+        # Delete with deleteAssociatedPrompt=True (default)
+        result = await gql_client.execute(
+            self._DELETE_MUTATION,
             {
                 "input": {
                     "datasetEvaluatorIds": [dataset_evaluator_gid],
-                    "deleteAssociatedPromptOrDecision": True,
+                    "deleteAssociatedPrompt": True,
                 }
             },
         )
@@ -4167,7 +3958,11 @@ class TestDeleteDatasetEvaluators:
             dataset_evaluator_gid in result.data["deleteDatasetEvaluators"]["datasetEvaluatorIds"]
         )
 
-        # Verify the evaluator, prompt, and project are all deleted
+        # Verify the evaluator and prompt are collected synchronously and project/binding purged by cleanup
+        async with db() as session:
+            assert await session.get(models.Evaluator, evaluator_id) is None
+            assert await session.get(models.Prompt, prompt_id) is None
+        await self._drain_cleanup(db)
         async with db() as session:
             deleted_dataset_evaluator = await session.get(
                 models.DatasetEvaluators, dataset_evaluator_id
@@ -4189,7 +3984,7 @@ class TestDeleteDatasetEvaluators:
         gql_client: AsyncGraphQLClient,
         empty_dataset: models.Dataset,
     ) -> None:
-        """Test deleting an LLM evaluator with deleteAssociatedPromptOrDecision=False preserves the prompt."""
+        """Test deleting an LLM evaluator with deleteAssociatedPrompt=False preserves the prompt."""
         evaluator_name = IdentifierModel.model_validate(f"test-llm-keep-prompt-{token_hex(4)}")
 
         # Create an LLM evaluator with prompt
@@ -4261,14 +4056,13 @@ class TestDeleteDatasetEvaluators:
             project_id = llm_evaluator.dataset_evaluators[0].project_id
             dataset_evaluator_gid = str(GlobalID("DatasetEvaluator", str(dataset_evaluator_id)))
 
-        # Delete with deleteAssociatedPromptOrDecision=False
-        result = await self._delete_and_purge(
-            db,
-            gql_client,
+        # Delete with deleteAssociatedPrompt=False
+        result = await gql_client.execute(
+            self._DELETE_MUTATION,
             {
                 "input": {
                     "datasetEvaluatorIds": [dataset_evaluator_gid],
-                    "deleteAssociatedPromptOrDecision": False,
+                    "deleteAssociatedPrompt": False,
                 }
             },
         )
@@ -4280,7 +4074,11 @@ class TestDeleteDatasetEvaluators:
             dataset_evaluator_gid in result.data["deleteDatasetEvaluators"]["datasetEvaluatorIds"]
         )
 
-        # Verify the evaluator and project are deleted but prompt is preserved
+        # Verify the evaluator is collected synchronously, prompt is preserved, and project/binding purged
+        async with db() as session:
+            assert await session.get(models.Evaluator, evaluator_id) is None
+            assert await session.get(models.Prompt, prompt_id) is not None
+        await self._drain_cleanup(db)
         async with db() as session:
             deleted_dataset_evaluator = await session.get(
                 models.DatasetEvaluators, dataset_evaluator_id
@@ -4399,13 +4197,12 @@ class TestDeleteDatasetEvaluators:
             )
             assert tag_id is not None
 
-        result = await self._delete_and_purge(
-            db,
-            gql_client,
+        result = await gql_client.execute(
+            self._DELETE_MUTATION,
             {
                 "input": {
                     "datasetEvaluatorIds": [dataset_evaluator_gid],
-                    "deleteAssociatedPromptOrDecision": False,
+                    "deleteAssociatedPrompt": False,
                 }
             },
         )

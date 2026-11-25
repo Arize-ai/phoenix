@@ -1,9 +1,9 @@
 import { useMemo } from "react";
 
+import { useDerivedPlaygroundVariables } from "@phoenix/components/playground/useDerivedPlaygroundVariables";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import { useDerivedPlaygroundVariables } from "@phoenix/pages/playground/useDerivedPlaygroundVariables";
 
 /** An f-string name's root, before the member, index or format spec after it. */
 const F_STRING_ROOT_PATTERN = /^([A-Za-z_]\w*)(?:$|[.[!:])/;

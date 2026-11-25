@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import pytest
-from sqlalchemy import Select, delete, event, select
+from sqlalchemy import Select, delete, event, func, select, update
 from sqlalchemy.engine import Connection, ExecutionContext
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.dml import Update
@@ -391,6 +391,115 @@ async def test_trace_resolution_does_not_repeat_the_missing_lookup(db: DbSession
         assert (await session.scalars(select(models.Trace))).one().id == first.trace_rowid
 
 
+async def test_existing_project_resolution_queries_projects_once(db: DbSessionFactory) -> None:
+    project_reads = 0
+
+    def record_project_statement(
+        _connection: Connection,
+        _cursor: Any,
+        _statement: str,
+        _parameters: Any,
+        context: ExecutionContext,
+        _executemany: bool,
+    ) -> None:
+        nonlocal project_reads
+        if context.compiled is None:
+            return
+        statement = context.compiled.statement
+        if isinstance(statement, Select) and any(
+            getattr(table, "name", None) == models.Project.__tablename__
+            for table in statement.get_final_froms()
+        ):
+            project_reads += 1
+
+    async with db() as session:
+        existing_project = models.Project(name="existing-project")
+        session.add(existing_project)
+        await session.flush()
+        bind = session.get_bind()
+        event.listen(bind, "before_cursor_execute", record_project_statement)
+        try:
+            inserted = await insert_span(
+                session, _span("root", "new-trace", "root"), "existing-project"
+            )
+            assert inserted is not None and inserted.project_rowid == existing_project.id
+            assert project_reads == 1
+        finally:
+            event.remove(bind, "before_cursor_execute", record_project_statement)
+
+
+async def test_span_for_name_with_only_a_tombstoned_project_creates_a_live_project(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        tombstone = models.Project(
+            name="reused-name", deleted_at=datetime(2026, 1, 1, tzinfo=timezone.utc)
+        )
+        session.add(tombstone)
+        await session.flush()
+        tombstone_id = tombstone.id
+
+    async with db() as session:
+        inserted = await insert_span(session, _span("root", "new-trace", "root"), "reused-name")
+        assert inserted is not None
+        assert inserted.project_rowid != tombstone_id
+        live_project = await session.get(models.Project, inserted.project_rowid)
+        assert live_project is not None
+        assert live_project.name == "reused-name"
+        assert live_project.deleted_at is None
+
+
+async def test_late_span_for_a_trace_in_a_tombstoned_project_is_dropped(
+    db: DbSessionFactory,
+) -> None:
+    async with db() as session:
+        assert (
+            await insert_span(session, _span("first", "doomed-trace", "first"), "doomed")
+            is not None
+        )
+        await session.execute(
+            update(models.Project)
+            .where(models.Project.name == "doomed")
+            .values(deleted_at=datetime(2026, 1, 1, tzinfo=timezone.utc))
+        )
+
+    async with db() as session:
+        late_span = _span("late", "doomed-trace", "late")
+        assert await insert_span(session, late_span, "doomed") is None
+        assert await session.scalar(select(func.count(models.Span.id))) == 1
+        assert (
+            await session.scalar(select(func.count(models.Project.id)).filter_by(name="doomed"))
+            == 1
+        )
+
+
+async def test_live_trace_does_not_join_a_session_owned_by_a_tombstoned_project(
+    db: DbSessionFactory,
+) -> None:
+    session_attributes = {"session": {"id": "shared-session"}}
+    async with db() as session:
+        owner_span = replace(_span("owner", "owner-trace", "owner"), attributes=session_attributes)
+        assert await insert_span(session, owner_span, "tombstoned") is not None
+        await session.execute(
+            update(models.Project)
+            .where(models.Project.name == "tombstoned")
+            .values(deleted_at=datetime(2026, 1, 1, tzinfo=timezone.utc))
+        )
+
+    async with db() as session:
+        live_span = replace(_span("live", "live-trace", "live"), attributes=session_attributes)
+        inserted = await insert_span(session, live_span, "live")
+        assert inserted is not None
+        assert inserted.project_session_rowid is None
+
+    async with db() as session:
+        await session.execute(delete(models.Project).where(models.Project.name == "tombstoned"))
+
+    async with db() as session:
+        assert await session.scalar(select(func.count(models.Trace.id))) == 1
+        assert await session.scalar(select(func.count(models.Span.id))) == 1
+
+
 async def test_late_span_preserves_transferred_project_and_established_session(
     db: DbSessionFactory,
 ) -> None:
@@ -734,3 +843,28 @@ async def test_creation_retries_are_bounded_when_lookup_loses_winner(
             async with db() as session:
                 await insert_span(session, _span("span", "trace", "span"), "vanishing")
     assert deleted == disappearances
+
+
+@pytest.mark.postgres_only
+async def test_trace_does_not_join_a_session_owner_locked_by_an_in_flight_tombstone(
+    db: DbSessionFactory,
+) -> None:
+    if db.dialect.name_literal != "postgresql":
+        pytest.skip("Requires independent PostgreSQL transactions")
+    session_attributes = {"session": {"id": "locked-owner-session"}}
+    async with db() as session:
+        owner_span = replace(_span("owner", "owner-trace", "owner"), attributes=session_attributes)
+        assert await insert_span(session, owner_span, "locked-owner") is not None
+        owner_project_id = await session.scalar(
+            select(models.Project.id).where(models.Project.name == "locked-owner")
+        )
+
+    async with db() as tombstone_session:
+        await tombstone_session.execute(
+            select(models.Project.id).where(models.Project.id == owner_project_id).with_for_update()
+        )
+        async with db() as session:
+            live_span = replace(_span("live", "live-trace", "live"), attributes=session_attributes)
+            inserted = await asyncio.wait_for(insert_span(session, live_span, "live"), 5)
+            assert inserted is not None
+            assert inserted.project_session_rowid is None

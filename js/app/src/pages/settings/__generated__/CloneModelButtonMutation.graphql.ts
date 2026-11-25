@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<89aec26956fc9340d93f7763737b1621>>
+ * @generated SignedSource<<0da372f9854f03e07ff9d84f56296a58>>
  * @lightSyntaxTransform
  */
 
@@ -9,10 +9,12 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type GenerativeModelKind = "BUILT_IN" | "CUSTOM";
+export type GenerativeModelType = "DECISION" | "EMBEDDING" | "LLM";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 export type TokenKind = "COMPLETION" | "PROMPT";
 export type CreateModelMutationInput = {
   costs: ReadonlyArray<TokenPriceInput>;
+  modelType?: GenerativeModelType;
   name: string;
   namePattern: string;
   provider?: string | null;
@@ -34,6 +36,7 @@ export type CloneModelButtonMutation$data = {
       readonly id: string;
       readonly kind: GenerativeModelKind;
       readonly lastUsedAt: string | null;
+      readonly modelType: GenerativeModelType;
       readonly name: string;
       readonly namePattern: string;
       readonly provider: string | null;
@@ -98,6 +101,13 @@ v4 = {
       "args": null,
       "kind": "ScalarField",
       "name": "name",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "modelType",
       "storageKey": null
     },
     {
@@ -256,16 +266,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "38d9fd18934c13a39750554ecbb30fb9",
+    "cacheID": "024c9dd05f29863695b2ba700c3b5c56",
     "id": null,
     "metadata": {},
     "name": "CloneModelButtonMutation",
     "operationKind": "mutation",
-    "text": "mutation CloneModelButtonMutation(\n  $input: CreateModelMutationInput!\n) {\n  createModel(input: $input) {\n    model {\n      id\n      name\n      provider\n      namePattern\n      providerKey\n      startTime\n      createdAt\n      updatedAt\n      lastUsedAt\n      kind\n      tokenPrices {\n        tokenType\n        kind\n        costPerMillionTokens\n      }\n    }\n  }\n}\n"
+    "text": "mutation CloneModelButtonMutation(\n  $input: CreateModelMutationInput!\n) {\n  createModel(input: $input) {\n    model {\n      id\n      name\n      modelType\n      provider\n      namePattern\n      providerKey\n      startTime\n      createdAt\n      updatedAt\n      lastUsedAt\n      kind\n      tokenPrices {\n        tokenType\n        kind\n        costPerMillionTokens\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "74b3cb4e7feb2375336e29fc7745bc33";
+(node as any).hash = "d582fa8ace409a5648309292a56e6ab6";
 
 export default node;

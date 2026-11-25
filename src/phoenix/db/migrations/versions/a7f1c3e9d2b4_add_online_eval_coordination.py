@@ -4,7 +4,7 @@ The traces.last_span_ingested_at index is created inside this migration's transa
 honor PHOENIX_MIGRATE_INDEX_CONCURRENTLY because the column is added in the same transaction.
 
 Revision ID: a7f1c3e9d2b4
-Revises: 7c2bc8452d60
+Revises: 5d472ea4b4be
 Create Date: 2026-06-17 00:00:00.000000
 
 """
@@ -25,6 +25,12 @@ _QUEUED_PREDICATE = "status IN ('PENDING', 'RUNNING', 'ERROR')"
 _TERMINAL_PREDICATE = "status IN ('DONE', 'FAILED', 'EXPIRED', 'DROPPED', 'CONTENT_LOST')"
 _FAILED_PREDICATE = "status IN ('FAILED', 'EXPIRED')"
 _DONE_PREDICATE = "status = 'DONE'"
+_LIVE_PREDICATE = "deleted_at IS NULL"
+_TOMBSTONED_PREDICATE = "deleted_at IS NOT NULL"
+_PROJECT_EVALUATOR_LIFECYCLE_CHECK = (
+    "(deleted_at IS NULL AND evaluator_id IS NOT NULL) "
+    "OR (deleted_at IS NOT NULL AND evaluator_id IS NULL)"
+)
 
 _Integer = sa.Integer().with_variant(
     sa.BigInteger(),
@@ -49,7 +55,7 @@ _JOB_TYPES_AFTER = "type IN ('PROMPT', 'EVAL_ONLY', 'EVALUATOR')"
 
 # revision identifiers, used by Alembic.
 revision: str = "a7f1c3e9d2b4"
-down_revision: Union[str, None] = "7c2bc8452d60"
+down_revision: Union[str, None] = "5d472ea4b4be"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -332,14 +338,16 @@ def upgrade() -> None:
         sa.Column(
             "project_id",
             _Integer,
-            sa.ForeignKey("projects.id", ondelete="CASCADE"),
+            sa.ForeignKey("projects.id", ondelete="RESTRICT"),
             nullable=False,
         ),
+        # Cleared when the binding is tombstoned, so a tombstone keeps no reference to the
+        # evaluator definition.
         sa.Column(
             "evaluator_id",
             _Integer,
-            sa.ForeignKey("evaluators.id", ondelete="CASCADE"),
-            nullable=False,
+            sa.ForeignKey("evaluators.id", ondelete="RESTRICT"),
+            nullable=True,
         ),
         sa.Column(
             "trace_project_id",
@@ -398,7 +406,24 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-        sa.UniqueConstraint("project_id", "name"),
+        sa.Column("deleted_at", sa.TIMESTAMP(timezone=True), nullable=True),
+        sa.CheckConstraint(_PROJECT_EVALUATOR_LIFECYCLE_CHECK, name="valid_lifecycle"),
+        sqlite_autoincrement=True,
+    )
+    op.create_index(
+        "ix_project_evaluators_live_name",
+        "project_evaluators",
+        ["project_id", "name"],
+        unique=True,
+        postgresql_where=sa.text(_LIVE_PREDICATE),
+        sqlite_where=sa.text(_LIVE_PREDICATE),
+    )
+    op.create_index(
+        "ix_project_evaluators_tombstoned",
+        "project_evaluators",
+        ["deleted_at", "id"],
+        postgresql_where=sa.text(_TOMBSTONED_PREDICATE),
+        sqlite_where=sa.text(_TOMBSTONED_PREDICATE),
     )
     op.create_index(
         "ix_project_evaluators_project_id",
@@ -525,13 +550,7 @@ def _add_experiment_evaluator_tasks() -> None:
     An evaluator task is a playground evaluator draft run over a dataset as an experiment;
     the table freezes the evaluator definition so the runner can rebuild it on resume.
     """
-    # SQLite cannot alter a CHECK constraint in place, so batch mode rewrites the table.
-    with op.batch_alter_table("experiment_jobs") as batch_op:
-        batch_op.drop_constraint(constraint_name="valid_type", type_="check")
-        batch_op.create_check_constraint(
-            constraint_name="valid_type",
-            condition=_JOB_TYPES_AFTER,
-        )
+    _set_job_types(condition=_JOB_TYPES_AFTER)
     op.create_table(
         "experiment_evaluator_tasks",
         sa.Column(
@@ -570,62 +589,34 @@ def _add_experiment_evaluator_tasks() -> None:
 
 
 def _drop_experiment_evaluator_tasks() -> None:
-    # Restoring the narrower CHECK fails while EVALUATOR jobs exist, which stops the
-    # downgrade before it touches anything else rather than discarding those experiments'
-    # bookkeeping.
-    with op.batch_alter_table("experiment_jobs") as batch_op:
-        batch_op.drop_constraint(constraint_name="valid_type", type_="check")
-        batch_op.create_check_constraint(
-            constraint_name="valid_type",
-            condition=_JOB_TYPES_BEFORE,
-        )
+    # The narrower CHECK cannot hold while EVALUATOR jobs exist, so refuse before any DDL
+    # rather than discard those experiments' bookkeeping. This runs first in downgrade(),
+    # so nothing else of the migration is undone either.
+    if op.get_bind().scalar(
+        sa.text("SELECT COUNT(*) FROM experiment_jobs WHERE type = 'EVALUATOR'")
+    ):
+        raise ValueError("Cannot restore valid_type while EVALUATOR jobs exist")
+    _set_job_types(condition=_JOB_TYPES_BEFORE)
     op.drop_table("experiment_evaluator_tasks")
+
+
+def _set_job_types(*, condition: str) -> None:
+    # Alembic's SQLite dialect cannot drop a constraint, but the bundled SQLite alters it
+    # in place, as PostgreSQL does.
+    op.execute('ALTER TABLE experiment_jobs DROP CONSTRAINT "ck_experiment_jobs_`valid_type`"')
+    op.execute(
+        'ALTER TABLE experiment_jobs ADD CONSTRAINT "ck_experiment_jobs_`valid_type`" '
+        f"CHECK ({condition})"
+    )
 
 
 def downgrade() -> None:
     _drop_experiment_evaluator_tasks()
-    op.drop_index(
-        "ix_eval_trace_work_units_project_evaluator_failed", table_name="eval_trace_work_units"
-    )
-    op.drop_index(
-        "ix_eval_trace_work_units_project_evaluator_done", table_name="eval_trace_work_units"
-    )
-    op.drop_index(
-        "ix_eval_trace_work_units_project_evaluator_live", table_name="eval_trace_work_units"
-    )
-    op.drop_index(
-        "ix_eval_trace_work_units_project_evaluator_id", table_name="eval_trace_work_units"
-    )
-    op.drop_index("ix_eval_trace_work_units_terminal", table_name="eval_trace_work_units")
-    op.drop_index("ix_eval_trace_work_units_claimable", table_name="eval_trace_work_units")
+    # DROP TABLE drops each table's own indexes.
     op.drop_table("eval_trace_work_units")
-
-    op.drop_index(
-        "ix_eval_session_work_units_project_evaluator_failed", table_name="eval_session_work_units"
-    )
-    op.drop_index(
-        "ix_eval_session_work_units_project_evaluator_done", table_name="eval_session_work_units"
-    )
-    op.drop_index(
-        "ix_eval_session_work_units_project_evaluator_live", table_name="eval_session_work_units"
-    )
-    op.drop_index(
-        "ix_eval_session_work_units_project_evaluator_id", table_name="eval_session_work_units"
-    )
-    op.drop_index("ix_eval_session_work_units_terminal", table_name="eval_session_work_units")
-    op.drop_index("ix_eval_session_work_units_claimable", table_name="eval_session_work_units")
     op.drop_table("eval_session_work_units")
-
-    op.drop_index("ix_eval_work_units_project_evaluator_failed", table_name="eval_work_units")
-    op.drop_index("ix_eval_work_units_project_evaluator_done", table_name="eval_work_units")
-    op.drop_index("ix_eval_work_units_project_evaluator_live", table_name="eval_work_units")
-    op.drop_index("ix_eval_work_units_project_evaluator_id", table_name="eval_work_units")
-    op.drop_index("ix_eval_work_units_terminal", table_name="eval_work_units")
-    op.drop_index("ix_eval_work_units_claimable", table_name="eval_work_units")
     op.drop_table("eval_work_units")
     op.drop_table("project_evaluator_state")
-    op.drop_index("ix_project_evaluators_evaluator_id", table_name="project_evaluators")
-    op.drop_index("ix_project_evaluators_project_id", table_name="project_evaluators")
     op.drop_table("project_evaluators")
     op.drop_table("eval_work_leases")
     op.drop_table("eval_span_cursors")

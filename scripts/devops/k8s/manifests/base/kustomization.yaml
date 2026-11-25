@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: phoenix-devops
+
+resources:
+  - traefik.yaml
+  - db.yaml
+  - oidc-dev.yaml
+  - smtp-dev.yaml
+  - phoenix-services.yaml

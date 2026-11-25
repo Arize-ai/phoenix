@@ -326,7 +326,7 @@ function SideNavContent({
               leadingVisual={<Icon svg={<Icons.Trace />} />}
               trailingVisual={
                 counts?.projectCount != null ? (
-                  <Counter variant="quiet">{counts.projectCount}</Counter>
+                  <Counter variant="quiet" count={counts.projectCount} />
                 ) : undefined
               }
               isExpanded={isExpanded}
@@ -347,7 +347,7 @@ function SideNavContent({
               leadingVisual={<Icon svg={<Icons.Database />} />}
               trailingVisual={
                 counts?.datasetCount != null ? (
-                  <Counter variant="quiet">{counts.datasetCount}</Counter>
+                  <Counter variant="quiet" count={counts.datasetCount} />
                 ) : undefined
               }
               isExpanded={isExpanded}
@@ -360,10 +360,13 @@ function SideNavContent({
               leadingVisual={<Icon svg={<Icons.Scale />} />}
               trailingVisual={
                 counts != null ? (
-                  <Counter variant="quiet">
-                    {counts.projectEvaluatorCount +
-                      counts.datasetEvaluatorCount}
-                  </Counter>
+                  <Counter
+                    variant="quiet"
+                    count={
+                      counts.projectEvaluatorCount +
+                      counts.datasetEvaluatorCount
+                    }
+                  />
                 ) : undefined
               }
               isExpanded={isExpanded}
@@ -379,9 +382,10 @@ function SideNavContent({
               leadingVisual={<Icon svg={<Icons.MessagesSquare />} />}
               trailingVisual={
                 counts?.promptCount != null ? (
-                  <Counter variant="quiet">
-                    {counts.promptCount + (counts.decisionCount ?? 0)}
-                  </Counter>
+                  <Counter
+                    variant="quiet"
+                    count={counts.promptCount + (counts.decisionCount ?? 0)}
+                  />
                 ) : undefined
               }
               isExpanded={isExpanded}

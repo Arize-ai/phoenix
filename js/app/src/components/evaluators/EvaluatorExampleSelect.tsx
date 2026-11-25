@@ -13,7 +13,7 @@ import {
 } from "@phoenix/components/core/select";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import type { EvaluatorExampleSelectQuery } from "@phoenix/components/evaluators/__generated__/EvaluatorExampleSelectQuery.graphql";
-import { IdTruncate } from "@phoenix/pages/playground/PromptMenu";
+import { IdTruncate } from "@phoenix/components/IdTruncate";
 
 export type EvaluatorExampleSelectProps = {
   datasetId: string | null;

@@ -35,6 +35,7 @@ export const projectEvaluatorsLoaderGQL = graphql`
     $filter: ProjectEvaluatorFilter
     $timeRange: TimeRange!
     $scoreTimeRange: TimeRange!
+    $scorePreviousTimeRange: TimeRange!
     $scoreTimeBinConfig: TimeBinConfig!
     $includeMeanScore: Boolean!
   ) {
@@ -46,6 +47,7 @@ export const projectEvaluatorsLoaderGQL = graphql`
             filter: $filter
             timeRange: $timeRange
             scoreTimeRange: $scoreTimeRange
+            scorePreviousTimeRange: $scorePreviousTimeRange
             scoreTimeBinConfig: $scoreTimeBinConfig
             includeMeanScore: $includeMeanScore
           )
@@ -93,9 +95,9 @@ function getPageTimeRange(searchParams: URLSearchParams) {
 }
 
 /**
- * Whether the mean score column is visible in the persisted table
+ * Whether the results column is visible in the persisted table
  * preferences, and its data should be fetched with the rows. Mirrors the
- * table's `columnVisibility["meanScore"] !== false` read; unreadable or
+ * table's `columnVisibility["results"] !== false` read; unreadable or
  * missing storage means the default (visible).
  */
 function getStoredIncludeMeanScore(): boolean {
@@ -106,7 +108,7 @@ function getStoredIncludeMeanScore(): boolean {
     const visibility = persisted
       ? JSON.parse(persisted)?.state?.columnVisibility
       : null;
-    return visibility?.meanScore !== false;
+    return visibility?.results !== false;
   } catch {
     return true;
   }
@@ -120,7 +122,7 @@ export type ProjectEvaluatorsLoaderData = {
   timeRange: TimeRangeISOStrings;
   /** The exact score window the query was loaded with. */
   scoreWindow: EvaluatorScoreWindow;
-  /** Whether the query fetched the mean score column's data. */
+  /** Whether the query fetched the results column's data. */
   includeMeanScore: boolean;
 };
 
@@ -183,6 +185,7 @@ export function projectEvaluatorsLoader(
         filter: filter ? { col: "name", value: filter } : null,
         timeRange,
         scoreTimeRange: scoreWindow.timeRange,
+        scorePreviousTimeRange: scoreWindow.previousTimeRange,
         scoreTimeBinConfig: scoreWindow.timeBinConfig,
         includeMeanScore,
       },

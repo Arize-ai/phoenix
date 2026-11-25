@@ -1,5 +1,6 @@
 import type { RowData } from "@tanstack/react-table";
 
+import { Text, View } from "@phoenix/components";
 import { AnnotationTargetTypeToken } from "@phoenix/components/annotation/AnnotationTargetTypeToken";
 import type { AnnotationTargetType } from "@phoenix/components/annotation/types";
 import type { ColumnSelectorColumn } from "@phoenix/components/table";
@@ -22,6 +23,8 @@ import { normalizeAnnotationColumnOrder } from "./tableUtils";
  */
 export interface AnnotationColumnKind {
   names: string[];
+  /** Shown where the names would be listed when they failed to load. */
+  namesError: string | null;
   visibility: Record<string, boolean>;
   onVisibilityChange: (visibility: Record<string, boolean>) => void;
   /**
@@ -178,6 +181,16 @@ export function TracingColumnSelector<TData extends RowData>({
       columnVisibility={mergedColumnVisibility}
       onColumnVisibilityChange={onColumnVisibilityChange}
       onColumnOrderChange={onColumnOrderChange}
-    />
+    >
+      {annotationKinds.map((kind) =>
+        kind.namesError == null ? null : (
+          <View key={kind.targetType} paddingX="size-150" paddingY="size-50">
+            <Text size="XS" color="text-300">
+              {kind.namesError}
+            </Text>
+          </View>
+        )
+      )}
+    </ColumnSelector>
   );
 }

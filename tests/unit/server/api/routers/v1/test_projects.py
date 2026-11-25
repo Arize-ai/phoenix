@@ -8,7 +8,7 @@ from urllib.parse import quote
 
 import httpx2
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, update
 from strawberry.relay import GlobalID
 
 from phoenix.config import DEFAULT_PROJECT_NAME, PLAYGROUND_PROJECT_NAME
@@ -23,6 +23,8 @@ from phoenix.db.types.trace_retention import (
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project
+from phoenix.server.cleanup.coordinator import CleanupCoordinator
+from phoenix.server.dml_event import DmlEvent, ProjectDeleteEvent, SpanDeleteEvent
 from phoenix.server.types import DbSessionFactory
 
 
@@ -273,8 +275,19 @@ class TestProjects:
             f"DELETE /projects/{project_identifier} should return 204 status code, got {response.status_code}"
         )
 
+        # Immediately hidden from GET and tombstoned in DB before worker runs
+        get_response = await httpx_client.get(url)
+        assert get_response.status_code == 404
         async with db() as session:
-            # Verify project is deleted
+            tombstoned = await session.get(models.Project, project.id)
+            assert tombstoned is not None and tombstoned.deleted_at is not None
+
+        coordinator = CleanupCoordinator(db)
+        while (await coordinator.step_or_next_delay())[0]:
+            pass
+
+        async with db() as session:
+            # Verify project is physically purged after cleanup runs
             deleted_project = await session.get(models.Project, project.id)
             assert deleted_project is None, f"Project {project.id} should be deleted from database"
 
@@ -401,6 +414,46 @@ class TestProjects:
         assert response.status_code == 404, (
             f"PUT /projects/{project_identifier} should return a 404 status code, got {response.status_code}: {response.text}"
         )
+
+    async def test_delete_project_emits_span_and_project_delete_events(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+        recorded_dml_events: list[DmlEvent],
+    ) -> None:
+        async with db() as session:
+            project = models.Project(name=f"evented-{token_hex(4)}")
+            session.add(project)
+            await session.flush()
+            project_id = project.id
+
+        response = await httpx_client.delete(f"v1/projects/{project.name}")
+        assert response.status_code == 204
+        assert recorded_dml_events == [
+            SpanDeleteEvent((project_id,)),
+            ProjectDeleteEvent((project_id,)),
+        ]
+
+    async def test_delete_project_tombstoned_before_the_lifecycle_call_returns_404_with_identifier(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from phoenix.server.api.exceptions import NotFound
+        from phoenix.server.api.routers.v1 import projects as projects_router
+
+        project_name = f"raced-{token_hex(4)}"
+        async with db() as session:
+            session.add(models.Project(name=project_name))
+
+        async def _raise_not_found(*args: Any, **kwargs: Any) -> None:
+            raise NotFound("Project with ID 1 not found")
+
+        monkeypatch.setattr(projects_router, "tombstone_project", _raise_not_found)
+        response = await httpx_client.delete(f"v1/projects/{project_name}")
+        assert response.status_code == 404
+        assert project_name in response.text
 
     async def test_delete_nonexistent_project(
         self,
@@ -1448,6 +1501,25 @@ class TestDeleteProjectTraces:
             params={"start_time": self._START_TIME, "end_time": self._END_TIME},
         )
         assert response.status_code == 404
+
+    async def test_delete_project_traces_from_tombstoned_project_returns_404(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project, traces = await self._project_with_traces(db)
+        async with db() as session:
+            await session.execute(
+                update(models.Project)
+                .where(models.Project.id == project.id)
+                .values(deleted_at=datetime.now(timezone.utc))
+            )
+        response = await httpx_client.delete(
+            f"v1/projects/{project.name}/traces",
+            params={"start_time": self._START_TIME, "end_time": self._END_TIME},
+        )
+        assert response.status_code == 404
+        assert await self._trace_count(db, project.id) == len(traces)
 
     @pytest.mark.parametrize(
         "params",

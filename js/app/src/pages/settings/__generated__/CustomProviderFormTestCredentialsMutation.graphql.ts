@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9c35b18234adf709e3f7b75443bae981>>
+ * @generated SignedSource<<0dd469e9fb32269271f28e6e01186cfc>>
  * @lightSyntaxTransform
  */
 
@@ -8,7 +8,6 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type DecisionSDK = "OPENAI" | "TYPESAFE";
 export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
 export type GenerativeModelCustomerProviderConfigInput = {
   anthropic?: never;
@@ -54,8 +53,6 @@ export type GenerativeModelCustomerProviderConfigInput = {
   typesafe: TypeSafeCustomProviderConfigInput;
 };
 export type OpenAICustomProviderConfigInput = {
-  decisionModels?: DecisionModelsConfigInput | null;
-  modelNames?: ReadonlyArray<string> | null;
   openaiApiType?: OpenAIApiType | null;
   openaiAuthenticationMethod: OpenAIAuthenticationMethodInput;
   openaiClientKwargs?: OpenAIClientKwargsInput | null;
@@ -69,16 +66,9 @@ export type OpenAIClientKwargsInput = {
   organization?: string | null;
   project?: string | null;
 };
-export type DecisionModelsConfigInput = {
-  baseUrl?: string | null;
-  decisionSdk: DecisionSDK;
-  modelNames?: ReadonlyArray<string> | null;
-};
 export type AzureOpenAICustomProviderConfigInput = {
   azureOpenaiAuthenticationMethod: AzureOpenAIAuthenticationMethodInput;
   azureOpenaiClientKwargs: AzureOpenAIClientKwargsInput;
-  decisionModels?: DecisionModelsConfigInput | null;
-  modelNames?: ReadonlyArray<string> | null;
   openaiApiType?: OpenAIApiType | null;
 };
 export type AzureOpenAIAuthenticationMethodInput = {
@@ -107,7 +97,6 @@ export type AzureOpenAIClientKwargsInput = {
 export type AnthropicCustomProviderConfigInput = {
   anthropicAuthenticationMethod: AnthropicAuthenticationMethodInput;
   anthropicClientKwargs?: AnthropicClientKwargsInput | null;
-  modelNames?: ReadonlyArray<string> | null;
 };
 export type AnthropicAuthenticationMethodInput = {
   apiKey: string;
@@ -119,7 +108,6 @@ export type AnthropicClientKwargsInput = {
 export type AWSBedrockCustomProviderConfigInput = {
   awsBedrockAuthenticationMethod: AWSBedrockAuthenticationMethodInput;
   awsBedrockClientKwargs: AWSBedrockClientKwargsInput;
-  modelNames?: ReadonlyArray<string> | null;
 };
 export type AWSBedrockAuthenticationMethodInput = {
   accessKeys: AWSBedrockAccessKeysInput;
@@ -140,7 +128,6 @@ export type AWSBedrockClientKwargsInput = {
 export type GoogleGenAICustomProviderConfigInput = {
   googleGenaiAuthenticationMethod: GoogleGenAIAuthenticationMethodInput;
   googleGenaiClientKwargs?: GoogleGenAIClientKwargsInput | null;
-  modelNames?: ReadonlyArray<string> | null;
 };
 export type GoogleGenAIAuthenticationMethodInput = {
   apiKey: string;
@@ -153,7 +140,6 @@ export type GoogleGenAIHttpOptionsInput = {
   headers?: any | null;
 };
 export type TypeSafeCustomProviderConfigInput = {
-  decisionModels?: DecisionModelsConfigInput | null;
   typesafeAuthenticationMethod: TypeSafeAuthenticationMethodInput;
   typesafeClientKwargs?: TypeSafeClientKwargsInput | null;
 };
@@ -164,11 +150,25 @@ export type TypeSafeClientKwargsInput = {
   baseUrl?: string | null;
   defaultHeaders?: any | null;
 };
+export type ProviderModelsInput = {
+  chat?: ModelsOfTypeInput | null;
+  decision?: ModelsOfTypeInput | null;
+};
+export type ModelsOfTypeInput = {
+  names?: ReadonlyArray<string>;
+};
 export type CustomProviderFormTestCredentialsMutation$variables = {
   input: GenerativeModelCustomerProviderConfigInput;
+  models?: ProviderModelsInput | null;
 };
 export type CustomProviderFormTestCredentialsMutation$data = {
   readonly testGenerativeModelCustomProviderCredentials: {
+    readonly chat: {
+      readonly error: string | null;
+    } | null;
+    readonly decision: {
+      readonly error: string | null;
+    } | null;
     readonly error: string | null;
   };
 };
@@ -183,9 +183,24 @@ var v0 = [
     "defaultValue": null,
     "kind": "LocalArgument",
     "name": "input"
+  },
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "models"
   }
 ],
-v1 = [
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "error",
+  "storageKey": null
+},
+v2 = [
+  (v1/*:: as any*/)
+],
+v3 = [
   {
     "alias": null,
     "args": [
@@ -193,6 +208,11 @@ v1 = [
         "kind": "Variable",
         "name": "input",
         "variableName": "input"
+      },
+      {
+        "kind": "Variable",
+        "name": "models",
+        "variableName": "models"
       }
     ],
     "concreteType": "TestGenerativeModelCustomProviderCredentialsResult",
@@ -200,11 +220,25 @@ v1 = [
     "name": "testGenerativeModelCustomProviderCredentials",
     "plural": false,
     "selections": [
+      (v1/*:: as any*/),
       {
         "alias": null,
         "args": null,
-        "kind": "ScalarField",
-        "name": "error",
+        "concreteType": "CustomProviderModelTypeCheck",
+        "kind": "LinkedField",
+        "name": "chat",
+        "plural": false,
+        "selections": (v2/*:: as any*/),
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "CustomProviderModelTypeCheck",
+        "kind": "LinkedField",
+        "name": "decision",
+        "plural": false,
+        "selections": (v2/*:: as any*/),
         "storageKey": null
       }
     ],
@@ -217,7 +251,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "CustomProviderFormTestCredentialsMutation",
-    "selections": (v1/*:: as any*/),
+    "selections": (v3/*:: as any*/),
     "type": "Mutation",
     "abstractKey": null
   },
@@ -226,19 +260,19 @@ return {
     "argumentDefinitions": (v0/*:: as any*/),
     "kind": "Operation",
     "name": "CustomProviderFormTestCredentialsMutation",
-    "selections": (v1/*:: as any*/)
+    "selections": (v3/*:: as any*/)
   },
   "params": {
-    "cacheID": "7680aac239abb387cb84f787e2b9c2dc",
+    "cacheID": "90629d4ef9b8267a2e06a31c8b465ba2",
     "id": null,
     "metadata": {},
     "name": "CustomProviderFormTestCredentialsMutation",
     "operationKind": "mutation",
-    "text": "mutation CustomProviderFormTestCredentialsMutation(\n  $input: GenerativeModelCustomerProviderConfigInput!\n) {\n  testGenerativeModelCustomProviderCredentials(input: $input) {\n    error\n  }\n}\n"
+    "text": "mutation CustomProviderFormTestCredentialsMutation(\n  $input: GenerativeModelCustomerProviderConfigInput!\n  $models: ProviderModelsInput\n) {\n  testGenerativeModelCustomProviderCredentials(input: $input, models: $models) {\n    error\n    chat {\n      error\n    }\n    decision {\n      error\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "dff7b8eedafccb0a37f2748ccb1a7be6";
+(node as any).hash = "20711513d01ef41f5203c341ac9c0608";
 
 export default node;

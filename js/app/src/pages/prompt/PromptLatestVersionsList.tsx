@@ -1,10 +1,10 @@
 import { graphql, useFragment } from "react-relay";
 import { useResolvedPath } from "react-router";
 
-import { LatestVersionsList } from "@phoenix/components/versions/LatestVersionsList";
+import { Flex, Link, Timeline } from "@phoenix/components";
 
 import type { PromptLatestVersionsListFragment$key } from "./__generated__/PromptLatestVersionsListFragment.graphql";
-import { PromptVersionSummary } from "./PromptVersionSummary";
+import { PromptVersionTimelineItem } from "./PromptVersionSummary";
 
 export function PromptLatestVersionsList(props: {
   prompt: PromptLatestVersionsListFragment$key;
@@ -15,13 +15,13 @@ export function PromptLatestVersionsList(props: {
     graphql`
       fragment PromptLatestVersionsListFragment on Prompt {
         latestVersions: promptVersions(first: 5) {
+          pageInfo {
+            hasNextPage
+          }
           edges {
             version: node {
               id
               ... on PromptVersion {
-                description
-                createdAt
-                sequenceNumber
                 ...PromptVersionSummaryFragment
               }
             }
@@ -31,19 +31,22 @@ export function PromptLatestVersionsList(props: {
     `,
     prompt
   );
-  const versions = data?.latestVersions?.edges?.map((edge) => edge.version);
-
-  if (!versions) {
-    throw new Error("Expected prompt versions to be defined");
-  }
+  const { latestVersions } = data;
 
   return (
-    <LatestVersionsList
-      versions={versions}
-      renderVersion={(version) => (
-        <PromptVersionSummary promptVersion={version} />
-      )}
-      viewAllTo={`${basePath}/versions`}
-    />
+    <Flex direction="column" gap="size-100">
+      <Timeline isTruncated={latestVersions.pageInfo.hasNextPage}>
+        {latestVersions.edges.map(({ version }) => (
+          <PromptVersionTimelineItem
+            key={version.id}
+            promptVersion={version}
+            to={`${basePath}/versions/${version.id}`}
+          />
+        ))}
+      </Timeline>
+      <Flex direction="row" justifyContent="end">
+        <Link to={`${basePath}/versions`}>View all versions</Link>
+      </Flex>
+    </Flex>
   );
 }

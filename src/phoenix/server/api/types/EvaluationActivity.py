@@ -87,6 +87,15 @@ class EvaluationActivityGroup:
     def cost(self) -> Optional[float]:
         return self.group.cost
 
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Seconds the evaluations' traces started in the range took, summed; null if none. "
+            "Evaluators with tracing off write no traces, so their evaluations add no time."
+        )
+    )
+    def evaluation_seconds(self) -> Optional[float]:
+        return self.group.evaluation_seconds
+
 
 @strawberry.type(description="One group's evaluation activity in one time bin.")
 class EvaluationActivityBinGroup:
@@ -135,15 +144,6 @@ class EvaluationActivityBinGroup:
     def cost(self) -> Optional[float]:
         return self.group.cost
 
-    @strawberry.field(  # type: ignore[untyped-decorator]
-        description=(
-            "Evaluations in queue at the end of the bin. Read only when selected, from every "
-            "evaluation in queue."
-        )
-    )
-    def queue_size(self) -> int:
-        return self.group.queue_size
-
 
 @strawberry.type(description="Evaluation activity in one time bin.")
 class EvaluationActivityBin:
@@ -158,6 +158,15 @@ class EvaluationActivityBin:
     )
     def groups(self) -> list[EvaluationActivityBinGroup]:
         return [EvaluationActivityBinGroup(group=group) for group in self.bin.groups]
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Evaluations in queue at the end of the bin, across every group. Read only when "
+            "selected, from every evaluation in queue."
+        )
+    )
+    def queue_size(self) -> int:
+        return self.bin.queue_size
 
 
 @strawberry.type(
@@ -228,15 +237,34 @@ async def resolve_evaluation_activity(
         start=time_range.start,
         end=end,
         time_bins=TimeBucketSpec.from_config(time_bin_config),
-        read_queue_size=_selects_bin_field(info, "queueSize"),
+        **_reads_for_selection(info),
     )
     return EvaluationActivity(activity=activity)
 
 
-def _selects_bin_field(info: Info[Context, None], name: str) -> bool:
-    return any(
-        _selects(field.selections, ("series", "groups", name)) for field in info.selected_fields
-    )
+def _reads_for_selection(info: Info[Context, None]) -> dict[str, bool]:
+    """The activity reads the selection needs, so each request pays only for what it shows.
+
+    A bin's groups are the groups with counts, additions, or cost in the bin, so selecting
+    them reads all three: reading fewer would list fewer groups, and two requests that
+    select different fields would disagree on the list. The top-level groups are ordered
+    by their counts.
+    """
+
+    def selects(*path: str) -> bool:
+        return any(_selects(field.selections, path) for field in info.selected_fields)
+
+    reads_bin_groups = selects("series", "groups")
+    return {
+        "read_counts": reads_bin_groups
+        or selects("groups")
+        or selects("evaluatedCount")
+        or selects("failedCount"),
+        "read_added": reads_bin_groups,
+        "read_cost": reads_bin_groups or selects("cost") or selects("groups", "cost"),
+        "read_evaluation_seconds": selects("groups", "evaluationSeconds"),
+        "read_queue_size": selects("series", "queueSize"),
+    }
 
 
 def _selects(selections: Sequence[Selection], path: Sequence[str]) -> bool:

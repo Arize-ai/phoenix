@@ -123,6 +123,7 @@ from phoenix.db.types.experiment_log import (
     RetriesExhaustedDetail,
 )
 from phoenix.db.types.prompts import PromptChatTemplate, PromptInvocationParameters
+from phoenix.server.api.helpers.chat_clients import get_chat_client
 from phoenix.server.api.helpers.dataset_helpers import dataset_example_eval_context
 from phoenix.server.api.helpers.decision_clients import (
     DecisionClient,
@@ -139,7 +140,6 @@ from phoenix.server.api.helpers.message_helpers import (
     formatted_messages,
     prompt_chat_template_to_playground_messages,
 )
-from phoenix.server.api.helpers.playground_clients import get_playground_client
 from phoenix.server.api.helpers.playground_experiment_runs import (
     get_db_experiment_run,
 )
@@ -177,8 +177,8 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from phoenix.db.types.prompts import PromptResponseFormat, PromptTools
+    from phoenix.server.api.helpers.chat_clients import ChatCompletionChunk
     from phoenix.server.api.helpers.message_helpers import PlaygroundMessage
-    from phoenix.server.api.helpers.playground_clients import ChatCompletionChunk
     from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
     from phoenix.server.sandbox.session_manager import SandboxSessionManager
     from phoenix.server.sandbox.types import SandboxRuntimeContext
@@ -214,7 +214,7 @@ def _sanitize_error_message(error: BaseException) -> str:
 class LLMClient(Protocol):
     """Narrow interface for the LLM client methods the runner actually uses.
 
-    PlaygroundClient satisfies this implicitly.
+    ChatClient satisfies this implicitly.
     """
 
     def get_rate_limit_key(self) -> Hashable: ...
@@ -533,15 +533,34 @@ class ExampleWorkItem(WorkItem):
         self,
         db_run: models.ExperimentRun,
         db_traces: Sequence[models.Trace] | None = None,
-    ) -> models.ExperimentRun:
+    ) -> models.ExperimentRun | None:
         """Upsert an experiment run (and optional traces) to the database.
 
-        Returns the persisted ExperimentRun with its generated id.
+        Returns the persisted ExperimentRun with its generated id, or None if the experiment
+        was deleted concurrently.
         """
         with anyio.fail_after(5, shield=True):
             async with self._db() as session:
+                if (
+                    await session.scalar(
+                        select(models.Experiment.id).where(
+                            models.Experiment.id == db_run.experiment_id
+                        )
+                    )
+                    is None
+                ):
+                    return None
                 if db_traces:
-                    session.add_all(db_traces)
+                    project_live = await session.scalar(
+                        select(models.Project.id).where(
+                            models.Project.id == self._project_id,
+                            models.Project.deleted_at.is_(None),
+                        )
+                    )
+                    if project_live is not None:
+                        session.add_all(db_traces)
+                    else:
+                        db_run.trace_id = None
                 return await _upsert_experiment_run(session, db_run, self._db.dialect)
 
     async def _record_run(
@@ -569,7 +588,7 @@ class ExampleWorkItem(WorkItem):
             error=error,
         )
         try:
-            db_run = await self._persist_run(db_run, db_traces or None)
+            persisted_run = await self._persist_run(db_run, db_traces or None)
         except Exception as persist_err:
             logger.warning(
                 f"{type(self).__name__} {self.debug_identifier}: failed to persist run to DB",
@@ -577,6 +596,11 @@ class ExampleWorkItem(WorkItem):
             )
             await self._running_experiment.on_failure(self, persist_err)
             return
+        if persisted_run is None:
+            return
+        db_run = persisted_run
+        if db_run.trace_id is None:
+            db_traces = []
         root_span = _root_span(db_traces[0]) if db_traces else None
         span = Span(id=root_span.id, db_record=root_span) if root_span is not None else None
         experiment_run = ExperimentRun(id=db_run.id, db_record=db_run)
@@ -793,7 +817,7 @@ class TaskWorkItem(ExampleWorkItem):
                     trace=None,
                 )
             try:
-                db_run = await self._persist_run(
+                persisted_run = await self._persist_run(
                     db_run, db_traces=task_db_traces if task_db_trace is not None else None
                 )
             except Exception as persist_err:
@@ -803,6 +827,11 @@ class TaskWorkItem(ExampleWorkItem):
                 )
                 await self._running_experiment.on_failure(self, persist_err)
                 return
+            if persisted_run is None:
+                return
+            db_run = persisted_run
+            if db_run.trace_id is None:
+                db_span = None
 
             self._running_experiment._broadcast(
                 ChatCompletionSubscriptionResult(
@@ -976,7 +1005,7 @@ class EvaluatorTaskWorkItem(ExampleWorkItem):
             error=error_result["error"] if error_result is not None else None,
         )
         try:
-            db_run = await self._persist_run_and_annotations(db_run, annotations, db_traces)
+            persisted_run = await self._persist_run_and_annotations(db_run, annotations, db_traces)
         except Exception as persist_err:
             logger.warning(
                 f"EvaluatorTaskWorkItem {self.debug_identifier}: failed to persist run to DB",
@@ -984,6 +1013,11 @@ class EvaluatorTaskWorkItem(ExampleWorkItem):
             )
             await self._running_experiment.on_failure(self, persist_err)
             return
+        if persisted_run is None:
+            return
+        db_run = persisted_run
+        if db_run.trace_id is None:
+            db_traces = []
 
         self._broadcast_outcome(db_run, annotations, db_traces)
         if error_result is not None:
@@ -1021,7 +1055,7 @@ class EvaluatorTaskWorkItem(ExampleWorkItem):
         )
         annotations = self._error_annotations(message, end_time, trace_id=trace_id)
         try:
-            db_run = await self._persist_run_and_annotations(db_run, annotations, db_traces)
+            persisted_run = await self._persist_run_and_annotations(db_run, annotations, db_traces)
         except Exception as persist_err:
             logger.warning(
                 f"EvaluatorTaskWorkItem {self.debug_identifier}: failed to persist error run to DB",
@@ -1029,6 +1063,11 @@ class EvaluatorTaskWorkItem(ExampleWorkItem):
             )
             await self._running_experiment.on_failure(self, persist_err)
             return
+        if persisted_run is None:
+            return
+        db_run = persisted_run
+        if db_run.trace_id is None:
+            db_traces = []
 
         self._broadcast_outcome(db_run, annotations, db_traces)
         await self._running_experiment.on_failure(self, error)
@@ -1064,15 +1103,36 @@ class EvaluatorTaskWorkItem(ExampleWorkItem):
         db_run: models.ExperimentRun,
         annotations: Sequence[models.ExperimentRunAnnotation],
         db_traces: Sequence[models.Trace],
-    ) -> models.ExperimentRun:
+    ) -> models.ExperimentRun | None:
         """Upsert the run, then its annotations under the run's id, in one transaction.
 
-        Returns the persisted ExperimentRun; the annotation objects receive their ids.
+        Returns the persisted ExperimentRun (or None if the experiment was deleted concurrently);
+        the annotation objects receive their ids.
         """
         with anyio.fail_after(5, shield=True):
             async with self._db() as session:
+                if (
+                    await session.scalar(
+                        select(models.Experiment.id).where(
+                            models.Experiment.id == db_run.experiment_id
+                        )
+                    )
+                    is None
+                ):
+                    return None
                 if db_traces:
-                    session.add_all(db_traces)
+                    project_live = await session.scalar(
+                        select(models.Project.id).where(
+                            models.Project.id == self._project_id,
+                            models.Project.deleted_at.is_(None),
+                        )
+                    )
+                    if project_live is not None:
+                        session.add_all(db_traces)
+                    else:
+                        db_run.trace_id = None
+                        for annotation in annotations:
+                            annotation.trace_id = None
                 persisted_run = await _upsert_experiment_run(session, db_run, self._db.dialect)
                 for annotation in annotations:
                     annotation.experiment_run_id = persisted_run.id
@@ -1432,7 +1492,7 @@ class EvalWorkItem(WorkItem):
                     )
                 error_db_traces = list(tracer.get_db_traces(project_id=self._project_id))
                 try:
-                    await self._persist_eval_results(error_annotations, error_db_traces)
+                    persisted = await self._persist_eval_results(error_annotations, error_db_traces)
                 except Exception as persist_err:
                     logger.warning(
                         f"EvalWorkItem {self.debug_identifier}: "
@@ -1440,6 +1500,9 @@ class EvalWorkItem(WorkItem):
                         exc_info=True,
                     )
                     await self._running_experiment.on_failure(self, persist_err)
+                    return
+                if not persisted:
+                    await self._running_experiment.on_eval_success(self)
                     return
 
                 example_id = GlobalID(
@@ -1461,13 +1524,16 @@ class EvalWorkItem(WorkItem):
 
         else:
             try:
-                await self._persist_eval_results(annotations, db_traces)
+                persisted = await self._persist_eval_results(annotations, db_traces)
             except Exception as persist_err:
                 logger.warning(
                     f"EvalWorkItem {self.debug_identifier}: failed to persist eval results to DB",
                     exc_info=True,
                 )
                 await self._running_experiment.on_failure(self, persist_err)
+                return
+            if not persisted:
+                await self._running_experiment.on_eval_success(self)
                 return
 
             # Broadcast results to UI
@@ -1516,28 +1582,65 @@ class EvalWorkItem(WorkItem):
         self,
         annotations: Sequence[models.ExperimentRunAnnotation],
         db_traces: Sequence[models.Trace],
-    ) -> None:
+    ) -> bool:
         """Persist annotations and traces to DB in parallel.
 
-        Annotation objects are updated in-place with their generated IDs.
+        Returns False if the binding or run was deleted concurrently, or if its traces were skipped.
         """
-        # TODO: crash consistency. Traces and annotations are written in separate transactions,
-        # and no test covers a crash between them or between a provider response and the
-        # result commit.
+
+        async with self._db.read() as session:
+            binding_live = await session.scalar(
+                select(models.DatasetEvaluators.id).where(
+                    models.DatasetEvaluators.id == self._dataset_evaluator_id,
+                    models.DatasetEvaluators.deleted_at.is_(None),
+                )
+            )
+            run_live = await session.scalar(
+                select(models.ExperimentRun.id).where(
+                    models.ExperimentRun.id == self._experiment_run.id
+                )
+            )
+            if binding_live is None or run_live is None:
+                return False
+
+        traces_persisted = not db_traces
 
         async def _persist_traces() -> None:
+            nonlocal traces_persisted
             if db_traces:
                 async with self._db() as session:
-                    session.add_all(db_traces)
+                    binding_still_live = await session.scalar(
+                        select(models.DatasetEvaluators.id)
+                        .join(
+                            models.Project, models.Project.id == models.DatasetEvaluators.project_id
+                        )
+                        .where(
+                            models.DatasetEvaluators.id == self._dataset_evaluator_id,
+                            models.DatasetEvaluators.deleted_at.is_(None),
+                            models.Project.deleted_at.is_(None),
+                        )
+                        .with_for_update(read=True, of=models.DatasetEvaluators)
+                    )
+                    if binding_still_live is not None:
+                        session.add_all(db_traces)
+                        traces_persisted = True
 
         async def _persist_annotations() -> None:
             async with self._db() as session:
-                await _upsert_experiment_run_annotations(session, annotations, self._db.dialect)
+                run_still_live = await session.scalar(
+                    select(models.ExperimentRun.id).where(
+                        models.ExperimentRun.id == self._experiment_run.id
+                    )
+                )
+                if run_still_live is not None:
+                    await _upsert_experiment_run_annotations(session, annotations, self._db.dialect)
 
         with anyio.fail_after(5, shield=True):
             async with anyio.create_task_group() as tg:
                 tg.start_soon(_persist_traces)
                 tg.start_soon(_persist_annotations)
+        # Unsaved traces have no ids to broadcast.
+        return traces_persisted
 
 
 # =============================================================================
@@ -2022,11 +2125,13 @@ class RunningExperiment:
 
                     # Get project_id from cache or DB
                     if self._project_id is None:
-                        self._project_id = await session.scalar(
-                            select(models.Project.id).where(
-                                models.Project.name == self._experiment.project_name
+                        if self._experiment.project_name is not None:
+                            self._project_id = await session.scalar(
+                                select(models.Project.id).where(
+                                    models.Project.name == self._experiment.project_name,
+                                    models.Project.deleted_at.is_(None),
+                                )
                             )
-                        )
                         if self._project_id is None:
                             logger.error(f"Project not found for experiment {self._experiment.id}")
                             self._task_db_exhausted = True
@@ -2593,10 +2698,12 @@ class RunningExperiment:
                     error=error_msg,
                     trace=None,
                 )
-                db_run = await work_item._persist_run(db_run)
-                if isinstance(work_item, EvaluatorTaskWorkItem):
+                persisted_run = await work_item._persist_run(db_run)
+                if persisted_run is not None and isinstance(work_item, EvaluatorTaskWorkItem):
                     await work_item._persist_annotations(
-                        work_item._error_annotations(error_msg, now, experiment_run_id=db_run.id)
+                        work_item._error_annotations(
+                            error_msg, now, experiment_run_id=persisted_run.id
+                        )
                     )
             elif isinstance(work_item, EvalWorkItem):
                 annotator_kind = work_item._evaluator.annotator_kind
@@ -2627,15 +2734,21 @@ class RunningExperiment:
         """Persist a log row for this experiment."""
         try:
             async with self._db() as session:
-                # A binding deleted mid-run would fail the log's foreign key; skip the row.
-                if isinstance(log, models.ExperimentEvalLog) and (
-                    await session.get(models.DatasetEvaluators, log.dataset_evaluator_id) is None
-                ):
-                    logger.warning(
-                        f"Experiment {self._experiment.id}: binding "
-                        f"{log.dataset_evaluator_id} was deleted; log not saved: {log.message}"
+                # A binding deleted mid-run would fail the log's foreign key or violate
+                # tombstone reclamation; skip the row.
+                if isinstance(log, models.ExperimentEvalLog):
+                    live_binding = await session.scalar(
+                        select(models.DatasetEvaluators.id).where(
+                            models.DatasetEvaluators.id == log.dataset_evaluator_id,
+                            models.DatasetEvaluators.deleted_at.is_(None),
+                        )
                     )
-                    return
+                    if live_binding is None:
+                        logger.warning(
+                            f"Experiment {self._experiment.id}: binding "
+                            f"{log.dataset_evaluator_id} was deleted; log not saved: {log.message}"
+                        )
+                        return
                 session.add(log)
         except Exception:
             logger.exception(f"Experiment {self._experiment.id}: failed to persist log")
@@ -2881,6 +2994,10 @@ class ExperimentRunner(DaemonTask):
                             logger.debug("Work available, resuming dispatch loop")
                             continue
 
+                        if self._db.should_not_insert_or_update:
+                            await anyio.sleep(self.POLL_INTERVAL)
+                            continue
+
                         # Semaphore-first: acquire slot before looking for work
                         await self._seats.acquire()
                         acquired = True
@@ -2958,6 +3075,9 @@ class ExperimentRunner(DaemonTask):
         Sorts experiments by last_served_at so least-recently-served gets priority.
         Each experiment's try_get_ready_work_item() checks rate limit non-blocking.
         """
+        if (db := getattr(self, "_db", None)) is not None and db.should_not_insert_or_update:
+            return None
+
         # Sort by fairness: least recently served first
         candidates = sorted(
             self._experiments.values(),
@@ -3112,6 +3232,9 @@ class ExperimentRunner(DaemonTask):
         side-effect of deleting prior-run errors before they could be
         inspected.
         """
+        if self._db.should_not_insert_or_update:
+            return
+
         cutoff = datetime.now(timezone.utc) - self.STALE_CLAIM_TIMEOUT
 
         async with self._db() as session:
@@ -3242,7 +3365,7 @@ class ExperimentRunner(DaemonTask):
                 decrypt=self._decrypt,
             )
         elif isinstance(experiment_job, models.ExperimentPromptTask):
-            llm_client = await get_playground_client(
+            llm_client = await get_chat_client(
                 model_provider=experiment_job.model_provider,
                 model_name=experiment_job.model_name,
                 session=session,

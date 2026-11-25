@@ -18,6 +18,7 @@ import { isDecisionInstance } from "@phoenix/store/playground";
 import { AWSRegionConfigFormField } from "./AWSRegionConfigFormField";
 import { BaseUrlConfigFormField } from "./BaseUrlConfigFormField";
 import { EndpointConfigFormField } from "./EndpointConfigFormField";
+import type { InstanceModelRouting } from "./modelControlTypes";
 import { ModelInvocationParametersFormFields } from "./ModelInvocationParametersFormFields";
 import { ModelNameConfigFormField } from "./ModelNameConfigFormField";
 import { OpenAIApiTypeConfigFormField } from "./OpenAIApiTypeConfigFormField";
@@ -80,16 +81,16 @@ export type ModelParametersConfigButtonProps = {
    */
   playgroundInstanceId: number;
   /**
-   * Whether to disable ephemeral routing fields.
+   * Where the ephemeral routing fields come from.
    *
    * Ephemeral routing fields are provider-specific configuration values (like Azure endpoint,
    * AWS region, or custom base URLs) that are entered in the UI but not persisted with the prompt.
    * They exist only for the current browser session and are typically stored in localStorage.
    *
-   * When true, shows informational text about environment variables instead of editable fields.
-   * This is used in evaluator contexts where routing must come from custom providers or env vars.
+   * When "configured", shows informational text about environment variables instead of editable fields.
+   * Defaults to "editable".
    */
-  disableEphemeralRouting?: boolean;
+  routing?: InstanceModelRouting;
 };
 
 function getModelParameterVisibility({
@@ -122,7 +123,8 @@ function getModelParameterVisibility({
 export function ModelParametersConfigButton(
   props: ModelParametersConfigButtonProps
 ) {
-  const { playgroundInstanceId, disableEphemeralRouting } = props;
+  const { playgroundInstanceId, routing } = props;
+  const isEphemeralRoutingDisabled = routing === "configured";
   const [isModelConfigValid, setIsModelConfigValid] = useState(true);
 
   const playgroundInstance = usePlaygroundContext((state) =>
@@ -148,7 +150,7 @@ export function ModelParametersConfigButton(
   } = getModelParameterVisibility({
     provider,
     isUsingCustomProvider: usingCustomProvider,
-    isEphemeralRoutingDisabled: disableEphemeralRouting === true,
+    isEphemeralRoutingDisabled,
   });
 
   return (
@@ -183,7 +185,16 @@ export function ModelParametersConfigButton(
                   </Text>
                   <Text size="S">{customProvider.name}</Text>
                 </Flex>
-              ) : disableEphemeralRouting ? null : (
+              ) : showAzureFields ? (
+                <EndpointConfigFormField
+                  playgroundInstanceId={playgroundInstanceId}
+                />
+              ) : showEnvVarInfo && canConfigureAzureFields ? (
+                <EnvVarRoutingInfo
+                  label="Endpoint"
+                  envVarName="AZURE_OPENAI_ENDPOINT"
+                />
+              ) : isEphemeralRoutingDisabled ? null : (
                 <BaseUrlConfigFormField
                   playgroundInstanceId={playgroundInstanceId}
                   description="Blank uses the provider default, or OLLAMA_BASE_URL for Ollama. Set it to run against a compatible host, such as a System One proxy or a local Ollama."

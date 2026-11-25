@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import type { ColumnPinningState } from "@tanstack/react-table";
 import { flexRender, useTable } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useMemo, useRef } from "react";
@@ -29,8 +30,11 @@ import {
 import type { ColumnDef, Row } from "@phoenix/components/table/tableFeatures";
 import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
+import type { GenerativeModelType } from "@phoenix/constants/generativeConstants";
 import type {
   GenerativeModelKind,
+  GenerativeModelType as GraphQLGenerativeModelType,
   ModelsTable_generativeModels$data,
   ModelsTable_generativeModels$key,
 } from "@phoenix/pages/settings/__generated__/ModelsTable_generativeModels.graphql";
@@ -42,9 +46,26 @@ import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 import { CloneModelButton } from "./CloneModelButton";
 import { DeleteModelButton } from "./DeleteModelButton";
 
+// Compile-time check that GenerativeModelType in generativeConstants.ts matches the GraphQL schema.
+// This will cause a TypeScript error if the types diverge.
+type _AssertModelTypesMatch =
+  GraphQLGenerativeModelType extends GenerativeModelType
+    ? GenerativeModelType extends GraphQLGenerativeModelType
+      ? true
+      : "GenerativeModelType in generativeConstants.ts is missing values from GraphQL schema"
+    : "GraphQL schema has new model types not in generativeConstants.ts";
+const _assertModelTypesMatch: _AssertModelTypesMatch = true;
+void _assertModelTypesMatch; // Prevent unused variable warning
+
 // Initial estimate only — rows are measured once rendered. Roughly a 30px
 // size-S icon button + 2 * 8px cell padding + 1px row border.
 const ESTIMATED_ROW_HEIGHT = 47;
+// Module-level so tanstack's store sees the same pinning state on every
+// render; this component is not memoized by the React Compiler.
+const COLUMN_PINNING = {
+  start: ["name"],
+  end: ["actions"],
+} satisfies ColumnPinningState;
 
 type ModelsTableGenerativeModel =
   ModelsTable_generativeModels$data["generativeModels"]["edges"][number]["generativeModel"];
@@ -52,6 +73,7 @@ type ModelsTableGenerativeModel =
 type ModelsTableProps = {
   modelsRef: ModelsTable_generativeModels$key;
   kindFilter: "ALL" | GenerativeModelKind;
+  typeFilter: "ALL" | GenerativeModelType;
   search: string;
 };
 
@@ -114,6 +136,7 @@ const sortCostColumnFn = (
 export function ModelsTable({
   modelsRef,
   kindFilter,
+  typeFilter,
   search,
 }: ModelsTableProps) {
   const data = useFragment(
@@ -130,6 +153,7 @@ export function ModelsTable({
             generativeModel: node {
               id
               name
+              modelType
               provider
               namePattern
               providerKey
@@ -195,6 +219,17 @@ export function ModelsTable({
             </Flex>
           );
         },
+      },
+      {
+        header: "type",
+        id: "modelType",
+        accessorFn: (row) => row.modelType,
+        size: 100,
+        // The model type is the kind of span the model prices, so it is shown
+        // the way span kinds are
+        cell: ({ row }) => (
+          <SpanKindToken spanKind={row.original.modelType.toLowerCase()} />
+        ),
       },
       {
         header: "provider",
@@ -313,6 +348,9 @@ export function ModelsTable({
         sortUndefined: "last",
         cell: ({ row }) => {
           const outputCost = getRowCost(row.original, "output");
+          const completionPrices = row.original.tokenPrices.filter(
+            (entry) => entry.kind === "COMPLETION"
+          );
           return (
             <Flex justifyContent="end" alignItems="center" gap="size-100">
               <span>{outputCost}</span>
@@ -326,24 +364,26 @@ export function ModelsTable({
                     Output Cost Breakdown
                   </Heading>
                   <View paddingTop="size-100">
-                    {row.original.tokenPrices
-                      ?.filter((entry) => entry.kind === "COMPLETION")
-                      .map((entry) => (
-                        <Flex
-                          key={entry.tokenType}
-                          direction="row"
-                          gap="size-100"
-                          justifyContent="space-between"
-                          width="100%"
-                        >
-                          <span>{entry.tokenType.toLocaleLowerCase()}</span>
-                          <span>
-                            {entry.costPerMillionTokens != null
-                              ? `${costFormatter(entry.costPerMillionTokens)} / 1M`
-                              : "--"}
-                          </span>
-                        </Flex>
-                      )) ?? null}
+                    {/* Embedding models are priced on input tokens only */}
+                    {completionPrices.length === 0 && (
+                      <span>No output token prices</span>
+                    )}
+                    {completionPrices.map((entry) => (
+                      <Flex
+                        key={entry.tokenType}
+                        direction="row"
+                        gap="size-100"
+                        justifyContent="space-between"
+                        width="100%"
+                      >
+                        <span>{entry.tokenType.toLocaleLowerCase()}</span>
+                        <span>
+                          {entry.costPerMillionTokens != null
+                            ? `${costFormatter(entry.costPerMillionTokens)} / 1M`
+                            : "--"}
+                        </span>
+                      </Flex>
+                    ))}
                   </View>
                 </RichTooltip>
               </TooltipTrigger>
@@ -436,8 +476,12 @@ export function ModelsTable({
         id: "kind",
         value: kindFilter === "ALL" ? "" : kindFilter,
       },
+      {
+        id: "modelType",
+        value: typeFilter === "ALL" ? "" : typeFilter,
+      },
     ];
-  }, [kindFilter]);
+  }, [kindFilter, typeFilter]);
 
   const table = useTable({
     features: appTableFeatures,
@@ -452,10 +496,7 @@ export function ModelsTable({
         kind: false,
         provider: false,
       },
-      columnPinning: {
-        start: ["name"],
-        end: ["actions"],
-      },
+      columnPinning: COLUMN_PINNING,
       globalFilter: search?.trim(),
       columnFilters,
     },
@@ -489,7 +530,7 @@ export function ModelsTable({
   if (isEmpty) {
     return (
       <Flex width="100%" justifyContent="center" alignItems="center">
-        <p>No models found</p>
+        <p>No model costs found</p>
       </Flex>
     );
   }

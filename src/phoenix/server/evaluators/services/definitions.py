@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from secrets import token_hex
-from typing import Any, Callable, Literal, Optional, Sequence, Union, cast, overload
+from typing import Any, Literal, Optional, Sequence, Union, cast, overload
 
 from pydantic import ValidationError
 from sqlalchemy import func, select
@@ -14,7 +14,7 @@ from strawberry import UNSET
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.helpers import code_evaluator_with_latest_version
+from phoenix.db.helpers import code_evaluator_with_latest_version, is_foreign_key_violation
 from phoenix.db.types.annotation_configs import (
     AnnotationConfigType,
     CategoricalOutputConfig,
@@ -25,6 +25,7 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import AlreadyExists, BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.prompts.validation import validate_custom_provider
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.dml_event import DmlEvent
 from phoenix.server.evaluators.input_descriptions import (
     apply_code_input_schema,
     apply_llm_input_schema,
@@ -32,6 +33,7 @@ from phoenix.server.evaluators.input_descriptions import (
 from phoenix.server.evaluators.services.management import (
     EVALUATOR_TYPENAME_BY_KIND,
     ensure_evaluator_prompt_label,
+    lock_evaluators,
     raise_on_uninferable_evaluate_signature,
     release_evaluator_prompt_label,
     release_llm_evaluator_prompt,
@@ -46,12 +48,9 @@ from phoenix.server.evaluators.services.prompt_source import (
     pin_prompt_version,
     resolve_evaluator_prompt_version,
 )
-from phoenix.server.evaluators.services.purge import purge_deleted_bindings_of_evaluator
-from phoenix.server.evaluators.validation import (
-    require_categorical_output_configs,
-)
+from phoenix.server.evaluators.validation import require_categorical_output_configs
 from phoenix.server.sandbox.types import SandboxRuntimeContext
-from phoenix.server.types import DbSessionFactory
+from phoenix.server.types import CanPutItem, DbSessionFactory
 
 
 @dataclass(kw_only=True)
@@ -59,7 +58,7 @@ class EvaluatorServiceContext:
     db: DbSessionFactory
     sandbox_runtime: SandboxRuntimeContext
     user_id: int | None = None
-    wake_evaluator_purger: Callable[[], None] = lambda: None
+    event_queue: Optional[CanPutItem[DmlEvent]] = None
 
 
 def require_output_configs(configs: list[OutputConfigType]) -> None:
@@ -333,6 +332,8 @@ async def patch_code_evaluator(
 
     try:
         async with context.db() as session:
+            # Lock the evaluator row first to serialize with concurrent deletes or deploys.
+            await lock_evaluators(session, [evaluator_id])
             code_evaluator_with_version = await code_evaluator_with_latest_version(
                 session, evaluator_id
             )
@@ -543,6 +544,8 @@ async def create_llm_evaluator(
                 input_schema=input.input_schema,
             )
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+        if is_foreign_key_violation(error):
+            raise NotFound(f"Prompt version not found: {input.prompt_version_id}") from error
         raise await evaluator_name_taken(context, input.name) from error
     return evaluator
 
@@ -554,9 +557,9 @@ async def delete_llm_evaluator(context: EvaluatorServiceContext, evaluator_id: G
         row_id = from_global_id_with_expected_type(evaluator_id, "LLMEvaluator")
     except ValueError as error:
         raise BadRequest(str(error)) from error
-    await purge_deleted_bindings_of_evaluator(context.db, row_id)
     async with context.db() as session:
-        row = await session.get(models.LLMEvaluator, row_id, with_for_update=True)
+        await lock_evaluators(session, [row_id])
+        row = await session.get(models.LLMEvaluator, row_id, populate_existing=True)
         if row is None:
             return
         await refuse_bound_evaluator(session, row_id, evaluator_id)
@@ -571,11 +574,17 @@ async def delete_llm_evaluator(context: EvaluatorServiceContext, evaluator_id: G
 async def refuse_bound_evaluator(
     session: AsyncSession, row_id: int, evaluator_id: GlobalID
 ) -> None:
-    project_bindings, deleted_project_bindings = await _count_bindings(
-        session, models.ProjectEvaluator, row_id
+    project_bindings = await session.scalar(
+        select(func.count(models.ProjectEvaluator.id)).where(
+            models.ProjectEvaluator.evaluator_id == row_id,
+            models.ProjectEvaluator.deleted_at.is_(None),
+        )
     )
-    dataset_bindings, deleted_dataset_bindings = await _count_bindings(
-        session, models.DatasetEvaluators, row_id
+    dataset_bindings = await session.scalar(
+        select(func.count(models.DatasetEvaluators.id)).where(
+            models.DatasetEvaluators.evaluator_id == row_id,
+            models.DatasetEvaluators.deleted_at.is_(None),
+        )
     )
     if project_bindings or dataset_bindings:
         raise Conflict(
@@ -584,30 +593,6 @@ async def refuse_bound_evaluator(
             reason="still_bound",
             binding_counts={"project": project_bindings, "dataset": dataset_bindings},
         )
-    # Deleting the definition would cascade to these bindings before their trace projects
-    # are purged, leaving those projects behind.
-    if deleted_project_bindings or deleted_dataset_bindings:
-        raise Conflict(
-            f"Evaluator {evaluator_id} has bindings that are still being deleted; retry shortly",
-            reason="bindings_being_deleted",
-        )
-
-
-async def _count_bindings(
-    session: AsyncSession,
-    model: type[models.DatasetEvaluators] | type[models.ProjectEvaluator],
-    evaluator_id: int,
-) -> tuple[int, int]:
-    """How many of the evaluator's bindings are live and how many are deleted."""
-    live, deleted = (
-        await session.execute(
-            select(
-                func.count(model.id).filter(model.deleted_at.is_(None)),
-                func.count(model.id).filter(model.deleted_at.is_not(None)),
-            ).where(model.evaluator_id == evaluator_id)
-        )
-    ).one()
-    return live, deleted
 
 
 async def delete_code_evaluator(context: EvaluatorServiceContext, evaluator_id: GlobalID) -> None:
@@ -616,9 +601,9 @@ async def delete_code_evaluator(context: EvaluatorServiceContext, evaluator_id: 
         row_id = from_global_id_with_expected_type(evaluator_id, "CodeEvaluator")
     except ValueError as error:
         raise BadRequest(str(error)) from error
-    await purge_deleted_bindings_of_evaluator(context.db, row_id)
     async with context.db() as session:
-        row = await session.get(models.CodeEvaluator, row_id, with_for_update=True)
+        await lock_evaluators(session, [row_id])
+        row = await session.get(models.CodeEvaluator, row_id, populate_existing=True)
         if row is None:
             return
         await refuse_bound_evaluator(session, row_id, evaluator_id)
@@ -723,7 +708,7 @@ async def create_code_evaluator_version(
         async with context.db() as session:
             # Deploys of one evaluator serialize on its row, so the expected version is
             # compared with the committed tip rather than one a concurrent deploy replaces.
-            await session.get(models.CodeEvaluator, evaluator_id, with_for_update=True)
+            await lock_evaluators(session, [evaluator_id])
             code_evaluator_with_version = await code_evaluator_with_latest_version(
                 session, evaluator_id
             )
@@ -879,7 +864,8 @@ async def patch_llm_evaluator(
     try:
         async with context.db() as session:
             # Edits and deletes take the evaluator row first, so they queue instead of deadlocking.
-            row = await session.get(models.LLMEvaluator, row_id, with_for_update=True)
+            await lock_evaluators(session, [row_id])
+            row = await session.get(models.LLMEvaluator, row_id, populate_existing=True)
             if row is None:
                 raise NotFound(f"LLM evaluator not found: {evaluator_id}")
             if patch.name is not UNSET:
@@ -903,6 +889,8 @@ async def patch_llm_evaluator(
             )
             await session.flush()
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+        if is_foreign_key_violation(error):
+            raise NotFound("Prompt version not found") from error
         if patch.name is not UNSET and patch.name is not None:
             raise await evaluator_name_taken(context, patch.name) from error
         raise Conflict(

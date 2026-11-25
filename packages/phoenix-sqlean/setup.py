@@ -21,8 +21,8 @@ from setuptools.command.build_ext import build_ext
 log = logging.getLogger(__name__)
 
 PACKAGE_NAME = "sqlean"
-VERSION = "0.2.1"  # x-release-please-version
-SQLEAN_VERSION = "0.28.5"
+VERSION = "0.2.2"  # x-release-please-version
+SQLEAN_VERSION = "0.29.0"
 
 SHORT_DESCRIPTION = "sqlite3 with extensions"
 LONG_DESCRIPTION = Path("README.md").read_text()
@@ -73,6 +73,10 @@ class Builder(build_ext):
 
         # gcc optimization level
         ext.extra_compile_args.append("-O1")
+        if sys.platform == "win32":
+            # MSVC defaults to legacy C89, where C11 keywords used by sqlean
+            # (_Static_assert, _Alignof) are not enabled.
+            ext.extra_compile_args.append("/std:c11")
 
         self._setup_defines(ext)
         self._setup_sources(ext)
@@ -122,26 +126,30 @@ class Builder(build_ext):
             ext.define_macros.append(("BYTE_ORDER", "LITTLE_ENDIAN"))
             ext.define_macros.append(("PCRE2_STATIC", "1"))
 
+    extension_dirs = (
+        "crypto",
+        "define",
+        "fileio",
+        "fuzzy",
+        "ipaddr",
+        "regexp",
+        os.path.join("regexp", "pcre2"),
+        "stats",
+        "text",
+        "time",
+        "uuid",
+        "vsv",
+    )
+
     def _setup_sources(self, ext):
+        root = Path(self.amalgamation_root)
         ext.include_dirs.append(self.amalgamation_root)
-        ext.sources.append(os.path.join(self.amalgamation_root, "sqlite3.c"))
-        ext.sources.append(os.path.join(self.amalgamation_root, "sqlean-crypto.c"))
-        ext.sources.append(os.path.join(self.amalgamation_root, "sqlean-define.c"))
-        ext.sources.append(os.path.join(self.amalgamation_root, "sqlean-fileio.c"))
-        ext.sources.append(os.path.join(self.amalgamation_root, "sqlean-fuzzy.c"))
-        if sys.platform != "win32":
-            # ipaddr uses POSIX networking headers (arpa/inet.h) that MSVC
-            # cannot compile, so it is excluded from Windows builds — same as
-            # sqlean's own Windows distribution. sqlean.c already guards the
-            # corresponding init calls with !defined(_WIN32).
-            ext.sources.append(os.path.join(self.amalgamation_root, "sqlean-ipaddr.c"))
-        ext.sources.append(os.path.join(self.amalgamation_root, "sqlean-regexp.c"))
-        ext.sources.append(os.path.join(self.amalgamation_root, "sqlean-stats.c"))
-        ext.sources.append(os.path.join(self.amalgamation_root, "sqlean-text.c"))
-        ext.sources.append(os.path.join(self.amalgamation_root, "sqlean-time.c"))
-        ext.sources.append(os.path.join(self.amalgamation_root, "sqlean-unicode.c"))
-        ext.sources.append(os.path.join(self.amalgamation_root, "sqlean-uuid.c"))
-        ext.sources.append(os.path.join(self.amalgamation_root, "sqlean-vsv.c"))
+        ext.sources.append(str(root / "sqlite3.c"))
+        for ext_dir in self.extension_dirs:
+            c_files = sorted((root / ext_dir).glob("*.c"))
+            if not c_files:
+                raise RuntimeError(f"no C sources found in {root / ext_dir}")
+            ext.sources.extend(str(p) for p in c_files)
         ext.sources.append(os.path.join("src", "sqlean.c"))
 
     def __setattr__(self, k, v):
@@ -163,8 +171,9 @@ def get_setup_args():
         author_email="m@antonz.org",
         maintainer="Arize AI",
         maintainer_email="phoenix-devs@arize.com",
-        # Zlib: this wrapper (via pysqlite). MIT: sqlean. BSD-2-Clause:
-        # xxHash. BSD-3-Clause: PCRE2. PSF-2.0: CPython's sqlite3 module.
+        # Zlib: this wrapper (via pysqlite). MIT: sqlean, STC, cespare/xxhash,
+        # go-edlib, cryptii, libstrcmp. BSD-2-Clause: zeebo/xxh3. BSD-3-Clause:
+        # PCRE2, Go, google/uuid. PSF-2.0: CPython's sqlite3 module.
         # Keep in sync with the sections in THIRD_PARTY_LICENSES.
         license="Zlib AND MIT AND BSD-2-Clause AND BSD-3-Clause AND PSF-2.0",
         license_files=["LICENSE", "THIRD_PARTY_LICENSES"],

@@ -10,6 +10,7 @@ from phoenix.config import EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS
 from phoenix.db import models
 from phoenix.server.daemons.experiment_sweeper import ExperimentSweeper
 from phoenix.server.types import DbSessionFactory
+from tests.unit._helpers import _RecordingQueue
 
 
 class Rendezvous(NamedTuple):
@@ -91,7 +92,9 @@ class TestExperimentSweeper:
     async def _project_exists(self, db: DbSessionFactory, project_name: str) -> bool:
         async with db() as session:
             result = await session.scalar(
-                sa.select(models.Project).where(models.Project.name == project_name)
+                sa.select(models.Project).where(
+                    models.Project.name == project_name, models.Project.deleted_at.is_(None)
+                )
             )
             return result is not None
 
@@ -212,3 +215,339 @@ class TestExperimentSweeper:
         )
 
         await sweeper.stop()
+
+    async def test_sweeper_deletes_only_expired_experiments_sdk_eval_traces_and_emits_events(
+        self,
+        db: DbSessionFactory,
+        rendezvous: Rendezvous,
+    ) -> None:
+        from secrets import token_hex
+
+        from phoenix.server.dml_event import ExperimentDeleteEvent, SpanDeleteEvent
+
+        expired_time = datetime.now(timezone.utc) - timedelta(
+            hours=EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS + 1
+        )
+        recent_time = datetime.now(timezone.utc)
+
+        async with db() as session:
+            sdk_evaluators_project = models.Project(name="evaluators")
+            dataset = models.Dataset(name=f"sweeper-ds-{token_hex(4)}", metadata_={})
+            session.add_all([sdk_evaluators_project, dataset])
+            await session.flush()
+
+            dataset_version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+            dataset_example = models.DatasetExample(dataset_id=dataset.id)
+            expired_sdk_trace = models.Trace(
+                project_rowid=sdk_evaluators_project.id,
+                trace_id=f"sweeper-expired-sdk-{token_hex(8)}",
+                start_time=expired_time,
+                end_time=expired_time,
+            )
+            recent_sdk_trace = models.Trace(
+                project_rowid=sdk_evaluators_project.id,
+                trace_id=f"sweeper-recent-sdk-{token_hex(8)}",
+                start_time=recent_time,
+                end_time=recent_time,
+            )
+            session.add_all(
+                [
+                    dataset_version,
+                    dataset_example,
+                    expired_sdk_trace,
+                    recent_sdk_trace,
+                ]
+            )
+            await session.flush()
+
+            expired_experiment = models.Experiment(
+                dataset_id=dataset.id,
+                dataset_version_id=dataset_version.id,
+                name="expired-ephemeral",
+                is_ephemeral=True,
+                repetitions=1,
+                metadata_={},
+                created_at=expired_time,
+                updated_at=expired_time,
+            )
+            recent_experiment = models.Experiment(
+                dataset_id=dataset.id,
+                dataset_version_id=dataset_version.id,
+                name="recent-ephemeral",
+                is_ephemeral=True,
+                repetitions=1,
+                metadata_={},
+                created_at=recent_time,
+                updated_at=recent_time,
+            )
+            session.add_all([expired_experiment, recent_experiment])
+            await session.flush()
+
+            expired_run = models.ExperimentRun(
+                experiment_id=expired_experiment.id,
+                dataset_example_id=dataset_example.id,
+                repetition_number=1,
+                output={"output": "expired"},
+                start_time=expired_time,
+                end_time=expired_time,
+            )
+            recent_run = models.ExperimentRun(
+                experiment_id=recent_experiment.id,
+                dataset_example_id=dataset_example.id,
+                repetition_number=1,
+                output={"output": "recent"},
+                start_time=recent_time,
+                end_time=recent_time,
+            )
+            session.add_all([expired_run, recent_run])
+            await session.flush()
+            session.add_all(
+                [
+                    models.ExperimentRunAnnotation(
+                        experiment_run_id=expired_run.id,
+                        name="sdk-eval",
+                        annotator_kind="CODE",
+                        score=1.0,
+                        trace_id=expired_sdk_trace.trace_id,
+                        metadata_={},
+                        start_time=expired_time,
+                        end_time=expired_time,
+                    ),
+                    models.ExperimentRunAnnotation(
+                        experiment_run_id=recent_run.id,
+                        name="sdk-eval",
+                        annotator_kind="CODE",
+                        score=1.0,
+                        trace_id=recent_sdk_trace.trace_id,
+                        metadata_={},
+                        start_time=recent_time,
+                        end_time=recent_time,
+                    ),
+                ]
+            )
+            await session.flush()
+            expired_experiment_id = expired_experiment.id
+            sdk_evaluators_project_id = sdk_evaluators_project.id
+            expired_sdk_trace_rowid = expired_sdk_trace.id
+            recent_sdk_trace_rowid = recent_sdk_trace.id
+
+        event_queue = _RecordingQueue()
+        sweeper = ExperimentSweeper(db=db, event_queue=event_queue)
+        await sweeper.start()
+        await rendezvous.done.wait()
+        rendezvous.done.clear()
+        await sweeper.stop()
+
+        async with db() as session:
+            assert await session.get(models.Trace, expired_sdk_trace_rowid) is None
+            assert await session.get(models.Trace, recent_sdk_trace_rowid) is not None
+
+        assert ExperimentDeleteEvent((expired_experiment_id,)) in event_queue.events
+        assert SpanDeleteEvent((sdk_evaluators_project_id,)) in event_queue.events
+
+    async def test_sweeper_emits_experiment_delete_event_when_the_trace_drain_fails(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from secrets import token_hex
+
+        from phoenix.server.daemons import experiment_sweeper
+        from phoenix.server.dml_event import ExperimentDeleteEvent
+
+        prefix = "sweep-drain"
+        now_time = datetime.now(timezone.utc) - timedelta(
+            hours=EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS + 1
+        )
+        async with db() as session:
+            dataset = models.Dataset(name=f"{prefix}-ds-{token_hex(4)}", metadata_={})
+            sdk_evaluators_project = models.Project(name="evaluators")
+            session.add_all([dataset, sdk_evaluators_project])
+            await session.flush()
+            dataset_version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+            dataset_example = models.DatasetExample(dataset_id=dataset.id)
+            sdk_trace = models.Trace(
+                project_rowid=sdk_evaluators_project.id,
+                trace_id=f"{prefix}-sdk-eval-{token_hex(8)}",
+                start_time=now_time,
+                end_time=now_time,
+            )
+            session.add_all([dataset_version, dataset_example, sdk_trace])
+            await session.flush()
+            experiment = models.Experiment(
+                dataset_id=dataset.id,
+                dataset_version_id=dataset_version.id,
+                name="exp-with-eval-traces",
+                repetitions=1,
+                metadata_={},
+                is_ephemeral=True,
+                updated_at=now_time,
+            )
+            session.add(experiment)
+            await session.flush()
+            experiment_run = models.ExperimentRun(
+                experiment_id=experiment.id,
+                dataset_example_id=dataset_example.id,
+                repetition_number=1,
+                output={"output": "ok"},
+                start_time=now_time,
+                end_time=now_time,
+            )
+            session.add(experiment_run)
+            await session.flush()
+            session.add(
+                models.ExperimentRunAnnotation(
+                    experiment_run_id=experiment_run.id,
+                    name="sdk-eval",
+                    annotator_kind="CODE",
+                    score=1.0,
+                    trace_id=sdk_trace.trace_id,
+                    metadata_={},
+                    start_time=now_time,
+                    end_time=now_time,
+                )
+            )
+            await session.flush()
+            experiment_id = experiment.id
+
+        async def _failing_drain(*args: Any, **kwargs: Any) -> None:
+            raise RuntimeError("drain failed")
+
+        monkeypatch.setattr(
+            experiment_sweeper, "delete_standalone_traces_by_trace_id", _failing_drain
+        )
+        event_queue = _RecordingQueue()
+        with pytest.raises(RuntimeError, match="drain failed"):
+            await ExperimentSweeper(db=db, event_queue=event_queue)._delete_ephemeral_experiments()
+
+        async with db() as session:
+            assert await session.get(models.Experiment, experiment_id) is None
+        assert ExperimentDeleteEvent((experiment_id,)) in event_queue.events
+
+    async def test_sweeper_drains_a_backlog_across_batches(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from phoenix.server.daemons import experiment_sweeper
+        from phoenix.server.dml_event import ExperimentDeleteEvent
+
+        expired_time = datetime.now(timezone.utc) - timedelta(
+            hours=EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS + 1
+        )
+        async with db() as session:
+            dataset = models.Dataset(name="backlog-ds", metadata_={})
+            session.add(dataset)
+            await session.flush()
+            dataset_version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+            session.add(dataset_version)
+            await session.flush()
+            session.add_all(
+                models.Experiment(
+                    dataset_id=dataset.id,
+                    dataset_version_id=dataset_version.id,
+                    name=f"backlog-{index}",
+                    repetitions=1,
+                    metadata_={},
+                    is_ephemeral=True,
+                    updated_at=expired_time,
+                )
+                for index in range(5)
+            )
+
+        monkeypatch.setattr(experiment_sweeper, "CLEANUP_BATCH_ROWS", 2)
+        event_queue = _RecordingQueue()
+        await ExperimentSweeper(db=db, event_queue=event_queue)._delete_ephemeral_experiments()
+
+        async with db() as session:
+            assert await session.scalar(sa.select(sa.func.count(models.Experiment.id))) == 0
+        batch_sizes = [
+            len(event.ids)
+            for event in event_queue.events
+            if isinstance(event, ExperimentDeleteEvent)
+        ]
+        assert batch_sizes == [2, 2, 1]
+
+    async def _insert_expired_backlog(self, db: DbSessionFactory, count: int) -> list[int]:
+        expired_time = datetime.now(timezone.utc) - timedelta(
+            hours=EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS + 1
+        )
+        async with db() as session:
+            dataset = models.Dataset(name="paging-ds", metadata_={})
+            session.add(dataset)
+            await session.flush()
+            dataset_version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+            session.add(dataset_version)
+            await session.flush()
+            experiments = [
+                models.Experiment(
+                    dataset_id=dataset.id,
+                    dataset_version_id=dataset_version.id,
+                    name=f"paging-{index}",
+                    repetitions=1,
+                    metadata_={},
+                    is_ephemeral=True,
+                    updated_at=expired_time,
+                )
+                for index in range(count)
+            ]
+            session.add_all(experiments)
+            await session.flush()
+            return sorted(int(experiment.id) for experiment in experiments)
+
+    async def test_sweeper_keeps_paging_past_a_batch_lost_to_lock_contention(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        from phoenix.server.api.exceptions import Conflict
+        from phoenix.server.cleanup import lifecycle
+        from phoenix.server.daemons import experiment_sweeper
+
+        experiment_ids = await self._insert_expired_backlog(db, 5)
+        monkeypatch.setattr(experiment_sweeper, "CLEANUP_BATCH_ROWS", 2)
+        original_lock = lifecycle.lock_experiment_projects
+        num_calls = 0
+
+        async def lock_once_conflicting(*args: Any, **kwargs: Any) -> Any:
+            nonlocal num_calls
+            num_calls += 1
+            if num_calls == 1:
+                raise Conflict("project locked")
+            return await original_lock(*args, **kwargs)
+
+        monkeypatch.setattr(experiment_sweeper, "lock_experiment_projects", lock_once_conflicting)
+        with caplog.at_level("INFO"):
+            await ExperimentSweeper(db=db)._delete_ephemeral_experiments()
+
+        assert not [record for record in caplog.records if record.levelname == "ERROR"]
+        for experiment_id in experiment_ids[:2]:
+            assert await self._experiment_exists(db, experiment_id)
+        for experiment_id in experiment_ids[2:]:
+            assert not await self._experiment_exists(db, experiment_id)
+
+    @pytest.mark.postgres_only
+    async def test_sweeper_keeps_paging_past_rows_locked_by_another_session(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from phoenix.server.daemons import experiment_sweeper
+
+        if db.dialect.name_literal != "postgresql":
+            pytest.skip("Requires independent PostgreSQL transactions")
+        experiment_ids = await self._insert_expired_backlog(db, 5)
+        monkeypatch.setattr(experiment_sweeper, "CLEANUP_BATCH_ROWS", 2)
+        locked_experiment_id = experiment_ids[0]
+        async with db() as locking_session:
+            await locking_session.scalars(
+                sa.select(models.Experiment.id)
+                .where(models.Experiment.id == locked_experiment_id)
+                .with_for_update()
+            )
+            await ExperimentSweeper(db=db)._delete_ephemeral_experiments()
+
+        assert await self._experiment_exists(db, locked_experiment_id)
+        for experiment_id in experiment_ids[1:]:
+            assert not await self._experiment_exists(db, experiment_id)

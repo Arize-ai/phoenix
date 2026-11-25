@@ -34,6 +34,7 @@ class DatasetEvaluatorsByEvaluatorDataLoader(DataLoader[Key, Result]):
                 .order_by(models.DatasetEvaluators.name.asc())
             )
             for row in await session.scalars(stmt):
-                dataset_evaluators_by_evaluator[row.evaluator_id].append(row)
+                if row.evaluator_id is not None:
+                    dataset_evaluators_by_evaluator[row.evaluator_id].append(row)
 
         return [dataset_evaluators_by_evaluator.get(key, []) for key in keys]

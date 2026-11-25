@@ -1,4 +1,3 @@
-import { css } from "@emotion/react";
 import type {
   OnChangeFn,
   RowSelectionState,
@@ -48,13 +47,6 @@ type TableRow = QueryData["projectEvaluators"]["edges"][number]["node"];
 /** Every project evaluator on the server is loaded; sorting happens here. */
 const PROJECT_EVALUATORS_LIMIT = 1000;
 
-/**
- * While the server queue is Degraded, the evaluators driving it: the fewest
- * that together hold most of it, each holding a sizable part on its own.
- */
-const DRIVERS_CUMULATIVE_SHARE = 0.8;
-const DRIVER_MIN_SHARE = 0.1;
-
 /** An evaluator's part of the server queue, at most all of it. */
 function getEvaluatorShareOfServerQueue({
   evaluatorQueuedCount,
@@ -68,88 +60,37 @@ function getEvaluatorShareOfServerQueue({
     : 0;
 }
 
-function getServerQueueDriverIds({
-  rows,
-  serverQueuedCount,
-}: {
-  rows: ReadonlyArray<{ id: string; runSummary: { queuedCount: number } }>;
-  serverQueuedCount: number;
-}): Set<string> {
-  const drivers = new Set<string>();
-  if (serverQueuedCount <= 0) {
-    return drivers;
-  }
-  const ranked = [...rows].sort(
-    (a, b) => b.runSummary.queuedCount - a.runSummary.queuedCount
-  );
-  let cumulative = 0;
-  for (const row of ranked) {
-    const share = getEvaluatorShareOfServerQueue({
-      evaluatorQueuedCount: row.runSummary.queuedCount,
-      serverQueuedCount,
-    });
-    if (cumulative >= DRIVERS_CUMULATIVE_SHARE || share < DRIVER_MIN_SHARE) {
-      break;
-    }
-    drivers.add(row.id);
-    cumulative += share;
-  }
-  return drivers;
-}
-
 const shareFormatter = new Intl.NumberFormat(undefined, {
   style: "percent",
   maximumFractionDigits: 0,
 });
 
-const shareCellCSS = css`
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--global-dimension-size-100);
-  .queue-share__track {
-    flex: none;
-    width: 48px;
-    height: 6px;
-    border-radius: 2px;
-    background-color: var(--global-color-gray-200);
-    overflow: hidden;
-  }
-  .queue-share__bar {
-    height: 100%;
-    background-color: var(--global-color-gray-600);
-  }
-  &[data-driver="true"] .queue-share__bar {
-    background-color: var(--global-color-warning);
-  }
-`;
-
 function ServerQueueShareCell({
   share,
-  isDriver,
+  isServerQueueEmpty,
 }: {
-  share: number | null;
-  isDriver: boolean;
+  share: number;
+  /** With nothing queued on the server, there is no share to take. */
+  isServerQueueEmpty: boolean;
 }) {
-  if (share == null || share === 0) {
+  if (isServerQueueEmpty) {
     return (
       <Text fontFamily="mono" color="text-700">
         --
       </Text>
     );
   }
-  return (
-    <div css={shareCellCSS} data-driver={isDriver}>
-      <div className="queue-share__track">
-        <div
-          className="queue-share__bar"
-          style={{ width: `${Math.min(share, 1) * 100}%` }}
-        />
-      </div>
-      <Text fontFamily="mono" color={isDriver ? "warning" : undefined}>
-        {share < 0.01 ? "<1%" : shareFormatter.format(share)}
+  if (share === 0) {
+    return (
+      <Text fontFamily="mono" color="text-700">
+        0%
       </Text>
-    </div>
+    );
+  }
+  return (
+    <Text fontFamily="mono">
+      {share < 0.01 ? "<1%" : shareFormatter.format(share)}
+    </Text>
   );
 }
 
@@ -163,7 +104,6 @@ function getProjectEvaluatorDetailsPath(row: TableRow): string {
  */
 export function ProjectEvaluatorsTabTable({
   filter,
-  projectIds,
   fetchKey,
   sorting,
   onSortingChange,
@@ -171,8 +111,6 @@ export function ProjectEvaluatorsTabTable({
 }: {
   /** Matches an evaluator's name or its project's name. */
   filter: string;
-  /** Only these projects' evaluators; all when empty. */
-  projectIds: ReadonlyArray<string>;
   /** Changes when the queue was changed from this page, to refetch at once. */
   fetchKey: number;
   sorting: SortingState;
@@ -190,7 +128,6 @@ export function ProjectEvaluatorsTabTable({
         $timeRange: TimeRange!
       ) {
         evaluationQueue {
-          status
           queuedCount
         }
         projectEvaluators(first: $first) {
@@ -236,19 +173,16 @@ export function ProjectEvaluatorsTabTable({
                 p95Seconds
                 p99Seconds
               }
-              traceProject {
-                id
-                traceCount(timeRange: $timeRange)
-                costSummary(timeRange: $timeRange) {
-                  total {
-                    cost
-                  }
-                  prompt {
-                    cost
-                  }
-                  completion {
-                    cost
-                  }
+              tracedEvaluationCount(timeRange: $timeRange)
+              costSummary(timeRange: $timeRange) {
+                total {
+                  cost
+                }
+                prompt {
+                  cost
+                }
+                completion {
+                  cost
                 }
               }
             }
@@ -261,29 +195,13 @@ export function ProjectEvaluatorsTabTable({
   );
   const trimmedFilter = filter.trim().toLowerCase();
   const nodes = data.projectEvaluators.edges.map((edge) => edge.node);
-  // Picks naming a deleted project are ignored, as the charts ignore them.
-  const projectIdsWithEvaluators = new Set(
-    nodes.map((node) => node.project.id)
+  const rows = nodes.filter(
+    (node) =>
+      trimmedFilter.length === 0 ||
+      node.name.toLowerCase().includes(trimmedFilter) ||
+      node.project.name.toLowerCase().includes(trimmedFilter)
   );
-  const picked = new Set(
-    projectIds.filter((id) => projectIdsWithEvaluators.has(id))
-  );
-  const rows = nodes
-    .filter((node) => picked.size === 0 || picked.has(node.project.id))
-    .filter(
-      (node) =>
-        trimmedFilter.length === 0 ||
-        node.name.toLowerCase().includes(trimmedFilter) ||
-        node.project.name.toLowerCase().includes(trimmedFilter)
-    );
   const serverQueuedCount = data.evaluationQueue.queuedCount;
-  const driverIds =
-    data.evaluationQueue.status === "DEGRADED"
-      ? getServerQueueDriverIds({
-          rows: data.projectEvaluators.edges.map((edge) => edge.node),
-          serverQueuedCount,
-        })
-      : new Set<string>();
   // Only shown rows count, so a filter that hides a selected row also keeps
   // it out of a delete.
   const selectedEvaluators = rows
@@ -372,7 +290,7 @@ export function ProjectEvaluatorsTabTable({
     {
       id: "share",
       header: () => (
-        <ColumnHeaderWithHelp help="This evaluator's part of the server queue. Highlighted when the queue is degraded and this evaluator is one of the few holding most of it.">
+        <ColumnHeaderWithHelp help="This evaluator's share of all queued evaluations.">
           share of server queue
         </ColumnHeaderWithHelp>
       ),
@@ -384,10 +302,10 @@ export function ProjectEvaluatorsTabTable({
           evaluatorQueuedCount: row.runSummary.queuedCount,
           serverQueuedCount,
         }),
-      cell: ({ row, getValue }) => (
+      cell: ({ getValue }) => (
         <ServerQueueShareCell
           share={getValue() as number}
-          isDriver={driverIds.has(row.original.id)}
+          isServerQueueEmpty={serverQueuedCount === 0}
         />
       ),
     },
@@ -454,14 +372,11 @@ export function ProjectEvaluatorsTabTable({
       meta: { textAlign: "right" },
       sortDescFirst: true,
       sortUndefined: "last",
-      accessorFn: (row) =>
-        row.tracingEnabled
-          ? (row.traceProject.costSummary.total.cost ?? undefined)
-          : undefined,
+      accessorFn: (row) => row.costSummary?.total.cost ?? undefined,
       cell: ({ row }) => (
         <ProjectEvaluatorCost
           evaluatorKind={row.original.evaluator.kind}
-          costSummary={row.original.traceProject.costSummary}
+          costSummary={row.original.costSummary}
           isTracingEnabled={row.original.tracingEnabled}
         />
       ),
@@ -478,17 +393,17 @@ export function ProjectEvaluatorsTabTable({
       sortDescFirst: true,
       sortUndefined: "last",
       accessorFn: (row) => {
-        const cost = row.traceProject.costSummary.total.cost;
-        const runCount = row.traceProject.traceCount;
-        return row.tracingEnabled && cost != null && runCount > 0
+        const cost = row.costSummary?.total.cost;
+        const runCount = row.tracedEvaluationCount;
+        return cost != null && runCount != null && runCount > 0
           ? cost / runCount
           : undefined;
       },
       cell: ({ row }) => (
         <ProjectEvaluatorAverageCost
           evaluatorKind={row.original.evaluator.kind}
-          costSummary={row.original.traceProject.costSummary}
-          runCount={row.original.traceProject.traceCount}
+          costSummary={row.original.costSummary}
+          runCount={row.original.tracedEvaluationCount}
           isTracingEnabled={row.original.tracingEnabled}
         />
       ),
@@ -507,51 +422,51 @@ export function ProjectEvaluatorsTabTable({
   const tableRows = table.getRowModel().rows;
   return (
     <>
-      <table css={tableCSS} aria-label="Project evaluators across all projects">
-        <thead>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <TableColumnHeader key={header.id} header={header} />
+    <table css={tableCSS} aria-label="Project evaluators across all projects">
+      <thead>
+        {table.getHeaderGroups().map((headerGroup) => (
+          <tr key={headerGroup.id}>
+            {headerGroup.headers.map((header) => (
+              <TableColumnHeader key={header.id} header={header} />
+            ))}
+          </tr>
+        ))}
+      </thead>
+      {tableRows.length === 0 ? (
+        <TableEmptyWrap>
+          <CompactEmptyState
+            icon={<Icon svg={<Icons.Scale />} />}
+            description="No project evaluators"
+            isFiltered={trimmedFilter.length > 0}
+          />
+        </TableEmptyWrap>
+      ) : (
+        <tbody>
+          {tableRows.map((row) => (
+            <tr key={row.id}>
+              {row.getVisibleCells().map((cell) => (
+                <td
+                  key={cell.id}
+                  style={{
+                    width: cell.column.getSize(),
+                    maxWidth: cell.column.getSize(),
+                    overflow: "hidden",
+                    whiteSpace: "nowrap",
+                    textAlign: cell.column.columnDef.meta?.textAlign,
+                    userSelect:
+                      cell.column.id === CHECKBOX_COLUMN_ID
+                        ? "none"
+                        : undefined,
+                  }}
+                >
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </td>
               ))}
             </tr>
           ))}
-        </thead>
-        {tableRows.length === 0 ? (
-          <TableEmptyWrap>
-            <CompactEmptyState
-              icon={<Icon svg={<Icons.Scale />} />}
-              description="No project evaluators"
-              isFiltered={trimmedFilter.length > 0 || picked.size > 0}
-            />
-          </TableEmptyWrap>
-        ) : (
-          <tbody>
-            {tableRows.map((row) => (
-              <tr key={row.id}>
-                {row.getVisibleCells().map((cell) => (
-                  <td
-                    key={cell.id}
-                    style={{
-                      width: cell.column.getSize(),
-                      maxWidth: cell.column.getSize(),
-                      overflow: "hidden",
-                      whiteSpace: "nowrap",
-                      textAlign: cell.column.columnDef.meta?.textAlign,
-                      userSelect:
-                        cell.column.id === CHECKBOX_COLUMN_ID
-                          ? "none"
-                          : undefined,
-                    }}
-                  >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        )}
-      </table>
+        </tbody>
+      )}
+    </table>
       {selectedEvaluators.length > 0 ? (
         <>
           <EvaluatorSelectionToolbar

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8a810e4f39e68a53a58ddaac28f283b1>>
+ * @generated SignedSource<<63ad93cbe1046a601de872bcb40520b3>>
  * @lightSyntaxTransform
  */
 
@@ -47,13 +47,6 @@ v1 = [
   }
 ],
 v2 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "id",
-  "storageKey": null
-},
-v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -106,19 +99,18 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v2/*:: as any*/),
                   {
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
-                    "name": "name",
+                    "name": "id",
                     "storageKey": null
                   },
                   {
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
-                    "name": "description",
+                    "name": "name",
                     "storageKey": null
                   },
                   {
@@ -145,52 +137,12 @@ return {
                   {
                     "alias": null,
                     "args": null,
-                    "kind": "ScalarField",
-                    "name": "createdAt",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "updatedAt",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "User",
-                    "kind": "LinkedField",
-                    "name": "user",
-                    "plural": false,
-                    "selections": [
-                      (v2/*:: as any*/),
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "username",
-                        "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "profilePictureUrl",
-                        "storageKey": null
-                      }
-                    ],
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
                     "concreteType": null,
                     "kind": "LinkedField",
                     "name": "config",
                     "plural": false,
                     "selections": [
-                      (v3/*:: as any*/),
+                      (v2/*:: as any*/),
                       {
                         "kind": "InlineFragment",
                         "selections": [
@@ -208,7 +160,7 @@ return {
                     ],
                     "storageKey": null
                   },
-                  (v3/*:: as any*/)
+                  (v2/*:: as any*/)
                 ],
                 "storageKey": null
               },
@@ -262,16 +214,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ec7fa7b63a81578c7c278deca56ec35f",
+    "cacheID": "67f51ca2e721edfe66399100e04197f7",
     "id": null,
     "metadata": {},
     "name": "CustomProvidersCardQuery",
     "operationKind": "query",
-    "text": "query CustomProvidersCardQuery(\n  $after: String = null\n  $first: Int = 50\n) {\n  ...CustomProvidersCard_data_2HEEH6\n}\n\nfragment CustomProvidersCard_data_2HEEH6 on Query {\n  generativeModelCustomProviders(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        name\n        description\n        sdk\n        provider\n        modelTypes\n        createdAt\n        updatedAt\n        user {\n          id\n          username\n          profilePictureUrl\n        }\n        config {\n          __typename\n          ... on UnparsableConfig {\n            parseError\n          }\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query CustomProvidersCardQuery(\n  $after: String = null\n  $first: Int = 50\n) {\n  ...CustomProvidersCard_data_2HEEH6\n}\n\nfragment CustomProvidersCard_data_2HEEH6 on Query {\n  generativeModelCustomProviders(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        name\n        sdk\n        provider\n        modelTypes\n        config {\n          __typename\n          ... on UnparsableConfig {\n            parseError\n          }\n        }\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2ce45756ef1147680a38d0786c5d971b";
+(node as any).hash = "23b6d022f28f9227a28b33e14b3ec33d";
 
 export default node;

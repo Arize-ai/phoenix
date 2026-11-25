@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import time
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from enum import Enum
+from time import perf_counter
 from typing import (
     Any,
     AsyncIterator,
@@ -33,12 +33,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 from typing_extensions import TypeAlias
 
-from phoenix.config import (
-    ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION,
-    get_env_enable_prometheus,
-    get_env_online_eval_max_llm_message_bytes,
-    get_env_online_eval_max_sandbox_payload_bytes,
-)
+from phoenix.config import get_env_enable_prometheus
 from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.db.trace_aggregates import SPAN_ROWID, representative_root_span_by_trace
@@ -470,7 +465,11 @@ class _TargetContextLoader(Protocol):
         *,
         project_id: int,
         target_vocabularies: _TargetVocabularies,
-    ) -> tuple[dict[str, Any], Optional[dict[str, Any]]] | HydrationFailure: ...
+    ) -> (
+        tuple[dict[str, Any], Optional[dict[str, Any]]]
+        | HydrationFailure
+        | PublicationClaimLostError
+    ): ...
 
 
 async def _load_span_context(
@@ -479,8 +478,8 @@ async def _load_span_context(
     *,
     project_id: int,
     target_vocabularies: _TargetVocabularies,
-) -> tuple[dict[str, Any], Optional[dict[str, Any]]] | HydrationFailure:
-    span = await session.get_one(
+) -> tuple[dict[str, Any], Optional[dict[str, Any]]] | HydrationFailure | PublicationClaimLostError:
+    span = await session.get(
         models.Span,
         unit.target_rowid,
         options=[
@@ -488,6 +487,10 @@ async def _load_span_context(
             selectinload(models.Span.span_annotations).selectinload(models.SpanAnnotation.user),
         ],
     )
+    if span is None or span.trace is None:
+        return PublicationClaimLostError(f"Span {unit.target_rowid} was deleted")
+    if span.trace.project_rowid != project_id:
+        return HydrationFailure(HydrationFailureReason.TRACE_PROJECT_MISMATCH)
     return (
         span_eval_context(
             span,
@@ -504,8 +507,10 @@ async def _load_session_context(
     *,
     project_id: int,
     target_vocabularies: _TargetVocabularies,
-) -> tuple[dict[str, Any], Optional[dict[str, Any]]] | HydrationFailure:
-    project_session = await session.get_one(models.ProjectSession, unit.target_rowid)
+) -> tuple[dict[str, Any], Optional[dict[str, Any]]] | HydrationFailure | PublicationClaimLostError:
+    project_session = await session.get(models.ProjectSession, unit.target_rowid)
+    if project_session is None or unit.target_rowid not in target_vocabularies:
+        return PublicationClaimLostError(f"ProjectSession {unit.target_rowid} was deleted")
     if project_session.project_id != project_id:
         return HydrationFailure(HydrationFailureReason.SESSION_PROJECT_MISMATCH)
     loaded = await load_session_eval_context(
@@ -525,8 +530,10 @@ async def _load_trace_context(
     *,
     project_id: int,
     target_vocabularies: _TargetVocabularies,
-) -> tuple[dict[str, Any], Optional[dict[str, Any]]] | HydrationFailure:
-    trace = await session.get_one(models.Trace, unit.target_rowid)
+) -> tuple[dict[str, Any], Optional[dict[str, Any]]] | HydrationFailure | PublicationClaimLostError:
+    trace = await session.get(models.Trace, unit.target_rowid)
+    if trace is None or unit.target_rowid not in target_vocabularies:
+        return PublicationClaimLostError(f"Trace {unit.target_rowid} was deleted")
     if trace.project_rowid != project_id:
         return HydrationFailure(HydrationFailureReason.TRACE_PROJECT_MISMATCH)
     context = await load_trace_eval_context(
@@ -646,9 +653,14 @@ class OnlineEvalExecutor:
                     PolymorphicEvaluator,
                     models.ProjectEvaluator.evaluator_id == PolymorphicEvaluator.id,
                 )
+                .join(
+                    models.Project,
+                    models.Project.id == models.ProjectEvaluator.project_id,
+                )
                 .where(
                     models.ProjectEvaluator.id.in_(project_evaluator_ids),
                     models.ProjectEvaluator.deleted_at.is_(None),
+                    models.Project.deleted_at.is_(None),
                 )
             )
         ).all()
@@ -663,10 +675,12 @@ class OnlineEvalExecutor:
             row = rows_by_project_evaluator_id.get(unit.project_evaluator_id)
             failure: Optional[HydrationFailure | PublicationClaimLostError] = None
             if row is None:
-                # A deleted project evaluator takes its work units with it: end only this
-                # one, as a lost claim.
-                failure = PublicationClaimLostError(
-                    f"Project evaluator {unit.project_evaluator_id} was deleted"
+                # A soft-deleted binding leaves its claimed RUNNING unit in the table until
+                # background cleanup drains it; clear the unit to DROPPED immediately so the
+                # consumer does not strand it in RUNNING or spin with 0s sleep.
+                failure = HydrationFailure(
+                    HydrationFailureReason.PROJECT_EVALUATOR_DISABLED,
+                    detail=f"project evaluator {unit.project_evaluator_id} was deleted",
                 )
             else:
                 project_evaluator, evaluator = row
@@ -744,7 +758,7 @@ class OnlineEvalExecutor:
             except Exception as error:
                 outcomes[index] = error
                 continue
-            if isinstance(hydrated_context, HydrationFailure):
+            if isinstance(hydrated_context, (HydrationFailure, PublicationClaimLostError)):
                 outcomes[index] = hydrated_context
                 continue
             target_context, applied_policy = hydrated_context
@@ -865,7 +879,11 @@ class OnlineEvalExecutor:
         *,
         project_id: int,
         target_vocabularies: _TargetVocabularies,
-    ) -> tuple[dict[str, Any], Optional[dict[str, Any]]] | HydrationFailure:
+    ) -> (
+        tuple[dict[str, Any], Optional[dict[str, Any]]]
+        | HydrationFailure
+        | PublicationClaimLostError
+    ):
         """The bindable context, plus the applied session policy for a SESSION unit."""
         return await self._target_spec.load_context(
             session,
@@ -919,9 +937,6 @@ class OnlineEvalExecutor:
                 if manager is not None
                 else None
             ),
-            max_message_bytes=get_env_online_eval_max_llm_message_bytes(),
-            max_payload_bytes=get_env_online_eval_max_sandbox_payload_bytes(),
-            payload_limit_remediation=ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION,
             execution_deadline_seconds=self._execution_deadline_seconds,
         )
         return _HydratedEvaluatorSnapshot(
@@ -947,7 +962,7 @@ class OnlineEvalExecutor:
             if self._tracer_factory and hydrated.tracing_enabled
             else None
         )
-        started_at = time.perf_counter()
+        started_at = perf_counter()
         try:
             context = {
                 **hydrated.context,
@@ -967,7 +982,7 @@ class OnlineEvalExecutor:
             if self._publish_metrics:
                 ONLINE_EVAL_EVALUATOR_DURATION_SECONDS.labels(
                     evaluator_kind=hydrated.evaluator_kind
-                ).observe(time.perf_counter() - started_at)
+                ).observe(perf_counter() - started_at)
             if tracer is not None:
                 # A failed evaluation is exactly when its trace is worth reading,
                 # so the trace is written whether or not the evaluation succeeded —
@@ -1031,6 +1046,7 @@ class OnlineEvalExecutor:
                 await self._coordinator.publish(
                     work_unit_id=unit.work_unit_id,
                     claimed_by=unit.claimed_by,
+                    project_evaluator_id=unit.project_evaluator_id,
                     write=_write_annotations,
                 )
             if self._event_queue is not None and inserted_ids:

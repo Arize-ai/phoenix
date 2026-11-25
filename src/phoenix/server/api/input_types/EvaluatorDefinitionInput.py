@@ -187,20 +187,33 @@ def _node_id(global_id: GlobalID, expected_type_name: str, noun: str) -> int:
 
 
 @strawberry.input
-class EvaluatorPreviewsInput:
-    """Input for the evaluatorPreviews mutation."""
+class EvaluatorPreviewSubjectInput:
+    """One record to run the previewed evaluator on."""
 
-    previews: list["EvaluatorPreviewItemInput"]
-    credentials: Optional[list[GenerativeCredentialInput]] = UNSET
+    key: str = strawberry.field(
+        description=(
+            "Chosen by the caller and echoed on the subject's result; unique per request. "
+            "Not an id, so a client cache that normalizes by id leaves the subject alone."
+        )
+    )
+    context: Redacted[JSON]
+
+
+# Subjects one preview request may carry. Every subject's context is held in memory
+# and gets a task for the whole request, so this bounds one request's footprint. The
+# bench sends its loaded records in requests of at most this many; the harbor
+# hill-climb verifier sends 5.
+MAX_EVALUATOR_PREVIEW_SUBJECTS = 100
 
 
 @strawberry.input
-class EvaluatorPreviewItemInput:
-    """A single evaluator preview request with one or more contexts."""
+class EvaluatorPreviewInput:
+    """Input for the evaluatorPreview subscription: one evaluator, many subjects."""
 
-    evaluator: Optional[EvaluatorDefinitionInput] = None
-    context: Redacted[JSON]
-    input_mapping: EvaluatorInputMappingInput
+    evaluator: Optional[EvaluatorDefinitionInput] = strawberry.field(
+        default=None,
+        description="The evaluator to run. Optional only when datasetEvaluatorId names one.",
+    )
     dataset_evaluator_id: Optional[GlobalID] = strawberry.field(
         default=None,
         description=(
@@ -209,14 +222,11 @@ class EvaluatorPreviewItemInput:
             "Omit to preview the judge on its own, under its own name and policy."
         ),
     )
-    apply_online_evaluation_limits: bool = strawberry.field(
-        default=False,
+    input_mapping: EvaluatorInputMappingInput
+    subjects: list[EvaluatorPreviewSubjectInput] = strawberry.field(
         description=(
-            "Whether to enforce the execution limits an online evaluation runs "
-            "under: the rendered LLM message cap and the sandbox payload cap. "
-            "Set this when the preview stands in for a scheduled run, so a "
-            "preview cannot succeed where the live evaluation would be "
-            "rejected. The limits themselves come from the server's "
-            "configuration, never from this request."
+            "The records to evaluate, each under its own key. A request takes at most "
+            f"{MAX_EVALUATOR_PREVIEW_SUBJECTS}; split larger sets across requests."
         ),
     )
+    credentials: Optional[list[GenerativeCredentialInput]] = UNSET

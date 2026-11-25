@@ -488,6 +488,7 @@ function CompareSpanTargetsTable(
                 filterCondition: $condition
                 rootSpansOnly: $rootSpansOnly
               )
+            ...useSpanAnnotationNames_project @defer
           }
         }
       }
@@ -508,6 +509,7 @@ function CompareSpanTargetsTable(
       emptyState={<CompareTargetsEmptyState target="SPAN" />}
       selectedRowId={targetId}
       onFilterConditionApplied={props.onFilterConditionApplied}
+      initialRequest={null}
     />
   );
 }
@@ -524,7 +526,14 @@ function CompareTraceTargetsTable(props: TargetsTableProps) {
       ) {
         project: node(id: $id) {
           ... on Project {
-            ...TracesTable_spans @arguments(traceFilterCondition: $condition)
+            # Not deferred: without this query's request, the table cannot
+            # tell a failed child spans part from one still loading.
+            ...TracesTable_spans
+              @arguments(
+                traceFilterCondition: $condition
+                deferChildSpans: false
+              )
+            ...useSpanAnnotationNames_project @defer
           }
         }
       }
@@ -539,6 +548,7 @@ function CompareTraceTargetsTable(props: TargetsTableProps) {
       emptyState={<CompareTargetsEmptyState target="TRACE" />}
       selectedRowId={targetId}
       onFilterConditionApplied={props.onFilterConditionApplied}
+      initialRequest={null}
     />
   );
 }

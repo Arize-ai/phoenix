@@ -20,6 +20,23 @@ CREATE TABLE public.annotation_configs (
 );
 
 
+-- Table: cleanup_failures
+-- -----------------------
+CREATE TABLE public.cleanup_failures (
+    target_kind VARCHAR NOT NULL,
+    target_id BIGINT NOT NULL,
+    failure_count BIGINT NOT NULL DEFAULT '0'::bigint,
+    retry_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    CONSTRAINT pk_cleanup_failures PRIMARY KEY (target_kind, target_id),
+    CONSTRAINT "ck_cleanup_failures_`valid_cleanup_target_kind`"
+        CHECK (((target_kind)::text = ANY ((ARRAY[
+            'PROJECT'::character varying,
+            'PROJECT_EVALUATOR'::character varying,
+            'DATASET_EVALUATOR'::character varying
+        ])::text[])))
+);
+
+
 -- Table: decision_labels
 -- ----------------------
 CREATE TABLE public.decision_labels (
@@ -83,13 +100,20 @@ CREATE TABLE public.generative_models (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     deleted_at TIMESTAMP WITH TIME ZONE,
-    CONSTRAINT pk_generative_models PRIMARY KEY (id)
+    type VARCHAR NOT NULL DEFAULT 'LLM'::character varying,
+    CONSTRAINT pk_generative_models PRIMARY KEY (id),
+    CONSTRAINT "ck_generative_models_`valid_type`"
+        CHECK (((type)::text = ANY ((ARRAY[
+            'LLM'::character varying,
+            'DECISION'::character varying,
+            'EMBEDDING'::character varying
+        ])::text[])))
 );
 
 CREATE UNIQUE INDEX ix_generative_models_match_criteria ON public.generative_models
-    USING btree (name_pattern, provider, is_built_in) WHERE (deleted_at IS NULL);
+    USING btree (type, name_pattern, provider, is_built_in) WHERE (deleted_at IS NULL);
 CREATE UNIQUE INDEX ix_generative_models_name_is_built_in ON public.generative_models
-    USING btree (name, is_built_in) WHERE (deleted_at IS NULL);
+    USING btree (name, is_built_in, type) WHERE (deleted_at IS NULL);
 CREATE INDEX ix_generative_models_updated_at ON public.generative_models
     USING btree (updated_at);
 
@@ -99,6 +123,24 @@ CREATE INDEX ix_generative_models_updated_at ON public.generative_models
 CREATE TABLE public.languages (
     name VARCHAR NOT NULL,
     CONSTRAINT pk_languages PRIMARY KEY (name)
+);
+
+
+-- Table: model_profiles
+-- ---------------------
+CREATE TABLE public.model_profiles (
+    id bigserial NOT NULL,
+    model_type VARCHAR NOT NULL,
+    name VARCHAR NOT NULL,
+    CONSTRAINT pk_model_profiles PRIMARY KEY (id),
+    CONSTRAINT uq_model_profiles_id_model_type
+        UNIQUE (id, model_type),
+    CONSTRAINT "ck_model_profiles_`valid_model_type`"
+        CHECK (((model_type)::text = ANY ((ARRAY[
+            'CHAT'::character varying,
+            'DECISION'::character varying
+        ])::text[]))),
+    CONSTRAINT "ck_model_profiles_`valid_name`" CHECK ((((name)::text <> ''::text) AND ((name)::text = TRIM(BOTH FROM name))))
 );
 
 
@@ -148,15 +190,18 @@ CREATE TABLE public.projects (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     trace_retention_policy_id INTEGER,
+    deleted_at TIMESTAMP WITH TIME ZONE,
     CONSTRAINT pk_projects PRIMARY KEY (id),
-    CONSTRAINT uq_projects_name
-        UNIQUE (name),
     CONSTRAINT fk_projects_trace_retention_policy_id_project_trace_ret_aa47
         FOREIGN KEY (trace_retention_policy_id)
         REFERENCES public.project_trace_retention_policies (id)
         ON DELETE SET NULL
 );
 
+CREATE UNIQUE INDEX ix_projects_live_name ON public.projects
+    USING btree (name) WHERE (deleted_at IS NULL);
+CREATE INDEX ix_projects_tombstoned ON public.projects
+    USING btree (deleted_at, id) WHERE (deleted_at IS NOT NULL);
 CREATE INDEX ix_projects_trace_retention_policy_id ON public.projects
     USING btree (trace_retention_policy_id);
 
@@ -364,8 +409,6 @@ CREATE TABLE public.spans (
         ON DELETE CASCADE
 );
 
-CREATE INDEX ix_cumulative_llm_token_count_total ON public.spans
-    USING btree (((cumulative_llm_token_count_prompt + cumulative_llm_token_count_completion)));
 CREATE INDEX ix_spans_parent_id ON public.spans
     USING btree (parent_id);
 CREATE INDEX ix_spans_session_id ON public.spans
@@ -875,8 +918,8 @@ CREATE TABLE public.builtin_evaluators (
 -- -------------------------
 CREATE TABLE public.dataset_evaluators (
     id bigserial NOT NULL,
-    dataset_id BIGINT NOT NULL,
-    evaluator_id BIGINT NOT NULL,
+    dataset_id BIGINT,
+    evaluator_id BIGINT,
     name VARCHAR NOT NULL,
     description VARCHAR,
     output_configs JSONB,
@@ -886,17 +929,16 @@ CREATE TABLE public.dataset_evaluators (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     deleted_at TIMESTAMP WITH TIME ZONE,
-    delete_unused_evaluator BOOLEAN NOT NULL DEFAULT false,
-    delete_associated_prompt_or_decision BOOLEAN NOT NULL DEFAULT false,
     CONSTRAINT pk_dataset_evaluators PRIMARY KEY (id),
+    CONSTRAINT "ck_dataset_evaluators_`valid_lifecycle`" CHECK ((((deleted_at IS NULL) AND (dataset_id IS NOT NULL) AND (evaluator_id IS NOT NULL)) OR ((deleted_at IS NOT NULL) AND (evaluator_id IS NULL)))),
     CONSTRAINT fk_dataset_evaluators_dataset_id_datasets
         FOREIGN KEY (dataset_id)
         REFERENCES public.datasets (id)
-        ON DELETE CASCADE,
+        ON DELETE SET NULL,
     CONSTRAINT fk_dataset_evaluators_evaluator_id_evaluators
         FOREIGN KEY (evaluator_id)
         REFERENCES public.evaluators (id)
-        ON DELETE CASCADE,
+        ON DELETE RESTRICT,
     CONSTRAINT fk_dataset_evaluators_project_id_projects
         FOREIGN KEY (project_id)
         REFERENCES public.projects (id)
@@ -907,14 +949,16 @@ CREATE TABLE public.dataset_evaluators (
         ON DELETE SET NULL
 );
 
-CREATE UNIQUE INDEX ix_dataset_evaluators_dataset_id_name ON public.dataset_evaluators
-    USING btree (dataset_id, name) WHERE (deleted_at IS NULL);
-CREATE INDEX ix_dataset_evaluators_deleted_at ON public.dataset_evaluators
-    USING btree (deleted_at) WHERE (deleted_at IS NOT NULL);
+CREATE INDEX ix_dataset_evaluators_dataset_id ON public.dataset_evaluators
+    USING btree (dataset_id);
 CREATE INDEX ix_dataset_evaluators_evaluator_id ON public.dataset_evaluators
     USING btree (evaluator_id);
+CREATE UNIQUE INDEX ix_dataset_evaluators_live_name ON public.dataset_evaluators
+    USING btree (dataset_id, name) WHERE (deleted_at IS NULL);
 CREATE INDEX ix_dataset_evaluators_project_id ON public.dataset_evaluators
     USING btree (project_id);
+CREATE INDEX ix_dataset_evaluators_tombstoned ON public.dataset_evaluators
+    USING btree (deleted_at, id) WHERE (deleted_at IS NOT NULL);
 CREATE INDEX ix_dataset_evaluators_user_id ON public.dataset_evaluators
     USING btree (user_id);
 
@@ -1286,7 +1330,6 @@ CREATE TABLE public.generative_model_custom_providers (
     user_id BIGINT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    decision_sdk VARCHAR,
     CONSTRAINT pk_generative_model_custom_providers PRIMARY KEY (id),
     CONSTRAINT uq_generative_model_custom_providers_name
         UNIQUE (name),
@@ -1375,6 +1418,45 @@ CREATE TABLE public.agent_session_snapshots (
     CONSTRAINT fk_agent_session_snapshots_agent_session_id_agent_sessions
         FOREIGN KEY (agent_session_id)
         REFERENCES public.agent_sessions (id)
+        ON DELETE CASCADE
+);
+
+
+-- Table: custom_provider_model_types
+-- ----------------------------------
+CREATE TABLE public.custom_provider_model_types (
+    provider_id BIGINT NOT NULL,
+    model_type VARCHAR NOT NULL,
+    CONSTRAINT pk_custom_provider_model_types PRIMARY KEY (provider_id, model_type),
+    CONSTRAINT "ck_custom_provider_model_types_`valid_model_type`"
+        CHECK (((model_type)::text = ANY ((ARRAY[
+            'CHAT'::character varying,
+            'DECISION'::character varying
+        ])::text[]))),
+    CONSTRAINT fk_custom_provider_model_types_provider_id_generative_m_5bba
+        FOREIGN KEY (provider_id)
+        REFERENCES public.generative_model_custom_providers (id)
+        ON DELETE CASCADE
+);
+
+
+-- Table: custom_provider_model_profiles
+-- -------------------------------------
+CREATE TABLE public.custom_provider_model_profiles (
+    provider_id BIGINT NOT NULL,
+    model_type VARCHAR NOT NULL,
+    model_profile_id BIGINT NOT NULL,
+    position INTEGER NOT NULL,
+    CONSTRAINT pk_custom_provider_model_profiles PRIMARY KEY (provider_id, model_type, position),
+    CONSTRAINT uq_custom_provider_model_profiles_model_profile_id
+        UNIQUE (model_profile_id),
+    CONSTRAINT fk_custom_provider_model_profiles_model_profile_id_mode_7839
+        FOREIGN KEY (model_profile_id, model_type)
+        REFERENCES public.model_profiles (id, model_type)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_custom_provider_model_profiles_provider_id_custom_pr_3993
+        FOREIGN KEY (provider_id, model_type)
+        REFERENCES public.custom_provider_model_types (provider_id, model_type)
         ON DELETE CASCADE
 );
 
@@ -1611,7 +1693,7 @@ CREATE UNIQUE INDEX ix_password_reset_tokens_user_id ON public.password_reset_to
 CREATE TABLE public.project_evaluators (
     id bigserial NOT NULL,
     project_id BIGINT NOT NULL,
-    evaluator_id BIGINT NOT NULL,
+    evaluator_id BIGINT,
     trace_project_id BIGINT NOT NULL,
     name VARCHAR NOT NULL,
     filter_condition VARCHAR NOT NULL DEFAULT ''::character varying,
@@ -1624,8 +1706,6 @@ CREATE TABLE public.project_evaluators (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     deleted_at TIMESTAMP WITH TIME ZONE,
-    delete_unused_evaluator BOOLEAN NOT NULL DEFAULT false,
-    delete_associated_prompt_or_decision BOOLEAN NOT NULL DEFAULT false,
     CONSTRAINT pk_project_evaluators PRIMARY KEY (id),
     CONSTRAINT "ck_project_evaluators_`valid_evaluation_delay_seconds`" CHECK (((((evaluation_target)::text = 'SPAN'::text) AND (evaluation_delay_seconds = 0)) OR (((evaluation_target)::text <> 'SPAN'::text) AND (evaluation_delay_seconds >= 10)))),
     CONSTRAINT "ck_project_evaluators_`valid_evaluation_target`"
@@ -1634,29 +1714,30 @@ CREATE TABLE public.project_evaluators (
             'TRACE'::character varying,
             'SESSION'::character varying
         ])::text[]))),
+    CONSTRAINT "ck_project_evaluators_`valid_lifecycle`" CHECK ((((deleted_at IS NULL) AND (evaluator_id IS NOT NULL)) OR ((deleted_at IS NOT NULL) AND (evaluator_id IS NULL)))),
     CONSTRAINT "ck_project_evaluators_`valid_sampling_rate`" CHECK ((((0.0)::double precision <= sampling_rate) AND (sampling_rate <= (1.0)::double precision))),
     CONSTRAINT fk_project_evaluators_evaluator_id_evaluators
         FOREIGN KEY (evaluator_id)
         REFERENCES public.evaluators (id)
-        ON DELETE CASCADE,
+        ON DELETE RESTRICT,
     CONSTRAINT fk_project_evaluators_project_id_projects
         FOREIGN KEY (project_id)
         REFERENCES public.projects (id)
-        ON DELETE CASCADE,
+        ON DELETE RESTRICT,
     CONSTRAINT fk_project_evaluators_trace_project_id_projects
         FOREIGN KEY (trace_project_id)
         REFERENCES public.projects (id)
         ON DELETE RESTRICT
 );
 
-CREATE INDEX ix_project_evaluators_deleted_at ON public.project_evaluators
-    USING btree (deleted_at) WHERE (deleted_at IS NOT NULL);
 CREATE INDEX ix_project_evaluators_evaluator_id ON public.project_evaluators
     USING btree (evaluator_id);
+CREATE UNIQUE INDEX ix_project_evaluators_live_name ON public.project_evaluators
+    USING btree (project_id, name) WHERE (deleted_at IS NULL);
 CREATE INDEX ix_project_evaluators_project_id ON public.project_evaluators
     USING btree (project_id);
-CREATE UNIQUE INDEX ix_project_evaluators_project_id_name ON public.project_evaluators
-    USING btree (project_id, name) WHERE (deleted_at IS NULL);
+CREATE INDEX ix_project_evaluators_tombstoned ON public.project_evaluators
+    USING btree (deleted_at, id) WHERE (deleted_at IS NOT NULL);
 CREATE INDEX ix_project_evaluators_trace_project_id ON public.project_evaluators
     USING btree (trace_project_id);
 

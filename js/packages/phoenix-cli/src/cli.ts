@@ -8,6 +8,8 @@ import {
   createApiCommand,
   createAuthCommand,
   createDatasetCommand,
+  createDatasetLabelsCommand,
+  createDatasetVersionsCommand,
   createDecisionCommand,
   createDocsCommand,
   createEvaluatorCommand,
@@ -52,6 +54,8 @@ export function createProgram(): Command {
   program.addCommand(createSpanCommand());
   program.addCommand(createSpanAnnotationsCommand());
   program.addCommand(createDatasetCommand());
+  program.addCommand(createDatasetLabelsCommand());
+  program.addCommand(createDatasetVersionsCommand());
   program.addCommand(createSessionCommand());
   program.addCommand(createSessionAnnotationsCommand());
   program.addCommand(createExperimentCommand());

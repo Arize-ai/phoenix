@@ -1,17 +1,19 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
-import { startTransition, useEffect, useState } from "react";
+import { startTransition, useState } from "react";
 import { Focusable } from "react-aria";
 
 import {
   Flex,
   RichTooltip,
+  Skeleton,
   Text,
   TooltipArrow,
   TooltipTrigger,
 } from "@phoenix/components";
 import type { BadgeVariant } from "@phoenix/components/core/badge";
 import { Badge } from "@phoenix/components/core/badge";
+import { useInterval } from "@phoenix/hooks/useInterval";
 import {
   formatQueueCount,
   MAX_QUEUE_COUNT,
@@ -22,7 +24,7 @@ import { assertUnreachable } from "@phoenix/typeUtils";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 /**
- * Pieces shared by the project evaluators aside and the server-wide project
+ * Pieces shared by the project evaluators strip and the server-wide project
  * evaluators strip, so both read the queue the same way.
  */
 
@@ -30,28 +32,56 @@ export type EvaluationQueueStatusValue = "HEALTHY" | "DEGRADED";
 
 const QUEUE_STATS_POLL_INTERVAL_MS = 30_000;
 
-/**
- * Polls the queue stats: a fetch key that changes on every poll or refresh.
- * Call it once per page, so the stats and charts refresh together.
- */
-export function useQueueStatsPoll(refreshKey: string | number) {
-  const [pollCount, setPollCount] = useState(0);
-  useEffect(() => {
-    const interval = setInterval(() => {
-      // Keep the current stats up while the next poll loads.
-      startTransition(() => setPollCount((count) => count + 1));
-    }, QUEUE_STATS_POLL_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, []);
-  return { fetchKey: `${refreshKey}:${pollCount}` };
-}
+/** A minute between chart polls, less half a poll for timer drift. */
+const CHART_POLL_MIN_INTERVAL_MS = QUEUE_STATS_POLL_INTERVAL_MS * 1.5;
 
-/** Each kind of evaluation's color in the queue meter and its legend. */
-export const QUEUE_METER_COLOR_BY_TARGET = {
-  SPAN: "category1",
-  TRACE: "category2",
-  SESSION: "category3",
-} as const;
+/**
+ * Polls the queue stats: `fetchKey` changes on every poll or refresh, and
+ * `throttledFetchKey` on a poll at least a minute after its last change, or
+ * on a refresh, for charts that read the whole time range. Call it once per
+ * page, so the stats and charts refresh together. Paused while `isPolling` is
+ * false or the page is hidden; a refresh still changes the keys. When the
+ * page is shown again while polling, it polls once. A server-side cache of
+ * the charts' aggregates would let them poll with the stats and remove the
+ * throttled key.
+ */
+export function useQueueStatsPoll({
+  refreshKey,
+  isPolling = true,
+}: {
+  refreshKey: string | number;
+  isPolling?: boolean;
+}) {
+  const [polls, setPolls] = useState(() => ({
+    pollCount: 0,
+    chartPollCount: 0,
+    chartPolledAtMs: Date.now(),
+  }));
+  useInterval(
+    () => {
+      const nowMs = Date.now();
+      // Keep the current stats up while the next poll loads.
+      startTransition(() =>
+        setPolls((current) => {
+          const isChartPollDue =
+            nowMs - current.chartPolledAtMs >= CHART_POLL_MIN_INTERVAL_MS;
+          return isChartPollDue
+            ? {
+                pollCount: current.pollCount + 1,
+                chartPollCount: current.chartPollCount + 1,
+                chartPolledAtMs: nowMs,
+              }
+            : { ...current, pollCount: current.pollCount + 1 };
+        })
+      );
+    },
+    isPolling ? QUEUE_STATS_POLL_INTERVAL_MS : null
+  );
+  return {
+    fetchKey: `${refreshKey}:${polls.pollCount}`,
+    throttledFetchKey: `${refreshKey}:${polls.chartPollCount}`,
+  };
+}
 
 const QUEUE_STATUS_BADGE: Record<
   EvaluationQueueStatusValue,
@@ -122,6 +152,25 @@ export function getNetPerHour({
   };
 }
 
+/**
+ * What each queue stat measures, for the info tip beside its label. The
+ * server-wide strip and the project aside share them so a stat reads the same
+ * in both.
+ */
+export const QUEUE_STAT_HELP = {
+  inQueue: `The number of evaluations that wait to start, are in progress, or wait to retry. This number is for all projects. The count stops at ${MAX_QUEUE_COUNT.toLocaleString("en-US")}.`,
+  addedPerHour:
+    "The number of evaluations added to the queue in the last hour.",
+  completedPerHour:
+    "The number of evaluations completed in the last hour. This number includes evaluations that failed.",
+  netPerHour:
+    "The number of evaluations added in the last hour, minus the number completed. If the number is more than 0, the queue gets longer. If the number is 0 or less, the queue does not get longer.",
+  oldestWait:
+    "The longest time that an evaluation in the queue has waited to start. This time does not include evaluations that wait to retry. If this time is more than 10 minutes, the queue is Degraded.",
+  evaluationCost:
+    "The model cost of the evaluations that ran in the selected time range. Phoenix gets this cost from the evaluator traces. If tracing is off for an evaluator, its cost is not included.",
+} as const;
+
 /** How long an evaluation may wait before its queue counts as Degraded. */
 export const DEGRADED_WAIT_MS = 10 * 60_000;
 
@@ -135,13 +184,16 @@ export function hasWaitedTooLong(since: string): boolean {
  */
 export function OldestWaitStat({
   oldestWaitingAt,
+  help,
 }: {
   oldestWaitingAt: string | null;
+  /** What the stat means, behind an info icon beside its label. */
+  help?: ReactNode;
 }) {
   const isWaitingTooLong =
     oldestWaitingAt != null && hasWaitedTooLong(oldestWaitingAt);
   return (
-    <StatItem label="Oldest wait">
+    <StatItem label="Oldest wait" help={help}>
       <StatValue color={isWaitingTooLong ? "warning" : null}>
         {oldestWaitingAt != null ? formatElapsedShort(oldestWaitingAt) : "--"}
       </StatValue>
@@ -174,6 +226,26 @@ export function StatValue({
     <Text size="L" fontFamily="mono" color={color ?? undefined}>
       {children}
     </Text>
+  );
+}
+
+const statValueSkeletonCSS = css`
+  display: flex;
+  align-items: center;
+  height: var(--global-line-height-l);
+`;
+
+/** A stat value while it loads, one line of value text tall. */
+export function StatValueSkeleton() {
+  return (
+    <span
+      css={statValueSkeletonCSS}
+      role="status"
+      aria-busy="true"
+      aria-label="Loading"
+    >
+      <Skeleton width={40} height="var(--global-dimension-size-200)" />
+    </span>
   );
 }
 

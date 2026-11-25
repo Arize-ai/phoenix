@@ -7,6 +7,7 @@ import {
 } from "@phoenix/components";
 import { TriggerWrap } from "@phoenix/components/core/tooltip";
 import {
+  evaluatorKindHasCost,
   getAverageEvaluatorCostSummary,
   type EvaluatorCostSummary,
 } from "@phoenix/components/evaluators/evaluatorCostUtils";
@@ -35,7 +36,7 @@ export function EvaluatorAverageCost({
   evaluatorKind,
   costSummary,
   runCount,
-}: EvaluatorCostProps & { runCount: number }) {
+}: EvaluatorCostProps & { runCount: number | null | undefined }) {
   return (
     <EvaluatorCostValue
       evaluatorKind={evaluatorKind}
@@ -50,7 +51,7 @@ function EvaluatorCostValue({
   costSummary,
   tooltipLabel,
 }: EvaluatorCostProps & { tooltipLabel?: string }) {
-  if (evaluatorKind === "CODE") {
+  if (!evaluatorKindHasCost(evaluatorKind)) {
     return <Text color="text-700">--</Text>;
   }
 

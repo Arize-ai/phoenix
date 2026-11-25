@@ -151,12 +151,12 @@ def test_filters_narrow_the_rendering() -> None:
         for ln in searched.splitlines()
         if ln.startswith("-- ") and ": " in ln and not ln.startswith("-- area:")
     ]
-    assert matched == ["-- spans: One OpenTelemetry span"]
+    assert [line.split(";")[0] for line in matched] == ["-- spans: One OpenTelemetry span"]
 
     # Virtual columns are queryable too, so discovery must not make them look
     # like a typo. `latency_ms` is available on spans and traces.
     virtual = render_schema_ddl(search="latency_ms", detail="brief", dialect="sqlite")
-    assert "-- spans: One OpenTelemetry span" in virtual
+    assert "-- spans: One OpenTelemetry span; " in virtual
     assert "-- traces" in virtual
 
 
@@ -165,7 +165,7 @@ def test_brief_is_a_catalogue_and_detailed_is_a_schema() -> None:
     brief = render_schema_ddl(detail="brief", dialect="sqlite")
     detailed = render_schema_ddl(detail="detailed", dialect="sqlite")
     assert "CREATE TABLE" not in brief
-    assert "-- spans: One OpenTelemetry span" in brief
+    assert "-- spans: One OpenTelemetry span; " in brief
     assert "CREATE TABLE spans" in detailed
     assert len(brief) < len(detailed)
 
@@ -597,3 +597,27 @@ def test_no_allowlisted_table_reuses_a_timestamp_column_name_for_another_type() 
         if column.name in names and "TIMESTAMP" not in str(column.type).upper()
     ]
     assert not offenders, f"non-timestamp columns share a timestamp name: {offenders}"
+
+
+def test_ddl_documents_deleted_at_on_projects_and_dataset_evaluators() -> None:
+    ddl = render_schema_ddl(
+        tables=["projects", "dataset_evaluators"],
+        detail="detailed",
+        dialect="sqlite",
+    )
+    deleted_at_notes = [line for line in ddl.splitlines() if line.startswith("-- deleted_at:")]
+    assert len(deleted_at_notes) == 2
+    assert any("projects.name" in line for line in deleted_at_notes)
+
+
+def test_brief_ddl_carries_tombstone_guidance_in_grains() -> None:
+    ddl = render_schema_ddl(
+        tables=["projects", "dataset_evaluators", "experiment_logs"],
+        detail="brief",
+        dialect="sqlite",
+    )
+    lines = {line.split(":", 1)[0]: line for line in ddl.splitlines() if line.startswith("-- ")}
+    assert "deleted_at IS NULL" in lines["-- projects"]
+    assert "unique only among live rows" in lines["-- projects"]
+    assert "deleted_at IS NULL" in lines["-- dataset_evaluators"]
+    assert "dataset_evaluators" in lines["-- experiment_logs"]

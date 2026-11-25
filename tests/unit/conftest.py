@@ -50,6 +50,12 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession, c
 from starlette.types import ASGIApp
 from strawberry.extensions import SchemaExtension
 
+from phoenix.config import (
+    ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_GRPC_ENDPOINT,
+    ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_HTTP_ENDPOINT,
+    ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT,
+    ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT,
+)
 from phoenix.db import models
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import (
@@ -88,7 +94,7 @@ from phoenix.server import app as server_app
 from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
 from phoenix.server.api.schema import build_graphql_schema
 from phoenix.server.app import _db, create_app
-from phoenix.server.daemons.evaluator_purger import EvaluatorPurger
+from phoenix.server.dml_event import DmlEvent
 from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.grpc_server import GrpcServer
@@ -130,6 +136,10 @@ def pytest_configure(config: Config) -> None:
     config.addinivalue_line(
         "markers",
         "real_agent_session_sweeper: run the app's agent-session sweeper loop",
+    )
+    config.addinivalue_line(
+        "markers",
+        "real_cleanup_worker: run the app's background cleanup worker loop",
     )
     config.addinivalue_line(
         "markers",
@@ -208,6 +218,24 @@ def _mcp_mount_off(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PHOENIX_ENABLE_MCP_SERVER", "false")
 
 
+@pytest.fixture(autouse=True)
+def _server_instrumentation_env_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Isolate unit tests from ambient ``PHOENIX_SERVER_INSTRUMENTATION_*`` env vars.
+
+    Developers running the local Grafana/Tempo/Loki stack often have these set
+    in their shell; leaving them set would attach real OTLP exporters and root
+    log handlers during unrelated unit tests. Tests that exercise env-driven
+    telemetry explicitly set them via ``monkeypatch.setenv`` after this runs.
+    """
+    for env_var in (
+        ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT,
+        ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT,
+        ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_HTTP_ENDPOINT,
+        ENV_PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_GRPC_ENDPOINT,
+    ):
+        monkeypatch.delenv(env_var, raising=False)
+
+
 class OfflineDocsMCPServer(MintlifyDocsMCPServer):
     """``MintlifyDocsMCPServer`` with the MCP transport short-circuited.
 
@@ -268,6 +296,38 @@ def _agent_session_sweeper_off(request: FixtureRequest, monkeypatch: pytest.Monk
     monkeypatch.setattr(
         "phoenix.server.daemons.agent_session_sweeper.AgentSessionSweeper._run", _idle
     )
+
+
+@pytest.fixture(autouse=True)
+def _cleanup_worker_off(request: FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The app's cleanup worker drains tombstoned bindings and projects in the
+    background, racing tests that inspect tombstones or share SQLite's single
+    savepoint connection. Off suite-wide; tests that exercise the live daemon
+    loop opt in with ``@pytest.mark.real_cleanup_worker``."""
+    if request.node.get_closest_marker("real_cleanup_worker"):
+        return
+
+    async def _idle(self: Any) -> None:
+        return None
+
+    monkeypatch.setattr(
+        "phoenix.server.daemons.cleanup_worker.CleanupWorker._run",
+        _idle,
+    )
+
+
+@pytest.fixture
+def recorded_dml_events(monkeypatch: pytest.MonkeyPatch) -> list[DmlEvent]:
+    """The ``DmlEvent`` values the app puts on its event handler during a test."""
+    events: list[DmlEvent] = []
+    original_put = DmlEventHandler.put
+
+    def spy_put(self: DmlEventHandler, event: DmlEvent) -> None:
+        events.append(event)
+        original_put(self, event)
+
+    monkeypatch.setattr(DmlEventHandler, "put", spy_put)
+    return events
 
 
 @pytest.fixture(autouse=True)
@@ -1123,21 +1183,15 @@ async def _no_op(*_: Any, **__: Any) -> None:
 
 @contextlib.asynccontextmanager
 async def patch_online_eval_daemons() -> AsyncIterator[None]:
-    """Run the app without its online-evaluation producers and consumers or its evaluator
-    purger.
+    """Run the app without its online-evaluation producers and consumers.
 
     Like the DML event daemon, they query the database from background tasks, and a
     query cancelled at shutdown invalidates the one connection a test's sessions
     share. Tests of the daemons themselves drive them directly instead.
     """
-    classes = (
-        SpanEvaluationProducer,
-        EvaluationConsumer,
-        SweepingEvaluationProducer,
-        EvaluatorPurger,
-    )
+    classes = (SpanEvaluationProducer, EvaluationConsumer, SweepingEvaluationProducer)
     names = ("__aenter__", "__aexit__")
-    # All of them inherit both methods from DaemonTask; shadowing them per class
+    # All three inherit both methods from DaemonTask; shadowing them per class
     # leaves every other daemon running as before.
     for cls in classes:
         for name in names:
@@ -1369,7 +1423,7 @@ async def correctness_llm_evaluator(db: DbSessionFactory) -> models.LLMEvaluator
                     ),
                     response_format=None,
                     model_provider=ModelProvider.OPENAI,
-                    model_name="gpt-4",
+                    model_name="gpt-4o",
                     metadata_={},
                 )
             ],

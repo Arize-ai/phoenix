@@ -1,13 +1,13 @@
 import { DEFAULT_EVALUATOR_TEMPLATE } from "@phoenix/components/evaluators/templates/defaultEvaluatorTemplate";
 import { SPAN_EVALUATOR_TEMPLATE } from "@phoenix/components/evaluators/templates/spanEvaluatorTemplate";
 import {
+  getDefaultInvocationConfig,
+  parseInvocationConfig,
+} from "@phoenix/components/playground/providerAdapters";
+import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
-import {
-  getDefaultInvocationConfig,
-  parseInvocationConfig,
-} from "@phoenix/pages/playground/providerAdapters";
 import {
   type InitialPlaygroundState,
   DEFAULT_INSTANCE_PARAMS,

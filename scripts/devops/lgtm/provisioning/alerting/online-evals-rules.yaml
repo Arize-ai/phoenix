@@ -1,0 +1,370 @@
+apiVersion: 1
+groups:
+    - orgId: 1
+      name: online-evals
+      folder: Online evaluations alerts
+      interval: 1m
+      rules:
+        - uid: oe-queue-full
+          title: Queue full
+          condition: C
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: prometheus
+              model:
+                expr: max(phoenix_online_eval_at_capacity)
+                instant: true
+                intervalMs: 1000
+                maxDataPoints: 43200
+                refId: A
+            - refId: C
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                expression: A
+                intervalMs: 1000
+                maxDataPoints: 43200
+                refId: C
+                type: threshold
+          dashboardUid: online-evals
+          panelId: 9
+          noDataState: OK
+          execErrState: Error
+          for: 5m
+          annotations:
+            __dashboardUid__: online-evals
+            __panelId__: "9"
+            summary: The online-eval queue is full. New units aren't being queued.
+          labels:
+            service: online-evals
+            severity: critical
+          isPaused: false
+        - uid: oe-metrics-missing
+          title: Online-eval metrics missing
+          condition: C
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: prometheus
+              model:
+                expr: absent_over_time(phoenix_online_eval_evaluator_concurrency_limit[5m])
+                instant: true
+                intervalMs: 1000
+                maxDataPoints: 43200
+                refId: A
+            - refId: C
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                expression: A
+                intervalMs: 1000
+                maxDataPoints: 43200
+                refId: C
+                type: threshold
+          noDataState: OK
+          execErrState: Error
+          for: 5m
+          annotations:
+            summary: No online-eval metrics for 5 minutes. Phoenix is down or isn't being scraped. The other alerts can't fire while this lasts.
+          labels:
+            service: online-evals
+            severity: critical
+          isPaused: false
+        - uid: oe-queue-nearly-full
+          title: Queue over 80% full
+          condition: C
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: prometheus
+              model:
+                expr: (sum(max by (evaluation_target) (phoenix_online_eval_pending_work_units)) + sum(max by (evaluation_target) (phoenix_online_eval_running_work_units)) + sum(max by (evaluation_target) (phoenix_online_eval_retryable_error_work_units))) / 30000
+                instant: true
+                intervalMs: 1000
+                maxDataPoints: 43200
+                refId: A
+            - refId: C
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0.8
+                        type: gt
+                expression: A
+                intervalMs: 1000
+                maxDataPoints: 43200
+                refId: C
+                type: threshold
+          dashboardUid: online-evals
+          panelId: 6
+          noDataState: OK
+          execErrState: Error
+          for: 10m
+          annotations:
+            __dashboardUid__: online-evals
+            __panelId__: "6"
+            summary: The online-eval queue is over 80% of its 30,000-unit limit.
+          labels:
+            service: online-evals
+            severity: warning
+          isPaused: false
+        - uid: oe-oldest-pending
+          title: Oldest pending over 10 min
+          condition: C
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: prometheus
+              model:
+                expr: max(phoenix_online_eval_oldest_pending_age_seconds)
+                instant: true
+                intervalMs: 1000
+                maxDataPoints: 43200
+                refId: A
+            - refId: C
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 600
+                        type: gt
+                expression: A
+                intervalMs: 1000
+                maxDataPoints: 43200
+                refId: C
+                type: threshold
+          dashboardUid: online-evals
+          panelId: 15
+          noDataState: OK
+          execErrState: Error
+          for: 5m
+          annotations:
+            __dashboardUid__: online-evals
+            __panelId__: "15"
+            summary: A pending unit has waited over 10 minutes. Queue status is Degraded.
+          labels:
+            service: online-evals
+            severity: warning
+          isPaused: false
+        - uid: oe-demand-over-concurrency
+          title: Demand above concurrency
+          condition: C
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: prometheus
+              model:
+                expr: sum(rate(phoenix_online_eval_added_work_units_total[5m])) * (sum(rate(phoenix_online_eval_evaluator_duration_seconds_sum[5m])) / sum(rate(phoenix_online_eval_evaluator_duration_seconds_count[5m]))) / sum(phoenix_online_eval_evaluator_concurrency_limit)
+                instant: true
+                intervalMs: 1000
+                maxDataPoints: 43200
+                refId: A
+            - refId: C
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 1
+                        type: gt
+                expression: A
+                intervalMs: 1000
+                maxDataPoints: 43200
+                refId: C
+                type: threshold
+          dashboardUid: online-evals
+          panelId: 12
+          noDataState: OK
+          execErrState: Error
+          for: 15m
+          annotations:
+            __dashboardUid__: online-evals
+            __panelId__: "12"
+            summary: Incoming units need more concurrency than is configured. The queue is growing.
+          labels:
+            service: online-evals
+            severity: warning
+          isPaused: false
+        - uid: oe-retrying
+          title: Units retrying
+          condition: C
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: prometheus
+              model:
+                expr: sum(max by (evaluation_target) (phoenix_online_eval_retryable_error_work_units))
+                instant: true
+                intervalMs: 1000
+                maxDataPoints: 43200
+                refId: A
+            - refId: C
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                expression: A
+                intervalMs: 1000
+                maxDataPoints: 43200
+                refId: C
+                type: threshold
+          dashboardUid: online-evals
+          panelId: 13
+          noDataState: OK
+          execErrState: Error
+          for: 15m
+          annotations:
+            __dashboardUid__: online-evals
+            __panelId__: "13"
+            summary: Units have been retrying for 15 minutes. A model provider may be failing.
+          labels:
+            service: online-evals
+            severity: warning
+          isPaused: false
+        - uid: oe-failed
+          title: Units failed
+          condition: C
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: prometheus
+              model:
+                expr: sum(increase(phoenix_online_eval_completed_work_units_total{outcome="failed"}[30m]))
+                instant: true
+                intervalMs: 1000
+                maxDataPoints: 43200
+                refId: A
+            - refId: C
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                expression: A
+                intervalMs: 1000
+                maxDataPoints: 43200
+                refId: C
+                type: threshold
+          dashboardUid: online-evals
+          panelId: 19
+          noDataState: OK
+          execErrState: Error
+          annotations:
+            __dashboardUid__: online-evals
+            __panelId__: "19"
+            summary: Units ran out of retries in the last 30 minutes.
+          labels:
+            service: online-evals
+            severity: warning
+          isPaused: false
+        - uid: oe-expired
+          title: Units expired
+          condition: C
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: prometheus
+              model:
+                expr: sum(increase(phoenix_online_eval_completed_work_units_total{outcome="expired"}[30m]))
+                instant: true
+                intervalMs: 1000
+                maxDataPoints: 43200
+                refId: A
+            - refId: C
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                expression: A
+                intervalMs: 1000
+                maxDataPoints: 43200
+                refId: C
+                type: threshold
+          dashboardUid: online-evals
+          panelId: 19
+          noDataState: OK
+          execErrState: Error
+          annotations:
+            __dashboardUid__: online-evals
+            __panelId__: "19"
+            summary: Units expired without a result in the last 30 minutes.
+          labels:
+            service: online-evals
+            severity: warning
+          isPaused: false
+        - uid: oe-sweep-failures
+          title: Sweeps failing
+          condition: C
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: prometheus
+              model:
+                expr: sum(increase(phoenix_online_eval_sweep_failures_total[10m]))
+                instant: true
+                intervalMs: 1000
+                maxDataPoints: 43200
+                refId: A
+            - refId: C
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 0
+                        type: gt
+                expression: A
+                intervalMs: 1000
+                maxDataPoints: 43200
+                refId: C
+                type: threshold
+          dashboardUid: online-evals
+          panelId: 26
+          noDataState: OK
+          execErrState: Error
+          for: 10m
+          annotations:
+            __dashboardUid__: online-evals
+            __panelId__: "26"
+            summary: Trace or session sweeps have been failing for 10 minutes. No new trace or session units are being queued.
+          labels:
+            service: online-evals
+            severity: warning
+          isPaused: false

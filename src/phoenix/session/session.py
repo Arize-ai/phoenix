@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import os
@@ -5,10 +6,13 @@ import shutil
 import warnings
 from abc import ABC, abstractmethod
 from collections import UserList
+from contextlib import ExitStack
 from enum import Enum
+from functools import partial
 from importlib.util import find_spec
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from threading import Thread
 from typing import TYPE_CHECKING, Awaitable, Callable, NamedTuple, Optional, Union
 from urllib.parse import urljoin
 
@@ -38,9 +42,10 @@ from phoenix.db.engines import create_engine
 from phoenix.server.app import (
     _db,
     create_app,
-    instrument_engine_if_enabled,
 )
 from phoenix.server.email.sender import email_sender_from_env
+from phoenix.server.lifecycle import Cleanup, dispose_engine_sync_fallback
+from phoenix.server.telemetry import ServerTelemetry
 from phoenix.server.thread_server import ThreadServer
 from phoenix.server.types import DbSessionFactory
 from phoenix.services import AppService
@@ -207,49 +212,96 @@ class ThreadSession(Session):
             root_path=root_path,
             notebook_env=notebook_env,
         )
-        auth_settings = get_env_auth_settings(self.host)
-        # Initialize an app service that keeps the server running
-        engine = create_engine(
-            connection_str=database_url,
-            migrate=not Settings.disable_migrations,
-            log_to_stdout=get_env_log_sql(),
-            log_migrations=self.notebook_env is None,
-        )
-        shutdown_callbacks: list[Callable[[], None | Awaitable[None]]] = []
-        shutdown_callbacks.extend(instrument_engine_if_enabled(engine))
-        # Ensure engine is disposed on shutdown to properly close database connections
-        shutdown_callbacks.append(engine.dispose)
-        factory = DbSessionFactory(db=_db(engine), dialect=engine.dialect.name)
-        self.app = create_app(
-            db=factory,
-            authentication_enabled=auth_settings.enable_auth,
-            grpc_host=self.host,
-            initial_spans=trace_dataset.to_spans() if trace_dataset else None,
-            initial_annotation_precursors=(
-                [p for e in trace_dataset.evaluations for p in evaluations_to_precursors(e)]
-                if trace_dataset is not None and trace_dataset.evaluations
-                else None
-            ),
-            shutdown_callbacks=shutdown_callbacks,
-            email_sender=email_sender_from_env(),
-            **app_auth_kwargs(auth_settings),
-        )
-        self.server = ThreadServer(
-            app=self.app,
-            host=self.host,
-            port=self.port,
-            root_path=self.root_path,
-        ).run_in_thread()
-        # start the server
-        self.server_thread = next(self.server)
+        self._exit_stack = ExitStack()
+        self._exit_stack.callback(self.temp_dir.cleanup)
+        self._thread_server: Optional[ThreadServer] = None
+        self._server_telemetry: Optional[ServerTelemetry] = None
+        try:
+            auth_settings = get_env_auth_settings(self.host)
+            server_telemetry = self._exit_stack.enter_context(ServerTelemetry.from_env())
+            self._server_telemetry = server_telemetry
+            engine = create_engine(
+                connection_str=database_url,
+                migrate=not Settings.disable_migrations,
+                log_to_stdout=get_env_log_sql(),
+                log_migrations=self.notebook_env is None,
+            )
+            dispose_engine = Cleanup(
+                engine.dispose,
+                sync_fallback=partial(dispose_engine_sync_fallback, engine),
+            )
+            self._exit_stack.callback(dispose_engine.close)
+            uninstrument = server_telemetry.instrument_engine(engine)
+            shutdown_callbacks: list[Callable[[], None | Awaitable[None]]] = [
+                uninstrument,
+                dispose_engine,
+                partial(asyncio.to_thread, server_telemetry.close),
+            ]
+            factory = DbSessionFactory(
+                db=_db(engine),
+                dialect=engine.dialect.name,
+            )
+            self.app = create_app(
+                server_telemetry=server_telemetry,
+                db=factory,
+                authentication_enabled=auth_settings.enable_auth,
+                grpc_host=self.host,
+                initial_spans=trace_dataset.to_spans() if trace_dataset else None,
+                initial_annotation_precursors=(
+                    [p for e in trace_dataset.evaluations for p in evaluations_to_precursors(e)]
+                    if trace_dataset is not None and trace_dataset.evaluations
+                    else None
+                ),
+                shutdown_callbacks=shutdown_callbacks,
+                email_sender=email_sender_from_env(),
+                **app_auth_kwargs(auth_settings),
+            )
+            self._thread_server = ThreadServer(
+                app=self.app,
+                host=self.host,
+                port=self.port,
+                root_path=self.root_path,
+            )
+            self.server = self._thread_server.run_in_thread()
+            # start the server
+            self.server_thread = next(self.server)
+        except BaseException as setup_err:
+            try:
+                self._close_exit_stack_safely()
+            except Exception as cleanup_err:
+                setup_err.add_note(
+                    f"Session cleanup after failed start also raised: {cleanup_err!r}"
+                )
+            raise
+
+    def _close_exit_stack_safely(self) -> None:
+        thread = getattr(self, "server_thread", None)
+        if thread is None and self._thread_server is not None:
+            candidate = getattr(self._thread_server, "thread", None)
+            if isinstance(candidate, Thread):
+                thread = candidate
+        if thread is not None and thread.is_alive():
+            # Disposing the engine or deleting the working directory under a live
+            # server thread is unsafe, so leave them; only detach telemetry so the
+            # root log handler does not outlive the session.
+            logger.warning(
+                "Phoenix server thread is still running after shutdown timeout; "
+                "skipping engine disposal and temporary directory removal."
+            )
+            if self._server_telemetry is not None:
+                self._server_telemetry.close(flush=False)
+            return
+        self._exit_stack.close()
 
     @property
     def active(self) -> bool:
         return self.server_thread.is_alive()
 
     def end(self) -> None:
-        self.server.close()
-        self.temp_dir.cleanup()
+        try:
+            self.server.close()
+        finally:
+            self._close_exit_stack_safely()
 
 
 def delete_all(prompt_before_delete: Optional[bool] = True) -> None:

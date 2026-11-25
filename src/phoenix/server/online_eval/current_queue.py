@@ -304,9 +304,15 @@ def queued_rows(
 ) -> sa.Subquery:
     """The oldest ``MAX_QUEUE_COUNT`` of one target's queued evaluations in ``status``, read
     through its ``ix_*_claimable`` index."""
+    live_binding = sa.exists(
+        sa.select(sa.literal(1)).where(
+            models.ProjectEvaluator.id == model.project_evaluator_id,
+            models.ProjectEvaluator.deleted_at.is_(None),
+        )
+    )
     return (
         sa.select(*columns)
-        .where(status_in(model, QUEUED_STATUSES), model.status == status)
+        .where(status_in(model, QUEUED_STATUSES), model.status == status, live_binding)
         .order_by(model.id)
         .limit(MAX_QUEUE_COUNT)
         .subquery()
@@ -337,8 +343,12 @@ async def _load_project_evaluator_targets(
             id=project_evaluator_id, project_id=project_id, evaluation_target=evaluation_target
         )
         for project_evaluator_id, project_id, evaluation_target in await session.execute(
-            sa.select(pe.id, pe.project_id, pe.evaluation_target).where(
-                condition, pe.deleted_at.is_(None)
+            sa.select(pe.id, pe.project_id, pe.evaluation_target)
+            .join(models.Project, models.Project.id == pe.project_id)
+            .where(
+                condition,
+                pe.deleted_at.is_(None),
+                models.Project.deleted_at.is_(None),
             )
         )
     ]

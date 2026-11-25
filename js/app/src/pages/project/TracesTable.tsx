@@ -12,8 +12,9 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { graphql, usePaginationFragment } from "react-relay";
+import { graphql, readInlineData, usePaginationFragment } from "react-relay";
 import { useNavigate, useResolvedPath, useSearchParams } from "react-router";
+import type { GraphQLResponse, Observable } from "relay-runtime";
 
 import {
   Flex,
@@ -67,7 +68,7 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
-import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
+import { SpanStatusIndicator } from "@phoenix/components/trace/SpanStatusIndicator";
 import { TraceTokenCosts } from "@phoenix/components/trace/TraceTokenCosts";
 import { TraceTokenCount } from "@phoenix/components/trace/TraceTokenCount";
 import type { ISpanItem } from "@phoenix/components/trace/types";
@@ -84,11 +85,16 @@ import { getTraceSelectionSlots } from "@phoenix/utils/traceSelectionUtils";
 import { getTraceDetailsPath } from "@phoenix/utils/urlUtils";
 
 import type {
+  TracesTable_descendants$data,
+  TracesTable_descendants$key,
+} from "./__generated__/TracesTable_descendants.graphql";
+import type {
   SpanStatusCode,
   TracesTable_spans$data,
   TracesTable_spans$key,
 } from "./__generated__/TracesTable_spans.graphql";
 import type { TracesTableQuery } from "./__generated__/TracesTableQuery.graphql";
+import type { useSpanAnnotationNames_project$key } from "./__generated__/useSpanAnnotationNames_project.graphql";
 import { DEFAULT_PAGE_SIZE } from "./constants";
 import { withFilterConditionParam } from "./filterConditionParam";
 import {
@@ -113,6 +119,9 @@ import {
 import type { TraceFilterValidConditionArgs } from "./TraceFilterConditionField";
 import { TraceFilterConditionFieldWithVocabulary } from "./TraceFilterConditionField";
 import { useTraceFilters } from "./TraceFiltersContext";
+import { useDeferredPayloadStatus } from "./useDeferredPayloadStatus";
+import { useLoadNextPage } from "./useLoadNextPage";
+import { useSpanAnnotationNames } from "./useSpanAnnotationNames";
 
 type TracesTableProps = {
   selectedRowId?: string;
@@ -123,7 +132,7 @@ type TracesTableProps = {
    * for in-progress edits.
    */
   onFilterConditionApplied?: (condition: string) => void;
-  project: TracesTable_spans$key;
+  project: TracesTable_spans$key & useSpanAnnotationNames_project$key;
   /**
    * The settled condition `project` was loaded with; the rows on hand already
    * match it.
@@ -133,6 +142,8 @@ type TracesTableProps = {
    * from their filter provider's condition and leave the URL alone.
    */
   seed?: string;
+  /** The owner query's request, read for a failure after the rows render. */
+  initialRequest: Observable<GraphQLResponse> | null | undefined;
 };
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
@@ -142,6 +153,55 @@ const renderTraceSpanAnnotationFilterActions = (annotation: Annotation) => (
 );
 const NUM_DESCENDANTS = 50;
 
+const descendantsFragment = graphql`
+  fragment TracesTable_descendants on Span
+  @inline
+  @argumentDefinitions(numDescendants: { type: "Int", defaultValue: 50 }) {
+    descendants(first: $numDescendants) {
+      edges {
+        node {
+          id
+          spanKind
+          name
+          statusCode: propagatedStatusCode
+          statusMessage
+          startTime
+          endTime
+          latencyMs
+          parentId
+          cumulativeTokenCountTotal: tokenCountTotal
+          input {
+            value: truncatedValue
+          }
+          output {
+            value: truncatedValue
+          }
+          spanId
+          trace {
+            id
+            traceId
+          }
+          spanAnnotations {
+            id
+            name
+            label
+            score
+            annotatorKind
+            createdAt
+          }
+          ...AnnotationSummaryGroup
+          documentRetrievalMetrics {
+            evaluationName
+            ndcg
+            precision
+            hit
+          }
+        }
+      }
+    }
+  }
+`;
+
 const toolbarFilterFieldCSS = css`
   flex: 2 1 420px;
   min-width: min(100%, 320px);
@@ -149,9 +209,13 @@ const toolbarFilterFieldCSS = css`
 
 interface IAdditionalSpansIndicator {
   /**
-   * A flag that if set, indicates that this row is just there to show that there are N more spans under this span
+   * A flag that if set, indicates that this row is not a span: it says that
+   * there are N more spans under this span, or that its child spans failed to
+   * load
    */
   __additionalRow?: true;
+  /** Set on the additional row that says the child spans failed to load. */
+  __hasChildSpansFailed?: true;
 }
 /**
  * An indicator that this row is an additional row, not a span
@@ -191,6 +255,20 @@ const TableBody = <
         const isSelected = selectedTraceSlots.some(
           (slot) => slot.traceId === row.original.trace.traceId
         );
+        if (row.original.__hasChildSpansFailed) {
+          // A message, not a span: one cell across the row, so it is neither
+          // cut to the name column's width nor set beside span cells.
+          return (
+            <tr key={row.id} data-is-additional-row css={css(trCSS)}>
+              <td
+                className={TABLE_DATA_CELL_CLASS}
+                colSpan={row.getVisibleCells().length}
+              >
+                <Text color="text-700">{row.original.name}</Text>
+              </td>
+            </tr>
+          );
+        }
         return (
           <tr
             key={row.id}
@@ -352,12 +430,11 @@ export function TracesTable(props: TracesTableProps) {
           }
           traceFilterCondition: { type: "String", defaultValue: null }
           numDescendants: { type: "Int", defaultValue: 50 }
+          deferChildSpans: { type: "Boolean", defaultValue: true }
         ) {
           id
           name
           ...ProjectAnnotationConfigsByNameFragment
-          ...SpanColumnSelector_annotations
-          ...SpanColumnSelector_traceAnnotations
           rootSpans: spans(
             first: $first
             after: $after
@@ -413,48 +490,9 @@ export function TracesTable(props: TracesTableProps) {
                   precision
                   hit
                 }
-                descendants(first: $numDescendants) {
-                  edges {
-                    node {
-                      id
-                      spanKind
-                      name
-                      statusCode: propagatedStatusCode
-                      statusMessage
-                      startTime
-                      endTime
-                      latencyMs
-                      parentId
-                      cumulativeTokenCountTotal: tokenCountTotal
-                      input {
-                        value: truncatedValue
-                      }
-                      output {
-                        value: truncatedValue
-                      }
-                      spanId
-                      trace {
-                        id
-                        traceId
-                      }
-                      spanAnnotations {
-                        id
-                        name
-                        label
-                        score
-                        annotatorKind
-                        createdAt
-                      }
-                      ...AnnotationSummaryGroup
-                      documentRetrievalMetrics {
-                        evaluationName
-                        ndcg
-                        precision
-                        hit
-                      }
-                    }
-                  }
-                }
+                ...TracesTable_descendants
+                  @defer(if: $deferChildSpans)
+                  @arguments(numDescendants: $numDescendants)
               }
             }
           }
@@ -462,7 +500,24 @@ export function TracesTable(props: TracesTableProps) {
       `,
       props.project
     );
+  const {
+    isPending,
+    isRowFailed,
+    onRefetchStart,
+    onRefetchComplete,
+    trackNextPage,
+  } = useDeferredPayloadStatus({ initialRequest: props.initialRequest });
+  const loadNextPage = useLoadNextPage({
+    loadNext,
+    rowCount: data.rootSpans.edges.length,
+    trackNextPage,
+  });
   const annotationConfigsByName = useProjectAnnotationConfigsByName(data);
+  const { spanAnnotationNames, traceAnnotationNames, hasAnnotationNamesError } =
+    useSpanAnnotationNames({
+      project: props.project,
+      initialRequest: props.initialRequest,
+    });
 
   const annotationColumnVisibility = useTracingContext(
     (state) => state.annotationColumnVisibility
@@ -481,30 +536,45 @@ export function TracesTable(props: TracesTableProps) {
     );
   }, [traceAnnotationColumnVisibility]);
   const tableData = useMemo(() => {
-    return data.rootSpans.edges.map(({ rootSpan }) => {
+    return data.rootSpans.edges.map(({ rootSpan }, rowIndex) => {
+      // Relay types the field as present, but a deferred inline fragment
+      // reads as undefined until its payload arrives.
+      const {
+        descendants,
+      }: {
+        descendants: TracesTable_descendants$data["descendants"] | undefined;
+      } = readInlineData<TracesTable_descendants$key>(
+        descendantsFragment,
+        rootSpan
+      );
       // Construct the set of spans over which you want to construct the tree
       const spanTree = createSpanTree([
         rootSpan,
-        ...rootSpan.descendants.edges.map(({ node }) => node),
+        ...(descendants?.edges.map(({ node }) => node) ?? []),
       ]);
       // Unwrap the root span from the span tree and return it
       const [root] = spanTreeToNestedSpanTableRows({
         children: spanTree,
       });
       type SpanRowType = typeof root & IAdditionalSpansRow;
-      // check if there are more spans in the tree than is loaded
       const numSpansNotLoaded = rootSpan.trace.numSpans - NUM_DESCENDANTS - 1;
-      if (numSpansNotLoaded > 0) {
+      const hasDescendantsFailed =
+        descendants === undefined &&
+        isRowFailed(rowIndex) &&
+        rootSpan.trace.numSpans > 1;
+      const additionalRowName = hasDescendantsFailed
+        ? "Child spans failed to load."
+        : descendants != null && numSpansNotLoaded > 0
+          ? `+ ${numSpansNotLoaded} more span${numSpansNotLoaded > 1 ? "s" : ""}`
+          : null;
+      if (additionalRowName != null) {
         root.children = [
           ...root.children,
-          // We add a dummy span here to indicate that there are more spans in the tree
           {
             ...root,
-            // Indicate that this is an additional row, not a span
             __additionalRow: true,
-            name: `+ ${numSpansNotLoaded} more span${
-              numSpansNotLoaded > 1 ? "s" : ""
-            }`,
+            __hasChildSpansFailed: hasDescendantsFailed || undefined,
+            name: additionalRowName,
             id: `additional-${root.id}`,
             // Clear out the span info
             input: { value: "" },
@@ -518,7 +588,7 @@ export function TracesTable(props: TracesTableProps) {
       }
       return root as SpanRowType;
     });
-  }, [data]);
+  }, [data, isRowFailed]);
   type TableRow = (typeof tableData)[number];
   // descendant rows do not select the trace fields the column reads
   type RootSpanTrace =
@@ -698,14 +768,14 @@ export function TracesTable(props: TracesTableProps) {
         header: "status",
         accessorKey: "statusCode",
         enableSorting: false,
-        minSize: 50,
-        maxSize: 50,
+        minSize: 80,
+        maxSize: 80,
         cell: ({ getValue, row }) => {
           if (row.original.__additionalRow) {
             return null;
           }
           const statusCode = getValue() as SpanStatusCode;
-          return <SpanStatusCodeIcon statusCode={statusCode} />;
+          return <SpanStatusIndicator statusCode={statusCode} isLabelHidden />;
         },
       },
       {
@@ -966,6 +1036,7 @@ export function TracesTable(props: TracesTableProps) {
     //if the sorting changes, we need to reset the pagination
     const sort = sorting[0];
     startTransition(() => {
+      onRefetchStart();
       refetch(
         {
           sort: sort ? getGqlSort(sort) : DEFAULT_SORT,
@@ -977,6 +1048,7 @@ export function TracesTable(props: TracesTableProps) {
         },
         {
           fetchPolicy: "store-and-network",
+          onComplete: onRefetchComplete,
         }
       );
     });
@@ -986,12 +1058,15 @@ export function TracesTable(props: TracesTableProps) {
     validTraceFilterCondition,
     fetchKey,
     timeRangeISOStrings,
+    onRefetchStart,
+    onRefetchComplete,
   ]);
 
   const loadMoreSentinelRef = useLoadMoreSentinel<HTMLDivElement>({
     hasNext,
     isLoadingNext,
-    loadNext,
+    loadNext: loadNextPage,
+    isParentRequestPending: isPending,
     pageSize: PAGE_SIZE,
     rows: data.rootSpans.edges,
   });
@@ -1124,7 +1199,12 @@ export function TracesTable(props: TracesTableProps) {
               />
             </div>
             <TableMetricsChartSelector view="traces" />
-            <SpanColumnSelector columns={table.getAllColumns()} query={data} />
+            <SpanColumnSelector
+              columns={table.getAllColumns()}
+              spanAnnotationNames={spanAnnotationNames}
+              traceAnnotationNames={traceAnnotationNames}
+              hasAnnotationNamesError={hasAnnotationNamesError}
+            />
             <RowExpandToggleButton
               isExpanded={areRowsExpanded}
               onChange={setAreRowsExpanded}

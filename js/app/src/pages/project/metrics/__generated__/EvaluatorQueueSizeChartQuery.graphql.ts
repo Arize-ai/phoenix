@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c3b3fc173682532f206baad9e9fc89cc>>
+ * @generated SignedSource<<407a365a13d36519114f791c30e123cf>>
  * @lightSyntaxTransform
  */
 
@@ -27,9 +27,7 @@ export type EvaluatorQueueSizeChartQuery$data = {
   readonly project: {
     readonly evaluationActivity?: {
       readonly series: ReadonlyArray<{
-        readonly groups: ReadonlyArray<{
-          readonly queueSize: number;
-        }>;
+        readonly queueSize: number;
         readonly timestamp: string;
       }>;
     };
@@ -103,19 +101,8 @@ v4 = {
             {
               "alias": null,
               "args": null,
-              "concreteType": "EvaluationActivityBinGroup",
-              "kind": "LinkedField",
-              "name": "groups",
-              "plural": true,
-              "selections": [
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "queueSize",
-                  "storageKey": null
-                }
-              ],
+              "kind": "ScalarField",
+              "name": "queueSize",
               "storageKey": null
             }
           ],
@@ -194,16 +181,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "df0a37031453658cd2773be6f569f201",
+    "cacheID": "536f68e229a7dce4c049478293b3d732",
     "id": null,
     "metadata": {},
     "name": "EvaluatorQueueSizeChartQuery",
     "operationKind": "query",
-    "text": "query EvaluatorQueueSizeChartQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluationActivity(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        series {\n          timestamp\n          groups {\n            queueSize\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query EvaluatorQueueSizeChartQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      evaluationActivity(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        series {\n          timestamp\n          queueSize\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "83faaef57c4609386f98f6710e98b3ca";
+(node as any).hash = "ff9a923e0f8a604875ebcbab60bf0454";
 
 export default node;

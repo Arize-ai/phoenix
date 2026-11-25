@@ -27,7 +27,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, Literal, Optional
 
-from sqlalchemy import and_, case, func, or_, select, text, update
+from sqlalchemy import and_, case, exists, func, literal, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
@@ -95,6 +95,15 @@ def claim_lease_lapsed(
     return work_unit_model.claimed_at < now - timedelta(seconds=CLAIM_LEASE_TTL_SECONDS)
 
 
+def _live_binding(work_unit_model: WorkUnitModel) -> ColumnElement[bool]:
+    return exists(
+        select(literal(1)).where(
+            models.ProjectEvaluator.id == work_unit_model.project_evaluator_id,
+            models.ProjectEvaluator.deleted_at.is_(None),
+        )
+    )
+
+
 async def recover_lapsed_claims(
     session: AsyncSession,
     work_unit_model: WorkUnitModel,
@@ -110,6 +119,7 @@ async def recover_lapsed_claims(
         .where(
             # SQLite reads a partial index only when the query repeats its predicate.
             text(queued_index_predicate()),
+            _live_binding(work_unit_model),
             work_unit_model.status == "RUNNING",
             work_unit_model.attempts >= max_attempts - 1,
             claim_lease_lapsed(now, work_unit_model),
@@ -156,18 +166,21 @@ class EvalWorkCoordinator:
 
     def _claimable(self, now: datetime) -> ColumnElement[bool]:
         work_unit_model = self._work_unit_model
-        return or_(
-            work_unit_model.status == "PENDING",
-            and_(
-                work_unit_model.status == "RUNNING",
-                work_unit_model.attempts < self._max_attempts - 1,
-                claim_lease_lapsed(now, work_unit_model),
-            ),
-            and_(
-                work_unit_model.status == "ERROR",
-                or_(
-                    work_unit_model.cooldown_until.is_(None),
-                    work_unit_model.cooldown_until <= now,
+        return and_(
+            _live_binding(work_unit_model),
+            or_(
+                work_unit_model.status == "PENDING",
+                and_(
+                    work_unit_model.status == "RUNNING",
+                    work_unit_model.attempts < self._max_attempts - 1,
+                    claim_lease_lapsed(now, work_unit_model),
+                ),
+                and_(
+                    work_unit_model.status == "ERROR",
+                    or_(
+                        work_unit_model.cooldown_until.is_(None),
+                        work_unit_model.cooldown_until <= now,
+                    ),
                 ),
             ),
         )
@@ -282,14 +295,15 @@ class EvalWorkCoordinator:
         work_unit_id: int,
         claimed_by: str,
         write: PublicationWrite,
+        project_evaluator_id: Optional[int] = None,
     ) -> None:
         """Fence a claimed unit, run ``write``, and mark the unit DONE, all in one
         transaction, so a unit is never left RUNNING with its results published.
 
-        The fence locks the target row ``FOR KEY SHARE``, then the work unit ``FOR
-        UPDATE``, the order a target delete takes as it cascades to the work unit. The unit
-        must still be owned and RUNNING, and its project evaluator enabled. A deletion of
-        the target either waits for the write or leaves nothing to fence.
+        The fence locks the target row ``FOR KEY SHARE``, then the work unit
+        ``FOR UPDATE``, matching the order target deletion takes as it cascades to the
+        work unit. The unit must still be owned and RUNNING, and its project evaluator
+        live and enabled.
 
         Raises ``PublicationClaimLostError`` when the fence fails."""
         work_unit_model = self._work_unit_model
@@ -305,7 +319,7 @@ class EvalWorkCoordinator:
                 )
                 .with_for_update(read=True, key_share=True)
             )
-            project_evaluator_id = await session.scalar(
+            locked_evaluator_id = await session.scalar(
                 select(work_unit_model.project_evaluator_id)
                 .where(
                     work_unit_model.id == work_unit_id,
@@ -314,13 +328,15 @@ class EvalWorkCoordinator:
                 )
                 .with_for_update()
             )
-            if project_evaluator_id is None:
+            if locked_evaluator_id is None or (
+                project_evaluator_id is not None and locked_evaluator_id != project_evaluator_id
+            ):
                 raise PublicationClaimLostError(
                     f"work unit {work_unit_id} is no longer owned and running"
                 )
             project_evaluator_enabled = await session.scalar(
                 select(models.ProjectEvaluator.enabled).where(
-                    models.ProjectEvaluator.id == project_evaluator_id,
+                    models.ProjectEvaluator.id == locked_evaluator_id,
                     models.ProjectEvaluator.deleted_at.is_(None),
                 )
             )

@@ -213,7 +213,14 @@ class ProjectSession(Node):
     ) -> Connection[Annotated["Trace", lazy(".Trace")]]:
         from phoenix.server.api.types.Trace import Trace
 
-        stmt = select(models.Trace).filter_by(project_session_rowid=self.id)
+        stmt = (
+            select(models.Trace)
+            .join(models.Project, models.Project.id == models.Trace.project_rowid)
+            .where(
+                models.Trace.project_session_rowid == self.id,
+                models.Project.deleted_at.is_(None),
+            )
+        )
         if after:
             cursor = Cursor.from_string(after)
             if cursor.sort_column:

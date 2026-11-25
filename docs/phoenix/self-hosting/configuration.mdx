@@ -94,6 +94,8 @@ The following environment variables will control how your phoenix server runs.
 * **PHOENIX\_ALLOWED\_PROVIDERS:** A comma-separated, case-insensitive list of model provider names to display in the playground UI. When unset, all providers are shown. Set to `NONE` to hide all providers. Unrecognized provider names will cause a startup error. Supported values: `OPENAI`, `ANTHROPIC`, `AZURE_OPENAI`, `GOOGLE`, `DEEPSEEK`, `XAI`, `OLLAMA`, `AWS`, `CEREBRAS`, `FIREWORKS`, `GROQ`, `MOONSHOT`, `MINIMAX`, `PERPLEXITY`, `TOGETHER`, `ZAI`, `META`, `TYPESAFE`. Example: `PHOENIX_ALLOWED_PROVIDERS=OPENAI,ANTHROPIC`. Available since version 13.13.0. The allow-list also decides which providers decision runs in the playground accept.
 
 
+* **PHOENIX\_PLAYGROUND\_TIMEOUT\_SECONDS:** The timeout, in seconds, that the server waits for each playground task (the time between streamed chunks before the run is cancelled). Must be a positive integer. Defaults to `90`. Note that dataset experiment runs are not covered by this timeout. Example: `PHOENIX_PLAYGROUND_TIMEOUT_SECONDS=300`.
+
 * **PHOENIX\_ENABLE\_MCP\_SERVER:** Whether to mount the built-in [remote MCP server](/docs/phoenix/integrations/mcp#remote-mcp-server) (currently in beta) at `/mcp`. Defaults to `true`. Set to `false` to remove the endpoint entirely.
 
 * **PHOENIX\_ENABLE\_MCP\_CODE\_MODE:** Whether the built-in MCP server presents its code-mode tool surface, including an `execute` tool that runs agent-written Python in a sandboxed interpreter. Defaults to `true`. Set to `false` to disable code execution and expose plain, group-gated tools instead. Has no effect unless the MCP server is enabled. See [Remote MCP Server](/docs/phoenix/integrations/mcp#remote-mcp-server) for details.
@@ -110,10 +112,6 @@ The following environment variables will control how your phoenix server runs.
 | --- | ---: | --- |
 | `PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY` | `50` | The number of online evaluations one replica runs at the same time. |
 | `PHOENIX_ONLINE_EVAL_RETENTION_SECONDS` | `604800` | How long, in seconds, Phoenix keeps the records of finished span evaluations. |
-| `PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES` | `65536` | The maximum total size, in UTF-8 bytes, of the messages an LLM evaluator sends. Minimum: `1024`. |
-| `PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES` | `65536` | The maximum size, in UTF-8 bytes, of the input a code evaluator receives. Minimum: `1024`. |
-
-Set the two byte limits to the same values on every replica.
 
 ### Logging
 

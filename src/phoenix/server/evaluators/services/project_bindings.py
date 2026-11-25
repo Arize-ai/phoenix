@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any, Mapping, Optional, Sequence, TypedDict, Union
 
 from pydantic import ValidationError
-from sqlalchemy import select, text, update
+from sqlalchemy import exists, select, text, update
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
@@ -16,12 +16,15 @@ from phoenix.db import models
 from phoenix.db.eval_work import queued_index_predicate
 from phoenix.db.helpers import (
     code_evaluator_with_latest_version,
+    is_foreign_key_violation,
 )
 from phoenix.db.types.annotation_configs import OutputConfigType
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import AlreadyExists, BadRequest, Conflict, NotFound
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.cleanup.lifecycle import tombstone_project_evaluators
+from phoenix.server.dml_event import ProjectDeleteEvent, SpanDeleteEvent
 from phoenix.server.evaluators.services.definitions import (
     EvaluatorServiceContext,
     ValidatedCode,
@@ -38,7 +41,7 @@ from phoenix.server.evaluators.services.management import (
     get_live_project_evaluator,
     get_trace_project_for_project_evaluator,
     is_sole_evaluator_binding,
-    mark_bindings_deleted,
+    lock_evaluators,
     materialize_project_evaluator_evaluation_delay,
     parse_evaluator_id,
     validate_project_evaluator_filter,
@@ -154,7 +157,7 @@ class SetProjectEvaluatorEnabledInput:
 @dataclass(kw_only=True)
 class DeleteProjectEvaluatorsInput:
     project_evaluator_ids: list[GlobalID]
-    delete_associated_prompt_or_decision: bool = False
+    delete_associated_prompt: bool = False
 
 
 async def create_project_llm_evaluator(
@@ -166,7 +169,7 @@ async def create_project_llm_evaluator(
     try:
         async with context.db() as session:
             project = await validate_project_evaluator_project(
-                session, project_id, input.project_id
+                session, project_id, input.project_id, lock=True
             )
             evaluator = await create_llm_definition(
                 session,
@@ -180,6 +183,8 @@ async def create_project_llm_evaluator(
             )
             project_evaluator = await bind_project_evaluator(session, project, evaluator, values)
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+        if is_foreign_key_violation(error):
+            raise NotFound("Referenced evaluator dependency not found") from error
         raise await project_binding_name_taken(context, project_id, values["name"]) from error
     return project_evaluator
 
@@ -212,7 +217,7 @@ async def update_project_llm_evaluator(
                 )
             )
             if evaluator_id is not None:
-                await session.get(models.LLMEvaluator, evaluator_id, with_for_update=True)
+                await lock_evaluators(session, [evaluator_id])
             pair = (
                 await session.execute(
                     select(models.ProjectEvaluator, models.LLMEvaluator)
@@ -252,6 +257,8 @@ async def update_project_llm_evaluator(
                 session, project_evaluator, input
             )
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+        if is_foreign_key_violation(error):
+            raise NotFound("Referenced evaluator dependency not found") from error
         assert project_id is not None
         raise await project_binding_name_taken(
             context, project_id, name, binding_id=project_evaluator_id
@@ -291,9 +298,10 @@ async def add_project_evaluator(
     try:
         async with context.db() as session:
             project = await validate_project_evaluator_project(
-                session, project_id, settings.project_id
+                session, project_id, settings.project_id, lock=True
             )
-            evaluator = await session.get(evaluator_model, evaluator_rowid, with_for_update=True)
+            await lock_evaluators(session, [evaluator_rowid])
+            evaluator = await session.get(evaluator_model, evaluator_rowid, populate_existing=True)
             if evaluator is None:
                 if evaluator_kind == "CODE":
                     raise NotFound(f"Code evaluator with id {evaluator_id} not found")
@@ -440,12 +448,11 @@ async def detach_project_evaluators(
     *,
     project_id: Optional[GlobalID] = None,
 ) -> None:
-    """Delete bindings while preserving shared definitions and prompts.
+    """Tombstone bindings and enqueue background trace-project reclamation while preserving
+    shared definitions and prompts.
 
-    A deleted binding disappears and stops queueing evaluations at once, and its queued work,
-    trace project and traces are removed in the background. Missing or already deleted
-    bindings are ignored. With a project, a binding of another project is refused before any
-    change.
+    Missing or already-deleted bindings are ignored. With a project, a live binding of another
+    project is refused before any change.
     """
     rowids: list[int] = []
     for global_id in project_evaluator_ids:
@@ -453,14 +460,16 @@ async def detach_project_evaluators(
             rowids.append(from_global_id_with_expected_type(global_id, "ProjectEvaluator"))
         except ValueError:
             raise BadRequest(f"Invalid project evaluator id: {global_id}")
+    if not rowids:
+        return
     async with context.db() as session:
         if project_id is not None:
             elsewhere = (
                 await session.scalars(
                     select(models.ProjectEvaluator.id).where(
                         models.ProjectEvaluator.id.in_(rowids),
-                        models.ProjectEvaluator.project_id != _decode_project_id(project_id),
                         models.ProjectEvaluator.deleted_at.is_(None),
+                        models.ProjectEvaluator.project_id != _decode_project_id(project_id),
                     )
                 )
             ).all()
@@ -468,15 +477,16 @@ async def detach_project_evaluators(
                 listed = ", ".join(str(GlobalID("ProjectEvaluator", str(i))) for i in elsewhere)
                 raise BadRequest(f"These bindings belong to another project: {listed}")
 
-        deleted_rowids = await mark_bindings_deleted(
+        delete_result = await tombstone_project_evaluators(
             session,
-            models.ProjectEvaluator,
-            rowids,
-            delete_unused_evaluator=False,
-            delete_associated_prompt_or_decision=False,
+            binding_ids=rowids,
+            collect_unused_evaluator=False,
+            delete_associated_prompt=False,
         )
-    if deleted_rowids:
-        context.wake_evaluator_purger()
+    if delete_result.tombstoned_project_ids and context.event_queue is not None:
+        tombstoned_ids = tuple(delete_result.tombstoned_project_ids)
+        context.event_queue.put(SpanDeleteEvent(tombstoned_ids))
+        context.event_queue.put(ProjectDeleteEvent(tombstoned_ids))
 
 
 async def create_project_code_evaluator(
@@ -495,7 +505,7 @@ async def create_project_code_evaluator(
     try:
         async with context.db() as session:
             project = await validate_project_evaluator_project(
-                session, project_id, input.project_id
+                session, project_id, input.project_id, lock=True
             )
             evaluator = await create_code_definition(
                 session,
@@ -509,6 +519,8 @@ async def create_project_code_evaluator(
             )
             project_evaluator = await bind_project_evaluator(session, project, evaluator, values)
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+        if is_foreign_key_violation(error):
+            raise NotFound("Referenced evaluator dependency not found") from error
         raise await project_binding_name_taken(context, project_id, values["name"]) from error
     return project_evaluator
 
@@ -583,6 +595,15 @@ async def update_project_code_evaluator(
     project_id: Optional[int] = None
     try:
         async with context.db() as session:
+            # Edits and deletes take the evaluator row first, so they queue instead of deadlocking.
+            evaluator_id = await session.scalar(
+                select(models.ProjectEvaluator.evaluator_id).where(
+                    models.ProjectEvaluator.id == project_evaluator_id,
+                    models.ProjectEvaluator.deleted_at.is_(None),
+                )
+            )
+            if evaluator_id is not None:
+                await lock_evaluators(session, [evaluator_id])
             pair = (
                 await session.execute(
                     select(models.ProjectEvaluator, models.CodeEvaluator)
@@ -630,6 +651,8 @@ async def update_project_code_evaluator(
                 session, project_evaluator, input
             )
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
+        if is_foreign_key_violation(error):
+            raise NotFound("Referenced evaluator dependency not found") from error
         assert project_id is not None
         raise await project_binding_name_taken(
             context, project_id, name, binding_id=project_evaluator_id
@@ -661,7 +684,7 @@ async def write_project_evaluator(
     such as updated_at must come back with the write instead of being loaded lazily.
     """
     project_evaluator = models.ProjectEvaluator
-    current = (
+    current_state = (
         await session.execute(
             select(
                 project_evaluator.enabled,
@@ -669,13 +692,15 @@ async def write_project_evaluator(
                 project_evaluator.sampling_rate,
                 project_evaluator.evaluation_target,
             ).where(
-                project_evaluator.id == project_evaluator_id, project_evaluator.deleted_at.is_(None)
+                project_evaluator.id == project_evaluator_id,
+                project_evaluator.deleted_at.is_(None),
             )
         )
     ).one_or_none()
-    if current is None:
-        raise NotFound(f"Project evaluator not found: {project_evaluator_id}")
-    enabled, filter_condition, sampling_rate, evaluation_target = current
+    if current_state is None:
+        binding_gid = GlobalID("ProjectEvaluator", str(project_evaluator_id))
+        raise NotFound(f"Project evaluator not found: {binding_gid}")
+    enabled, filter_condition, sampling_rate, evaluation_target = current_state
     enabling = not enabled and values.get("enabled", enabled)
     selection_changed = (
         values.get("filter_condition", filter_condition) != filter_condition
@@ -683,12 +708,16 @@ async def write_project_evaluator(
     )
     row: models.ProjectEvaluator | None = await session.scalar(
         update(project_evaluator)
-        .where(project_evaluator.id == project_evaluator_id, project_evaluator.deleted_at.is_(None))
+        .where(
+            project_evaluator.id == project_evaluator_id,
+            project_evaluator.deleted_at.is_(None),
+        )
         .values(**values)
         .returning(project_evaluator)
     )
     if row is None:
-        raise NotFound(f"Project evaluator not found: {project_evaluator_id}")
+        binding_gid = GlobalID("ProjectEvaluator", str(project_evaluator_id))
+        raise NotFound(f"Project evaluator not found: {binding_gid}")
     if evaluation_target == "SPAN":
         if enabling or selection_changed:
             await start_at_span_cursor(session, project_evaluator_id)
@@ -797,7 +826,7 @@ async def clear_project_queued_evaluations(
         raise BadRequest(f"Invalid project id: {project_id}")
     async with context.db() as session:
         project = await session.get(models.Project, project_rowid)
-        if project is None:
+        if project is None or project.deleted_at is not None:
             raise NotFound(f"Project not found: {project_id}")
         project_evaluator_ids = list(
             await session.scalars(
@@ -863,7 +892,19 @@ async def _clear_queued_work(
             work_unit_model.status.in_(("PENDING", "ERROR")),
         ]
         if project_evaluator_ids is not None:
+            if not project_evaluator_ids:
+                cleared[evaluation_target] = 0
+                continue
             clearable.append(work_unit_model.project_evaluator_id.in_(project_evaluator_ids))
+        else:
+            clearable.append(
+                exists(
+                    select(models.ProjectEvaluator.id).where(
+                        models.ProjectEvaluator.id == work_unit_model.project_evaluator_id,
+                        models.ProjectEvaluator.deleted_at.is_(None),
+                    )
+                )
+            )
         statement = update(work_unit_model).where(*clearable)
         if limit is not None:
             statement = statement.where(
@@ -890,12 +931,8 @@ def count_cleared_work(cleared: Mapping[models.EvaluationTarget, int]) -> None:
 async def delete_project_evaluators(
     context: EvaluatorServiceContext, input: DeleteProjectEvaluatorsInput
 ) -> list[GlobalID]:
-    """Delete bindings, returning those deleted now; missing or already deleted ones are skipped.
-
-    A deleted binding disappears and stops queueing evaluations at once, and its queued work,
-    trace project and traces are removed in the background, along with definitions that
-    nothing else binds.
-    """
+    """Tombstone bindings, enqueue asynchronous reclamation, and optionally collect unreferenced
+    evaluator definitions and their associated prompts or decisions."""
     project_evaluator_ids: list[int] = []
     for global_id in input.project_evaluator_ids:
         try:
@@ -908,16 +945,17 @@ async def delete_project_evaluators(
         return []
 
     async with context.db() as session:
-        deleted_rowids = await mark_bindings_deleted(
+        delete_result = await tombstone_project_evaluators(
             session,
-            models.ProjectEvaluator,
-            project_evaluator_ids,
-            delete_unused_evaluator=True,
-            delete_associated_prompt_or_decision=input.delete_associated_prompt_or_decision,
+            binding_ids=project_evaluator_ids,
+            collect_unused_evaluator=True,
+            delete_associated_prompt=input.delete_associated_prompt,
         )
-    if deleted_rowids:
-        context.wake_evaluator_purger()
-    return [GlobalID("ProjectEvaluator", str(rowid)) for rowid in deleted_rowids]
+    if delete_result.tombstoned_project_ids and context.event_queue is not None:
+        tombstoned_ids = tuple(delete_result.tombstoned_project_ids)
+        context.event_queue.put(SpanDeleteEvent(tombstoned_ids))
+        context.event_queue.put(ProjectDeleteEvent(tombstoned_ids))
+    return [GlobalID("ProjectEvaluator", str(row_id)) for row_id in delete_result.binding_ids]
 
 
 async def patch_project_evaluator(

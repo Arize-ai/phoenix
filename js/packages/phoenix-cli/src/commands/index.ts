@@ -6,6 +6,8 @@ export * from "./projectEvaluator";
 export * from "./trace";
 export * from "./span";
 export * from "./dataset";
+export * from "./datasetLabels";
+export * from "./datasetVersions";
 export * from "./datasetEvaluator";
 export * from "./experiment";
 export * from "./session";

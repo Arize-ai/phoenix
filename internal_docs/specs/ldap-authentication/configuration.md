@@ -31,7 +31,7 @@
 
 - Phoenix defaults `PHOENIX_LDAP_TLS_MODE` to `starttls` so deployments can connect over the commonly open port 389 while still upgrading to TLS before any bind.
 - This matches what most Active Directory/OpenLDAP environments expect out of the box and avoids asking operators to expose port 636 unless they explicitly choose LDAPS.
-- The implementation always calls `start_tls()` before `bind()` (see [Protocol Compliance](./protocol-compliance.md#7-starttls-implementation--security)), and the docker MITM profile continuously verifies that StartTLS traffic stays encrypted, so the default remains a secure channel rather than plaintext.
+- The implementation always calls `start_tls()` before `bind()` (see [Protocol Compliance](./protocol-compliance.md#7-starttls-implementation--security)), and the man-in-the-middle tests in the real-directory suite verify that StartTLS traffic stays encrypted, so the default remains a secure channel rather than plaintext.
 - Admins who prefer TLS-from-byte-zero can set `PHOENIX_LDAP_TLS_MODE=ldaps`, which automatically defaults the port to 636 in `LDAPConfig.from_env`.
 
 **Key Design Decisions** (verified against Grafana source code):

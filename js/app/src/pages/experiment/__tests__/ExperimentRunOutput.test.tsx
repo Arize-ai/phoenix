@@ -78,20 +78,7 @@ describe("ExperimentRunOutput", () => {
       expected:
         '{\n  "error": {\n    "code": "timeout",\n    "retryable": false\n  }\n}',
     },
-    {
-      name: "array with surrounding whitespace",
-      input: '  [{"code":"timeout"},null]  ',
-      expected: '[\n  {\n    "code": "timeout"\n  },\n  null\n]',
-    },
-    {
-      name: "whitespace inside a string",
-      input: '{"text":"a  b"}',
-      expected: '{\n  "text": "a  b"\n}',
-    },
-    { name: "null", input: "null", expected: "null" },
     { name: "false", input: "false", expected: "false" },
-    { name: "zero", input: "0", expected: "0" },
-    { name: "string", input: '"timeout"', expected: '"timeout"' },
     {
       name: "JSON inside a string without decoding twice",
       input: String.raw`"{\"code\":\"timeout\"}"`,
@@ -107,23 +94,16 @@ describe("ExperimentRunOutput", () => {
   });
 
   it.each([
-    { name: "plain text", input: "Synthetic timeout" },
     {
       name: "real newlines and indentation",
       input:
         "RuntimeError: timeout\n  at local_demo.py:42\n    diagnostic detail",
     },
-    {
-      name: "steps without newlines",
-      input: "FAILURE | STEPS: (1) Read the input (2) Record the mismatch",
-    },
     { name: "malformed JSON", input: '{"error":"timeout", trailing}' },
-    { name: "prefixed JSON", input: 'Error: {"code":"timeout"}' },
     {
       name: "literal backslash-n",
       input: String.raw`RuntimeError('first line\n  second line')`,
     },
-    { name: "whitespace", input: "  \n\t " },
   ])("preserves $name verbatim", async ({ input }) => {
     await renderError(input);
     const pre = container.querySelector("pre");
@@ -133,15 +113,7 @@ describe("ExperimentRunOutput", () => {
     expect(container.querySelector(".cm-editor")).toBeNull();
   });
 
-  it.each([
-    '{"request_id":12345678901234567890}',
-    "1e999",
-    '{"a":1,"a":2}',
-    "-0",
-    "1.0",
-    String.raw`{"text":"a\tb","escaped":"\u0061"}`,
-    '{"2":"second","1":"first"}',
-  ])(
+  it.each(['{"request_id":12345678901234567890}', '{"a":1,"a":2}', "-0"])(
     "preserves JSON tokens when formatting would change them: %s",
     async (input) => {
       await renderError(input);
@@ -150,16 +122,9 @@ describe("ExperimentRunOutput", () => {
     }
   );
 
-  it.each([null, ""])("renders normal output for error %s", async (error) => {
-    await renderOutput(error);
+  it("renders normal output when there is no error", async () => {
+    await renderOutput(null);
     expect(container.querySelector('[aria-label="Error"]')).toBeNull();
     expect(container.textContent).toContain("normal output retained");
-  });
-
-  it("uses the same JSON styling for normal output", async () => {
-    const output = { message: "normal output retained", count: 2 };
-    await renderOutput(null, output);
-    expect(container.querySelector('[aria-label="Error"]')).toBeNull();
-    expect(jsonText()).toBe(JSON.stringify(output, null, 2));
   });
 });

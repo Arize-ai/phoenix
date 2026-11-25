@@ -9,7 +9,7 @@ import {
   getEvaluatorCostRanking,
   getEvaluatorSeries,
   getEvaluatorTimeSeriesRows,
-  getQueueSizeRows,
+  hasEvaluatorMetricData,
   OTHER_EVALUATORS_DATA_KEY,
 } from "../evaluatorActivity";
 
@@ -139,21 +139,6 @@ describe("getEvaluatorTimeSeriesRows", () => {
   });
 });
 
-describe("getQueueSizeRows", () => {
-  it("adds up every evaluator's queue at the end of each bin", () => {
-    expect(
-      getQueueSizeRows([
-        {
-          timestamp: "2026-10-28T10:00:00Z",
-          groups: [{ queueSize: 3 }, { queueSize: 4 }],
-        },
-      ])
-    ).toEqual([
-      { timestamp: Date.parse("2026-10-28T10:00:00Z"), queueSize: 7 },
-    ]);
-  });
-});
-
 describe("getEvaluatorCostRanking", () => {
   it("ranks series by cost with their share of the total", () => {
     const groups = [
@@ -169,6 +154,60 @@ describe("getEvaluatorCostRanking", () => {
       { dataKey: "evaluator1", name: "b-name", cost: 3, share: 75 },
       { dataKey: "evaluator0", name: "a-name", cost: 1, share: 25 },
     ]);
+  });
+
+  it("keeps evaluators that recorded $0 and drops those with no cost", () => {
+    const groups = [
+      group("a", { evaluatedCount: 2, cost: 0 }),
+      group("b", { evaluatedCount: 1, cost: null }),
+    ];
+    const { series, getDataKey } = getEvaluatorSeries({
+      groups,
+      paletteSize: 12,
+    });
+    expect(getEvaluatorCostRanking({ groups, series, getDataKey })).toEqual([
+      { dataKey: "evaluator0", name: "a-name", cost: 0, share: 0 },
+    ]);
+  });
+});
+
+describe("hasEvaluatorMetricData", () => {
+  const idleBins = [{ timestamp: "2026-10-28T10:00:00Z", groups: [] }];
+
+  it("charts zero failures once evaluations finished, and nothing before", () => {
+    expect(
+      hasEvaluatorMetricData({
+        groups: [group("a", { evaluatedCount: 5 })],
+        bins: idleBins,
+        metric: "failedCount",
+      })
+    ).toBe(true);
+    for (const metric of ["evaluatedCount", "failedCount"] as const) {
+      expect(
+        hasEvaluatorMetricData({ groups: [group("a")], bins: idleBins, metric })
+      ).toBe(false);
+    }
+  });
+
+  it("charts lag and cost only where a value was measured", () => {
+    const measuredBins = [
+      {
+        timestamp: "2026-10-28T10:00:00Z",
+        groups: [binGroup("a", { lagP95Seconds: 0, cost: 0 })],
+      },
+    ];
+    for (const metric of ["lagP95Seconds", "cost"] as const) {
+      expect(
+        hasEvaluatorMetricData({ groups: [group("a")], bins: idleBins, metric })
+      ).toBe(false);
+      expect(
+        hasEvaluatorMetricData({
+          groups: [group("a")],
+          bins: measuredBins,
+          metric,
+        })
+      ).toBe(true);
+    }
   });
 });
 

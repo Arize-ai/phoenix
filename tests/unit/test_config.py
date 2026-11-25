@@ -15,16 +15,20 @@ from phoenix.config import (
     OAuth2ClientConfig,
     ensure_working_dir_if_needed,
     get_env_admins,
+    get_env_allowed_origins,
     get_env_auth_settings,
+    get_env_csrf_trusted_origins,
     get_env_database_schema,
     get_env_model_cost_manifest_url,
     get_env_phoenix_admin_secret,
+    get_env_playground_timeout_seconds,
     get_env_postgres_azure_scope,
     get_env_postgres_connection_str,
     get_env_postgres_use_azure_managed_identity,
     get_env_root_url,
     get_env_tls_enabled_for_grpc,
     get_env_tls_enabled_for_http,
+    verify_server_environment_variables,
 )
 from phoenix.db.models import UserRoleName
 from phoenix.server.cost_tracking.manifest import DEFAULT_MANIFEST_URL
@@ -109,18 +113,6 @@ class TestGetEnvOnlineEval:
                 "1",
                 1,
             ),
-            (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES,
-                phoenix_config.get_env_online_eval_max_llm_message_bytes,
-                "1024",
-                1024,
-            ),
-            (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES,
-                phoenix_config.get_env_online_eval_max_sandbox_payload_bytes,
-                "1024",
-                1024,
-            ),
         ],
     )
     def test_integer_boundaries(
@@ -142,16 +134,6 @@ class TestGetEnvOnlineEval:
                 phoenix_config.get_env_online_eval_max_evaluator_concurrency,
                 "0",
             ),
-            (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES,
-                phoenix_config.get_env_online_eval_max_llm_message_bytes,
-                "1023",
-            ),
-            (
-                phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES,
-                phoenix_config.get_env_online_eval_max_sandbox_payload_bytes,
-                "1023",
-            ),
         ],
     )
     def test_integer_domains(
@@ -171,19 +153,6 @@ class TestGetEnvOnlineEval:
         )
 
         assert phoenix_config.get_env_online_eval_max_evaluator_concurrency() == 50
-
-    def test_session_size_defaults(self, monkeypatch: MonkeyPatch) -> None:
-        monkeypatch.delenv(
-            phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES,
-            raising=False,
-        )
-        monkeypatch.delenv(
-            phoenix_config.ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES,
-            raising=False,
-        )
-
-        assert phoenix_config.get_env_online_eval_max_llm_message_bytes() == 65_536
-        assert phoenix_config.get_env_online_eval_max_sandbox_payload_bytes() == 65_536
 
 
 class TestPostgresConnectionString:
@@ -2622,6 +2591,106 @@ class TestValidateEnvAllowedProviders:
             validate_env_allowed_providers()
 
 
+class TestGetEnvAllowedOrigins:
+    def test_unset_returns_none(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_ALLOWED_ORIGINS", raising=False)
+
+        assert get_env_allowed_origins() is None
+
+    def test_basic_parsing(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173")
+
+        assert get_env_allowed_origins() == ["http://localhost:3000", "http://localhost:5173"]
+
+    def test_whitespace_around_commas_is_stripped(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv(
+            "PHOENIX_ALLOWED_ORIGINS", "http://localhost:3000, http://localhost:5173 ,https://a.io"
+        )
+
+        assert get_env_allowed_origins() == [
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "https://a.io",
+        ]
+
+    @pytest.mark.parametrize(
+        "value, expected",
+        [
+            pytest.param("", [], id="empty"),
+            pytest.param(" , ", [], id="only-separators"),
+            pytest.param(
+                "http://localhost:3000,,", ["http://localhost:3000"], id="trailing-commas"
+            ),
+        ],
+    )
+    def test_empty_entries_are_ignored(
+        self, monkeypatch: MonkeyPatch, value: str, expected: list[str]
+    ) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_ORIGINS", value)
+
+        assert get_env_allowed_origins() == expected
+
+
+class TestGetEnvCsrfTrustedOrigins:
+    def test_unset_returns_empty_list(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_CSRF_TRUSTED_ORIGINS", raising=False)
+
+        assert get_env_csrf_trusted_origins() == []
+
+    @pytest.mark.parametrize(
+        "value, expected",
+        [
+            pytest.param(
+                "https://phoenix.example.com,https://app.example.com",
+                ["https://app.example.com", "https://phoenix.example.com"],
+                id="plain",
+            ),
+            pytest.param(
+                "https://phoenix.example.com, https://app.example.com",
+                ["https://app.example.com", "https://phoenix.example.com"],
+                id="spaces-after-commas",
+            ),
+            pytest.param(
+                "https://app.example.com ,https://phoenix.example.com",
+                ["https://app.example.com", "https://phoenix.example.com"],
+                id="space-before-comma",
+            ),
+            pytest.param(
+                "https://phoenix.example.com , https://app.example.com",
+                ["https://app.example.com", "https://phoenix.example.com"],
+                id="spaces-around-commas",
+            ),
+            pytest.param(
+                "https://phoenix.example.com,https://app.example.com ",
+                ["https://app.example.com", "https://phoenix.example.com"],
+                id="trailing-space-at-end-of-value",
+            ),
+            pytest.param(
+                "https://app.example.com ,https://app.example.com",
+                ["https://app.example.com"],
+                id="duplicates-after-trimming",
+            ),
+            pytest.param("", [], id="empty"),
+            pytest.param(" , ", [], id="only-separators"),
+            pytest.param(
+                "https://app.example.com,,", ["https://app.example.com"], id="trailing-commas"
+            ),
+        ],
+    )
+    def test_entries_are_trimmed(
+        self, monkeypatch: MonkeyPatch, value: str, expected: list[str]
+    ) -> None:
+        monkeypatch.setenv("PHOENIX_CSRF_TRUSTED_ORIGINS", value)
+
+        assert get_env_csrf_trusted_origins() == expected
+
+    def test_missing_hostname_raises(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_CSRF_TRUSTED_ORIGINS", "https://app.example.com,not-a-url")
+
+        with pytest.raises(ValueError, match="missing hostname"):
+            get_env_csrf_trusted_origins()
+
+
 class TestGetEnvAllowedSandboxProviders:
     def test_unset_returns_all_known_kinds(self, monkeypatch: MonkeyPatch) -> None:
         monkeypatch.delenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", raising=False)
@@ -3020,6 +3089,56 @@ class TestClientAssertionJWTFromEnv:
         )
         config = OAuth2ClientConfig.from_env("google")
         assert config.client_assertion_file is None
+
+
+class TestGetEnvPlaygroundTimeoutSeconds:
+    """Tests for the playground task timeout environment variable."""
+
+    def test_default_when_unset(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that the timeout defaults to 90 seconds when the variable is not set."""
+        monkeypatch.delenv("PHOENIX_PLAYGROUND_TIMEOUT_SECONDS", raising=False)
+        assert get_env_playground_timeout_seconds() == 90
+
+    def test_custom_value(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that a custom timeout value is honored."""
+        monkeypatch.setenv("PHOENIX_PLAYGROUND_TIMEOUT_SECONDS", "300")
+        assert get_env_playground_timeout_seconds() == 300
+
+    @pytest.mark.parametrize("value", ["0", "-5"])
+    def test_non_positive_values_raise(self, monkeypatch: pytest.MonkeyPatch, value: str) -> None:
+        """Test that zero and negative values are rejected."""
+        monkeypatch.setenv("PHOENIX_PLAYGROUND_TIMEOUT_SECONDS", value)
+        with pytest.raises(
+            ValueError,
+            match=r"PHOENIX_PLAYGROUND_TIMEOUT_SECONDS: -?\d+\. Value must be a positive integer",
+        ):
+            get_env_playground_timeout_seconds()
+
+    @pytest.mark.parametrize("value", ["not-a-number", "", "   ", "1.5"])
+    def test_non_integer_values_raise(self, monkeypatch: pytest.MonkeyPatch, value: str) -> None:
+        """Test that non-numeric, empty (e.g. an unconditional Helm key) and fractional values
+        are rejected."""
+        monkeypatch.setenv("PHOENIX_PLAYGROUND_TIMEOUT_SECONDS", value)
+        with pytest.raises(
+            ValueError,
+            match="PHOENIX_PLAYGROUND_TIMEOUT_SECONDS: .*Value must be an integer",
+        ):
+            get_env_playground_timeout_seconds()
+
+    @pytest.mark.parametrize("value", ["abc", "0", ""])
+    def test_invalid_value_fails_server_startup_verification(
+        self, monkeypatch: pytest.MonkeyPatch, value: str
+    ) -> None:
+        """Test that an invalid value fails the startup check instead of the first run."""
+        monkeypatch.setenv("PHOENIX_PLAYGROUND_TIMEOUT_SECONDS", value)
+        with pytest.raises(ValueError, match="PHOENIX_PLAYGROUND_TIMEOUT_SECONDS"):
+            verify_server_environment_variables()
+
+    def test_valid_value_passes_server_startup_verification(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("PHOENIX_PLAYGROUND_TIMEOUT_SECONDS", "3")
+        verify_server_environment_variables()
 
 
 class TestGetEnvModelCostManifestUrl:

@@ -1,5 +1,30 @@
 directive @oneOf on INPUT_OBJECT
 
+"""
+Directs the executor to defer this fragment when the `if` argument is true or undefined.
+"""
+directive @defer(
+  """Deferred when true or undefined."""
+  if: Boolean! = true
+
+  """Unique name"""
+  label: String
+) on FRAGMENT_SPREAD | INLINE_FRAGMENT
+
+"""
+Directs the executor to stream plural fields when the `if` argument is true or undefined.
+"""
+directive @stream(
+  """Stream when true or undefined."""
+  if: Boolean! = true
+
+  """Unique name"""
+  label: String
+
+  """Number of items to return immediately"""
+  initialCount: Int = 0
+) on FIELD
+
 type AWSBedrockAccessKeys {
   awsAccessKeyId: String!
   awsSecretAccessKey: RedactedString!
@@ -46,21 +71,11 @@ type AWSBedrockConnectionConfig {
 type AWSBedrockCustomProviderConfig {
   awsBedrockAuthenticationMethod: AWSBedrockAuthenticationMethod!
   awsBedrockClientKwargs: AWSBedrockClientKwargs!
-
-  """
-  Suggested LLM model names; empty lists the SDK's built-in models instead.
-  """
-  modelNames: [String!]!
 }
 
 input AWSBedrockCustomProviderConfigInput {
   awsBedrockAuthenticationMethod: AWSBedrockAuthenticationMethodInput!
   awsBedrockClientKwargs: AWSBedrockClientKwargsInput!
-
-  """
-  Suggested LLM model names, listed in the model menu in place of the SDK's built-in list; empty or omitted lists the built-in models.
-  """
-  modelNames: [String!]
 }
 
 input AddAnnotationConfigToProjectInput {
@@ -479,21 +494,11 @@ type AnthropicConnectionConfig {
 type AnthropicCustomProviderConfig {
   anthropicAuthenticationMethod: AnthropicAuthenticationMethod!
   anthropicClientKwargs: AnthropicClientKwargs
-
-  """
-  Suggested LLM model names; empty lists the SDK's built-in models instead.
-  """
-  modelNames: [String!]!
 }
 
 input AnthropicCustomProviderConfigInput {
   anthropicAuthenticationMethod: AnthropicAuthenticationMethodInput!
   anthropicClientKwargs: AnthropicClientKwargsInput
-
-  """
-  Suggested LLM model names, listed in the model menu in place of the SDK's built-in list; empty or omitted lists the built-in models.
-  """
-  modelNames: [String!]
 }
 
 enum AnthropicOutputConfigEffort {
@@ -591,24 +596,12 @@ type AzureOpenAICustomProviderConfig {
   azureOpenaiAuthenticationMethod: AzureOpenAIAuthenticationMethod!
   azureOpenaiClientKwargs: AzureOpenAIClientKwargs!
   openaiApiType: OpenAIApiType!
-
-  """
-  Suggested LLM model names; empty lists the SDK's built-in models instead.
-  """
-  modelNames: [String!]!
-  decisionModels: DecisionModelsConfig
 }
 
 input AzureOpenAICustomProviderConfigInput {
   azureOpenaiAuthenticationMethod: AzureOpenAIAuthenticationMethodInput!
   azureOpenaiClientKwargs: AzureOpenAIClientKwargsInput!
   openaiApiType: OpenAIApiType = RESPONSES
-  decisionModels: DecisionModelsConfigInput
-
-  """
-  Suggested LLM model names, listed in the model menu in place of the SDK's built-in list; empty or omitted lists the built-in models.
-  """
-  modelNames: [String!]
 }
 
 input BranchAgentSessionInput {
@@ -634,7 +627,7 @@ input BuiltInDecisionConnectionInput {
   providerKey: GenerativeProviderKey!
 
   """
-  Send the request to this endpoint instead of the provider default. Requires an API key in `credentials` or a stored secret; the server-configured key is never sent to a custom URL.
+  Send the request to this endpoint instead of the provider default. For Azure OpenAI, this is the resource endpoint (https://<resource>.openai.azure.com). Requires an API key in `credentials` or a stored secret; the server-configured key is never sent to a custom URL.
   """
   baseUrl: String = null
 
@@ -1195,6 +1188,11 @@ input CreateGenerativeModelCustomProviderMutationInput {
   description: String
   provider: String!
   clientConfig: GenerativeModelCustomerProviderConfigInput!
+
+  """
+  The model types the endpoint serves; omitted, what its SDK serves by default: chat models, or decision models for TypeSafe.
+  """
+  models: ProviderModelsInput
 }
 
 type CreateGenerativeModelCustomProviderMutationPayload {
@@ -1208,6 +1206,9 @@ input CreateModelMutationInput {
   namePattern: String!
   costs: [TokenPriceInput!]!
   startTime: DateTime = null
+
+  """The kind of span the model is priced for. Defaults to LLM."""
+  modelType: GenerativeModelType! = LLM
 }
 
 type CreateModelMutationPayload {
@@ -1436,11 +1437,17 @@ scalar CronExpression
 union CustomProviderConfig = OpenAICustomProviderConfig | AzureOpenAICustomProviderConfig | AnthropicCustomProviderConfig | AWSBedrockCustomProviderConfig | GoogleGenAICustomProviderConfig | TypeSafeCustomProviderConfig | UnparsableConfig
 
 """
-A custom provider, reached with its stored key, endpoint, and headers. Its SDK must serve decision models: `openai` runs OpenAI's Decisions API, `typesafe` runs System One.
+A custom provider, reached with its stored key, endpoint, and headers. Its SDK must serve decision models: `openai` runs OpenAI's Decisions API, `azure_openai` runs that API on Azure, `typesafe` runs System One, and `google_genai` runs Gemini's Decisions API.
 """
 input CustomProviderDecisionConnectionInput {
   """The custom provider's ID."""
   id: ID!
+}
+
+"""The check of one model type a custom provider serves."""
+type CustomProviderModelTypeCheck {
+  """Why the check failed; null when it passed."""
+  error: String
 }
 
 type Dataset implements Node {
@@ -2095,37 +2102,6 @@ type DecisionLabelMutationPayload {
   query: Query!
 }
 
-"""
-Where a custom provider's decision models run. They reuse the provider's API key and headers.
-"""
-type DecisionModelsConfig {
-  decisionSdk: DecisionSDK!
-
-  """The configured decision base URL; null uses the chat base URL."""
-  baseUrl: String
-
-  """Suggested decision model names."""
-  modelNames: [String!]!
-}
-
-"""
-Where a custom provider's decision models run. They reuse the provider's API key and headers.
-"""
-input DecisionModelsConfigInput {
-  """
-  OPENAI posts to {baseUrl}/decisions; TYPESAFE to {baseUrl}/v1/systemone.
-  """
-  decisionSdk: DecisionSDK!
-
-  """
-  Base URL of the decision API; empty uses the chat base URL. Ignored for a TypeSafe provider, whose own base URL is used.
-  """
-  baseUrl: String
-
-  """Suggested decision model names."""
-  modelNames: [String!]
-}
-
 type DecisionPredicateCriteria {
   true: String
   false: String
@@ -2196,14 +2172,6 @@ type DecisionResult {
   """One answer per question, in the order the questions were given."""
   answers: [DecisionAnswer!]!
   usage: DecisionUsage!
-}
-
-"""
-The client a custom provider's decision models run through: OpenAI's Decisions API or System One.
-"""
-enum DecisionSDK {
-  OPENAI
-  TYPESAFE
 }
 
 type DecisionScaleLevel {
@@ -2466,9 +2434,9 @@ input DeleteDatasetEvaluatorsInput {
   datasetEvaluatorIds: [ID!]!
 
   """
-  Also delete each LLM evaluator's prompt or decision evaluator's decision when no other evaluator references it. Off by default so that a prompt or decision adopted from its hub survives the binding.
+  Also delete each LLM evaluator's prompt when no other evaluator references it. Off by default so that a prompt adopted from the prompt hub survives the binding.
   """
-  deleteAssociatedPromptOrDecision: Boolean! = false
+  deleteAssociatedPrompt: Boolean! = false
 }
 
 type DeleteDatasetEvaluatorsPayload {
@@ -2578,9 +2546,9 @@ input DeleteProjectEvaluatorsInput {
   projectEvaluatorIds: [ID!]!
 
   """
-  Also delete each LLM evaluator's prompt or decision evaluator's decision when no other evaluator references it. Off by default so that a prompt or decision adopted from its hub survives the binding.
+  Also delete each LLM evaluator's prompt when no other evaluator references it. Off by default so that a prompt adopted from the prompt hub survives the binding.
   """
-  deleteAssociatedPromptOrDecision: Boolean! = false
+  deleteAssociatedPrompt: Boolean! = false
 }
 
 type DeleteProjectEvaluatorsPayload {
@@ -2817,6 +2785,11 @@ type EvaluationActivityBin {
   Groups with any activity in the bin, most evaluations over the range first.
   """
   groups: [EvaluationActivityBinGroup!]!
+
+  """
+  Evaluations in queue at the end of the bin, across every group. Read only when selected, from every evaluation in queue.
+  """
+  queueSize: Int!
 }
 
 """One group's evaluation activity in one time bin."""
@@ -2844,11 +2817,6 @@ type EvaluationActivityBinGroup {
   Cost in USD of the evaluations' traces started in the bin; null if none. Evaluators with tracing off write no traces, so their evaluations add no cost.
   """
   cost: Float
-
-  """
-  Evaluations in queue at the end of the bin. Read only when selected, from every evaluation in queue.
-  """
-  queueSize: Int!
 }
 
 """
@@ -2870,6 +2838,11 @@ type EvaluationActivityGroup {
   Cost in USD of the evaluations' traces started in the range; null if none. Evaluators with tracing off write no traces, so their evaluations add no cost.
   """
   cost: Float
+
+  """
+  Seconds the evaluations' traces started in the range took, summed; null if none. Evaluators with tracing off write no traces, so their evaluations add no time.
+  """
+  evaluationSeconds: Float
 }
 
 type EvaluationChunk implements ChatCompletionSubscriptionPayload {
@@ -2970,9 +2943,10 @@ type EvaluationQueueTarget {
 
 type EvaluationResult {
   evaluatorName: String!
+
+  """answered, error, or refused when a decision judge declined to answer."""
   status: String
   annotation: ExperimentRunAnnotation
-  trace: Trace
   error: String
 }
 
@@ -3007,14 +2981,14 @@ type EvaluatorAnnotationScoreMetrics {
   summary: AnnotationSummary
 
   """
-  Aggregates over the window of equal length immediately before the requested time range, for change-over-time comparisons.
-  """
-  previousSummary: AnnotationSummary
-
-  """
   Mean score per time bin across the requested time range. Bins follow the project metrics convention: spans and traces bucket by their trace's start time, sessions by their own.
   """
   series: [EvaluatorScoreSeriesBin!]!
+
+  """
+  Aggregates over the previous window, for change-over-time comparisons: previousTimeRange when given, otherwise the equal-length window immediately before the requested time range.
+  """
+  previousSummary: AnnotationSummary
 }
 
 """
@@ -3211,29 +3185,49 @@ type EvaluatorLabelCount {
   count: Int!
 }
 
-input EvaluatorPreviewItemInput {
+input EvaluatorPreviewInput {
+  """The evaluator to run. Optional only when datasetEvaluatorId names one."""
   evaluator: EvaluatorDefinitionInput = null
-  context: JSON!
-  inputMapping: EvaluatorInputMappingInput!
 
   """
   Preview a saved decision judge as this dataset evaluator binding: it runs under the binding's name and provenance, using the evaluator's scoring policy. Omit to preview the judge on its own, under its own name and policy.
   """
   datasetEvaluatorId: ID = null
+  inputMapping: EvaluatorInputMappingInput!
 
   """
-  Whether to enforce the execution limits an online evaluation runs under: the rendered LLM message cap and the sandbox payload cap. Set this when the preview stands in for a scheduled run, so a preview cannot succeed where the live evaluation would be rejected. The limits themselves come from the server's configuration, never from this request.
+  The records to evaluate, each under its own key. A request takes at most 100; split larger sets across requests.
   """
-  applyOnlineEvaluationLimits: Boolean! = false
-}
-
-input EvaluatorPreviewsInput {
-  previews: [EvaluatorPreviewItemInput!]!
+  subjects: [EvaluatorPreviewSubjectInput!]!
   credentials: [GenerativeCredentialInput!]
 }
 
-type EvaluatorPreviewsPayload {
+type EvaluatorPreviewPayload {
+  """One result per subject, in the order the subjects were sent."""
+  results: [EvaluatorPreviewSubjectResult!]!
+}
+
+input EvaluatorPreviewSubjectInput {
+  """
+  Chosen by the caller and echoed on the subject's result; unique per request. Not an id, so a client cache that normalizes by id leaves the subject alone.
+  """
+  key: String!
+  context: JSON!
+}
+
+type EvaluatorPreviewSubjectResult {
+  """The key the subject was sent with."""
+  key: String!
+
+  """
+  One result per annotation the evaluator produces; empty when error is set.
+  """
   results: [EvaluationResult!]!
+
+  """
+  Why the evaluator could not run on this subject at all: the Monty runtime was busy, unavailable, shutting down or out of time, its worker stopped, or the run failed unexpectedly. A failure of the evaluation itself, such as an LLM error or a timeout in any other sandbox, arrives on that result's error instead. The other subjects are unaffected.
+  """
+  error: String
 }
 
 enum EvaluatorScope {
@@ -3250,6 +3244,16 @@ type EvaluatorScoreSeriesBin {
   How many scored spans, traces, or sessions the bin's mean averages over; the weight to use when merging adjacent bins. Zero for an empty bin.
   """
   count: Int!
+
+  """
+  Each label's share of the bin's resultCount spans, traces, or sessions, weighting each one equally however many annotations it holds, in label order. Shares of entities that carry only a score are left out, so the fractions can sum to less than one. Empty for an empty bin.
+  """
+  labelFractions: [LabelFraction!]!
+
+  """
+  How many spans, traces, or sessions carry a score or a label in the bin; the denominator of labelFractions and the weight to use when merging adjacent bins' fractions. Zero for an empty bin.
+  """
+  resultCount: Int!
 }
 
 type EvaluatorScoreValueCount {
@@ -3805,6 +3809,9 @@ type GenerativeModel implements Node & ModelInterface {
   provider: String
   namePattern: String!
   kind: GenerativeModelKind!
+
+  """The kind of span this model is priced for."""
+  modelType: GenerativeModelType!
   createdAt: DateTime!
   updatedAt: DateTime!
   startTime: DateTime
@@ -3860,19 +3867,19 @@ type GenerativeModelCustomProvider implements Node {
   user: User
 
   """
-  The client this provider's decision models run through; null when it serves none. A decision made on it is saved with this client's model provider.
+  This provider's models, by type, with the names the model menu suggests. The admin declares them; its SDK limits which types it can serve.
   """
-  decisionSdk: DecisionSDK
+  models: ProviderModels!
 
   """
-  The model types this provider can serve: chat (LLM) models, decision models, or both. Chat comes from its SDK; decision models from its decision client.
+  The model types this provider serves: chat models, decision models, or both. The keys of models.
   """
   modelTypes: [ModelType!]!
 
   """
-  Suggested model names for this provider and model type; empty when it serves no models of that type. Any model name the endpoint accepts can be used.
+  Model names for the model menu: the names set for this model type, or the SDK's built-in list when there are none; empty when it serves no models of that type. Any model name the endpoint accepts can be used.
   """
-  modelNames(modelType: ModelType! = LLM): [String!]!
+  modelNames(modelType: ModelType! = CHAT): [String!]!
 }
 
 """A connection to a list of items."""
@@ -3925,14 +3932,23 @@ enum GenerativeModelSDK {
   TYPESAFE
 }
 
+"""
+The kind of span a model is priced for, named after the OpenInference span kinds. The same model name can be priced differently per type.
+"""
+enum GenerativeModelType {
+  LLM
+  DECISION
+  EMBEDDING
+}
+
 type GenerativeProvider {
   name: String!
   key: GenerativeProviderKey!
-  dependencies: [String!]!
-  dependenciesInstalled: Boolean!
+  dependencies(modelType: ModelType = null): [String!]!
+  dependenciesInstalled(modelType: ModelType = null): Boolean!
 
   """
-  The model types this provider offers: chat (LLM) models, decision models, or both. Derived from which clients serve the provider, not from its name.
+  The model types this provider offers: chat models, decision models, or both. Derived from which clients serve the provider, not from its name.
   """
   modelTypes: [ModelType!]!
 
@@ -3992,21 +4008,11 @@ type GoogleGenAIConnectionConfig {
 type GoogleGenAICustomProviderConfig {
   googleGenaiAuthenticationMethod: GoogleGenAIAuthenticationMethod!
   googleGenaiClientKwargs: GoogleGenAIClientKwargs
-
-  """
-  Suggested LLM model names; empty lists the SDK's built-in models instead.
-  """
-  modelNames: [String!]!
 }
 
 input GoogleGenAICustomProviderConfigInput {
   googleGenaiAuthenticationMethod: GoogleGenAIAuthenticationMethodInput!
   googleGenaiClientKwargs: GoogleGenAIClientKwargsInput
-
-  """
-  Suggested LLM model names, listed in the model menu in place of the SDK's built-in list; empty or omitted lists the built-in models.
-  """
-  modelNames: [String!]
 }
 
 type GoogleGenAIHttpOptions {
@@ -4194,8 +4200,8 @@ enum ModelProvider {
 
 """The kind of model a playground instance runs."""
 enum ModelType {
-  """Chat completion models that generate text from messages."""
-  LLM
+  """Chat models that generate text from messages."""
+  CHAT
 
   """
   Decision models that answer typed questions (predicate, choice, scale) about a state and return probabilities rather than text.
@@ -4207,7 +4213,23 @@ input ModelsInput {
   providerKey: GenerativeProviderKey = null
   modelName: String = null
   openaiApiType: OpenAIApiType = null
-  modelType: ModelType! = LLM
+  modelType: ModelType! = CHAT
+}
+
+"""A custom provider's models of one type, with their settings."""
+type ModelsOfType {
+  """
+  Model names the model menu suggests in place of the built-in list; empty suggests the built-in models. Not an allowlist: any name the endpoint accepts works.
+  """
+  names: [String!]!
+}
+
+"""A custom provider's models of one type, with their settings."""
+input ModelsOfTypeInput {
+  """
+  Model names the model menu suggests in place of the built-in list; empty suggests the built-in models. Not an allowlist: any name the endpoint accepts works.
+  """
+  names: [String!]! = []
 }
 
 input MontyConfigInput {
@@ -4229,7 +4251,6 @@ type Mutation {
   createUserApiKey(input: CreateUserApiKeyInput!): CreateUserApiKeyMutationPayload!
   deleteSystemApiKey(input: DeleteApiKeyInput!): DeleteApiKeyMutationPayload!
   deleteUserApiKey(input: DeleteApiKeyInput!): DeleteApiKeyMutationPayload!
-  evaluatorPreviews(input: EvaluatorPreviewsInput!): EvaluatorPreviewsPayload!
   createDatasetLabel(input: CreateDatasetLabelInput!): CreateDatasetLabelMutationPayload!
   deleteDatasetLabels(input: DeleteDatasetLabelsInput!): DeleteDatasetLabelsMutationPayload!
   setDatasetLabels(input: SetDatasetLabelsInput!): SetDatasetLabelsMutationPayload!
@@ -4324,6 +4345,11 @@ type Mutation {
   Append a new immutable CodeEvaluatorVersion. If source_code matches the current tip, no row is appended and was_created=false.
   """
   createCodeEvaluatorVersion(input: CreateCodeEvaluatorVersionInput!): CreateCodeEvaluatorVersionPayload!
+
+  """
+  The evaluatorPreview subscription for callers that cannot read a stream, such as scripts: it runs the same preview and returns once every subject has reported.
+  """
+  previewEvaluator(input: EvaluatorPreviewInput!): EvaluatorPreviewPayload!
   stopExperiment(experimentId: ID!): StopExperimentPayload!
   resumeExperiment(experimentId: ID!, credentials: [GenerativeCredentialInput!]): ResumeExperimentPayload!
   dismissExperiment(experimentId: ID!): DismissExperimentPayload!
@@ -4333,8 +4359,14 @@ type Mutation {
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
   createGenerativeModelCustomProvider(input: CreateGenerativeModelCustomProviderMutationInput!): CreateGenerativeModelCustomProviderMutationPayload!
   patchGenerativeModelCustomProvider(input: PatchGenerativeModelCustomProviderMutationInput!): PatchGenerativeModelCustomProviderMutationPayload!
-  testGenerativeModelCustomProviderCredentials(input: GenerativeModelCustomerProviderConfigInput!): TestGenerativeModelCustomProviderCredentialsResult!
-  testGenerativeModelCustomProviderDecisionEndpoint(input: GenerativeModelCustomerProviderConfigInput!): TestGenerativeModelCustomProviderDecisionEndpointResult!
+  testGenerativeModelCustomProviderCredentials(
+    input: GenerativeModelCustomerProviderConfigInput!
+
+    """
+    The model types to check, as the provider would serve them; the SDK's default when omitted.
+    """
+    models: ProviderModelsInput = null
+  ): TestGenerativeModelCustomProviderCredentialsResult!
   deleteGenerativeModelCustomProvider(input: DeleteGenerativeModelCustomProviderMutationInput!): DeleteGenerativeModelCustomProviderMutationPayload!
   createModel(input: CreateModelMutationInput!): CreateModelMutationPayload!
   updateModel(input: UpdateModelMutationInput!): UpdateModelMutationPayload!
@@ -4497,24 +4529,12 @@ type OpenAICustomProviderConfig {
   openaiAuthenticationMethod: OpenAIAuthenticationMethod!
   openaiClientKwargs: OpenAIClientKwargs
   openaiApiType: OpenAIApiType!
-
-  """
-  Suggested LLM model names; empty lists the SDK's built-in models instead.
-  """
-  modelNames: [String!]!
-  decisionModels: DecisionModelsConfig
 }
 
 input OpenAICustomProviderConfigInput {
   openaiAuthenticationMethod: OpenAIAuthenticationMethodInput!
   openaiClientKwargs: OpenAIClientKwargsInput
   openaiApiType: OpenAIApiType = RESPONSES
-  decisionModels: DecisionModelsConfigInput
-
-  """
-  Suggested LLM model names, listed in the model menu in place of the SDK's built-in list; empty or omitted lists the built-in models.
-  """
-  modelNames: [String!]
 }
 
 enum OpenAIReasoningEffort {
@@ -4651,6 +4671,11 @@ input PatchGenerativeModelCustomProviderMutationInput {
   description: String
   provider: String
   clientConfig: GenerativeModelCustomerProviderConfigInput
+
+  """
+  The model types the endpoint serves; given, it replaces the stored value.
+  """
+  models: ProviderModelsInput
 }
 
 type PatchGenerativeModelCustomProviderMutationPayload {
@@ -5043,6 +5068,16 @@ type ProjectEvaluator implements Node {
   The project holding the traces this evaluator produces when it runs. Each evaluator traces into its own dedicated project, created with the evaluator. Evaluations that run while tracing is off write no trace here.
   """
   traceProject: Project!
+
+  """
+  Model cost of this evaluator's traced evaluations in the time range, read from its trace project. Null when the cost is not measured: the evaluator makes no model calls (code and built-in evaluators), or tracing is off.
+  """
+  costSummary(timeRange: TimeRange): SpanCostSummary
+
+  """
+  Number of this evaluator's evaluations in the time range that wrote a trace, the denominator of its average cost. Null whenever costSummary is null.
+  """
+  tracedEvaluationCount(timeRange: TimeRange): Int
   evaluator: Evaluator!
   name: Identifier!
   filterCondition: String!
@@ -5075,9 +5110,9 @@ type ProjectEvaluator implements Node {
   distribution(timeRange: TimeRange!, annotationName: String = null): EvaluatorDistribution!
 
   """
-  Score aggregates for each annotation this evaluator writes on the evaluated project: totals over the requested time range, totals over the equal-length window immediately before it, and a binned mean-score series. Loading is batched across the project's evaluators, so requesting this for a page of evaluators costs a fixed number of queries.
+  Score aggregates for each annotation this evaluator writes on the evaluated project: totals over the requested time range, totals over the previous window, and a binned mean-score series. An open-ended time range means "up to now" and requires an explicit previousTimeRange, since an open window has no duration to mirror backward; a closed range derives the previous window as the equal-length range before it when previousTimeRange is omitted. Loading is batched across the project's evaluators, so requesting this for a page of evaluators costs a fixed number of queries.
   """
-  annotationScoreMetrics(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): [EvaluatorAnnotationScoreMetrics!]!
+  annotationScoreMetrics(timeRange: TimeRange!, timeBinConfig: TimeBinConfig, previousTimeRange: TimeRange): [EvaluatorAnnotationScoreMetrics!]!
 
   """
   Seconds a trace or session must stay quiet before evaluation is scheduled. Values must be at least 10 seconds. When no value is provided, TRACE and SESSION evaluators store the default of 300 seconds. A trace or session is evaluated only once, and later activity does not schedule another evaluation. The delay applies to TRACE and SESSION targets; SPAN evaluators store 0 because spans are evaluated as they arrive, and an explicit delay is rejected for them.
@@ -5269,14 +5304,34 @@ type ProjectEvaluatorRunSummary {
   lastError: String
 }
 
-"""The filter key and value for project connections"""
+"""A filter for project connections"""
 input ProjectFilter {
-  col: ProjectFilterColumn!
-  value: String!
+  col: ProjectFilterColumn = null
+  value: String = null
+
+  """
+  Return only projects of these kinds. Defaults to standard and playground projects.
+  """
+  kinds: [ProjectKind!]
 }
 
 enum ProjectFilterColumn {
   name
+}
+
+"""What writes a project's traces."""
+enum ProjectKind {
+  """A project that holds traces sent by an application."""
+  STANDARD
+
+  """The project that holds traces from the prompt playground."""
+  PLAYGROUND
+
+  """A project that holds the traces of an experiment's runs."""
+  EXPERIMENT
+
+  """A project that holds the traces of a dataset or project evaluator."""
+  EVALUATOR
 }
 
 type ProjectMutationPayload {
@@ -5967,6 +6022,30 @@ type PromptVersionTagMutationPayload {
   promptVersionTag: PromptVersionTag
   prompt: Prompt!
   query: Query!
+}
+
+"""
+A custom provider's models, by type; the endpoint serves a type when it is set.
+"""
+type ProviderModels {
+  chat: ModelsOfType
+
+  """
+  Decision models run over the provider's own SDK's protocol (the OpenAI Decisions API for OpenAI, System One for TypeSafe), at its base URL, with its API key and headers.
+  """
+  decision: ModelsOfType
+}
+
+"""
+A custom provider's models, by type; the endpoint serves a type when it is set. On a patch, it replaces the stored value as a whole.
+"""
+input ProviderModelsInput {
+  chat: ModelsOfTypeInput = null
+
+  """
+  Decision models run over the provider's own SDK's protocol (the OpenAI Decisions API for OpenAI, System One for TypeSafe), at its base URL, with its API key and headers.
+  """
+  decision: ModelsOfTypeInput = null
 }
 
 type Query {
@@ -6904,6 +6983,7 @@ type StoredDecisionEvaluatorDefinition {
 type Subscription {
   chatCompletion(input: ChatCompletionInput!): ChatCompletionSubscriptionPayload!
   experimentsOverDataset(input: ExperimentsOverDatasetInput!): ChatCompletionSubscriptionPayload!
+  evaluatorPreview(input: EvaluatorPreviewInput!): EvaluatorPreviewSubjectResult!
 }
 
 type SystemApiKey implements ApiKey & Node {
@@ -6929,15 +7009,16 @@ type TaskWorkItemId {
 }
 
 type TestGenerativeModelCustomProviderCredentialsResult {
-  error: String
-}
-
-type TestGenerativeModelCustomProviderDecisionEndpointResult {
-  """Why the endpoint failed the check; null when it passed."""
+  """The first check that failed; null when all passed."""
   error: String
 
-  """The exact URL the check posted to, as a run would."""
-  url: String
+  """The chat check; null when chat models were not checked."""
+  chat: CustomProviderModelTypeCheck
+
+  """
+  The decision endpoint check; null when decision models were not checked.
+  """
+  decision: CustomProviderModelTypeCheck
 }
 
 type TextChunk implements ChatCompletionSubscriptionPayload {
@@ -7344,14 +7425,12 @@ input TypeSafeClientKwargsInput {
 type TypeSafeCustomProviderConfig {
   typesafeAuthenticationMethod: TypeSafeAuthenticationMethod!
   typesafeClientKwargs: TypeSafeClientKwargs
-  decisionModels: DecisionModelsConfig
 }
 
 """A System One-compatible endpoint; it serves decision models only."""
 input TypeSafeCustomProviderConfigInput {
   typesafeAuthenticationMethod: TypeSafeAuthenticationMethodInput!
   typesafeClientKwargs: TypeSafeClientKwargsInput
-  decisionModels: DecisionModelsConfigInput
 }
 
 type UnparsableConfig {

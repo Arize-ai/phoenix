@@ -41,13 +41,13 @@ export function DeleteAllEvaluatorsDialog({
       onOpenChange={onOpenChange}
       onDeleted={onDeleted}
       isDeleting={isDeletingProjectEvaluators || isDeletingDatasetEvaluators}
-      onDelete={async ({ deleteAssociatedPromptOrDecision }) => {
+      onDelete={async ({ deleteAssociatedPrompt }) => {
         const deletions: Promise<void>[] = [];
         if (projectEvaluators.length > 0) {
           deletions.push(
             deleteProjectEvaluators({
               projectEvaluatorIds: projectEvaluators.map(({ id }) => id),
-              deleteAssociatedPromptOrDecision,
+              deleteAssociatedPrompt,
               refetchCounts: false,
             })
           );
@@ -56,7 +56,7 @@ export function DeleteAllEvaluatorsDialog({
           deletions.push(
             deleteDatasetEvaluators({
               datasetEvaluatorIds: datasetEvaluators.map(({ id }) => id),
-              deleteAssociatedPromptOrDecision,
+              deleteAssociatedPrompt,
               refetchCounts: false,
             })
           );

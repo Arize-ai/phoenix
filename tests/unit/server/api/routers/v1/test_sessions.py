@@ -3,15 +3,20 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
 from typing import Any
+from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID
 
 import httpx2
 import pytest
+from fastapi import HTTPException
 from sqlalchemy import select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.server.api.routers.v1.sessions import _parse_session_global_id
+from phoenix.server.api.routers.v1.sessions import (
+    _get_session_by_identifier,
+    _parse_session_global_id,
+)
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project as ProjectNodeType
 from phoenix.server.api.types.ProjectSession import ProjectSession as ProjectSessionNodeType
@@ -35,6 +40,26 @@ class TestParseSessionGlobalId:
 
     def test_returns_none_for_empty_string(self) -> None:
         assert _parse_session_global_id("") is None
+
+
+class TestGetSessionByIdentifier:
+    async def test_session_whose_owner_row_is_missing_is_not_found(self) -> None:
+        # The foreign key normally cascades a purged owner's sessions away, so the owner
+        # lookup is stubbed to come back empty while the session row is still read.
+        orphaned_session = models.ProjectSession(
+            session_id="orphan",
+            project_id=999,
+            start_time=datetime.now(timezone.utc),
+            end_time=datetime.now(timezone.utc),
+        )
+        db_session = MagicMock()
+        db_session.get = AsyncMock(return_value=orphaned_session)
+        db_session.execute = AsyncMock(return_value=MagicMock(first=MagicMock(return_value=None)))
+        with pytest.raises(HTTPException) as exc_info:
+            await _get_session_by_identifier(
+                db_session, str(GlobalID(ProjectSessionNodeType.__name__, "1"))
+            )
+        assert exc_info.value.status_code == 404
 
 
 class TestGetSession:

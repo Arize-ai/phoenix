@@ -373,16 +373,6 @@ ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY = "PHOENIX_ONLINE_EVAL_MAX_EVA
 Maximum online-eval work units a replica evaluates at once, across all consumers.
 Defaults to 50.
 """
-ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES = "PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES"
-"""
-The maximum aggregate UTF-8 byte size of rendered messages sent by an online LLM evaluator.
-Defaults to 65536.
-"""
-ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES = "PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES"
-"""
-The maximum UTF-8 byte size of a rendered online code-evaluator payload.
-Defaults to 65536.
-"""
 ENV_LOGGING_MODE = "PHOENIX_LOGGING_MODE"
 """
 The logging mode (either 'default' or 'structured').
@@ -913,6 +903,14 @@ ENV_PHOENIX_DEFAULT_RETENTION_POLICY_DAYS = "PHOENIX_DEFAULT_RETENTION_POLICY_DA
 """
 The default retention policy for traces in days.
 """
+ENV_PHOENIX_PLAYGROUND_TIMEOUT_SECONDS = "PHOENIX_PLAYGROUND_TIMEOUT_SECONDS"
+"""
+How long, in seconds, a prompt playground run waits for the next streamed chunk from the model
+before the repetition fails with "Playground task timed out". The wait restarts with every chunk,
+so this is not a limit on the run's total duration. Must be a positive integer; defaults to 90.
+Playground runs over a dataset are executed by the experiment runner, which uses its own
+per-task timeout and ignores this setting.
+"""
 
 ENV_PHOENIX_ALLOWED_SANDBOX_PROVIDERS = "PHOENIX_ALLOWED_SANDBOX_PROVIDERS"
 """
@@ -1101,6 +1099,30 @@ def get_env_default_retention_policy_days() -> int:
     if days < 0:
         raise ValueError("PHOENIX_DEFAULT_RETENTION_POLICY_DAYS must be non-negative")
     return days
+
+
+DEFAULT_PLAYGROUND_TIMEOUT_SECONDS = 90
+
+
+def get_env_playground_timeout_seconds() -> int:
+    """
+    Gets how long a prompt playground run waits for the next streamed chunk, from the
+    PHOENIX_PLAYGROUND_TIMEOUT_SECONDS environment variable.
+
+    Returns:
+        int: Seconds to wait for each chunk. Defaults to DEFAULT_PLAYGROUND_TIMEOUT_SECONDS if
+        not set.
+
+    Raises:
+        ValueError: If the value is not a positive integer.
+    """
+    seconds = _int_val(ENV_PHOENIX_PLAYGROUND_TIMEOUT_SECONDS, DEFAULT_PLAYGROUND_TIMEOUT_SECONDS)
+    if seconds <= 0:
+        raise ValueError(
+            f"Invalid value for environment variable {ENV_PHOENIX_PLAYGROUND_TIMEOUT_SECONDS}: "
+            f"{seconds}. Value must be a positive integer."
+        )
+    return seconds
 
 
 def get_env_tls_config() -> Optional[TLSConfig]:
@@ -1677,8 +1699,8 @@ def get_env_csrf_trusted_origins() -> list[str]:
     origins: list[str] = []
     if not (csrf_trusted_origins := getenv(ENV_PHOENIX_CSRF_TRUSTED_ORIGINS)):
         return origins
-    for origin in csrf_trusted_origins.split(","):
-        if not origin:
+    for entry in csrf_trusted_origins.split(","):
+        if not (origin := entry.strip()):
             continue
         if not urlparse(origin).hostname:
             raise ValueError(
@@ -2204,10 +2226,11 @@ class LDAPConfig:
     Both modes handle DN changes. The only difference is email change handling.
     DN is NOT used for identity matching (DNs change too frequently).
 
-    Email as Required Attribute:
-    - Email MUST be present in LDAP for authentication to succeed
-    - Used for Phoenix's user email field (UI, notifications, audit logs)
-    - Provides human-readable identifier for operators
+    Email Attribute:
+    - When PHOENIX_LDAP_ATTR_EMAIL names an attribute, it MUST be present in LDAP
+      for authentication to succeed
+    - When PHOENIX_LDAP_ATTR_EMAIL is "null", users are stored without email and
+      identified by PHOENIX_LDAP_ATTR_UNIQUE_ID alone, which is then required
 
     See: internal_docs/specs/ldap-authentication.md for full design rationale.
 
@@ -3633,38 +3656,6 @@ def get_env_online_eval_max_evaluator_concurrency() -> int:
     return _online_eval_positive_int(ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY, 50)
 
 
-def get_env_online_eval_max_llm_message_bytes() -> int:
-    """Get the rendered online-eval LLM message cap."""
-    max_bytes = _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES, 65_536)
-    if max_bytes < 1_024:
-        raise ValueError(
-            f"Invalid value for environment variable "
-            f"{ENV_PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES}: "
-            f"{max_bytes}. Value must be an integer of at least 1024."
-        )
-    return max_bytes
-
-
-ONLINE_SANDBOX_PAYLOAD_LIMIT_REMEDIATION = (
-    "Narrow the slot with a path mapping, reduce the evaluator source, or raise the "
-    f"limit with {ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES}."
-)
-"""What to do about a code-evaluator payload over the online-eval limit, in the same words
-for a scheduled evaluation and for a preview run under the online limits."""
-
-
-def get_env_online_eval_max_sandbox_payload_bytes() -> int:
-    """Get the online-eval code-evaluator payload cap, whose minimum is 1024 UTF-8 bytes."""
-    max_bytes = _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES, 65_536)
-    if max_bytes < 1_024:
-        raise ValueError(
-            f"Invalid value for environment variable "
-            f"{ENV_PHOENIX_ONLINE_EVAL_MAX_SANDBOX_PAYLOAD_BYTES}: "
-            f"{max_bytes}. Value must be an integer of at least 1024."
-        )
-    return max_bytes
-
-
 def get_env_root_url() -> URL:
     """
     Get the URL used to access Phoenix from a web browser
@@ -3877,7 +3868,7 @@ def get_env_allowed_origins() -> Optional[list[str]]:
     if allowed_origins is None:
         return None
 
-    return allowed_origins.split(",")
+    return [origin.strip() for origin in allowed_origins.split(",") if origin.strip()]
 
 
 def get_env_telemetry_enabled() -> bool:
@@ -3964,6 +3955,7 @@ def verify_server_environment_variables() -> None:
     get_env_database_usage_email_warning_threshold_percentage()
     get_env_database_usage_insertion_blocking_threshold_percentage()
     get_env_max_spans_queue_size()
+    get_env_playground_timeout_seconds()
     validate_env_support_email()
     validate_env_allowed_providers()
     validate_env_allowed_sandbox_providers()

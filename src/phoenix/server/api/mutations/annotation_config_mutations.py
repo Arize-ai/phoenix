@@ -1,5 +1,5 @@
 import strawberry
-from sqlalchemy import delete, select, tuple_
+from sqlalchemy import delete, exists, select, tuple_
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry.relay.types import GlobalID
@@ -307,7 +307,10 @@ class AnnotationConfigMutationMixin:
 
         async with info.context.db() as session:
             result = await session.scalars(
-                select(models.Project.id).where(models.Project.id.in_(project_ids))
+                select(models.Project.id).where(
+                    models.Project.id.in_(project_ids),
+                    models.Project.deleted_at.is_(None),
+                )
             )
             resolved_project_ids = result.all()
             if set(project_ids) - set(resolved_project_ids):
@@ -347,6 +350,11 @@ class AnnotationConfigMutationMixin:
         info: Info[Context, None],
         input: list[RemoveAnnotationConfigFromProjectInput],
     ) -> RemoveAnnotationConfigFromProjectPayload:
+        if not input:
+            raise BadRequest("No project annotation config associations provided")
+        project_id = from_global_id_with_expected_type(
+            global_id=input[-1].project_id, expected_type_name="Project"
+        )
         project_annotation_config_associations = set()
         for item in input:
             project_id = from_global_id_with_expected_type(
@@ -356,14 +364,30 @@ class AnnotationConfigMutationMixin:
                 raise BadRequest(f"Unexpected type name in Relay ID: {type_name}")
             annotation_config_id = int(item.annotation_config_id.node_id)
             project_annotation_config_associations.add((project_id, annotation_config_id))
+        project_ids = [project_id for project_id, _ in project_annotation_config_associations]
         async with info.context.db() as session:
+            resolved_project_ids = (
+                await session.scalars(
+                    select(models.Project.id).where(
+                        models.Project.id.in_(project_ids),
+                        models.Project.deleted_at.is_(None),
+                    )
+                )
+            ).all()
+            if set(project_ids) - set(resolved_project_ids):
+                raise NotFound("One or more projects were not found")
+
             result = await session.scalars(
                 delete(models.ProjectAnnotationConfig)
                 .where(
                     tuple_(
                         models.ProjectAnnotationConfig.project_id,
                         models.ProjectAnnotationConfig.annotation_config_id,
-                    ).in_(project_annotation_config_associations)
+                    ).in_(project_annotation_config_associations),
+                    exists().where(
+                        models.Project.id == models.ProjectAnnotationConfig.project_id,
+                        models.Project.deleted_at.is_(None),
+                    ),
                 )
                 .returning(models.ProjectAnnotationConfig)
             )

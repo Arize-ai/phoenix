@@ -1,0 +1,16 @@
+apiVersion: 1
+
+# Loads every dashboard in ../../dashboards (mounted at the path below) into
+# the otel-lgtm Grafana, beside the image's own dashboards. The files are the
+# source of truth: edit in the UI to experiment, then export the JSON back here.
+providers:
+  - name: "Phoenix"
+    orgId: 1
+    folder: ""
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /otel-lgtm/phoenix/dashboards
+      foldersFromFilesStructure: false

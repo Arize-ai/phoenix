@@ -7,6 +7,7 @@
     - [Running it directly](#running-it-directly)
     - [Options](#options)
     - [The corpus](#the-corpus)
+  - [Containerized Dev Stack](#containerized-dev-stack)
   - [Setting Up Your macOS Development Environment](#setting-up-your-macos-development-environment)
   - [Testing and Linting](#testing-and-linting)
   - [Installing Pre-Commit Hooks](#installing-pre-commit-hooks)
@@ -60,7 +61,7 @@ cd app
 pnpm dev
 ```
 
-`pnpm dev` starts the API, the Vite dev server, and a trace generator as dekit tasks and attaches a console to them. The tasks run in a detached runner, so they survive closing the terminal: press `q` to detach and leave them running, `Q` to stop everything, or run `dekit down` from a shell. `dekit help` documents the rest of the CLI.
+`pnpm dev` starts the API, the Vite dev server, and a trace generator as dekit tasks and attaches a console to them. The tasks run in a detached runner, so they survive closing the terminal: press `q` to detach and leave them running, `Q` to stop everything, or run `dekit down` from a shell. `pnpm dev:down` stops the dekit stack and any other dev servers (Vite, Storybook, `phoenix serve`) started from this checkout; add `--dry-run` to only list them. `dekit help` documents the rest of the CLI.
 
 Open [http://localhost:6006](http://localhost:6006). If authentication is enabled, log in with **`admin@localhost`** / **`admin`**, or set `PHOENIX_ENABLE_AUTH=False` in `js/app/.env` to bypass it.
 
@@ -75,6 +76,21 @@ Open [http://localhost:6006](http://localhost:6006). If authentication is enable
 To send your own traces to your dev server, point any OpenInference/OpenTelemetry instrumented app at `http://localhost:6006` (for example, `PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006`). See the [Vercel AI SDK tracing guide](https://arize.com/docs/phoenix/integrations/typescript/vercel/vercel-ai-sdk-tracing-js) or the runnable [AI SDK agent example](./js/examples/apps/ai-sdk-agent) for a minimal traced agent.
 
 If a step fails, consult the detailed setup instructions below.
+
+### Running only the UI against an existing Phoenix server
+
+To work on the frontend without running the Python server, point the Vite dev server at an existing Phoenix server. `js/app/.env.example` sets `PHOENIX_BACKEND_URL` to the team's shared dev server, so after you copy it to `js/app/.env` this runs as is:
+
+```bash
+cd js/app
+pnpm dev:ui-only
+```
+
+To use a different server, set the variable inline, for example `PHOENIX_BACKEND_URL=http://localhost:6006 pnpm dev:ui-only`.
+
+Open the `UI` URL it prints ([http://localhost:5173](http://localhost:5173), or the next free port if 5173 is taken). Vite serves the UI with hot reload and proxies every other request (GraphQL, REST, auth) to the backend set in `PHOENIX_BACKEND_URL`. The page config (`window.Config`) comes from the backend. If the backend runs under a path prefix (for example `https://phoenix.example.com/phoenix`), open the UI under the same prefix (`http://localhost:5173/phoenix`).
+
+The local UI must be compatible with the backend's GraphQL schema, so use a backend that runs a version close to your branch. Log in with email and password. OAuth2 redirects go to the backend's domain, so OAuth2 login does not work locally. Browsers share `localhost` cookies across ports, so logging in here logs you out of a local Phoenix on another port, and the other way around.
 
 ## Synthetic Trace Traffic
 
@@ -169,6 +185,40 @@ The first run downloads the published corpus and caches it locally (content-addr
 ```bash
 uv run phoenix datagen pull   # prints the cached archive path
 ```
+
+## Containerized Dev Stack
+
+`make dev-stack` runs Phoenix with the services that `pnpm dev` does not start: PostgreSQL, OIDC, an SMTP mail catcher, a mock LLM server, Toxiproxy, and an optional Grafana, Prometheus, Tempo, and Loki stack. Use it to test authentication, email, database latency, or Kubernetes deployment behavior.
+
+**Prerequisites.** Install the tools for the engine you want to use. When you do not select an engine, the stack uses Apple `container` if it is installed, then a running Docker or Podman daemon, then `kind`.
+
+| Engine | Install |
+| --- | --- |
+| Apple `container` (Kubernetes, macOS 26+) | `brew install container kubectl helm jq` |
+| `kind` (Kubernetes on Docker) | `brew install kind kubectl helm jq` |
+| Podman (Compose) | `brew install podman docker-compose`, then `podman machine init` and `podman machine start` |
+| Docker (Compose) | Any Docker engine with the Compose plugin |
+
+With Apple `container`, `make dev-stack` installs the recommended Linux kernel on the first run (`container system kernel set --recommended`). The stack serves its ports on `localhost` through the `container` port forwarder, which macOS Local Network privacy can block. If kubectl reports `connection reset by peer` on `127.0.0.1:6445`, or `localhost:18273` does not answer, open System Settings > Privacy & Security > Local Network, allow `container`, and run `make dev-stack` again.
+
+The Kubernetes engines deploy the Phoenix Helm chart in `helm/`. Before the first run, download its PostgreSQL chart dependency:
+
+```bash
+helm repo add groundhog2k https://groundhog2k.github.io/helm-charts/
+helm dependency build helm
+```
+
+**Run it:**
+
+```bash
+make dev-stack                                   # start with the auto-selected engine
+make dev-stack ARGS="up --engine podman"         # select an engine
+make dev-stack ARGS="up --profile grafana"       # add the monitoring stack
+make dev-stack ARGS=doctor                       # check tools, engine, chart, and ports
+make dev-stack ARGS=down                         # stop all services
+```
+
+If `make dev-stack` reports missing dependencies, run `make dev-stack ARGS=doctor` to see which checks fail. Phoenix is served at http://localhost:18273/phoenix/. For profiles, service URLs, and troubleshooting, see [`scripts/devops/README.md`](scripts/devops/README.md).
 
 ## Setting Up Your macOS Development Environment
 

@@ -1,33 +1,59 @@
 import { css } from "@emotion/react";
 import type { ComponentProps, ReactNode } from "react";
 import { createContext, useContext, useState } from "react";
+import { graphql, readInlineData, useFragment } from "react-relay";
 import invariant from "tiny-invariant";
 
 import {
   Flex,
+  Icon,
+  Icons,
   RichTooltip,
+  Skeleton,
   Text,
   TooltipTrigger,
   TriggerWrap,
 } from "@phoenix/components";
 import {
+  AnnotationScoreText,
   getOptimizationBounds,
   getOptimizationValueFromConfig,
 } from "@phoenix/components/annotation";
+import {
+  getAnnotationLabelColor,
+  getAnnotationLabelOrder,
+  useLabelDistributionColors,
+} from "@phoenix/components/annotation/annotationLabelColors";
 import { MeanScore } from "@phoenix/components/annotation/MeanScore";
-import { Sparkline, useBinTimeTickFormatter } from "@phoenix/components/chart";
+import {
+  ChartTooltipItem,
+  Sparkline,
+  StackedSparkline,
+  useBinTimeTickFormatter,
+} from "@phoenix/components/chart";
+import { TextErrorBoundaryFallback } from "@phoenix/components/exception";
 import type { ProjectEvaluatorResultAnnotation } from "@phoenix/hooks/useProjectEvaluatorResultAnnotations";
 import { SummaryValueBreakdown } from "@phoenix/pages/project/AnnotationSummary";
-import type { ProjectEvaluatorsTable_scores$data } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_scores.graphql";
+import type {
+  ProjectEvaluatorMeanScoreCell_previousSummary$data,
+  ProjectEvaluatorMeanScoreCell_previousSummary$key,
+} from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorMeanScoreCell_previousSummary.graphql";
+import type {
+  ProjectEvaluatorMeanScoreCell_scores$data,
+  ProjectEvaluatorMeanScoreCell_scores$key,
+} from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorMeanScoreCell_scores.graphql";
 import type { EvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
-import { formatFloat } from "@phoenix/utils/numberFormatUtils";
+import {
+  formatFloat,
+  formatPercentShort,
+} from "@phoenix/utils/numberFormatUtils";
 
 /**
  * One annotation's score aggregates as the scores fragment selects them from
  * `ProjectEvaluator.annotationScoreMetrics`.
  */
 export type EvaluatorAnnotationScoreMetricsData = NonNullable<
-  ProjectEvaluatorsTable_scores$data["annotationScoreMetrics"]
+  ProjectEvaluatorMeanScoreCell_scores$data["annotationScoreMetrics"]
 >[number];
 
 const meanScoreAlignmentCSS = css`
@@ -62,10 +88,45 @@ const meanScoreFallback = (
 );
 
 /**
- * Widest the sparkline grows. Past this it stops being glanceable: a 20px
- * tall line stretched across a wide column reads as an axis-less chart.
+ * Keeps a long leading label from crowding the delta and the bar out of the
+ * column; the full label is in the tooltip.
  */
-const SPARKLINE_MAX_WIDTH = 160;
+const leadingLabelCSS = css`
+  display: inline-block;
+  max-width: 7em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+`;
+
+/**
+ * The width of every row's chart, score sparkline and label columns alike.
+ * One width for all rows puts each time bin at the same x on every row, so
+ * a spike or a gap can be traced down the column; a chart that took the
+ * room its row's pill leaves would put the same bin somewhere else on each
+ * row. Exported so stories draw the column's charts at the column's width.
+ */
+export const RESULTS_CHART_WIDTH = 112;
+
+/** The chart's slot at the cell's right edge, the same on every row. */
+const chartSlotCSS = css`
+  display: flex;
+  flex: none;
+  width: ${RESULTS_CHART_WIDTH}px;
+  margin-left: auto;
+`;
+
+/**
+ * The pill and change take the room left of the chart and clip past it, so
+ * an unusually wide pill can't push the chart off its shared x.
+ */
+const summarySlotCSS = css`
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+`;
 
 /**
  * The least of the annotation's score range the sparkline's vertical axis
@@ -78,15 +139,12 @@ const SPARKLINE_MIN_RANGE_FRACTION = 0.2;
 /**
  * The line is data ink, not status: the score pill and the delta already
  * carry the judgement, and painting the whole history in a status color
- * would restate one number's sign across the entire window.
+ * would restate one number's sign across the entire window. The coverage
+ * strip sits well under the line, so where there is data reads as context
+ * beneath the steps rather than as a second series.
  */
-const SPARKLINE_COLOR = "var(--global-text-color-900)";
-
-/**
- * Well under the line, so where there is data reads as context beneath the
- * steps rather than as a second series.
- */
-const SPARKLINE_COVERAGE_COLOR = "var(--global-text-color-300)";
+const SPARKLINE_COLOR = "var(--chart-sparkline-stroke-color)";
+const SPARKLINE_COVERAGE_COLOR = "var(--chart-sparkline-coverage-fill-color)";
 
 /**
  * Whether the sparkline carries a coverage strip along its baseline, one cell
@@ -99,8 +157,14 @@ const EvaluatorScoreWindowContext = createContext<EvaluatorScoreWindow | null>(
   null
 );
 
+const EvaluatorDeferredErrorContext = createContext<string | null>(null);
+
 /**
- * Provides the score window to the mean score column's header and cells.
+ * Provides the score window to the results column's header and cells, and
+ * the message of the request that last fetched the table's rows if it
+ * failed. Relay does not report a failure that arrives after a response's
+ * first part, so a cell whose deferred data (scores or cost) never arrived
+ * reads it here.
  *
  * Context rather than a prop threaded through the column defs: a column def
  * closing over the window would rebuild — and, because tanstack renders the
@@ -108,25 +172,48 @@ const EvaluatorScoreWindowContext = createContext<EvaluatorScoreWindow | null>(
  * the window changes, including the live range's once-a-minute/hour
  * re-anchor. A context update just re-renders.
  */
-export const EvaluatorScoreWindowProvider =
-  EvaluatorScoreWindowContext.Provider;
+export function EvaluatorResultsProvider({
+  scoreWindow,
+  deferredError,
+  children,
+}: {
+  scoreWindow: EvaluatorScoreWindow;
+  deferredError: string | null;
+  children: ReactNode;
+}) {
+  return (
+    <EvaluatorScoreWindowContext.Provider value={scoreWindow}>
+      <EvaluatorDeferredErrorContext.Provider value={deferredError}>
+        {children}
+      </EvaluatorDeferredErrorContext.Provider>
+    </EvaluatorScoreWindowContext.Provider>
+  );
+}
+
+/**
+ * The failure of the request that last fetched the table's rows, for a cell
+ * whose deferred data never arrived; null while none failed.
+ */
+export function useEvaluatorDeferredError(): string | null {
+  return useContext(EvaluatorDeferredErrorContext);
+}
 
 function useEvaluatorScoreWindow(): EvaluatorScoreWindow {
   const scoreWindow = useContext(EvaluatorScoreWindowContext);
   invariant(
     scoreWindow != null,
-    "useEvaluatorScoreWindow requires an EvaluatorScoreWindowProvider"
+    "useEvaluatorScoreWindow requires an EvaluatorResultsProvider"
   );
   return scoreWindow;
 }
 
-/** The mean score column's header: the label plus the window it covers. */
+/** The results column's header: the label plus the window it covers. */
 export function ProjectEvaluatorMeanScoreHeader() {
   const scoreWindow = useEvaluatorScoreWindow();
   return (
     <Flex direction="row" gap="size-50" alignItems="baseline">
-      <span title="Mean score of the annotations this evaluator produced in the selected time range (at most the last 30 days), with the change vs. the previous window.">
-        mean score
+      <span title="Mean score, or label distribution for label-only evaluators, over the selected time range (at most the last 30 days), with the change vs. the previous window.">
+        results
       </span>
       <Text size="XS" fontFamily="mono" color="text-500">
         {scoreWindow.windowKey}
@@ -135,12 +222,107 @@ export function ProjectEvaluatorMeanScoreHeader() {
   );
 }
 
+export function ProjectEvaluatorResultsCell({
+  annotations,
+  projectEvaluator,
+}: {
+  annotations: ReadonlyArray<ProjectEvaluatorResultAnnotation>;
+  projectEvaluator: ProjectEvaluatorMeanScoreCell_scores$key;
+}) {
+  const { annotationScoreMetrics } = useFragment(
+    graphql`
+      fragment ProjectEvaluatorMeanScoreCell_scores on ProjectEvaluator
+      @argumentDefinitions(
+        scoreTimeRange: { type: "TimeRange!" }
+        scorePreviousTimeRange: { type: "TimeRange!" }
+        scoreTimeBinConfig: { type: "TimeBinConfig!" }
+        includeMeanScore: { type: "Boolean!" }
+      ) {
+        annotationScoreMetrics(
+          timeRange: $scoreTimeRange
+          previousTimeRange: $scorePreviousTimeRange
+          timeBinConfig: $scoreTimeBinConfig
+        ) @include(if: $includeMeanScore) {
+          annotationName
+          summary {
+            meanScore
+            count
+            scoreCount
+            labelCount
+            labelFractions {
+              label
+              fraction
+            }
+          }
+          ...ProjectEvaluatorMeanScoreCell_previousSummary @defer
+          series {
+            timestamp
+            meanScore
+            count
+            labelFractions {
+              label
+              fraction
+            }
+            resultCount
+          }
+        }
+      }
+    `,
+    projectEvaluator
+  );
+  const deferredError = useEvaluatorDeferredError();
+  if (annotationScoreMetrics === undefined) {
+    return deferredError != null ? (
+      <TextErrorBoundaryFallback error="Scores failed to load." />
+    ) : (
+      <ProjectEvaluatorMeanScoreCellSkeleton annotations={annotations} />
+    );
+  }
+  return (
+    <ProjectEvaluatorMeanScoreCell
+      annotations={annotations}
+      scoreMetrics={annotationScoreMetrics}
+    />
+  );
+}
+
+export function ProjectEvaluatorMeanScoreCellSkeleton({
+  annotations,
+}: {
+  annotations: ReadonlyArray<ProjectEvaluatorResultAnnotation>;
+}) {
+  return (
+    <div aria-busy="true" aria-label="Loading scores">
+      <Flex direction="column" gap="size-50">
+        {annotations.map((annotation) => (
+          <Flex
+            key={annotation.name}
+            direction="row"
+            alignItems="center"
+            gap="size-100"
+            minWidth={0}
+          >
+            <div css={summarySlotCSS}>
+              <Skeleton width={72} height={20} borderRadius="medium" />
+            </div>
+            <div css={chartSlotCSS}>
+              <Skeleton width={RESULTS_CHART_WIDTH} height={20} />
+            </div>
+          </Flex>
+        ))}
+      </Flex>
+    </div>
+  );
+}
+
 /**
- * The evaluators table's mean score cell: for each annotation the evaluator
+ * The evaluators table's results cell: for each annotation the evaluator
  * writes, the mean score over the (clamped) page time range, its change vs.
- * the previous window, and a sparkline of per-bin means. The data arrives
- * with the row via `ProjectEvaluator.annotationScoreMetrics`, which the
- * connection only fetches while the column is visible.
+ * the previous window, and a sparkline of per-bin means. An annotation that
+ * only carries labels shows its leading label's share, that share's change,
+ * and a stacked bar of the label distribution instead. The data comes from
+ * `ProjectEvaluator.annotationScoreMetrics`, which the connection only
+ * fetches while the column is visible.
  */
 export function ProjectEvaluatorMeanScoreCell({
   annotations,
@@ -171,6 +353,40 @@ export function ProjectEvaluatorMeanScoreCell({
   );
 }
 
+/**
+ * The previous window's aggregates, which load after the current window's;
+ * undefined until they arrive, and still undefined if they failed.
+ */
+function readPreviousSummary(
+  metrics: EvaluatorAnnotationScoreMetricsData | undefined
+) {
+  if (metrics == null) {
+    return undefined;
+  }
+  const {
+    previousSummary,
+  }: {
+    previousSummary:
+      | ProjectEvaluatorMeanScoreCell_previousSummary$data["previousSummary"]
+      | undefined;
+  } = readInlineData<ProjectEvaluatorMeanScoreCell_previousSummary$key>(
+    graphql`
+      fragment ProjectEvaluatorMeanScoreCell_previousSummary on EvaluatorAnnotationScoreMetrics
+      @inline {
+        previousSummary {
+          meanScore
+          labelFractions {
+            label
+            fraction
+          }
+        }
+      }
+    `,
+    metrics
+  );
+  return previousSummary;
+}
+
 // oxlint-disable-next-line complexity
 function AnnotationMeanScoreView({
   annotation,
@@ -190,13 +406,35 @@ function AnnotationMeanScoreView({
   // emptiness. The clock is read once on mount: the cutoff only has to be
   // right to within a bin, and the cells remount when their data refetches.
   const [now] = useState(() => Date.now());
+  const series = (metrics?.series ?? []).filter(
+    (bin) => Date.parse(bin.timestamp) <= now
+  );
   const summary = metrics?.summary;
-  const previousMeanScore = metrics?.previousSummary?.meanScore;
+  const previousSummary = readPreviousSummary(metrics);
+  const deferredError = useEvaluatorDeferredError();
+  const previousWindowStatus = getPreviousWindowStatus({
+    previousSummary,
+    deferredError,
+  });
+  const previousMeanScore = previousSummary?.meanScore;
   const meanScore = summary?.meanScore;
   const hasScore = typeof meanScore === "number";
   const hasLabels = (summary?.labelFractions.length ?? 0) > 0;
   if (!hasScore && !hasLabels) {
     return meanScoreFallback;
+  }
+  if (!hasScore && summary != null) {
+    return (
+      <AnnotationLabelDistributionView
+        annotation={annotation}
+        windowKey={windowKey}
+        summary={summary}
+        previousLabelFractions={previousSummary?.labelFractions}
+        previousWindowStatus={previousWindowStatus}
+        series={series}
+        formatBinTime={binTimeFormatter}
+      />
+    );
   }
   const delta =
     hasScore && typeof previousMeanScore === "number"
@@ -218,106 +456,474 @@ function AnnotationMeanScoreView({
     delta == null
       ? null
       : `${delta > 0 ? "▲" : delta < 0 ? "▼" : "—"} ${Math.abs(delta).toFixed(2)}`;
-  const series = (metrics?.series ?? []).filter(
-    (bin) => Date.parse(bin.timestamp) <= now
-  );
   const sparkValues = series.map((bin) =>
     typeof bin.meanScore === "number" ? bin.meanScore : null
   );
   const sparkWeights = series.map((bin) => bin.count);
-  const sparkMinRange =
+  const sparkBounds: [number, number] | undefined =
     lowerBound != null && upperBound != null && upperBound > lowerBound
-      ? (upperBound - lowerBound) * SPARKLINE_MIN_RANGE_FRACTION
+      ? [lowerBound, upperBound]
+      : undefined;
+  const sparkMinRange =
+    sparkBounds != null
+      ? (sparkBounds[1] - sparkBounds[0]) * SPARKLINE_MIN_RANGE_FRACTION
       : undefined;
   return (
     <Flex direction="row" alignItems="center" gap="size-100" minWidth={0}>
       {/* The score and delta carry the summary breakdown; the sparkline sits
           outside the trigger so its hover shows per-point detail instead. */}
-      <TooltipTrigger delay={0}>
-        <TriggerWrap>
-          <Flex direction="row" alignItems="center" gap="size-100" flex="none">
-            <CellMeanScore
-              value={meanScore}
-              optimizationValue={getOptimizationValueFromConfig({
-                config: annotation.config,
-                score: meanScore,
-              })}
-            />
-            {deltaText != null ? (
-              <Text
-                size="XS"
-                fontFamily="mono"
-                flex="none"
-                color={
-                  isImprovement == null
-                    ? "text-500"
-                    : isImprovement
-                      ? "success"
-                      : "danger"
-                }
-              >
-                {deltaText}
-              </Text>
-            ) : null}
-          </Flex>
-        </TriggerWrap>
-        <RichTooltip placement="bottom">
-          <Flex direction="column" gap="size-50">
-            <SummaryValueBreakdown
-              annotationName={annotation.name}
-              labelFractions={summary?.labelFractions}
-              meanScore={meanScore}
-              annotationConfig={annotation.config}
-              count={summary?.count}
-              scoreCount={summary?.scoreCount}
-              labelCount={summary?.labelCount}
-            />
-            {deltaText != null ? (
-              <Text size="S" color="text-700">
-                {deltaText} vs. the previous {windowKey}
-              </Text>
-            ) : null}
-          </Flex>
-        </RichTooltip>
-      </TooltipTrigger>
-      <Sparkline
-        values={sparkValues}
-        weights={sparkWeights}
-        minRange={sparkMinRange}
-        maxWidth={SPARKLINE_MAX_WIDTH}
-        color={SPARKLINE_COLOR}
-        showCoverage={SPARKLINE_SHOW_COVERAGE}
-        coverageColor={SPARKLINE_COVERAGE_COLOR}
-        aria-label={`Mean ${annotation.name} score over the last ${windowKey}`}
-        renderPointDetail={({ start, end }) => {
-          // The point may cover several bins merged to fit the width: the
-          // weighted mean of their scores, over the span of their times.
-          let weightedSum = 0;
-          let count = 0;
-          for (let index = start; index <= end; index++) {
-            const value = sparkValues[index];
-            if (value == null) {
-              continue;
+      <div css={summarySlotCSS}>
+        <TooltipTrigger delay={0}>
+          <TriggerWrap>
+            <Flex
+              direction="row"
+              alignItems="center"
+              gap="size-100"
+              flex="none"
+            >
+              <CellMeanScore
+                value={meanScore}
+                optimizationValue={getOptimizationValueFromConfig({
+                  config: annotation.config,
+                  score: meanScore,
+                })}
+              />
+              <PreviousWindowChange
+                deltaText={deltaText}
+                isImprovement={isImprovement}
+                previousWindowStatus={previousWindowStatus}
+              />
+            </Flex>
+          </TriggerWrap>
+          <RichTooltip placement="bottom">
+            <Flex direction="column" gap="size-50">
+              <SummaryValueBreakdown
+                annotationName={annotation.name}
+                labelFractions={summary?.labelFractions}
+                meanScore={meanScore}
+                annotationConfig={annotation.config}
+                count={summary?.count}
+                scoreCount={summary?.scoreCount}
+                labelCount={summary?.labelCount}
+              />
+              {previousWindowStatus === "failed" ? (
+                <PreviousWindowFailedNote windowKey={windowKey} />
+              ) : deltaText != null ? (
+                <Text size="S" color="text-700">
+                  {deltaText} vs. the previous {windowKey}
+                </Text>
+              ) : null}
+            </Flex>
+          </RichTooltip>
+        </TooltipTrigger>
+      </div>
+      <div css={chartSlotCSS}>
+        <Sparkline
+          values={sparkValues}
+          weights={sparkWeights}
+          minRange={sparkMinRange}
+          bounds={sparkBounds}
+          maxWidth={RESULTS_CHART_WIDTH}
+          color={SPARKLINE_COLOR}
+          showCoverage={SPARKLINE_SHOW_COVERAGE}
+          coverageColor={SPARKLINE_COVERAGE_COLOR}
+          aria-label={`Mean ${annotation.name} score over the last ${windowKey}`}
+          renderPointDetail={({ start, end }) => {
+            // The point may cover several bins merged to fit the width: the
+            // weighted mean of their scores, over the span of their times.
+            let weightedSum = 0;
+            let count = 0;
+            for (let index = start; index <= end; index++) {
+              const value = sparkValues[index];
+              if (value == null) {
+                continue;
+              }
+              weightedSum += value * sparkWeights[index];
+              count += sparkWeights[index];
             }
-            weightedSum += value * sparkWeights[index];
-            count += sparkWeights[index];
-          }
-          const startTime = series[start]?.timestamp;
-          const endTime = series[end]?.timestamp;
-          if (startTime == null || endTime == null || count === 0) {
-            return null;
-          }
-          const timeLabel =
-            start === end
-              ? binTimeFormatter(new Date(startTime))
-              : `${binTimeFormatter(new Date(startTime))} – ${binTimeFormatter(new Date(endTime))}`;
-          return (
-            <Text size="S">
-              {timeLabel} · μ {formatFloat(weightedSum / count)} · n={count}
-            </Text>
-          );
-        }}
-      />
+            const startTime = series[start]?.timestamp;
+            const endTime = series[end]?.timestamp;
+            if (startTime == null || endTime == null || count === 0) {
+              return null;
+            }
+            const timeLabel =
+              start === end
+                ? binTimeFormatter(new Date(startTime))
+                : `${binTimeFormatter(new Date(startTime))} – ${binTimeFormatter(new Date(endTime))}`;
+            return (
+              <Text size="S">
+                {timeLabel} · μ {formatFloat(weightedSum / count)} · n={count}
+              </Text>
+            );
+          }}
+        />
+      </div>
     </Flex>
+  );
+}
+
+/**
+ * Where the previous window's aggregates stand. They load after the current
+ * window's and read as undefined until then, and still after they fail.
+ */
+type PreviousWindowStatus = "loading" | "failed" | "loaded";
+
+function getPreviousWindowStatus({
+  previousSummary,
+  deferredError,
+}: {
+  previousSummary: ReturnType<typeof readPreviousSummary>;
+  deferredError: string | null;
+}): PreviousWindowStatus {
+  if (previousSummary !== undefined) {
+    return "loaded";
+  }
+  return deferredError != null ? "failed" : "loading";
+}
+
+/**
+ * The change since the previous window, beside the score or leading label:
+ * its arrow and magnitude, a placeholder while the previous window loads, or
+ * an alert icon when it failed to load.
+ */
+function PreviousWindowChange({
+  deltaText,
+  isImprovement,
+  previousWindowStatus,
+}: {
+  deltaText: string | null;
+  isImprovement: boolean | null;
+  previousWindowStatus: PreviousWindowStatus;
+}) {
+  if (previousWindowStatus === "loading") {
+    return (
+      <span
+        css={previousWindowChangeSkeletonCSS}
+        aria-busy="true"
+        aria-label="Loading change"
+      >
+        <Skeleton width={44} height={12} />
+      </span>
+    );
+  }
+  if (previousWindowStatus === "failed") {
+    // The error affordance the table's other failed cells use; the score's
+    // tooltip says what failed.
+    return (
+      <span
+        css={previousWindowChangeFailedCSS}
+        role="img"
+        aria-label="Change failed to load"
+      >
+        <Icon svg={<Icons.AlertCircle />} />
+      </span>
+    );
+  }
+  if (deltaText == null) {
+    return null;
+  }
+  return (
+    <Text
+      size="XS"
+      fontFamily="mono"
+      flex="none"
+      color={
+        isImprovement == null
+          ? "text-500"
+          : isImprovement
+            ? "success"
+            : "danger"
+      }
+    >
+      {deltaText}
+    </Text>
+  );
+}
+
+const previousWindowChangeSkeletonCSS = css`
+  display: inline-flex;
+  flex: none;
+`;
+
+const previousWindowChangeFailedCSS = css`
+  display: inline-flex;
+  flex: none;
+  color: var(--global-text-color-300);
+`;
+
+function PreviousWindowFailedNote({ windowKey }: { windowKey: string }) {
+  return (
+    <Text size="S" color="text-700">
+      The previous {windowKey} failed to load.
+    </Text>
+  );
+}
+
+type LabelFraction = { readonly label: string; readonly fraction: number };
+
+/** The arrow-and-magnitude form shared by the score and the share deltas. */
+function getDeltaArrow(delta: number) {
+  return delta > 0 ? "▲" : delta < 0 ? "▼" : "—";
+}
+
+/**
+ * A share change in percentage points: one decimal under 10, whole points
+ * above, matching how the shares themselves are rounded.
+ */
+function formatSharePointsDelta(delta: number) {
+  const points = Math.abs(delta * 100);
+  const rounded = Math.round(points * 10) / 10;
+  return `${getDeltaArrow(delta)} ${rounded < 10 ? rounded.toFixed(1) : Math.round(points)} pts`;
+}
+
+/**
+ * How the leading label's share moved since the previous window, and whether
+ * that is good news. No previous labels means nothing to compare against; a
+ * previous window that had labels but not this one had a share of zero.
+ */
+function getLeadingShareChange({
+  label,
+  fraction,
+  previousLabelFractions,
+  optimizationValue,
+}: {
+  label: string;
+  fraction: number;
+  previousLabelFractions: ReadonlyArray<LabelFraction> | null | undefined;
+  /** The label's own optimization value, when the config scores it. */
+  optimizationValue: number | null;
+}) {
+  const previousShare =
+    previousLabelFractions != null && previousLabelFractions.length > 0
+      ? (previousLabelFractions.find((entry) => entry.label === label)
+          ?.fraction ?? 0)
+      : null;
+  const delta = previousShare == null ? null : fraction - previousShare;
+  const isImprovement =
+    delta == null ||
+    delta === 0 ||
+    optimizationValue == null ||
+    optimizationValue === 0
+      ? null
+      : delta > 0 === optimizationValue > 0;
+  return { previousShare, delta, isImprovement };
+}
+
+/**
+ * The cell for an annotation that carries labels but no scores: the leading
+ * label and its share where the mean score would be, the change in that
+ * share vs. the previous window, and the label distribution per time bin
+ * as stacked columns in the sparkline's place, on the sparkline's axis.
+ */
+function AnnotationLabelDistributionView({
+  annotation,
+  windowKey,
+  summary,
+  previousLabelFractions,
+  previousWindowStatus,
+  series,
+  formatBinTime,
+}: {
+  annotation: ProjectEvaluatorResultAnnotation;
+  windowKey: string;
+  summary: NonNullable<EvaluatorAnnotationScoreMetricsData["summary"]>;
+  previousLabelFractions: ReadonlyArray<LabelFraction> | null | undefined;
+  previousWindowStatus: PreviousWindowStatus;
+  /** The window's time bins, up to now. */
+  series: EvaluatorAnnotationScoreMetricsData["series"];
+  formatBinTime: (date: Date) => string;
+}) {
+  const { config } = annotation;
+  const { labelFractions, labelCount } = summary;
+  // Whether a label is good or bad shows on the pill and delta when the
+  // config scores it, so the chart's colors carry no judgement.
+  const colors = useLabelDistributionColors(
+    Math.max(labelFractions.length, config?.values?.length ?? 0)
+  );
+  // Draw labels in the config's order (the order their colors follow), then
+  // the server's order for labels the config doesn't list, so each label
+  // holds its place in the bar as the shares shift.
+  const configOrder = getAnnotationLabelOrder(config) ?? [];
+  const getRank = (label: string) => {
+    const rank = configOrder.indexOf(label);
+    return rank === -1 ? configOrder.length : rank;
+  };
+  const orderedLabelFractions = labelFractions
+    .map((entry, index) => ({ entry, index }))
+    .sort(
+      (left, right) =>
+        getRank(left.entry.label) - getRank(right.entry.label) ||
+        left.index - right.index
+    )
+    .map(({ entry }) => entry);
+  // The bar and the summary tooltip list the labels in the same order, and
+  // color them alike: by config order, falling back to that shared position.
+  const segments = orderedLabelFractions.map((entry, index) => ({
+    label: entry.label,
+    fraction: entry.fraction,
+    // The summary carries one labeled-annotation count, not one per label
+    count:
+      typeof labelCount === "number"
+        ? Math.round(entry.fraction * labelCount)
+        : null,
+    color: getAnnotationLabelColor(colors, index, entry.label, config),
+  }));
+  // The largest share; ties go to the label drawn first.
+  const leading = segments.reduce((best, segment) =>
+    segment.fraction > best.fraction ? segment : best
+  );
+  // A label the config scores reads as good or bad the way that score would.
+  const leadingOptimizationValue = getOptimizationValueFromConfig({
+    config,
+    score: config?.values?.find((value) => value.label === leading.label)
+      ?.score,
+  });
+  const { delta, isImprovement } = getLeadingShareChange({
+    label: leading.label,
+    fraction: leading.fraction,
+    previousLabelFractions,
+    optimizationValue: leadingOptimizationValue,
+  });
+  const deltaText = delta == null ? null : formatSharePointsDelta(delta);
+  const shareText = formatPercentShort(leading.fraction * 100);
+  return (
+    <Flex direction="row" alignItems="center" gap="size-100" minWidth={0}>
+      <div css={summarySlotCSS}>
+        <TooltipTrigger delay={0}>
+          <TriggerWrap>
+            <Flex
+              direction="row"
+              alignItems="center"
+              gap="size-100"
+              flex="none"
+            >
+              <AlignedScore>
+                <Text>
+                  <AnnotationScoreText
+                    elementType="span"
+                    fontFamily="mono"
+                    optimizationValue={leadingOptimizationValue}
+                  >
+                    <span css={leadingLabelCSS}>{leading.label}</span>
+                    &nbsp;{shareText}
+                  </AnnotationScoreText>
+                </Text>
+              </AlignedScore>
+              <PreviousWindowChange
+                deltaText={deltaText}
+                isImprovement={isImprovement}
+                previousWindowStatus={previousWindowStatus}
+              />
+            </Flex>
+          </TriggerWrap>
+          <RichTooltip placement="bottom">
+            <Flex direction="column" gap="size-50">
+              <SummaryValueBreakdown
+                annotationName={annotation.name}
+                labelFractions={orderedLabelFractions}
+                labelColors={colors}
+                annotationConfig={config}
+                count={summary.count}
+                scoreCount={summary.scoreCount}
+                labelCount={labelCount}
+              />
+              {previousWindowStatus === "failed" ? (
+                <PreviousWindowFailedNote windowKey={windowKey} />
+              ) : deltaText != null ? (
+                <Text size="S" color="text-700">
+                  {deltaText} in {leading.label}&apos;s share vs. the previous{" "}
+                  {windowKey}
+                </Text>
+              ) : null}
+            </Flex>
+          </RichTooltip>
+        </TooltipTrigger>
+      </div>
+      <div css={chartSlotCSS}>
+        <LabelColumns
+          annotationName={annotation.name}
+          windowKey={windowKey}
+          segments={segments}
+          series={series}
+          formatBinTime={formatBinTime}
+        />
+      </div>
+    </Flex>
+  );
+}
+
+/**
+ * The label distribution per time bin, as stacked columns on the sparkline's
+ * axis, in the same label order and colors as the pill's breakdown.
+ */
+function LabelColumns({
+  annotationName,
+  windowKey,
+  segments,
+  series,
+  formatBinTime,
+}: {
+  annotationName: string;
+  windowKey: string;
+  /** The window's labels in drawing order, with their colors. */
+  segments: ReadonlyArray<{ label: string; color: string }>;
+  series: EvaluatorAnnotationScoreMetricsData["series"];
+  formatBinTime: (date: Date) => string;
+}) {
+  const categories = segments.map((segment) => ({
+    key: segment.label,
+    color: segment.color,
+  }));
+  // A bin's labels are a subset of the window's, which the summary lists.
+  const values = series.map((bin) =>
+    bin.resultCount > 0
+      ? categories.map(
+          (category) =>
+            bin.labelFractions.find((entry) => entry.label === category.key)
+              ?.fraction ?? 0
+        )
+      : null
+  );
+  const weights = series.map((bin) => bin.resultCount);
+  return (
+    <StackedSparkline
+      categories={categories}
+      values={values}
+      weights={weights}
+      maxWidth={RESULTS_CHART_WIDTH}
+      aria-label={`${annotationName} labels per bin over the last ${windowKey}`}
+      renderBinDetail={({ range, shares, weight }) => {
+        const startTime = series[range.start]?.timestamp;
+        const endTime = series[range.end]?.timestamp;
+        if (startTime == null || endTime == null) {
+          return null;
+        }
+        const timeLabel =
+          range.start === range.end
+            ? formatBinTime(new Date(startTime))
+            : `${formatBinTime(new Date(startTime))} – ${formatBinTime(new Date(endTime))}`;
+        return (
+          <Flex direction="column" gap="size-50">
+            <Text size="S">
+              {timeLabel} · n={weight}
+            </Text>
+            <ul>
+              {categories.map((category, index) =>
+                shares[index] > 0 ? (
+                  <li key={category.key}>
+                    <ChartTooltipItem
+                      color={category.color}
+                      shape="square"
+                      name={category.key}
+                      value={`${formatPercentShort(shares[index] * 100)} · n=${Math.round(shares[index] * weight)}`}
+                    />
+                  </li>
+                ) : null
+              )}
+            </ul>
+          </Flex>
+        );
+      }}
+    />
   );
 }

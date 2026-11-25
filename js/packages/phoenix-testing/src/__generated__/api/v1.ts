@@ -417,7 +417,11 @@ export interface paths {
         get: operations["getDatasetExamples"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Permanently delete examples from a dataset
+         * @description Permanently delete examples and all of their revisions from every version of the dataset. The experiment runs on these examples, their evaluations, their task and evaluator traces, and their experiment logs are deleted too. The dataset, its versions, its experiments, and its other examples are kept. This cannot be undone. Example IDs that are not in the dataset are skipped, so a repeated request succeeds. Wait for experiments on the dataset to finish first, because runs and traces that arrive after the request are kept.
+         */
+        delete: operations["deleteDatasetExamples"];
         options?: never;
         head?: never;
         patch?: never;
@@ -579,10 +583,8 @@ export interface paths {
          * @description Delete a definition that nothing binds; a missing evaluator is ignored.
          *
          *     A definition still bound by a project or dataset is refused with 409; delete those
-         *     bindings first. Bindings deleted but not yet removed in the background are removed first;
-         *     one deleted meanwhile is refused with 409 and reason bindings_being_deleted. Deleting an
-         *     LLM evaluator removes the tag that pins its version and keeps the prompt. Built-in
-         *     evaluators cannot be deleted.
+         *     bindings first. Deleting an LLM evaluator removes the tag that pins its version and keeps
+         *     the prompt. Built-in evaluators cannot be deleted.
          */
         delete: operations["deleteEvaluator"];
         options?: never;
@@ -657,8 +659,8 @@ export interface paths {
          * @description Delete up to 1000 of a project's bindings in one transaction.
          *
          *     Missing bindings are ignored; a binding of another project is refused with 422 before
-         *     any change. Each deleted binding's trace project and recorded traces are removed in the
-         *     background; evaluator definitions and prompts are kept.
+         *     any change. Each deleted binding's trace project and recorded traces are removed; evaluator
+         *     definitions and prompts are kept.
          */
         delete: operations["deleteProjectEvaluators"];
         options?: never;
@@ -684,9 +686,9 @@ export interface paths {
          * Delete Project Evaluator
          * @description Delete a binding; a missing binding is ignored.
          *
-         *     The binding disappears at once; its trace project and recorded traces are removed in the
-         *     background. Its evaluator definition and prompt are kept. Delete a definition that nothing
-         *     binds with DELETE /v1/evaluators/{evaluator_id}.
+         *     The binding's trace project and recorded traces are deleted. Its evaluator definition and
+         *     prompt are kept. Delete a definition that nothing binds with
+         *     DELETE /v1/evaluators/{evaluator_id}.
          */
         delete: operations["deleteProjectEvaluator"];
         options?: never;
@@ -727,8 +729,8 @@ export interface paths {
          * @description Delete up to 1000 of a dataset's bindings in one transaction.
          *
          *     Missing bindings are ignored; a binding of another dataset is refused with 422 before
-         *     any change. Each deleted binding's trace project and recorded traces are removed in the
-         *     background; evaluator definitions and prompts are kept.
+         *     any change. Each deleted binding's trace project and recorded traces are removed; evaluator
+         *     definitions and prompts are kept.
          */
         delete: operations["deleteDatasetEvaluators"];
         options?: never;
@@ -754,9 +756,9 @@ export interface paths {
          * Delete Dataset Evaluator
          * @description Delete a binding; a missing binding is ignored.
          *
-         *     The binding disappears at once; its trace project and recorded traces are removed in the
-         *     background. Its evaluator definition and prompt are kept. Delete a definition that nothing
-         *     binds with DELETE /v1/evaluators/{evaluator_id}.
+         *     The binding's trace project and recorded traces are deleted. Its evaluator definition and
+         *     prompt are kept. Delete a definition that nothing binds with
+         *     DELETE /v1/evaluators/{evaluator_id}.
          */
         delete: operations["deleteDatasetEvaluator"];
         options?: never;
@@ -1029,7 +1031,7 @@ export interface paths {
         post?: never;
         /**
          * Delete traces from a project
-         * @description Delete traces from a project without deleting the project or its configuration. Only traces whose start time is within the required `[start_time, end_time)` interval are deleted. Associated spans are cascade deleted, and project sessions left with no remaining traces are also deleted. Naive datetimes are interpreted as UTC.
+         * @description Delete traces from a project without deleting the project or its configuration. Only traces whose start time is within the required `[start_time, end_time)` interval are deleted. Associated spans are cascade deleted, and project sessions left with no remaining traces are also deleted. Naive datetimes are interpreted as UTC. Traces are deleted in batches, each committed on its own. Returns 409 when some traces stay in use by another operation; part of the clear may already be done, and the same request can be run again to finish it.
          */
         delete: operations["deleteProjectTraces"];
         options?: never;
@@ -1395,7 +1397,7 @@ export interface paths {
         post?: never;
         /**
          * Delete a prompt
-         * @description Delete a prompt and all its versions, tags, and labels by identifier.
+         * @description Delete a prompt and all its versions, tags, and labels by identifier. Returns 409 if one or more LLM evaluators use the prompt.
          */
         delete: operations["deletePrompt"];
         options?: never;
@@ -10691,6 +10693,15 @@ export interface operations {
                     "text/plain": string;
                 };
             };
+            /** @description The dataset is in use by another operation; retry the delete */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
             /** @description Invalid dataset ID */
             422: {
                 headers: {
@@ -10888,6 +10899,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deleteDatasetExamples: {
+        parameters: {
+            query: {
+                /** @description Identifiers of the examples to delete: dataset example IDs (GlobalIDs) or user-provided IDs. To delete more examples, send more requests. */
+                example_ids: string[];
+            };
+            header?: never;
+            path: {
+                /** @description The ID of the dataset */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid dataset ID, no example IDs, or too many example IDs */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
         };
@@ -12605,6 +12667,15 @@ export interface operations {
                     "text/plain": string;
                 };
             };
+            /** @description The experiment is in use by another operation; retry the delete */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -13327,6 +13398,15 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Some traces are in use by another operation; retry the request */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -14475,6 +14555,15 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -16067,6 +16156,15 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description The project is in use by another operation (retry the delete), or it holds an evaluator's traces (delete the evaluator instead) */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

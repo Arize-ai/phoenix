@@ -16,7 +16,7 @@ from typing import Any, Optional, Union, cast
 import pandas as pd
 import pyarrow as pa
 from anyio import to_thread
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from pydantic import Field
 from sqlalchemy import and_, case, delete, func, insert, or_, select
@@ -35,7 +35,6 @@ from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
-from phoenix.db.helpers import get_eval_trace_ids_for_datasets, get_project_names_for_datasets
 from phoenix.db.insertion.dataset import (
     DatasetAction,
     DatasetExampleAdditionEvent,
@@ -46,16 +45,17 @@ from phoenix.db.insertion.dataset import (
     add_dataset_examples,
 )
 from phoenix.db.types.db_helper_types import UNDEFINED
+from phoenix.server.api.exceptions import Conflict, NotFound
 from phoenix.server.api.routers.v1.models import IsoDatetime
 from phoenix.server.api.types.Dataset import Dataset as DatasetNodeType
 from phoenix.server.api.types.DatasetExample import DatasetExample as DatasetExampleNodeType
 from phoenix.server.api.types.DatasetSplit import DatasetSplit as DatasetSplitNodeType
 from phoenix.server.api.types.DatasetVersion import DatasetVersion as DatasetVersionNodeType
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.utils import delete_projects, delete_traces
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
-from phoenix.server.dml_event import DatasetInsertEvent
+from phoenix.server.cleanup.lifecycle import execute_dataset_delete
+from phoenix.server.dml_event import DatasetInsertEvent, SpanDeleteEvent
 from phoenix.utilities.content_hashing import compute_example_content_hash
 
 from .models import V1RoutesBaseModel
@@ -79,6 +79,9 @@ DATASET_NODE_NAME = DatasetNodeType.__name__
 DATASET_VERSION_NODE_NAME = DatasetVersionNodeType.__name__
 DATASET_SPLIT_NODE_NAME = DatasetSplitNodeType.__name__
 DATASET_EXAMPLE_NODE_NAME = DatasetExampleNodeType.__name__
+
+# Keeps the request URL under the 8 KB that proxies commonly accept.
+MAX_DELETE_DATASET_EXAMPLE_IDS = 100
 
 
 # Matches the dataset-split form's default color (app NewDatasetSplitForm).
@@ -176,12 +179,17 @@ async def list_datasets(
     responses=add_errors_to_responses(
         [
             {"status_code": 404, "description": "Dataset not found"},
+            {
+                "status_code": 409,
+                "description": "The dataset is in use by another operation; retry the delete",
+            },
             {"status_code": 422, "description": "Invalid dataset ID"},
         ]
     ),
 )
 async def delete_dataset(
-    request: Request, id: str = Path(description="The ID of the dataset to delete.")
+    request: Request,
+    id: str = Path(description="The ID of the dataset to delete."),
 ) -> None:
     if id:
         try:
@@ -193,19 +201,16 @@ async def delete_dataset(
             raise HTTPException(detail=f"Invalid Dataset ID: {id}", status_code=422)
     else:
         raise HTTPException(detail="Missing Dataset ID", status_code=422)
-    project_names_stmt = get_project_names_for_datasets(dataset_id)
-    eval_trace_ids_stmt = get_eval_trace_ids_for_datasets(dataset_id)
-    stmt = (
-        delete(models.Dataset).where(models.Dataset.id == dataset_id).returning(models.Dataset.id)
-    )
-    async with request.app.state.db() as session:
-        project_names = await session.scalars(project_names_stmt)
-        eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
-        if (await session.scalar(stmt)) is None:
-            raise HTTPException(detail="Dataset does not exist", status_code=404)
-    tasks = BackgroundTasks()
-    tasks.add_task(delete_projects, request.app.state.db, *project_names)
-    tasks.add_task(delete_traces, request.app.state.db, *eval_trace_ids)
+    try:
+        await execute_dataset_delete(
+            db=request.app.state.db,
+            dataset_id=dataset_id,
+            event_queue=request.state.event_queue,
+        )
+    except NotFound as error:
+        raise HTTPException(detail="Dataset does not exist", status_code=404) from error
+    except Conflict as error:
+        raise HTTPException(detail=str(error), status_code=409) from error
 
 
 class DatasetWithExampleCount(Dataset):
@@ -1436,6 +1441,7 @@ async def get_dataset_examples(
                 models.DatasetExampleRevision,
                 models.Span.id,
                 models.Span.span_id,
+                models.Project.id,
             )
             .join(
                 models.DatasetExampleRevision,
@@ -1446,6 +1452,14 @@ async def get_dataset_examples(
                 (subquery.c.max_id == models.DatasetExampleRevision.id),
             )
             .outerjoin(models.Span, models.DatasetExample.span_rowid == models.Span.id)
+            .outerjoin(models.Trace, models.Span.trace_rowid == models.Trace.id)
+            .outerjoin(
+                models.Project,
+                and_(
+                    models.Trace.project_rowid == models.Project.id,
+                    models.Project.deleted_at.is_(None),
+                ),
+            )
             .filter(models.DatasetExample.dataset_id == resolved_dataset_id)
             .filter(models.DatasetExampleRevision.revision_kind != "DELETE")
             .order_by(models.DatasetExample.id.asc())
@@ -1487,7 +1501,9 @@ async def get_dataset_examples(
                         span_id=span_id,
                         span_node_id=str(GlobalID("Span", str(span_rowid))),
                     )
-                    if span_rowid is not None and span_id is not None
+                    if span_rowid is not None
+                    and span_id is not None
+                    and live_project_id is not None
                     else None
                 ),
             )
@@ -1496,6 +1512,7 @@ async def get_dataset_examples(
                 revision,
                 span_rowid,
                 span_id,
+                live_project_id,
             ) in await session.stream(query)
         ]
     return ListDatasetExamplesResponseBody(
@@ -1506,6 +1523,100 @@ async def get_dataset_examples(
             examples=examples,
         )
     )
+
+
+@router.delete(
+    "/datasets/{id}/examples",
+    operation_id="deleteDatasetExamples",
+    summary="Permanently delete examples from a dataset",
+    description=(
+        "Permanently delete examples and all of their revisions from every version of the "
+        "dataset. The experiment runs on these examples, their evaluations, their task and "
+        "evaluator traces, and their experiment logs are deleted too. The dataset, its versions, "
+        "its experiments, and its other examples are kept. This cannot be undone. Example IDs "
+        "that are not in the dataset are skipped, so a repeated request succeeds. Wait for "
+        "experiments on the dataset to finish first, because runs and traces that arrive after "
+        "the request are kept."
+    ),
+    status_code=204,
+    responses=add_errors_to_responses(
+        [
+            {"status_code": 404, "description": "Dataset not found"},
+            {
+                "status_code": 422,
+                "description": "Invalid dataset ID, no example IDs, or too many example IDs",
+            },
+        ]
+    ),
+)
+async def delete_dataset_examples(
+    request: Request,
+    id: str = Path(description="The ID of the dataset"),
+    example_ids: list[str] = Query(
+        description=(
+            "Identifiers of the examples to delete: dataset example IDs (GlobalIDs) or "
+            "user-provided IDs. To delete more examples, send more requests."
+        ),
+        max_length=MAX_DELETE_DATASET_EXAMPLE_IDS,
+    ),
+) -> None:
+    try:
+        dataset_id = from_global_id_with_expected_type(GlobalID.from_id(id), DATASET_NODE_NAME)
+    except ValueError:
+        raise HTTPException(detail=f"Invalid Dataset ID: {id}", status_code=422)
+    async with request.app.state.db() as session:
+        if await session.get(models.Dataset, dataset_id) is None:
+            raise HTTPException(detail=f"No dataset with id {id} can be found.", status_code=404)
+        example_rowids = await _resolve_dataset_example_rowids(
+            session, dataset_id, example_ids, skip_missing=True
+        )
+        if not example_rowids:
+            return
+        run_rowids = select(models.ExperimentRun.id).where(
+            models.ExperimentRun.dataset_example_id.in_(example_rowids)
+        )
+        # Kept as a subquery: the runs of a few examples can hold more trace IDs than a
+        # statement can bind as parameters.
+        trace_ids = (
+            select(models.ExperimentRun.trace_id)
+            .where(models.ExperimentRun.dataset_example_id.in_(example_rowids))
+            .union_all(
+                select(models.ExperimentRunAnnotation.trace_id).where(
+                    models.ExperimentRunAnnotation.experiment_run_id.in_(run_rowids)
+                )
+            )
+        )
+        # Only the log subtables reference examples and runs, and their cascades leave
+        # the parent rows, which hold the log messages, behind.
+        await session.execute(
+            delete(models.ExperimentLog).where(
+                models.ExperimentLog.id.in_(
+                    select(models.ExperimentTaskLog.id)
+                    .where(models.ExperimentTaskLog.dataset_example_id.in_(example_rowids))
+                    .union_all(
+                        select(models.ExperimentEvalLog.id).where(
+                            models.ExperimentEvalLog.experiment_run_id.in_(run_rowids)
+                        )
+                    )
+                )
+            )
+        )
+        # Selected before the delete instead of RETURNING, which would buffer a row per
+        # trace (#13906).
+        project_rowids = list(
+            await session.scalars(
+                select(models.Trace.project_rowid)
+                .where(models.Trace.trace_id.in_(trace_ids))
+                .distinct()
+            )
+        )
+        await session.execute(delete(models.Trace).where(models.Trace.trace_id.in_(trace_ids)))
+        await session.execute(
+            delete(models.DatasetExample).where(models.DatasetExample.id.in_(example_rowids))
+        )
+    request.state.event_queue.put(DatasetInsertEvent((dataset_id,)))
+    if project_rowids:
+        request.state.event_queue.put(SpanDeleteEvent(tuple(project_rowids)))
 
 
 class DatasetSplit(V1RoutesBaseModel):
@@ -1581,12 +1692,15 @@ async def _resolve_dataset_example_rowids(
     session: AsyncSession,
     dataset_id: int,
     example_ids: list[str],
+    *,
+    skip_missing: bool = False,
 ) -> list[int]:
     """Resolve dataset example GlobalIDs or user-provided IDs within a dataset.
 
     Returns the unique example row IDs, preserving the order in which they were
     first seen. Valid DatasetExample GlobalIDs take precedence over matching
-    user-provided IDs. Raises 404 if any example does not exist in the dataset.
+    user-provided IDs. Raises 404 if any example does not exist in the dataset,
+    unless skip_missing is set.
     """
     if not example_ids:
         return []
@@ -1640,7 +1754,7 @@ async def _resolve_dataset_example_rowids(
         else:
             resolved_rowids[external_rowid] = None
 
-    if missing_identifiers:
+    if missing_identifiers and not skip_missing:
         raise HTTPException(
             detail=(
                 f"Dataset examples not found in this dataset: {', '.join(missing_identifiers)}"

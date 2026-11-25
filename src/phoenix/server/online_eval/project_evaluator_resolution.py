@@ -46,9 +46,14 @@ async def load_enabled_project_evaluator_pairs(
                 PolymorphicEvaluator,
                 models.ProjectEvaluator.evaluator_id == PolymorphicEvaluator.id,
             )
+            .join(
+                models.Project,
+                models.Project.id == models.ProjectEvaluator.project_id,
+            )
             .where(
                 models.ProjectEvaluator.enabled,
                 models.ProjectEvaluator.deleted_at.is_(None),
+                models.Project.deleted_at.is_(None),
                 models.ProjectEvaluator.evaluation_target == evaluation_target,
             )
         )

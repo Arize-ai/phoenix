@@ -26,6 +26,10 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 from typing_extensions import TypeAlias
 
+from phoenix.config import (
+    DEFAULT_PLAYGROUND_TIMEOUT_SECONDS,
+    get_env_playground_timeout_seconds,
+)
 from phoenix.db import models
 from phoenix.db.helpers import (
     get_dataset_example_revisions,
@@ -43,20 +47,22 @@ from phoenix.db.types.model_provider import ModelProvider
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.helpers.chat_clients import (
+    ChatClient,
+    get_chat_client,
+    initialize_chat_clients,
+)
 from phoenix.server.api.helpers.decision_experiments import build_example_request
+from phoenix.server.api.helpers.evaluator_preview import stream_evaluator_preview
 from phoenix.server.api.helpers.message_helpers import (
     formatted_messages,
     prompt_chat_template_to_playground_messages,
-)
-from phoenix.server.api.helpers.playground_clients import (
-    PlaygroundClient,
-    get_playground_client,
-    initialize_playground_clients,
 )
 from phoenix.server.api.helpers.playground_project import get_or_create_playground_project_id
 from phoenix.server.api.input_types.ChatCompletionInput import ChatCompletionInput
 from phoenix.server.api.input_types.ConnectionConfigInput import to_connection_config
 from phoenix.server.api.input_types.DecisionTaskInput import DecisionTaskInput
+from phoenix.server.api.input_types.EvaluatorDefinitionInput import EvaluatorPreviewInput
 from phoenix.server.api.input_types.ExperimentsOverDatasetInput import (
     EvaluatorTaskInput,
     EvaluatorTaskSourceInput,
@@ -75,6 +81,7 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
+from phoenix.server.api.types.EvaluatorPreviewSubjectResult import EvaluatorPreviewSubjectResult
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
@@ -91,7 +98,7 @@ GenericType = TypeVar("GenericType")
 
 logger = logging.getLogger(__name__)
 
-initialize_playground_clients()
+initialize_chat_clients()
 
 RepetitionNumber: TypeAlias = int
 ChatStream: TypeAlias = AsyncGenerator[ChatCompletionSubscriptionPayload, None]
@@ -104,11 +111,10 @@ _EXPERIMENT_STREAM_BUFFER_SIZE = 1000
 async def _stream_single_chat_completion(
     *,
     input: ChatCompletionInput,
-    llm_client: "PlaygroundClient[Any]",
+    llm_client: "ChatClient[Any]",
     repetition_number: RepetitionNumber,
     db: DbSessionFactory,
-    project_id: int,
-    on_span_insertion: Callable[[], None],
+    on_span_insertion: Callable[[int], None],
     span_cost_calculator: SpanCostCalculator,
     otel_context: OtelContext,
 ) -> ChatStream:
@@ -148,8 +154,9 @@ async def _stream_single_chat_completion(
             repetition_number=repetition_number,
         )
 
-    db_traces = tracer.get_db_traces(project_id=project_id)
     async with db() as session:
+        resolved_project_id = await get_or_create_playground_project_id(session)
+        db_traces = tracer.get_db_traces(project_id=resolved_project_id)
         session.add_all(db_traces)
         await session.flush()
     if db_traces and db_traces[0].spans:
@@ -158,7 +165,7 @@ async def _stream_single_chat_completion(
             span=Span(id=db_span.id, db_record=db_span),
             repetition_number=repetition_number,
         )
-        on_span_insertion()
+        on_span_insertion(resolved_project_id)
 
 
 async def _cleanup_chat_completion_resources(
@@ -223,6 +230,7 @@ class Subscription:
     async def chat_completion(
         self, info: Info[Context, None], input: ChatCompletionInput
     ) -> AsyncIterator[ChatCompletionSubscriptionPayload]:
+        timeout_in_seconds = get_env_playground_timeout_seconds()
         model_provider = input.prompt_version.model_provider.to_model_provider()
         custom_provider_id = input.prompt_version.resolved_custom_provider_id
         connection = (
@@ -232,7 +240,7 @@ class Subscription:
         )
         headers = cast(dict[str, str], input.headers) if input.headers else None
         async with info.context.db() as session:
-            llm_client = await get_playground_client(
+            llm_client = await get_chat_client(
                 model_provider=model_provider,
                 model_name=input.prompt_version.model_name,
                 session=session,
@@ -241,7 +249,7 @@ class Subscription:
                 connection=connection,
                 headers=headers,
             )
-            playground_project_id = await get_or_create_playground_project_id(session)
+            await get_or_create_playground_project_id(session)
 
         not_started: deque[tuple[RepetitionNumber, ChatStream]] = deque(
             (
@@ -251,9 +259,8 @@ class Subscription:
                     llm_client=llm_client,
                     repetition_number=repetition_number,
                     db=info.context.db,
-                    project_id=playground_project_id,
-                    on_span_insertion=lambda: info.context.event_queue.put(
-                        SpanInsertEvent(ids=(playground_project_id,))
+                    on_span_insertion=lambda resolved_project_id: info.context.event_queue.put(
+                        SpanInsertEvent(ids=(resolved_project_id,))
                     ),
                     span_cost_calculator=info.context.span_cost_calculator,
                     otel_context=OtelContext(),
@@ -274,7 +281,7 @@ class Subscription:
             while not_started or in_progress:
                 while not_started and len(in_progress) < max_in_progress:
                     rep_num, stream = not_started.popleft()
-                    task = _create_task_with_timeout(stream)
+                    task = _create_task_with_timeout(stream, timeout_in_seconds=timeout_in_seconds)
                     in_progress.append((rep_num, stream, task))
                 async_tasks_to_run = [task for _, _, task in in_progress]
                 completed_tasks, _ = await asyncio.wait(
@@ -301,7 +308,9 @@ class Subscription:
                         )
                         logger.exception(error)
                     else:
-                        task = _create_task_with_timeout(stream)
+                        task = _create_task_with_timeout(
+                            stream, timeout_in_seconds=timeout_in_seconds
+                        )
                         in_progress[idx] = (repetition_number, stream, task)
         finally:
             await _cleanup_chat_completion_resources(
@@ -322,6 +331,18 @@ class Subscription:
         """
         async for payload in _stream_experiments_over_dataset(info, input):
             yield payload
+
+    @strawberry.subscription(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    async def evaluator_preview(
+        self, info: Info[Context, None], input: EvaluatorPreviewInput
+    ) -> AsyncIterator[EvaluatorPreviewSubjectResult]:
+        """
+        Run one evaluator definition against each subject and stream a result per
+        subject as it finishes. The stream ends once every subject has reported.
+        Nothing is persisted.
+        """
+        async for result in stream_evaluator_preview(info.context, input):
+            yield result
 
 
 @dataclass(frozen=True)
@@ -513,7 +534,7 @@ async def _stream_experiments_over_dataset(
             # inheritance), so adding one inserts into both tables. claimed_at=NULL means
             # not running; start_experiment(experiment.id) claims it.
             if task.prompt:
-                _add_prompt_task(
+                await _add_prompt_task(
                     session, experiment, task.prompt, max_concurrency=input.max_concurrency
                 )
             elif task.decision:
@@ -525,7 +546,7 @@ async def _stream_experiments_over_dataset(
                         **resolved_decision_task.columns(),
                     )
                 )
-                _attach_dataset_evaluators(session, experiment, task.decision.evaluators)
+                await _attach_dataset_evaluators(session, experiment, task.decision.evaluators)
             else:
                 assert task.evaluator and resolved_evaluator_task is not None
                 session.add(
@@ -799,20 +820,22 @@ async def _with_task_source(
 
 
 async def _ensure_project(session: AsyncSession, project_name: str) -> None:
-    if (
-        await session.scalar(select(models.Project.id).where(models.Project.name == project_name))
-    ) is None:
-        await session.scalar(
-            insert(models.Project)
-            .returning(models.Project.id)
-            .values(
+    project_id = await session.scalar(
+        select(models.Project.id).where(
+            models.Project.name == project_name,
+            models.Project.deleted_at.is_(None),
+        )
+    )
+    if project_id is None:
+        await session.execute(
+            insert(models.Project).values(
                 name=project_name,
-                description="Traces from prompt playground",
+                description="Traces from experiment runs",
             )
         )
 
 
-def _add_prompt_task(
+async def _add_prompt_task(
     session: AsyncSession,
     experiment: models.Experiment,
     task: PromptTaskInput,
@@ -858,22 +881,40 @@ def _add_prompt_task(
             stream_model_output=task.stream_model_output,
         )
     )
-    _attach_dataset_evaluators(session, experiment, task.evaluators)
+    await _attach_dataset_evaluators(session, experiment, task.evaluators)
 
 
-def _attach_dataset_evaluators(
+async def _attach_dataset_evaluators(
     session: AsyncSession,
     experiment: models.Experiment,
     evaluators: Sequence[PlaygroundEvaluatorInput],
 ) -> None:
     """Attach the dataset evaluators that judge a prompt or decision task's runs."""
-    for evaluator_input in evaluators:
+    if not evaluators:
+        return
+    requested_ids = [
+        (
+            evaluator_input.id,
+            from_global_id_with_expected_type(evaluator_input.id, "DatasetEvaluator"),
+        )
+        for evaluator_input in evaluators
+    ]
+    live_ids = set(
+        await session.scalars(
+            select(models.DatasetEvaluators.id).where(
+                models.DatasetEvaluators.id.in_([row_id for _, row_id in requested_ids]),
+                models.DatasetEvaluators.dataset_id == experiment.dataset_id,
+                models.DatasetEvaluators.deleted_at.is_(None),
+            )
+        )
+    )
+    for global_id, row_id in requested_ids:
+        if row_id not in live_ids:
+            raise NotFound(f"DatasetEvaluator with ID '{global_id}' not found")
         session.add(
             models.ExperimentDatasetEvaluator(
                 experiment_id=experiment.id,
-                dataset_evaluator_id=from_global_id_with_expected_type(
-                    evaluator_input.id, "DatasetEvaluator"
-                ),
+                dataset_evaluator_id=row_id,
             )
         )
 
@@ -891,7 +932,8 @@ def _default_experiment_name(
 
 
 def _create_task_with_timeout(
-    iterable: AsyncIterator[GenericType], timeout_in_seconds: int = 90
+    iterable: AsyncIterator[GenericType],
+    timeout_in_seconds: int = DEFAULT_PLAYGROUND_TIMEOUT_SECONDS,
 ) -> asyncio.Task[GenericType]:
     return asyncio.create_task(
         _wait_for(

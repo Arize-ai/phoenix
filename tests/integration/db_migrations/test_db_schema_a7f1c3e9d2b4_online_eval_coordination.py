@@ -22,7 +22,7 @@ from . import (
     _verify_clean_state,
 )
 
-_DOWN = "7c2bc8452d60"
+_DOWN = "5d472ea4b4be"
 _UP = "a7f1c3e9d2b4"
 
 
@@ -228,31 +228,29 @@ class TestProjectEvaluators(_OnlineEvalSchemaTest):
             "tracing_enabled",
             "created_at",
             "updated_at",
+            "deleted_at",
         }
         index_names = {
             "ix_project_evaluators_project_id",
             "ix_project_evaluators_evaluator_id",
             "ix_project_evaluators_trace_project_id",
+            "ix_project_evaluators_live_name",
+            "ix_project_evaluators_tombstoned",
         }
         constraint_names = {
             "pk_project_evaluators",
-            "uq_project_evaluators_project_id_name",
             "fk_project_evaluators_project_id_projects",
             "fk_project_evaluators_evaluator_id_evaluators",
             "fk_project_evaluators_trace_project_id_projects",
             "ck_project_evaluators_`valid_sampling_rate`",
             "ck_project_evaluators_`valid_evaluation_target`",
             "ck_project_evaluators_`valid_evaluation_delay_seconds`",
+            "ck_project_evaluators_`valid_lifecycle`",
         }
         if db_backend == "postgresql":
-            index_names.update(
-                {
-                    "pk_project_evaluators",
-                    "uq_project_evaluators_project_id_name",
-                }
-            )
+            index_names.add("pk_project_evaluators")
         elif db_backend == "sqlite":
-            index_names.update({"sqlite_autoindex_project_evaluators_1"})
+            index_names.add("sqlite_autoindex_project_evaluators_1")
         else:
             assert_never(db_backend)
         return _TableSchemaInfo(
@@ -260,7 +258,7 @@ class TestProjectEvaluators(_OnlineEvalSchemaTest):
             column_names=frozenset(column_names),
             index_names=frozenset(index_names),
             constraint_names=frozenset(constraint_names),
-            nullable_column_names=frozenset(["input_mapping"]),
+            nullable_column_names=frozenset(["input_mapping", "evaluator_id", "deleted_at"]),
         )
 
 

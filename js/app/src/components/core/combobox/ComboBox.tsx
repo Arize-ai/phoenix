@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
-import React from "react";
+import type { ReactNode } from "react";
+import React, { Fragment } from "react";
 import type {
   ComboBoxProps as AriaComboBoxProps,
   ListBoxItemProps as AriaListBoxItemProps,
@@ -117,15 +118,46 @@ export interface ListBoxItemProps<T = object> extends Omit<
   textValue: string;
 }
 
+/**
+ * Browsers break long text after a space or a hyphen, but not after the
+ * separators that join the words of an identifier, so a name such as
+ * `support_ticket_classifier` or a path such as `metadata.retrieval.documents`
+ * would otherwise wrap at an arbitrary character.
+ */
+const IDENTIFIER_SEPARATOR_PATTERN = /(?<=[_./:\\])/;
+
+/**
+ * Adds a `<wbr>` after each identifier separator. `<wbr>` adds no text, so the
+ * option's text content, and with it its accessible name, is unchanged.
+ */
+function insertWordBreakOpportunities(text: string): ReactNode {
+  const segments = text.split(IDENTIFIER_SEPARATOR_PATTERN);
+  if (segments.length === 1) {
+    return text;
+  }
+  return segments.map((segment, index) => (
+    <Fragment key={index}>
+      {index > 0 && <wbr />}
+      {segment}
+    </Fragment>
+  ));
+}
+
 export function ComboBoxItem(props: ListBoxItemProps) {
   const { children, ...rest } = props;
   return (
     <ListBoxItem {...rest} css={comboBoxItemCSS}>
-      {({ isSelected }) => {
+      {(renderProps) => {
+        const content =
+          typeof children === "function" ? children(renderProps) : children;
         return (
           <>
-            {children}
-            {isSelected && (
+            <div className="combobox-item__content">
+              {typeof content === "string"
+                ? insertWordBreakOpportunities(content)
+                : content}
+            </div>
+            {renderProps.isSelected && (
               <Icon
                 svg={<Icons.Checkmark />}
                 className="menu-item__selected-checkmark"

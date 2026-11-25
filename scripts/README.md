@@ -19,7 +19,7 @@ Utility, testing, data-generation, and CI scripts that support Phoenix developme
 GitHub + PyPI usage analytics. See `analytics/README.md`. Requires `GITHUB_TOKEN`.
 
 ### `benchmarks/`
-- `hallucination_eval_benchmark.ipynb` — notebook benchmarking the hallucination evaluator.
+- `js/benchmarks/evals-benchmarks/` — TypeScript harness benchmarking the built-in evaluators against labeled cases.
 
 ### `ci/`
 Scripts run from CI workflows.
@@ -29,11 +29,10 @@ Scripts run from CI workflows.
 - `json-canonicalization-schema/` — fixtures/schema for canonicalization tests.
 
 ### `data/`
-Data wrangling and corpus building (LangChain / LlamaIndex / HaluEval / MS MARCO / WikiQA / Wiki Toxic).
+Data wrangling and corpus building (LangChain / LlamaIndex).
 - `build_langchain_vector_store.py`, `build_llama_index_*.py` — build vector stores over the Arize docs.
 - `convert_arize_docs_query_csv_to_jsonl.py`, `fetch_arize_documentation.py` — corpus prep.
 - `generate_traces.py` — emit synthetic LLM traces.
-- `wrangle_*.ipynb` — dataset preparation notebooks.
 
 ### `ddl/`
 - `generate_ddl_postgresql.py` — extract DDL from a PostgreSQL Phoenix DB into `src/phoenix/db/ddl/postgresql_schema.sql`, validated with `pglast`. PEP 723 script.
@@ -41,11 +40,11 @@ Data wrangling and corpus building (LangChain / LlamaIndex / HaluEval / MS MARCO
 - The checked-in canonical schema assets live in `src/phoenix/db/ddl/`.
 - `compare_schemas.py` — assert both dialects describe the same tables, columns, explicitly created indexes, and CHECK/UNIQUE/FOREIGN KEY constraint names; each generator only validates against its own database, so nothing else catches the two files drifting apart. Names are normalized for PostgreSQL's 63-byte identifier cap, which SQLite does not share. Constraint-backed indexes and PRIMARY KEY names are excluded because the dialects legitimately differ there. PEP 723 script.
 
-### `docker/devops/`
-Local docker-compose stack for development: Phoenix, OIDC, LDAP, SMTP, mock LLM server, Grafana, Prometheus, Toxiproxy, Vite dev server, k8s manifests. See `docker/devops/README.md`.
+### `devops/`
+Unified local development stack supporting Kubernetes (**Apple `container cluster`** default on macOS 26+, or **`kind`**) and Compose (**Podman** or **Docker**): Phoenix (via `helm/` on K8s or Compose), OIDC, LDAP, SMTP, mock LLM server, Grafana, Prometheus, Tempo, Loki, LGTM (`otel-lgtm` + `grafana-mcp`), Toxiproxy, Datagen, and Vite dev server. Run with `make dev-stack` or `scripts/devops/dev.sh`. See `devops/README.md`.
 
-### `docker/devops/mock-llm-server/`
-TypeScript mock for OpenAI / Anthropic / Google GenAI / TypeSafe APIs with a real-time dashboard. Run it with `make dev-mock-llm`, or in the devops stack with `./dev.sh up --profile mock-llm`. See `docker/devops/mock-llm-server/README.md`.
+### `devops/mock-llm-server/`
+TypeScript mock for OpenAI / Anthropic / Google GenAI / TypeSafe APIs with a real-time dashboard. Run it with `make dev-mock-llm`, or in the devops stack with `./dev.sh up --profile mock-llm`. See `devops/mock-llm-server/README.md`.
 
 ### `evaluators/`
 GraphQL smoke tests for the chat / playground / evaluator surface.

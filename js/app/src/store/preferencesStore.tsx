@@ -5,6 +5,9 @@ import { devtools, persist } from "zustand/middleware";
 import type { LastNTimeRangeKey } from "@phoenix/components/datetime/types";
 import type { AIQueryModelConfig } from "@phoenix/components/filter/ai/types";
 import { PREFERENCES_STORAGE_KEY } from "@phoenix/constants/storageConstants";
+import type { ServerEvaluationChartKey } from "@phoenix/pages/evaluators/project-evaluators/serverEvaluationChartCatalog";
+import { DEFAULT_SERVER_EVALUATION_CHART_KEYS } from "@phoenix/pages/evaluators/project-evaluators/serverEvaluationChartCatalog";
+import type { ProjectKind } from "@phoenix/pages/projects/types";
 import type { PackageManager, ProgrammingLanguage } from "@phoenix/types/code";
 import {
   pythonPackageManagers,
@@ -86,6 +89,15 @@ export interface PreferencesProps {
    */
   traceStreamingEnabled: boolean;
   /**
+   * Whether streaming is enabled on the project evaluators page
+   * @default false
+   */
+  serverEvaluatorsStreamingEnabled: boolean;
+  /**
+   * The charts shown on the project evaluators page, in display order
+   */
+  serverEvaluationChartKeys: ServerEvaluationChartKey[];
+  /**
    * The last N time range to load data for
    */
   lastNTimeRangeKey: LastNTimeRangeKey;
@@ -136,6 +148,11 @@ export interface PreferencesProps {
    * The sort order for projects
    */
   projectSortOrder: ProjectSortOrder;
+  /**
+   * The kinds of projects listed on the projects page
+   * @default ["STANDARD", "PLAYGROUND"]
+   */
+  visibleProjectKinds: ProjectKind[];
   /**
    * The last project selected on the dashboards page.
    */
@@ -210,6 +227,18 @@ export interface PreferencesState extends PreferencesProps {
    */
   setTraceStreamingEnabled: (traceStreamingEnabled: boolean) => void;
   /**
+   * Setter for enabling/disabling streaming on the project evaluators page
+   */
+  setServerEvaluatorsStreamingEnabled: (
+    serverEvaluatorsStreamingEnabled: boolean
+  ) => void;
+  /**
+   * Setter for the charts shown on the project evaluators page
+   */
+  setServerEvaluationChartKeys: (
+    serverEvaluationChartKeys: ServerEvaluationChartKey[]
+  ) => void;
+  /**
    * Setter for the last N time range to load data for
    */
   setLastNTimeRangeKey: (lastNTimeRangeKey: LastNTimeRangeKey) => void;
@@ -261,6 +290,10 @@ export interface PreferencesState extends PreferencesProps {
    * Setter for the project sort order
    */
   setProjectSortOrder: (projectSortOrder: ProjectSortOrder) => void;
+  /**
+   * Setter for the kinds of projects listed on the projects page
+   */
+  setVisibleProjectKinds: (visibleProjectKinds: ProjectKind[]) => void;
   /**
    * Setter for the last project selected on the dashboards page.
    */
@@ -350,6 +383,18 @@ export const createPreferencesStore = (
         type: "setTraceStreamingEnabled",
       });
     },
+    serverEvaluatorsStreamingEnabled: false,
+    setServerEvaluatorsStreamingEnabled: (serverEvaluatorsStreamingEnabled) => {
+      set({ serverEvaluatorsStreamingEnabled }, false, {
+        type: "setServerEvaluatorsStreamingEnabled",
+      });
+    },
+    serverEvaluationChartKeys: DEFAULT_SERVER_EVALUATION_CHART_KEYS,
+    setServerEvaluationChartKeys: (serverEvaluationChartKeys) => {
+      set({ serverEvaluationChartKeys }, false, {
+        type: "setServerEvaluationChartKeys",
+      });
+    },
     lastNTimeRangeKey: DEFAULT_LAST_N_TIME_RANGE_KEY,
     setLastNTimeRangeKey: (lastNTimeRangeKey) => {
       set({ lastNTimeRangeKey });
@@ -420,6 +465,10 @@ export const createPreferencesStore = (
     },
     setProjectSortOrder: (projectSortOrder) => {
       set({ projectSortOrder }, false, { type: "setProjectSortOrder" });
+    },
+    visibleProjectKinds: ["STANDARD", "PLAYGROUND"],
+    setVisibleProjectKinds: (visibleProjectKinds) => {
+      set({ visibleProjectKinds }, false, { type: "setVisibleProjectKinds" });
     },
     lastSelectedDashboardProjectId: undefined,
     setLastSelectedDashboardProjectId: (projectId) => {

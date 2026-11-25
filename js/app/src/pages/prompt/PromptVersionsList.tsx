@@ -1,56 +1,46 @@
+import { css } from "@emotion/react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useResolvedPath } from "react-router";
 
-import {
-  VersionListItem,
-  VersionsListContainer,
-} from "@phoenix/components/versions/VersionsList";
+import { Timeline, View } from "@phoenix/components";
 
 import type {
   PromptVersionsList__main$data,
   PromptVersionsList__main$key,
 } from "./__generated__/PromptVersionsList__main.graphql";
-import { PromptVersionSummary } from "./PromptVersionSummary";
-
-export type PromptVersionItemProps = {
-  version: PromptVersionsList__main$data["pagedVersions"]["edges"][number]["version"];
-  active?: boolean;
-};
+import { PromptVersionTimelineItem } from "./PromptVersionSummary";
 
 type PromptVersion =
   PromptVersionsList__main$data["pagedVersions"]["edges"][number]["version"];
-
-/**
- * A single prompt version item, displaying the version number,
- * the date it was created, and tag. Clicking the item navigates to
- * /:versionId under the route that renders the list.
- */
-export const PromptVersionItem = ({
-  version,
-  active,
-}: PromptVersionItemProps) => {
-  const basePath = useResolvedPath(".").pathname;
-  return (
-    <VersionListItem to={`${basePath}/${version.id}`} active={active}>
-      <PromptVersionSummary promptVersion={version} />
-    </VersionListItem>
-  );
-};
 
 type PromptVersionsListProps = {
   prompt: PromptVersionsList__main$key;
   itemActive?: (version: PromptVersion) => boolean;
 };
 
+const PROMPT_VERSIONS_LIST_WIDTH = 400;
+
 const PAGE_SIZE = 50;
 
+const promptVersionsListScrollCSS = css`
+  height: 100%;
+  box-sizing: border-box;
+  overflow: auto;
+  /* The reserved scrollbar gutter supplies most of the end padding */
+  scrollbar-gutter: stable;
+  padding: var(--global-dimension-size-100);
+  padding-inline-end: var(--global-dimension-size-50);
+`;
+
 /**
- * Full height, scrollable, list of prompt versions
+ * Full height, scrollable, timeline of prompt versions. Each version links
+ * to :versionId under the route that renders the list.
  */
 export const PromptVersionsList = ({
   prompt,
   itemActive,
 }: PromptVersionsListProps) => {
+  const basePath = useResolvedPath(".").pathname;
   const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment(
     graphql`
       fragment PromptVersionsList__main on Prompt
@@ -85,14 +75,28 @@ export const PromptVersionsList = ({
     }
   };
   return (
-    <VersionsListContainer onScroll={fetchMoreOnBottomReached}>
-      {data.pagedVersions.edges.map(({ version }) => (
-        <PromptVersionItem
-          key={version.id}
-          version={version}
-          active={itemActive?.(version)}
-        />
-      ))}
-    </VersionsListContainer>
+    <View
+      height="100%"
+      width={PROMPT_VERSIONS_LIST_WIDTH}
+      minWidth={PROMPT_VERSIONS_LIST_WIDTH}
+      borderRightWidth="thin"
+      borderColor="gray-300"
+    >
+      <div
+        css={promptVersionsListScrollCSS}
+        onScroll={(event) => fetchMoreOnBottomReached(event.currentTarget)}
+      >
+        <Timeline isTruncated={hasNext}>
+          {data.pagedVersions.edges.map(({ version }) => (
+            <PromptVersionTimelineItem
+              key={version.id}
+              promptVersion={version}
+              to={`${basePath}/${version.id}`}
+              isCurrent={itemActive?.(version)}
+            />
+          ))}
+        </Timeline>
+      </div>
+    </View>
   );
 };

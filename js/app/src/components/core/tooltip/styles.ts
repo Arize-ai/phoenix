@@ -15,6 +15,7 @@ export const tooltipCSS = css`
   outline: none;
   padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
   max-width: 200px;
+  overflow-wrap: break-word;
   font-size: var(--global-font-size-s);
   /* fixes FF gap */
   transform: translate3d(0, 0, 0);

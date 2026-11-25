@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c80e0ec8171417658791956763f542ab>>
+ * @generated SignedSource<<4016f2c6eb23230e933f58f7c890a889>>
  * @lightSyntaxTransform
  */
 
@@ -16,15 +16,12 @@ export type DocumentEvaluationSummaryValueFragment$data = {
     readonly hitRate: number | null;
     readonly meanReciprocalRank: number | null;
   } | null;
-  readonly id: string;
   readonly " $fragmentType": "DocumentEvaluationSummaryValueFragment";
 };
 export type DocumentEvaluationSummaryValueFragment$key = {
   readonly " $data"?: DocumentEvaluationSummaryValueFragment$data;
   readonly " $fragmentSpreads": FragmentRefs<"DocumentEvaluationSummaryValueFragment">;
 };
-
-import DocumentEvaluationSummaryValueQuery_graphql from './DocumentEvaluationSummaryValueQuery.graphql';
 
 const node: ReaderFragment = {
   "argumentDefinitions": [
@@ -40,19 +37,7 @@ const node: ReaderFragment = {
     }
   ],
   "kind": "Fragment",
-  "metadata": {
-    "refetch": {
-      "connection": null,
-      "fragmentPathInResult": [
-        "node"
-      ],
-      "operation": DocumentEvaluationSummaryValueQuery_graphql,
-      "identifierInfo": {
-        "identifierField": "id",
-        "identifierQueryVariableName": "id"
-      }
-    }
-  },
+  "metadata": null,
   "name": "DocumentEvaluationSummaryValueFragment",
   "selections": [
     {
@@ -104,19 +89,12 @@ const node: ReaderFragment = {
         }
       ],
       "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "id",
-      "storageKey": null
     }
   ],
   "type": "Project",
   "abstractKey": null
 };
 
-(node as any).hash = "15d0652aa260c80f62acec943f615d93";
+(node as any).hash = "916f1f9ea2d8864e8042e56b822140f0";
 
 export default node;

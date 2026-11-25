@@ -239,13 +239,11 @@ jobs:
           sparse-checkout: |
             packages/
             evals/harbor/verifiers/
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - run: uv sync --frozen --no-editable --package arize-phoenix-client --all-extras
       - run: uv run --no-sync pyright .
         working-directory: packages/phoenix-client
@@ -270,13 +268,11 @@ jobs:
           sparse-checkout: |
             packages/
             evals/harbor/verifiers/
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - run: uv sync --frozen --no-editable --package arize-phoenix-evals --all-extras
       - run: uv run --no-sync mypy .
         working-directory: packages/phoenix-evals
@@ -298,13 +294,11 @@ jobs:
           sparse-checkout: |
             packages/
             evals/harbor/verifiers/
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: ${{ matrix.py }}
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - run: uv sync --frozen --no-editable --package arize-phoenix-otel --all-extras
       - run: uv run --no-sync mypy .
         working-directory: packages/phoenix-otel
@@ -340,15 +334,12 @@ jobs:
             packages/
             evals/harbor/verifiers/
             .jcs-test-data/
-      - name: Set up Python ${{ matrix.py }}
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: ${{ matrix.py }}
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Install make (Windows)
         if: runner.os == 'Windows'
         run: choco install make --no-progress -y
@@ -375,15 +366,12 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-      - name: Set up Python ${{ matrix.py }}
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: ${{ matrix.py }}
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Clean Jupyter notebooks
         run: make clean-notebooks
       - run: git diff --exit-code
@@ -402,15 +390,12 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-      - name: Set up Python ${{ matrix.py }}
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: ${{ matrix.py }}
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Build GraphQL schema
         run: make schema-graphql
       - run: git diff --exit-code
@@ -429,14 +414,12 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-      - name: Set up Python ${{ matrix.py }}
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: ${{ matrix.py }}
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Compile the Harbor GraphQL queries against the exported schema
         run: make codegen-harbor-graphql
       - run: git diff --exit-code
@@ -462,15 +445,12 @@ jobs:
             packages/
             evals/harbor/verifiers/
             js/app/src/pages/project/
-      - name: Set up Python ${{ matrix.py }}
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: ${{ matrix.py }}
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Check UI filter DSL snippets against the Python filters
         run: make check-filter-dsl-snippets
 
@@ -506,15 +486,12 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-      - name: Set up Python ${{ matrix.py }}
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: ${{ matrix.py }}
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Check skill GraphQL examples against the exported schema
         run: make check-skill-graphql-examples
       - name: Check skill filter conditions against the Python filters
@@ -530,15 +507,12 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: "3.15"
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: "3.15"
       - name: Install PNPM
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
         with:
@@ -585,15 +559,12 @@ jobs:
             src/phoenix/
             packages/
             evals/harbor/verifiers/
-      - name: Set up Python ${{ matrix.py }}
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: ${{ matrix.py }}
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Test the model cost manifest sync script
         run: make test-sync-models
 
@@ -707,15 +678,12 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-      - name: Set up Python ${{ matrix.py }}
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: ${{ matrix.py }}
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Run doctests
         run: make doctest
 
@@ -725,7 +693,7 @@ jobs:
     if: ${{ needs.changes.outputs.phoenix == 'true' }}
     strategy:
       matrix:
-        py: ["3.15"]
+        py: ["3.11"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -733,15 +701,12 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-      - name: Set up Python ${{ matrix.py }}
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: ${{ matrix.py }}
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Build OpenAPI schema
         run: make schema-openapi
       - run: git diff --exit-code
@@ -760,15 +725,12 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-      - name: Set up Python ${{ matrix.py }}
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: ${{ matrix.py }}
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Create virtual environment
         # `make schema-ddl` installs its dependencies with `uv pip install`,
         # which requires an existing environment.
@@ -791,15 +753,12 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-      - name: Set up Python ${{ matrix.py }}
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: ${{ matrix.py }}
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Compile Prompts
         run: make codegen-prompts
       - name: Check for changes
@@ -837,15 +796,12 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-      - name: Set up Python ${{ matrix.py }}
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: ${{ matrix.py }}
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Check lockfile is up to date
         run: uv lock --check
 
@@ -862,15 +818,12 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-      - name: Set up Python ${{ matrix.py }}
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: ${{ matrix.py }}
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Run formatter and linter
         run: |
           make format-python
@@ -899,15 +852,12 @@ jobs:
             packages/
             tests/
             evals/
-      - name: Set up Python ${{ matrix.py }}
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: ${{ matrix.py }}
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Sync dependencies
         run: uv sync --frozen
       - name: Type check all Python code
@@ -946,15 +896,12 @@ jobs:
             tests/conftest.py
             tests/__generated__/
             tests/__init__.py
-      - name: Set up Python ${{ matrix.py }}
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: ${{ matrix.py }}
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Install PostgreSQL (product floor)
         if: matrix.db == 'postgresql'
         # The floor version from the PGDG repository, not whatever the
@@ -1029,15 +976,12 @@ jobs:
           docker exec postgres sed -i 's/^max_connections = .*/max_connections = 300/' /var/lib/postgresql/data/postgresql.conf
           docker restart postgres
           until docker exec postgres pg_isready -U postgres; do sleep 1; done
-      - name: Set up Python ${{ matrix.py }}
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: ${{ matrix.py }}
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version-file: "pyproject.toml"
           resolution-strategy: "lowest"
+          python-version: ${{ matrix.py }}
       - name: Sync dependencies
         run: uv sync --frozen
       # Return the next major version in response headers so all client methods
@@ -1096,6 +1040,7 @@ jobs:
           # to read. Keep equal to the lower bound of [tool.uv] required-version in
           # pyproject.toml.
           version: "0.13.7"
+          python-version: "3.11"
       - name: Install arize-phoenix and database dependencies
         run: |
           uv pip install --system -qU 'arize-phoenix[pg]'

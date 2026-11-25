@@ -26,6 +26,10 @@ from phoenix.db.types.prompts import (
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.prompt_version_tags import upsert_prompt_version_tag
+from phoenix.server.api.helpers.prompts.delete_helpers import (
+    format_prompt_in_use_by_llm_evaluators_message,
+    get_prompt_referencing_llm_evaluator_names,
+)
 from phoenix.server.api.helpers.prompts.validation import validate_custom_provider
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.problem_details import (
@@ -870,12 +874,14 @@ async def patch_prompt(
 
 @router.delete(
     "/prompts/{prompt_identifier}",
-    dependencies=[Depends(is_not_locked)],
     operation_id="deletePrompt",
     summary="Delete a prompt",
-    description="Delete a prompt and all its versions, tags, and labels by identifier.",
+    description=(
+        "Delete a prompt and all its versions, tags, and labels by identifier. "
+        "Returns 409 if one or more LLM evaluators use the prompt."
+    ),
     status_code=204,
-    responses=_errors([404, 422]),
+    responses=_errors([404, 409, 422]),
 )
 async def delete_prompt(
     request: Request,
@@ -889,10 +895,33 @@ async def delete_prompt(
     else:
         assert_never(identifier)
     async with request.app.state.db() as session:
-        prompt_id = await session.scalar(
-            delete(models.Prompt).where(where_clause).returning(models.Prompt.id)
+        prompt_id = await session.scalar(select(models.Prompt.id).where(where_clause))
+        if prompt_id is None:
+            raise HTTPException(status_code=404, detail="Prompt not found")
+        evaluator_names = await get_prompt_referencing_llm_evaluator_names(
+            session=session, prompt_id=prompt_id
         )
-    if prompt_id is None:
+        if evaluator_names:
+            raise HTTPException(
+                status_code=409,
+                detail=format_prompt_in_use_by_llm_evaluators_message(evaluator_names),
+            )
+        try:
+            async with session.begin_nested():
+                deleted_prompt_id = await session.scalar(
+                    delete(models.Prompt)
+                    .where(models.Prompt.id == prompt_id)
+                    .returning(models.Prompt.id)
+                )
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+            evaluator_names = await get_prompt_referencing_llm_evaluator_names(
+                session=session, prompt_id=prompt_id
+            )
+            raise HTTPException(
+                status_code=409,
+                detail=format_prompt_in_use_by_llm_evaluators_message(evaluator_names),
+            )
+    if deleted_prompt_id is None:
         raise HTTPException(status_code=404, detail="Prompt not found")
 
 

@@ -651,7 +651,10 @@ async def dataset_evaluator_connection(
             models.Evaluator,
             models.DatasetEvaluators.evaluator_id == models.Evaluator.id,
         )
-        .where(models.DatasetEvaluators.deleted_at.is_(None))
+        .where(
+            models.DatasetEvaluators.deleted_at.is_(None),
+            models.DatasetEvaluators.dataset_id.is_not(None),
+        )
     )
     if dataset_id is not None:
         stmt = stmt.where(models.DatasetEvaluators.dataset_id == dataset_id)

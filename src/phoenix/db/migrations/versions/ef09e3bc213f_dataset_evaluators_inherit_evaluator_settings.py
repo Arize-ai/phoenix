@@ -1,7 +1,7 @@
 """dataset evaluators inherit evaluator settings
 
 Revision ID: ef09e3bc213f
-Revises: a7f1c3e9d2b4
+Revises: f125a3233286
 Create Date: 2026-09-18 00:00:00.000000
 
 A dataset evaluator overrides its evaluator's description and output configs
@@ -49,7 +49,7 @@ JSON_ = JSON().with_variant(postgresql.JSONB(), "postgresql").with_variant(JSONB
 
 # revision identifiers, used by Alembic.
 revision: str = "ef09e3bc213f"
-down_revision: Union[str, None] = "a7f1c3e9d2b4"
+down_revision: Union[str, None] = "f125a3233286"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -69,25 +69,18 @@ def _is_empty_json_array(column: str) -> str:
 
 
 def upgrade() -> None:
-    with op.batch_alter_table("dataset_evaluators") as batch_op:
-        batch_op.alter_column("output_configs", existing_type=JSON_, nullable=True)
+    op.alter_column("dataset_evaluators", "output_configs", existing_type=JSON_, nullable=True)
     op.execute(
         "UPDATE dataset_evaluators SET output_configs = NULL "
-        f"WHERE {_is_json_null('output_configs')}"
-    )
-    op.execute(
-        "UPDATE dataset_evaluators SET output_configs = NULL "
-        f"WHERE {_is_empty_json_array('output_configs')}"
+        f"WHERE ({_is_json_null('output_configs')}) "
+        f"OR ({_is_empty_json_array('output_configs')})"
     )
     op.add_column("llm_evaluators", sa.Column("input_schema", JSON_, nullable=True))
     op.add_column("code_evaluators", sa.Column("input_schema", JSON_, nullable=True))
 
 
 def downgrade() -> None:
-    with op.batch_alter_table("code_evaluators") as batch_op:
-        batch_op.drop_column("input_schema")
-    with op.batch_alter_table("llm_evaluators") as batch_op:
-        batch_op.drop_column("input_schema")
+    op.drop_column("code_evaluators", "input_schema")
+    op.drop_column("llm_evaluators", "input_schema")
     op.execute("UPDATE dataset_evaluators SET output_configs = 'null' WHERE output_configs IS NULL")
-    with op.batch_alter_table("dataset_evaluators") as batch_op:
-        batch_op.alter_column("output_configs", existing_type=JSON_, nullable=False)
+    op.alter_column("dataset_evaluators", "output_configs", existing_type=JSON_, nullable=False)

@@ -10,7 +10,7 @@ from phoenix.server.types import DbSessionFactory
 
 from .agent_session_message_text import AgentSessionMessageTextDataLoader
 from .annotation_configs_by_project import AnnotationConfigsByProjectDataLoader
-from .annotation_mean_score_time_series import AnnotationMeanScoreTimeSeriesDataLoader
+from .annotation_score_metrics import AnnotationScoreMetricsCache, AnnotationScoreMetricsDataLoader
 from .annotation_summaries import AnnotationSummaryCache, AnnotationSummaryDataLoader
 from .average_experiment_repeated_run_group_latency import (
     AverageExperimentRepeatedRunGroupLatencyDataLoader,
@@ -18,6 +18,7 @@ from .average_experiment_repeated_run_group_latency import (
 from .average_experiment_run_latency import AverageExperimentRunLatencyDataLoader
 from .code_evaluator_version_count import CodeEvaluatorVersionCountDataLoader
 from .code_evaluator_version_sequence_number import CodeEvaluatorVersionSequenceNumberDataLoader
+from .custom_provider_models import CustomProviderModelsDataLoader
 from .dataset_dataset_splits import DatasetDatasetSplitsDataLoader
 from .dataset_evaluators import DatasetEvaluatorsDataLoader
 from .dataset_evaluators_by_evaluator import DatasetEvaluatorsByEvaluatorDataLoader
@@ -154,6 +155,9 @@ class CacheForDataLoaders:
     annotation_summary: AnnotationSummaryCache = field(
         default_factory=AnnotationSummaryCache,
     )
+    annotation_score_metrics: AnnotationScoreMetricsCache = field(
+        default_factory=AnnotationScoreMetricsCache,
+    )
     latency_ms_quantile: LatencyMsQuantileCache = field(
         default_factory=LatencyMsQuantileCache,
     )
@@ -177,7 +181,7 @@ class DataLoaders:
     agent_session_first_inputs: AgentSessionMessageTextDataLoader
     agent_session_latest_outputs: AgentSessionMessageTextDataLoader
     annotation_configs_by_project: AnnotationConfigsByProjectDataLoader
-    annotation_mean_score_time_series: AnnotationMeanScoreTimeSeriesDataLoader
+    annotation_score_metrics: AnnotationScoreMetricsDataLoader
     annotation_summaries: AnnotationSummaryDataLoader
     average_experiment_repeated_run_group_latency: (
         AverageExperimentRepeatedRunGroupLatencyDataLoader
@@ -243,6 +247,7 @@ class DataLoaders:
     experiment_sequence_number: ExperimentSequenceNumberDataLoader
     generative_model_fields: TableFieldsDataLoader
     generative_model_custom_provider_fields: TableFieldsDataLoader
+    custom_provider_models: CustomProviderModelsDataLoader
     last_used_times_by_generative_model_id: LastUsedTimesByGenerativeModelIdDataLoader
     latency_ms_quantile: LatencyMsQuantileDataLoader
     min_start_or_max_end_times: MinStartOrMaxEndTimeDataLoader
@@ -350,7 +355,12 @@ def build_data_loaders(
         agent_session_first_inputs=AgentSessionMessageTextDataLoader(db, "first_input"),
         agent_session_latest_outputs=AgentSessionMessageTextDataLoader(db, "latest_output"),
         annotation_configs_by_project=AnnotationConfigsByProjectDataLoader(db),
-        annotation_mean_score_time_series=AnnotationMeanScoreTimeSeriesDataLoader(db),
+        annotation_score_metrics=AnnotationScoreMetricsDataLoader(
+            db,
+            cache_map=(
+                cache_for_dataloaders.annotation_score_metrics if cache_for_dataloaders else None
+            ),
+        ),
         average_experiment_repeated_run_group_latency=AverageExperimentRepeatedRunGroupLatencyDataLoader(
             db
         ),
@@ -439,6 +449,7 @@ def build_data_loaders(
         generative_model_custom_provider_fields=TableFieldsDataLoader(
             db, models.GenerativeModelCustomProvider
         ),
+        custom_provider_models=CustomProviderModelsDataLoader(db),
         last_used_times_by_generative_model_id=LastUsedTimesByGenerativeModelIdDataLoader(db),
         latency_ms_quantile=LatencyMsQuantileDataLoader(
             db,

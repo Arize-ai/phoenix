@@ -65,7 +65,8 @@ async def load_evaluation_loads(
         untraced = (
             await session.execute(
                 sa.select(project_evaluator.id, project_evaluator.enabled).where(
-                    project_evaluator.tracing_enabled.is_(False)
+                    project_evaluator.tracing_enabled.is_(False),
+                    project_evaluator.deleted_at.is_(None),
                 )
             )
         ).all()

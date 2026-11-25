@@ -13,6 +13,7 @@ import {
   createDataRouterNavigationStateSource,
   registerRouterNavigationStateSource,
 } from "@phoenix/agent/tools/navigation/routerStateRegistry";
+import type { CopyFn } from "@phoenix/hooks/useMatchesWithCrumb";
 import type { DatasetEvaluatorDetailsLoaderData } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { datasetEvaluatorDetailsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { DatasetEvaluatorDetailsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorDetailsPage";
@@ -62,6 +63,8 @@ import {
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTracePage";
 import { PromptsLayout } from "@phoenix/pages/prompts/PromptsLayout";
 import { RootLayout } from "@phoenix/pages/RootLayout";
+import { BuiltInProviderDetailsDrawer } from "@phoenix/pages/settings/BuiltInProviderDetailsDrawer";
+import { CustomProviderDetailsDrawer } from "@phoenix/pages/settings/CustomProviderDetailsDrawer";
 import { settingsPromptsPageLoader } from "@phoenix/pages/settings/prompts/settingsPromptsPageLoader";
 import { RetentionPolicyDetailsDrawer } from "@phoenix/pages/settings/RetentionPolicyDetailsDrawer";
 import { SettingsSecretsPage } from "@phoenix/pages/settings/secrets/SettingsSecretsPage";
@@ -139,6 +142,7 @@ import {
   ProjectEvaluatorsPage,
   projectEvaluatorsLoader,
   ProjectIndexPage,
+  PROJECT_CRUMB_FALLBACK,
   projectLoader,
   ProjectMetricsPage,
   ProjectPage,
@@ -527,24 +531,25 @@ export const appRouteObjects = createRoutesFromElements(
             loader={projectLoader}
             shouldRevalidate={revalidateOnProjectChange}
             handle={{
-              crumb: (data: ProjectLoaderData) => data?.project?.name,
+              crumb: (data: ProjectLoaderData) =>
+                data?.projectName ?? PROJECT_CRUMB_FALLBACK,
               agentRoute: {
                 label: "Project Overview",
                 description:
                   "Open a project's default overview, project home, and summary page.",
               },
-              copy: (data: ProjectLoaderData) => [
+              copy: (({ data, crumb }) => [
                 {
                   name: "Project Name",
-                  value: data?.project?.name,
-                  iconKey: "Text" as const,
+                  value: crumb,
+                  iconKey: "Text",
                 },
                 {
                   name: "Project ID",
-                  value: data?.project?.id,
-                  iconKey: "ID" as const,
+                  value: data.projectId,
+                  iconKey: "ID",
                 },
-              ],
+              ]) satisfies CopyFn<ProjectLoaderData>,
             }}
             element={<ProjectRoot />}
           >
@@ -893,7 +898,7 @@ export const appRouteObjects = createRoutesFromElements(
                 description:
                   "View dataset experiments, experiment runs, and evaluation results.",
               },
-              copy: (data: DatasetLoaderData) => [
+              copy: ({ data }: { data: DatasetLoaderData }) => [
                 {
                   name: "Dataset Name",
                   value: data?.dataset?.name,
@@ -1222,7 +1227,7 @@ export const appRouteObjects = createRoutesFromElements(
                   data?.decision?.__typename === "Decision"
                     ? data.decision.name
                     : "Decision unknown",
-                copy: (data: DecisionLoaderData) =>
+                copy: ({ data }: { data: DecisionLoaderData }) =>
                   data?.decision?.__typename === "Decision"
                     ? [
                         {
@@ -1289,7 +1294,7 @@ export const appRouteObjects = createRoutesFromElements(
                 description:
                   "View prompt details for a saved prompt, prompt versions, and prompt history.",
               },
-              copy: (data: PromptLoaderData) => {
+              copy: ({ data }: { data: PromptLoaderData }) => {
                 if (data?.prompt?.__typename === "Prompt") {
                   return [
                     {
@@ -1492,7 +1497,30 @@ export const appRouteObjects = createRoutesFromElements(
                   "Configure AI providers, custom providers, provider credentials, base URLs, default model, provider headers, and AI query (natural-language filter conditions using Browser AI or a model provider).",
               },
             }}
-          />
+          >
+            <Route
+              path="built-in/:providerKey"
+              element={<BuiltInProviderDetailsDrawer />}
+              handle={{
+                agentRoute: {
+                  label: "AI Provider Details",
+                  description:
+                    "View a built-in AI provider's model types, credential environment variables, whether server credentials are set, dependencies, and built-in models. The providerKey route param is the GenerativeProviderKey enum value, such as OPENAI or ANTHROPIC.",
+                },
+              }}
+            />
+            <Route
+              path="custom/:providerId"
+              element={<CustomProviderDetailsDrawer />}
+              handle={{
+                agentRoute: {
+                  label: "Custom Provider Details",
+                  description:
+                    "View a custom AI provider's configuration: provider string, SDK, base URL or endpoint, authentication, header names, model types and model names. The providerId route param is the GraphQL GenerativeModelCustomProvider.id Relay node ID.",
+                },
+              }}
+            />
+          </Route>
           <Route
             path="sandboxes"
             loader={settingsSandboxesPageLoader}
@@ -1515,7 +1543,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Models",
                 description:
-                  "Configure saved model settings including provider, model name patterns, start dates, and token pricing.",
+                  "Manage model costs: the model name patterns, start dates, and per-token prices Phoenix uses to calculate LLM, decision, and embedding model costs. Search and filter built-in and custom model costs.",
               },
             }}
           />

@@ -22,7 +22,7 @@ import {
 
 /** A picker's curated models, local so the shared search doesn't depend on PXI. */
 const CURATED_MODELS: Record<string, string> = {
-  "ANTHROPIC:claude-fable-5-1": "Claude Fable 5.1",
+  "ANTHROPIC:claude-fable-5-2": "Claude Fable 5.2",
   "ANTHROPIC:claude-opus-5-5": "Claude Opus 5.5",
   "ANTHROPIC:claude-sonnet-5-5": "Claude Sonnet 5.5",
   "OPENAI:gpt-6-sol": "GPT-6 Sol",
@@ -688,10 +688,10 @@ describe("resolveModelRow", () => {
 
   it("keeps a curated display name for a model missing from the catalog", () => {
     expect(
-      resolve({ provider: "ANTHROPIC", modelName: "claude-sonnet-5-5" })
+      resolve({ provider: "ANTHROPIC", modelName: "claude-fable-5-2" })
     ).toMatchObject({
       isCurated: true,
-      displayName: "Claude Sonnet 5.5",
+      displayName: "Claude Fable 5.2",
       credentialState: "ready",
     });
   });

@@ -1,6 +1,6 @@
 import re
 from datetime import datetime, timezone
-from typing import Any, Iterable, Literal, Optional, Sequence, TypedDict, TypeVar, cast
+from typing import Any, Iterable, Literal, Optional, Sequence, TypedDict, TypeVar, cast, get_args
 
 import orjson
 import sqlalchemy as sa
@@ -62,6 +62,7 @@ from phoenix.db.eval_work import (
     queued_index_predicate,
     terminal_index_predicate,
 )
+from phoenix.db.lifecycle import live_row_predicate, tombstoned_row_predicate
 from phoenix.db.types.annotation_configs import (
     AnnotationConfig as AnnotationConfigModel,
 )
@@ -91,7 +92,14 @@ from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.experiment_config import ConnectionConfig, PlaygroundConfig
 from phoenix.db.types.experiment_log import ExperimentLogDetail
 from phoenix.db.types.identifier import Identifier
-from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.model_provider import (
+    MODEL_TYPES,
+    ModelProvider,
+    ModelsOfType,
+    ModelTypeKey,
+    ProviderModels,
+    default_provider_models,
+)
 from phoenix.db.types.prompts import (
     PromptInvocationParameters,
     PromptInvocationParametersRootModel,
@@ -200,6 +208,9 @@ SandboxBackendType: TypeAlias = Literal[
     "WASM", "E2B", "DAYTONA", "VERCEL", "DENO", "MODAL", "MONTY", "DOCKER"
 ]
 LanguageName = TypeAliasType("LanguageName", Literal["PYTHON", "TYPESCRIPT"])
+# The kind of span a generative model prices, named after the OpenInference span kinds.
+GenerativeModelType: TypeAlias = Literal["LLM", "DECISION", "EMBEDDING"]
+_GENERATIVE_MODEL_TYPES_SQL = ", ".join(f"'{t}'" for t in get_args(GenerativeModelType))
 GenerativeModelSDK: TypeAlias = Literal[
     "openai",
     "azure_openai",
@@ -208,8 +219,6 @@ GenerativeModelSDK: TypeAlias = Literal[
     "aws_bedrock",
     "typesafe",
 ]
-DecisionSDK: TypeAlias = Literal["openai", "typesafe"]
-"""A custom provider's decision client: OpenAI's Decisions API or System One."""
 ExperimentStatus: TypeAlias = Literal["RUNNING", "COMPLETED", "STOPPED", "ERROR"]
 EvalWorkStatus: TypeAlias = Literal[
     "PENDING",
@@ -224,6 +233,7 @@ EvalWorkStatus: TypeAlias = Literal[
     "SAMPLED_OUT",
 ]
 EvaluationTarget = TypeAliasType("EvaluationTarget", Literal["SPAN", "TRACE", "SESSION"])
+CleanupTargetKind: TypeAlias = Literal["PROJECT", "PROJECT_EVALUATOR", "DATASET_EVALUATOR"]
 
 # Quiet period before a trace or session is evaluated. Spans are evaluated as they arrive
 # and store 0; the check constraint on project_evaluators enforces both rules.
@@ -909,6 +919,7 @@ class Project(HasId):
         nullable=True,
         index=True,
     )
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
     trace_retention_policy: Mapped[Optional[ProjectTraceRetentionPolicy]] = relationship(
         "ProjectTraceRetentionPolicy",
         back_populates="projects",
@@ -920,10 +931,23 @@ class Project(HasId):
         passive_deletes=True,
         uselist=True,
     )
+
     __table_args__ = (
-        UniqueConstraint(
+        Index(
+            "ix_projects_live_name",
             "name",
+            unique=True,
+            postgresql_where=text(live_row_predicate()),
+            sqlite_where=text(live_row_predicate()),
         ),
+        Index(
+            "ix_projects_tombstoned",
+            "deleted_at",
+            "id",
+            postgresql_where=text(tombstoned_row_predicate()),
+            sqlite_where=text(tombstoned_row_predicate()),
+        ),
+        dict(sqlite_autoincrement=True),
     )
 
 
@@ -1218,10 +1242,6 @@ class Span(HasId):
         UniqueConstraint(
             "span_id",
             sqlite_on_conflict="IGNORE",
-        ),
-        Index(
-            "ix_cumulative_llm_token_count_total",
-            text("(cumulative_llm_token_count_prompt + cumulative_llm_token_count_completion)"),
         ),
         Index(
             "ix_spans_session_id",
@@ -1656,7 +1676,7 @@ class Dataset(HasId):
         "DatasetsDatasetLabel", back_populates="dataset", passive_deletes="all"
     )
     dataset_evaluators: Mapped[list["DatasetEvaluators"]] = relationship(
-        "DatasetEvaluators", back_populates="dataset", cascade="all, delete-orphan", uselist=True
+        "DatasetEvaluators", back_populates="dataset", passive_deletes="all", uselist=True
     )
 
     @hybrid_property
@@ -2919,6 +2939,11 @@ class GenerativeModel(HasId):
         Boolean,
         nullable=False,
     )
+    type: Mapped[GenerativeModelType] = mapped_column(
+        CheckConstraint(f"type IN ({_GENERATIVE_MODEL_TYPES_SQL})", name="valid_type"),
+        default="LLM",
+        server_default="LLM",
+    )
     created_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp,
         server_default=func.now(),
@@ -2941,6 +2966,7 @@ class GenerativeModel(HasId):
     __table_args__ = (
         Index(
             "ix_generative_models_match_criteria",
+            "type",
             "name_pattern",
             "provider",
             "is_built_in",
@@ -2952,11 +2978,19 @@ class GenerativeModel(HasId):
             "ix_generative_models_name_is_built_in",
             "name",
             "is_built_in",
+            "type",
             postgresql_where=sa.text("deleted_at IS NULL"),
             sqlite_where=sa.text("deleted_at IS NULL"),
             unique=True,
         ),
     )
+
+
+@event.listens_for(GenerativeModel, "init")
+def _default_generative_model_type(_: Any, __: Any, kwargs: dict[str, Any]) -> None:
+    """Column defaults apply only on insert; unsaved models (e.g. in a `CostModelLookup`)
+    need a type too."""
+    kwargs.setdefault("type", "LLM")
 
 
 class TokenPrice(HasId):
@@ -3501,7 +3535,7 @@ class Evaluator(HasId):
     dataset_evaluators: Mapped[list["DatasetEvaluators"]] = relationship(
         "DatasetEvaluators",
         back_populates="evaluator",
-        cascade="all, delete-orphan",
+        passive_deletes="all",
         uselist=True,
     )
 
@@ -3872,12 +3906,15 @@ class BuiltinEvaluator(Evaluator):
 
 class DatasetEvaluators(HasId):
     __tablename__ = "dataset_evaluators"
-    dataset_id: Mapped[int] = mapped_column(
-        ForeignKey("datasets.id", ondelete="CASCADE"),
+    dataset_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("datasets.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
-    # Unified evaluator_id FK - works for all evaluator types (LLM, CODE, BUILTIN)
-    evaluator_id: Mapped[int] = mapped_column(
-        ForeignKey("evaluators.id", ondelete="CASCADE"),
+    # Unified evaluator_id FK - works for all evaluator types (LLM, CODE, BUILTIN, DECISION)
+    evaluator_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("evaluators.id", ondelete="RESTRICT"),
+        nullable=True,
         index=True,
     )
     name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
@@ -3900,39 +3937,38 @@ class DatasetEvaluators(HasId):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
-    dataset: Mapped["Dataset"] = relationship("Dataset", back_populates="dataset_evaluators")
-    evaluator: Mapped["Evaluator"] = relationship("Evaluator", back_populates="dataset_evaluators")
-    user: Mapped[Optional["User"]] = relationship("User")
     deleted_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
-    """When the binding was deleted. A deleted binding is invisible to readers and gives up
-    its name; the evaluator purger later removes it with its trace project."""
-    delete_unused_evaluator: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default=sa.false()
+    dataset: Mapped[Optional["Dataset"]] = relationship(
+        "Dataset", back_populates="dataset_evaluators"
     )
-    """Whether the purger should also delete the evaluator definition once nothing binds it.
-    Built-in evaluators are always kept."""
-    delete_associated_prompt_or_decision: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default=sa.false()
+    evaluator: Mapped[Optional["Evaluator"]] = relationship(
+        "Evaluator", back_populates="dataset_evaluators"
     )
-    """Whether the purger should also delete the evaluator's prompt or decision once no
-    evaluator uses it."""
+    user: Mapped[Optional["User"]] = relationship("User")
     project: Mapped["Project"] = relationship("Project")
 
     __table_args__ = (
+        CheckConstraint(
+            "(deleted_at IS NULL AND dataset_id IS NOT NULL AND evaluator_id IS NOT NULL) "
+            "OR (deleted_at IS NOT NULL AND evaluator_id IS NULL)",
+            name="valid_lifecycle",
+        ),
         Index(
-            "ix_dataset_evaluators_dataset_id_name",
+            "ix_dataset_evaluators_live_name",
             "dataset_id",
             "name",
             unique=True,
-            postgresql_where=sa.text("deleted_at IS NULL"),
-            sqlite_where=sa.text("deleted_at IS NULL"),
+            postgresql_where=text(live_row_predicate()),
+            sqlite_where=text(live_row_predicate()),
         ),
         Index(
-            "ix_dataset_evaluators_deleted_at",
+            "ix_dataset_evaluators_tombstoned",
             "deleted_at",
-            postgresql_where=sa.text("deleted_at IS NOT NULL"),
-            sqlite_where=sa.text("deleted_at IS NOT NULL"),
+            "id",
+            postgresql_where=text(tombstoned_row_predicate()),
+            sqlite_where=text(tombstoned_row_predicate()),
         ),
+        dict(sqlite_autoincrement=True),
     )
 
 
@@ -3972,8 +4008,6 @@ class GenerativeModelCustomProvider(HasId):
     description: Mapped[Optional[str]]
     provider: Mapped[str] = mapped_column(String, nullable=False)
     sdk: Mapped[GenerativeModelSDK] = mapped_column(String, nullable=False)
-    decision_sdk: Mapped[Optional[DecisionSDK]] = mapped_column(String, nullable=True)
-    """The client its decision models run through; NULL when it serves none."""
     config: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -3984,6 +4018,137 @@ class GenerativeModelCustomProvider(HasId):
         nullable=True,
         index=True,
     )
+    model_types: Mapped[list["CustomProviderModelType"]] = relationship(
+        "CustomProviderModelType",
+        back_populates="provider",
+        lazy="selectin",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+    @property
+    def models(self) -> ProviderModels:
+        return provider_models_from_rows(self.model_types)
+
+
+class CustomProviderModelType(Base):
+    __tablename__ = "custom_provider_model_types"
+    provider_id: Mapped[int] = mapped_column(
+        ForeignKey("generative_model_custom_providers.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    model_type: Mapped[ModelTypeKey] = mapped_column(String, nullable=False)
+
+    provider: Mapped["GenerativeModelCustomProvider"] = relationship(
+        "GenerativeModelCustomProvider",
+        back_populates="model_types",
+    )
+    profile_links: Mapped[list["CustomProviderModelProfile"]] = relationship(
+        "CustomProviderModelProfile",
+        back_populates="provider_model_type",
+        order_by="CustomProviderModelProfile.position",
+        lazy="selectin",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+    __table_args__ = (
+        PrimaryKeyConstraint("provider_id", "model_type"),
+        CheckConstraint("model_type IN ('CHAT', 'DECISION')", name="valid_model_type"),
+    )
+
+
+class ModelProfile(HasId):
+    __tablename__ = "model_profiles"
+    model_type: Mapped[ModelTypeKey] = mapped_column(String, nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("id", "model_type"),
+        CheckConstraint("model_type IN ('CHAT', 'DECISION')", name="valid_model_type"),
+        CheckConstraint("name <> '' AND name = trim(name)", name="valid_name"),
+        dict(sqlite_autoincrement=True),
+    )
+
+
+class CustomProviderModelProfile(Base):
+    __tablename__ = "custom_provider_model_profiles"
+    provider_id: Mapped[int] = mapped_column(nullable=False)
+    model_type: Mapped[ModelTypeKey] = mapped_column(String, nullable=False)
+    model_profile_id: Mapped[int] = mapped_column(nullable=False, unique=True)
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    provider_model_type: Mapped["CustomProviderModelType"] = relationship(
+        "CustomProviderModelType",
+        back_populates="profile_links",
+        overlaps="profile",
+    )
+    profile: Mapped["ModelProfile"] = relationship(
+        "ModelProfile",
+        lazy="selectin",
+        overlaps="profile_links,provider_model_type",
+    )
+
+    __table_args__ = (
+        PrimaryKeyConstraint("provider_id", "model_type", "position"),
+        ForeignKeyConstraint(
+            ["provider_id", "model_type"],
+            [
+                "custom_provider_model_types.provider_id",
+                "custom_provider_model_types.model_type",
+            ],
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["model_profile_id", "model_type"],
+            ["model_profiles.id", "model_profiles.model_type"],
+            ondelete="CASCADE",
+        ),
+    )
+
+
+def provider_models_from_rows(
+    rows: Sequence[CustomProviderModelType],
+) -> ProviderModels:
+    by_type: dict[ModelTypeKey, ModelsOfType] = {}
+    for row in rows:
+        links = sorted(row.profile_links, key=lambda link: link.position)
+        by_type[row.model_type] = ModelsOfType(names=tuple(link.profile.name for link in links))
+    return ProviderModels(
+        chat=by_type.get("CHAT"),
+        decision=by_type.get("DECISION"),
+    )
+
+
+def build_model_type_row(
+    model_type: ModelTypeKey, models_of_type: ModelsOfType
+) -> CustomProviderModelType:
+    return CustomProviderModelType(
+        model_type=model_type,
+        profile_links=[
+            CustomProviderModelProfile(
+                position=position,
+                profile=ModelProfile(model_type=model_type, name=name),
+            )
+            for position, name in enumerate(models_of_type.names)
+        ],
+    )
+
+
+def provider_models_to_rows(served: ProviderModels) -> list[CustomProviderModelType]:
+    return [
+        build_model_type_row(model_type, models_of_type)
+        for model_type in MODEL_TYPES
+        if (models_of_type := served.get_models_of_type(model_type)) is not None
+    ]
+
+
+@event.listens_for(GenerativeModelCustomProvider, "init")
+def _init_provider_model_types(
+    _: GenerativeModelCustomProvider, __: Any, kwargs: dict[str, Any]
+) -> None:
+    if "model_types" not in kwargs and "sdk" in kwargs:
+        kwargs["model_types"] = provider_models_to_rows(default_provider_models(kwargs["sdk"]))
 
 
 @event.listens_for(GenerativeModelCustomProvider, "before_insert")
@@ -4185,13 +4350,13 @@ class ProjectEvaluator(HasId):
 
     __tablename__ = "project_evaluators"
     project_id: Mapped[int] = mapped_column(
-        ForeignKey("projects.id", ondelete="CASCADE"),
+        ForeignKey("projects.id", ondelete="RESTRICT"),
         nullable=False,
         index=True,
     )
-    evaluator_id: Mapped[int] = mapped_column(
-        ForeignKey("evaluators.id", ondelete="CASCADE"),
-        nullable=False,
+    evaluator_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("evaluators.id", ondelete="RESTRICT"),
+        nullable=True,
         index=True,
     )
     trace_project_id: Mapped[int] = mapped_column(
@@ -4239,39 +4404,33 @@ class ProjectEvaluator(HasId):
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
     deleted_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
-    """When the binding was deleted. A deleted binding is invisible to readers, gets no new
-    work and gives up its name; the evaluator purger later removes it with its trace
-    project and work units."""
-    delete_unused_evaluator: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default=sa.false()
-    )
-    """Whether the purger should also delete the evaluator definition once nothing binds it.
-    Built-in evaluators are always kept."""
-    delete_associated_prompt_or_decision: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default=sa.false()
-    )
-    """Whether the purger should also delete the evaluator's prompt or decision once no
-    evaluator uses it."""
 
     project: Mapped["Project"] = relationship("Project", foreign_keys=[project_id])
     trace_project: Mapped["Project"] = relationship("Project", foreign_keys=[trace_project_id])
-    evaluator: Mapped["Evaluator"] = relationship("Evaluator")
+    evaluator: Mapped[Optional["Evaluator"]] = relationship("Evaluator")
 
     __table_args__ = (
+        CheckConstraint(
+            "(deleted_at IS NULL AND evaluator_id IS NOT NULL) "
+            "OR (deleted_at IS NOT NULL AND evaluator_id IS NULL)",
+            name="valid_lifecycle",
+        ),
         Index(
-            "ix_project_evaluators_project_id_name",
+            "ix_project_evaluators_live_name",
             "project_id",
             "name",
             unique=True,
-            postgresql_where=sa.text("deleted_at IS NULL"),
-            sqlite_where=sa.text("deleted_at IS NULL"),
+            postgresql_where=text(live_row_predicate()),
+            sqlite_where=text(live_row_predicate()),
         ),
         Index(
-            "ix_project_evaluators_deleted_at",
+            "ix_project_evaluators_tombstoned",
             "deleted_at",
-            postgresql_where=sa.text("deleted_at IS NOT NULL"),
-            sqlite_where=sa.text("deleted_at IS NOT NULL"),
+            "id",
+            postgresql_where=text(tombstoned_row_predicate()),
+            sqlite_where=text(tombstoned_row_predicate()),
         ),
+        dict(sqlite_autoincrement=True),
     )
 
 
@@ -4564,3 +4723,24 @@ class EvalTraceWorkUnit(HasId):
             sqlite_where=text(failed_index_predicate()),
         ),
     )
+
+
+class CleanupFailure(Base):
+    """Retry state for a tombstoned row whose cleanup is backing off.
+
+    The tombstones are the work list; a row exists here only while its target waits for
+    ``retry_at``. There is no foreign key because the target tables never reuse ids.
+    """
+
+    __tablename__ = "cleanup_failures"
+    target_kind: Mapped[CleanupTargetKind] = mapped_column(
+        String,
+        CheckConstraint(
+            "target_kind IN ('PROJECT', 'PROJECT_EVALUATOR', 'DATASET_EVALUATOR')",
+            name="valid_cleanup_target_kind",
+        ),
+        primary_key=True,
+    )
+    target_id: Mapped[int] = mapped_column(_Integer, primary_key=True, autoincrement=False)
+    failure_count: Mapped[int] = mapped_column(_Integer, nullable=False, server_default="0")
+    retry_at: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)

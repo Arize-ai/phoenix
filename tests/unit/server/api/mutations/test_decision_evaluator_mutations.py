@@ -14,7 +14,6 @@ from phoenix.server.api.helpers.decision_clients import (
     RefusalAnswer,
     TypeSafeDecisionClient,
 )
-from phoenix.server.evaluators.services.purge import purge_deleted_bindings
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient, GraphQLExecutionResult
 
@@ -130,28 +129,25 @@ async def test_dataset_binding_and_mixed_refusal_preview(
     monkeypatch.setattr(TypeSafeDecisionClient, "invoke", invoke)
     result = await gql_client.execute(
         """
-      mutation($input:EvaluatorPreviewsInput!) { evaluatorPreviews(input:$input) { results { evaluatorName error annotation { name label score explanation metadata
+      mutation($input:EvaluatorPreviewInput!) { previewEvaluator(input:$input) { results { results { evaluatorName status error annotation { name label score explanation metadata
         decision { status question { name type } answer { __typename ... on PredicateAnswer { probability } }
-          scoring { __typename name } resolvedModel modelProvider } } } } }
+          scoring { __typename name } resolvedModel modelProvider } } } } } }
     """,
         variables={
             "input": {
                 "credentials": [{"envVarName": "TYPESAFE_API_KEY", "value": "test"}],
-                "previews": [
-                    {
-                        "evaluator": {"decisionEvaluatorId": evaluator["id"]},
-                        "context": {"input": {"ticket": {"id": 1}}},
-                        "inputMapping": {
-                            "literalMapping": {},
-                            "pathMapping": {"ticket": "input.ticket"},
-                        },
-                    }
-                ],
+                "evaluator": {"decisionEvaluatorId": evaluator["id"]},
+                "inputMapping": {
+                    "literalMapping": {},
+                    "pathMapping": {"ticket": "input.ticket"},
+                },
+                "subjects": [{"key": "0", "context": {"input": {"ticket": {"id": 1}}}}],
             }
         },
     )
     assert result.data and not result.errors, result.errors
-    answered, refused = result.data["evaluatorPreviews"]["results"]
+    answered, refused = result.data["previewEvaluator"]["results"][0]["results"]
+    assert (answered["status"], refused["status"]) == ("answered", "refused")
     assert answered["annotation"]["label"] == "false"
     assert answered["annotation"]["score"] == 0.7
     assert refused["error"] is None
@@ -237,111 +233,34 @@ async def test_unbound_repin_carries_the_judges_policy_to_the_new_questions(
     assert await move_to([added]) == [{"name": "angry", "threshold": 0.5}]
 
 
-DELETE_BINDINGS = (
-    "mutation($input:DeleteDatasetEvaluatorsInput!)"
-    "{deleteDatasetEvaluators(input:$input){query{__typename}}}"
-)
-
-
-async def delete_bindings_and_purge(
+async def test_detaching_last_binding_keeps_the_standalone_judge(
     gql_client: AsyncGraphQLClient,
+    empty_dataset: None,
     db: DbSessionFactory,
-    binding_ids: list[str],
-    *,
-    delete_decision: bool = False,
 ) -> None:
+    decision, evaluator = await saved_evaluator(gql_client)
+    binding_id = await bind(gql_client, evaluator)
     result = await gql_client.execute(
-        DELETE_BINDINGS,
-        variables={
-            "input": {
-                "datasetEvaluatorIds": binding_ids,
-                "deleteAssociatedPromptOrDecision": delete_decision,
-            }
-        },
+        "mutation($input:DeleteDatasetEvaluatorsInput!){deleteDatasetEvaluators(input:$input){query{__typename}}}",
+        variables={"input": {"datasetEvaluatorIds": [binding_id]}},
     )
     assert result.data and not result.errors, result.errors
-    await purge_deleted_bindings(db)
-
-
-def row_id(global_id: str) -> int:
-    return int(GlobalID.from_id(global_id).node_id)
-
-
-async def judge_tag_id(db: DbSessionFactory, evaluator: dict[str, Any]) -> int:
+    judge_id = int(GlobalID.from_id(evaluator["id"]).node_id)
+    decision_id = int(GlobalID.from_id(decision["id"]).node_id)
     async with db() as session:
-        judge = await session.get(models.DecisionEvaluator, row_id(evaluator["id"]))
+        assert await session.get(models.Evaluator, judge_id) is not None
+        judge = await session.get(models.DecisionEvaluator, judge_id)
         assert judge is not None and judge.decision_version_tag_id is not None
-        return judge.decision_version_tag_id
-
-
-async def test_deleting_the_last_binding_collects_the_judge_and_its_tag(
-    gql_client: AsyncGraphQLClient,
-    empty_dataset: None,
-    db: DbSessionFactory,
-) -> None:
-    decision, evaluator = await saved_evaluator(gql_client)
-    tag_id = await judge_tag_id(db, evaluator)
-    first = await bind(gql_client, evaluator, name="judge")
-    second = await bind(gql_client, evaluator, name="judge_again")
-
-    await delete_bindings_and_purge(gql_client, db, [first])
-    async with db() as session:
-        assert await session.get(models.DecisionEvaluator, row_id(evaluator["id"])) is not None
-
-    await delete_bindings_and_purge(gql_client, db, [second])
-    async with db() as session:
-        assert await session.get(models.DecisionEvaluator, row_id(evaluator["id"])) is None
-        assert await session.get(models.DecisionVersionTag, tag_id) is None
-        assert await session.get(models.Decision, row_id(decision["id"])) is not None
-
-
-async def test_the_flag_deletes_the_decision_once_no_judge_uses_it(
-    gql_client: AsyncGraphQLClient,
-    empty_dataset: None,
-    db: DbSessionFactory,
-) -> None:
-    decision, evaluator = await saved_evaluator(gql_client)
-    other = await gql_client.execute(
-        CREATE_EVALUATOR,
-        variables={
-            "input": {
-                "name": "other-judge",
-                "decisionVersionId": decision["version"]["id"],
-                "scoringPolicy": {"questions": [{"predicate": {"name": "urgent"}}]},
-            }
-        },
-    )
-    assert other.data and not other.errors, other.errors
-    other_evaluator = other.data["createDecisionEvaluator"]["evaluator"]
-    binding = await bind(gql_client, evaluator, name="judge")
-    other_binding = await bind(gql_client, other_evaluator, name="other_judge")
-
-    await delete_bindings_and_purge(gql_client, db, [binding], delete_decision=True)
-    async with db() as session:
-        assert await session.get(models.DecisionEvaluator, row_id(evaluator["id"])) is None
-        assert await session.get(models.Decision, row_id(decision["id"])) is not None
-
-    await delete_bindings_and_purge(gql_client, db, [other_binding], delete_decision=True)
-    async with db() as session:
-        assert await session.get(models.DecisionEvaluator, row_id(other_evaluator["id"])) is None
-        assert await session.get(models.Decision, row_id(decision["id"])) is None
-
-
-async def test_deleting_an_unbound_judge_releases_its_tag_and_keeps_the_decision(
-    gql_client: AsyncGraphQLClient,
-    db: DbSessionFactory,
-) -> None:
-    decision, evaluator = await saved_evaluator(gql_client)
-    tag_id = await judge_tag_id(db, evaluator)
+        tag_id = judge.decision_version_tag_id
     result = await gql_client.execute(
         "mutation($input:DeleteDecisionEvaluatorInput!){deleteDecisionEvaluator(input:$input){query{__typename}}}",
         variables={"input": {"evaluatorId": evaluator["id"]}},
     )
     assert result.data and not result.errors, result.errors
     async with db() as session:
-        assert await session.get(models.DecisionEvaluator, row_id(evaluator["id"])) is None
+        assert await session.get(models.Evaluator, judge_id) is None
         assert await session.get(models.DecisionVersionTag, tag_id) is None
-        assert await session.get(models.Decision, row_id(decision["id"])) is not None
+        assert await session.get(models.Decision, decision_id) is not None
 
 
 async def bind(
@@ -503,7 +422,7 @@ async def test_preview_as_binding_uses_binding_name_and_judge_scoring(
         ),
     )
     query = """
-      mutation($input:EvaluatorPreviewsInput!) { evaluatorPreviews(input:$input) { results { evaluatorName annotation { name label score } } } }
+      mutation($input:EvaluatorPreviewInput!) { previewEvaluator(input:$input) { results { results { evaluatorName annotation { name label score } } } } }
     """
 
     async def preview(**extra: Any) -> list[dict[str, Any]]:
@@ -512,22 +431,18 @@ async def test_preview_as_binding_uses_binding_name_and_judge_scoring(
             variables={
                 "input": {
                     "credentials": [{"envVarName": "TYPESAFE_API_KEY", "value": "test"}],
-                    "previews": [
-                        {
-                            "evaluator": {"decisionEvaluatorId": evaluator["id"]},
-                            "context": {"input": {"ticket": {"id": 1}}},
-                            "inputMapping": {
-                                "literalMapping": {},
-                                "pathMapping": {"ticket": "input.ticket"},
-                            },
-                            **extra,
-                        }
-                    ],
+                    "evaluator": {"decisionEvaluatorId": evaluator["id"]},
+                    "inputMapping": {
+                        "literalMapping": {},
+                        "pathMapping": {"ticket": "input.ticket"},
+                    },
+                    "subjects": [{"key": "0", "context": {"input": {"ticket": {"id": 1}}}}],
+                    **extra,
                 }
             },
         )
         assert result.data and not result.errors, result.errors
-        return list(result.data["evaluatorPreviews"]["results"])
+        return list(result.data["previewEvaluator"]["results"][0]["results"])
 
     judge_only = await preview()
     as_binding = await preview(datasetEvaluatorId=binding_id)
@@ -556,14 +471,10 @@ async def test_preview_as_binding_uses_binding_name_and_judge_scoring(
         query,
         variables={
             "input": {
-                "previews": [
-                    {
-                        "evaluator": {"decisionEvaluatorId": other_evaluator["id"]},
-                        "context": {},
-                        "inputMapping": {"literalMapping": {}, "pathMapping": {}},
-                        "datasetEvaluatorId": binding_id,
-                    }
-                ]
+                "evaluator": {"decisionEvaluatorId": other_evaluator["id"]},
+                "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                "datasetEvaluatorId": binding_id,
+                "subjects": [{"key": "0", "context": {}}],
             }
         },
     )
@@ -574,14 +485,10 @@ async def test_preview_as_binding_uses_binding_name_and_judge_scoring(
         query,
         variables={
             "input": {
-                "previews": [
-                    {
-                        "evaluator": {"decisionEvaluatorId": evaluator["id"]},
-                        "context": {},
-                        "inputMapping": {"literalMapping": {}, "pathMapping": {}},
-                        "datasetEvaluatorId": str(GlobalID("DatasetEvaluator", "999")),
-                    }
-                ]
+                "evaluator": {"decisionEvaluatorId": evaluator["id"]},
+                "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                "datasetEvaluatorId": str(GlobalID("DatasetEvaluator", "999")),
+                "subjects": [{"key": "0", "context": {}}],
             }
         },
     )
@@ -1103,44 +1010,38 @@ async def test_unsaved_decision_preview_uses_draft_and_scoring_without_persisten
     monkeypatch.setattr(TypeSafeDecisionClient, "invoke", invoke)
     result = await gql_client.execute(
         """
-mutation($input: EvaluatorPreviewsInput!) {
-  evaluatorPreviews(input:$input) { results { error annotation { name label score } } }
+mutation($input: EvaluatorPreviewInput!) {
+  previewEvaluator(input:$input) { results { results { error annotation { name label score } } } }
 }
 """,
         variables={
             "input": {
                 "credentials": [{"envVarName": "TYPESAFE_API_KEY", "value": "test"}],
-                "previews": [
-                    {
-                        "evaluator": {
-                            "inlineDecisionEvaluator": {
-                                "name": "unsaved",
-                                "decisionVersion": version_input(
-                                    questions=[
-                                        {
-                                            "predicate": {
-                                                "name": "relevant",
-                                                "instructions": "Use this unsaved instruction",
-                                            }
-                                        }
-                                    ]
-                                ),
-                                "scoringPolicy": {
-                                    "questions": [
-                                        {"predicate": {"name": "relevant", "threshold": 0.8}}
-                                    ]
-                                },
-                            }
+                "evaluator": {
+                    "inlineDecisionEvaluator": {
+                        "name": "unsaved",
+                        "decisionVersion": version_input(
+                            questions=[
+                                {
+                                    "predicate": {
+                                        "name": "relevant",
+                                        "instructions": "Use this unsaved instruction",
+                                    }
+                                }
+                            ]
+                        ),
+                        "scoringPolicy": {
+                            "questions": [{"predicate": {"name": "relevant", "threshold": 0.8}}]
                         },
-                        "context": {"output": {"text": "An answer"}},
-                        "inputMapping": {"pathMapping": {"ticket": "output"}, "literalMapping": {}},
                     }
-                ],
+                },
+                "inputMapping": {"pathMapping": {"ticket": "output"}, "literalMapping": {}},
+                "subjects": [{"key": "0", "context": {"output": {"text": "An answer"}}}],
             }
         },
     )
     assert result.data and not result.errors, result.errors
-    assert result.data["evaluatorPreviews"]["results"] == [
+    assert result.data["previewEvaluator"]["results"][0]["results"] == [
         {"error": None, "annotation": {"name": "unsaved", "label": "false", "score": 0.7}}
     ]
     assert invoke.call_args.args[0].questions[0].instructions == "Use this unsaved instruction"

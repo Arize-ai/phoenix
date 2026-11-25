@@ -114,7 +114,10 @@ async def _delete_project_annotations_by_name(
     )
     async with info.context.db() as session:
         project_exists = await session.scalar(
-            select(models.Project.id).where(models.Project.id == project_rowid)
+            select(models.Project.id).where(
+                models.Project.id == project_rowid,
+                models.Project.deleted_at.is_(None),
+            )
         )
         if project_exists is None:
             raise NotFound(f"Could not find project with ID: {input.project_id}")

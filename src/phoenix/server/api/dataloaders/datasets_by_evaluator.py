@@ -38,6 +38,7 @@ class DatasetsByEvaluatorDataLoader(DataLoader[Key, Result]):
             )
             for row in await session.execute(stmt):
                 evaluator_id, dataset = row
-                datasets_by_evaluator[evaluator_id].append(dataset)
+                if evaluator_id is not None:
+                    datasets_by_evaluator[evaluator_id].append(dataset)
 
         return [datasets_by_evaluator.get(key, []) for key in keys]

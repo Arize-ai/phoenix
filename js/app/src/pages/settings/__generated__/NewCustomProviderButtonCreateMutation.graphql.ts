@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<07ecf31c409fa0b569c0f04ad4cee60d>>
+ * @generated SignedSource<<49daa9f3c1ad038d8400120e3a714f1f>>
  * @lightSyntaxTransform
  */
 
@@ -8,13 +8,13 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type DecisionSDK = "OPENAI" | "TYPESAFE";
 export type GenerativeModelSDK = "ANTHROPIC" | "AWS_BEDROCK" | "AZURE_OPENAI" | "GOOGLE_GENAI" | "OPENAI" | "TYPESAFE";
-export type ModelType = "DECISION" | "LLM";
+export type ModelType = "CHAT" | "DECISION";
 export type OpenAIApiType = "CHAT_COMPLETIONS" | "RESPONSES";
 export type CreateGenerativeModelCustomProviderMutationInput = {
   clientConfig: GenerativeModelCustomerProviderConfigInput;
   description?: string | null;
+  models?: ProviderModelsInput | null;
   name: string;
   provider: string;
 };
@@ -62,8 +62,6 @@ export type GenerativeModelCustomerProviderConfigInput = {
   typesafe: TypeSafeCustomProviderConfigInput;
 };
 export type OpenAICustomProviderConfigInput = {
-  decisionModels?: DecisionModelsConfigInput | null;
-  modelNames?: ReadonlyArray<string> | null;
   openaiApiType?: OpenAIApiType | null;
   openaiAuthenticationMethod: OpenAIAuthenticationMethodInput;
   openaiClientKwargs?: OpenAIClientKwargsInput | null;
@@ -77,16 +75,9 @@ export type OpenAIClientKwargsInput = {
   organization?: string | null;
   project?: string | null;
 };
-export type DecisionModelsConfigInput = {
-  baseUrl?: string | null;
-  decisionSdk: DecisionSDK;
-  modelNames?: ReadonlyArray<string> | null;
-};
 export type AzureOpenAICustomProviderConfigInput = {
   azureOpenaiAuthenticationMethod: AzureOpenAIAuthenticationMethodInput;
   azureOpenaiClientKwargs: AzureOpenAIClientKwargsInput;
-  decisionModels?: DecisionModelsConfigInput | null;
-  modelNames?: ReadonlyArray<string> | null;
   openaiApiType?: OpenAIApiType | null;
 };
 export type AzureOpenAIAuthenticationMethodInput = {
@@ -115,7 +106,6 @@ export type AzureOpenAIClientKwargsInput = {
 export type AnthropicCustomProviderConfigInput = {
   anthropicAuthenticationMethod: AnthropicAuthenticationMethodInput;
   anthropicClientKwargs?: AnthropicClientKwargsInput | null;
-  modelNames?: ReadonlyArray<string> | null;
 };
 export type AnthropicAuthenticationMethodInput = {
   apiKey: string;
@@ -127,7 +117,6 @@ export type AnthropicClientKwargsInput = {
 export type AWSBedrockCustomProviderConfigInput = {
   awsBedrockAuthenticationMethod: AWSBedrockAuthenticationMethodInput;
   awsBedrockClientKwargs: AWSBedrockClientKwargsInput;
-  modelNames?: ReadonlyArray<string> | null;
 };
 export type AWSBedrockAuthenticationMethodInput = {
   accessKeys: AWSBedrockAccessKeysInput;
@@ -148,7 +137,6 @@ export type AWSBedrockClientKwargsInput = {
 export type GoogleGenAICustomProviderConfigInput = {
   googleGenaiAuthenticationMethod: GoogleGenAIAuthenticationMethodInput;
   googleGenaiClientKwargs?: GoogleGenAIClientKwargsInput | null;
-  modelNames?: ReadonlyArray<string> | null;
 };
 export type GoogleGenAIAuthenticationMethodInput = {
   apiKey: string;
@@ -161,7 +149,6 @@ export type GoogleGenAIHttpOptionsInput = {
   headers?: any | null;
 };
 export type TypeSafeCustomProviderConfigInput = {
-  decisionModels?: DecisionModelsConfigInput | null;
   typesafeAuthenticationMethod: TypeSafeAuthenticationMethodInput;
   typesafeClientKwargs?: TypeSafeClientKwargsInput | null;
 };
@@ -171,6 +158,13 @@ export type TypeSafeAuthenticationMethodInput = {
 export type TypeSafeClientKwargsInput = {
   baseUrl?: string | null;
   defaultHeaders?: any | null;
+};
+export type ProviderModelsInput = {
+  chat?: ModelsOfTypeInput | null;
+  decision?: ModelsOfTypeInput | null;
+};
+export type ModelsOfTypeInput = {
+  names?: ReadonlyArray<string>;
 };
 export type NewCustomProviderButtonCreateMutation$variables = {
   connectionId: string;

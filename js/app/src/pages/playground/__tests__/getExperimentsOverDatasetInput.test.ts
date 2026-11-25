@@ -2,7 +2,7 @@ import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import {
   createDecisionDraft,
   createDecisionStateDraft,
-} from "@phoenix/pages/playground/decisionUtils";
+} from "@phoenix/components/playground/decisionUtils";
 import { getExperimentsOverDatasetInput } from "@phoenix/pages/playground/experimentsOverDatasetInput";
 import { createCredentialsStore, createPlaygroundStore } from "@phoenix/store";
 import type { PlaygroundEvaluatorTaskKind } from "@phoenix/store/playground";

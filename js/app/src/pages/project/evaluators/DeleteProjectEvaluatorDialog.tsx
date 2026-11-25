@@ -36,10 +36,10 @@ export function DeleteProjectEvaluatorDialog({
       onOpenChange={onOpenChange}
       onDeleted={onDeleted}
       isDeleting={isDeleting}
-      onDelete={async ({ deleteAssociatedPromptOrDecision }) => {
+      onDelete={async ({ deleteAssociatedPrompt }) => {
         await deleteProjectEvaluators({
           projectEvaluatorIds: projectEvaluators.map(({ id }) => id),
-          deleteAssociatedPromptOrDecision,
+          deleteAssociatedPrompt,
         });
         if (projectId) {
           await refetchProjectEvaluators({

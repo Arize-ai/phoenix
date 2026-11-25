@@ -1,0 +1,96 @@
+---
+title: "Decision Models as a Judge"
+description: "A decision model is a judge that answers a typed classification question directly, returning a label with per-label probabilities instead of free-form text."
+---
+
+<Note>
+  Decision models are an alternative to language-model judges for classification-style evaluations. Both are used the same way in the Phoenix SDK: you pass either one as an evaluator's judge. See [LLM as a Judge](/docs/phoenix/evaluation/concepts-evals/llm-as-a-judge) for the language-model approach.
+</Note>
+
+A language-model judge reads a prompt and generates text, then Phoenix parses a label and an explanation from that text. A **decision model** works differently: it is constrained to answer one typed question; here, which label applies; and returns the chosen label together with a probability for each option (and a confidence when the provider reports one). Because it does not generate free-form text, it returns **no explanation**.
+
+This makes a decision model a natural fit for classification, where the task is exactly to pick one label from a fixed set. You trade the written rationale of an LLM judge for a direct, structured choice with per-label probabilities.
+
+## When to Use a Decision Model
+
+Use a decision model when:
+
+- The evaluation is a classification with a fixed set of labels (binary or multi-class).
+- You want calibrated per-label probabilities rather than a single label.
+- You do not need a written explanation for each judgement.
+
+Use a [language-model judge](/docs/phoenix/evaluation/concepts-evals/llm-as-a-judge) instead when you need a human-readable rationale, or when the task is not a simple classification.
+
+## How It Works
+
+<Steps>
+  <Step title="Identify Evaluation Criteria">
+    Determine what you want to evaluate, such as faithfulness, toxicity, or relevance. See the [pre-built evaluators](/docs/phoenix/evaluation/pre-built-metrics) for examples.
+  </Step>
+  <Step title="Define the Labels">
+    A decision model answers a choice question, so define the set of labels (the `choices`) it must pick from.
+  </Step>
+  <Step title="Select a Decision Model">
+    Choose a decision model from a supported provider. The decision model is passed to the evaluator in the same place as a language model.
+  </Step>
+  <Step title="Generate Evaluations and View Results">
+    Run the evaluator across your data. Each result carries the chosen label, a numeric score, and per-label probabilities (and a confidence when the provider reports one) in its metadata — but no explanation.
+  </Step>
+</Steps>
+
+## Example
+
+Any classification evaluator, including every [pre-built metric](/docs/phoenix/evaluation/pre-built-metrics), accepts a decision model in place of a language model.
+
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals import ClassificationEvaluator, DecisionModel
+
+    evaluator = ClassificationEvaluator(
+        name="relevance",
+        prompt_template="Is the reference text relevant to the question?\n{question}\n{reference}",
+        llm=DecisionModel(provider="openai", model="gpt-6-luna"),
+        choices={"relevant": 1.0, "irrelevant": 0.0},
+    )
+
+    scores = evaluator.evaluate({
+        "question": "Where is the Eiffel Tower?",
+        "reference": "The Eiffel Tower is in Paris, France.",
+    })
+    print(scores[0])
+    # Score(label='relevant', score=1.0, metadata={'probabilities': {...}}, ...)  # no explanation
+    ```
+  </Tab>
+
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+    import { openai } from "@ai-sdk/openai";
+
+    const evaluator = createClassificationEvaluator({
+      name: "relevance",
+      model: openai.decisionModel("gpt-6-luna"),
+      promptTemplate:
+        "Is the reference text relevant to the question?\n{{question}}\n{{reference}}",
+      choices: { relevant: 1, irrelevant: 0 },
+    });
+
+    const result = await evaluator.evaluate({
+      question: "Where is the Eiffel Tower?",
+      reference: "The Eiffel Tower is in Paris, France.",
+    });
+    ```
+  </Tab>
+</Tabs>
+
+## Using Decision Models in Phoenix
+
+<CardGroup cols={2}>
+  <Card title="Custom Evaluators" icon="code" href="/docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators">
+    Build classification evaluators in Python or TypeScript, backed by a language model or a decision model.
+  </Card>
+  <Card title="Configuring the Decision Model" icon="sliders" href="/docs/phoenix/evaluation/how-to-evals/configuring-the-decision-model">
+    Decision providers, their adapters, and required parameters.
+  </Card>
+</CardGroup>

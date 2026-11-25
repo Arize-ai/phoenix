@@ -1,9 +1,10 @@
 import type { LoaderFunctionArgs } from "react-router";
 import { redirect } from "react-router";
 
+import { fetchPlaygroundDecisionAsInstance } from "@phoenix/components/playground/fetchPlaygroundDecision";
+import { fetchPlaygroundPromptAsInstance } from "@phoenix/components/playground/fetchPlaygroundPrompt";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
-import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
 import type {
   DecisionParam,
   EvaluatorTaskParam,
@@ -26,7 +27,6 @@ import {
 } from "@phoenix/store";
 
 import { fetchExperimentPlaygroundProps } from "./experimentRehydration";
-import { fetchPlaygroundDecisionAsInstance } from "./fetchPlaygroundDecision";
 import { fetchPlaygroundEvaluatorAsInstance } from "./fetchPlaygroundEvaluator";
 
 /**

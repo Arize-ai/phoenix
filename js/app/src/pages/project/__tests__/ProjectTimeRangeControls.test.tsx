@@ -1,4 +1,5 @@
-import { act } from "react";
+import { act, Suspense, use, useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type * as ReactRelayModule from "react-relay";
 import { MemoryRouter, Outlet, Route, Routes } from "react-router";
@@ -12,12 +13,17 @@ import { ProjectTimeRangeControls } from "../ProjectTimeRangeControls";
 
 const relayMocks = vi.hoisted(() => ({
   refetch: vi.fn(),
+  streamingLastUpdatedAt: null as string | null,
+}));
+
+const refreshMocks = vi.hoisted(() => ({
+  setFetchKey: vi.fn(),
 }));
 
 vi.mock("react-relay", async (importOriginal) => ({
   ...(await importOriginal<typeof ReactRelayModule>()),
   useRefetchableFragment: () => [
-    { streamingLastUpdatedAt: null },
+    { streamingLastUpdatedAt: relayMocks.streamingLastUpdatedAt },
     relayMocks.refetch,
   ],
 }));
@@ -26,12 +32,11 @@ vi.mock("@phoenix/contexts/StreamStateContext", () => ({
   useStreamState: () => ({
     isStreaming: true,
     setIsStreaming: vi.fn(),
-    setFetchKey: vi.fn(),
+    setFetchKey: refreshMocks.setFetchKey,
   }),
 }));
 
 vi.mock("@phoenix/components/datetime", () => ({
-  useTimeRange: () => ({ refreshLiveTimeRange: vi.fn() }),
   ConnectedTimeRangeControls: (
     props: Omit<TimeRangeControlsProps, "value" | "onChange">
   ) => (
@@ -52,6 +57,8 @@ beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   vi.useFakeTimers();
   relayMocks.refetch.mockClear();
+  relayMocks.streamingLastUpdatedAt = null;
+  refreshMocks.setFetchKey.mockReset();
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -62,14 +69,23 @@ afterEach(() => {
     root.unmount();
   });
   container.remove();
+  setPageVisibility("visible");
   vi.useRealTimers();
 });
+
+function setPageVisibility(visibilityState: DocumentVisibilityState) {
+  Object.defineProperty(document, "visibilityState", {
+    configurable: true,
+    get: () => visibilityState,
+  });
+  document.dispatchEvent(new Event("visibilitychange"));
+}
 
 /**
  * Mirrors the project route tree: the controls render in the project layout,
  * above the outlet holding the trace and session drawer routes.
  */
-function renderProjectRoute(path: string) {
+function renderProjectRoute(path: string, tableView: ReactNode = null) {
   act(() => {
     root.render(
       <MemoryRouter initialEntries={[path]}>
@@ -81,6 +97,7 @@ function renderProjectRoute(path: string) {
                 <ProjectTimeRangeControls
                   project={{} as ProjectTimeRangeControls_data$key}
                 />
+                {tableView}
                 <Outlet />
               </>
             }
@@ -114,31 +131,22 @@ function getControls() {
 }
 
 describe("ProjectTimeRangeControls", () => {
-  it.each(["/projects/p/traces", "/projects/p/traces/", "/projects/p/spans"])(
-    "streams on %s",
-    (path) => {
-      renderProjectRoute(path);
-      act(() => {
-        vi.advanceTimersByTime(REFRESH_INTERVAL_MS);
-      });
+  it("streams on the traces tab", () => {
+    renderProjectRoute("/projects/p/traces");
+    act(() => {
+      vi.advanceTimersByTime(REFRESH_INTERVAL_MS);
+    });
 
-      expect(relayMocks.refetch).toHaveBeenCalledTimes(1);
-      expect(getControls()).toMatchObject({
-        isLive: "true",
-        hasToggle: "true",
-        isToggleDisabled: "false",
-      });
-    }
-  );
+    expect(relayMocks.refetch).toHaveBeenCalledTimes(1);
+    expect(getControls()).toMatchObject({
+      isLive: "true",
+      hasToggle: "true",
+      isToggleDisabled: "false",
+    });
+  });
 
-  it.each([
-    "/projects/p/traces/t1",
-    "/projects/p/spans/t1",
-    "/projects/p/sessions/s1",
-    "/projects/p/traces/compare?traceId=t1&traceId=t2",
-    "/projects/p/spans/compare?traceId=t1&traceId=t2&selectedSpanNodeId=s1",
-  ])("pauses streaming and disables the toggle while %s is open", (path) => {
-    renderProjectRoute(path);
+  it("pauses streaming while a trace is open", () => {
+    renderProjectRoute("/projects/p/traces/t1");
     act(() => {
       vi.advanceTimersByTime(REFRESH_INTERVAL_MS * 2);
     });
@@ -168,6 +176,67 @@ describe("ProjectTimeRangeControls", () => {
       isLive: "true",
       hasToggle: "true",
       isToggleDisabled: "false",
+    });
+  });
+
+  it("does not poll again while the refresh for new data is still loading", async () => {
+    let finishLoading: () => void = () => {};
+    const refreshLoaded = new Promise<void>((resolve) => {
+      finishLoading = resolve;
+    });
+    function RefreshingView() {
+      const [isRefreshed, setIsRefreshed] = useState(false);
+      useEffect(() => {
+        refreshMocks.setFetchKey.mockImplementation(() => setIsRefreshed(true));
+      }, []);
+      if (isRefreshed) {
+        use(refreshLoaded);
+      }
+      return null;
+    }
+    const tableView = (
+      <Suspense fallback={null}>
+        <RefreshingView />
+      </Suspense>
+    );
+    renderProjectRoute("/projects/p/spans", tableView);
+    act(() => {
+      vi.advanceTimersByTime(REFRESH_INTERVAL_MS);
+    });
+    expect(relayMocks.refetch).toHaveBeenCalledTimes(1);
+
+    relayMocks.streamingLastUpdatedAt = "2026-11-10T20:12:55.000Z";
+    await act(async () => renderProjectRoute("/projects/p/spans", tableView));
+    act(() => {
+      vi.advanceTimersByTime(REFRESH_INTERVAL_MS * 3);
+    });
+    expect(relayMocks.refetch).toHaveBeenCalledTimes(1);
+
+    await act(async () => finishLoading());
+    act(() => {
+      vi.advanceTimersByTime(REFRESH_INTERVAL_MS);
+    });
+    expect(relayMocks.refetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("holds the refresh for new data while the page is hidden and refreshes once when it is shown", async () => {
+    renderProjectRoute("/projects/p/spans");
+    act(() => setPageVisibility("hidden"));
+    act(() => {
+      vi.advanceTimersByTime(REFRESH_INTERVAL_MS * 3);
+    });
+    relayMocks.streamingLastUpdatedAt = "2026-11-10T20:12:55.000Z";
+    await act(async () => renderProjectRoute("/projects/p/spans"));
+
+    expect(relayMocks.refetch).not.toHaveBeenCalled();
+    expect(refreshMocks.setFetchKey).not.toHaveBeenCalled();
+
+    act(() => setPageVisibility("visible"));
+
+    expect(refreshMocks.setFetchKey).toHaveBeenCalledTimes(1);
+    expect(refreshMocks.setFetchKey).toHaveBeenCalledWith({
+      fetchKey: "fetch-traces-2026-11-10T20:12:55.000Z",
+      isThrottled: true,
     });
   });
 

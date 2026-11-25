@@ -10,7 +10,9 @@ from deepdiff.diff import DeepDiff
 from sqlalchemy import select
 from sqlalchemy.dialects import postgresql as postgresql_dialect
 from sqlalchemy.dialects import sqlite as sqlite_dialect
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import RelationshipDirection, selectinload
+from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
@@ -35,6 +37,7 @@ from phoenix.db.types.prompts import (
     PromptTemplateType,
 )
 from phoenix.server.types import DbSessionFactory
+from tests.unit._helpers import _add_project
 
 
 async def test_projects_with_session_injection(
@@ -1185,6 +1188,11 @@ class TestEvaluatorPolymorphism:
 
         # ===== DELETE: Remove an evaluator =====
         async with db() as session:
+            await session.execute(
+                sa.delete(models.DatasetEvaluators).where(
+                    models.DatasetEvaluators.evaluator_id == new_eval_id
+                )
+            )
             # Delete the newly created evaluator
             evaluator_to_delete = await session.get(models.LLMEvaluator, new_eval_id)
             assert evaluator_to_delete is not None
@@ -2007,3 +2015,53 @@ def test_orm_delete_behavior_agrees_with_foreign_keys() -> None:
                     if db != orm:
                         mismatches.append(f"{mapper.class_.__name__}.{rel.key}: FK {db}, ORM {orm}")
     assert not mismatches, "\n".join(sorted(mismatches))
+
+
+@pytest.mark.parametrize("binding_kind", ["project", "dataset"])
+async def test_deleting_an_evaluator_a_live_binding_references_is_restricted(
+    db: DbSessionFactory, binding_kind: str
+) -> None:
+    async with db() as session:
+        owner = await _add_project(session, name=f"owner-{token_hex(4)}")
+        trace_project = await _add_project(session, name=f"sink-{token_hex(4)}")
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(root=f"builtin-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        dataset = models.Dataset(name=f"ds-{token_hex(4)}", metadata_={})
+        session.add_all([evaluator, dataset])
+        await session.flush()
+        if binding_kind == "project":
+            session.add(
+                models.ProjectEvaluator(
+                    project_id=owner.id,
+                    evaluator_id=evaluator.id,
+                    trace_project_id=trace_project.id,
+                    name=Identifier(root="binding"),
+                    evaluation_target="SPAN",
+                    sampling_rate=1.0,
+                )
+            )
+        else:
+            session.add(
+                models.DatasetEvaluators(
+                    dataset_id=dataset.id,
+                    evaluator_id=evaluator.id,
+                    project_id=trace_project.id,
+                    name=Identifier(root="binding"),
+                    input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                )
+            )
+        await session.flush()
+        evaluator_id = evaluator.id
+
+    async with db() as session:
+        with pytest.raises((IntegrityError, SQLiteIntegrityError)) as raised:
+            await session.execute(
+                sa.delete(models.Evaluator).where(models.Evaluator.id == evaluator_id)
+            )
+    # A live binding must keep its evaluator; SET NULL would only trip the lifecycle CHECK.
+    assert "foreign key" in str(raised.value).lower()

@@ -1,27 +1,29 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type * as ReactRelay from "react-relay";
+import type * as RelayRuntime from "relay-runtime";
 
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import { Dialog } from "@phoenix/components/core/dialog";
 import type { DecisionEvaluatorData } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
 import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorInputVariables";
 import {
+  createDecisionQuestion,
+  createDecisionStateDraft,
+} from "@phoenix/components/playground/decisionUtils";
+import {
   EvaluatorStoreProvider,
   useEvaluatorStoreInstance,
 } from "@phoenix/contexts/EvaluatorContext";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { ThemeContext } from "@phoenix/contexts/ThemeContext";
-import {
-  createDecisionQuestion,
-  createDecisionStateDraft,
-} from "@phoenix/pages/playground/decisionUtils";
 import { DEFAULT_STORE_VALUES } from "@phoenix/store/evaluatorStore";
 import { createDecisionTaskInstance } from "@phoenix/store/playground";
 
 import { DecisionDatasetEvaluatorForm } from "../DecisionDatasetEvaluatorForm";
 
-const { commit, notifySuccess, loadVersion } = vi.hoisted(() => ({
+const { commit, notifySuccess, loadVersion, subscribe } = vi.hoisted(() => ({
+  subscribe: vi.fn(),
   commit: vi.fn(),
   notifySuccess: vi.fn(),
   loadVersion: vi.fn(),
@@ -32,6 +34,14 @@ vi.mock("react-relay", async (importOriginal) => ({
     (config: object) => commit(node.params.name, config),
     false,
   ],
+  useRelayEnvironment: () => ({}),
+}));
+vi.mock("relay-runtime", async (importOriginal) => ({
+  ...(await importOriginal<typeof RelayRuntime>()),
+  requestSubscription: (_environment: unknown, config: object) => {
+    subscribe(config);
+    return { dispose: vi.fn() };
+  },
 }));
 vi.mock("@phoenix/contexts/NotificationContext", () => ({
   useNotifySuccess: () => notifySuccess,
@@ -39,13 +49,16 @@ vi.mock("@phoenix/contexts/NotificationContext", () => ({
 vi.mock("@phoenix/contexts/CredentialsContext", () => ({
   useCredentialsContext: (selector: (state: object) => unknown) => selector({}),
 }));
-vi.mock("@phoenix/pages/playground/fetchPlaygroundDecision", () => ({
+vi.mock("@phoenix/components/playground/fetchPlaygroundDecision", () => ({
   fetchPlaygroundDecisionAsInstance: (...args: unknown[]) =>
     loadVersion(...args),
 }));
-vi.mock("@phoenix/pages/playground/PlaygroundInstanceControls", () => ({
-  PlaygroundInstanceModelControls: () => <span>Decision model</span>,
-}));
+vi.mock(
+  "@phoenix/components/playground/model/PlaygroundInstanceModelControls",
+  () => ({
+    PlaygroundInstanceModelControls: () => <span>Decision model</span>,
+  })
+);
 vi.mock("@phoenix/components/evaluators/EvaluatorExampleDataset", () => ({
   EvaluatorExampleDataset: () => null,
 }));
@@ -72,7 +85,7 @@ vi.mock("@phoenix/components/evaluators/EvaluatorInputMapping", () => ({
     );
   },
 }));
-vi.mock("@phoenix/pages/playground/DecisionPromptEditor", () => ({
+vi.mock("@phoenix/components/decision/DecisionPromptEditor", () => ({
   DecisionPromptEditor: () => {
     const store = usePlaygroundStore();
     return (
@@ -167,7 +180,7 @@ vi.mock(
     ),
   })
 );
-vi.mock("@phoenix/pages/playground/DecisionVersionSelector", () => ({
+vi.mock("@phoenix/components/decision/DecisionVersionSelector", () => ({
   DecisionVersionSelector: ({
     onSelectVersion,
   }: {
@@ -200,7 +213,6 @@ const saved: DecisionEvaluatorData = {
 };
 const CREATE = "DecisionDatasetEvaluatorForm_createMutation";
 const UPDATE = "DecisionDatasetEvaluatorForm_updateMutation";
-const PREVIEW = "useEvaluatorPreviewMutation";
 
 describe("Decision dataset evaluator authoring", () => {
   let container: HTMLDivElement;
@@ -318,8 +330,10 @@ describe("Decision dataset evaluator authoring", () => {
     await click("Map answer");
     await click("Test");
     expect(calls(CREATE)).toHaveLength(0);
-    expect(calls(PREVIEW)).toHaveLength(1);
-    expect(calls(PREVIEW)[0][1].variables.input.previews[0]).toMatchObject({
+    expect(subscribe).toHaveBeenCalledTimes(1);
+    const { input } = subscribe.mock.calls[0][0].variables;
+    expect(input.subjects).toHaveLength(1);
+    expect(input).toMatchObject({
       evaluator: {
         inlineDecisionEvaluator: {
           name: "quality",

@@ -19,6 +19,19 @@ CREATE TABLE annotation_configs (
 );
 
 
+-- Table: cleanup_failures
+-- -----------------------
+CREATE TABLE cleanup_failures (
+    target_kind VARCHAR NOT NULL
+        CONSTRAINT "ck_cleanup_failures_`valid_cleanup_target_kind`"
+        CHECK (target_kind IN ('PROJECT', 'PROJECT_EVALUATOR', 'DATASET_EVALUATOR')),
+    target_id INTEGER NOT NULL,
+    failure_count INTEGER DEFAULT '0' NOT NULL,
+    retry_at TIMESTAMP NOT NULL,
+    CONSTRAINT pk_cleanup_failures PRIMARY KEY (target_kind, target_id)
+);
+
+
 -- Table: decision_labels
 -- ----------------------
 CREATE TABLE decision_labels (
@@ -79,14 +92,17 @@ CREATE TABLE generative_models (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     deleted_at TIMESTAMP,
+    type VARCHAR DEFAULT 'LLM' NOT NULL
+        CONSTRAINT "ck_generative_models_`valid_type`"
+        CHECK (type IN ('LLM', 'DECISION', 'EMBEDDING')),
     CONSTRAINT pk_generative_models PRIMARY KEY (id)
 );
 
 CREATE UNIQUE INDEX ix_generative_models_match_criteria ON generative_models
-    (name_pattern, provider, is_built_in)
+    (type, name_pattern, provider, is_built_in)
     WHERE deleted_at IS NULL;
 CREATE UNIQUE INDEX ix_generative_models_name_is_built_in ON generative_models
-    (name, is_built_in)
+    (name, is_built_in, type)
     WHERE deleted_at IS NULL;
 CREATE INDEX ix_generative_models_updated_at ON generative_models (updated_at);
 
@@ -96,6 +112,19 @@ CREATE INDEX ix_generative_models_updated_at ON generative_models (updated_at);
 CREATE TABLE languages (
     name VARCHAR NOT NULL,
     CONSTRAINT pk_languages PRIMARY KEY (name)
+);
+
+
+-- Table: model_profiles
+-- ---------------------
+CREATE TABLE model_profiles (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    model_type VARCHAR NOT NULL,
+    name VARCHAR NOT NULL,
+    CONSTRAINT uq_model_profiles_id_model_type UNIQUE (id, model_type),
+    CONSTRAINT "ck_model_profiles_`valid_model_type`"
+        CHECK (model_type IN ('CHAT', 'DECISION')),
+    CONSTRAINT "ck_model_profiles_`valid_name`" CHECK (name <> '' AND name = trim(name))
 );
 
 
@@ -135,7 +164,7 @@ CREATE TABLE project_trace_retention_policies (
 -- Table: projects
 -- ---------------
 CREATE TABLE projects (
-    id INTEGER NOT NULL,
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     name VARCHAR NOT NULL,
     description VARCHAR,
     gradient_start_color VARCHAR DEFAULT '#5bdbff' NOT NULL,
@@ -143,14 +172,17 @@ CREATE TABLE projects (
     created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
     updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
     trace_retention_policy_id INTEGER,
-    CONSTRAINT pk_projects PRIMARY KEY (id),
-    CONSTRAINT uq_projects_name UNIQUE (name),
+    deleted_at TIMESTAMP,
     CONSTRAINT fk_projects_trace_retention_policy_id_project_trace_retention_policies
         FOREIGN KEY (trace_retention_policy_id)
         REFERENCES project_trace_retention_policies (id)
         ON DELETE SET NULL
 );
 
+CREATE UNIQUE INDEX ix_projects_live_name ON projects (name)
+    WHERE deleted_at IS NULL;
+CREATE INDEX ix_projects_tombstoned ON projects (deleted_at, id)
+    WHERE deleted_at IS NOT NULL;
 CREATE INDEX ix_projects_trace_retention_policy_id ON projects
     (trace_retention_policy_id);
 
@@ -348,8 +380,6 @@ CREATE TABLE spans (
         ON DELETE CASCADE
 );
 
-CREATE INDEX ix_cumulative_llm_token_count_total ON spans
-    ((cumulative_llm_token_count_prompt + cumulative_llm_token_count_completion));
 CREATE INDEX ix_spans_parent_id ON spans (parent_id);
 CREATE INDEX ix_spans_session_id ON spans
     (CAST(JSON_EXTRACT(attributes, '$."session"."id"') AS VARCHAR))
@@ -827,9 +857,9 @@ CREATE TABLE builtin_evaluators (
 -- Table: dataset_evaluators
 -- -------------------------
 CREATE TABLE dataset_evaluators (
-    id INTEGER NOT NULL,
-    dataset_id INTEGER NOT NULL,
-    evaluator_id INTEGER NOT NULL,
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    dataset_id INTEGER,
+    evaluator_id INTEGER,
     name VARCHAR NOT NULL,
     description VARCHAR,
     output_configs JSONB,
@@ -839,17 +869,19 @@ CREATE TABLE dataset_evaluators (
     created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
     updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
     deleted_at TIMESTAMP,
-    delete_unused_evaluator BOOLEAN DEFAULT 0 NOT NULL,
-    delete_associated_prompt_or_decision BOOLEAN DEFAULT 0 NOT NULL,
-    CONSTRAINT pk_dataset_evaluators PRIMARY KEY (id),
+    CONSTRAINT "ck_dataset_evaluators_`valid_lifecycle`"
+        CHECK (
+            (deleted_at IS NULL AND dataset_id IS NOT NULL AND evaluator_id IS NOT NULL)
+            OR (deleted_at IS NOT NULL AND evaluator_id IS NULL)
+        ),
     CONSTRAINT fk_dataset_evaluators_dataset_id_datasets
         FOREIGN KEY (dataset_id)
         REFERENCES datasets (id)
-        ON DELETE CASCADE,
+        ON DELETE SET NULL,
     CONSTRAINT fk_dataset_evaluators_evaluator_id_evaluators
         FOREIGN KEY (evaluator_id)
         REFERENCES evaluators (id)
-        ON DELETE CASCADE,
+        ON DELETE RESTRICT,
     CONSTRAINT fk_dataset_evaluators_project_id_projects
         FOREIGN KEY (project_id)
         REFERENCES projects (id)
@@ -860,13 +892,14 @@ CREATE TABLE dataset_evaluators (
         ON DELETE SET NULL
 );
 
-CREATE UNIQUE INDEX ix_dataset_evaluators_dataset_id_name ON dataset_evaluators
+CREATE INDEX ix_dataset_evaluators_dataset_id ON dataset_evaluators (dataset_id);
+CREATE INDEX ix_dataset_evaluators_evaluator_id ON dataset_evaluators (evaluator_id);
+CREATE UNIQUE INDEX ix_dataset_evaluators_live_name ON dataset_evaluators
     (dataset_id, name)
     WHERE deleted_at IS NULL;
-CREATE INDEX ix_dataset_evaluators_deleted_at ON dataset_evaluators (deleted_at)
-    WHERE deleted_at IS NOT NULL;
-CREATE INDEX ix_dataset_evaluators_evaluator_id ON dataset_evaluators (evaluator_id);
 CREATE INDEX ix_dataset_evaluators_project_id ON dataset_evaluators (project_id);
+CREATE INDEX ix_dataset_evaluators_tombstoned ON dataset_evaluators (deleted_at, id)
+    WHERE deleted_at IS NOT NULL;
 CREATE INDEX ix_dataset_evaluators_user_id ON dataset_evaluators (user_id);
 
 
@@ -913,16 +946,16 @@ CREATE INDEX ix_experiments_user_id ON experiments (user_id);
 CREATE TABLE experiment_jobs (
     id INTEGER NOT NULL,
     type VARCHAR NOT NULL,
-    status VARCHAR DEFAULT 'STOPPED' NOT NULL,
+    status VARCHAR DEFAULT 'STOPPED' NOT NULL
+        CONSTRAINT "ck_experiment_jobs_`valid_experiment_status`"
+        CHECK (status IN ('RUNNING', 'COMPLETED', 'STOPPED', 'ERROR')),
     claimed_at TIMESTAMP,
     claimed_by VARCHAR,
     cooldown_until TIMESTAMP,
     max_concurrency INTEGER DEFAULT '10' NOT NULL,
-    created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT pk_experiment_jobs PRIMARY KEY (id),
     CONSTRAINT uq_experiment_jobs_type_id UNIQUE (type, id),
-    CONSTRAINT "ck_experiment_jobs_`valid_experiment_status`"
-        CHECK (status IN ('RUNNING', 'COMPLETED', 'STOPPED', 'ERROR')),
     CONSTRAINT "ck_experiment_jobs_`valid_type`"
         CHECK (type IN ('PROMPT', 'EVAL_ONLY', 'EVALUATOR', 'DECISION')),
     CONSTRAINT fk_experiment_jobs_id_experiments
@@ -1205,7 +1238,6 @@ CREATE TABLE generative_model_custom_providers (
     user_id INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    decision_sdk VARCHAR,
     CONSTRAINT pk_generative_model_custom_providers PRIMARY KEY (id),
     CONSTRAINT uq_generative_model_custom_providers_name UNIQUE (name),
     CONSTRAINT fk_generative_model_custom_providers_user_id_users
@@ -1289,6 +1321,43 @@ CREATE TABLE agent_session_snapshots (
     CONSTRAINT fk_agent_session_snapshots_agent_session_id_agent_sessions
         FOREIGN KEY (agent_session_id)
         REFERENCES agent_sessions (id)
+        ON DELETE CASCADE
+);
+
+
+-- Table: custom_provider_model_types
+-- ----------------------------------
+CREATE TABLE custom_provider_model_types (
+    provider_id INTEGER NOT NULL,
+    model_type VARCHAR NOT NULL,
+    CONSTRAINT pk_custom_provider_model_types PRIMARY KEY (provider_id, model_type),
+    CONSTRAINT "ck_custom_provider_model_types_`valid_model_type`"
+        CHECK (model_type IN ('CHAT', 'DECISION')),
+    CONSTRAINT fk_custom_provider_model_types_provider_id_generative_model_custom_providers
+        FOREIGN KEY (provider_id)
+        REFERENCES generative_model_custom_providers (id)
+        ON DELETE CASCADE
+);
+
+
+-- Table: custom_provider_model_profiles
+-- -------------------------------------
+CREATE TABLE custom_provider_model_profiles (
+    provider_id INTEGER NOT NULL,
+    model_type VARCHAR NOT NULL,
+    model_profile_id INTEGER NOT NULL,
+    position INTEGER NOT NULL,
+    CONSTRAINT pk_custom_provider_model_profiles
+        PRIMARY KEY (provider_id, model_type, position),
+    CONSTRAINT uq_custom_provider_model_profiles_model_profile_id
+        UNIQUE (model_profile_id),
+    CONSTRAINT fk_custom_provider_model_profiles_model_profile_id_model_profiles
+        FOREIGN KEY (model_profile_id, model_type)
+        REFERENCES model_profiles (id, model_type)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_custom_provider_model_profiles_provider_id_custom_provider_model_types
+        FOREIGN KEY (provider_id, model_type)
+        REFERENCES custom_provider_model_types (provider_id, model_type)
         ON DELETE CASCADE
 );
 
@@ -1509,54 +1578,56 @@ CREATE UNIQUE INDEX ix_password_reset_tokens_user_id ON password_reset_tokens (u
 -- Table: project_evaluators
 -- -------------------------
 CREATE TABLE project_evaluators (
-    id INTEGER NOT NULL,
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     project_id INTEGER NOT NULL,
-    evaluator_id INTEGER NOT NULL,
+    evaluator_id INTEGER,
     trace_project_id INTEGER NOT NULL,
     name VARCHAR NOT NULL,
-    filter_condition VARCHAR DEFAULT ('') NOT NULL,
-    sampling_rate FLOAT NOT NULL,
-    evaluation_target VARCHAR NOT NULL,
-    evaluation_delay_seconds INTEGER NOT NULL,
-    input_mapping JSONB,
-    enabled BOOLEAN DEFAULT (true) NOT NULL,
-    tracing_enabled BOOLEAN DEFAULT (true) NOT NULL,
-    created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
-    updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
-    deleted_at TIMESTAMP,
-    delete_unused_evaluator BOOLEAN DEFAULT 0 NOT NULL,
-    delete_associated_prompt_or_decision BOOLEAN DEFAULT 0 NOT NULL,
-    CONSTRAINT pk_project_evaluators PRIMARY KEY (id),
-    CONSTRAINT "ck_project_evaluators_`valid_evaluation_delay_seconds`"
+    filter_condition VARCHAR DEFAULT '' NOT NULL,
+    sampling_rate FLOAT NOT NULL
+        CONSTRAINT "ck_project_evaluators_`valid_sampling_rate`"
+        CHECK (0.0 <= sampling_rate AND sampling_rate <= 1.0),
+    evaluation_target VARCHAR NOT NULL
+        CONSTRAINT "ck_project_evaluators_`valid_evaluation_target`"
+        CHECK (evaluation_target IN ('SPAN', 'TRACE', 'SESSION')),
+    evaluation_delay_seconds INTEGER NOT NULL
+        CONSTRAINT "ck_project_evaluators_`valid_evaluation_delay_seconds`"
         CHECK (
             (evaluation_target = 'SPAN' AND evaluation_delay_seconds = 0)
             OR (evaluation_target <> 'SPAN' AND evaluation_delay_seconds >= 10)
         ),
-    CONSTRAINT "ck_project_evaluators_`valid_evaluation_target`"
-        CHECK (evaluation_target IN ('SPAN', 'TRACE', 'SESSION')),
-    CONSTRAINT "ck_project_evaluators_`valid_sampling_rate`"
-        CHECK (0.0 <= sampling_rate AND sampling_rate <= 1.0),
+    input_mapping JSONB,
+    enabled BOOLEAN DEFAULT true NOT NULL,
+    tracing_enabled BOOLEAN DEFAULT true NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    deleted_at TIMESTAMP,
+    CONSTRAINT "ck_project_evaluators_`valid_lifecycle`"
+        CHECK (
+            (deleted_at IS NULL AND evaluator_id IS NOT NULL)
+            OR (deleted_at IS NOT NULL AND evaluator_id IS NULL)
+        ),
     CONSTRAINT fk_project_evaluators_evaluator_id_evaluators
         FOREIGN KEY (evaluator_id)
         REFERENCES evaluators (id)
-        ON DELETE CASCADE,
+        ON DELETE RESTRICT,
     CONSTRAINT fk_project_evaluators_project_id_projects
         FOREIGN KEY (project_id)
         REFERENCES projects (id)
-        ON DELETE CASCADE,
+        ON DELETE RESTRICT,
     CONSTRAINT fk_project_evaluators_trace_project_id_projects
         FOREIGN KEY (trace_project_id)
         REFERENCES projects (id)
         ON DELETE RESTRICT
 );
 
-CREATE INDEX ix_project_evaluators_deleted_at ON project_evaluators (deleted_at)
-    WHERE deleted_at IS NOT NULL;
 CREATE INDEX ix_project_evaluators_evaluator_id ON project_evaluators (evaluator_id);
-CREATE INDEX ix_project_evaluators_project_id ON project_evaluators (project_id);
-CREATE UNIQUE INDEX ix_project_evaluators_project_id_name ON project_evaluators
+CREATE UNIQUE INDEX ix_project_evaluators_live_name ON project_evaluators
     (project_id, name)
     WHERE deleted_at IS NULL;
+CREATE INDEX ix_project_evaluators_project_id ON project_evaluators (project_id);
+CREATE INDEX ix_project_evaluators_tombstoned ON project_evaluators (deleted_at, id)
+    WHERE deleted_at IS NOT NULL;
 CREATE INDEX ix_project_evaluators_trace_project_id ON project_evaluators
     (trace_project_id);
 

@@ -6,15 +6,14 @@ from sqlalchemy import select
 from starlette.requests import Request
 from strawberry.relay import GlobalID
 
-from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.helpers import (
-    delete_projects_and_evaluator_trace_projects,
     exclude_dataset_evaluator_projects,
     exclude_experiment_projects,
     exclude_project_evaluator_trace_projects,
 )
+from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
@@ -28,6 +27,8 @@ from phoenix.server.api.types.ProjectTraceRetentionPolicy import (
     ProjectTraceRetentionPolicy as ProjectTraceRetentionPolicyNodeType,
 )
 from phoenix.server.authorization import is_not_locked, require_admin
+from phoenix.server.cleanup.lifecycle import tombstone_project
+from phoenix.server.dml_event import ProjectDeleteEvent, SpanDeleteEvent
 
 router = APIRouter(tags=["projects"])
 
@@ -124,7 +125,11 @@ async def get_projects(
     Raises:
         HTTPException: If the cursor format is invalid.
     """  # noqa: E501
-    stmt = select(models.Project).order_by(models.Project.id.desc())
+    stmt = (
+        select(models.Project)
+        .where(models.Project.deleted_at.is_(None))
+        .order_by(models.Project.id.desc())
+    )
     if not include_experiment_projects:
         stmt = exclude_experiment_projects(stmt)
     if not include_dataset_evaluator_projects:
@@ -300,6 +305,10 @@ async def update_project(
         [
             403,
             404,
+            {
+                "status_code": 409,
+                "description": "The project is in use by another operation (retry the delete), or it holds an evaluator's traces (delete the evaluator instead)",  # noqa: E501
+            },
             422,
         ]
     ),
@@ -324,28 +333,25 @@ async def delete_project(
     Raises:
         HTTPException: If the project identifier format is invalid, the project is not found, or it's the default project.
     """  # noqa: E501
-    async with request.app.state.db() as session:
-        project = await get_project_by_identifier(session, project_identifier)
+    try:
+        async with request.app.state.db() as session:
+            project = await get_project_by_identifier(session, project_identifier)
+            project_id = project.id
+            tombstoned_project = await tombstone_project(session, project_id=project_id)
+    except NotFound as error:
+        raise HTTPException(
+            status_code=404, detail=f"Project {project_identifier} not found"
+        ) from error
+    except BadRequest as error:
+        raise HTTPException(
+            status_code=403, detail="The default project cannot be deleted"
+        ) from error
+    except Conflict as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
 
-        # The default project must not be deleted - it's forbidden
-        if project.name == DEFAULT_PROJECT_NAME:
-            raise HTTPException(
-                status_code=403,
-                detail="The default project cannot be deleted",
-            )
-
-        holds_evaluator_traces = await session.scalar(
-            select(models.ProjectEvaluator.id)
-            .where(models.ProjectEvaluator.trace_project_id == project.id)
-            .limit(1)
-        )
-        if holds_evaluator_traces is not None:
-            raise HTTPException(
-                status_code=409,
-                detail="This project holds an evaluator's traces; delete the evaluator instead",
-            )
-
-        await delete_projects_and_evaluator_trace_projects(session, [project.id])
+    tombstoned_ids = tuple(tombstoned_project.tombstoned_project_ids)
+    request.state.event_queue.put(SpanDeleteEvent(tombstoned_ids))
+    request.state.event_queue.put(ProjectDeleteEvent(tombstoned_ids))
     return None
 
 

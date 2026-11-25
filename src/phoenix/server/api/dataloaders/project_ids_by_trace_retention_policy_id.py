@@ -32,6 +32,7 @@ class ProjectIdsByTraceRetentionPolicyIdDataLoader(DataLoader[Key, Result]):
             )
         else:
             stmt = stmt.where(Project.trace_retention_policy_id.in_(ids))
+        stmt = stmt.where(Project.deleted_at.is_(None))
         projects: defaultdict[Key, Result] = defaultdict(list)
         async with self._db.read() as session:
             data = await session.stream(stmt)

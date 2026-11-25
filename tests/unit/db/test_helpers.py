@@ -8,6 +8,7 @@ import pytest
 import sqlalchemy as sa
 from faker import Faker
 from sqlalchemy import Select, func, literal, select
+from sqlalchemy.exc import DBAPIError, EmulatedDBAPIException
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from sqlalchemy.sql import CompoundSelect
 from typing_extensions import assert_never
@@ -19,10 +20,16 @@ from phoenix.db.helpers import (
     create_experiment_examples_snapshot_insert,
     date_trunc,
     get_dataset_example_revisions,
+    get_eval_trace_ids_for_datasets,
+    get_eval_trace_ids_for_experiments,
+    is_lock_contention,
+    is_lock_not_available,
+    is_session_owner_tombstoned,
     pg_table_sizes_stmt,
     pg_total_table_size_stmt,
 )
 from phoenix.server.types import DbSessionFactory
+from tests.unit._helpers import _add_project, _add_trace, _bind_evaluator_trace_project
 
 fake = Faker()
 
@@ -1776,3 +1783,132 @@ class TestPgTableSizeStmts:
             await session.execute(sa.text("INSERT INTO not_phoenix VALUES (1)"))
             assert await session.scalar(pg_total_table_size_stmt()) == 0
             assert (await session.execute(pg_table_sizes_stmt())).all() == []
+
+
+class TestLockContentionPredicates:
+    @staticmethod
+    def _dbapi_error(*, sqlstate: str) -> DBAPIError:
+        driver_error = Exception("driver error")
+        setattr(driver_error, "sqlstate", sqlstate)
+        return DBAPIError("SELECT 1", {}, EmulatedDBAPIException("wrapper", driver_error))
+
+    @pytest.mark.parametrize(
+        "error,expected_lock_not_available,expected_lock_contention",
+        [
+            pytest.param(_dbapi_error(sqlstate="55P03"), True, True, id="lock-not-available"),
+            pytest.param(_dbapi_error(sqlstate="40P01"), False, True, id="deadlock-detected"),
+            pytest.param(_dbapi_error(sqlstate="23503"), False, False, id="other-sqlstate"),
+            pytest.param(
+                DBAPIError("SELECT 1", {}, EmulatedDBAPIException("no driver error")),
+                False,
+                False,
+                id="no-driver-sqlstate",
+            ),
+            pytest.param(Exception("55P03"), False, False, id="not-a-dbapi-error"),
+        ],
+    )
+    def test_classifies_error(
+        self,
+        error: BaseException,
+        expected_lock_not_available: bool,
+        expected_lock_contention: bool,
+    ) -> None:
+        assert is_lock_not_available(error) is expected_lock_not_available
+        assert is_lock_contention(error) is expected_lock_contention
+
+
+class TestIsSessionOwnerTombstoned:
+    async def test_purged_owner_counts_as_tombstoned(self, db: DbSessionFactory) -> None:
+        async with db() as session:
+            live_project = models.Project(name="live")
+            tombstoned_project = models.Project(
+                name="tombstoned", deleted_at=datetime.now(timezone.utc)
+            )
+            purged_project = models.Project(name="purged")
+            session.add_all([live_project, tombstoned_project, purged_project])
+            await session.flush()
+            purged_project_id = purged_project.id
+            await session.delete(purged_project)
+            await session.flush()
+            assert not await is_session_owner_tombstoned(session, live_project.id)
+            assert await is_session_owner_tombstoned(session, tombstoned_project.id)
+            assert await is_session_owner_tombstoned(session, purged_project_id)
+
+
+class TestGetEvalTraceIds:
+    async def test_only_sdk_evaluator_traces_are_returned_for_datasets_and_experiments(
+        self, db: DbSessionFactory
+    ) -> None:
+        base_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        async with db() as session:
+            sdk_evaluators_project = await _add_project(session, name="evaluators")
+            live_evaluator_sink = await _add_project(session, name=f"live-sink-{token_hex(4)}")
+            tombstoned_evaluator_sink = models.Project(
+                name=f"tombstoned-sink-{token_hex(4)}", deleted_at=base_time
+            )
+            tombstoned_standard_project = models.Project(
+                name=f"tombstoned-std-{token_hex(4)}", deleted_at=base_time
+            )
+            dataset = models.Dataset(name=f"eval-trace-ds-{token_hex(4)}", metadata_={})
+            session.add_all([tombstoned_evaluator_sink, tombstoned_standard_project, dataset])
+            await session.flush()
+            await _bind_evaluator_trace_project(session, live_evaluator_sink)
+            await _bind_evaluator_trace_project(session, tombstoned_evaluator_sink)
+
+            sdk_trace = await _add_trace(session, sdk_evaluators_project, start_time=base_time)
+            excluded_traces = [
+                await _add_trace(session, project, start_time=base_time)
+                for project in (
+                    live_evaluator_sink,
+                    tombstoned_evaluator_sink,
+                    tombstoned_standard_project,
+                )
+            ]
+
+            dataset_version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+            dataset_example = models.DatasetExample(dataset_id=dataset.id)
+            session.add_all([dataset_version, dataset_example])
+            await session.flush()
+            experiment = models.Experiment(
+                dataset_id=dataset.id,
+                dataset_version_id=dataset_version.id,
+                name=f"exp-{token_hex(4)}",
+                repetitions=1,
+                metadata_={},
+            )
+            session.add(experiment)
+            await session.flush()
+            experiment_run = models.ExperimentRun(
+                experiment_id=experiment.id,
+                dataset_example_id=dataset_example.id,
+                repetition_number=1,
+                output={"output": "ok"},
+                start_time=base_time,
+                end_time=base_time,
+            )
+            session.add(experiment_run)
+            await session.flush()
+            session.add_all(
+                models.ExperimentRunAnnotation(
+                    experiment_run_id=experiment_run.id,
+                    name=f"eval-{index}",
+                    annotator_kind="CODE",
+                    score=1.0,
+                    trace_id=linked_trace.trace_id,
+                    metadata_={},
+                    start_time=base_time,
+                    end_time=base_time,
+                )
+                for index, linked_trace in enumerate([sdk_trace, *excluded_traces])
+            )
+            await session.flush()
+
+            dataset_trace_ids = set(
+                (await session.scalars(get_eval_trace_ids_for_datasets(dataset.id))).all()
+            )
+            experiment_trace_ids = set(
+                (await session.scalars(get_eval_trace_ids_for_experiments(experiment.id))).all()
+            )
+
+        assert dataset_trace_ids == {sdk_trace.trace_id}
+        assert experiment_trace_ids == {sdk_trace.trace_id}

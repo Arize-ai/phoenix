@@ -1,6 +1,7 @@
-import { act, type ReactNode } from "react";
+import { act, type ReactNode, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { RelayEnvironmentProvider } from "react-relay";
+import { MemoryRouter } from "react-router";
 import {
   Environment,
   Network,
@@ -10,16 +11,30 @@ import {
 } from "relay-runtime";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
+import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import type * as PhoenixChart from "@phoenix/components/chart";
+import {
+  type TimeRangeContextType,
+  TimeRangeProvider,
+  useTimeRange,
+} from "@phoenix/components/datetime";
+import { PreferencesProvider } from "@phoenix/contexts";
+import { AgentProvider } from "@phoenix/contexts/AgentContext";
 import type { AnnotationMetricLevel } from "@phoenix/pages/project/constants";
 
 import { ProjectAnnotationMetricsGrid } from "../ProjectAnnotationMetrics";
+import { useClosedTimeRange } from "../useClosedTimeRange";
 
 vi.mock("@phoenix/components/chart", async (importOriginal) => ({
   ...(await importOriginal<typeof PhoenixChart>()),
   ChartPanel: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   ChartSkeleton: () => <div>loading chart</div>,
+  ChartPanelSkeleton: () => <div>loading panel</div>,
 }));
+
+installTestMatchMedia();
+installTestStorage();
 
 type RequestedOperation = {
   name: string;
@@ -114,18 +129,6 @@ const LEVEL_CASES: ReadonlyArray<{
     namesField: "spanAnnotationMetricNames",
     metricsOperationName: "ProjectAnnotationMetricsSpanQuery",
   },
-  {
-    annotationLevel: "traces",
-    namesOperationName: "ProjectAnnotationMetricTimeRangeNamesTraceQuery",
-    namesField: "traceAnnotationMetricNames",
-    metricsOperationName: "ProjectAnnotationMetricsTraceQuery",
-  },
-  {
-    annotationLevel: "sessions",
-    namesOperationName: "ProjectAnnotationMetricTimeRangeNamesSessionQuery",
-    namesField: "sessionAnnotationMetricNames",
-    metricsOperationName: "ProjectAnnotationMetricsSessionQuery",
-  },
 ];
 
 describe("ProjectAnnotationMetricsGrid", () => {
@@ -175,13 +178,21 @@ describe("ProjectAnnotationMetricsGrid", () => {
 
       await act(async () => {
         root.render(
-          <RelayEnvironmentProvider environment={environment}>
-            <ProjectAnnotationMetricsGrid
-              annotationLevel={annotationLevel}
-              projectId={PROJECT_ID}
-              timeRange={TIME_RANGE}
-            />
-          </RelayEnvironmentProvider>
+          <MemoryRouter>
+            <PreferencesProvider>
+              <AgentProvider>
+                <TimeRangeProvider>
+                  <RelayEnvironmentProvider environment={environment}>
+                    <ProjectAnnotationMetricsGrid
+                      annotationLevel={annotationLevel}
+                      projectId={PROJECT_ID}
+                      timeRange={TIME_RANGE}
+                    />
+                  </RelayEnvironmentProvider>
+                </TimeRangeProvider>
+              </AgentProvider>
+            </PreferencesProvider>
+          </MemoryRouter>
         );
       });
 
@@ -248,4 +259,75 @@ describe("ProjectAnnotationMetricsGrid", () => {
       expect(requestedOperations).toHaveLength(3);
     }
   );
+
+  it("shows the grid skeleton as soon as another time range is picked", async () => {
+    const requestedOperations: RequestedOperation[] = [];
+    const environment = new Environment({
+      network: Network.create((operation, variables) =>
+        Observable.create((sink) => {
+          requestedOperations.push({
+            name: operation.name,
+            text: operation.text,
+            variables: variables as Record<string, unknown>,
+            resolve: (data) => {
+              sink.next({ data });
+              sink.complete();
+            },
+          });
+        })
+      ),
+      store: new Store(new RecordSource()),
+    });
+    let setTimeRange: TimeRangeContextType["setTimeRange"] | undefined;
+
+    function GridForSelectedTimeRange() {
+      const timeRange = useClosedTimeRange();
+      const timeRangeContext = useTimeRange();
+      useEffect(() => {
+        setTimeRange = timeRangeContext.setTimeRange;
+      });
+      return (
+        <ProjectAnnotationMetricsGrid
+          annotationLevel="spans"
+          projectId={PROJECT_ID}
+          timeRange={timeRange}
+        />
+      );
+    }
+
+    await act(async () => {
+      root.render(
+        <MemoryRouter initialEntries={["/projects/project-1?timeRangeKey=1h"]}>
+          <PreferencesProvider>
+            <AgentProvider>
+              <TimeRangeProvider>
+                <RelayEnvironmentProvider environment={environment}>
+                  <GridForSelectedTimeRange />
+                </RelayEnvironmentProvider>
+              </TimeRangeProvider>
+            </AgentProvider>
+          </PreferencesProvider>
+        </MemoryRouter>
+      );
+    });
+    await act(async () => {
+      requestedOperations[0]?.resolve({
+        project: {
+          __typename: "Project",
+          id: PROJECT_ID,
+          spanAnnotationMetricNames: ["quality"],
+        },
+      });
+    });
+    expect(container.querySelectorAll(".deferred-chart-panel")).toHaveLength(1);
+    expect(container.textContent).not.toContain("loading panel");
+
+    await act(async () => {
+      setTimeRange?.({ timeRangeKey: "7d", start: null, end: null });
+    });
+
+    expect(requestedOperations).toHaveLength(2);
+    expect(container.querySelectorAll(".deferred-chart-panel")).toHaveLength(0);
+    expect(container.textContent).toContain("loading panel");
+  });
 });

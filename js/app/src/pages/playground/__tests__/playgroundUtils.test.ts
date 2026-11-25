@@ -1,3 +1,14 @@
+import {
+  getChatRole,
+  getToolDefinitionDisplay,
+  getToolName,
+  inferOpenAIApiTypeFromTools,
+  promptToolFromGraphQL,
+  toolToPromptToolInput,
+  extractVariablesFromInstances,
+  getVariablesMapFromInstances,
+} from "@phoenix/components/playground/playgroundInstanceUtils";
+import { getDefaultInvocationConfig } from "@phoenix/components/playground/providerAdapters";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
 import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
 import type { LlmProviderToolCall } from "@phoenix/schemas/toolCallSchemas";
@@ -19,10 +30,8 @@ import {
 import {
   extractRootVariable,
   extractRootVariables,
-  extractVariablesFromInstances,
   getAzureConfigFromAttributes,
   getBaseModelConfigFromAttributes,
-  getChatRole,
   getModelInvocationParametersFromAttributes,
   getModelProviderFromModelName,
   getOutputFromAttributes,
@@ -31,20 +40,13 @@ import {
   getToolsFromAttributes,
   getResponseFormatFromAttributes,
   getToolChoiceFromAttributes,
-  getToolDefinitionDisplay,
-  getToolName,
-  getVariablesMapFromInstances,
   inferOpenAIApiTypeFromRawToolDefinitions,
-  inferOpenAIApiTypeFromTools,
   isOpenAIResponsesSpan,
   processAttributeToolCalls,
-  promptToolFromGraphQL,
   toCanonicalToolDefinition,
   toolFromEditorJSON,
-  toolToPromptToolInput,
   transformSpanAttributesToPlaygroundInstance,
 } from "../playgroundUtils";
-import { getDefaultInvocationConfig } from "../providerAdapters";
 import type { PlaygroundSpan } from "../spanPlaygroundPageLoader";
 import type { SpanTool, SpanToolCall } from "./fixtures";
 import {

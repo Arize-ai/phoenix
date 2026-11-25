@@ -177,6 +177,7 @@
               },
               "docs/phoenix/evaluation/llm-evals",
               "docs/phoenix/evaluation/concepts-evals/llm-as-a-judge",
+              "docs/phoenix/evaluation/concepts-evals/decision-models-as-a-judge",
               {
                 "group": "Client-Side Evals (SDK)",
                 "pages": [
@@ -186,6 +187,7 @@
                     "pages": [
                       "docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators",
                       "docs/phoenix/evaluation/how-to-evals/configuring-the-llm",
+                      "docs/phoenix/evaluation/how-to-evals/configuring-the-decision-model",
                       "docs/phoenix/evaluation/how-to-evals/prompt-formats"
                     ]
                   },
@@ -1320,6 +1322,7 @@
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/list-dataset-versions",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/upload-dataset-from-json-csv-or-pyarrow",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/get-examples-from-a-dataset",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/permanently-delete-dataset-examples",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-csv-file",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-jsonl-file",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-openai-fine-tuning-jsonl-file",
@@ -1614,6 +1617,7 @@
           {
             "group": "11.2026",
             "pages": [
+              "docs/phoenix/release-notes/11-2026/11-18-2026-python-decision-model-evaluators-and-opentelemetry-js-3",
               "docs/phoenix/release-notes/11-2026/11-02-2026-authentication-by-default-and-decision-annotations"
             ]
           },

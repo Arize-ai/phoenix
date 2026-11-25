@@ -7,6 +7,8 @@ import {
   Loading,
   View,
 } from "@phoenix/components";
+import { DecisionPromptEditor } from "@phoenix/components/decision/DecisionPromptEditor";
+import { DecisionVersionSelector } from "@phoenix/components/decision/DecisionVersionSelector";
 import { DECISION_EVALUATOR_DRAFT_INSTANCE_ID } from "@phoenix/components/evaluators/decision/DecisionEvaluatorDraftProvider";
 import { DecisionMenu } from "@phoenix/components/evaluators/decision/DecisionMenu";
 import { DecisionScoringPolicyEditor } from "@phoenix/components/evaluators/decision/DecisionScoringPolicyEditor";
@@ -14,18 +16,16 @@ import { DecisionVersionPicker } from "@phoenix/components/evaluators/decision/D
 import type { DecisionEvaluatorDraft } from "@phoenix/components/evaluators/decision/useDecisionEvaluatorDraft";
 import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { EvaluatorSectionHeader } from "@phoenix/components/evaluators/EvaluatorSectionHeader";
-import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
-import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
-import { DecisionPromptEditor } from "@phoenix/pages/playground/DecisionPromptEditor";
 import {
   createDecisionDraft,
   hasDecisionErrors,
   validateDecisionDraft,
-} from "@phoenix/pages/playground/decisionUtils";
-import { DecisionVersionSelector } from "@phoenix/pages/playground/DecisionVersionSelector";
-import { PlaygroundInstanceModelControls } from "@phoenix/pages/playground/PlaygroundInstanceControls";
-import { sourceMenuContainerCSS } from "@phoenix/pages/playground/searchablePickerStyles";
-import { TemplateFormatRadioGroup } from "@phoenix/pages/playground/TemplateFormatRadioGroup";
+} from "@phoenix/components/playground/decisionUtils";
+import { PlaygroundInstanceModelControls } from "@phoenix/components/playground/model/PlaygroundInstanceModelControls";
+import { sourceMenuContainerCSS } from "@phoenix/components/playground/searchablePickerStyles";
+import { TemplateFormatRadioGroup } from "@phoenix/components/playground/TemplateFormatRadioGroup";
+import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
+import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import { selectPlaygroundInstanceDecisionPrompt } from "@phoenix/store/playground/selectors";
 
 /**
@@ -131,10 +131,9 @@ export function DecisionEvaluatorForm({
           <Suspense fallback={<Loading size="S" />}>
             <PlaygroundInstanceModelControls
               instanceId={DECISION_EVALUATOR_DRAFT_INSTANCE_ID}
-              supportsDecisionModels
-              fixedModelType="DECISION"
+              modelTypes="DECISION"
               credentialSource="server"
-              disableEphemeralRouting
+              routing="configured"
             />
           </Suspense>
         </Flex>

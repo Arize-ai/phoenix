@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
 from typing import Annotated, Any, Literal, Optional, Sequence, Union
 
@@ -10,6 +9,7 @@ import openinference.instrumentation as oi
 from opentelemetry.context import Context
 from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer, format_trace_id
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from typing_extensions import override
 
 from phoenix.db.types.annotation_configs import OutputConfigType
 from phoenix.db.types.decision_evaluators import (
@@ -47,7 +47,6 @@ from phoenix.server.evaluators.runtime.base import (
     BaseEvaluator,
     EvaluationResult,
     EvaluatorAnnotatorKind,
-    RenderedMessageTooLargeError,
     result_annotation_names,
 )
 from phoenix.server.evaluators.schemas import infer_input_schema_from_decision
@@ -199,8 +198,6 @@ class DecisionEvaluator(BaseEvaluator):
         self,
         definition: InlineDecisionEvaluatorDefinition,
         client: DecisionClient,
-        *,
-        max_request_bytes: Optional[int] = None,
     ):
         self._scoring_policy = adapt_scoring_policy(definition.questions, definition.scoring_policy)
         self._output_configs = tuple(
@@ -213,52 +210,45 @@ class DecisionEvaluator(BaseEvaluator):
         )
         self.definition = definition
         self.client = client
-        # Online evaluation caps what one call sends, as it caps an LLM judge's messages.
-        self.max_request_bytes = max_request_bytes
 
     @property
+    @override
     def name(self) -> str:
         return self.definition.name
 
     @property
+    @override
     def description(self) -> Optional[str]:
         return self.definition.description
 
     @property
+    @override
     def input_schema(self) -> dict[str, Any]:
         return self._input_schema
 
     @property
+    @override
     def output_configs(self) -> Sequence[OutputConfigType]:
         return self._output_configs
 
     @property
+    @override
     def provider_client(self) -> DecisionClient:
         return self.client
 
-    def _check_request_size(self, request: DecisionRequest) -> None:
-        if self.max_request_bytes is None:
-            return
-        state = request.state if isinstance(request.state, str) else json.dumps(request.state)
-        questions = json.dumps([question.model_dump(mode="json") for question in request.questions])
-        size = len(state.encode("utf-8")) + len(questions.encode("utf-8"))
-        if size > self.max_request_bytes:
-            raise RenderedMessageTooLargeError(
-                f"The rendered state and questions are {size} bytes, exceeding the "
-                f"{self.max_request_bytes}-byte limit. Narrow the variables with a path mapping, "
-                "or raise the limit with PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES."
-            )
-
     @property
+    @override
     def error_metadata(self) -> dict[str, Any]:
         return decision_annotation_metadata(
             ErroredDecisionAnnotation(status="error", source=self.definition.source)
         )
 
     @property
+    @override
     def annotator_kind(self) -> EvaluatorAnnotatorKind:
         return "LLM"
 
+    @override
     async def evaluate(
         self,
         *,
@@ -291,7 +281,6 @@ class DecisionEvaluator(BaseEvaluator):
                     values,
                 )
                 request = DecisionRequest(state=rendered.state, questions=rendered.questions)
-                self._check_request_size(request)
                 response = await self.client.create(request=request, tracer=collector)
                 results = project_decision_response(
                     self.definition,

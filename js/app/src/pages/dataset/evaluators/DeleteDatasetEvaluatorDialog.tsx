@@ -31,10 +31,10 @@ export function DeleteDatasetEvaluatorDialog({
       onOpenChange={onOpenChange}
       onDeleted={onDeleted}
       isDeleting={isDeleting}
-      onDelete={({ deleteAssociatedPromptOrDecision }) =>
+      onDelete={({ deleteAssociatedPrompt }) =>
         deleteDatasetEvaluators({
           datasetEvaluatorIds: datasetEvaluators.map(({ id }) => id),
-          deleteAssociatedPromptOrDecision,
+          deleteAssociatedPrompt,
           connectionIds: updateConnectionIds,
           datasetId,
         })

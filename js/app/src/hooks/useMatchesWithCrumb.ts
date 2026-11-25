@@ -13,7 +13,17 @@ export type CrumbFn = (data: unknown) => Crumb;
  * @deprecated Use CopyActionMenuItem from @phoenix/components instead
  */
 export type CopyItem = CopyActionMenuItem;
-export type CopyFn = (data: unknown) => CopyActionMenuItem[];
+/**
+ * The items a breadcrumb's copy menu offers, from the route's loader data and
+ * the breadcrumb's text once it has resolved.
+ */
+export type CopyFn<TData = unknown> = ({
+  data,
+  crumb,
+}: {
+  data: TData;
+  crumb: string;
+}) => CopyActionMenuItem[];
 /**
  * Resolves a custom destination for the preceding breadcrumb.
  * @param params - Breadcrumb navigation context.

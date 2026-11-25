@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2e1cbabb2bb3cdc7abaaf70a7182e144>>
+ * @generated SignedSource<<514d58a364a50bcca7c275ba10348eaa>>
  * @lightSyntaxTransform
  */
 
@@ -15,7 +15,6 @@ import { FragmentRefs } from "relay-runtime";
 export type SpansTable_spans$data = {
   readonly id: string;
   readonly name: string;
-  readonly spanAnnotationNames: ReadonlyArray<string>;
   readonly spans: {
     readonly edges: ReadonlyArray<{
       readonly span: {
@@ -75,7 +74,7 @@ export type SpansTable_spans$data = {
       };
     }>;
   };
-  readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment" | "SpanColumnSelector_annotations" | "SpanColumnSelector_traceAnnotations">;
+  readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment">;
   readonly " $fragmentType": "SpansTable_spans";
 };
 export type SpansTable_spans$key = {
@@ -214,26 +213,9 @@ return {
   "selections": [
     (v1/*:: as any*/),
     {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "spanAnnotationNames",
-      "storageKey": null
-    },
-    {
       "args": null,
       "kind": "FragmentSpread",
       "name": "ProjectAnnotationConfigsByNameFragment"
-    },
-    {
-      "args": null,
-      "kind": "FragmentSpread",
-      "name": "SpanColumnSelector_annotations"
-    },
-    {
-      "args": null,
-      "kind": "FragmentSpread",
-      "name": "SpanColumnSelector_traceAnnotations"
     },
     {
       "alias": "spans",
@@ -596,6 +578,6 @@ return {
 };
 })();
 
-(node as any).hash = "cc1385e0d11123430a0c24617b974656";
+(node as any).hash = "76090bc78099bdac6213a9703426d1f5";
 
 export default node;

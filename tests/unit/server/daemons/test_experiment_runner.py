@@ -102,6 +102,16 @@ from phoenix.tracers import Tracer
 # ---------------------------------------------------------------------------
 
 
+def _no_cost_calculator() -> Any:
+    """A span cost calculator that prices nothing, so traces are stored without a cost.
+
+    A bare MagicMock returns a mock as the cost, which the session cannot store.
+    """
+    calculator = MagicMock()
+    calculator.calculate_cost.return_value = None
+    return calculator
+
+
 def _make_experiment(experiment_id: int = 1) -> models.Experiment:
     exp = MagicMock(spec=models.Experiment)
     exp.id = experiment_id
@@ -1574,6 +1584,32 @@ class TestDecisionTaskWorkItem:
         on_failure.assert_awaited_once()
         assert isinstance(on_failure.await_args.args[1], ValueError)  # type: ignore[union-attr]
 
+    @pytest.mark.anyio
+    async def test_tombstoned_project_run_broadcasts_no_span(self) -> None:
+        exp = _make_running_experiment()
+        work_item = _make_decision_work_item(exp, _FailingDecisionClient(RuntimeError("unused")))
+        unsaved_root_span = MagicMock(spec=models.Span)
+        unsaved_root_span.id = None
+        unsaved_root_span.parent_id = None
+        unsaved_trace = MagicMock(spec=models.Trace)
+        unsaved_trace.trace_id = "trace"
+        unsaved_trace.spans = [unsaved_root_span]
+        tracer = MagicMock(spec=Tracer)
+        tracer.get_db_traces.return_value = [unsaved_trace]
+        persisted_run = MagicMock(spec=models.ExperimentRun)
+        persisted_run.id = 803
+        persisted_run.trace_id = None
+        with (
+            patch.object(exp, "on_task_success", AsyncMock()),
+            patch.object(exp, "_broadcast", MagicMock()) as broadcast,
+            patch.object(work_item, "_persist_run", AsyncMock(return_value=persisted_run)),
+        ):
+            await work_item._record_run(
+                start_time=datetime.now(timezone.utc), tracer=tracer, output={}
+            )
+        assert broadcast.call_count == 1
+        assert broadcast.call_args.args[0].span is None
+
 
 class TestEvalWorkItemPersistsErrorAnnotation:
     @pytest.mark.anyio
@@ -1613,6 +1649,68 @@ class TestEvalWorkItemPersistsErrorAnnotation:
         assert failure_args is not None
         assert failure_args.args[0] is eval_item
         assert failure_args.args[1] is error
+
+
+class TestEvalWorkItemSkippedPersist:
+    """A binding whose results were not persisted reports success without broadcasting."""
+
+    @pytest.mark.anyio
+    async def test_successful_eval_does_not_broadcast_when_results_are_not_persisted(
+        self,
+    ) -> None:
+        exp = _make_running_experiment()
+        eval_item = _make_eval_work_item(exp)
+        annotation = models.ExperimentRunAnnotation(
+            experiment_run_id=1, name="test-output", annotator_kind="CODE", score=1.0
+        )
+        with (
+            patch.object(
+                eval_item.evaluator, "evaluate", new_callable=AsyncMock, return_value=[{}]
+            ),
+            patch(
+                "phoenix.server.daemons.experiment_runner.evaluation_result_to_model",
+                return_value=annotation,
+            ),
+            patch.object(
+                eval_item, "_persist_eval_results", AsyncMock(return_value=False)
+            ) as persist,
+            patch.object(exp, "on_eval_success", AsyncMock()) as on_eval_success,
+            patch.object(exp, "on_failure", AsyncMock()) as on_failure,
+            patch.object(exp, "_broadcast", MagicMock()) as broadcast,
+        ):
+            await eval_item.execute()
+
+        persist.assert_awaited_once()
+        broadcast.assert_not_called()
+        on_eval_success.assert_awaited_once_with(eval_item)
+        on_failure.assert_not_awaited()
+
+    @pytest.mark.anyio
+    async def test_failed_eval_does_not_broadcast_when_error_results_are_not_persisted(
+        self,
+    ) -> None:
+        exp = _make_running_experiment()
+        eval_item = _make_eval_work_item(exp)
+        with (
+            patch.object(
+                eval_item.evaluator,
+                "evaluate",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("Bad request (injected)"),
+            ),
+            patch.object(
+                eval_item, "_persist_eval_results", AsyncMock(return_value=False)
+            ) as persist,
+            patch.object(exp, "on_eval_success", AsyncMock()) as on_eval_success,
+            patch.object(exp, "on_failure", AsyncMock()) as on_failure,
+            patch.object(exp, "_broadcast", MagicMock()) as broadcast,
+        ):
+            await eval_item.execute()
+
+        persist.assert_awaited_once()
+        broadcast.assert_not_called()
+        on_eval_success.assert_awaited_once_with(eval_item)
+        on_failure.assert_not_awaited()
 
 
 # ===========================================================================
@@ -1839,7 +1937,7 @@ def _running_evaluator_experiment(
         experiment_job=evaluator_task,
         db=db,
         decrypt=lambda b: b,
-        tracer_factory=lambda: Tracer(span_cost_calculator=cast(Any, MagicMock())),
+        tracer_factory=lambda: Tracer(span_cost_calculator=_no_cost_calculator()),
         token_buckets=_StubTokenBucketRegistry(),
         on_done=_make_on_done(),
         task_evaluator=evaluator,
@@ -2262,7 +2360,7 @@ async def _resume_decision_evaluator_experiment(
     runner = ExperimentRunner(
         db,
         decrypt=lambda b: b,
-        tracer_factory=lambda: Tracer(span_cost_calculator=cast(Any, MagicMock())),
+        tracer_factory=lambda: Tracer(span_cost_calculator=_no_cost_calculator()),
         sandbox_session_manager=cast(Any, MagicMock(replica_id="replica-1")),
         sandbox_runtime=cast(Any, MagicMock()),
     )
@@ -2543,7 +2641,7 @@ class TestLoadEvaluatorTaskConfig:
         runner = ExperimentRunner(
             db,
             decrypt=lambda b: b,
-            tracer_factory=lambda: Tracer(span_cost_calculator=cast(Any, MagicMock())),
+            tracer_factory=lambda: Tracer(span_cost_calculator=_no_cost_calculator()),
             sandbox_session_manager=cast(Any, MagicMock(replica_id="replica-1")),
             sandbox_runtime=cast(Any, MagicMock()),
         )
@@ -2616,7 +2714,7 @@ class TestLoadDatasetEvaluators:
         runner = ExperimentRunner(
             db,
             decrypt=lambda b: b,
-            tracer_factory=lambda: Tracer(span_cost_calculator=cast(Any, MagicMock())),
+            tracer_factory=lambda: Tracer(span_cost_calculator=_no_cost_calculator()),
             sandbox_session_manager=cast(Any, MagicMock(replica_id="replica-1")),
             sandbox_runtime=cast(Any, MagicMock()),
         )
@@ -2660,10 +2758,78 @@ class TestLoadDecisionTaskConfig:
         runner = ExperimentRunner(
             db,
             decrypt=lambda b: b,
-            tracer_factory=lambda: Tracer(span_cost_calculator=cast(Any, MagicMock())),
+            tracer_factory=lambda: Tracer(span_cost_calculator=_no_cost_calculator()),
             sandbox_session_manager=cast(Any, MagicMock(replica_id="replica-1")),
             sandbox_runtime=cast(Any, MagicMock()),
         )
 
         with pytest.raises(ValueError, match="custom provider 'Gone provider'.*deleted"):
             await runner._load_experiment_config(session, 1, credentials=None)
+
+
+async def test_runner_skips_dispatch_and_orphan_claim_when_storage_locked_out(
+    db: DbSessionFactory,
+) -> None:
+    runner = ExperimentRunner(
+        db,
+        decrypt=lambda b: b,
+        tracer_factory=MagicMock(),
+        sandbox_session_manager=cast(Any, MagicMock(replica_id="replica-1")),
+        sandbox_runtime=cast(Any, MagicMock()),
+    )
+    running_experiment = _make_running_experiment()
+    work_item = _make_task_work_item(running_experiment)
+    running_experiment._task_queue.append(work_item)
+    runner._experiments = {1: running_experiment}
+
+    db.should_not_insert_or_update = True
+    try:
+        assert await runner._try_get_ready_work_item() is None
+        assert len(running_experiment._task_queue) == 1
+    finally:
+        db.should_not_insert_or_update = False
+
+    assert await runner._try_get_ready_work_item() is work_item
+
+    async with db() as session:
+        dataset = models.Dataset(name=f"orphan-ds-{token_hex(4)}", description=None, metadata_={})
+        session.add(dataset)
+        await session.flush()
+        version = models.DatasetVersion(dataset_id=dataset.id, description=None, metadata_={})
+        exp_project = models.Project(name=f"orphan-exp-{token_hex(4)}")
+        session.add_all([version, exp_project])
+        await session.flush()
+        db_exp = models.Experiment(
+            dataset_id=dataset.id,
+            dataset_version_id=version.id,
+            name="orphan-exp",
+            repetitions=1,
+            metadata_={},
+            project_name=exp_project.name,
+        )
+        session.add(db_exp)
+        await session.flush()
+        stale_time = (
+            datetime.now(timezone.utc) - ExperimentRunner.STALE_CLAIM_TIMEOUT - timedelta(minutes=1)
+        )
+        session.add(
+            models.ExperimentEvalOnlyConfig(
+                id=db_exp.id,
+                status="RUNNING",
+                claimed_by="crashed-replica",
+                claimed_at=stale_time,
+            )
+        )
+        await session.flush()
+        orphan_exp_id = db_exp.id
+
+    db.should_not_insert_or_update = True
+    try:
+        await runner._resume_orphaned()
+    finally:
+        db.should_not_insert_or_update = False
+
+    async with db() as session:
+        job_row = await session.get(models.ExperimentJob, orphan_exp_id)
+        assert job_row is not None
+        assert job_row.claimed_by == "crashed-replica"

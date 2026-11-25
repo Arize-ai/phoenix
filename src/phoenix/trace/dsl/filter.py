@@ -128,9 +128,6 @@ _STRING_NAMES: typing.Mapping[str, sqlalchemy.SQLColumnExpression[typing.Any]] =
 _FLOAT_NAMES: typing.Mapping[str, sqlalchemy.SQLColumnExpression[typing.Any]] = MappingProxyType(
     {
         "latency_ms": models.Span.latency_ms,
-        "cumulative_llm_token_count_completion": models.Span.cumulative_llm_token_count_completion,
-        "cumulative_llm_token_count_prompt": models.Span.cumulative_llm_token_count_prompt,
-        "cumulative_llm_token_count_total": models.Span.cumulative_llm_token_count_total,
     }
 )
 _DATETIME_NAMES: typing.Mapping[str, sqlalchemy.SQLColumnExpression[typing.Any]] = MappingProxyType(
@@ -153,9 +150,6 @@ _BACKWARD_COMPATIBILITY_REPLACEMENTS: typing.Mapping[str, str] = MappingProxyTyp
         # for backward-compatibility
         "context.span_id": "span_id",
         "context.trace_id": "trace_id",
-        "cumulative_token_count.completion": "cumulative_llm_token_count_completion",
-        "cumulative_token_count.prompt": "cumulative_llm_token_count_prompt",
-        "cumulative_token_count.total": "cumulative_llm_token_count_total",
     }
 )
 
@@ -1096,6 +1090,10 @@ def _compile_condition(
                     aliased_annotation._identifier_attribute_alias,
                 )
             ),
+            float_keywords=(
+                aliased_annotation._score_attribute_alias
+                for aliased_annotation in aliased_annotation_relations
+            ),
         )
         translated = translator.visit(root)
         ast.fix_missing_locations(translated)
@@ -1494,6 +1492,16 @@ def root_span_scope(condition: str) -> typing.Optional[RootSpanScope]:
         # tell" rather than escaping to the caller.
         return None
     return _scope_or_none(body)
+
+
+def is_root_span_predicate(condition: str) -> bool:
+    """Whether `condition` is one root predicate (`parent_id is None` or `parent_span is
+    None`) and nothing else."""
+    try:
+        body = ast.parse(condition.strip(), mode="eval").body
+    except (SyntaxError, ValueError, RecursionError):
+        return False
+    return _root_predicate_scope(body) is not None
 
 
 def _scope_or_none(body: ast.expr) -> typing.Optional[RootSpanScope]:
@@ -2495,10 +2503,12 @@ class _FilterTranslator(_ProjectionTranslator):
         self,
         reserved_keywords: typing.Iterable[str] = (),
         string_keywords: typing.Iterable[str] = (),
+        float_keywords: typing.Iterable[str] = (),
         bindings: _FilterBindings = SPAN_BINDINGS,
     ) -> None:
         super().__init__(reserved_keywords, bindings)
         self._string_keywords = frozenset(string_keywords)
+        self._float_keywords = frozenset(float_keywords)
         self.literal_bindings: dict[str, typing.Any] = {}
         self.referenced_deferred_numbers: set[str] = set()
 
@@ -2522,6 +2532,8 @@ class _FilterTranslator(_ProjectionTranslator):
         if node.id in self._bindings.deferred_number_names:
             self.referenced_deferred_numbers.add(node.id)
             return ast.Name(id=_span_cost_binding(node.id), ctx=ast.Load())
+        if node.id in self._float_keywords:
+            return _cast_as("Float", node)
         return super().visit_Name(node)
 
     def visit_Attribute(self, node: ast.Attribute) -> typing.Any:

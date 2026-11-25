@@ -129,6 +129,7 @@ function ProjectEvaluatorTracesTable({
                 rootSpansOnly: $rootSpansOnly
                 projectEvaluatorId: $projectEvaluatorId
               )
+            ...useSpanAnnotationNames_project @defer
           }
         }
       }
@@ -152,6 +153,7 @@ function ProjectEvaluatorTracesTable({
       seed={seed}
       selectedRowId={traceId}
       projectEvaluatorId={projectEvaluatorId}
+      initialRequest={null}
       emptyState={
         <ProjectEvaluatorTracesEmpty
           hasEverRun={hasEverRun}

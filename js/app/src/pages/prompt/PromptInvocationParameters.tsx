@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import { Flex, List, ListItem, Text, View } from "@phoenix/components";
-import { readPromptInvocationParameters } from "@phoenix/pages/playground/PromptInvocationParametersReadableFragment";
+import { readPromptInvocationParameters } from "@phoenix/components/playground/PromptInvocationParametersReadableFragment";
 import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
 
 import type { PromptInvocationParameters__main$key } from "./__generated__/PromptInvocationParameters__main.graphql";

@@ -7,12 +7,14 @@ from typing import Any, Optional, Sequence, TypeAlias
 import openinference.instrumentation as oi
 from opentelemetry.context import Context
 from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer, format_trace_id
-from typing_extensions import TypedDict
+from typing_extensions import TypedDict, override
 
 from phoenix.db.types.annotation_configs import CategoricalOutputConfig, OutputConfigType
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.prompts import (
+    PromptAnthropicInvocationParameters,
+    PromptAnthropicThinkingConfigEnabled,
     PromptChatTemplate,
     PromptInvocationParameters,
     PromptTemplateFormat,
@@ -24,8 +26,8 @@ from phoenix.db.types.prompts import (
     RoleConversion,
     TextContentPart,
 )
+from phoenix.server.api.helpers.chat_clients import ChatClient
 from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
-from phoenix.server.api.helpers.playground_clients import PlaygroundClient
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import ToolCallChunk
 from phoenix.server.evaluators.input_mapping import (
@@ -39,7 +41,6 @@ from phoenix.server.evaluators.runtime.base import (
     EvaluatorAnnotatorKind,
     EvaluatorProviderClient,
     EvaluatorResultValidationError,
-    RenderedMessageTooLargeError,
     result_annotation_names,
 )
 from phoenix.server.evaluators.schemas import infer_input_schema_from_prompt_template
@@ -51,6 +52,22 @@ ToolCallId: TypeAlias = str
 class ToolCall(TypedDict):
     name: str
     arguments: str
+
+
+def _enables_extended_thinking(invocation_parameters: PromptInvocationParameters) -> bool:
+    """Checks whether Anthropic extended thinking is on, which rules out a forced tool choice.
+
+    Adaptive thinking allows a forced tool choice. A `thinking` key in `extra_body`
+    wins because the client merges `extra_body` into the request last.
+    """
+    if not isinstance(invocation_parameters, PromptAnthropicInvocationParameters):
+        return False
+    anthropic_params = invocation_parameters.anthropic
+    extra_body = anthropic_params.extra_body
+    if isinstance(extra_body, dict) and "thinking" in extra_body:
+        thinking = extra_body["thinking"]
+        return isinstance(thinking, dict) and thinking.get("type") == "enabled"
+    return isinstance(anthropic_params.thinking, PromptAnthropicThinkingConfigEnabled)
 
 
 def _request_tool_call_in_prompt(
@@ -89,10 +106,9 @@ class LLMEvaluator(BaseEvaluator):
         tools: PromptTools,
         invocation_parameters: PromptInvocationParameters,
         model_provider: ModelProvider,
-        llm_client: PlaygroundClient[Any],
+        llm_client: ChatClient[Any],
         output_configs: Sequence[CategoricalOutputConfig],
         prompt_name: str,
-        max_message_bytes: Optional[int] = None,
     ):
         self._name = name
         self._description = description
@@ -104,35 +120,41 @@ class LLMEvaluator(BaseEvaluator):
         self._llm_client = llm_client
         self._output_configs = output_configs
         self._prompt_name = prompt_name
-        self._max_message_bytes = max_message_bytes
 
     @property
+    @override
     def provider_client(self) -> EvaluatorProviderClient:
         return self._llm_client
 
     @property
+    @override
     def annotator_kind(self) -> EvaluatorAnnotatorKind:
         return "LLM"
 
     @property
+    @override
     def name(self) -> str:
         return self._name
 
     @property
+    @override
     def description(self) -> Optional[str]:
         return self._description
 
     @property
+    @override
     def output_configs(self) -> Sequence[OutputConfigType]:
         return self._output_configs
 
     @property
+    @override
     def input_schema(self) -> dict[str, Any]:
         return infer_input_schema_from_prompt_template(
             template=self._template,
             template_format=self._template_format,
         )
 
+    @override
     async def evaluate(
         self,
         *,
@@ -225,20 +247,6 @@ class LLMEvaluator(BaseEvaluator):
                             formatted_content = "".join(text_parts)
                         messages.append(create_playground_message(role, formatted_content))
 
-                    rendered_message_bytes = sum(
-                        len(message["content"].encode("utf-8")) for message in messages
-                    )
-                    if (
-                        self._max_message_bytes is not None
-                        and rendered_message_bytes > self._max_message_bytes
-                    ):
-                        raise RenderedMessageTooLargeError(
-                            f"Rendered online-eval messages are {rendered_message_bytes} bytes, "
-                            f"exceeding the {self._max_message_bytes}-byte limit. Narrow the "
-                            "slot with a path mapping, shorten the prompt, or raise the limit "
-                            "with PHOENIX_ONLINE_EVAL_MAX_LLM_MESSAGE_BYTES."
-                        )
-
                     formatted_messages = [
                         oi.Message(role=msg["role"].value.lower(), content=msg["content"])
                         for msg in messages
@@ -256,7 +264,11 @@ class LLMEvaluator(BaseEvaluator):
                     prompt_span.set_status(Status(StatusCode.OK))
 
                 tools = self._tools
-                if not self._llm_client.supports_forced_tool_choice:
+                forced_tool_choice_allowed = (
+                    self._llm_client.supports_forced_tool_choice
+                    and not _enables_extended_thinking(self._invocation_parameters)
+                )
+                if not forced_tool_choice_allowed:
                     tools, messages = _request_tool_call_in_prompt(tools, messages)
 
                 tool_call_by_id: dict[ToolCallId, ToolCall] = {}

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e7d24788add42c01da6c6dc43b6726e0>>
+ * @generated SignedSource<<87993f683e5ff3860de0d32044e2970f>>
  * @lightSyntaxTransform
  */
 
@@ -114,13 +114,6 @@ return {
             "storageKey": null
           },
           {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "id",
-            "storageKey": null
-          },
-          {
             "kind": "InlineFragment",
             "selections": [
               {
@@ -165,6 +158,13 @@ return {
             ],
             "type": "Project",
             "abstractKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "id",
+            "storageKey": null
           }
         ],
         "storageKey": null
@@ -172,12 +172,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "6f74fa682304c8e322329ebe91d73bf2",
+    "cacheID": "07ed389d6a98fc1b7d2f2042e63528c0",
     "id": null,
     "metadata": {},
     "name": "DocumentEvaluationSummaryQuery",
     "operationKind": "query",
-    "text": "query DocumentEvaluationSummaryQuery(\n  $evaluationName: String!\n  $id: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ...DocumentEvaluationSummaryValueFragment_1dJL9N\n    id\n  }\n}\n\nfragment DocumentEvaluationSummaryValueFragment_1dJL9N on Project {\n  documentEvaluationSummary(evaluationName: $evaluationName, timeRange: $timeRange) {\n    averageNdcg\n    averagePrecision\n    meanReciprocalRank\n    hitRate\n  }\n  id\n}\n"
+    "text": "query DocumentEvaluationSummaryQuery(\n  $evaluationName: String!\n  $id: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ...DocumentEvaluationSummaryValueFragment_1dJL9N\n    id\n  }\n}\n\nfragment DocumentEvaluationSummaryValueFragment_1dJL9N on Project {\n  documentEvaluationSummary(evaluationName: $evaluationName, timeRange: $timeRange) {\n    averageNdcg\n    averagePrecision\n    meanReciprocalRank\n    hitRate\n  }\n}\n"
   }
 };
 })();

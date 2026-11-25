@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from secrets import token_hex
 from typing import Optional
 
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
@@ -13,6 +14,7 @@ from strawberry import UNSET
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.helpers import is_foreign_key_violation
 from phoenix.db.types.annotation_configs import OutputConfigType
 from phoenix.db.types.decision_evaluators import DecisionScoringPolicy, adapt_scoring_policy
 from phoenix.db.types.evaluators import InputMapping
@@ -25,6 +27,7 @@ from phoenix.server.evaluators.services.dataset_bindings import (
     bind_dataset_evaluator,
     check_dataset_binding,
     dataset_binding_error,
+    lock_dataset_for_binding,
     write_dataset_evaluator,
 )
 from phoenix.server.evaluators.services.definitions import (
@@ -36,6 +39,7 @@ from phoenix.server.evaluators.services.management import (
     generate_unique_evaluator_name,
     get_live_dataset_evaluator,
     get_live_project_evaluator,
+    lock_evaluators,
     release_decision_evaluator_tag,
     validate_project_evaluator_project,
     validate_project_evaluator_target_update,
@@ -51,7 +55,6 @@ from phoenix.server.evaluators.services.project_bindings import (
     project_binding_name_taken,
     validate_decision_project_mapping,
 )
-from phoenix.server.evaluators.services.purge import purge_deleted_bindings_of_evaluator
 from phoenix.server.evaluators.snapshots import get_decision_evaluator
 from phoenix.server.evaluators.validation import validate_decision_input_mapping
 
@@ -132,6 +135,8 @@ async def create_decision_evaluator(
             await session.flush()
             await session.refresh(evaluator)
     except (IntegrityError, SQLiteIntegrityError) as error:
+        if is_foreign_key_violation(error):
+            raise NotFound(f"Decision version not found: {input.decision_version_id}") from error
         raise await evaluator_name_taken(context, input.name) from error
     except ValueError as error:
         raise BadRequest(str(error)) from error
@@ -207,6 +212,8 @@ async def patch_decision_evaluator(
             await session.flush()
             await session.refresh(evaluator)
     except (IntegrityError, SQLiteIntegrityError) as error:
+        if is_foreign_key_violation(error):
+            raise NotFound("Decision version not found") from error
         if patch.name is not UNSET and patch.name is not None:
             raise await evaluator_name_taken(context, patch.name) from error
         raise Conflict("The decision evaluator could not be updated") from error
@@ -220,9 +227,13 @@ async def delete_decision_evaluator(
 ) -> None:
     """Delete an unbound judge with the tag it runs through; the decision is kept."""
     row_id = _id(evaluator_id, "DecisionEvaluator")
-    await purge_deleted_bindings_of_evaluator(context.db, row_id)
     async with context.db() as session:
-        evaluator = await session.get(models.DecisionEvaluator, row_id, with_for_update=True)
+        await lock_evaluators(session, [row_id])
+        evaluator = await session.get(
+            models.DecisionEvaluator,
+            row_id,
+            populate_existing=True,
+        )
         if evaluator is None:
             return
         await refuse_bound_evaluator(session, evaluator.id, evaluator_id)
@@ -257,10 +268,11 @@ async def create_dataset_decision_binding(
     )
     try:
         async with context.db() as session:
+            dataset = await lock_dataset_for_binding(session, settings)
             evaluator = await get_decision_evaluator(
                 session, _id(input.evaluator_id, "DecisionEvaluator"), lock=True
             )
-            binding = await bind_dataset_evaluator(session, evaluator, settings)
+            binding = await bind_dataset_evaluator(session, evaluator, settings, dataset=dataset)
     except (IntegrityError, SQLiteIntegrityError) as error:
         raise await dataset_binding_error(
             context, error, name=settings.name, dataset_id=input.dataset_id
@@ -433,6 +445,7 @@ async def create_dataset_decision_evaluator(
     )
     try:
         async with context.db() as session:
+            dataset = await lock_dataset_for_binding(session, settings)
             evaluator = await _new_decision_evaluator_from_source(
                 session,
                 user_id=context.user_id,
@@ -443,7 +456,7 @@ async def create_dataset_decision_evaluator(
                 decision_version=decision_version,
                 scoring_policy=scoring_policy,
             )
-            binding = await bind_dataset_evaluator(session, evaluator, settings)
+            binding = await bind_dataset_evaluator(session, evaluator, settings, dataset=dataset)
     except (IntegrityError, SQLiteIntegrityError) as error:
         raise await dataset_binding_error(
             context, error, name=settings.name, dataset_id=dataset_id
@@ -473,19 +486,29 @@ async def update_dataset_decision_evaluator(
         scoring_policy=scoring_policy,
     )
     assert name is not None and input_mapping is not None
+    binding_rowid = _id(dataset_evaluator_id, "DatasetEvaluator")
     try:
         async with context.db() as session:
-            binding = await get_live_dataset_evaluator(
-                session, _id(dataset_evaluator_id, "DatasetEvaluator")
-            )
-            if binding is None:
+            binding = await get_live_dataset_evaluator(session, binding_rowid)
+            if binding is None or binding.evaluator_id is None:
                 raise NotFound("Dataset evaluator not found")
+            await lock_evaluators(session, [binding.evaluator_id])
             evaluator = await session.get(
-                models.DecisionEvaluator, binding.evaluator_id, with_for_update=True
+                models.DecisionEvaluator, binding.evaluator_id, populate_existing=True
             )
             if evaluator is None:
                 raise BadRequest("The dataset evaluator is not a decision evaluator")
-            await session.refresh(binding)
+            refreshed = await session.scalar(
+                select(models.DatasetEvaluators)
+                .where(
+                    models.DatasetEvaluators.id == binding_rowid,
+                    models.DatasetEvaluators.deleted_at.is_(None),
+                )
+                .execution_options(populate_existing=True)
+            )
+            if refreshed is None or refreshed.evaluator_id != evaluator.id:
+                raise NotFound("Dataset evaluator not found")
+            binding = refreshed
             version = await _edited_version(
                 session, evaluator, decision_version_id, decision_version
             )
@@ -543,7 +566,7 @@ async def create_project_decision_evaluator(
     try:
         async with context.db() as session:
             project = await validate_project_evaluator_project(
-                session, project_id, input.project_id
+                session, project_id, input.project_id, lock=True
             )
             evaluator = await _new_decision_evaluator_from_source(
                 session,
@@ -557,6 +580,8 @@ async def create_project_decision_evaluator(
             )
             binding = await bind_project_evaluator(session, project, evaluator, values)
     except (IntegrityError, SQLiteIntegrityError) as error:
+        if is_foreign_key_violation(error):
+            raise NotFound("Referenced evaluator dependency not found") from error
         raise await project_binding_name_taken(context, project_id, values["name"]) from error
     except ValueError as error:
         raise BadRequest(str(error)) from error
@@ -586,17 +611,29 @@ async def update_project_decision_evaluator(
     )
     project_evaluator_id = _id(input.project_evaluator_id, "ProjectEvaluator")
     await clear_queue_before_enabling(context.db, project_evaluator_id, input.enabled)
+    project_id: Optional[int] = None
     try:
         async with context.db() as session:
             binding = await get_live_project_evaluator(session, project_evaluator_id)
-            if binding is None:
+            if binding is None or binding.evaluator_id is None:
                 raise NotFound("Project evaluator not found")
+            await lock_evaluators(session, [binding.evaluator_id])
             evaluator = await session.get(
-                models.DecisionEvaluator, binding.evaluator_id, with_for_update=True
+                models.DecisionEvaluator, binding.evaluator_id, populate_existing=True
             )
             if evaluator is None:
                 raise BadRequest("The project evaluator is not a decision evaluator")
-            await session.refresh(binding)
+            refreshed = await session.scalar(
+                select(models.ProjectEvaluator)
+                .where(
+                    models.ProjectEvaluator.id == project_evaluator_id,
+                    models.ProjectEvaluator.deleted_at.is_(None),
+                )
+                .execution_options(populate_existing=True)
+            )
+            if refreshed is None or refreshed.evaluator_id != evaluator.id:
+                raise NotFound("Project evaluator not found")
+            binding = refreshed
             project_id = binding.project_id
             validate_project_evaluator_target_update(binding, input.evaluation_target)
             version = await _edited_version(
@@ -611,6 +648,9 @@ async def update_project_decision_evaluator(
                 validate_decision_project_mapping(selected, binding.input_mapping)
             binding = await apply_project_evaluator_patch(session, binding, input)
     except (IntegrityError, SQLiteIntegrityError) as error:
+        if is_foreign_key_violation(error):
+            raise NotFound("Referenced evaluator dependency not found") from error
+        assert project_id is not None
         raise await project_binding_name_taken(
             context, project_id, input.name, binding_id=project_evaluator_id
         ) from error

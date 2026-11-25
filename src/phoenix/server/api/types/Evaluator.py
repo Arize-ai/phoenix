@@ -25,6 +25,7 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.decision_evaluators import adapt_scoring_policy
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.context import Context
+from phoenix.server.api.dataloaders.annotation_summaries import Key as AnnotationSummaryKey
 from phoenix.server.api.dataloaders.project_evaluator_latest_outcomes import (
     ProjectEvaluatorLatestOutcomes,
 )
@@ -39,6 +40,7 @@ from phoenix.server.api.types.AnnotationConfig import (
     FreeformAnnotationConfig,
 )
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
+from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.DecisionScoringPolicy import DecisionScoringPolicy
 from phoenix.server.api.types.EvaluationActivity import (
     EVALUATION_ACTIVITY_RETENTION_NOTE,
@@ -49,6 +51,7 @@ from phoenix.server.api.types.EvaluatorDistribution import (
     EvaluatorDistribution,
     resolve_evaluator_distribution,
 )
+from phoenix.server.api.types.LabelFraction import LabelFraction
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -56,6 +59,7 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.SandboxConfig import Language
+from phoenix.server.api.types.SpanCostSummary import SpanCostSummary
 from phoenix.server.evaluators.input_descriptions import (
     described_code_input_schema,
     described_llm_input_schema,
@@ -1322,6 +1326,8 @@ class DatasetEvaluator(Node):
             dataset_id = await info.context.data_loaders.dataset_evaluator_fields.load(
                 (self.id, models.DatasetEvaluators.dataset_id),
             )
+        if dataset_id is None:
+            raise NotFound(f"Dataset not found for DatasetEvaluator: {self.id}")
         from .Dataset import Dataset
 
         return Dataset(id=dataset_id)
@@ -1332,6 +1338,8 @@ class DatasetEvaluator(Node):
         info: Info[Context, None],
     ) -> Evaluator:
         record = await self._get_record(info)
+        if record.evaluator_id is None:
+            raise NotFound(f"Evaluator not found: {record.evaluator_id}")
         evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
         if evaluator is None:
             raise NotFound(f"Evaluator not found: {record.evaluator_id}")
@@ -1350,6 +1358,8 @@ class DatasetEvaluator(Node):
         record = await self._get_record(info)
         if record.description is not None:
             return record.description
+        if record.evaluator_id is None:
+            return None
         evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
         if evaluator is None:
             return None
@@ -1370,6 +1380,8 @@ class DatasetEvaluator(Node):
         record = await self._get_record(info)
         configs = record.output_configs
         if configs is None:
+            if record.evaluator_id is None:
+                return []
             # Fall back to the base evaluator's stored configs
             evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
             if evaluator is None:
@@ -1448,7 +1460,7 @@ class DatasetEvaluator(Node):
 
 @strawberry.type
 class EvaluatorScoreSeriesBin:
-    """One time bin of an evaluator annotation's mean score."""
+    """One time bin of an evaluator annotation's mean score and label distribution."""
 
     timestamp: datetime
     mean_score: Optional[float]
@@ -1456,6 +1468,21 @@ class EvaluatorScoreSeriesBin:
         description=(
             "How many scored spans, traces, or sessions the bin's mean averages over; "
             "the weight to use when merging adjacent bins. Zero for an empty bin."
+        )
+    )
+    label_fractions: list[LabelFraction] = strawberry.field(
+        description=(
+            "Each label's share of the bin's resultCount spans, traces, or sessions, "
+            "weighting each one equally however many annotations it holds, in label order. "
+            "Shares of entities that carry only a score are left out, so the fractions can "
+            "sum to less than one. Empty for an empty bin."
+        )
+    )
+    result_count: int = strawberry.field(
+        description=(
+            "How many spans, traces, or sessions carry a score or a label in the bin; "
+            "the denominator of labelFractions and the weight to use when merging "
+            "adjacent bins' fractions. Zero for an empty bin."
         )
     )
 
@@ -1468,12 +1495,6 @@ class EvaluatorAnnotationScoreMetrics:
     summary: Optional[AnnotationSummary] = strawberry.field(
         description="Aggregates over the requested time range, or null when the range holds none."
     )
-    previous_summary: Optional[AnnotationSummary] = strawberry.field(
-        description=(
-            "Aggregates over the window of equal length immediately before the requested "
-            "time range, for change-over-time comparisons."
-        )
-    )
     series: list[EvaluatorScoreSeriesBin] = strawberry.field(
         description=(
             "Mean score per time bin across the requested time range. Bins follow the "
@@ -1481,7 +1502,22 @@ class EvaluatorAnnotationScoreMetrics:
             "time, sessions by their own."
         )
     )
+    previous_summary_key: strawberry.Private[AnnotationSummaryKey]
 
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Aggregates over the previous window, for change-over-time comparisons: "
+            "previousTimeRange when given, otherwise the equal-length window immediately "
+            "before the requested time range."
+        )
+    )
+    async def previous_summary(self, info: Info[Context, None]) -> Optional[AnnotationSummary]:
+        return await info.context.data_loaders.annotation_summaries.load(self.previous_summary_key)
+
+
+# Kinds whose evaluations call a model, so their traces carry model cost. Code and
+# built-in evaluators write traces too, but with no model spans.
+_COSTED_EVALUATOR_KINDS: frozenset[models.EvaluatorKind] = frozenset({"LLM", "DECISION"})
 
 _ANNOTATION_KIND_BY_TARGET: dict[str, Literal["span", "trace", "session"]] = {
     "SPAN": "span",
@@ -1523,9 +1559,67 @@ class ProjectEvaluator(Node):
 
         return Project(id=record.trace_project_id)
 
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Model cost of this evaluator's traced evaluations in the time range, read from "
+            "its trace project. Null when the cost is not measured: the evaluator makes no "
+            "model calls (code and built-in evaluators), or tracing is off."
+        )
+    )
+    async def cost_summary(
+        self, info: Info[Context, None], time_range: Optional[TimeRange] = UNSET
+    ) -> Optional[SpanCostSummary]:
+        trace_project_id = await self._cost_trace_project_id(info)
+        if trace_project_id is None:
+            return None
+        summary = await info.context.data_loaders.span_cost_summary_by_project.load(
+            (trace_project_id, time_range or None, None, None)
+        )
+        return SpanCostSummary(
+            prompt=CostBreakdown(tokens=summary.prompt.tokens, cost=summary.prompt.cost),
+            completion=CostBreakdown(
+                tokens=summary.completion.tokens, cost=summary.completion.cost
+            ),
+            total=CostBreakdown(tokens=summary.total.tokens, cost=summary.total.cost),
+        )
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Number of this evaluator's evaluations in the time range that wrote a trace, the "
+            "denominator of its average cost. Null whenever costSummary is null."
+        )
+    )
+    async def traced_evaluation_count(
+        self, info: Info[Context, None], time_range: Optional[TimeRange] = UNSET
+    ) -> Optional[int]:
+        trace_project_id = await self._cost_trace_project_id(info)
+        if trace_project_id is None:
+            return None
+        return await info.context.data_loaders.record_counts.load(
+            ("trace", trace_project_id, time_range or None, None, None)
+        )
+
+    async def _cost_trace_project_id(self, info: Info[Context, None]) -> Optional[int]:
+        """
+        The trace project to measure cost from, or None when the cost is not measured,
+        so callers skip the trace and span cost scans. A tracing-off evaluator may still
+        have traces from before tracing was turned off; they cover only part of the
+        range, so they are not reported as its cost.
+        """
+        record = await self._get_record(info)
+        if not record.tracing_enabled or record.evaluator_id is None:
+            return None
+        evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
+        if evaluator is None or evaluator.kind not in _COSTED_EVALUATOR_KINDS:
+            return None
+        return record.trace_project_id
+
     @strawberry.field
     async def evaluator(self, info: Info[Context, None]) -> Evaluator:
         record = await self._get_record(info)
+        if record.evaluator_id is None:
+            project_evaluator_id = GlobalID(ProjectEvaluator.__name__, str(self.id))
+            raise NotFound(f"Evaluator not found for project evaluator: {project_evaluator_id}")
         evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
         if evaluator is None:
             project_evaluator_id = GlobalID(ProjectEvaluator.__name__, str(self.id))
@@ -1640,7 +1734,11 @@ class ProjectEvaluator(Node):
         if time_range.start is None:
             raise BadRequest("Start time is required")
         record = await self._get_record(info)
-        evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
+        evaluator = (
+            await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
+            if record.evaluator_id is not None
+            else None
+        )
         annotation_name, config = result_annotation(record, evaluator, annotation_name)
         return await resolve_evaluator_distribution(
             db=info.context.db,
@@ -1654,10 +1752,13 @@ class ProjectEvaluator(Node):
     @strawberry.field(  # type: ignore[untyped-decorator]
         description=(
             "Score aggregates for each annotation this evaluator writes on the evaluated "
-            "project: totals over the requested time range, totals over the equal-length "
-            "window immediately before it, and a binned mean-score series. Loading is "
-            "batched across the project's evaluators, so requesting this for a page of "
-            "evaluators costs a fixed number of queries."
+            "project: totals over the requested time range, totals over the previous "
+            "window, and a binned mean-score series. An open-ended time range means "
+            '"up to now" and requires an explicit previousTimeRange, since an open '
+            "window has no duration to mirror backward; a closed range derives the "
+            "previous window as the equal-length range before it when previousTimeRange "
+            "is omitted. Loading is batched across the project's evaluators, so "
+            "requesting this for a page of evaluators costs a fixed number of queries."
         )
     )
     async def annotation_score_metrics(
@@ -1665,57 +1766,72 @@ class ProjectEvaluator(Node):
         info: Info[Context, None],
         time_range: TimeRange,
         time_bin_config: Optional[TimeBinConfig] = UNSET,
+        previous_time_range: Optional[TimeRange] = UNSET,
     ) -> list[EvaluatorAnnotationScoreMetrics]:
-        if time_range.start is None or time_range.end is None:
-            raise BadRequest("time_range must have both a start and an end")
+        if time_range.start is None:
+            raise BadRequest("time_range must have a start")
         window_start, window_end = time_range.start, time_range.end
         record = await self._get_record(info)
         kind = _ANNOTATION_KIND_BY_TARGET.get(record.evaluation_target)
-        if kind is None:
+        if kind is None or record.evaluator_id is None:
             return []
         evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
         output_configs = as_output_configs(getattr(evaluator, "output_configs", None))
         annotation_names = result_annotation_names(record.name.root, output_configs)
         time_bins = TimeBucketSpec.from_config(time_bin_config)
-        previous_time_range = TimeRange(
-            start=window_start - (window_end - window_start),
-            end=window_start,
-        )
+        if isinstance(previous_time_range, TimeRange):
+            if previous_time_range.start is None or previous_time_range.end is None:
+                raise BadRequest("previous_time_range must have both a start and an end")
+            previous_window = previous_time_range
+        elif window_end is not None:
+            previous_window = TimeRange(
+                start=window_start - (window_end - window_start),
+                end=window_start,
+            )
+        else:
+            # An open-ended window carries no duration to mirror backward, so
+            # the caller must say what "the previous window" means.
+            raise BadRequest("previous_time_range is required when time_range has no end")
         loaders = info.context.data_loaders
         project_rowid = record.project_id
 
         async def load_metrics(annotation_name: str) -> EvaluatorAnnotationScoreMetrics:
-            summary, previous_summary, mean_scores_by_bucket = await asyncio.gather(
-                loaders.annotation_summaries.load(
-                    (kind, project_rowid, time_range, None, None, annotation_name)
-                ),
-                loaders.annotation_summaries.load(
-                    (kind, project_rowid, previous_time_range, None, None, annotation_name)
-                ),
-                loaders.annotation_mean_score_time_series.load(
-                    (
-                        kind,
-                        project_rowid,
-                        (window_start, window_end),
-                        time_bins,
-                        annotation_name,
-                    )
-                ),
+            summary, bins_by_bucket = await loaders.annotation_score_metrics.load(
+                (kind, project_rowid, (window_start, window_end), time_bins, annotation_name)
             )
             series = [
                 EvaluatorScoreSeriesBin(
                     timestamp=timestamp,
-                    mean_score=mean_bin.mean_score if mean_bin is not None else None,
-                    count=mean_bin.scored_entity_count if mean_bin is not None else 0,
+                    mean_score=series_bin.mean_score if series_bin is not None else None,
+                    count=series_bin.scored_entity_count if series_bin is not None else 0,
+                    label_fractions=[
+                        LabelFraction(label=label, fraction=fraction)
+                        for label, fraction in (
+                            series_bin.label_fractions if series_bin is not None else ()
+                        )
+                    ],
+                    result_count=series_bin.result_entity_count if series_bin is not None else 0,
                 )
-                for timestamp in time_bins.timestamps(window_start, window_end)
-                for mean_bin in (mean_scores_by_bucket.get(timestamp),)
+                for timestamp in time_bins.timestamps(
+                    window_start,
+                    # An open end means "up to now"; the loader's cached bins
+                    # stay valid while the axis keeps growing between writes.
+                    window_end if window_end is not None else datetime.now(timezone.utc),
+                )
+                for series_bin in (bins_by_bucket.get(timestamp),)
             ]
             return EvaluatorAnnotationScoreMetrics(
                 annotation_name=annotation_name,
                 summary=summary,
-                previous_summary=previous_summary,
                 series=series,
+                previous_summary_key=(
+                    kind,
+                    project_rowid,
+                    previous_window,
+                    None,
+                    None,
+                    annotation_name,
+                ),
             )
 
         return list(await asyncio.gather(*map(load_metrics, annotation_names)))
@@ -1739,7 +1855,7 @@ class ProjectEvaluator(Node):
     async def input_mapping(self, info: Info[Context, None]) -> EvaluatorInputMapping:
         record = await self._get_record(info)
         input_mapping = record.input_mapping
-        if input_mapping is None:
+        if input_mapping is None and record.evaluator_id is not None:
             evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
             if isinstance(evaluator, models.CodeEvaluator):
                 input_mapping = evaluator.input_mapping

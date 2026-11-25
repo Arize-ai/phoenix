@@ -19,21 +19,6 @@ const SPAN_BOUND_VARIABLES: EvaluatorBoundVariable[] = [
   { name: "status_code", type: "text", description: "OK, ERROR, or UNSET." },
   { name: "status_message", type: "text" },
   { name: "latency_ms", type: "number" },
-  {
-    name: "cumulative_llm_token_count_prompt",
-    type: "number",
-    description: "Includes descendants.",
-  },
-  {
-    name: "cumulative_llm_token_count_completion",
-    type: "number",
-    description: "Includes descendants.",
-  },
-  {
-    name: "cumulative_llm_token_count_total",
-    type: "number",
-    description: "Includes descendants.",
-  },
   { name: "span_id", type: "text" },
   { name: "trace_id", type: "text" },
   { name: "parent_id", type: "text" },

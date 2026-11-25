@@ -2,12 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { JSONEditor } from "@phoenix/components/code";
 import { LazyEditorWrapper } from "@phoenix/components/code/LazyEditorWrapper";
+import { getToolDefinitionDisplay } from "@phoenix/components/playground/playgroundInstanceUtils";
 import {
   usePlaygroundContext,
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
 import type { BaseToolEditorProps } from "@phoenix/pages/playground/PlaygroundTool";
-import { getToolDefinitionDisplay } from "@phoenix/pages/playground/playgroundUtils";
 import { isJSONString, safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 /**

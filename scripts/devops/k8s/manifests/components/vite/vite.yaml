@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vite-dev
+  labels:
+    app: vite-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vite-dev
+  template:
+    metadata:
+      labels:
+        app: vite-dev
+    spec:
+      containers:
+        - name: vite-dev
+          image: docker.io/library/devops-vite-dev:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 5173
+          env:
+            - name: NODE_ENV
+              value: "development"
+            - name: VITE_HMR_CLIENT_PORT
+              value: "18273"
+          resources:
+            limits:
+              memory: "4Gi"
+              cpu: "4000m"
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vite-dev
+  labels:
+    app: vite-dev
+spec:
+  selector:
+    app: vite-dev
+  ports:
+    - name: http
+      port: 5173
+      targetPort: 5173

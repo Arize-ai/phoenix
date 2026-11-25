@@ -7,6 +7,18 @@ import { useTooltipTriggerState } from "react-stately";
 import { RichTooltip } from "@phoenix/components";
 import { useDimensions } from "@phoenix/hooks/useDimensions";
 
+import {
+  getSparklineBinCenter,
+  getSparklineBinExtent,
+  getSparklineBinRanges,
+  getSparklineDrawingX,
+  getSparklineWidth,
+  SPARKLINE_DRAWING_WIDTH as DRAWING_WIDTH,
+  type SparklineBinRange,
+} from "./sparklineAxis";
+
+export type { SparklineBinRange } from "./sparklineAxis";
+
 const containerCSS = css`
   display: block;
   flex: 1 1 auto;
@@ -18,12 +30,6 @@ const sparklineCSS = css`
   width: 100%;
   overflow: visible;
 `;
-
-/** The source bins a drawn point covers, as inclusive indexes into `values`. */
-export type SparklineBinRange = {
-  start: number;
-  end: number;
-};
 
 export interface SparklineProps {
   /**
@@ -52,6 +58,12 @@ export interface SparklineProps {
    * Defaults to the data's own range.
    */
   minRange?: number;
+  /**
+   * The range the values can take, e.g. an annotation's score bounds. The
+   * axis that `minRange` widens shifts to stay inside it, so a series at the
+   * bottom of its range draws at the bottom rather than at mid-height.
+   */
+  bounds?: readonly [number, number];
   /** Stroke color, e.g. a design token var. */
   color: string;
   /**
@@ -87,21 +99,8 @@ export interface SparklineProps {
   "aria-label"?: string;
 }
 
-/** Horizontal coordinate space of the drawing box; the svg stretches to fit. */
-const DRAWING_WIDTH = 64;
 /** Keeps the stroke from clipping at the extremes. */
 const VERTICAL_PADDING = 2;
-/**
- * The horizontal room each drawn point gets. Below this, adjacent bins merge:
- * steps narrower than a few pixels read as texture, not trend.
- */
-const MIN_PIXELS_PER_POINT = 4;
-/**
- * The width assumed until the container has been measured (and in
- * environments without layout), so the first paint already draws a
- * sensible number of points.
- */
-const FALLBACK_WIDTH = 160;
 const LINE_WIDTH = 1.5;
 /** The most recent value, anchoring where the series ends. */
 const END_DOT_WIDTH = 3;
@@ -139,41 +138,39 @@ type SparklinePoint = {
 };
 
 /**
- * The drawn sequence: the source bins, merged in equal-length runs so that no
- * more than `maxPoints` remain. A merged bin's value is the weighted mean of
- * the values it covers, or null when it covers none.
+ * The drawn sequence: the source bins, merged in equal-length runs so each
+ * keeps a few pixels at `width`. A merged bin's value is the weighted mean
+ * of the values it covers, or null when it covers none.
  */
 function getBins({
   values,
   weights,
-  maxPoints,
+  width,
 }: {
   values: ReadonlyArray<number | null>;
   weights: ReadonlyArray<number> | undefined;
-  maxPoints: number;
+  width: number;
 }): SparklineBin[] {
-  const runLength = Math.max(1, Math.ceil(values.length / maxPoints));
-  const bins: SparklineBin[] = [];
-  for (let start = 0; start < values.length; start += runLength) {
-    const end = Math.min(start + runLength, values.length) - 1;
-    let weightedSum = 0;
-    let totalWeight = 0;
-    for (let index = start; index <= end; index++) {
-      const value = values[index];
-      if (value == null) {
-        continue;
+  return getSparklineBinRanges({ binCount: values.length, width }).map(
+    (range, position) => {
+      let weightedSum = 0;
+      let totalWeight = 0;
+      for (let index = range.start; index <= range.end; index++) {
+        const value = values[index];
+        if (value == null) {
+          continue;
+        }
+        const weight = weights?.[index] ?? 1;
+        weightedSum += value * weight;
+        totalWeight += weight;
       }
-      const weight = weights?.[index] ?? 1;
-      weightedSum += value * weight;
-      totalWeight += weight;
+      return {
+        position,
+        range,
+        value: totalWeight > 0 ? weightedSum / totalWeight : null,
+      };
     }
-    bins.push({
-      position: bins.length,
-      range: { start, end },
-      value: totalWeight > 0 ? weightedSum / totalWeight : null,
-    });
-  }
-  return bins;
+  );
 }
 
 /**
@@ -188,12 +185,14 @@ function getPoints({
   binCount,
   height,
   minRange,
+  bounds,
 }: {
   bins: SparklineBin[];
   /** The number of source bins, which is the length of the x axis. */
   binCount: number;
   height: number;
   minRange: number | undefined;
+  bounds: readonly [number, number] | undefined;
 }): SparklinePoint[] | null {
   const present = bins.flatMap((bin) =>
     bin.value == null ? [] : [{ bin, value: bin.value }]
@@ -203,20 +202,21 @@ function getPoints({
   }
   const dataMin = Math.min(...present.map((point) => point.value));
   const dataMax = Math.max(...present.map((point) => point.value));
-  // Widen a narrow data range to the floor, keeping the data centered
+  // Widen a narrow data range to the floor, centered on the data, then shift
+  // it by at most the padding so it stays inside the bounds and never off
+  // the data
   const padding = Math.max(0, (minRange ?? 0) - (dataMax - dataMin)) / 2;
-  const min = dataMin - padding;
-  const max = dataMax + padding;
+  const shift =
+    bounds == null
+      ? 0
+      : Math.min(padding, Math.max(0, bounds[0] - (dataMin - padding))) -
+        Math.min(padding, Math.max(0, dataMax + padding - bounds[1]));
+  const min = dataMin - padding + shift;
+  const max = dataMax + padding + shift;
   const drawableHeight = height - 2 * VERTICAL_PADDING;
   return present.map(({ bin, value }) => {
-    const { start, end } = bin.range;
-    // A merged bin sits over the center of the source bins it covers
-    const axisPosition = (start + end) / 2;
     return {
-      x:
-        binCount === 1
-          ? DRAWING_WIDTH / 2
-          : (axisPosition / (binCount - 1)) * DRAWING_WIDTH,
+      x: getSparklineBinCenter({ range: bin.range, binCount }),
       // A flat series draws as a midline rather than dividing by zero
       y:
         max === min
@@ -259,27 +259,6 @@ function toDotPathData(point: SparklinePoint): string {
 }
 
 /**
- * The horizontal extent of a drawn bin on the axis: half a source bin to
- * either side of the bins it covers, clipped to the drawing box.
- */
-function getBinExtent({
-  range,
-  binCount,
-}: {
-  range: SparklineBinRange;
-  binCount: number;
-}): { left: number; right: number } {
-  if (binCount === 1) {
-    return { left: 0, right: DRAWING_WIDTH };
-  }
-  const scale = DRAWING_WIDTH / (binCount - 1);
-  return {
-    left: Math.max(0, (range.start - 0.5) * scale),
-    right: Math.min(DRAWING_WIDTH, (range.end + 0.5) * scale),
-  };
-}
-
-/**
  * A run of points as steps: a flat segment across each point's bins, with a
  * vertical riser between neighbors. Open, for stroking.
  */
@@ -292,7 +271,7 @@ function toStepPathData({
 }): string {
   return points
     .map((point, index) => {
-      const { left, right } = getBinExtent({
+      const { left, right } = getSparklineBinExtent({
         range: point.bin.range,
         binCount,
       });
@@ -312,8 +291,8 @@ function toStepAreaPathData({
   binCount: number;
   height: number;
 }): string {
-  const first = getBinExtent({ range: points[0].bin.range, binCount });
-  const last = getBinExtent({
+  const first = getSparklineBinExtent({ range: points[0].bin.range, binCount });
+  const last = getSparklineBinExtent({
     range: points[points.length - 1].bin.range,
     binCount,
   });
@@ -363,7 +342,10 @@ function CoverageStrip({
 }) {
   const cellInset = ((COVERAGE_CELL_GAP / 2) * DRAWING_WIDTH) / width;
   return bins.map((bin) => {
-    const { left, right } = getBinExtent({ range: bin.range, binCount });
+    const { left, right } = getSparklineBinExtent({
+      range: bin.range,
+      binCount,
+    });
     return (
       <rect
         key={bin.position}
@@ -401,6 +383,7 @@ export function Sparkline({
   values,
   weights,
   minRange,
+  bounds,
   color,
   showCoverage = false,
   coverageColor = color,
@@ -422,15 +405,11 @@ export function Sparkline({
     isOpen: hoveredPosition != null,
     delay: 0,
   });
-  const width =
-    dimensions != null && dimensions.width > 0
-      ? dimensions.width
-      : Math.min(FALLBACK_WIDTH, maxWidth ?? FALLBACK_WIDTH);
-  const bins = getBins({
-    values,
-    weights,
-    maxPoints: Math.max(1, Math.floor(width / MIN_PIXELS_PER_POINT)),
+  const width = getSparklineWidth({
+    measuredWidth: dimensions?.width,
+    maxWidth,
   });
+  const bins = getBins({ values, weights, width });
   // The coverage strip takes its room from the bottom of the box; the steps
   // plot into what remains
   const plotHeight = height - (showCoverage ? COVERAGE_STRIP_INSET : 0);
@@ -439,6 +418,7 @@ export function Sparkline({
     binCount: values.length,
     height: plotHeight,
     minRange,
+    bounds,
   });
   if (points == null) {
     return null;
@@ -453,14 +433,15 @@ export function Sparkline({
     renderPointDetail == null
       ? undefined
       : (event: PointerEvent<SVGSVGElement>) => {
-          const rect = event.currentTarget.getBoundingClientRect();
-          if (rect.width === 0) {
-            return;
-          }
           // The svg stretches horizontally, so hit testing maps the pointer
           // back into drawing space and snaps to the nearest point by x.
-          const drawingX =
-            ((event.clientX - rect.left) / rect.width) * DRAWING_WIDTH;
+          const drawingX = getSparklineDrawingX({
+            clientX: event.clientX,
+            rect: event.currentTarget.getBoundingClientRect(),
+          });
+          if (drawingX == null) {
+            return;
+          }
           const nearest = points.reduce((closest, point) =>
             Math.abs(point.x - drawingX) < Math.abs(closest.x - drawingX)
               ? point

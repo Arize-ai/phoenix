@@ -99,6 +99,26 @@ async def test_migrated_sqlite_file_is_in_wal_mode(tmp_path: Path) -> None:
         await engine.dispose()
 
 
+@pytest.mark.postgres_only
+async def test_postgresql_connections_plan_every_execution_with_its_parameters(
+    postgresql_engine: AsyncEngine,
+) -> None:
+    async with postgresql_engine.connect() as conn:
+        assert await conn.scalar(text("SHOW plan_cache_mode")) == "force_custom_plan"
+
+
+@pytest.mark.postgres_only
+async def test_postgresql_connection_plans_every_execution_after_a_rolled_back_transaction(
+    postgresql_engine: AsyncEngine,
+) -> None:
+    async with postgresql_engine.connect() as conn:
+        pid = await conn.scalar(text("SELECT pg_backend_pid()"))
+        await conn.rollback()
+    async with postgresql_engine.connect() as conn:
+        assert await conn.scalar(text("SELECT pg_backend_pid()")) == pid
+        assert await conn.scalar(text("SHOW plan_cache_mode")) == "force_custom_plan"
+
+
 async def test_sqlite_read_session_holds_one_snapshot(tmp_path: Path) -> None:
     path = tmp_path / "phoenix.db"
     setup = sqlean.connect(str(path))
@@ -178,6 +198,32 @@ async def test_sqlite_savepoint_release_keeps_writes_private_until_outer_commit(
             await asyncio.gather(waiting_writer, return_exceptions=True)
         await reader.dispose()
         await writer.dispose()
+
+
+async def test_sqlite_migration_rollback_undoes_schema_changes(tmp_path: Path) -> None:
+    path = tmp_path / "phoenix.db"
+    setup = sqlean.connect(str(path))
+    setup.execute("CREATE TABLE t (x INTEGER)")
+    setup.execute("CREATE INDEX ix_t ON t (x)")
+    setup.commit()
+    setup.close()
+
+    engine = sqlite_migration_engine(make_url(f"sqlite:///{path}"))
+    try:
+        async with engine.connect() as conn:
+            transaction = await conn.begin()
+            # Schema changes before the first data statement, as in a batch table rewrite.
+            await conn.exec_driver_sql("DROP INDEX ix_t")
+            await conn.exec_driver_sql("CREATE TABLE u (x INTEGER)")
+            await conn.exec_driver_sql("INSERT INTO u SELECT x FROM t")
+            await transaction.rollback()
+        async with engine.connect() as conn:
+            schema_objects = (
+                await conn.execute(text("SELECT type, name FROM sqlite_master ORDER BY name"))
+            ).all()
+    finally:
+        await engine.dispose()
+    assert [tuple(row) for row in schema_objects] == [("index", "ix_t"), ("table", "t")]
 
 
 def test_standalone_alembic_sqlite_url_migrates_via_sqlean(tmp_path: Path) -> None:

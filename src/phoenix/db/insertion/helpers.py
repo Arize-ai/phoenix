@@ -2,13 +2,12 @@ from abc import ABC
 from collections.abc import Awaitable, Callable, Iterable, Iterator, Mapping, Sequence
 from datetime import datetime, timezone
 from enum import Enum, auto
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
-from sqlalchemy import Insert, func, update
+from sqlalchemy import ColumnElement, Insert, TextClause, func, update
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
-from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import KeyedColumnElement
 from typing_extensions import TypeAlias, assert_never
@@ -16,6 +15,7 @@ from typing_extensions import TypeAlias, assert_never
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, truncate_name
 from phoenix.db.models import Base
+from phoenix.server.cost_tracking.helpers import get_model_name
 from phoenix.trace.attributes import get_attribute_value
 
 
@@ -33,19 +33,6 @@ class OnConflict(Enum):
     DO_UPDATE = auto()
 
 
-def get_sqlstate(error: DBAPIError) -> Optional[str]:
-    """Read a driver's SQLSTATE without parsing its error message."""
-    try:
-        driver_error = error.driver_exception
-    except ValueError:
-        # SQLAlchemy's emulated errors can be constructed without a driver error.
-        return None
-    for name in ("sqlstate", "pgcode"):
-        if isinstance(code := getattr(driver_error, name, None), str):
-            return code
-    return None
-
-
 def insert_on_conflict(
     *records: Mapping[str, Any],
     table: type[Base],
@@ -54,6 +41,7 @@ def insert_on_conflict(
     on_conflict: OnConflict = OnConflict.DO_UPDATE,
     set_: Optional[Mapping[str, Any]] = None,
     constraint_name: Optional[str] = None,
+    index_where: Optional[Union[ColumnElement[bool], TextClause]] = None,
 ) -> Insert:
     """
     Dialect specific insertion statement using ON CONFLICT DO syntax.
@@ -71,6 +59,19 @@ def insert_on_conflict(
     constraint = constraint_name or truncate_name("_".join(("uq", table.__tablename__, *unique_by)))
     if dialect is SupportedSQLDialect.POSTGRESQL:
         stmt_postgresql = insert_postgresql(table).values(records)
+        if index_where is not None:
+            if on_conflict is OnConflict.DO_NOTHING:
+                return stmt_postgresql.on_conflict_do_nothing(
+                    index_elements=unique_by,
+                    index_where=index_where,
+                )
+            if on_conflict is OnConflict.DO_UPDATE:
+                return stmt_postgresql.on_conflict_do_update(
+                    index_elements=unique_by,
+                    index_where=index_where,
+                    set_=set_ if set_ else dict(_clean(stmt_postgresql.excluded.items())),
+                )
+            assert_never(on_conflict)
         if on_conflict is OnConflict.DO_NOTHING:
             return stmt_postgresql.on_conflict_do_nothing(constraint=constraint)
         if on_conflict is OnConflict.DO_UPDATE:
@@ -82,10 +83,11 @@ def insert_on_conflict(
     if dialect is SupportedSQLDialect.SQLITE:
         stmt_sqlite = insert_sqlite(table).values(records)
         if on_conflict is OnConflict.DO_NOTHING:
-            return stmt_sqlite.on_conflict_do_nothing(unique_by)
+            return stmt_sqlite.on_conflict_do_nothing(unique_by, index_where=index_where)
         if on_conflict is OnConflict.DO_UPDATE:
             return stmt_sqlite.on_conflict_do_update(
                 unique_by,
+                index_where=index_where,
                 set_=set_ if set_ else dict(_clean(stmt_sqlite.excluded.items())),
             )
         assert_never(on_conflict)
@@ -142,14 +144,25 @@ def as_kv(obj: models.Base) -> Iterator[tuple[str, Any]]:
         yield k, v
 
 
+_COST_SPAN_KINDS = frozenset(
+    (
+        OpenInferenceSpanKindValues.LLM.value,
+        OpenInferenceSpanKindValues.DECISION.value,
+        OpenInferenceSpanKindValues.EMBEDDING.value,
+    )
+)
+
+
 def should_calculate_span_cost(
     attributes: Optional[Mapping[str, Any]],
 ) -> bool:
-    return bool(
-        (span_kind := get_attribute_value(attributes, SpanAttributes.OPENINFERENCE_SPAN_KIND))
-        and isinstance(span_kind, str)
-        and span_kind == OpenInferenceSpanKindValues.LLM.value
-        and (llm_name := get_attribute_value(attributes, SpanAttributes.LLM_MODEL_NAME))
-        and isinstance(llm_name, str)
-        and llm_name.strip()
+    """
+    Whether the span is an LLM, DECISION or EMBEDDING span with a model name to price it by.
+    The name is read by `get_model_name`, as in the cost lookup.
+    """
+    span_kind = get_attribute_value(attributes, SpanAttributes.OPENINFERENCE_SPAN_KIND)
+    return (
+        isinstance(span_kind, str)
+        and span_kind in _COST_SPAN_KINDS
+        and bool(get_model_name(attributes))
     )

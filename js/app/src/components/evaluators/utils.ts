@@ -11,8 +11,8 @@ import type {
 } from "@phoenix/components/dataset/__generated__/CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation.graphql";
 import type { UpdateDatasetLLMEvaluatorInput } from "@phoenix/components/dataset/__generated__/EditLLMDatasetEvaluatorSlideover_updateLLMEvaluatorMutation.graphql";
 import type { utils_datasetExampleToEvaluatorInput_example$key } from "@phoenix/components/evaluators/__generated__/utils_datasetExampleToEvaluatorInput_example.graphql";
+import { getInstancePromptParamsFromStore } from "@phoenix/components/playground/playgroundPromptUtils";
 import type { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
-import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/playgroundPromptUtils";
 import {
   evaluatorInputDescriptionsSchema,
   type EvaluatorInputSchemaInput,

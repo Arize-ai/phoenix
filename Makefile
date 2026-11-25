@@ -33,7 +33,7 @@ NC := \033[0m # No Color
 	setup setup-remote-export install-python install-node \
 	graphql schema-graphql relay-build \
 	openapi schema-openapi schema-generative-ui ui-message-stream-fixtures codegen-python-client codegen-ts-client codegen-ts-app codegen-harbor-graphql \
-	dev dev-backend dev-frontend dev-docker dev-mock-llm \
+	dev dev-backend dev-frontend dev-stack dev-mock-llm \
 	test test-python test-frontend test-ts test-helm test-jcs doctest typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
@@ -73,7 +73,7 @@ help: ## Show this help message
 	@echo -e "  $(YELLOW)dev$(NC)                   - Full dev environment (backend + frontend)"
 	@echo -e "  dev-backend            - Backend only (FastAPI server)"
 	@echo -e "  dev-frontend           - Frontend only (React dev server)"
-	@echo -e "  dev-docker             - Docker devops environment (use ARGS= for arguments)"
+	@echo -e "  dev-stack              - Containerized devops stack (ARGS= or PHOENIX_DEV_ENGINE=)"
 	@echo -e "  dev-mock-llm           - Start the mock LLM server"
 	@echo -e ""
 	@echo -e "$(GREEN)Testing:$(NC)"
@@ -554,13 +554,13 @@ test-helm: ## Run comprehensive Helm chart tests
 	$(UV) run python scripts/ci/test_helm.py
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
-dev-docker: ## Run Docker devops environment (use ARGS= to pass arguments, default: up)
-	@echo -e "$(CYAN)Starting Docker devops environment...$(NC)"
-	cd scripts/docker/devops && bash dev.sh $(or $(ARGS),up)
+dev-stack: ## Run containerized devops stack (use ARGS= or PHOENIX_DEV_ENGINE= to configure)
+	@echo -e "$(CYAN)Starting devops stack...$(NC)"
+	cd scripts/devops && bash dev.sh $(or $(ARGS),up)
 
 dev-mock-llm: ## Start the mock LLM server
 	@echo -e "$(CYAN)Starting mock LLM server...$(NC)"
-	cd scripts/docker/devops/mock-llm-server && $(PNPM) install && $(PNPM) run build:all && $(PNPM) start
+	cd scripts/devops/mock-llm-server && $(PNPM) install && $(PNPM) run build:all && $(PNPM) start
 
 gh-comment-watch: ## Start the GitHub comment watcher
 	@echo -e "$(CYAN)Starting GH Comment Watch...$(NC)"

@@ -588,7 +588,10 @@ class SpanQuery(_HasTmpSuffix):
             select(row_id)
             .join(models.Trace)
             .join(models.Project)
-            .where(models.Project.name == project_name)
+            .where(
+                models.Project.name == project_name,
+                models.Project.deleted_at.is_(None),
+            )
         )
         if start_time:
             stmt = stmt.where(start_time <= models.Span.start_time)
@@ -826,7 +829,10 @@ def _get_spans_dataframe(
         )
         .join(models.Trace)
         .join(models.Project)
-        .where(models.Project.name == project_name)
+        .where(
+            models.Project.name == project_name,
+            models.Project.deleted_at.is_(None),
+        )
     )
     if span_filter:
         stmt = span_filter(stmt)

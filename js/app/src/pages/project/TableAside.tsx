@@ -5,6 +5,7 @@ import type { PanelImperativeHandle } from "react-resizable-panels";
 
 import {
   Button,
+  ContextualHelp,
   CopyField,
   CopyInput,
   ErrorBoundary,
@@ -128,21 +129,38 @@ export function TableAsideToggleButton() {
   );
 }
 
+const statHelpCSS = css`
+  max-width: 280px;
+`;
+
 /**
  * A single labeled stat in an aside's Stats panel.
  */
 export function StatItem({
   label,
+  help,
   children,
 }: {
   label: string;
+  /**
+   * What the stat means, behind an info icon beside the label. Use it when
+   * the label alone does not say how to read the value.
+   */
+  help?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <Flex direction="column" flex="none">
-      <Text elementType="h3" size="S" color="text-700">
-        {label}
-      </Text>
+      <Flex direction="row" alignItems="center" gap="size-25">
+        <Text elementType="h3" size="S" color="text-700">
+          {label}
+        </Text>
+        {help != null ? (
+          <ContextualHelp variant="info" placement="top" css={statHelpCSS}>
+            {typeof help === "string" ? <Text size="S">{help}</Text> : help}
+          </ContextualHelp>
+        ) : null}
+      </Flex>
       {children}
     </Flex>
   );
@@ -251,7 +269,7 @@ export function ProjectInfoTitledPanel({
 /**
  * Loading placeholder for a table aside while its stats query is in flight.
  */
-function TableAsideSkeleton() {
+export function TableAsideSkeleton() {
   return (
     <View padding="size-200" overflow="hidden" height="100%" aria-hidden="true">
       <Flex direction="column" gap="size-200" minWidth="size-3400">

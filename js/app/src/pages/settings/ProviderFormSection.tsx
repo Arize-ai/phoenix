@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
-import { Children, useState } from "react";
+import { Children, useId, useState } from "react";
 import type { Control, FieldPath } from "react-hook-form";
 import { useFormState, useWatch } from "react-hook-form";
 
@@ -8,27 +8,42 @@ import {
   Disclosure,
   DisclosurePanel,
   DisclosureTrigger,
-  SectionHeading,
+  Heading,
+  Text,
 } from "@phoenix/components";
 
 import type { ProviderFormData } from "./CustomProviderForm";
 
 const providerFormSectionCSS = css`
-  & + & {
-    border-top: 1px solid var(--global-border-color-default);
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-100);
+  .provider-form-section__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--global-dimension-size-200);
+  }
+  .provider-form-section__titles {
+    display: flex;
+    flex-direction: column;
+    gap: var(--global-dimension-size-25);
+    min-width: 0;
+  }
+  .provider-form-section__extra {
+    flex: none;
   }
   .provider-form-section__body {
     display: flex;
     flex-direction: column;
     gap: var(--global-dimension-size-100);
-    padding: var(--global-dimension-size-200);
   }
 `;
 
 /**
- * A full-width section of the custom provider form: a heading bar with an
- * optional subtitle and controls, over the section's fields. Consecutive
- * sections are separated by a rule, so the form reads as one panel.
+ * A titled group of fields in the custom provider form: a heading with an
+ * optional subtitle and controls, over the section's fields. The heading names
+ * the section for assistive technology.
  */
 export function ProviderFormSection({
   title,
@@ -43,11 +58,28 @@ export function ProviderFormSection({
   /** Omit to show only the heading bar. */
   children?: ReactNode;
 }) {
+  const headingId = useId();
   return (
-    <section className="provider-form-section" css={providerFormSectionCSS}>
-      <SectionHeading bordered={false} subtitle={subtitle} extra={extra}>
-        {title}
-      </SectionHeading>
+    <section
+      className="provider-form-section"
+      css={providerFormSectionCSS}
+      aria-labelledby={headingId}
+    >
+      <div className="provider-form-section__header">
+        <div className="provider-form-section__titles">
+          <Heading level={3} id={headingId}>
+            {title}
+          </Heading>
+          {subtitle ? (
+            <Text size="XS" color="text-700">
+              {subtitle}
+            </Text>
+          ) : null}
+        </div>
+        {extra ? (
+          <div className="provider-form-section__extra">{extra}</div>
+        ) : null}
+      </div>
       {/* Children that all render nothing leave only the heading bar. */}
       {Children.toArray(children).length > 0 ? (
         <div className="provider-form-section__body">{children}</div>

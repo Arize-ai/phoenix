@@ -20,6 +20,8 @@ from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import AlreadyExists, BadRequest, Conflict, NotFound
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.cleanup.lifecycle import tombstone_dataset_evaluators
+from phoenix.server.dml_event import ProjectDeleteEvent, SpanDeleteEvent
 from phoenix.server.evaluators.runtime.builtin import get_builtin_evaluator_by_key
 from phoenix.server.evaluators.services.definitions import (
     EvaluatorServiceContext,
@@ -36,7 +38,7 @@ from phoenix.server.evaluators.services.management import (
     get_live_dataset_evaluator,
     get_project_for_dataset_evaluator,
     is_sole_evaluator_binding,
-    mark_bindings_deleted,
+    lock_evaluators,
     parse_evaluator_id,
 )
 from phoenix.server.evaluators.services.prompt_source import CreatePromptSource
@@ -119,7 +121,7 @@ class UpdateDatasetCodeEvaluatorInput:
 @dataclass(kw_only=True)
 class DeleteDatasetEvaluatorsInput:
     dataset_evaluator_ids: list[GlobalID]
-    delete_associated_prompt_or_decision: bool = False
+    delete_associated_prompt: bool = False
 
 
 async def create_dataset_llm_evaluator(
@@ -137,6 +139,7 @@ async def create_dataset_llm_evaluator(
     output_configs = check_output_configs("LLM", input.output_configs)
     try:
         async with context.db() as session:
+            dataset = await lock_dataset_for_binding(session, binding)
             evaluator = await create_llm_definition(
                 session,
                 name=await generate_unique_evaluator_name(session, binding.name),
@@ -147,7 +150,9 @@ async def create_dataset_llm_evaluator(
                 input_schema=input.input_schema,
                 binding_name=binding.name,
             )
-            dataset_evaluator = await bind_dataset_evaluator(session, evaluator, binding)
+            dataset_evaluator = await bind_dataset_evaluator(
+                session, evaluator, binding, dataset=dataset
+            )
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
         raise await dataset_binding_error(
             context, error, name=binding.name, dataset_id=input.dataset_id
@@ -181,7 +186,8 @@ async def write_dataset_evaluator(
         .returning(models.DatasetEvaluators)
     )
     if row is None:
-        raise NotFound(f"Dataset evaluator not found: {dataset_evaluator_id}")
+        binding_gid = GlobalID("DatasetEvaluator", str(dataset_evaluator_id))
+        raise NotFound(f"DatasetEvaluator with id {binding_gid} not found")
     return row
 
 
@@ -214,7 +220,7 @@ async def update_dataset_llm_evaluator(
                 )
             )
             if evaluator_id is not None:
-                await session.get(models.LLMEvaluator, evaluator_id, with_for_update=True)
+                await lock_evaluators(session, [evaluator_id])
             pair = (
                 await session.execute(
                     select(models.DatasetEvaluators, models.LLMEvaluator)
@@ -275,13 +281,8 @@ async def update_dataset_llm_evaluator(
 async def delete_dataset_evaluators(
     context: EvaluatorServiceContext, input: DeleteDatasetEvaluatorsInput
 ) -> list[GlobalID]:
-    """Delete bindings, returning those deleted now; missing or already deleted ones are skipped.
-
-    A deleted binding disappears at once, and its trace project and traces are removed in the
-    background. LLM and code definitions that nothing else binds are removed with them;
-    built-ins are retained. Associated prompts are removed only when requested and no LLM
-    evaluator references them.
-    """
+    """Tombstone bindings, enqueue asynchronous reclamation, and optionally collect unreferenced
+    evaluator definitions and their associated prompts or decisions."""
     dataset_evaluator_rowids: list[int] = []
     for dataset_evaluator_gid in input.dataset_evaluator_ids:
         try:
@@ -297,16 +298,17 @@ async def delete_dataset_evaluators(
         return []
 
     async with context.db() as session:
-        deleted_rowids = await mark_bindings_deleted(
+        delete_result = await tombstone_dataset_evaluators(
             session,
-            models.DatasetEvaluators,
-            dataset_evaluator_rowids,
-            delete_unused_evaluator=True,
-            delete_associated_prompt_or_decision=input.delete_associated_prompt_or_decision,
+            binding_ids=dataset_evaluator_rowids,
+            collect_unused_evaluator=True,
+            delete_associated_prompt=input.delete_associated_prompt,
         )
-    if deleted_rowids:
-        context.wake_evaluator_purger()
-    return [GlobalID("DatasetEvaluator", str(rowid)) for rowid in deleted_rowids]
+    if delete_result.tombstoned_project_ids and context.event_queue is not None:
+        tombstoned_ids = tuple(delete_result.tombstoned_project_ids)
+        context.event_queue.put(SpanDeleteEvent(tombstoned_ids))
+        context.event_queue.put(ProjectDeleteEvent(tombstoned_ids))
+    return [GlobalID("DatasetEvaluator", str(row_id)) for row_id in delete_result.binding_ids]
 
 
 async def create_dataset_builtin_evaluator(
@@ -328,13 +330,16 @@ async def create_dataset_builtin_evaluator(
 
     try:
         async with context.db() as session:
+            dataset = await lock_dataset_for_binding(session, binding)
             builtin_db = await session.get(models.BuiltinEvaluator, built_in_evaluator_id)
             if builtin_db is None:
                 raise NotFound(f"Built-in evaluator with id {input.evaluator_id} not found")
             builtin_evaluator = get_builtin_evaluator_by_key(builtin_db.key)
             if builtin_evaluator is None:
                 raise NotFound(f"Built-in evaluator class not found for key: {builtin_db.key}")
-            dataset_evaluator = await bind_dataset_evaluator(session, builtin_db, binding)
+            dataset_evaluator = await bind_dataset_evaluator(
+                session, builtin_db, binding, dataset=dataset
+            )
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
         raise await dataset_binding_error(
             context, error, name=binding.name, dataset_id=input.dataset_id
@@ -462,11 +467,13 @@ async def create_dataset_code_evaluator(
 
     try:
         async with context.db() as session:
+            dataset = await lock_dataset_for_binding(session, binding)
             code_evaluator: Optional[models.CodeEvaluator]
             if evaluator_id is not None:
                 # Locked so a concurrent definition delete sees the binding.
+                await lock_evaluators(session, [evaluator_id])
                 code_evaluator = await session.get(
-                    models.CodeEvaluator, evaluator_id, with_for_update=True
+                    models.CodeEvaluator, evaluator_id, populate_existing=True
                 )
                 if code_evaluator is None:
                     raise NotFound(f"Code evaluator with id {input.evaluator_id} not found")
@@ -481,7 +488,9 @@ async def create_dataset_code_evaluator(
                     user_id=context.user_id,
                     description=input.description,
                 )
-            dataset_evaluator = await bind_dataset_evaluator(session, code_evaluator, binding)
+            dataset_evaluator = await bind_dataset_evaluator(
+                session, code_evaluator, binding, dataset=dataset
+            )
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
         raise await dataset_binding_error(
             context, error, name=binding.name, dataset_id=input.dataset_id
@@ -603,12 +612,16 @@ async def create_dataset_llm_binding(
     evaluator_rowid = _decode_id(input.evaluator_id, "LLMEvaluator", "evaluator")
     try:
         async with context.db() as session:
+            dataset = await lock_dataset_for_binding(session, binding)
+            await lock_evaluators(session, [evaluator_rowid])
             evaluator = await session.get(
-                models.LLMEvaluator, evaluator_rowid, with_for_update=True
+                models.LLMEvaluator, evaluator_rowid, populate_existing=True
             )
             if evaluator is None:
                 raise NotFound(f"LLM evaluator not found: {input.evaluator_id}")
-            dataset_evaluator = await bind_dataset_evaluator(session, evaluator, binding)
+            dataset_evaluator = await bind_dataset_evaluator(
+                session, evaluator, binding, dataset=dataset
+            )
     except (PostgreSQLIntegrityError, SQLiteIntegrityError) as error:
         raise await dataset_binding_error(
             context, error, name=binding.name, dataset_id=input.dataset_id
@@ -658,16 +671,29 @@ def check_dataset_binding(
     )
 
 
-async def bind_dataset_evaluator(
-    session: AsyncSession, evaluator: models.Evaluator, binding: DatasetBinding
-) -> models.DatasetEvaluators:
-    """Bind an evaluator to a dataset with its own trace project, after check_dataset_binding.
-    A decision evaluator's mapping must fill its variables from an experiment run."""
-    dataset_name = await session.scalar(
-        select(models.Dataset.name).where(models.Dataset.id == binding.dataset_rowid)
+async def lock_dataset_for_binding(
+    session: AsyncSession, binding: DatasetBinding
+) -> models.Dataset:
+    """Lock the owner before acquiring evaluator locks when attaching a binding."""
+    dataset = await session.get(
+        models.Dataset,
+        binding.dataset_rowid,
+        with_for_update={"key_share": True},
     )
-    if dataset_name is None:
+    if dataset is None:
         raise NotFound(f"Dataset not found: {binding.dataset_id}")
+    return dataset
+
+
+async def bind_dataset_evaluator(
+    session: AsyncSession,
+    evaluator: models.Evaluator,
+    binding: DatasetBinding,
+    *,
+    dataset: models.Dataset,
+) -> models.DatasetEvaluators:
+    """Bind an evaluator after locking the dataset owner, then its evaluator."""
+    dataset_name = dataset.name
     output_configs = (
         dataset_binding_overrides(evaluator, binding.output_configs)
         if binding.output_configs is not None
@@ -732,8 +758,21 @@ async def dataset_binding_error(
     )
     if is_foreign_key_violation(error):
         if dataset_evaluator_id is not None:
-            return NotFound(f"Dataset evaluator not found: {dataset_evaluator_id}")
-        return NotFound(f"Dataset not found: {dataset_id}")
+            assert binding_rowid is not None
+            async with context.db() as session:
+                still_live = await get_live_dataset_evaluator(session, binding_rowid)
+            if still_live is None:
+                return NotFound(f"Dataset evaluator not found: {dataset_evaluator_id}")
+            return NotFound("Referenced evaluator dependency not found")
+        if dataset_id is not None:
+            dataset_rowid = _decode_id(dataset_id, "Dataset", "dataset")
+            async with context.db() as session:
+                dataset_exists = await session.scalar(
+                    select(models.Dataset.id).where(models.Dataset.id == dataset_rowid)
+                )
+            if dataset_exists is None:
+                return NotFound(f"Dataset not found: {dataset_id}")
+        return NotFound("Referenced evaluator dependency not found")
     existing_id: Optional[int] = None
     if name is not UNSET and name is not None:
         name = Identifier.model_validate(name)
@@ -745,7 +784,10 @@ async def dataset_binding_error(
             query = query.where(
                 models.DatasetEvaluators.dataset_id
                 == select(models.DatasetEvaluators.dataset_id)
-                .where(models.DatasetEvaluators.id == binding_rowid)
+                .where(
+                    models.DatasetEvaluators.id == binding_rowid,
+                    models.DatasetEvaluators.deleted_at.is_(None),
+                )
                 .scalar_subquery(),
                 models.DatasetEvaluators.id != binding_rowid,
             )
@@ -773,16 +815,18 @@ async def detach_dataset_evaluators(
     *,
     dataset_id: Optional[GlobalID] = None,
 ) -> None:
-    """Delete bindings while preserving shared definitions and prompts.
+    """Tombstone bindings and enqueue background trace-project reclamation while preserving
+    shared definitions and prompts.
 
-    A deleted binding disappears at once, and its trace project and traces are removed in the
-    background. Missing or already deleted bindings are ignored. With a dataset, a binding of
-    another dataset is refused before any change.
+    Missing or already-deleted bindings are ignored. With a dataset, a live binding of another
+    dataset is refused before any change.
     """
     rowids = [
         _decode_id(binding_id, "DatasetEvaluator", "dataset evaluator")
         for binding_id in dataset_evaluator_ids
     ]
+    if not rowids:
+        return
     async with context.db() as session:
         elsewhere: Sequence[int] = []
         if dataset_id is not None:
@@ -791,8 +835,11 @@ async def detach_dataset_evaluators(
                 await session.scalars(
                     select(models.DatasetEvaluators.id).where(
                         models.DatasetEvaluators.id.in_(rowids),
-                        models.DatasetEvaluators.dataset_id != dataset_rowid,
                         models.DatasetEvaluators.deleted_at.is_(None),
+                        (
+                            models.DatasetEvaluators.dataset_id.is_(None)
+                            | (models.DatasetEvaluators.dataset_id != dataset_rowid)
+                        ),
                     )
                 )
             ).all()
@@ -800,15 +847,16 @@ async def detach_dataset_evaluators(
             listed = ", ".join(str(GlobalID("DatasetEvaluator", str(i))) for i in elsewhere)
             raise BadRequest(f"These bindings belong to another dataset: {listed}")
 
-        deleted_rowids = await mark_bindings_deleted(
+        delete_result = await tombstone_dataset_evaluators(
             session,
-            models.DatasetEvaluators,
-            rowids,
-            delete_unused_evaluator=False,
-            delete_associated_prompt_or_decision=False,
+            binding_ids=rowids,
+            collect_unused_evaluator=False,
+            delete_associated_prompt=False,
         )
-    if deleted_rowids:
-        context.wake_evaluator_purger()
+    if delete_result.tombstoned_project_ids and context.event_queue is not None:
+        tombstoned_ids = tuple(delete_result.tombstoned_project_ids)
+        context.event_queue.put(SpanDeleteEvent(tombstoned_ids))
+        context.event_queue.put(ProjectDeleteEvent(tombstoned_ids))
 
 
 async def patch_dataset_evaluator(
@@ -824,7 +872,7 @@ async def patch_dataset_evaluator(
     try:
         async with context.db() as session:
             row = await get_live_dataset_evaluator(session, row_id)
-            if row is None:
+            if row is None or row.evaluator_id is None:
                 raise NotFound(f"Dataset evaluator not found: {dataset_evaluator_id}")
             kind = await session.scalar(
                 select(models.Evaluator.kind).where(models.Evaluator.id == row.evaluator_id)

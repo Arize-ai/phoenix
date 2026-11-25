@@ -1,5 +1,6 @@
 from asyncio import sleep
-from datetime import datetime
+from collections.abc import AsyncIterator
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
@@ -15,10 +16,12 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
 from opentelemetry.proto.resource.v1.resource_pb2 import Resource
 from opentelemetry.proto.trace.v1.trace_pb2 import ResourceSpans, ScopeSpans
-from sqlalchemy import insert, select
+from sqlalchemy import func, insert, select, update
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.server.api.exceptions import Conflict, NotFound
+from phoenix.server.api.routers.v1 import traces as traces_router
 from phoenix.server.types import DbSessionFactory
 from tests.unit._helpers import (
     _add_live_session_work_unit,
@@ -26,6 +29,7 @@ from tests.unit._helpers import (
     _add_project_session,
     _add_span,
     _add_trace,
+    _bind_evaluator_trace_project,
 )
 
 
@@ -709,6 +713,37 @@ async def test_transfer_traces_moves_traces_to_destination(
     assert source_rowid not in set(moved)
 
 
+async def test_transfer_traces_rejects_deleted_source_project(
+    db: DbSessionFactory,
+    httpx_client: httpx2.AsyncClient,
+) -> None:
+    source_rowid, trace_rowids = await _project_with_traces(db, "dead-src-proj", 1, "cccc")
+    await _project_with_traces(db, "live-dst-proj", 1, "dddd")
+    async with db() as session:
+        await session.execute(
+            update(models.Project)
+            .where(models.Project.id == source_rowid)
+            .values(deleted_at=datetime.fromisoformat("2021-01-02T00:00:00.000+00:00"))
+        )
+
+    response = await httpx_client.post(
+        "v1/traces/transfer",
+        json={
+            "trace_identifiers": [str(GlobalID("Trace", str(rowid))) for rowid in trace_rowids],
+            "destination_project_identifier": "live-dst-proj",
+        },
+    )
+    assert response.status_code == 404
+    assert response.text == "One or more traces not found"
+    async with db() as session:
+        remaining_project_rowids = set(
+            await session.scalars(
+                select(models.Trace.project_rowid).where(models.Trace.id.in_(trace_rowids))
+            )
+        )
+    assert remaining_project_rowids == {source_rowid}
+
+
 async def test_transfer_traces_accepts_project_global_id(
     db: DbSessionFactory,
     httpx_client: httpx2.AsyncClient,
@@ -851,3 +886,96 @@ async def test_transfer_traces_unparseable_identifier(
         },
     )
     assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# DELETE /v1/projects/{project_identifier}/traces
+# ---------------------------------------------------------------------------
+
+
+async def test_delete_project_traces_returns_conflict_when_the_clear_gives_up(
+    db: DbSessionFactory,
+    httpx_client: httpx2.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _give_up(*args: Any, **kwargs: Any) -> AsyncIterator[Any]:
+        raise Conflict("Some traces are in use by another operation; run the clear again.")
+        yield
+
+    monkeypatch.setattr(traces_router, "clear_project_traces_in_batches", _give_up)
+    project_rowid, _ = await _project_with_traces(db, "busy-proj", 1, "eeee")
+
+    response = await httpx_client.delete(
+        f"v1/projects/{GlobalID('Project', str(project_rowid))}/traces",
+        params={"start_time": "2021-01-01T00:00:00Z", "end_time": "2021-01-02T00:00:00Z"},
+    )
+    assert response.status_code == 409
+    assert response.text == "Some traces are in use by another operation; run the clear again."
+
+
+async def test_delete_project_traces_names_the_requested_project_when_it_disappears(
+    db: DbSessionFactory,
+    httpx_client: httpx2.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _project_vanished(*args: Any, **kwargs: Any) -> AsyncIterator[Any]:
+        raise NotFound("Project 12345 not found")
+        yield
+
+    monkeypatch.setattr(traces_router, "clear_project_traces_in_batches", _project_vanished)
+    project_rowid, _ = await _project_with_traces(db, "vanishing-proj", 1, "ffff")
+    project_identifier = str(GlobalID("Project", str(project_rowid)))
+
+    response = await httpx_client.delete(
+        f"v1/projects/{project_identifier}/traces",
+        params={"start_time": "2021-01-01T00:00:00Z", "end_time": "2021-01-02T00:00:00Z"},
+    )
+    assert response.status_code == 404
+    assert response.text == f"Project {project_identifier} not found"
+
+
+async def test_delete_project_traces_clears_evaluator_trace_project(
+    db: DbSessionFactory,
+    httpx_client: httpx2.AsyncClient,
+) -> None:
+    async with db() as session:
+        trace_project = models.Project(name="eval-trace-proj")
+        session.add(trace_project)
+        await session.flush()
+        await _bind_evaluator_trace_project(session, trace_project)
+        project_rowid = trace_project.id
+        trace_rowid = await session.scalar(
+            insert(models.Trace)
+            .values(
+                trace_id="91010000",
+                project_rowid=project_rowid,
+                start_time=datetime(2021, 1, 1, tzinfo=timezone.utc),
+                end_time=datetime(2021, 1, 1, 0, 1, tzinfo=timezone.utc),
+            )
+            .returning(models.Trace.id)
+        )
+        assert trace_rowid is not None
+
+    project_global_id = str(GlobalID("Project", str(project_rowid)))
+    response = await httpx_client.delete(
+        f"v1/projects/{project_global_id}/traces",
+        params={
+            "start_time": "2021-01-01T00:00:00Z",
+            "end_time": "2021-01-02T00:00:00Z",
+        },
+    )
+    assert response.status_code == 204
+
+    async with db() as session:
+        assert await session.get(models.Trace, trace_rowid) is None
+        remaining_project = await session.get(models.Project, project_rowid)
+        assert remaining_project is not None and remaining_project.deleted_at is None
+        num_live_bindings = await session.scalar(
+            select(func.count())
+            .select_from(models.ProjectEvaluator)
+            .where(
+                models.ProjectEvaluator.trace_project_id == project_rowid,
+                models.ProjectEvaluator.deleted_at.is_(None),
+            )
+        )
+        assert num_live_bindings == 1

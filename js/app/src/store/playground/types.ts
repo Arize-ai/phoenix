@@ -1,8 +1,8 @@
 import { z } from "zod";
 
+import type { ProviderInvocationConfig } from "@phoenix/components/playground/providerAdapters";
+import type { chatMessageSchema } from "@phoenix/components/playground/schemas";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
-import type { ProviderInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
-import type { chatMessageSchema } from "@phoenix/pages/playground/schemas";
 import type { PhoenixToolEditorType } from "@phoenix/schemas/phoenixToolTypeSchemas";
 import type {
   CodeEvaluatorLanguage,

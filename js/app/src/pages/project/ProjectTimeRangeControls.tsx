@@ -1,11 +1,14 @@
-import { startTransition } from "react";
+import {
+  startTransition,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useTransition,
+} from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
 import { useParams } from "react-router";
 
-import {
-  ConnectedTimeRangeControls,
-  useTimeRange,
-} from "@phoenix/components/datetime";
+import { ConnectedTimeRangeControls } from "@phoenix/components/datetime";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useInterval } from "@phoenix/hooks/useInterval";
 import { useOnTimestampAdvance } from "@phoenix/hooks/useOnTimestampAdvance";
@@ -35,7 +38,8 @@ const REFRESH_INTERVAL_MS_BY_TAB: ReadonlyMap<string, number> = new Map([
  * streaming is playing on a streamable tab, polls the project's
  * last-updated timestamp and bumps the shared fetch key when new data lands.
  * Streaming pauses while a trace or session drawer is open so the tables
- * behind it don't refetch.
+ * behind it don't refetch, and while the page is hidden: new data seen then
+ * refreshes the page once it is visible again.
  */
 export function ProjectTimeRangeControls(props: {
   project: ProjectTimeRangeControls_data$key;
@@ -45,7 +49,6 @@ export function ProjectTimeRangeControls(props: {
     setIsStreaming,
     setFetchKey,
   } = useStreamState();
-  const { refreshLiveTimeRange } = useTimeRange();
   const { tab } = useProjectRootPath();
   // Parent routes see child params, so this is set while the session drawer
   // is open; the trace and compare drawers are known from the selected traces
@@ -54,6 +57,7 @@ export function ProjectTimeRangeControls(props: {
   const refreshIntervalMs = REFRESH_INTERVAL_MS_BY_TAB.get(tab) ?? null;
   const isStreamingTab = refreshIntervalMs != null;
   const isLiveStreaming = isStreamingTab && !isDetailOpen && isStreamingState;
+  const [isRefreshing, startRefreshTransition] = useTransition();
 
   const [lastUpdatedAt, refetchLastUpdatedAt] = useRefetchableFragment(
     graphql`
@@ -70,26 +74,49 @@ export function ProjectTimeRangeControls(props: {
         refetchLastUpdatedAt({}, { fetchPolicy: "store-and-network" });
       });
     },
-    isLiveStreaming ? refreshIntervalMs : null
+    isLiveStreaming && !isRefreshing ? refreshIntervalMs : null
   );
 
-  // New data landed: slide a live time range forward and refetch the tables
-  // below, keeping the current rows up while they load
+  // New data landed: refetch the tables below, keeping the current rows up
+  // while they load
+  function refreshForNewData(currentLastUpdatedAt: string) {
+    startRefreshTransition(() => {
+      setFetchKey({
+        fetchKey: `fetch-traces-${currentLastUpdatedAt}`,
+        isThrottled: true,
+      });
+    });
+  }
+  const heldLastUpdatedAtRef = useRef<string | null>(null);
   useOnTimestampAdvance(
     lastUpdatedAt.streamingLastUpdatedAt,
     (currentLastUpdatedAt) => {
-      startTransition(() => {
-        refreshLiveTimeRange();
-        setFetchKey(`fetch-traces-${currentLastUpdatedAt}`);
-      });
+      if (document.visibilityState === "hidden") {
+        heldLastUpdatedAtRef.current = currentLastUpdatedAt;
+      } else {
+        refreshForNewData(currentLastUpdatedAt);
+      }
     }
   );
+  const refreshForHeldData = useEffectEvent(() => {
+    const heldLastUpdatedAt = heldLastUpdatedAtRef.current;
+    if (heldLastUpdatedAt != null && document.visibilityState !== "hidden") {
+      heldLastUpdatedAtRef.current = null;
+      refreshForNewData(heldLastUpdatedAt);
+    }
+  });
+  useEffect(() => {
+    document.addEventListener("visibilitychange", refreshForHeldData);
+    return () =>
+      document.removeEventListener("visibilitychange", refreshForHeldData);
+  }, []);
 
   return (
     <ConnectedTimeRangeControls
       isLive={isLiveStreaming}
       onIsLiveChange={isStreamingTab ? setIsStreaming : undefined}
       isLiveToggleDisabled={isDetailOpen}
+      liveTooltipText="Rows update as data arrives; charts and totals about once a minute"
     />
   );
 }

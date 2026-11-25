@@ -2,7 +2,6 @@ import { DebouncedSearch, Flex, View } from "@phoenix/components";
 import { ColumnSelector, orderColumns } from "@phoenix/components/table";
 import { useProjectEvaluatorsTableContext } from "@phoenix/contexts/ProjectEvaluatorsTableContext";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
-import { TableAsideToggleButton } from "@phoenix/pages/project/TableAside";
 import { TableMetricsChartSelector } from "@phoenix/pages/project/TableMetricsChartSelector";
 
 /**
@@ -18,7 +17,7 @@ const PROJECT_EVALUATOR_COLUMNS = [
   { id: "lag", label: "lag p95" },
   { id: "failures", label: "failure rate" },
   { id: "kind", label: "kind" },
-  { id: "meanScore", label: "mean score" },
+  { id: "results", label: "results" },
   { id: "prompt", label: "prompt / decision" },
   { id: "model", label: "model" },
   { id: "cost", label: "total cost" },
@@ -60,7 +59,7 @@ function ProjectEvaluatorsColumnSelector() {
 
 /**
  * The evaluators tab's own header: search on the left, charts, table
- * configuration, creation and the aside toggle on the right. All live in the
+ * configuration and creation on the right. All live in the
  * tab's content rather than the project tab bar, so the tab bar stays pure
  * navigation.
  */
@@ -94,7 +93,6 @@ export function ProjectEvaluatorsToolbar({
           <TableMetricsChartSelector view="evaluators" />
           <ProjectEvaluatorsColumnSelector />
           <AddProjectEvaluatorMenu size="M" />
-          <TableAsideToggleButton />
         </Flex>
       </Flex>
     </View>

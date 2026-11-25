@@ -37,7 +37,7 @@ alembic upgrade head
 
 If the above command fails, it may be necessary to undo partially applied changes from a failed migration by first running down-migrations. This can be accomplished by identifying the ID of the migration revision you wish to return to. Revisions are defined [here](./migrations/versions/).
 
-⚠️ Running down-migrations can result in lost data. Only run down-migrations if you know what you are doing and consider backing up your database first. If you have any questions or doubts, contact the Phoenix team in the `#phoenix-support` channel of the [Arize AI Slack community](https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g) or via GitHub.
+⚠️ Running down-migrations can result in lost data. Only run down-migrations if you know what you are doing and consider backing up your database first. If you have any questions or doubts, contact the Phoenix team via [GitHub Issues](https://github.com/Arize-ai/phoenix/issues).
 
 ```bash
 alembic downgrade <revision-id>
@@ -488,6 +488,7 @@ erDiagram
         string provider
         string name_pattern
         boolean is_built_in
+        string type
         datetime start_time
         datetime created_at
         datetime updated_at

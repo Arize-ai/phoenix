@@ -8,8 +8,8 @@ import { EvaluatorChatTemplate } from "@phoenix/components/evaluators/EvaluatorC
 import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorInputMapping";
 import { EvaluatorPromptPreview } from "@phoenix/components/evaluators/EvaluatorPromptPreview";
 import { EvaluatorSectionHeader } from "@phoenix/components/evaluators/EvaluatorSectionHeader";
+import { TemplateFormatRadioGroup } from "@phoenix/components/playground/TemplateFormatRadioGroup";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
-import { TemplateFormatRadioGroup } from "@phoenix/pages/playground/TemplateFormatRadioGroup";
 
 export const LLMEvaluatorForm = ({
   showInputMapping = true,

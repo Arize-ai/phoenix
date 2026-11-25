@@ -10,8 +10,8 @@ import {
 
 /** The evaluators table's styling, which every story renders with. */
 const PRODUCTION_STYLE = {
-  color: "var(--global-text-color-900)",
-  coverageColor: "var(--global-text-color-300)",
+  color: "var(--chart-sparkline-stroke-color)",
+  coverageColor: "var(--chart-sparkline-coverage-fill-color)",
   showCoverage: true,
 } satisfies Partial<SparklineProps>;
 
@@ -140,6 +140,8 @@ const meta: Meta<typeof Sparkline> = {
           "**`weights` make merged points honest.** Each bin's value is a mean over some number of samples. Merging bins by averaging their means would let an hour with one evaluation count as much as an hour with fifty. Passing the sample count per bin as `weights` makes a merged point the weighted mean, which is the mean you would get by pooling the samples. Empty bins contribute nothing regardless of weight.",
           "",
           "**`minRange` keeps small drift looking small.** The vertical axis fits the data by default, so a score wandering between 0.60 and 0.66 would be stretched across the full height and read as volatile. `minRange` is the least value range the axis spans, centered on the data; pass a fraction of the score's possible range so a nearly flat series looks nearly flat while wide swings still fill the height.",
+          "",
+          "**`bounds` keeps level readable at the edges.** Pass the score's possible range with `minRange`, and the axis window shifts to stay inside it, so a series stuck at the bottom of its range draws at the bottom instead of at mid-height.",
           "",
           "**Every point is a step.** Each point draws flat across its bins, so a per-bin mean reads as the level for the whole bin. The line breaks at every empty point and never interpolates across missing data, so an isolated value is a short step of its own. The most recent value is always marked with a dot.",
           "",
@@ -310,6 +312,35 @@ export const MinRangeCalmsSmallDrift: Story = {
       </Flex>
     );
   },
+};
+
+/**
+ * Flat series at the bottom, middle, and top of a 0–1 score with `minRange`
+ * 0.2. With `bounds`, the axis window stays inside the score's range, so a
+ * score of 0 draws at the bottom and 1 at the top; without it, every flat
+ * series draws at mid-height. The evaluators table passes the annotation's
+ * configured bounds.
+ */
+export const BoundsPlaceFlatSeries: Story = {
+  render: () => (
+    <Flex direction="column" gap="size-150">
+      {[0, 0.5, 1].flatMap((score) =>
+        [true, false].map((hasBounds) => {
+          const label = `Every bin ${score} · ${hasBounds ? "bounds [0, 1]" : "no bounds"}`;
+          return (
+            <Row key={label} width={160} label={label}>
+              <Sparkline
+                values={Array.from({ length: 12 }, () => score)}
+                minRange={0.2}
+                bounds={hasBounds ? [0, 1] : undefined}
+                {...PRODUCTION_STYLE}
+              />
+            </Row>
+          );
+        })
+      )}
+    </Flex>
+  ),
 };
 
 /**

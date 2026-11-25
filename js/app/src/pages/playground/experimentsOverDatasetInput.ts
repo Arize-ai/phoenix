@@ -1,3 +1,8 @@
+import {
+  buildDecisionConnection,
+  buildDecisionTaskDefinition,
+} from "@phoenix/components/playground/decisionUtils";
+import { toGqlCredentials } from "@phoenix/components/playground/playgroundInstanceUtils";
 import type { CredentialsState } from "@phoenix/store/credentialsStore";
 import type {
   PlaygroundNormalizedInstance,
@@ -17,17 +22,12 @@ import type {
   ExperimentTaskInput,
 } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import {
-  buildDecisionConnection,
-  buildDecisionTaskDefinition,
-} from "./decisionUtils";
-import {
   getEvaluatorTaskName,
   buildEvaluatorTaskDefinition,
 } from "./evaluators/evaluatorTaskSnapshot";
 import {
   getPromptTaskInput,
   resolveNextExperimentField,
-  toGqlCredentials,
 } from "./playgroundUtils";
 
 /** The dataset evaluators attached to a prompt run, by dataset evaluator id. */
@@ -216,6 +216,7 @@ function getDecisionTaskInput({
     connection: buildDecisionConnection({
       provider: instance.model.provider,
       baseUrl: instance.model.baseUrl,
+      endpoint: instance.model.endpoint,
       customProvider: instance.model.customProvider,
       credentials: Object.entries(providerCredentials).flatMap(
         ([envVarName, value]) =>

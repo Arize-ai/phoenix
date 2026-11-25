@@ -1,6 +1,6 @@
 import { graphql, readInlineData } from "react-relay";
 
-import { getChatRole } from "@phoenix/pages/playground/playgroundUtils";
+import { getChatRole } from "@phoenix/components/playground/playgroundInstanceUtils";
 import {
   findToolCallArguments,
   findToolCallId,

@@ -161,6 +161,107 @@ async def test_prompt_versions_autoincrement_at_head(
     await _run_async(_engine, verify)
 
 
+async def test_projects_autoincrement_at_head(
+    _engine: AsyncEngine,
+    _alembic_config: Config,
+    _schema: str,
+) -> None:
+    await _up(_engine, _alembic_config, "head", _schema)
+
+    def verify(connection: sa.Connection) -> None:
+        def insert() -> int:
+            project_id = connection.execute(
+                sa.text("INSERT INTO projects (name) VALUES (:name) RETURNING id"),
+                {"name": token_hex(8)},
+            ).scalar_one()
+            assert isinstance(project_id, int)
+            return project_id
+
+        _assert_autoincrement_preserved(connection, "projects", insert)
+        connection.commit()
+
+    await _run_async(_engine, verify)
+
+
+@pytest.mark.parametrize("table_name", ["project_evaluators", "dataset_evaluators"])
+async def test_evaluator_bindings_autoincrement_at_head(
+    _engine: AsyncEngine,
+    _alembic_config: Config,
+    _schema: str,
+    table_name: str,
+) -> None:
+    await _up(_engine, _alembic_config, "head", _schema)
+
+    def verify(connection: sa.Connection) -> None:
+        target_project_id = connection.execute(
+            sa.text("INSERT INTO projects (name) VALUES (:name) RETURNING id"),
+            {"name": token_hex(8)},
+        ).scalar_one()
+        trace_project_id = connection.execute(
+            sa.text("INSERT INTO projects (name) VALUES (:name) RETURNING id"),
+            {"name": f"eval-trace-{token_hex(8)}"},
+        ).scalar_one()
+        dataset_id = connection.execute(
+            sa.text("INSERT INTO datasets (name, metadata) VALUES (:name, '{}') RETURNING id"),
+            {"name": token_hex(8)},
+        ).scalar_one()
+        evaluator_id = connection.execute(
+            sa.text(
+                "INSERT INTO evaluators (name, metadata, kind) "
+                "VALUES (:name, '{}', 'BUILTIN') RETURNING id"
+            ),
+            {"name": token_hex(8)},
+        ).scalar_one()
+        connection.execute(
+            sa.text(
+                "INSERT INTO builtin_evaluators (id, key, input_schema, output_configs) "
+                "VALUES (:id, :key, '{}', '[]')"
+            ),
+            {"id": evaluator_id, "key": token_hex(8)},
+        )
+
+        def insert() -> int:
+            if table_name == "project_evaluators":
+                binding_id = connection.execute(
+                    sa.text(
+                        "INSERT INTO project_evaluators "
+                        "(project_id, evaluator_id, trace_project_id, name, sampling_rate, "
+                        "evaluation_target, evaluation_delay_seconds) "
+                        "VALUES (:project_id, :evaluator_id, :trace_project_id, :name, "
+                        "1.0, 'SPAN', 0) RETURNING id"
+                    ),
+                    {
+                        "project_id": target_project_id,
+                        "evaluator_id": evaluator_id,
+                        "trace_project_id": trace_project_id,
+                        "name": token_hex(8),
+                    },
+                ).scalar_one()
+            else:
+                binding_id = connection.execute(
+                    sa.text(
+                        "INSERT INTO dataset_evaluators "
+                        "(dataset_id, evaluator_id, name, input_mapping, project_id) "
+                        "VALUES (:dataset_id, :evaluator_id, :name, "
+                        '\'{"literal_mapping": {}, "path_mapping": {}}\', :project_id) '
+                        "RETURNING id"
+                    ),
+                    {
+                        "dataset_id": dataset_id,
+                        "evaluator_id": evaluator_id,
+                        "name": token_hex(8),
+                        "project_id": trace_project_id,
+                    },
+                ).scalar_one()
+            assert isinstance(binding_id, int)
+            return binding_id
+
+        _assert_autoincrement_preserved(connection, table_name, insert)
+        connection.commit()
+
+    await _run_async(_engine, verify)
+
+
 @pytest.mark.parametrize(
     "revision,down_revision,table_name",
     [

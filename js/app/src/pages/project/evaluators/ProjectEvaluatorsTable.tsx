@@ -1,8 +1,13 @@
 import { css } from "@emotion/react";
-import type { OnChangeFn, RowSelectionState } from "@tanstack/react-table";
+import type {
+  ColumnPinningState,
+  OnChangeFn,
+  RowSelectionState,
+} from "@tanstack/react-table";
 import { functionalUpdate, flexRender, useTable } from "@tanstack/react-table";
 import {
   startTransition,
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -11,6 +16,7 @@ import {
 } from "react";
 import { graphql, readInlineData, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
+import type { GraphQLResponse, Observable } from "relay-runtime";
 
 import {
   Flex,
@@ -55,18 +61,15 @@ import { getProjectEvaluatorResultAnnotations } from "@phoenix/hooks/useProjectE
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import { DecisionCell } from "@phoenix/pages/evaluators/DecisionCell";
 import { PromptCell } from "@phoenix/pages/evaluators/PromptCell";
-import type { ProjectEvaluatorsTable_costs$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_costs.graphql";
+import type { ProjectEvaluatorCost_cost$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorCost_cost.graphql";
+import type { ProjectEvaluatorMeanScoreCell_scores$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorMeanScoreCell_scores.graphql";
 import type { ProjectEvaluatorsTable_failures$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_failures.graphql";
 import type { ProjectEvaluatorsTable_lag$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_lag.graphql";
 import type { ProjectEvaluatorsTable_project$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_project.graphql";
 import type { ProjectEvaluatorsTable_row$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_row.graphql";
-import type { ProjectEvaluatorsTable_scores$key } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorsTable_scores.graphql";
 import { getClearableCount } from "@phoenix/pages/project/evaluators/evaluationQueueCounts";
 import { ProjectEvaluatorActionMenu } from "@phoenix/pages/project/evaluators/ProjectEvaluatorActionMenu";
-import {
-  ProjectEvaluatorAverageCost,
-  ProjectEvaluatorCost,
-} from "@phoenix/pages/project/evaluators/ProjectEvaluatorCost";
+import { ProjectEvaluatorCostCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorCost";
 import { ProjectEvaluatorEnabledSwitch } from "@phoenix/pages/project/evaluators/ProjectEvaluatorEnabledSwitch";
 import { ProjectEvaluatorFailuresCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFailuresCell";
 import {
@@ -77,14 +80,18 @@ import {
 import { ProjectEvaluatorLagCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorLagCell";
 import { ProjectEvaluatorLoadCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorLoadCell";
 import {
-  EvaluatorScoreWindowProvider,
-  ProjectEvaluatorMeanScoreCell,
+  EvaluatorResultsProvider,
+  ProjectEvaluatorMeanScoreCellSkeleton,
   ProjectEvaluatorMeanScoreHeader,
+  ProjectEvaluatorResultsCell,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorMeanScoreCell";
 import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import { ProjectEvaluatorQueueCell } from "@phoenix/pages/project/evaluators/ProjectEvaluatorQueueCell";
 import type { EvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
-import { getEvaluatorScoreWindow } from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
+import {
+  getEvaluatorScoreWindow,
+  isSameEvaluatorScoreWindow,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorScoreWindow";
 import {
   reconcileProjectEvaluatorSelection,
   type ProjectEvaluatorSelection,
@@ -99,8 +106,16 @@ import { isModelProvider } from "@phoenix/utils/generativeUtils";
 const PAGE_SIZE = 30;
 /** Labels for columns whose header is not a plain string. */
 const COLUMN_LABELS: Partial<Record<string, string>> = {
-  meanScore: "mean score",
+  results: "results",
 };
+
+// Module-level so the pinning keeps its identity across renders: tanstack's
+// v9 store compares state slices by reference, and a fresh object every render
+// reads as a state change that schedules another render.
+const COLUMN_PINNING = {
+  start: [...CHECKBOX_COLUMN_PINNING.start, "enabled"],
+  end: [ACTIONS_COLUMN_ID],
+} satisfies ColumnPinningState;
 
 const scrollableAreaCSS = css`
   flex: 1 1 auto;
@@ -110,10 +125,10 @@ const scrollableAreaCSS = css`
 
 const readRow = (
   row: ProjectEvaluatorsTable_row$key &
-    ProjectEvaluatorsTable_costs$key &
+    ProjectEvaluatorCost_cost$key &
     ProjectEvaluatorsTable_failures$key &
     ProjectEvaluatorsTable_lag$key &
-    ProjectEvaluatorsTable_scores$key
+    ProjectEvaluatorMeanScoreCell_scores$key
 ) => {
   const rowData = readInlineData<ProjectEvaluatorsTable_row$key>(
     graphql`
@@ -214,32 +229,6 @@ const readRow = (
     `,
     row
   );
-  const costData = readInlineData<ProjectEvaluatorsTable_costs$key>(
-    graphql`
-      fragment ProjectEvaluatorsTable_costs on ProjectEvaluator
-      @inline
-      @argumentDefinitions(timeRange: { type: "TimeRange!" }) {
-        # TODO: These aggregate scans may become expensive as evaluator projects grow.
-        # Move them onto ProjectEvaluator so CODE evaluators can skip them, and consider @defer.
-        traceProject {
-          id
-          traceCount(timeRange: $timeRange)
-          costSummary(timeRange: $timeRange) {
-            total {
-              cost
-            }
-            prompt {
-              cost
-            }
-            completion {
-              cost
-            }
-          }
-        }
-      }
-    `,
-    row
-  );
   const failuresData = readInlineData<ProjectEvaluatorsTable_failures$key>(
     graphql`
       fragment ProjectEvaluatorsTable_failures on ProjectEvaluator
@@ -270,49 +259,12 @@ const readRow = (
     `,
     row
   );
-  const scoresData = readInlineData<ProjectEvaluatorsTable_scores$key>(
-    graphql`
-      fragment ProjectEvaluatorsTable_scores on ProjectEvaluator
-      @inline
-      @argumentDefinitions(
-        scoreTimeRange: { type: "TimeRange!" }
-        scoreTimeBinConfig: { type: "TimeBinConfig!" }
-        includeMeanScore: { type: "Boolean!" }
-      ) {
-        annotationScoreMetrics(
-          timeRange: $scoreTimeRange
-          timeBinConfig: $scoreTimeBinConfig
-        ) @include(if: $includeMeanScore) {
-          annotationName
-          summary {
-            meanScore
-            count
-            scoreCount
-            labelCount
-            labelFractions {
-              label
-              fraction
-            }
-          }
-          previousSummary {
-            meanScore
-          }
-          series {
-            timestamp
-            meanScore
-            count
-          }
-        }
-      }
-    `,
-    row
-  );
   return {
     ...rowData,
-    ...costData,
     ...failuresData,
     ...lagData,
-    ...scoresData,
+    scores: row,
+    cost: row,
   };
 };
 
@@ -327,6 +279,7 @@ export function ProjectEvaluatorsTable({
   initialTimeRange,
   initialScoreWindow,
   initialIncludeMeanScore,
+  initialRequest,
   selection,
   onSelectionChange,
 }: {
@@ -342,8 +295,10 @@ export function ProjectEvaluatorsTable({
   initialTimeRange: TimeRangeISOStrings;
   /** Score window used to fetch the rows supplied by the owner query. */
   initialScoreWindow: EvaluatorScoreWindow;
-  /** Whether the owner query fetched the mean score column's data. */
+  /** Whether the owner query fetched the results column's data. */
   initialIncludeMeanScore: boolean;
+  /** The owner query's request, read for a failure after the rows render. */
+  initialRequest: Observable<GraphQLResponse> | null | undefined;
   selection: ProjectEvaluatorSelection;
   onSelectionChange: (selection: ProjectEvaluatorSelection) => void;
 }) {
@@ -364,6 +319,7 @@ export function ProjectEvaluatorsTable({
         filter: { type: "ProjectEvaluatorFilter", defaultValue: null }
         timeRange: { type: "TimeRange!" }
         scoreTimeRange: { type: "TimeRange!" }
+        scorePreviousTimeRange: { type: "TimeRange!" }
         scoreTimeBinConfig: { type: "TimeBinConfig!" }
         includeMeanScore: { type: "Boolean!" }
       ) {
@@ -372,16 +328,20 @@ export function ProjectEvaluatorsTable({
           edges {
             node {
               ...ProjectEvaluatorsTable_row
-              ...ProjectEvaluatorsTable_costs @arguments(timeRange: $timeRange)
               ...ProjectEvaluatorsTable_failures
                 @arguments(timeRange: $timeRange)
               ...ProjectEvaluatorsTable_lag @arguments(timeRange: $timeRange)
-              ...ProjectEvaluatorsTable_scores
+              ...ProjectEvaluatorMeanScoreCell_scores
+                @defer
                 @arguments(
                   scoreTimeRange: $scoreTimeRange
+                  scorePreviousTimeRange: $scorePreviousTimeRange
                   scoreTimeBinConfig: $scoreTimeBinConfig
                   includeMeanScore: $includeMeanScore
                 )
+              ...ProjectEvaluatorCost_cost
+                @defer
+                @arguments(timeRange: $timeRange)
             }
           }
         }
@@ -400,9 +360,9 @@ export function ProjectEvaluatorsTable({
     [pageTimeRange, utcOffsetMinutes]
   );
   const isMeanScoreColumnVisible = useProjectEvaluatorsTableContext(
-    (state) => state.columnVisibility["meanScore"] !== false
+    (state) => state.columnVisibility["results"] !== false
   );
-  // Latched: once the mean score column has been shown, keep fetching its
+  // Latched: once the results column has been shown, keep fetching its
   // data so hiding and re-showing it does not churn the connection. Set
   // during render (not in an effect) so the latch lands in the same pass.
   const [includeMeanScore, setIncludeMeanScore] = useState(
@@ -411,25 +371,48 @@ export function ProjectEvaluatorsTable({
   if (isMeanScoreColumnVisible && !includeMeanScore) {
     setIncludeMeanScore(true);
   }
+  const [deferredError, setDeferredError] = useState<string | null>(null);
+  // Counts the refetches started, so that the owner request's failure counts
+  // only until a refetch replaces the rows it delivered.
+  const refetchCountRef = useRef(0);
+  useEffect(() => {
+    const refetchCount = refetchCountRef.current;
+    const subscription = initialRequest?.subscribe({
+      error: (error: Error) => {
+        if (refetchCountRef.current === refetchCount) {
+          setDeferredError(error.message);
+        }
+      },
+    });
+    return () => subscription?.unsubscribe();
+  }, [initialRequest]);
   // Advances while the project page streams and new spans or evaluation
   // results land, so the rows refetch as evaluations run.
   const { fetchKey } = useStreamState();
+  // Frozen at mount: they are compared only on the effect's first run, and a
+  // loader revalidation (opening a slideover) passes fresh copies of the same
+  // inputs that would otherwise re-run the effect and refetch.
+  const [initialQueryInputs] = useState(() => ({
+    filter: initialFilter,
+    timeRange: initialTimeRange,
+    scoreWindow: initialScoreWindow,
+    includeMeanScore: initialIncludeMeanScore,
+  }));
   const hasComparedInitialQueryInputs = useRef(false);
   // Filtered server-side; a client-side filter would only see the loaded page.
   useEffect(() => {
     if (!hasComparedInitialQueryInputs.current) {
       hasComparedInitialQueryInputs.current = true;
-      const hasInitialFilter = trimmedFilter === initialFilter;
+      const hasInitialFilter = trimmedFilter === initialQueryInputs.filter;
       const hasInitialTimeRange =
-        timeRange.start === initialTimeRange.start &&
-        timeRange.end === initialTimeRange.end;
-      const hasInitialScoreWindow =
-        scoreWindow.timeRange.start === initialScoreWindow.timeRange.start &&
-        scoreWindow.timeRange.end === initialScoreWindow.timeRange.end &&
-        scoreWindow.timeBinConfig.scale ===
-          initialScoreWindow.timeBinConfig.scale;
+        timeRange.start === initialQueryInputs.timeRange.start &&
+        timeRange.end === initialQueryInputs.timeRange.end;
+      const hasInitialScoreWindow = isSameEvaluatorScoreWindow(
+        scoreWindow,
+        initialQueryInputs.scoreWindow
+      );
       const hasInitialIncludeMeanScore =
-        includeMeanScore === initialIncludeMeanScore;
+        includeMeanScore === initialQueryInputs.includeMeanScore;
       // Avoid a duplicate request only when the rows supplied by the owner
       // query already answer the table's current filter, range, and columns.
       if (
@@ -441,6 +424,11 @@ export function ProjectEvaluatorsTable({
         return;
       }
     }
+    // A refetch starts over: the rows on screen are about to be replaced and
+    // the refetch's own are still loading. Cleared outside the transition,
+    // which keeps the current rows on screen until the refetch's can show.
+    refetchCountRef.current += 1;
+    setDeferredError(null);
     startTransition(() => {
       refetch(
         {
@@ -449,17 +437,18 @@ export function ProjectEvaluatorsTable({
           filter: trimmedFilter ? { col: "name", value: trimmedFilter } : null,
           timeRange,
           scoreTimeRange: scoreWindow.timeRange,
+          scorePreviousTimeRange: scoreWindow.previousTimeRange,
           scoreTimeBinConfig: scoreWindow.timeBinConfig,
           includeMeanScore,
         },
-        { fetchPolicy: "store-and-network" }
+        {
+          fetchPolicy: "store-and-network",
+          onComplete: (error) => setDeferredError(error?.message ?? null),
+        }
       );
     });
   }, [
-    initialFilter,
-    initialTimeRange,
-    initialScoreWindow,
-    initialIncludeMeanScore,
+    initialQueryInputs,
     trimmedFilter,
     refetch,
     timeRange,
@@ -473,8 +462,14 @@ export function ProjectEvaluatorsTable({
         filter: trimmedFilter ? { col: "name", value: trimmedFilter } : null,
         timeRange,
         scoreTimeRange: scoreWindow.timeRange,
+        scorePreviousTimeRange: scoreWindow.previousTimeRange,
         scoreTimeBinConfig: scoreWindow.timeBinConfig,
         includeMeanScore,
+      },
+      onComplete: (error) => {
+        if (error != null) {
+          setDeferredError(error.message);
+        }
       },
     });
   }, [_loadNext, trimmedFilter, timeRange, scoreWindow, includeMeanScore]);
@@ -608,24 +603,36 @@ export function ProjectEvaluatorsTable({
         ),
       },
       {
-        id: "meanScore",
+        id: "results",
         // The header reads the score window from context so the column def —
         // and with it the cell component identity tanstack renders — stays
         // stable when the window changes. A def that closed over the window
         // would remount every cell on each live-range re-anchor.
         header: () => <ProjectEvaluatorMeanScoreHeader />,
-        // Room for the score pill and delta plus a sparkline wide enough to
-        // resolve a few dozen bins; the sparkline itself caps its width.
-        size: 280,
-        cell: ({ row }) => (
-          <ProjectEvaluatorMeanScoreCell
-            annotations={getProjectEvaluatorResultAnnotations({
-              name: row.original.name,
-              outputConfigs: row.original.evaluator.outputConfigs,
-            })}
-            scoreMetrics={row.original.annotationScoreMetrics}
-          />
-        ),
+        // Room for the widest common pill and change (a label row's
+        // "positive 50% ▼ 8.6 pts") beside the fixed-width chart every row
+        // shares, so the charts line up.
+        size: 352,
+        cell: ({ row }) => {
+          const annotations = getProjectEvaluatorResultAnnotations({
+            name: row.original.name,
+            outputConfigs: row.original.evaluator.outputConfigs,
+          });
+          return (
+            <Suspense
+              fallback={
+                <ProjectEvaluatorMeanScoreCellSkeleton
+                  annotations={annotations}
+                />
+              }
+            >
+              <ProjectEvaluatorResultsCell
+                annotations={annotations}
+                projectEvaluator={row.original.scores}
+              />
+            </Suspense>
+          );
+        },
       },
       {
         id: "prompt",
@@ -689,10 +696,11 @@ export function ProjectEvaluatorsTable({
         size: 120,
         meta: { textAlign: "right" },
         cell: ({ row }) => (
-          <ProjectEvaluatorCost
+          <ProjectEvaluatorCostCell
+            measure="total"
             evaluatorKind={row.original.evaluator.kind}
-            costSummary={row.original.traceProject.costSummary}
             isTracingEnabled={row.original.tracingEnabled}
+            projectEvaluator={row.original.cost}
           />
         ),
       },
@@ -702,11 +710,11 @@ export function ProjectEvaluatorsTable({
         size: 200,
         meta: { textAlign: "right" },
         cell: ({ row }) => (
-          <ProjectEvaluatorAverageCost
+          <ProjectEvaluatorCostCell
+            measure="average"
             evaluatorKind={row.original.evaluator.kind}
-            costSummary={row.original.traceProject.costSummary}
-            runCount={row.original.traceProject.traceCount}
             isTracingEnabled={row.original.tracingEnabled}
+            projectEvaluator={row.original.cost}
           />
         ),
       },
@@ -858,10 +866,7 @@ export function ProjectEvaluatorsTable({
     columns,
     data: tableData,
     state: {
-      columnPinning: {
-        start: [...CHECKBOX_COLUMN_PINNING.start, "enabled"],
-        end: [ACTIONS_COLUMN_ID],
-      },
+      columnPinning: COLUMN_PINNING,
       columnSizing,
       columnVisibility,
       columnOrder: leafColumnOrder,
@@ -907,7 +912,10 @@ export function ProjectEvaluatorsTable({
   }
   return (
     <div css={scrollableAreaCSS}>
-      <EvaluatorScoreWindowProvider value={scoreWindow}>
+      <EvaluatorResultsProvider
+        scoreWindow={scoreWindow}
+        deferredError={deferredError}
+      >
         <ColumnOrderingProvider
           columnOrder={visibleColumnOrder}
           onColumnOrderChange={onVisibleColumnOrderChange}
@@ -1025,7 +1033,7 @@ export function ProjectEvaluatorsTable({
             )}
           </table>
         </ColumnOrderingProvider>
-      </EvaluatorScoreWindowProvider>
+      </EvaluatorResultsProvider>
       {Object.keys(selection).length > 0 ? (
         <ProjectEvaluatorSelectionToolbar
           projectId={projectId}

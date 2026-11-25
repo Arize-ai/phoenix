@@ -226,7 +226,7 @@ function DecisionDetails({
         <TabList>
           <Tab id="decision">Decision</Tab>
           <Tab id="versions">
-            Versions <Counter variant="quiet">{decision.versionCount}</Counter>
+            Versions <Counter variant="quiet" count={decision.versionCount} />
           </Tab>
           <Tab id="config">Config</Tab>
         </TabList>

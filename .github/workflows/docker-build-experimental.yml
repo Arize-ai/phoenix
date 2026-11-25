@@ -12,7 +12,23 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  IMAGE_NAME: phoenix
+
 jobs:
+  prepare-tags:
+    name: Prepare image tags
+    runs-on: ubuntu-latest
+    outputs:
+      tags: ${{ steps.tags.outputs.tags }}
+    steps:
+      - name: Compute shared tags
+        id: tags
+        run: |
+          set -euo pipefail
+          tags=$(jq -cn '{debug: ["dangerously-experimental-debug"]}')
+          echo "tags=$tags" >> "$GITHUB_OUTPUT"
+
   build:
     name: Build ${{ matrix.platform }}
     # linux/arm64 builds on a native ARM runner rather than under QEMU
@@ -22,39 +38,29 @@ jobs:
       # One job per platform, not per variant/platform pair: the variants share
       # every stage but the final FROM, so building them together reuses the
       # frontend, backend and WASM stages from the local builder instead of
-      # repeating them on a cold one. Each pushes by digest and nothing is
-      # tagged until the merge job, so a failed build cannot publish a partial
-      # image; letting the other platform finish means a rerun has less to redo.
+      # repeating them on a cold one. OCI artifacts let each registry publish
+      # independently without rebuilding the application.
       fail-fast: false
       matrix:
         platform: [linux/amd64, linux/arm64]
-    env:
-      REGISTRY: arizephoenix
-      IMAGE_NAME: phoenix
     steps:
       - name: Check out the repo
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
-      - name: Build and push every variant by digest
+      - name: Build image
         uses: ./.github/actions/docker-build-image
         with:
           variants: debug
           platform: ${{ matrix.platform }}
-          registry: ${{ env.REGISTRY }}
-          image-name: ${{ env.IMAGE_NAME }}
           dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
           dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-  merge:
-    name: Publish ${{ matrix.variant }} manifest
-    needs: build
-    # A matrix job reports failure if any cell fails, so plain `needs` would let
-    # one variant's failed leg withhold every other variant — including ones
-    # whose digests are already on Docker Hub. Publish per variant instead and
-    # let the digest count refuse the variant that is actually incomplete.
-    if: ${{ !cancelled() }}
+  publish-dockerhub:
+    name: Publish ${{ matrix.variant }} to Docker Hub
+    needs: [build, prepare-tags]
+    if: ${{ !cancelled() && needs.prepare-tags.result == 'success' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -62,32 +68,68 @@ jobs:
         variant: [debug]
     env:
       REGISTRY: arizephoenix
-      IMAGE_NAME: phoenix
     steps:
       - name: Check out the repo
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
-      # This workflow's matrix is debug only, so the suffix is unconditional and
-      # the commit tag the other two workflows carry — gated on the root variant
-      # — could never fire here.
-      - name: Compute tags
-        id: meta
-        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          flavor: latest=false
-          tags: |
-            type=raw,value=dangerously-experimental-${{ matrix.variant }}
+      - name: Add registry namespace to shared tags
+        id: tags
+        env:
+          TAGS: ${{ toJSON(fromJSON(needs.prepare-tags.outputs.tags)[matrix.variant]) }}
+        run: |
+          set -euo pipefail
+          {
+            echo 'tags<<TAGS'
+            jq -r --arg image "${REGISTRY}/${IMAGE_NAME}" '.[] | "\($image):\(.)"' <<< "$TAGS"
+            echo 'TAGS'
+          } >> "$GITHUB_OUTPUT"
 
-      - name: Merge platform digests and push tags
-        uses: ./.github/actions/docker-merge-manifest
+      - name: Upload images and publish Docker Hub tags
+        uses: ./.github/actions/docker-publish-image
         with:
           variant: ${{ matrix.variant }}
-          registry: ${{ env.REGISTRY }}
-          image-name: ${{ env.IMAGE_NAME }}
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ steps.tags.outputs.tags }}
           expected-digests: 2
           dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
           dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+  publish-ghcr:
+    name: Publish ${{ matrix.variant }} to GHCR
+    permissions:
+      contents: read
+      packages: write
+    needs: [build, prepare-tags]
+    if: ${{ !cancelled() && needs.prepare-tags.result == 'success' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [debug]
+    env:
+      REGISTRY: ghcr.io/arize-ai
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Add registry namespace to shared tags
+        id: tags
+        env:
+          TAGS: ${{ toJSON(fromJSON(needs.prepare-tags.outputs.tags)[matrix.variant]) }}
+        run: |
+          set -euo pipefail
+          {
+            echo 'tags<<TAGS'
+            jq -r --arg image "${REGISTRY}/${IMAGE_NAME}" '.[] | "\($image):\(.)"' <<< "$TAGS"
+            echo 'TAGS'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload images and publish GHCR tags
+        uses: ./.github/actions/docker-publish-image
+        with:
+          variant: ${{ matrix.variant }}
+          tags: ${{ steps.tags.outputs.tags }}
+          expected-digests: 2

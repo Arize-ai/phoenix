@@ -52,6 +52,7 @@ export function TopModelsByCost({
             }
             topModelsByCost(timeRange: $timeRange) {
               name
+              modelType
               costSummary(projectId: $projectId, timeRange: $timeRange) {
                 prompt {
                   cost

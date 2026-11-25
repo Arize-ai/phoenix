@@ -69,7 +69,7 @@ export function TableMetricsChartSelector({
 
 function ConnectedChartSelectorMenu({ view }: { view: MetricChartTableView }) {
   const projectId = useProjectContext((state) => state.projectId);
-  const { fetchKey } = useStreamState();
+  const { throttledFetchKey } = useStreamState();
   const selectedChartKeys = useProjectContext(
     (state) => state.metricChartKeys[view]
   );
@@ -77,7 +77,7 @@ function ConnectedChartSelectorMenu({ view }: { view: MetricChartTableView }) {
     (state) => state.setMetricChartKeys
   );
   return (
-    <MetricFetchKeyProvider value={fetchKey}>
+    <MetricFetchKeyProvider value={throttledFetchKey}>
       <ErrorBoundary fallback={TextErrorBoundaryFallback}>
         <Suspense fallback={<Loading />}>
           <ProjectChartSelectorMenu

@@ -24,11 +24,11 @@ export function useDeleteProjectEvaluators() {
     `);
   const deleteProjectEvaluators = ({
     projectEvaluatorIds,
-    deleteAssociatedPromptOrDecision,
+    deleteAssociatedPrompt,
     refetchCounts = true,
   }: {
     projectEvaluatorIds: ReadonlyArray<string>;
-    deleteAssociatedPromptOrDecision: boolean;
+    deleteAssociatedPrompt: boolean;
     /**
      * Refetches the evaluator counts once deleted. Pass false when the
      * caller refetches them after several deletes.
@@ -40,7 +40,7 @@ export function useDeleteProjectEvaluators() {
         variables: {
           input: {
             projectEvaluatorIds,
-            deleteAssociatedPromptOrDecision,
+            deleteAssociatedPrompt,
           },
         },
         onCompleted: (_response, errors) => {

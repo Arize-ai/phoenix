@@ -34,13 +34,13 @@ export function useDeleteDatasetEvaluators() {
     `);
   const deleteDatasetEvaluators = ({
     datasetEvaluatorIds,
-    deleteAssociatedPromptOrDecision,
+    deleteAssociatedPrompt,
     connectionIds = [],
     datasetId,
     refetchCounts = true,
   }: {
     datasetEvaluatorIds: ReadonlyArray<string>;
-    deleteAssociatedPromptOrDecision: boolean;
+    deleteAssociatedPrompt: boolean;
     connectionIds?: ReadonlyArray<string>;
     /** The dataset every evaluator belongs to, whose count is refreshed. */
     datasetId?: string;
@@ -55,7 +55,7 @@ export function useDeleteDatasetEvaluators() {
         variables: {
           input: {
             datasetEvaluatorIds,
-            deleteAssociatedPromptOrDecision,
+            deleteAssociatedPrompt,
           },
           connectionIds,
           datasetId: datasetId ?? "",

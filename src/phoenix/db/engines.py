@@ -357,6 +357,9 @@ def sqlite_migration_engine(url: URL, echo: bool = False) -> AsyncEngine:
         echo=echo,
     )
     event.listen(engine.sync_engine, "connect", set_sqlite_migration_pragma)
+    # Without an explicit BEGIN, pysqlite commits each DDL statement that precedes
+    # the first DML one, so a failed migration would leave its schema changes behind.
+    configure_sqlite_transactions(engine)
     return engine
 
 
@@ -428,6 +431,7 @@ def aio_postgresql_engine(
             "Set only one."
         )
     asyncpg_url, asyncpg_args = get_pg_config(url, enforce_ssl=use_aws or use_azure)
+    plan_on_connect = "plan_cache_mode" not in asyncpg_args.get("server_settings", {})
 
     # pool_pre_ping issues a `SELECT 1` on each pool checkout and discards
     # the connection if it fails, so callers don't get a stale connection
@@ -471,6 +475,8 @@ def aio_postgresql_engine(
             pool_recycle=_POOL_RECYCLE_SECONDS,
         )
 
+    if plan_on_connect:
+        _plan_every_execution_on_connect(engine)
     if not migrate:
         return engine
 
@@ -512,8 +518,27 @@ def aio_postgresql_engine(
             hide_parameters=True,
             poolclass=NullPool,
         )
+    if plan_on_connect:
+        _plan_every_execution_on_connect(migration_engine)
     migrate_in_thread(migration_engine, log_migrations=log_migrations)
     return engine
+
+
+def _plan_every_execution_on_connect(engine: AsyncEngine) -> None:
+    event.listen(engine.sync_engine, "connect", _set_plan_cache_mode, insert=True)
+
+
+def _set_plan_cache_mode(dbapi_connection: Any, _: Any) -> None:
+    # A prepared statement reused on a connection can switch to a generic plan after five runs.
+    # For time-range aggregates that plan read every project's spans in the range, tens to
+    # hundreds of times the work of a plan made with the actual values. Set in autocommit, so
+    # the pool's rollback on return cannot undo it.
+    autocommit = dbapi_connection.autocommit
+    dbapi_connection.autocommit = True
+    cursor = dbapi_connection.cursor()
+    cursor.execute("SET plan_cache_mode = force_custom_plan")
+    cursor.close()
+    dbapi_connection.autocommit = autocommit
 
 
 def _dumps(obj: Any) -> str:

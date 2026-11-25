@@ -6,6 +6,9 @@ import {
   TooltipArrow,
   TooltipTrigger,
 } from "@phoenix/components";
+import { buildChatFromDecisionDraft } from "@phoenix/components/playground/decisionUtils";
+import { getDefaultInvocationConfig } from "@phoenix/components/playground/providerAdapters";
+import type { PlaygroundInstanceProps } from "@phoenix/components/playground/types";
 import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
@@ -19,9 +22,6 @@ import { generateMessageId } from "@phoenix/store";
 import { selectPlaygroundInstanceDecisionPrompt } from "@phoenix/store/playground/selectors";
 
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
-import { buildChatFromDecisionDraft } from "./decisionUtils";
-import { getDefaultInvocationConfig } from "./providerAdapters";
-import type { PlaygroundInstanceProps } from "./types";
 
 /**
  * Add a task beside this decision task that asks an LLM the same questions:
@@ -73,7 +73,7 @@ export function DuplicateAsChatButton({
         task: { type: "prompt" },
         decision: null,
         decisionPromptId: null,
-        model: { ...chatModel, modelType: "LLM", responseFormat },
+        model: { ...chatModel, modelType: "CHAT", responseFormat },
         template: { __type: "chat", messageIds: [] },
       },
     });

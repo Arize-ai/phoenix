@@ -2,17 +2,18 @@ from asyncio import sleep
 from typing import Any, Mapping, Optional
 
 import pytest
+import sqlalchemy as sa
 from sqlalchemy import insert, select
 from sqlalchemy.exc import DBAPIError, EmulatedDBAPIException
 
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.helpers import SupportedSQLDialect, get_sqlstate
 from phoenix.db.insertion.helpers import (
     OnConflict,
-    get_sqlstate,
     insert_on_conflict,
     should_calculate_span_cost,
 )
+from phoenix.db.lifecycle import live_row_predicate
 from phoenix.server.types import DbSessionFactory
 
 
@@ -71,6 +72,7 @@ class Test_insert_on_conflict:
                     table=models.Project,
                     unique_by=("name",),
                     on_conflict=on_conflict,
+                    index_where=sa.text(live_row_predicate()),
                 )
             )
         projects = (await session.scalars(select(models.Project))).all()
@@ -118,6 +120,7 @@ class Test_insert_on_conflict:
                     table=models.Project,
                     unique_by=("name",),
                     on_conflict=on_conflict,
+                    index_where=sa.text(live_row_predicate()),
                 )
             )
             updated_project = await session.scalar(
@@ -289,6 +292,30 @@ class TestShouldCalculateSpanCost:
                 },
                 True,
                 id="model_name_with_tab",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "decision": {"model_name": "jev-1.13.0"},
+                },
+                True,
+                id="decision_span_with_decision_model_name",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "EMBEDDING"}},
+                    "embedding": {"model_name": "text-embedding-3-small"},
+                },
+                True,
+                id="embedding_span_with_embedding_model_name",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": ["LLM"]}},
+                    "llm": {"model_name": "gpt-4"},
+                },
+                False,
+                id="list_span_kind",
             ),
         ],
     )

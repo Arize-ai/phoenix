@@ -248,3 +248,37 @@ export const AWS_AUTH_METHOD_OPTIONS: ReadonlyArray<{
 }> = (
   Object.entries(AWS_AUTH_METHOD_LABELS) as Array<[AWSAuthMethod, string]>
 ).map(([id, label]) => ({ id, label }));
+
+/**
+ * The kind of span a generative model is priced for.
+ * This mirrors the GraphQL GenerativeModelType enum.
+ */
+export type GenerativeModelType = "LLM" | "DECISION" | "EMBEDDING";
+
+/**
+ * The model type a new model gets unless the user picks another.
+ */
+export const DEFAULT_GENERATIVE_MODEL_TYPE: GenerativeModelType = "LLM";
+
+/**
+ * Human-readable labels for each model type.
+ */
+export const GENERATIVE_MODEL_TYPE_LABELS: Readonly<
+  Record<GenerativeModelType, string>
+> = {
+  LLM: "LLM",
+  DECISION: "Decision",
+  EMBEDDING: "Embedding",
+} as const;
+
+/**
+ * Model type options for select dropdowns.
+ */
+export const GENERATIVE_MODEL_TYPE_OPTIONS: ReadonlyArray<{
+  id: GenerativeModelType;
+  label: string;
+}> = (
+  Object.entries(GENERATIVE_MODEL_TYPE_LABELS) as Array<
+    [GenerativeModelType, string]
+  >
+).map(([id, label]) => ({ id, label }));

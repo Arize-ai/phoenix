@@ -1,0 +1,10 @@
+# Use in-memory SQLite instead of PostgreSQL
+postgresql:
+  enabled: false
+
+persistence:
+  enabled: false
+  inMemory: true
+
+database:
+  url: "sqlite:///:memory:"

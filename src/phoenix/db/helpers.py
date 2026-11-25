@@ -6,6 +6,7 @@ from typing import Any, Literal, Optional, Sequence, TypeVar, TypeVarTuple, Unio
 
 import sqlalchemy as sa
 from sqlalchemy import (
+    ColumnElement,
     Insert,
     Select,
     SQLColumnExpression,
@@ -14,7 +15,6 @@ from sqlalchemy import (
     and_,
     case,
     column,
-    distinct,
     exists,
     func,
     insert,
@@ -25,6 +25,7 @@ from sqlalchemy import (
     text,
     util,
 )
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import QueryableAttribute, aliased
 from sqlalchemy.sql.roles import InElementRole
@@ -37,6 +38,7 @@ from phoenix.config import (
 )
 from phoenix.datetime_utils import TimeBinUnit, multi_unit_time_bin_params
 from phoenix.db import models
+from phoenix.db.lifecycle import ProjectKindName
 
 SupportedSQLDialectName = Literal["postgresql", "sqlite"]
 
@@ -155,36 +157,40 @@ def _latest_code_evaluator_versions_sqlite_stmt(keys: list[int]) -> Select[*tupl
 
 def get_eval_trace_ids_for_datasets(*dataset_ids: int) -> Select[Optional[str]]:
     return (
-        select(distinct(models.ExperimentRunAnnotation.trace_id))
+        select(models.ExperimentRunAnnotation.trace_id)
+        .distinct()
         .join(models.ExperimentRun)
         .join_from(models.ExperimentRun, models.Experiment)
-        .where(models.Experiment.dataset_id.in_(set(dataset_ids)))
-        .where(models.ExperimentRunAnnotation.trace_id.isnot(None))
-    )
-
-
-def get_project_names_for_datasets(*dataset_ids: int) -> Select[Optional[str]]:
-    return (
-        select(distinct(models.Experiment.project_name))
-        .where(models.Experiment.dataset_id.in_(set(dataset_ids)))
-        .where(models.Experiment.project_name.isnot(None))
+        .join(
+            models.Trace,
+            models.Trace.trace_id == models.ExperimentRunAnnotation.trace_id,
+        )
+        .join(models.Project, models.Project.id == models.Trace.project_rowid)
+        .where(
+            models.Experiment.dataset_id.in_(set(dataset_ids)),
+            models.ExperimentRunAnnotation.trace_id.isnot(None),
+            models.Project.deleted_at.is_(None),
+            ~is_evaluator_project_condition(),
+        )
     )
 
 
 def get_eval_trace_ids_for_experiments(*experiment_ids: int) -> Select[Optional[str]]:
     return (
-        select(distinct(models.ExperimentRunAnnotation.trace_id))
+        select(models.ExperimentRunAnnotation.trace_id)
+        .distinct()
         .join(models.ExperimentRun)
-        .where(models.ExperimentRun.experiment_id.in_(set(experiment_ids)))
-        .where(models.ExperimentRunAnnotation.trace_id.isnot(None))
-    )
-
-
-def get_project_names_for_experiments(*experiment_ids: int) -> Select[Optional[str]]:
-    return (
-        select(distinct(models.Experiment.project_name))
-        .where(models.Experiment.id.in_(set(experiment_ids)))
-        .where(models.Experiment.project_name.isnot(None))
+        .join(
+            models.Trace,
+            models.Trace.trace_id == models.ExperimentRunAnnotation.trace_id,
+        )
+        .join(models.Project, models.Project.id == models.Trace.project_rowid)
+        .where(
+            models.ExperimentRun.experiment_id.in_(set(experiment_ids)),
+            models.ExperimentRunAnnotation.trace_id.isnot(None),
+            models.Project.deleted_at.is_(None),
+            ~is_evaluator_project_condition(),
+        )
     )
 
 
@@ -422,55 +428,79 @@ async def insert_experiment_with_examples_snapshot(
 _Ts = TypeVarTuple("_Ts")
 
 
+def is_dataset_evaluator_project_condition() -> ColumnElement[bool]:
+    """Correlated condition: the project holds the traces of a dataset evaluator."""
+    return (
+        select(models.DatasetEvaluators.id)
+        .where(models.DatasetEvaluators.project_id == models.Project.id)
+        .exists()
+    )
+
+
+def is_project_evaluator_trace_project_condition() -> ColumnElement[bool]:
+    """Correlated condition: the project holds the traces of a project evaluator."""
+    return (
+        select(models.ProjectEvaluator.id)
+        .where(models.ProjectEvaluator.trace_project_id == models.Project.id)
+        .exists()
+    )
+
+
+def is_evaluator_project_condition() -> ColumnElement[bool]:
+    """Correlated condition: the project holds the traces of any evaluator binding."""
+    return or_(
+        is_dataset_evaluator_project_condition(),
+        is_project_evaluator_trace_project_condition(),
+    )
+
+
+def is_experiment_named_project_condition() -> ColumnElement[bool]:
+    """Correlated condition: an experiment records its runs under the project's name."""
+    return (
+        select(models.Experiment.id)
+        .where(models.Experiment.project_name == models.Project.name)
+        .exists()
+    )
+
+
 def exclude_experiment_projects(
     stmt: Select[*_Ts],
 ) -> Select[*_Ts]:
-    return stmt.outerjoin(
-        models.Experiment,
-        and_(
-            models.Project.name == models.Experiment.project_name,
-            models.Experiment.project_name != PLAYGROUND_PROJECT_NAME,
-        ),
-    ).where(models.Experiment.project_name.is_(None))
+    return stmt.where(
+        or_(
+            models.Project.name == PLAYGROUND_PROJECT_NAME,
+            ~is_experiment_named_project_condition(),
+        )
+    )
 
 
 def exclude_dataset_evaluator_projects(
     stmt: Select[*_Ts],
 ) -> Select[*_Ts]:
-    return stmt.outerjoin(
-        models.DatasetEvaluators,
-        models.Project.id == models.DatasetEvaluators.project_id,
-    ).where(models.DatasetEvaluators.project_id.is_(None))
+    return stmt.where(~is_dataset_evaluator_project_condition())
 
 
 def exclude_project_evaluator_trace_projects(
     stmt: Select[*_Ts],
 ) -> Select[*_Ts]:
-    return stmt.outerjoin(
-        models.ProjectEvaluator,
-        models.Project.id == models.ProjectEvaluator.trace_project_id,
-    ).where(models.ProjectEvaluator.trace_project_id.is_(None))
+    return stmt.where(~is_project_evaluator_trace_project_condition())
 
 
-async def delete_projects_and_evaluator_trace_projects(
-    session: AsyncSession,
-    project_ids: Iterable[int],
-) -> None:
-    ids = set(project_ids)
-    if not ids:
-        return
-    trace_project_ids = (
-        await session.scalars(
-            select(models.ProjectEvaluator.trace_project_id).where(
-                models.ProjectEvaluator.project_id.in_(ids)
-            )
-        )
-    ).all()
-    await session.execute(sa.delete(models.Project).where(models.Project.id.in_(ids)))
-    if trace_project_ids:
-        await session.execute(
-            sa.delete(models.Project).where(models.Project.id.in_(trace_project_ids))
-        )
+def project_kind_expression() -> ColumnElement[ProjectKindName]:
+    """
+    A correlated expression that classifies each project by what writes its traces.
+
+    A project is PLAYGROUND when it is the prompt playground project, EVALUATOR when it holds
+    the traces of a dataset evaluator or a project evaluator, EXPERIMENT when an experiment
+    records its runs in it, and STANDARD otherwise. The first matching kind wins. Tombstoned
+    evaluator bindings still count until they are purged.
+    """
+    return case(
+        (models.Project.name == PLAYGROUND_PROJECT_NAME, literal("PLAYGROUND")),
+        (is_evaluator_project_condition(), literal("EVALUATOR")),
+        (is_experiment_named_project_condition(), literal("EXPERIMENT")),
+        else_=literal("STANDARD"),
+    )
 
 
 def date_trunc(
@@ -1430,3 +1460,65 @@ def is_foreign_key_violation(error: BaseException) -> bool:
     if sqlstate == _POSTGRES_FOREIGN_KEY_SQLSTATE:
         return True
     return str(candidate) == _SQLITE_FOREIGN_KEY_MESSAGE
+
+
+def get_sqlstate(error: DBAPIError) -> Optional[str]:
+    """Read a driver's SQLSTATE without parsing its error message."""
+    try:
+        driver_error = error.driver_exception
+    except ValueError:
+        # SQLAlchemy's emulated errors can be constructed without a driver error.
+        return None
+    for name in ("sqlstate", "pgcode"):
+        if isinstance(code := getattr(driver_error, name, None), str):
+            return code
+    return None
+
+
+# PostgreSQL lock_not_available is what NOWAIT and lock_timeout raise; deadlock_detected
+# is what the victim of a deadlock sees. SQLite never raises either because its single
+# writer lock serializes transactions.
+_POSTGRES_LOCK_NOT_AVAILABLE_SQLSTATE = "55P03"
+_POSTGRES_DEADLOCK_DETECTED_SQLSTATE = "40P01"
+
+
+def is_lock_not_available(error: BaseException) -> bool:
+    """Whether a NOWAIT or lock_timeout request lost to another transaction's lock."""
+    return (
+        isinstance(error, DBAPIError)
+        and get_sqlstate(error) == _POSTGRES_LOCK_NOT_AVAILABLE_SQLSTATE
+    )
+
+
+async def is_session_owner_tombstoned(session: AsyncSession, project_id: int) -> bool:
+    """Whether the project that owns a session is tombstoned, being tombstoned, or already purged.
+
+    A session owned by a tombstoned project is deleted with it, so a live trace must not join it.
+    On PostgreSQL the owner is read under ``FOR KEY SHARE NOWAIT``: an in-flight tombstone holds
+    ``FOR UPDATE`` on it, and a plain read would still see it as live. Failing to get the lock
+    counts as tombstoned so ingest never waits on another project's lock.
+    """
+    stmt = select(models.Project.id, models.Project.deleted_at).where(
+        models.Project.id == project_id
+    )
+    if session.get_bind().dialect.name != SupportedSQLDialect.POSTGRESQL.value:
+        owner = (await session.execute(stmt)).first()
+        return owner is None or owner.deleted_at is not None
+    try:
+        async with session.begin_nested():
+            owner = (
+                await session.execute(stmt.with_for_update(read=True, key_share=True, nowait=True))
+            ).first()
+    except DBAPIError as error:
+        if is_lock_not_available(error):
+            return True
+        raise
+    return owner is None or owner.deleted_at is not None
+
+
+def is_lock_contention(error: BaseException) -> bool:
+    """Whether another transaction held or deadlocked on the rows, so retrying later can succeed."""
+    return isinstance(error, DBAPIError) and get_sqlstate(error) in (
+        _POSTGRES_LOCK_NOT_AVAILABLE_SQLSTATE,
+        _POSTGRES_DEADLOCK_DETECTED_SQLSTATE,
+    )
