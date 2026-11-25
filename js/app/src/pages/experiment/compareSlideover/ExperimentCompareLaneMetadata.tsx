@@ -10,12 +10,8 @@ import {
 import { JSONBlock } from "@phoenix/components/code";
 
 import { ExperimentCompareLaneEmpty } from "./ExperimentCompareLaneEmpty";
-import {
-  getCompareLaneRunState,
-  getShownRun,
-} from "./experimentCompareLaneRuns";
 import type { CompareLane } from "./experimentCompareLaneTypes";
-import { useExperimentCompareLaneRunGroup } from "./useExperimentCompareLaneRunGroup";
+import { useCompareLaneRun } from "./useExperimentCompareLaneRunGroup";
 
 const identifiersCSS = css`
   padding: 0 var(--global-dimension-size-100);
@@ -33,16 +29,7 @@ export function ExperimentCompareLaneMetadata({
   exampleId: string;
   lane: CompareLane;
 }) {
-  const runGroup = useExperimentCompareLaneRunGroup({
-    exampleId,
-    experimentId: lane.experiment.id,
-  });
-  const shownRun = getShownRun(
-    getCompareLaneRunState({
-      runs: runGroup.runs,
-      shownRepetitionNumber: lane.shownRepetitionNumber,
-    })
-  );
+  const { shownRun } = useCompareLaneRun({ exampleId, lane });
   const metadataText = JSON.stringify(lane.experiment.metadata, null, 2);
   return (
     <Flex direction="column" gap="size-100">

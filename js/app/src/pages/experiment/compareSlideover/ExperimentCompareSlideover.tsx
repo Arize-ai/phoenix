@@ -41,6 +41,7 @@ import { ExperimentCompareLaneHeader } from "./ExperimentCompareLaneHeader";
 import {
   EXPERIMENT_COMPARE_SLIDEOVER_CONTAINER_NAME,
   ExperimentCompareLaneRow,
+  STACKED_LANES_CONTAINER_QUERY,
 } from "./ExperimentCompareLaneRow";
 import { resolveShownRepetitionNumber } from "./experimentCompareLaneRuns";
 import { ExperimentCompareLaneTrace } from "./ExperimentCompareLaneTrace";
@@ -55,7 +56,7 @@ import type {
 import { resolveCompareLaneExperimentId } from "./experimentCompareSlideoverSearchParams";
 import { useExperimentCompareSlideoverState } from "./useExperimentCompareSlideoverState";
 
-export type ExperimentCompareSlideoverProps = {
+type ExperimentCompareSlideoverProps = {
   datasetId: string;
   baseExperimentId: string;
   /** The compared experiments, in display order */
@@ -75,6 +76,18 @@ export type ExperimentCompareSlideoverProps = {
    */
   isObscured?: boolean;
 };
+
+/**
+ * Options for the slideover's arrow shortcuts: off while another overlay has
+ * the keyboard, and never taken from an element that uses arrow keys itself.
+ */
+function getArrowHotkeyOptions(areHotkeysEnabled: boolean) {
+  return {
+    enabled: (event: KeyboardEvent) =>
+      areHotkeysEnabled && !isArrowKeyConsumer(event.target),
+    preventDefault: true,
+  };
+}
 
 const slideoverCSS = css`
   display: flex;
@@ -146,7 +159,7 @@ const slideoverCSS = css`
     }
   }
 
-  @container ${EXPERIMENT_COMPARE_SLIDEOVER_CONTAINER_NAME} (max-width: 900px) {
+  ${STACKED_LANES_CONTAINER_QUERY} {
     .experiment-compare-slideover__traces {
       overflow-y: auto;
       .experiment-compare-lane-row {
@@ -216,27 +229,12 @@ function OpenExperimentCompareSlideover({
   });
   const currentItem = navigationItems[currentIndex];
 
-  // The stop next was pressed on while its neighbor was still on an unfetched
-  // page, so the slideover can move on once that page arrives.
-  const pendingAdvanceFromIndexRef = useRef<number | null>(null);
-
-  const selectItem = ({
-    item,
-    index,
-  }: {
-    item: ExperimentCompareNavigationItem;
-    index: number;
-  }) => {
-    pendingAdvanceFromIndexRef.current = null;
-    openExample({
-      exampleId: item.exampleId,
-      baseRepetitionNumber: item.baseRepetitionNumber,
-    });
-    const isLastLoadedItem = index === navigationItems.length - 1;
-    if (isLastLoadedItem && hasMoreItems && !isLoadingMoreItems) {
-      onLoadMoreItems();
-    }
-  };
+  // The example next was pressed on while its neighbor was still on an
+  // unfetched page. It is dropped as soon as another example is opened.
+  const pendingAdvanceRef = useRef<{
+    fromIndex: number;
+    exampleId: string;
+  } | null>(null);
 
   const navigateToIndex = (targetIndex: number) => {
     const navigation = resolveExampleNavigation({
@@ -244,39 +242,42 @@ function OpenExperimentCompareSlideover({
       targetIndex,
       hasMoreItems,
     });
+    if (navigation.type === "none") {
+      return;
+    }
+    const isAtLoadedEnd = targetIndex >= navigationItems.length - 1;
+    if (isAtLoadedEnd && hasMoreItems && !isLoadingMoreItems) {
+      onLoadMoreItems();
+    }
     if (navigation.type === "select") {
-      selectItem({ item: navigation.item, index: targetIndex });
-    } else if (navigation.type === "load-more") {
-      pendingAdvanceFromIndexRef.current = targetIndex - 1;
-      if (!isLoadingMoreItems) {
-        onLoadMoreItems();
-      }
+      openExample(navigation.item);
+    } else {
+      pendingAdvanceRef.current = {
+        fromIndex: targetIndex - 1,
+        exampleId: selectedExampleId,
+      };
     }
   };
 
   // The URL is the selection, and it can only move once the fetched page has
   // rendered, so this cannot be derived during render.
   useEffect(() => {
-    const pendingAdvanceFromIndex = pendingAdvanceFromIndexRef.current;
-    if (pendingAdvanceFromIndex == null) {
+    const pendingAdvance = pendingAdvanceRef.current;
+    if (pendingAdvance == null) {
       return;
     }
-    const nextItem = navigationItems[pendingAdvanceFromIndex + 1];
-    if (nextItem != null) {
-      pendingAdvanceFromIndexRef.current = null;
-      openExample({
-        exampleId: nextItem.exampleId,
-        baseRepetitionNumber: nextItem.baseRepetitionNumber,
-      });
+    if (pendingAdvance.exampleId !== selectedExampleId) {
+      pendingAdvanceRef.current = null;
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs when a page of stops arrives
-  }, [navigationItems]);
+    const nextItem = navigationItems[pendingAdvance.fromIndex + 1];
+    if (nextItem != null) {
+      pendingAdvanceRef.current = null;
+      openExample(nextItem);
+    }
+  }, [navigationItems, openExample, selectedExampleId]);
 
-  const arrowHotkeyOptions = {
-    enabled: (event: KeyboardEvent) =>
-      areHotkeysEnabled && !isArrowKeyConsumer(event.target),
-    preventDefault: true,
-  };
+  const arrowHotkeyOptions = getArrowHotkeyOptions(areHotkeysEnabled);
   useHotkeys(
     "ArrowDown",
     () => navigateToIndex(currentIndex + 1),
@@ -476,15 +477,15 @@ function ExperimentCompareSlideoverBody({
   const baseExperiment = experiments.find(
     (experiment) => experiment.id === baseExperimentId
   );
-  const loadedCompareExperimentIds = compareExperimentIds.filter(
+  const compareExperiments = compareExperimentIds.flatMap(
     (experimentId) =>
-      experiments.some((experiment) => experiment.id === experimentId)
+      experiments.find((experiment) => experiment.id === experimentId) ?? []
   );
   const compareExperimentId = resolveCompareLaneExperimentId({
     requestedExperimentId: state.compareLaneExperimentId,
-    compareExperimentIds: loadedCompareExperimentIds,
+    compareExperimentIds: compareExperiments.map((experiment) => experiment.id),
   });
-  const compareExperiment = experiments.find(
+  const compareExperiment = compareExperiments.find(
     (experiment) => experiment.id === compareExperimentId
   );
   const getCompareExperimentColor = (experimentId: string) =>
@@ -543,11 +544,7 @@ function ExperimentCompareSlideoverBody({
     }
   };
 
-  const arrowHotkeyOptions = {
-    enabled: (event: KeyboardEvent) =>
-      areHotkeysEnabled && !isArrowKeyConsumer(event.target),
-    preventDefault: true,
-  };
+  const arrowHotkeyOptions = getArrowHotkeyOptions(areHotkeysEnabled);
   useHotkeys(
     "ArrowRight",
     () => stepActiveLaneRepetition(1),
@@ -578,21 +575,12 @@ function ExperimentCompareSlideoverBody({
     }
   };
 
-  const pickerOptions = loadedCompareExperimentIds.flatMap((experimentId) => {
-    const experiment = experiments.find(
-      (candidate) => candidate.id === experimentId
-    );
-    return experiment != null
-      ? [
-          {
-            id: experiment.id,
-            name: experiment.name,
-            sequenceNumber: experiment.sequenceNumber,
-            color: getCompareExperimentColor(experiment.id),
-          },
-        ]
-      : [];
-  });
+  const pickerOptions = compareExperiments.map((experiment) => ({
+    id: experiment.id,
+    name: experiment.name,
+    sequenceNumber: experiment.sequenceNumber,
+    color: getCompareExperimentColor(experiment.id),
+  }));
   const hasSteppableLanes =
     lanes.length > 1 && lanes.some((lane) => lane.experiment.repetitions > 1);
 

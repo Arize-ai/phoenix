@@ -56,7 +56,7 @@ export type ExperimentCompareAnnotationsTableRow = {
   baseValueText?: string;
 };
 
-export type AnnotationTraceSelection = {
+type AnnotationTraceSelection = {
   traceId: string;
   projectId: string;
   annotationName: string;
@@ -225,19 +225,13 @@ function ExperimentCompareRepetitionCells({
   annotationName,
   cells,
   kind,
-  maxVisibleCount,
 }: {
   annotationName: string;
   cells: readonly AnnotationRepetitionCell[];
   kind: AnnotationRowKind;
-  /** How many cells to draw before collapsing the rest to `+N` */
-  maxVisibleCount?: number;
 }) {
   const color = useWordColor(annotationName);
-  const { visibleCells, hiddenCount } = capRepetitionCells({
-    cells,
-    maxVisibleCount,
-  });
+  const { visibleCells, hiddenCount } = capRepetitionCells({ cells });
   if (cells.length === 0) {
     return null;
   }
@@ -487,7 +481,7 @@ export function ExperimentCompareAnnotationsTable({
               </>
             ) : null}
             <div className="experiment-compare-annotations__trailing">
-              {showsDeltas && delta != null ? (
+              {delta != null ? (
                 <AnnotationRowDeltaToken
                   annotationName={annotationName}
                   delta={delta}

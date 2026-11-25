@@ -1,8 +1,10 @@
+import { clampNumber } from "@phoenix/utils/numberUtils";
+
 /**
  * The run fields the lane logic reads, so it can be exercised without the
  * GraphQL types.
  */
-export type CompareLaneRunLike = {
+type CompareLaneRunLike = {
   readonly repetitionNumber: number;
   readonly error: string | null;
 };
@@ -26,10 +28,11 @@ export function resolveShownRepetitionNumber({
   requestedRepetitionNumber: number;
   repetitionCount: number;
 }): number {
-  return Math.min(
-    Math.max(requestedRepetitionNumber, 1),
-    Math.max(repetitionCount, 1)
-  );
+  return clampNumber({
+    value: requestedRepetitionNumber,
+    min: 1,
+    max: Math.max(repetitionCount, 1),
+  });
 }
 
 /**

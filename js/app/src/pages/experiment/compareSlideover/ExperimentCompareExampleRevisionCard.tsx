@@ -5,7 +5,7 @@ import { JSONBlock } from "@phoenix/components/code";
 
 import type { ExperimentCompareExampleRevisionCardQuery } from "./__generated__/ExperimentCompareExampleRevisionCardQuery.graphql";
 
-export type ExampleRevisionField = "input" | "referenceOutput";
+type ExampleRevisionField = "input" | "referenceOutput";
 
 const TITLES_BY_FIELD: Record<ExampleRevisionField, string> = {
   input: "Input",

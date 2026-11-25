@@ -172,6 +172,19 @@ export const revalidateOnProjectChange: ShouldRevalidateFunction = ({
   return currentParams.projectId !== nextParams.projectId;
 };
 
+// :datasetId's loader depends only on its own param, while the pages under it
+// keep view state in search params that change on every keystroke.
+export const revalidateOnDatasetChange: ShouldRevalidateFunction = ({
+  currentUrl,
+  nextUrl,
+  currentParams,
+  nextParams,
+  defaultShouldRevalidate,
+}) => {
+  if (currentUrl.href === nextUrl.href) return defaultShouldRevalidate;
+  return currentParams.datasetId !== nextParams.datasetId;
+};
+
 // :promptId's loader always revalidates so versions saved elsewhere show up,
 // except when opening or switching versions of the same prompt: its query
 // holds only the first page of the paginated versions list, so re-running it
@@ -583,6 +596,7 @@ export const appRouteObjects = createRoutesFromElements(
           <Route
             path=":datasetId"
             loader={datasetLoader}
+            shouldRevalidate={revalidateOnDatasetChange}
             handle={{
               crumb: (data: DatasetLoaderData) => data?.dataset?.name,
               agentRoute: {

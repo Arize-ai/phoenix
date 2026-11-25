@@ -28,7 +28,6 @@ import {
   usePaginationFragment,
   usePreloadedQuery,
 } from "react-relay";
-import { useSearchParams } from "react-router";
 
 import {
   ColorSwatch,
@@ -70,16 +69,18 @@ import type {
 } from "@phoenix/components/table/tableFeatures";
 import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import { useStableSearchParamsUpdater } from "@phoenix/hooks";
 import type { ExperimentCompareListPageQuery } from "@phoenix/pages/experiment/__generated__/ExperimentCompareListPageQuery.graphql";
 import type { ExperimentComparePageQueriesCompareListQuery as ExperimentComparePageQueriesCompareListQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareListQuery.graphql";
 import {
   ExperimentCompareSlideover,
   findNavigationItemIndex,
-  isInteractiveClickTarget,
+  getCompareRowProps,
   useExperimentCompareSlideoverState,
 } from "@phoenix/pages/experiment/compareSlideover";
 import { ExperimentComparePageQueriesCompareListQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
 import { TraceDetailsDialog } from "@phoenix/pages/experiment/TraceDetailsDialog";
+import type { SelectedTraceDetails } from "@phoenix/pages/experiment/TraceDetailsDrawer";
 import { isObject } from "@phoenix/typeUtils";
 import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
 import {
@@ -146,18 +147,15 @@ export function ExperimentCompareListPage({
 }: {
   queryRef: PreloadedQuery<ExperimentComparePageQueriesCompareListQueryType>;
 }) {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams, updateSearchParams] = useStableSearchParamsUpdater();
   const clearSelectedSpanSearchParam = useCallback(() => {
-    // Clear the URL search params for the span selection
-    setSearchParams(
-      (prev) => {
-        const newParams = new URLSearchParams(prev);
-        newParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
-        return newParams;
+    updateSearchParams({
+      update: (currentSearchParams) => {
+        currentSearchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+        return currentSearchParams;
       },
-      { replace: true }
-    );
-  }, [setSearchParams]);
+    });
+  }, [updateSearchParams]);
   const experimentIds = useMemo(
     () => searchParams.getAll("experimentId"),
     [searchParams]
@@ -203,9 +201,6 @@ export function ExperimentCompareListPage({
                   experiment: node {
                     id
                     repetitions
-                    datasetVersion {
-                      id
-                    }
                     averageRunLatencyMs
                     runCount
                     costSummary {
@@ -1264,16 +1259,33 @@ export function ExperimentCompareListPage({
     () => rows.map((row) => getRowNavigationItem(row.original)),
     [rows, getRowNavigationItem]
   );
-  const selectedRowId =
-    rows[
-      findNavigationItemIndex({
-        items: navigationItems,
-        selectedExampleId: slideoverState.selectedExampleId,
-        baseRepetitionNumber: slideoverState.baseRepetitionNumber,
-      })
-    ]?.id ?? null;
+  const { selectedExampleId, baseRepetitionNumber } = slideoverState;
+  const selectedRowId = useMemo(
+    () =>
+      rows[
+        findNavigationItemIndex({
+          items: navigationItems,
+          selectedExampleId,
+          baseRepetitionNumber,
+        })
+      ]?.id ?? null,
+    [rows, navigationItems, selectedExampleId, baseRepetitionNumber]
+  );
+  const loadNextPage = useCallback(() => {
+    loadNext(PAGE_SIZE);
+  }, [loadNext]);
+  const openTraceDialog = useCallback(
+    ({ traceId, projectId, title }: SelectedTraceDetails) => {
+      // A span selection left in the URL by another view (e.g. the grid
+      // view's trace drawer) belongs to a different trace, so drop it before
+      // this trace renders.
+      clearSelectedSpanSearchParam();
+      setSelectedTraceDetails({ traceId, projectId, dialogTitle: title });
+    },
+    [clearSelectedSpanSearchParam]
+  );
   const handleRowClick =
-    slideoverState.selectedExampleId != null
+    selectedExampleId != null
       ? (rowId: string) => {
           const row = rows.find((candidate) => candidate.id === rowId);
           if (row != null) {
@@ -1367,18 +1379,8 @@ export function ExperimentCompareListPage({
           totalItemCount={baseExperiment.runCount}
           hasMoreItems={hasNext}
           isLoadingMoreItems={isLoadingNext}
-          onLoadMoreItems={() => loadNext(PAGE_SIZE)}
-          onOpenTrace={({ traceId, projectId, title }) => {
-            // A span selection left in the URL by another view (e.g. the
-            // grid view's trace drawer) belongs to a different trace, so
-            // drop it before this trace renders.
-            clearSelectedSpanSearchParam();
-            setSelectedTraceDetails({
-              traceId,
-              projectId,
-              dialogTitle: title,
-            });
-          }}
+          onLoadMoreItems={loadNextPage}
+          onOpenTrace={openTraceDialog}
         />
       ) : null}
       <ViewportModalOverlay
@@ -1512,21 +1514,17 @@ function TableBody<T extends RowData>({
     <tbody>
       {virtualRows.map((virtualRow, index) => {
         const row = rows[virtualRow.index];
+        const compareRowProps = getCompareRowProps({
+          rowId: row.id,
+          selectedRowId,
+          onRowClick,
+        });
         return (
           <tr
             key={row.id}
-            data-selected={row.id === selectedRowId}
-            onClick={
-              onRowClick != null
-                ? (event) => {
-                    if (!isInteractiveClickTarget(event.target)) {
-                      onRowClick(row.id);
-                    }
-                  }
-                : undefined
-            }
+            {...compareRowProps}
             style={{
-              cursor: onRowClick != null ? "pointer" : undefined,
+              ...compareRowProps.style,
               height: `${virtualRow.size}px`,
               transform: `translateY(${
                 virtualRow.start - index * virtualRow.size

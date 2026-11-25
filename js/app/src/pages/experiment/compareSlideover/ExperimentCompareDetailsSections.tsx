@@ -57,15 +57,6 @@ const detailsSectionsCSS = css`
   .experiment-compare-details__section {
     border-bottom: var(--global-border-size-thin) solid
       var(--global-border-color-default);
-    /* Each card and table in a section carries its own visible title */
-    & > [id$="-heading"] {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      overflow: hidden;
-      clip-path: inset(50%);
-      white-space: nowrap;
-    }
     &:focus-visible {
       outline-offset: calc(-1 * var(--focus-ring-thickness));
       border-radius: 0;
@@ -133,6 +124,7 @@ export function ExperimentCompareDetailsSections({
         <SectionNavSection
           id={ANNOTATIONS_SECTION.id}
           heading={ANNOTATIONS_SECTION.label}
+          isHeadingHidden
           className="experiment-compare-details__section"
         >
           <ExperimentCompareLaneRow lanes={lanes}>
@@ -156,6 +148,7 @@ export function ExperimentCompareDetailsSections({
         <SectionNavSection
           id={OUTPUT_SECTION.id}
           heading={OUTPUT_SECTION.label}
+          isHeadingHidden
           className="experiment-compare-details__section"
         >
           <ExperimentCompareLaneRow lanes={lanes}>
@@ -177,6 +170,7 @@ export function ExperimentCompareDetailsSections({
         <SectionNavSection
           id={REFERENCE_OUTPUT_SECTION.id}
           heading={REFERENCE_OUTPUT_SECTION.label}
+          isHeadingHidden
           className="experiment-compare-details__section"
         >
           <div className="experiment-compare-details__shared">
@@ -195,6 +189,7 @@ export function ExperimentCompareDetailsSections({
         <SectionNavSection
           id={INPUT_SECTION.id}
           heading={INPUT_SECTION.label}
+          isHeadingHidden
           className="experiment-compare-details__section"
         >
           <div className="experiment-compare-details__shared">
@@ -213,6 +208,7 @@ export function ExperimentCompareDetailsSections({
         <SectionNavSection
           id={METADATA_SECTION.id}
           heading={METADATA_SECTION.label}
+          isHeadingHidden
           className="experiment-compare-details__section"
         >
           <ExperimentCompareLaneRow lanes={lanes}>

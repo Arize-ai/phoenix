@@ -7,12 +7,8 @@ import { HotkeysEnabledProvider } from "@phoenix/contexts";
 import { TraceDetailsSkeleton, TraceDetailsView } from "@phoenix/pages/trace";
 
 import { ExperimentCompareLaneEmpty } from "./ExperimentCompareLaneEmpty";
-import {
-  getCompareLaneRunState,
-  getShownRun,
-} from "./experimentCompareLaneRuns";
 import type { CompareLane } from "./experimentCompareLaneTypes";
-import { useExperimentCompareLaneRunGroup } from "./useExperimentCompareLaneRunGroup";
+import { useCompareLaneRun } from "./useExperimentCompareLaneRunGroup";
 
 const laneTraceCSS = css`
   display: flex;
@@ -91,15 +87,8 @@ export function ExperimentCompareLaneTrace({
   /** Whether this lane is the one keyboard shortcuts act on */
   isActive: boolean;
 }) {
-  const runGroup = useExperimentCompareLaneRunGroup({
-    exampleId,
-    experimentId: lane.experiment.id,
-  });
-  const runState = getCompareLaneRunState({
-    runs: runGroup.runs,
-    shownRepetitionNumber: lane.shownRepetitionNumber,
-  });
-  const trace = getShownRun(runState)?.trace;
+  const { runState, shownRun } = useCompareLaneRun({ exampleId, lane });
+  const trace = shownRun?.trace;
   if (trace == null) {
     return (
       <View padding="size-100">

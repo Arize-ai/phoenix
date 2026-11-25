@@ -11,6 +11,7 @@ import {
 } from "@phoenix/components/experiment/experimentDeltaUtils";
 import { calculateAnnotationScorePercentile } from "@phoenix/pages/experiment/utils";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
+import { clampNumber } from "@phoenix/utils/numberUtils";
 
 const DEFAULT_MAX_VISIBLE_REPETITION_CELLS = 8;
 
@@ -22,9 +23,7 @@ export type CompareLaneAnnotationLike = {
   readonly label: string | null;
 };
 
-export type CompareLaneAnnotatedRun<
-  TAnnotation extends CompareLaneAnnotationLike,
-> = {
+type CompareLaneAnnotatedRun<TAnnotation extends CompareLaneAnnotationLike> = {
   readonly repetitionNumber: number;
   readonly error: string | null;
   readonly annotations: readonly TAnnotation[];
@@ -93,7 +92,11 @@ export function computeLabelMode(labels: readonly string[]): string | null {
   return mode;
 }
 
-function formatAnnotationValue(
+/**
+ * An annotation's value as a row shows it: its score, else its label, else
+ * `--`.
+ */
+export function formatAnnotationValue(
   annotation: CompareLaneAnnotationLike | null
 ): string {
   if (annotation?.score != null) {
@@ -148,13 +151,11 @@ export function buildLaneAnnotationRow<
     scores.length > 0 ? "score" : labels.length > 0 ? "label" : "empty";
 
   const getScorePercent = (score: number) =>
-    Math.min(
-      Math.max(
-        calculateAnnotationScorePercentile(score, minScore, maxScore),
-        0
-      ),
-      100
-    );
+    clampNumber({
+      value: calculateAnnotationScorePercentile(score, minScore, maxScore),
+      min: 0,
+      max: 100,
+    });
 
   const repetitionCells = annotatedRuns.map(
     ({ repetitionNumber, annotation }): AnnotationRepetitionCell => {

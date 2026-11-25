@@ -1,11 +1,6 @@
 import { partitionPickerExperiments } from "../experimentCompareLanePickerLayout";
 
 const experimentIds = ["b", "c", "d", "e", "f"];
-const widths = {
-  collapsedChipWidth: 50,
-  selectedChipMinWidth: 100,
-  overflowTriggerWidth: 50,
-};
 
 describe("partitionPickerExperiments", () => {
   it("keeps every experiment a chip when they fit", () => {
@@ -13,8 +8,7 @@ describe("partitionPickerExperiments", () => {
       partitionPickerExperiments({
         experimentIds,
         selectedExperimentId: "b",
-        availableWidth: 300,
-        ...widths,
+        availableWidth: 540,
       })
     ).toEqual({ chipExperimentIds: experimentIds, overflowExperimentIds: [] });
   });
@@ -24,8 +18,7 @@ describe("partitionPickerExperiments", () => {
       partitionPickerExperiments({
         experimentIds,
         selectedExperimentId: "b",
-        availableWidth: 250,
-        ...widths,
+        availableWidth: 420,
       })
     ).toEqual({
       chipExperimentIds: ["b", "c", "d"],
@@ -38,8 +31,7 @@ describe("partitionPickerExperiments", () => {
       partitionPickerExperiments({
         experimentIds,
         selectedExperimentId: "f",
-        availableWidth: 250,
-        ...widths,
+        availableWidth: 420,
       })
     ).toEqual({
       chipExperimentIds: ["b", "c", "f"],
@@ -52,8 +44,7 @@ describe("partitionPickerExperiments", () => {
       partitionPickerExperiments({
         experimentIds,
         selectedExperimentId: "d",
-        availableWidth: 120,
-        ...widths,
+        availableWidth: 200,
       })
     ).toEqual({
       chipExperimentIds: ["d"],
@@ -67,7 +58,6 @@ describe("partitionPickerExperiments", () => {
         experimentIds,
         selectedExperimentId: "b",
         availableWidth: null,
-        ...widths,
       })
     ).toEqual({ chipExperimentIds: experimentIds, overflowExperimentIds: [] });
   });

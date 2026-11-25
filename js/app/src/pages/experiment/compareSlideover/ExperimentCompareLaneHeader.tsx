@@ -16,12 +16,8 @@ import { ExperimentRepetitionSelector } from "@phoenix/pages/experiment/Experime
 
 import type { ExperimentCompareLanePickerOption } from "./ExperimentCompareLanePicker";
 import { ExperimentCompareLanePicker } from "./ExperimentCompareLanePicker";
-import {
-  getCompareLaneRunState,
-  getShownRun,
-} from "./experimentCompareLaneRuns";
 import type { CompareLane } from "./experimentCompareLaneTypes";
-import { useExperimentCompareLaneRunGroup } from "./useExperimentCompareLaneRunGroup";
+import { useCompareLaneRun } from "./useExperimentCompareLaneRunGroup";
 
 const laneHeaderCSS = css`
   display: flex;
@@ -57,16 +53,7 @@ function LaneRunTraceButton({
   lane: CompareLane;
   onPress: () => void;
 }) {
-  const runGroup = useExperimentCompareLaneRunGroup({
-    exampleId,
-    experimentId: lane.experiment.id,
-  });
-  const shownRun = getShownRun(
-    getCompareLaneRunState({
-      runs: runGroup.runs,
-      shownRepetitionNumber: lane.shownRepetitionNumber,
-    })
-  );
+  const { shownRun } = useCompareLaneRun({ exampleId, lane });
   const hasTrace = shownRun?.trace != null;
   return (
     <TooltipTrigger isDisabled={!hasTrace}>

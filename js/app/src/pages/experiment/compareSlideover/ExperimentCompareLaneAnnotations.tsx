@@ -3,16 +3,16 @@ import { css } from "@emotion/react";
 import { Flex, Text, truncateSingleCSS } from "@phoenix/components";
 import {
   computeMeanPerRun,
-  computeOperationalMetricDelta,
+  indexSummariesByAnnotationName,
 } from "@phoenix/components/experiment/experimentDeltaUtils";
 import {
-  ExperimentMetricDelta,
   ExperimentMetricStat,
   ExperimentMetricStatRow,
 } from "@phoenix/components/experiment/ExperimentMetricDelta";
 import { ExperimentRunLatency } from "@phoenix/components/experiment/ExperimentRunLatency";
 import { ExperimentRunTokenCosts } from "@phoenix/components/experiment/ExperimentRunTokenCosts";
 import { ExperimentRunTokenCount } from "@phoenix/components/experiment/ExperimentRunTokenCount";
+import { RunGroupStatDelta } from "@phoenix/pages/experiment/ExperimentRepeatedRunGroupMetadata";
 import type { SelectedTraceDetails } from "@phoenix/pages/experiment/TraceDetailsDrawer";
 import {
   costFormatter,
@@ -23,14 +23,11 @@ import {
 import {
   buildLaneAnnotationRow,
   computeAnnotationRowDelta,
+  formatAnnotationValue,
 } from "./experimentCompareAnnotationRows";
 import type { ExperimentCompareAnnotationsTableRow } from "./ExperimentCompareAnnotationsTable";
 import { ExperimentCompareAnnotationsTable } from "./ExperimentCompareAnnotationsTable";
 import { ExperimentCompareLaneEmpty } from "./ExperimentCompareLaneEmpty";
-import {
-  getCompareLaneRunState,
-  getShownRun,
-} from "./experimentCompareLaneRuns";
 import type {
   AnnotationConfigsByName,
   CompareLane,
@@ -39,7 +36,7 @@ import type {
   CompareLaneRun,
   CompareLaneRunGroup,
 } from "./useExperimentCompareLaneRunGroup";
-import { useExperimentCompareLaneRunGroup } from "./useExperimentCompareLaneRunGroup";
+import { useCompareLaneRun } from "./useExperimentCompareLaneRunGroup";
 
 const averagesCSS = css`
   font-family: var(--global-font-family-mono);
@@ -60,29 +57,6 @@ const statsRowCSS = css`
   padding: 0 var(--global-dimension-size-100);
 `;
 
-function RunStatDelta({
-  base,
-  compare,
-  metricLabel,
-  formatter,
-}: {
-  base: number | null;
-  compare: number | null;
-  metricLabel: string;
-  formatter: (value: number | null | undefined) => string;
-}) {
-  return (
-    <ExperimentMetricDelta
-      delta={computeOperationalMetricDelta({ base, compare })}
-      display="relative"
-      metricLabel={metricLabel}
-      formatter={formatter}
-      compareValueText={formatter(compare)}
-      baseValueText={formatter(base)}
-    />
-  );
-}
-
 /**
  * The shown run's latency, tokens and cost, each followed by its change
  * against the base lane's shown run when there is one.
@@ -101,7 +75,7 @@ function LaneRunStats({
       <ExperimentMetricStat>
         <ExperimentRunLatency latencyMs={run.latencyMs} />
         {baseRun != null ? (
-          <RunStatDelta
+          <RunGroupStatDelta
             base={baseRun.latencyMs}
             compare={run.latencyMs}
             metricLabel="Latency"
@@ -116,7 +90,7 @@ function LaneRunStats({
           size="S"
         />
         {baseRun != null ? (
-          <RunStatDelta
+          <RunGroupStatDelta
             base={baseRun.costSummary.total.tokens}
             compare={tokens}
             metricLabel="Total tokens"
@@ -132,7 +106,7 @@ function LaneRunStats({
             size="S"
           />
           {baseRun != null ? (
-            <RunStatDelta
+            <RunGroupStatDelta
               base={baseRun.costSummary.total.cost}
               compare={cost}
               metricLabel="Total cost"
@@ -177,38 +151,27 @@ export function ExperimentCompareLaneAnnotations({
   annotationConfigsByName: AnnotationConfigsByName;
   onOpenTrace: (details: SelectedTraceDetails) => void;
 }) {
-  const runGroup = useExperimentCompareLaneRunGroup({
+  const { runGroup, runState, shownRun } = useCompareLaneRun({
     exampleId,
-    experimentId: lane.experiment.id,
+    lane,
   });
-  const baseRunGroup = useExperimentCompareLaneRunGroup({
+  const { shownRun: baseShownRun } = useCompareLaneRun({
     exampleId,
-    experimentId: (baseLane ?? lane).experiment.id,
-  });
-  const runState = getCompareLaneRunState({
-    runs: runGroup.runs,
-    shownRepetitionNumber: lane.shownRepetitionNumber,
+    lane: baseLane ?? lane,
   });
   if (runState.type === "no-runs") {
     return <ExperimentCompareLaneEmpty message="No run for this example" />;
   }
-  const shownRun = getShownRun(runState);
-  const baseShownRun =
-    baseLane != null
-      ? getShownRun(
-          getCompareLaneRunState({
-            runs: baseRunGroup.runs,
-            shownRepetitionNumber: baseLane.shownRepetitionNumber,
-          })
-        )
-      : null;
-  const showsDeltas = shownRun != null && baseShownRun != null;
+  /** The base lane's shown run when both lanes have one to compare */
+  const deltaBaseRun =
+    baseLane != null && shownRun != null ? baseShownRun : null;
+  const summariesByName = indexSummariesByAnnotationName(
+    lane.experiment.annotationSummaries
+  );
 
   const rows = annotationNames.map(
     (annotationName): ExperimentCompareAnnotationsTableRow => {
-      const summary = lane.experiment.annotationSummaries.find(
-        (candidate) => candidate.annotationName === annotationName
-      );
+      const summary = summariesByName[annotationName];
       const config = annotationConfigsByName[annotationName];
       const row = buildLaneAnnotationRow({
         annotationName,
@@ -217,23 +180,22 @@ export function ExperimentCompareLaneAnnotations({
         minScore: summary?.minScore,
         maxScore: summary?.maxScore,
       });
-      if (!showsDeltas || baseLane == null) {
+      if (deltaBaseRun == null) {
         return { row, config, delta: null };
       }
-      const baseRow = buildLaneAnnotationRow({
-        annotationName,
-        runs: baseRunGroup.runs,
-        shownRepetitionNumber: baseLane.shownRepetitionNumber,
-      });
+      const baseAnnotation =
+        deltaBaseRun.annotations.find(
+          (annotation) => annotation.name === annotationName
+        ) ?? null;
       return {
         row,
         config,
         delta: computeAnnotationRowDelta({
-          baseAnnotation: baseRow.annotation,
+          baseAnnotation,
           compareAnnotation: row.annotation,
           config,
         }),
-        baseValueText: baseRow.valueText,
+        baseValueText: formatAnnotationValue(baseAnnotation),
       };
     }
   );
@@ -248,10 +210,7 @@ export function ExperimentCompareLaneAnnotations({
         css={statsRowCSS}
       >
         {shownRun != null ? (
-          <LaneRunStats
-            run={shownRun}
-            baseRun={showsDeltas ? baseShownRun : null}
-          />
+          <LaneRunStats run={shownRun} baseRun={deltaBaseRun} />
         ) : (
           <Text color="text-500" size="S">
             No run for this repetition
@@ -270,7 +229,7 @@ export function ExperimentCompareLaneAnnotations({
         <ExperimentCompareAnnotationsTable
           rows={rows}
           hasRepetitions={lane.experiment.repetitions > 1}
-          showsDeltas={showsDeltas}
+          showsDeltas={deltaBaseRun != null}
           onOpenAnnotationTrace={({ traceId, projectId, annotationName }) =>
             onOpenTrace({
               traceId,

@@ -14,6 +14,9 @@ const STACKED_LANES_MAX_WIDTH_PX = 900;
 export const EXPERIMENT_COMPARE_SLIDEOVER_CONTAINER_NAME =
   "experiment-compare-slideover";
 
+/** The container query under which lanes stack */
+export const STACKED_LANES_CONTAINER_QUERY = `@container ${EXPERIMENT_COMPARE_SLIDEOVER_CONTAINER_NAME} (max-width: ${STACKED_LANES_MAX_WIDTH_PX}px)`;
+
 const laneRowCSS = css`
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -31,7 +34,7 @@ const laneRowCSS = css`
       var(--global-border-color-default);
   }
 
-  @container ${EXPERIMENT_COMPARE_SLIDEOVER_CONTAINER_NAME} (max-width: ${STACKED_LANES_MAX_WIDTH_PX}px) {
+  ${STACKED_LANES_CONTAINER_QUERY} {
     &[data-lane-count="2"] {
       grid-template-columns: minmax(0, 1fr);
     }

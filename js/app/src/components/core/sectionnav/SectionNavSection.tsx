@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 import type { ReactNode, Ref } from "react";
 
-import { Heading } from "@phoenix/components/core/content";
+import { Heading, VisuallyHidden } from "@phoenix/components/core/content";
 import type { StylableProps } from "@phoenix/components/core/types";
 import { classNames } from "@phoenix/utils/classNames";
 
@@ -18,6 +18,12 @@ export interface SectionNavSectionProps extends StylableProps {
    * assistive technology.
    */
   heading: ReactNode;
+  /**
+   * Hides the heading visually while it still names the section, for
+   * sections whose content carries its own visible title.
+   * @default false
+   */
+  isHeadingHidden?: boolean;
   children?: ReactNode;
   className?: string;
   /** The `<section>` element */
@@ -33,6 +39,7 @@ export interface SectionNavSectionProps extends StylableProps {
 export function SectionNavSection({
   id,
   heading,
+  isHeadingHidden = false,
   children,
   css: _css,
   className,
@@ -48,9 +55,17 @@ export function SectionNavSection({
       className={classNames("section-nav-section", className)}
       css={css(sectionNavSectionCSS, _css)}
     >
-      <Heading id={headingId} weight="heavy">
-        {heading}
-      </Heading>
+      {isHeadingHidden ? (
+        <VisuallyHidden>
+          <Heading id={headingId} weight="heavy">
+            {heading}
+          </Heading>
+        </VisuallyHidden>
+      ) : (
+        <Heading id={headingId} weight="heavy">
+          {heading}
+        </Heading>
+      )}
       {children}
     </section>
   );

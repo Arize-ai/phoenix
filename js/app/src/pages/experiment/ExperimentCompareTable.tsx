@@ -13,7 +13,6 @@ import React, {
 } from "react";
 import type { PreloadedQuery } from "react-relay";
 import { graphql, usePaginationFragment, usePreloadedQuery } from "react-relay";
-import { useSearchParams } from "react-router";
 
 import {
   Empty,
@@ -30,7 +29,6 @@ import {
   ViewportModalOverlay,
 } from "@phoenix/components";
 import type { AnnotationConfig } from "@phoenix/components/annotation";
-import { PlainJSONBlock } from "@phoenix/components/code/PlainJSONBlock";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import {
   calculateAnnotationListHeight,
@@ -55,22 +53,21 @@ import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import type { ColumnDef, Table } from "@phoenix/components/table/tableFeatures";
 import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
-import { PrettyText } from "@phoenix/components/utility/PrettyText";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
-import { usePrettyText } from "@phoenix/hooks/usePrettyText";
+import { useStableSearchParamsUpdater } from "@phoenix/hooks";
 import type { ComparedExperimentSelection } from "@phoenix/pages/dataset/metrics/types";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
 import {
   ExperimentCompareSlideover,
   getExperimentExampleCount,
-  isInteractiveClickTarget,
+  getCompareRowProps,
   useExperimentCompareSlideoverState,
 } from "@phoenix/pages/experiment/compareSlideover";
 import { ExperimentComparePageQueriesCompareGridQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
+import { ExperimentRunErrorContent } from "@phoenix/pages/experiment/ExperimentRunErrorContent";
 import type { SelectedTraceDetails } from "@phoenix/pages/experiment/TraceDetailsDrawer";
 import { TraceDetailsDrawer } from "@phoenix/pages/experiment/TraceDetailsDrawer";
 import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
-import { isWhitespaceOnlyReformat } from "@phoenix/utils/jsonUtils";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
 import type {
@@ -155,18 +152,15 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const [filterCondition, setFilterCondition] = useState("");
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
-  const [, setSearchParams] = useSearchParams();
+  const [, updateSearchParams] = useStableSearchParamsUpdater();
   const clearSelectedSpanSearchParam = useCallback(() => {
-    // Clear the URL search params for the span selection
-    setSearchParams(
-      (prev) => {
-        const newParams = new URLSearchParams(prev);
-        newParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
-        return newParams;
+    updateSearchParams({
+      update: (currentSearchParams) => {
+        currentSearchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+        return currentSearchParams;
       },
-      { replace: true }
-    );
-  }, [setSearchParams]);
+    });
+  }, [updateSearchParams]);
   const openTraceDetails = useCallback(
     (details: SelectedTraceDetails) => {
       // The drawer is non-modal, so a trace can be opened while another one
@@ -575,6 +569,14 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     return [...baseColumns, ...experimentColumns];
   }, [baseColumns, experimentColumns]);
 
+  const loadNextPage = useCallback(() => {
+    loadNext(PAGE_SIZE);
+  }, [loadNext]);
+  const handleRowClick =
+    selectedExampleId != null
+      ? (exampleId: string) => openExample({ exampleId })
+      : undefined;
+
   const table = useTable({
     features: appTableFeatures,
     columns: columns,
@@ -758,11 +760,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 table={table}
                 tableContainerRef={tableContainerRef}
                 selectedRowId={selectedExampleId}
-                onRowClick={
-                  selectedExampleId != null
-                    ? (exampleId) => openExample({ exampleId })
-                    : undefined
-                }
+                onRowClick={handleRowClick}
                 estimatedRowHeight={calculateEstimatedRowHeight(
                   maxAnnotationCount
                 )}
@@ -772,11 +770,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 table={table}
                 tableContainerRef={tableContainerRef}
                 selectedRowId={selectedExampleId}
-                onRowClick={
-                  selectedExampleId != null
-                    ? (exampleId) => openExample({ exampleId })
-                    : undefined
-                }
+                onRowClick={handleRowClick}
                 estimatedRowHeight={calculateEstimatedRowHeight(
                   maxAnnotationCount
                 )}
@@ -801,7 +795,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           }
           hasMoreItems={hasNext}
           isLoadingMoreItems={isLoadingNext}
-          onLoadMoreItems={() => loadNext(PAGE_SIZE)}
+          onLoadMoreItems={loadNextPage}
           onOpenTrace={openTraceDetails}
           isObscured={selectedTraceDetails !== null}
         />
@@ -864,21 +858,17 @@ function TableBody<T extends RowData>({
     <tbody>
       {virtualRows.map((virtualRow, index) => {
         const row = rows[virtualRow.index];
+        const compareRowProps = getCompareRowProps({
+          rowId: row.id,
+          selectedRowId,
+          onRowClick,
+        });
         return (
           <tr
             key={row.id}
-            data-selected={row.id === selectedRowId}
-            onClick={
-              onRowClick != null
-                ? (event) => {
-                    if (!isInteractiveClickTarget(event.target)) {
-                      onRowClick(row.id);
-                    }
-                  }
-                : undefined
-            }
+            {...compareRowProps}
             style={{
-              cursor: onRowClick != null ? "pointer" : undefined,
+              ...compareRowProps.style,
               height: `${virtualRow.size}px`,
               transform: `translateY(${
                 virtualRow.start - index * virtualRow.size
@@ -1001,36 +991,11 @@ export function ExperimentRunOutput(
 }
 
 function RunError({ error, height }: { error: string; height: number }) {
-  const { text, textType } = usePrettyText(error);
-  const preserveOriginalJSON =
-    textType === "json" && !isWhitespaceOnlyReformat(error, text);
-
   return (
     <Flex direction="column" height="100%">
       <ExpandableContent height={height}>
         <div css={outputContentCSS}>
-          <Flex direction="row" gap="size-100" alignItems="start">
-            <Icon
-              svg={<Icons.AlertCircle />}
-              color="danger"
-              role="img"
-              aria-label="Error"
-              css={css`
-                flex-shrink: 0;
-                /* Match the top padding of CodeMirror's first line. */
-                margin-top: ${textType === "json"
-                  ? "var(--global-dimension-size-50)"
-                  : "0"};
-              `}
-            />
-            <View flex="1" minWidth={0}>
-              {textType === "json" ? (
-                <PlainJSONBlock value={preserveOriginalJSON ? error : text} />
-              ) : (
-                <PrettyText>{error}</PrettyText>
-              )}
-            </View>
-          </Flex>
+          <ExperimentRunErrorContent error={error} />
         </div>
       </ExpandableContent>
     </Flex>

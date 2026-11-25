@@ -2,6 +2,11 @@ import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
 
 import type { useExperimentCompareLaneRunGroup_runGroup$key } from "./__generated__/useExperimentCompareLaneRunGroup_runGroup.graphql";
 import type { useExperimentCompareLaneRunGroupQuery } from "./__generated__/useExperimentCompareLaneRunGroupQuery.graphql";
+import {
+  getCompareLaneRunState,
+  getShownRun,
+} from "./experimentCompareLaneRuns";
+import type { CompareLane } from "./experimentCompareLaneTypes";
 
 const runGroupFragment = graphql`
   fragment useExperimentCompareLaneRunGroup_runGroup on ExperimentRepeatedRunGroup {
@@ -104,3 +109,25 @@ export type CompareLaneRunGroup = ReturnType<
 export type CompareLaneRun = CompareLaneRunGroup["runs"][number];
 
 export type CompareLaneAnnotation = CompareLaneRun["annotations"][number];
+
+/**
+ * A lane's runs for one example with the run its shown repetition resolves
+ * to: `shownRun` is null when the lane has no run for that repetition.
+ */
+export function useCompareLaneRun({
+  exampleId,
+  lane,
+}: {
+  exampleId: string;
+  lane: CompareLane;
+}) {
+  const runGroup = useExperimentCompareLaneRunGroup({
+    exampleId,
+    experimentId: lane.experiment.id,
+  });
+  const runState = getCompareLaneRunState({
+    runs: runGroup.runs,
+    shownRepetitionNumber: lane.shownRepetitionNumber,
+  });
+  return { runGroup, runState, shownRun: getShownRun(runState) };
+}

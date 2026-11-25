@@ -1,6 +1,8 @@
-import { useCallback, useLayoutEffect, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useCallback } from "react";
 
+import { useStableSearchParamsUpdater } from "@phoenix/hooks";
+
+import type { ExperimentCompareNavigationItem } from "./experimentCompareExampleNavigation";
 import type { ExperimentCompareSlideoverState } from "./experimentCompareSlideoverSearchParams";
 import {
   applyExperimentCompareSlideoverState,
@@ -9,64 +11,53 @@ import {
 
 /**
  * The experiment compare slideover's view state, read from and written to
- * the URL so a copied link reopens the same example, lanes and mode.
- *
- * The returned functions keep their identity across URL changes. The compare
- * tables build their memoized columns from them, and a column whose renderer
- * changes identity remounts every cell under it.
+ * the URL so a copied link reopens the same example, lanes and mode. The
+ * returned functions keep their identity across URL changes, since the
+ * compare tables build their memoized columns from them.
  */
 export function useExperimentCompareSlideoverState() {
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
+  const [searchParams, updateSearchParams] = useStableSearchParamsUpdater();
   const state = parseExperimentCompareSlideoverState(searchParams);
-
-  const latestSearchParamsRef = useRef(searchParams);
-  useLayoutEffect(() => {
-    latestSearchParamsRef.current = searchParams;
-  }, [searchParams]);
 
   const updateState = useCallback(
     ({
       changes,
-      replace = true,
+      replace,
     }: {
       changes: Partial<ExperimentCompareSlideoverState>;
-      /** Whether the change replaces the current history entry */
+      /** Whether the change replaces the current history entry (default true) */
       replace?: boolean;
     }) => {
-      const nextSearchParams = applyExperimentCompareSlideoverState({
-        searchParams: latestSearchParamsRef.current,
-        changes,
+      updateSearchParams({
+        update: (currentSearchParams) =>
+          applyExperimentCompareSlideoverState({
+            searchParams: currentSearchParams,
+            changes,
+          }),
+        replace,
       });
-      // Several changes can land before the next render
-      latestSearchParamsRef.current = nextSearchParams;
-      navigate({ search: `?${nextSearchParams.toString()}` }, { replace });
     },
-    [navigate]
+    [updateSearchParams]
   );
 
   /**
-   * Opens an example, or swaps to it when the slideover is already open. The
+   * Opens a stop, or swaps to it when the slideover is already open. The
    * first open adds a history entry so Back closes the slideover.
    */
   const openExample = useCallback(
-    ({
-      exampleId,
-      baseRepetitionNumber,
-    }: {
-      exampleId: string;
-      /** The base repetition to show, when the caller's row is a single run */
-      baseRepetitionNumber?: number;
-    }) => {
-      const isOpen =
-        parseExperimentCompareSlideoverState(latestSearchParamsRef.current)
-          .selectedExampleId != null;
-      updateState({
-        changes: { selectedExampleId: exampleId, baseRepetitionNumber },
-        replace: isOpen,
+    ({ exampleId, baseRepetitionNumber }: ExperimentCompareNavigationItem) => {
+      updateSearchParams({
+        update: (currentSearchParams) =>
+          applyExperimentCompareSlideoverState({
+            searchParams: currentSearchParams,
+            changes: { selectedExampleId: exampleId, baseRepetitionNumber },
+          }),
+        replace: (currentSearchParams) =>
+          parseExperimentCompareSlideoverState(currentSearchParams)
+            .selectedExampleId != null,
       });
     },
-    [updateState]
+    [updateSearchParams]
   );
 
   const closeSlideover = useCallback(() => {
