@@ -6,7 +6,9 @@ from typing import Any
 import pytest
 
 TASKS_DIR = Path(__file__).resolve().parents[3] / "evals" / "harbor" / "tasks"
-TASKS = sorted(path for path in (TASKS_DIR / "trail-benchmark-dev").iterdir() if path.is_dir())
+TASKS = sorted(
+    path for path in (TASKS_DIR / "trail-benchmark-dev").iterdir() if (path / "task.toml").is_file()
+)
 REFERENCE = TASKS[0]
 
 

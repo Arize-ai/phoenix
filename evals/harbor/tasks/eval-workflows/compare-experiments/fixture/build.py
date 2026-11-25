@@ -18,7 +18,7 @@ from typing import Any
 
 HERE = Path(__file__).resolve().parent
 TASKS = HERE.parents[1]
-sys.path.insert(0, str(HERE.parents[3] / "environments" / "fixtures"))
+sys.path.insert(0, str(HERE.parents[1] / "fixtures"))
 from support_traces import write_json  # noqa: E402
 
 DATASET = "support-regression"

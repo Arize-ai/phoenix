@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE.parents[3] / "environments" / "fixtures"))
+sys.path.insert(0, str(HERE.parents[1] / "fixtures"))
 from support_traces import BASE, Trace, write_json  # noqa: E402
 
 PROJECT = "support-bot-reviews"

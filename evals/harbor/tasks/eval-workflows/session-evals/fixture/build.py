@@ -18,7 +18,7 @@ from typing import Any, Callable
 
 HERE = Path(__file__).resolve().parent
 TESTS = HERE.parent / "tests"
-sys.path.insert(0, str(HERE.parents[3] / "environments" / "fixtures"))
+sys.path.insert(0, str(HERE.parents[1] / "fixtures"))
 from support_traces import BASE, Trace, hex_id, write_json  # noqa: E402
 
 PROJECT = "order-agent"

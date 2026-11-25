@@ -17,7 +17,7 @@ from typing import Any, NamedTuple
 
 HERE = Path(__file__).resolve().parent
 TASK = HERE.parent
-sys.path.insert(0, str(HERE.parents[3] / "environments" / "fixtures"))
+sys.path.insert(0, str(HERE.parents[1] / "fixtures"))
 from support_traces import BASE, Trace, write_json  # noqa: E402
 
 PROJECT = "support-chat"

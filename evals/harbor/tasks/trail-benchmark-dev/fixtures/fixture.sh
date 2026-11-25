@@ -3,7 +3,7 @@
 #
 # TRAIL is gated on Hugging Face and cannot be redistributed outside the hub. Set
 # HF_TOKEN to a token for an account that has accepted the dataset terms. Without a
-# token, this script exits with status 2 so staging can skip the TRAIL tasks.
+# token, this script exits with status 2 and staging fails for selected TRAIL tasks.
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/../../../../.." && pwd)

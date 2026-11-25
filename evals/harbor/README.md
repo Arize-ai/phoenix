@@ -15,7 +15,7 @@ compare the conditions in the Phoenix UI.
 | Path | Contents |
 | --- | --- |
 | `agents/` | PXI, the Claude Code or Codex configurations for the MCP server and px, and `snapshot_skills.sh`, which extracts the skills at a commit for a condition to load |
-| `environments/` | The shared Dockerfile, the fixture script for each database, and the seeder for tasks that ship a `phoenix_seed.json` |
+| `environments/` | The shared Dockerfile, runtime assets, and generic JSON-to-Phoenix seeder |
 | `jobs/` | One configuration file for each benchmark |
 | `tasks/` | One directory per benchmark: the tasks under `regression/`, `trail-benchmark-dev/`, and `eval-workflows/` |
 | `verifiers/` | The `harbor_verifiers` package: the reply grader, LLM judge, and reference-solution query helpers, installed in the image as a wheel |
@@ -33,8 +33,8 @@ compare the conditions in the Phoenix UI.
   the terms of
   [PatronusAI/TRAIL](https://huggingface.co/datasets/PatronusAI/TRAIL). TRAIL is gated
   and cannot be redistributed. Seed the database with your own token, and do not commit
-  or upload the dataset or generated fixture. Without a token, staging skips the TRAIL
-  tasks. CI does not set this token.
+  or upload the dataset or generated fixture. Without a token or a cached fixture,
+  preparation of a TRAIL job fails. The default regression job needs no token.
 
 ## Run a benchmark
 
@@ -47,16 +47,40 @@ archive for the CLI agents, and builds the client wheel that provides the Harbor
 ```bash
 # Stage the regression tasks only.
 make harbor-stage
-# Also seed the TRAIL fixture and stage its tasks.
-HF_TOKEN=... make harbor-stage
+# Prepare eval-workflows only.
+make harbor-stage HARBOR_JOB=evals/harbor/jobs/eval-workflows.yaml
+# Prepare TRAIL only, with your token loaded in the environment.
+make harbor-stage HARBOR_JOB=evals/harbor/jobs/trail-benchmark-dev.yaml
 ```
 
-The px archive requires Docker and takes a few minutes to build. If the job has no CLI
-agent, set `HARBOR_CLI=0` to skip the archive. Use `HARBOR_CLI_PLATFORM` to change the
+Both `harbor-stage` and `harbor-run` use `HARBOR_JOB`, which defaults to
+`jobs/regression.yaml`. Staging prepares only the job's explicit tasks and dataset task
+patterns. To prepare a subset, create a reduced job as described below.
+`HARBOR_TASKS_DIR` is no longer a selector.
+
+The px archive requires Docker and takes a few minutes to build. Staging detects CLI
+agents in the job and builds the archive when needed. `HARBOR_ARGS='-a oracle'` or
+`HARBOR_ARGS='-a nop'` skips it automatically. `HARBOR_CLI=0` skips the archive, and
+`HARBOR_CLI=1` forces a build. Use `HARBOR_CLI_PLATFORM` to change the
 target from `linux/amd64`. Restage after changing the server, `verifiers/`,
 `environments/`, or a fixture because the image contains copies of these files.
-`RESEED=1` also rebuilds the fixtures. `make harbor-run` refuses to start a job whose
-tasks are not staged.
+`RESEED=1` regenerates only selected fixtures in new cache generations. Previous
+fixture databases and task environments remain on disk. JSON fixture cache keys include
+the seed, seeder, Phoenix and client Python sources, and dependency lock file.
+`make harbor-run` rejects missing inputs, outdated fixtures, and incomplete staging.
+A failed restage cannot fall back to an old environment.
+
+Dataset setup lives beside the tasks:
+
+| Dataset | Fixture setup |
+| --- | --- |
+| Regression | `tasks/regression/fixtures/*/fixture.sh` downloads published databases. |
+| TRAIL | `tasks/trail-benchmark-dev/fixtures/` downloads gated rows and builds a database. |
+| Eval-workflows | Each task's `fixture/build.py` creates its seed JSON. `tasks/eval-workflows/fixtures/` holds shared trace builders. |
+
+The shared `environments/fixtures/seed_phoenix.py` converts seed JSON into Phoenix state.
+Staging fails if any selected input is missing or unavailable. Run that task's builder
+first if its seed JSON is missing.
 
 ### 2. Run a job
 

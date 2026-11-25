@@ -60,13 +60,14 @@ advises caution fails one of them.
 
 ## How a task runs
 
-1. **Staging, once, on your machine.** Before you run the job, `make harbor-stage`
-   prepares every task. For each task it runs
+1. **Staging, once, on your machine.** Before you run the job, `make harbor-stage HARBOR_JOB=evals/harbor/jobs/eval-workflows.yaml`
+   prepares the tasks in this job. For each task it runs
    [`environments/fixtures/seed_phoenix.py`](../../environments/fixtures/seed_phoenix.py)
    on the task's committed `fixture/phoenix_seed.json`. The seeder starts a temporary
    Phoenix, writes the projects, spans, annotations, prompts, datasets, and experiments
    in the file through Phoenix's API, checks them, and saves the database. It caches the
-   database by the seed file's hash, so it reseeds only files that changed. Staging then
+   database by the seed, seeder, Phoenix and client Python sources, and dependency lock
+   file. It reseeds when any of those inputs change. Staging then
    writes each task's build context to its `environment/` directory: the shared
    Dockerfile, the Phoenix and verifier wheels, the database, and the task's `workdir/`.
 2. **The agent's turn, in a sandbox.** Harbor builds each task's sandbox from its
@@ -272,20 +273,21 @@ own model.
 To stage the tasks and run the full job, run these commands from the repository root:
 
 ```bash
-HARBOR_TASKS_DIR=$PWD/evals/harbor/tasks/eval-workflows make harbor-stage
+make harbor-stage HARBOR_JOB=evals/harbor/jobs/eval-workflows.yaml
 make harbor-run HARBOR_JOB=evals/harbor/jobs/eval-workflows.yaml
 ```
 
 Restage after you change a seed file, `workdir/`, the verifiers, or the environment.
-Staging caches each seeded database by its seed file's hash, so after you change the
-seeder, `environments/fixtures/seed_phoenix.py`, restage with `RESEED=1`.
+Staging caches each seeded database by its seed, seeder, Phoenix and client Python
+sources, and dependency lock file. `RESEED=1` forces a new generation for the selected
+fixtures and preserves earlier databases.
 `HARBOR_ARGS` passes options to `harbor run`:
 
 | To | Add |
 | --- | --- |
 | Run in local Docker instead of Daytona | `HARBOR_ARGS='-e docker'` |
 | Run one attempt per task | `HARBOR_ARGS='-k 1'` |
-| Run some tasks | `HARBOR_ARGS='-p evals/harbor/tasks/eval-workflows -i session-evals -i rag-evals'` |
+| Run some tasks | Create a reduced job with `subset_job.py --tasks session-evals rag-evals` and use its path as `HARBOR_JOB` for staging and running. |
 | Name the job | `HARBOR_ARGS='--job-name skills-v2'` |
 | Skip recording in Phoenix | `HARBOR_PLUGIN=` |
 
@@ -312,9 +314,9 @@ agent after you change a task, a seed file, or the verifiers. Every task should 
 with `oracle` and 0 with `nop`. These runs need no px archive:
 
 ```bash
-HARBOR_CLI=0 HARBOR_TASKS_DIR=$PWD/evals/harbor/tasks/eval-workflows make harbor-stage
-make harbor-run HARBOR_JOB=evals/harbor/jobs/eval-workflows.yaml HARBOR_PLUGIN= HARBOR_ARGS='-a oracle -p evals/harbor/tasks/eval-workflows'
-make harbor-run HARBOR_JOB=evals/harbor/jobs/eval-workflows.yaml HARBOR_PLUGIN= HARBOR_ARGS='-a nop -p evals/harbor/tasks/eval-workflows'
+HARBOR_CLI=0 make harbor-stage HARBOR_JOB=evals/harbor/jobs/eval-workflows.yaml
+make harbor-run HARBOR_JOB=evals/harbor/jobs/eval-workflows.yaml HARBOR_PLUGIN= HARBOR_ARGS='-a oracle'
+make harbor-run HARBOR_JOB=evals/harbor/jobs/eval-workflows.yaml HARBOR_PLUGIN= HARBOR_ARGS='-a nop'
 ```
 
 ### Compare skill versions
@@ -365,7 +367,7 @@ The shared code is in these files:
 | File | Contents |
 | --- | --- |
 | [`environments/fixtures/seed_phoenix.py`](../../environments/fixtures/seed_phoenix.py) | The seeder, and the format of a seed file. |
-| [`environments/fixtures/support_traces.py`](../../environments/fixtures/support_traces.py) | Span builders the generators use. |
+| [`fixtures/support_traces.py`](fixtures/support_traces.py) | Span builders the generators use. |
 | [`verifiers/harbor_verifiers/grading.py`](../../verifiers/harbor_verifiers/grading.py) | Grading shared across tasks: recall checks, reply claims, and reruns. |
 | [`verifiers/harbor_verifiers/judge_prompts.py`](../../verifiers/harbor_verifiers/judge_prompts.py) | The recording proxy, `uses_phoenix_evals`, and `prompt_quality`. |
 
