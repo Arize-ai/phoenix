@@ -27,16 +27,6 @@ minimumReleaseAgeExclude:
   - "@oxlint/binding-win32-arm64-msvc@1.79.0"
   - "@oxlint/binding-win32-ia32-msvc@1.79.0"
   - "@oxlint/binding-win32-x64-msvc@1.79.0"
-  # The @vitest/* packages that vitest 5.x version-locks were all published
-  # together on September 3, 2026.
-  - "@vitest/browser@5.0.0"
-  - "@vitest/browser-playwright@5.0.0"
-  - "@vitest/coverage-v8@5.0.0"
-  - "@vitest/mocker@5.0.0"
-  - "@vitest/pretty-format@5.0.0"
-  - "@vitest/spy@5.0.0"
-  - "@vitest/ui@5.0.0"
-  - "@vitest/utils@5.0.0"
   # React 19.3.0 and the packages released alongside it were all published
   # together on September 9, 2026.
   - "react@19.3.0"
@@ -70,8 +60,24 @@ allowBuilds:
 
 overrides:
   # Pre-existing exact pin: forces peer-dep alignment across @mastra/* packages
-  # that each declare narrow hono ranges. Pinned to latest to pick up the fix
-  # for CVE-2026-54290 (hono <4.12.25).
-  "hono": "4.12.31"
+  # that each declare narrow hono ranges. Pinned to pick up the fixes for the
+  # advisories patched in hono 4.13.16 (mount/RegExpRouter middleware bypass,
+  # validator('form') bypass, csrf text/ping, css helper injection).
+  "hono": "4.13.20"
   # Still load-bearing: @langchain/core and @braintrust/core pin uuid 9.x/10.x.
   "uuid@<11.1.1": ">=11.1.1"
+  # oxfmt pins tinypool 2.1.0 exactly (GHSA prototype-pollution RCE, fixed in 2.1.2).
+  "tinypool@<2.1.2": "^2.2.0"
+  # @yellow-ticket/seed-json-schema (via @mswjs/source) declares faker ^8.4.1
+  # (helpers.fake code execution, fixed in 10.5.0).
+  "@faker-js/faker@<10.5.0": "^10.5.0"
+  # @mastra/deployer pulls @hono/node-ws 1.3.1, which peers on
+  # @hono/node-server 1.x (serveStatic double-decode, fixed in 2.1.3).
+  "@hono/node-ws@<1.3.2": "^1.3.2"
+  # jest 30, test-exclude and storybook's docgen plugin pin glob 10/13 and
+  # minimatch 9/10 (AbortSignal traversal bypass, globparts amplification DoS).
+  "glob@>=9.0.0 <14.0.2": "^14.0.2"
+  "minimatch@>=7.0.0 <11.0.1": "^11.0.1"
+  # typedoc calls Minimatch#matchOne, which minimatch 11 removed, and no typedoc
+  # release supports 11 yet. typedoc only matches globs from our own config.
+  "typedoc>minimatch": "10.2.6"
