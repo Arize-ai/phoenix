@@ -86,12 +86,23 @@ const grafanaMcp = service("grafana-mcp", {
 });
 
 const collectorConfig = JSON.stringify({
-  receivers: Object.fromEntries(
-    instances.map(({ name, receiverPort }) => [
-      `otlp/${name}`,
-      { protocols: { http: { endpoint: `[::]:${receiverPort}` } } },
-    ])
-  ),
+  receivers: {
+    ...Object.fromEntries(
+      instances.map(({ name, receiverPort }) => [
+        `otlp/${name}`,
+        { protocols: { http: { endpoint: `[::]:${receiverPort}` } } },
+      ])
+    ),
+    prometheus: {
+      config: {
+        scrape_configs: instances.map(({ name }) => ({
+          job_name: name,
+          scrape_interval: "30s",
+          static_configs: [{ targets: [`${name}.railway.internal:9090`] }],
+        })),
+      },
+    },
+  },
   processors: Object.fromEntries(
     instances.map(({ name }) => [
       `resource/${name}`,
@@ -100,22 +111,27 @@ const collectorConfig = JSON.stringify({
   ),
   exporters: { otlphttp: { endpoint: "http://lgtm.railway.internal:4318" } },
   service: {
-    pipelines: Object.fromEntries(
-      instances.map(({ name }) => [
-        `logs/${name}`,
-        {
-          receivers: [`otlp/${name}`],
-          processors: [`resource/${name}`],
-          exporters: ["otlphttp"],
-        },
-      ])
-    ),
+    pipelines: {
+      ...Object.fromEntries(
+        instances.flatMap(({ name }) =>
+          ["logs", "traces"].map((signal) => [
+            `${signal}/${name}`,
+            {
+              receivers: [`otlp/${name}`],
+              processors: [`resource/${name}`],
+              exporters: ["otlphttp"],
+            },
+          ])
+        )
+      ),
+      metrics: { receivers: ["prometheus"], exporters: ["otlphttp"] },
+    },
   },
 });
 
 const logCollector = service("log-collector", {
-  source: image("otel/opentelemetry-collector:0.120.0"),
-  start: "/otelcol --config=env:PREVIEW_COLLECTOR_CONFIG",
+  source: image("otel/opentelemetry-collector-contrib:0.120.0"),
+  start: "/otelcol-contrib --config=env:PREVIEW_COLLECTOR_CONFIG",
   env: { PREVIEW_COLLECTOR_CONFIG: collectorConfig },
 });
 
@@ -132,6 +148,7 @@ export default defineRailway(({ projectName }) => {
       }
       const database =
         engine === "postgres" ? postgres(`${name}-db`) : undefined;
+      const collectorEndpoint = `http://log-collector.railway.internal:${receiverPort}`;
       const phoenix = service(name, {
         source: image(imageRef),
         healthcheck: "/healthz",
@@ -140,7 +157,11 @@ export default defineRailway(({ projectName }) => {
           PHOENIX_PORT: "6006",
           PHOENIX_ENABLE_AUTH: "false",
           PHOENIX_LOGGING_MODE: "structured",
-          PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_HTTP_ENDPOINT: `http://log-collector.railway.internal:${receiverPort}`,
+          PHOENIX_SERVER_INSTRUMENTATION_OTLP_LOG_COLLECTOR_HTTP_ENDPOINT:
+            collectorEndpoint,
+          PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT:
+            collectorEndpoint,
+          PHOENIX_ENABLE_PROMETHEUS: "true",
           ...(database && {
             PHOENIX_SQL_DATABASE_URL: database.env.DATABASE_URL,
             PHOENIX_SQL_DATABASE_SCHEMA: databaseSchema,
