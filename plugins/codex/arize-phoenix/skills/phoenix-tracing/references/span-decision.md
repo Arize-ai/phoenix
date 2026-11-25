@@ -17,7 +17,7 @@ Use DECISION instead of LLM when the output is a choice over caller-supplied opt
 
 ## Attributes
 
-Decision spans identify the model under `decision.*`, never `llm.*`, so decision-model usage is not counted or priced as LLM usage.
+Decision spans identify the model under `decision.*`, never `llm.*`, so decision-model usage stays out of LLM span token counts.
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
@@ -33,6 +33,14 @@ Decision spans identify the model under `decision.*`, never `llm.*`, so decision
 Do not set `llm.input_messages`, `llm.output_messages`, `llm.system`, `llm.provider`, `llm.model_name`, or `llm.token_count.*` on a decision span.
 
 Phoenix renders DECISION spans with their own icon and a dedicated span view: the input and output cards, with the decision model named in the input card header (from `decision.model_name`, then `decision.response.model_name`, then `decision.request.model_name`) and led by the provider icon when `decision.provider` is one Phoenix knows.
+
+## Cost Tracking
+
+Phoenix prices DECISION spans only against decision-model prices, never LLM prices, even when an LLM shares the model name (a decision call and a chat call to `gpt-6-luna` bill at different rates). With no matching decision-model price, the span keeps its token counts and gets no cost. Decision tokens and costs count toward trace, session, experiment, and project cost summaries.
+
+- **Model:** `decision.response.model_name`, then `decision.model_name`, then `decision.request.model_name`, then the `llm.*` model names.
+- **Provider:** `decision.provider`, then `decision.system`, then `llm.provider`.
+- **Tokens:** when the span sets `decision.token_count.input` or `decision.token_count.output`, Phoenix reads only those two (an omitted side counts as `0`) and ignores every `llm.token_count.*` attribute. Spans from instrumentors that predate `decision.*` fall back to `llm.token_count.prompt`, `llm.token_count.completion`, and their `*_details`.
 
 ## Instrumentation
 
