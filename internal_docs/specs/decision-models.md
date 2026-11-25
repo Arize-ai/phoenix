@@ -719,8 +719,9 @@ that don't apply here.
 4. **Store references, never bytes.** Images and other assets are referenced by
    ID.
 5. **Versions are immutable; tags move.** Apps can follow a tag. Experiments copy
-   a version, as prompt tasks do. Saved decision evaluators currently pin a
-   version ID directly; their promotion workflow is under discussion in §5.8.
+   a version, as prompt tasks do. A saved decision evaluator runs through a tag
+   of its own, or its decision's newest version once that tag is deleted (see
+   §5.8).
 6. **No results table.** A run is a `DECISION` span. Evaluator results are
    annotations. Experiments link to spans.
 7. **Evolve additively, as prompts do.** An existing field never changes its
