@@ -473,6 +473,58 @@ class TestCleanupSchedulingAndBackoff:
             assert await session.get(models.Project, project_id) is None
             assert await session.get(models.Trace, late_trace_id) is None
 
+    async def test_binding_with_a_trace_inserted_after_its_drain_yields_instead_of_purging(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from phoenix.server.cleanup import coordinator as coordinator_module
+
+        async with db() as session:
+            trace_project = await _add_project(session, name=f"late-bound-{token_hex(4)}")
+            binding = await _bind_evaluator_trace_project(session, trace_project)
+            binding_id, host_id, trace_project_id = (
+                binding.id,
+                binding.project_id,
+                trace_project.id,
+            )
+        async with db() as session:
+            await tombstone_project(session, project_id=host_id)
+
+        original_drain = drain_trace_scope_step
+        late_trace_id: Optional[int] = None
+
+        async def _drain_then_insert_late_trace(session: Any, **kwargs: Any) -> PrimitiveResult:
+            nonlocal late_trace_id
+            result = await original_drain(session, **kwargs)
+            if kwargs["project_id"] == trace_project_id and late_trace_id is None:
+                late_trace = await _add_trace(
+                    session, await session.get(models.Project, trace_project_id)
+                )
+                late_trace_id = late_trace.id
+            return result
+
+        coordinator = CleanupCoordinator(db)
+        monkeypatch.setattr(
+            coordinator_module, "drain_trace_scope_step", _drain_then_insert_late_trace
+        )
+        for _ in range(50):
+            if late_trace_id is not None:
+                break
+            await coordinator.step()
+            await _expire_retries(db)
+        monkeypatch.setattr(coordinator_module, "drain_trace_scope_step", original_drain)
+
+        assert late_trace_id is not None
+        async with db() as session:
+            assert await session.get(models.ProjectEvaluator, binding_id) is not None
+            assert await session.get(models.Project, trace_project_id) is not None
+            assert await session.get(models.Trace, late_trace_id) is not None
+
+        await _drain_all(coordinator)
+        async with db() as session:
+            assert await session.get(models.ProjectEvaluator, binding_id) is None
+            assert await session.get(models.Project, trace_project_id) is None
+            assert await session.get(models.Trace, late_trace_id) is None
+
     async def test_project_is_not_selected_while_any_binding_references_it(
         self, db: DbSessionFactory
     ) -> None:

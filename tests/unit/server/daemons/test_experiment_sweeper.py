@@ -430,6 +430,7 @@ class TestExperimentSweeper:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         from phoenix.server.daemons import experiment_sweeper
+        from phoenix.server.dml_event import ExperimentDeleteEvent
 
         expired_time = datetime.now(timezone.utc) - timedelta(
             hours=EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS + 1
@@ -455,10 +456,17 @@ class TestExperimentSweeper:
             )
 
         monkeypatch.setattr(experiment_sweeper, "CLEANUP_BATCH_ROWS", 2)
-        await ExperimentSweeper(db=db)._delete_ephemeral_experiments()
+        event_queue = _RecordingQueue()
+        await ExperimentSweeper(db=db, event_queue=event_queue)._delete_ephemeral_experiments()
 
         async with db() as session:
             assert await session.scalar(sa.select(sa.func.count(models.Experiment.id))) == 0
+        batch_sizes = [
+            len(event.ids)
+            for event in event_queue.events
+            if isinstance(event, ExperimentDeleteEvent)
+        ]
+        assert batch_sizes == [2, 2, 1]
 
     async def _insert_expired_backlog(self, db: DbSessionFactory, count: int) -> list[int]:
         expired_time = datetime.now(timezone.utc) - timedelta(

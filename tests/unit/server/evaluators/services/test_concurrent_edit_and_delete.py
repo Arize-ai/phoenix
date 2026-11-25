@@ -2,13 +2,14 @@ import asyncio
 from collections.abc import Coroutine
 from secrets import token_hex
 from types import SimpleNamespace
-from typing import Any, Optional, cast
+from typing import Any, Literal, Optional, cast
 
 import pytest
 from sqlalchemy import delete, event, func, select, update
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from strawberry.relay import GlobalID
+from typing_extensions import assert_never
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
@@ -673,9 +674,20 @@ async def _wait_until_lock_wait_or_done(
     db: DbSessionFactory,
     task: "asyncio.Task[Any]",
     query_fragment: str,
+    *,
+    expect_done: bool = False,
 ) -> None:
-    """Return as soon as ``task`` completes or PostgreSQL parks its query on a row lock."""
+    """Return once PostgreSQL parks ``task``'s query on a row lock.
+
+    A task that finishes without ever waiting fails the caller unless ``expect_done`` is set,
+    and one that never settles is cancelled so it cannot leak its sessions.
+    """
     from sqlalchemy import text
+
+    async def _cancel_pending_task() -> None:
+        if not task.done():
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
 
     deadline = asyncio.get_running_loop().time() + 5.0
     while not task.done():
@@ -694,8 +706,10 @@ async def _wait_until_lock_wait_or_done(
         if is_waiting_on_lock:
             return
         if asyncio.get_running_loop().time() >= deadline:
+            await _cancel_pending_task()
             raise TimeoutError(f"Timed out waiting for lock wait on {query_fragment!r}")
         await asyncio.sleep(0.01)
+    assert expect_done, f"the task finished without waiting on a lock for {query_fragment!r}"
 
 
 @pytest.mark.postgres_only
@@ -798,8 +812,9 @@ async def test_experiment_runner_persist_traces_does_not_deadlock_with_dataset_e
             work_item._persist_eval_results(annotations=[], db_traces=[eval_trace])
         )
         try:
+            # The persist locks only the binding row, so it finishes while the delete holds the project.
             await _wait_until_lock_wait_or_done(
-                db, persist_task, "FROM dataset_evaluators JOIN projects"
+                db, persist_task, "FROM dataset_evaluators JOIN projects", expect_done=True
             )
         finally:
             release_delete_binding_lock.set()
@@ -1002,7 +1017,7 @@ async def test_delete_project_evaluator_skips_surviving_prompt_lock(
                 ),
             )
         )
-        await _wait_until_lock_wait_or_done(db, delete_task, "FROM prompts")
+        await _wait_until_lock_wait_or_done(db, delete_task, "FROM prompts", expect_done=True)
         assert delete_task.done()
         await delete_task
 
@@ -1421,7 +1436,7 @@ async def test_tombstone_project_rejects_a_project_deleted_after_it_was_loaded(
 async def test_experiment_delete_does_not_deadlock_with_dataset_delete(
     postgresql_engine: AsyncEngine,
     monkeypatch: pytest.MonkeyPatch,
-    entry_point: str,
+    entry_point: Literal["sweeper", "rest", "graphql"],
 ) -> None:
     from datetime import datetime, timedelta, timezone
     from unittest.mock import AsyncMock
@@ -1501,7 +1516,7 @@ async def test_experiment_delete_does_not_deadlock_with_dataset_delete(
             await experiments_router.delete_experiment(
                 request=request, experiment_id=str(experiment_global_id), delete_project=True
             )
-        else:
+        elif entry_point == "graphql":
             monkeypatch.setattr(
                 experiment_mutations,
                 "tombstone_exclusive_experiment_projects",
@@ -1519,6 +1534,8 @@ async def test_experiment_delete_does_not_deadlock_with_dataset_delete(
                 info,
                 DeleteExperimentsInput(experiment_ids=[experiment_global_id]),
             )
+        else:
+            assert_never(entry_point)
 
     async def _run_dataset_delete() -> None:
         await asyncio.wait_for(experiments_deleted.wait(), 5)

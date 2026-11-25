@@ -106,9 +106,9 @@ async def test_f125a3233286_tombstoned_dataset_evaluators_free_their_name_and_bl
         conn.execute(
             text(
                 "INSERT INTO builtin_evaluators (id, key, input_schema, output_configs) "
-                "VALUES (:id, 'key', :s, :o)"
+                "VALUES (:id, 'key', :input_schema, :output_configs)"
             ),
-            {"id": evaluator, "s": json.dumps({}), "o": json.dumps([])},
+            {"id": evaluator, "input_schema": json.dumps({}), "output_configs": json.dumps([])},
         )
         insert_binding = (
             "INSERT INTO dataset_evaluators "
@@ -171,9 +171,9 @@ async def test_f125a3233286_preserves_live_dataset_evaluators(
         conn.execute(
             text(
                 "INSERT INTO builtin_evaluators (id, key, input_schema, output_configs) "
-                "VALUES (:id, 'key', :s, :o)"
+                "VALUES (:id, 'key', :input_schema, :output_configs)"
             ),
-            {"id": evaluator, "s": json.dumps({}), "o": json.dumps([])},
+            {"id": evaluator, "input_schema": json.dumps({}), "output_configs": json.dumps([])},
         )
         params: dict[str, Any] = dict(
             dataset_id=dataset,
@@ -207,6 +207,25 @@ async def test_f125a3233286_preserves_live_dataset_evaluators(
         )
         second_binding = _insert(conn, insert_binding, **{**seeded, "name": "judge-2"})
         assert second_binding > seeded["binding"]
+        # An autoincrement id is never reused after its row is deleted.
+        conn.execute(text("DELETE FROM dataset_evaluators WHERE id = :id"), {"id": second_binding})
+        third_binding = _insert(conn, insert_binding, **{**seeded, "name": "judge-3"})
+        assert third_binding > second_binding
         conn.commit()
 
     await _run_async(_engine, _verify)
+
+    # With no deleted rows awaiting cleanup the downgrade succeeds and keeps the live rows.
+    await _down(_engine, _alembic_config, _DOWN, _schema)
+
+    def _verify_after_downgrade(conn: Connection) -> None:
+        names = conn.execute(
+            text("SELECT name FROM dataset_evaluators ORDER BY id"),
+        ).scalars()
+        assert list(names) == ["judge", "judge-3"]
+        assert (
+            conn.execute(text("SELECT COUNT(*) FROM projects WHERE name = 'sink'")).scalar_one()
+            == 1
+        )
+
+    await _run_async(_engine, _verify_after_downgrade)

@@ -1651,6 +1651,68 @@ class TestEvalWorkItemPersistsErrorAnnotation:
         assert failure_args.args[1] is error
 
 
+class TestEvalWorkItemSkippedPersist:
+    """A binding whose results were not persisted reports success without broadcasting."""
+
+    @pytest.mark.anyio
+    async def test_successful_eval_does_not_broadcast_when_results_are_not_persisted(
+        self,
+    ) -> None:
+        exp = _make_running_experiment()
+        eval_item = _make_eval_work_item(exp)
+        annotation = models.ExperimentRunAnnotation(
+            experiment_run_id=1, name="test-output", annotator_kind="CODE", score=1.0
+        )
+        with (
+            patch.object(
+                eval_item.evaluator, "evaluate", new_callable=AsyncMock, return_value=[{}]
+            ),
+            patch(
+                "phoenix.server.daemons.experiment_runner.evaluation_result_to_model",
+                return_value=annotation,
+            ),
+            patch.object(
+                eval_item, "_persist_eval_results", AsyncMock(return_value=False)
+            ) as persist,
+            patch.object(exp, "on_eval_success", AsyncMock()) as on_eval_success,
+            patch.object(exp, "on_failure", AsyncMock()) as on_failure,
+            patch.object(exp, "_broadcast", MagicMock()) as broadcast,
+        ):
+            await eval_item.execute()
+
+        persist.assert_awaited_once()
+        broadcast.assert_not_called()
+        on_eval_success.assert_awaited_once_with(eval_item)
+        on_failure.assert_not_awaited()
+
+    @pytest.mark.anyio
+    async def test_failed_eval_does_not_broadcast_when_error_results_are_not_persisted(
+        self,
+    ) -> None:
+        exp = _make_running_experiment()
+        eval_item = _make_eval_work_item(exp)
+        with (
+            patch.object(
+                eval_item.evaluator,
+                "evaluate",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("Bad request (injected)"),
+            ),
+            patch.object(
+                eval_item, "_persist_eval_results", AsyncMock(return_value=False)
+            ) as persist,
+            patch.object(exp, "on_eval_success", AsyncMock()) as on_eval_success,
+            patch.object(exp, "on_failure", AsyncMock()) as on_failure,
+            patch.object(exp, "_broadcast", MagicMock()) as broadcast,
+        ):
+            await eval_item.execute()
+
+        persist.assert_awaited_once()
+        broadcast.assert_not_called()
+        on_eval_success.assert_awaited_once_with(eval_item)
+        on_failure.assert_not_awaited()
+
+
 # ===========================================================================
 # Group 8: Evaluator tasks (the evaluator is the experiment's task)
 # ===========================================================================
