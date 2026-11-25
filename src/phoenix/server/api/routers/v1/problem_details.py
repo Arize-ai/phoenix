@@ -166,14 +166,30 @@ def problem_response(exc: ProblemException) -> Response:
 
 
 _UNION_TAGS = frozenset(
-    {"llm", "code", "version", "latest", "text", "json", "predicate", "choice", "scale"}
+    {
+        "llm",
+        "code",
+        "builtin",
+        "version",
+        "latest",
+        "text",
+        "json",
+        "predicate",
+        "choice",
+        "scale",
+        "CATEGORICAL",
+        "CONTINUOUS",
+        "FREEFORM",
+    }
 )
-"""Discriminator tag values used by the opted-in routers' `Field(discriminator="type")` unions.
-A tagged union's error `loc` repeats the tag as a path segment (e.g. `body.code.name`) even
-though it names no real field, so `_normalize_field_path` drops it. Where the submitted body
-can be followed, a segment is a tag exactly when the object there names it under one of
-`_DISCRIMINATOR_FIELDS`, so a real field of the same name (`version` in `POST /v1/decisions`)
-is kept; this set is the fallback where it can't."""
+"""Discriminator tag values of the unions keyed by `type` or `evaluator_type` (see
+`_DISCRIMINATOR_FIELDS`). A tagged union's error `loc` repeats the tag as a path segment (e.g.
+`body.code.name`) even though it names no real field, so `_normalize_field_path` drops it. Where
+the submitted body can be followed, a segment is a tag exactly when the object there names it
+under one of `_DISCRIMINATOR_FIELDS`, so a real field of the same name (`version` in
+`POST /v1/decisions`) is kept; this set is the fallback where it can't. `decision` is left out
+because it is also a real field name in `POST /v1/evaluators` and `PATCH /v1/evaluators/{id}`
+bodies."""
 
 _DISCRIMINATOR_FIELDS = ("type", "evaluator_type")
 """The fields the opted-in routers' tagged unions discriminate on; dataset evaluator bindings

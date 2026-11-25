@@ -24,6 +24,7 @@ from phoenix.db import models
 from phoenix.db.types.annotation_configs import ContinuousOutputConfig, OptimizationDirection
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier as IdentifierModel
+from phoenix.server.api.routers.v1.problem_details import _normalize_field_path
 from phoenix.server.types import DbSessionFactory
 
 _SCORE_JSON = {"type": "CONTINUOUS", "name": "score", "optimization_direction": "MAXIMIZE"}
@@ -245,3 +246,9 @@ async def test_insufficient_storage_when_writes_are_locked(
         },
     )
     _assert_problem(response, status=507, code="insufficient_storage")
+
+
+def test_normalize_field_path_without_a_body_drops_known_tags_but_keeps_decision() -> None:
+    assert _normalize_field_path(("body", "builtin", "name"), None) == "body.name"
+    assert _normalize_field_path(("body", "CATEGORICAL", "values"), None) == "body.values"
+    assert _normalize_field_path(("body", "decision"), None) == "body.decision"
