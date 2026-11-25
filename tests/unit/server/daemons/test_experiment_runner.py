@@ -1584,6 +1584,32 @@ class TestDecisionTaskWorkItem:
         on_failure.assert_awaited_once()
         assert isinstance(on_failure.await_args.args[1], ValueError)  # type: ignore[union-attr]
 
+    @pytest.mark.anyio
+    async def test_tombstoned_project_run_broadcasts_no_span(self) -> None:
+        exp = _make_running_experiment()
+        work_item = _make_decision_work_item(exp, _FailingDecisionClient(RuntimeError("unused")))
+        unsaved_root_span = MagicMock(spec=models.Span)
+        unsaved_root_span.id = None
+        unsaved_root_span.parent_id = None
+        unsaved_trace = MagicMock(spec=models.Trace)
+        unsaved_trace.trace_id = "trace"
+        unsaved_trace.spans = [unsaved_root_span]
+        tracer = MagicMock(spec=Tracer)
+        tracer.get_db_traces.return_value = [unsaved_trace]
+        persisted_run = MagicMock(spec=models.ExperimentRun)
+        persisted_run.id = 803
+        persisted_run.trace_id = None
+        with (
+            patch.object(exp, "on_task_success", AsyncMock()),
+            patch.object(exp, "_broadcast", MagicMock()) as broadcast,
+            patch.object(work_item, "_persist_run", AsyncMock(return_value=persisted_run)),
+        ):
+            await work_item._record_run(
+                start_time=datetime.now(timezone.utc), tracer=tracer, output={}
+            )
+        assert broadcast.call_count == 1
+        assert broadcast.call_args.args[0].span is None
+
 
 class TestEvalWorkItemPersistsErrorAnnotation:
     @pytest.mark.anyio

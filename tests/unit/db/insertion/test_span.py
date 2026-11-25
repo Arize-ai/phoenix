@@ -849,6 +849,8 @@ async def test_creation_retries_are_bounded_when_lookup_loses_winner(
 async def test_trace_does_not_join_a_session_owner_locked_by_an_in_flight_tombstone(
     db: DbSessionFactory,
 ) -> None:
+    if db.dialect.name_literal != "postgresql":
+        pytest.skip("Requires independent PostgreSQL transactions")
     session_attributes = {"session": {"id": "locked-owner-session"}}
     async with db() as session:
         owner_span = replace(_span("owner", "owner-trace", "owner"), attributes=session_attributes)

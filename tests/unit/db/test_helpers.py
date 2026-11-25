@@ -24,6 +24,7 @@ from phoenix.db.helpers import (
     get_eval_trace_ids_for_experiments,
     is_lock_contention,
     is_lock_not_available,
+    is_session_owner_tombstoned,
     pg_table_sizes_stmt,
     pg_total_table_size_stmt,
 )
@@ -1814,6 +1815,24 @@ class TestLockContentionPredicates:
     ) -> None:
         assert is_lock_not_available(error) is expected_lock_not_available
         assert is_lock_contention(error) is expected_lock_contention
+
+
+class TestIsSessionOwnerTombstoned:
+    async def test_purged_owner_counts_as_tombstoned(self, db: DbSessionFactory) -> None:
+        async with db() as session:
+            live_project = models.Project(name="live")
+            tombstoned_project = models.Project(
+                name="tombstoned", deleted_at=datetime.now(timezone.utc)
+            )
+            purged_project = models.Project(name="purged")
+            session.add_all([live_project, tombstoned_project, purged_project])
+            await session.flush()
+            purged_project_id = purged_project.id
+            await session.delete(purged_project)
+            await session.flush()
+            assert not await is_session_owner_tombstoned(session, live_project.id)
+            assert await is_session_owner_tombstoned(session, tombstoned_project.id)
+            assert await is_session_owner_tombstoned(session, purged_project_id)
 
 
 class TestGetEvalTraceIds:

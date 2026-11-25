@@ -599,6 +599,8 @@ class ExampleWorkItem(WorkItem):
         if persisted_run is None:
             return
         db_run = persisted_run
+        if db_run.trace_id is None:
+            db_traces = []
         root_span = _root_span(db_traces[0]) if db_traces else None
         span = Span(id=root_span.id, db_record=root_span) if root_span is not None else None
         experiment_run = ExperimentRun(id=db_run.id, db_record=db_run)
