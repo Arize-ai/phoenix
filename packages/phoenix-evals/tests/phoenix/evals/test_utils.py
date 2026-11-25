@@ -1,6 +1,7 @@
 # type: ignore
 
 import json
+from collections.abc import Hashable
 
 import pandas as pd
 import pytest
@@ -1256,6 +1257,58 @@ class TestFormatAsAnnotationDataframe:
 
         # Results should be identical
         pd.testing.assert_frame_equal(result_auto, result_explicit)
+
+    @pytest.mark.parametrize(
+        "extra_column", [0, ("context", "chunk"), None], ids=["integer", "tuple", "none"]
+    )
+    @pytest.mark.parametrize("score_names", [None, []], ids=["none", "empty-list"])
+    @pytest.mark.parametrize("span_id_in_index", [False, True], ids=["column", "index"])
+    def test_auto_detect_ignores_non_string_columns(
+        self,
+        extra_column: Hashable,
+        score_names: list[str] | None,
+        span_id_in_index: bool,
+    ) -> None:
+        dataframe = pd.DataFrame(
+            {
+                "span_id": ["span_1", "span_2"],
+                "precision_score": [
+                    {"score": 0.8, "kind": "llm"},
+                    {"score": 0.2, "kind": "llm"},
+                ],
+                "hallucination_score": [
+                    {"score": 1.0, "kind": "code"},
+                    {"score": 0.0, "kind": "code"},
+                ],
+                extra_column: ["unrelated input A", "unrelated input B"],
+            }
+        )
+        if span_id_in_index:
+            dataframe = dataframe.set_index("span_id")
+        original = dataframe.copy(deep=True)
+        expected = to_annotation_dataframe(
+            dataframe=dataframe, score_names=["precision", "hallucination"]
+        )
+
+        annotations = to_annotation_dataframe(dataframe=dataframe, score_names=score_names)
+
+        pd.testing.assert_frame_equal(annotations, expected)
+        assert annotations["span_id"].tolist() == ["span_1", "span_2", "span_1", "span_2"]
+        assert annotations["score"].tolist() == [0.8, 0.2, 1.0, 0.0]
+        assert annotations["annotator_kind"].tolist() == ["LLM", "LLM", "CODE", "CODE"]
+        pd.testing.assert_frame_equal(dataframe, original)
+
+    @pytest.mark.parametrize(
+        "extra_column", [0, ("context", "chunk"), None], ids=["integer", "tuple", "none"]
+    )
+    def test_auto_detect_without_scores_ignores_non_string_columns(
+        self, extra_column: Hashable
+    ) -> None:
+        dataframe = pd.DataFrame({"span_id": ["span_1"], extra_column: ["unrelated input"]})
+
+        annotations = to_annotation_dataframe(dataframe=dataframe)
+
+        assert annotations.empty
 
     def test_auto_detect_with_partial_explicit_override(self):
         """Test that explicit score_names overrides auto-detection."""
