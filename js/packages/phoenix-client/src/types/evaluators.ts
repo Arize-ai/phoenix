@@ -112,17 +112,6 @@ export type EvaluatorOutputConfig =
 export type DatasetEvaluator = components["schemas"]["DatasetEvaluator"];
 
 /**
- * A dataset binding to create. `evaluator_type` selects the variant and must
- * match the kind of the evaluator it binds; a decision binding takes no
- * `output_configs`.
- */
-export type DatasetEvaluatorCreate =
-  | components["schemas"]["CreateLLMDatasetEvaluatorRequest"]
-  | components["schemas"]["CreateCodeDatasetEvaluatorRequest"]
-  | components["schemas"]["CreateBuiltInDatasetEvaluatorRequest"]
-  | components["schemas"]["CreateDecisionDatasetEvaluatorRequest"];
-
-/**
  * Fields that can change on a dataset binding. `evaluator_type` selects the
  * variant and must match the kind of the evaluator the binding runs; a decision
  * binding takes no `output_configs`. Omitted fields keep their current values.

@@ -1,11 +1,11 @@
 import invariant from "tiny-invariant";
 
+import type { operations } from "../__generated__/api/v1";
 import { createClient } from "../client";
 import { CREATE_DATASET_EVALUATOR } from "../constants/serverRequirements";
 import type { ClientFn } from "../types/core";
 import type {
   DatasetEvaluator,
-  DatasetEvaluatorCreate,
   DatasetIdentifier,
   EvaluatorInputMapping,
   EvaluatorOutputConfig,
@@ -14,6 +14,9 @@ import type {
 import { resolveDatasetIdentifier } from "../types/evaluators";
 import { assertUnreachable } from "../utils/assertUnreachable";
 import { ensureServerCapability } from "../utils/serverVersionUtils";
+
+type DatasetEvaluatorCreateBody =
+  operations["createDatasetEvaluator"]["requestBody"]["content"]["application/json"];
 
 type CategoricalOutputConfig = LLMEvaluatorDefinition["output_configs"][number];
 
@@ -65,7 +68,7 @@ export type CreateDatasetEvaluatorParams = CreateDatasetEvaluatorBaseParams &
 
 function buildCreateBody(
   params: CreateDatasetEvaluatorParams
-): DatasetEvaluatorCreate {
+): DatasetEvaluatorCreateBody {
   const fields = {
     name: params.name,
     evaluator_id: params.evaluatorId,
