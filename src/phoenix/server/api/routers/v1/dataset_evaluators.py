@@ -415,9 +415,9 @@ async def patch_dataset_evaluator(
 
     `evaluator_type` must match the bound evaluator's kind, or the request is refused with 422.
 
-    LLM output overrides must remain consistent with the prompt the evaluator runs, and a
-    later change to that prompt is refused while it would invalidate them. Use
-    /evaluators/{evaluator_id} to modify a shared definition instead.
+    LLM output overrides must be categorical; nothing checks them against the prompt.
+    Decision bindings take no output configurations. Use /evaluators/{evaluator_id} to
+    modify a shared definition instead.
     """
     with evaluator_api_errors():
         fields = body.model_fields_set - {"evaluator_type"}

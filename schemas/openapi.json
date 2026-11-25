@@ -5052,7 +5052,7 @@
           "evaluators"
         ],
         "summary": "Patch Dataset Evaluator",
-        "description": "Update only the binding. Dataset and evaluator references are immutable.\n\n`evaluator_type` must match the bound evaluator's kind, or the request is refused with 422.\n\nLLM output overrides must remain consistent with the prompt the evaluator runs, and a\nlater change to that prompt is refused while it would invalidate them. Use\n/evaluators/{evaluator_id} to modify a shared definition instead.",
+        "description": "Update only the binding. Dataset and evaluator references are immutable.\n\n`evaluator_type` must match the bound evaluator's kind, or the request is refused with 422.\n\nLLM output overrides must be categorical; nothing checks them against the prompt.\nDecision bindings take no output configurations. Use /evaluators/{evaluator_id} to\nmodify a shared definition instead.",
         "operationId": "patchDatasetEvaluator",
         "parameters": [
           {

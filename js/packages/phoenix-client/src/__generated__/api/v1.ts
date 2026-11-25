@@ -771,9 +771,9 @@ export interface paths {
          *
          *     `evaluator_type` must match the bound evaluator's kind, or the request is refused with 422.
          *
-         *     LLM output overrides must remain consistent with the prompt the evaluator runs, and a
-         *     later change to that prompt is refused while it would invalidate them. Use
-         *     /evaluators/{evaluator_id} to modify a shared definition instead.
+         *     LLM output overrides must be categorical; nothing checks them against the prompt.
+         *     Decision bindings take no output configurations. Use /evaluators/{evaluator_id} to
+         *     modify a shared definition instead.
          */
         patch: operations["patchDatasetEvaluator"];
         trace?: never;
