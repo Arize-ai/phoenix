@@ -118,6 +118,7 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
               outputConfigs {
                 ... on CategoricalAnnotationConfig {
                   name
+                  description
                   annotationType
                   optimizationDirection
                   values {
@@ -127,6 +128,7 @@ function CreateBuiltInDatasetEvaluatorSlideoverContent({
                 }
                 ... on ContinuousAnnotationConfig {
                   name
+                  description
                   annotationType
                   optimizationDirection
                   lowerBound

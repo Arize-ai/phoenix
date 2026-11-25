@@ -155,6 +155,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
                   __typename
                   ... on CategoricalAnnotationConfig {
                     name
+                    description
                     optimizationDirection
                     values {
                       label
@@ -163,12 +164,14 @@ function EditCodeDatasetEvaluatorSlideoverContent({
                   }
                   ... on ContinuousAnnotationConfig {
                     name
+                    description
                     optimizationDirection
                     lowerBound
                     upperBound
                   }
                   ... on FreeformAnnotationConfig {
                     name
+                    description
                     optimizationDirection
                     threshold
                     lowerBound
@@ -189,6 +192,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
                       __typename
                       ... on CategoricalAnnotationConfig {
                         name
+                        description
                         optimizationDirection
                         values {
                           label
@@ -197,12 +201,14 @@ function EditCodeDatasetEvaluatorSlideoverContent({
                       }
                       ... on ContinuousAnnotationConfig {
                         name
+                        description
                         optimizationDirection
                         lowerBound
                         upperBound
                       }
                       ... on FreeformAnnotationConfig {
                         name
+                        description
                         optimizationDirection
                         threshold
                         lowerBound

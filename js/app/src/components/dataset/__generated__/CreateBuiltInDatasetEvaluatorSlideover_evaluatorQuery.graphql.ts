@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<22e0800a71b4d15b8399a731673867cd>>
+ * @generated SignedSource<<6d59f9ef7f9873fb7aebb0417430530d>>
  * @lightSyntaxTransform
  */
 
@@ -24,6 +24,7 @@ export type CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery$data = {
     readonly name?: string;
     readonly outputConfigs?: ReadonlyArray<{
       readonly annotationType?: AnnotationType;
+      readonly description?: string | null;
       readonly lowerBound?: number | null;
       readonly name?: string;
       readonly optimizationDirection?: OptimizationDirection;
@@ -70,6 +71,13 @@ v3 = {
   "storageKey": null
 },
 v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "description",
+  "storageKey": null
+},
+v5 = {
   "kind": "InlineFragment",
   "selections": [
     (v3/*:: as any*/),
@@ -87,44 +95,39 @@ v4 = {
       "name": "isBuiltin",
       "storageKey": null
     },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "description",
-      "storageKey": null
-    }
+    (v4/*:: as any*/)
   ],
   "type": "Evaluator",
   "abstractKey": "__isEvaluator"
 },
-v5 = {
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "inputSchema",
   "storageKey": null
 },
-v6 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "annotationType",
   "storageKey": null
 },
-v7 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "optimizationDirection",
   "storageKey": null
 },
-v8 = {
+v9 = {
   "kind": "InlineFragment",
   "selections": [
     (v3/*:: as any*/),
-    (v6/*:: as any*/),
+    (v4/*:: as any*/),
     (v7/*:: as any*/),
+    (v8/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -154,12 +157,13 @@ v8 = {
   "type": "CategoricalAnnotationConfig",
   "abstractKey": null
 },
-v9 = {
+v10 = {
   "kind": "InlineFragment",
   "selections": [
     (v3/*:: as any*/),
-    (v6/*:: as any*/),
+    (v4/*:: as any*/),
     (v7/*:: as any*/),
+    (v8/*:: as any*/),
     {
       "alias": null,
       "args": null,
@@ -178,7 +182,7 @@ v9 = {
   "type": "ContinuousAnnotationConfig",
   "abstractKey": null
 },
-v10 = {
+v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -201,11 +205,11 @@ return {
         "plural": false,
         "selections": [
           (v2/*:: as any*/),
-          (v4/*:: as any*/),
+          (v5/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
-              (v5/*:: as any*/),
+              (v6/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -214,8 +218,8 @@ return {
                 "name": "outputConfigs",
                 "plural": true,
                 "selections": [
-                  (v8/*:: as any*/),
-                  (v9/*:: as any*/)
+                  (v9/*:: as any*/),
+                  (v10/*:: as any*/)
                 ],
                 "storageKey": null
               }
@@ -244,13 +248,13 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v10/*:: as any*/),
+          (v11/*:: as any*/),
           (v2/*:: as any*/),
-          (v4/*:: as any*/),
+          (v5/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
-              (v5/*:: as any*/),
+              (v6/*:: as any*/),
               {
                 "alias": null,
                 "args": null,
@@ -259,9 +263,9 @@ return {
                 "name": "outputConfigs",
                 "plural": true,
                 "selections": [
-                  (v10/*:: as any*/),
-                  (v8/*:: as any*/),
+                  (v11/*:: as any*/),
                   (v9/*:: as any*/),
+                  (v10/*:: as any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
@@ -283,16 +287,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "cfbc2c9a5cc3b52d6f2c4d2337c3f651",
+    "cacheID": "ca6340e1398c11224ac6bc1e0c9a37db",
     "id": null,
     "metadata": {},
     "name": "CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery",
     "operationKind": "query",
-    "text": "query CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery(\n  $evaluatorId: ID!\n) {\n  evaluator: node(id: $evaluatorId) {\n    __typename\n    id\n    ... on Evaluator {\n      __isEvaluator: __typename\n      name\n      kind\n      isBuiltin\n      description\n    }\n    ... on BuiltInEvaluator {\n      inputSchema\n      outputConfigs {\n        __typename\n        ... on CategoricalAnnotationConfig {\n          name\n          annotationType\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          name\n          annotationType\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query CreateBuiltInDatasetEvaluatorSlideover_evaluatorQuery(\n  $evaluatorId: ID!\n) {\n  evaluator: node(id: $evaluatorId) {\n    __typename\n    id\n    ... on Evaluator {\n      __isEvaluator: __typename\n      name\n      kind\n      isBuiltin\n      description\n    }\n    ... on BuiltInEvaluator {\n      inputSchema\n      outputConfigs {\n        __typename\n        ... on CategoricalAnnotationConfig {\n          name\n          description\n          annotationType\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          name\n          description\n          annotationType\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "db206eb5beb4ea8bd174906c6dceaf2f";
+(node as any).hash = "de1311a8a1bf2858c158bd06c42b6ab9";
 
 export default node;

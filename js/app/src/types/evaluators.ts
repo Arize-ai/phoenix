@@ -96,6 +96,10 @@ export type ClassificationEvaluatorAnnotationConfig = {
    */
   name: string;
   /**
+   * Description of what this annotation represents
+   */
+  description?: string | null;
+  /**
    * The direction to optimize the numeric evaluation score
    * E.x. "MAXIMIZE" means that the higher the score, the better the evaluation
    */
@@ -114,6 +118,10 @@ export type ContinuousEvaluatorAnnotationConfig = {
    */
   name: string;
   /**
+   * Description of what this annotation represents
+   */
+  description?: string | null;
+  /**
    * The direction to optimize the numeric evaluation score
    * E.x. "MAXIMIZE" means that the higher the score, the better the evaluation
    */
@@ -130,6 +138,7 @@ export type ContinuousEvaluatorAnnotationConfig = {
 
 export type FreeformEvaluatorAnnotationConfig = {
   name: string;
+  description?: string | null;
   optimizationDirection: EvaluatorOptimizationDirection;
   threshold?: number | null;
   lowerBound?: number | null;

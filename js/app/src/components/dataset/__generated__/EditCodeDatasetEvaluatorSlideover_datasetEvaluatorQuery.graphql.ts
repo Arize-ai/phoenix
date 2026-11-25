@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<15dccd423890117f3f85ccc3b984c123>>
+ * @generated SignedSource<<621b13d1db8f3f59aa5b9f437bcd0319>>
  * @lightSyntaxTransform
  */
 
@@ -34,6 +34,7 @@ export type EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery$data = {
         readonly name?: string;
         readonly outputConfigs?: ReadonlyArray<{
           readonly __typename: "CategoricalAnnotationConfig";
+          readonly description: string | null;
           readonly name: string;
           readonly optimizationDirection: OptimizationDirection;
           readonly values: ReadonlyArray<{
@@ -42,12 +43,14 @@ export type EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery$data = {
           }>;
         } | {
           readonly __typename: "ContinuousAnnotationConfig";
+          readonly description: string | null;
           readonly lowerBound: number | null;
           readonly name: string;
           readonly optimizationDirection: OptimizationDirection;
           readonly upperBound: number | null;
         } | {
           readonly __typename: "FreeformAnnotationConfig";
+          readonly description: string | null;
           readonly lowerBound: number | null;
           readonly name: string;
           readonly optimizationDirection: OptimizationDirection;
@@ -70,6 +73,7 @@ export type EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery$data = {
       readonly name: string;
       readonly outputConfigs: ReadonlyArray<{
         readonly __typename: "CategoricalAnnotationConfig";
+        readonly description: string | null;
         readonly name: string;
         readonly optimizationDirection: OptimizationDirection;
         readonly values: ReadonlyArray<{
@@ -78,12 +82,14 @@ export type EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery$data = {
         }>;
       } | {
         readonly __typename: "ContinuousAnnotationConfig";
+        readonly description: string | null;
         readonly lowerBound: number | null;
         readonly name: string;
         readonly optimizationDirection: OptimizationDirection;
         readonly upperBound: number | null;
       } | {
         readonly __typename: "FreeformAnnotationConfig";
+        readonly description: string | null;
         readonly lowerBound: number | null;
         readonly name: string;
         readonly optimizationDirection: OptimizationDirection;
@@ -225,6 +231,7 @@ v9 = {
   "kind": "InlineFragment",
   "selections": [
     (v4/*:: as any*/),
+    (v5/*:: as any*/),
     (v8/*:: as any*/),
     {
       "alias": null,
@@ -273,6 +280,7 @@ v12 = {
   "kind": "InlineFragment",
   "selections": [
     (v4/*:: as any*/),
+    (v5/*:: as any*/),
     (v8/*:: as any*/),
     (v10/*:: as any*/),
     (v11/*:: as any*/)
@@ -284,6 +292,7 @@ v13 = {
   "kind": "InlineFragment",
   "selections": [
     (v4/*:: as any*/),
+    (v5/*:: as any*/),
     (v8/*:: as any*/),
     {
       "alias": null,
@@ -717,16 +726,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "395da128a7d38385677a36b361567041",
+    "cacheID": "6126377e36b6886a82fb821e7254ef1b",
     "id": null,
     "metadata": {},
     "name": "EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery",
     "operationKind": "query",
-    "text": "query EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery(\n  $datasetEvaluatorId: ID!\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        name\n        description\n        inputMapping {\n          literalMapping\n          pathMapping\n        }\n        outputConfigs {\n          __typename\n          ... on CategoricalAnnotationConfig {\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on ContinuousAnnotationConfig {\n            name\n            optimizationDirection\n            lowerBound\n            upperBound\n          }\n          ... on FreeformAnnotationConfig {\n            name\n            optimizationDirection\n            threshold\n            lowerBound\n            upperBound\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n        evaluator {\n          __typename\n          id\n          kind\n          ... on CodeEvaluator {\n            name\n            description\n            language\n            sandboxConfig {\n              id\n            }\n            outputConfigs {\n              __typename\n              ... on CategoricalAnnotationConfig {\n                name\n                optimizationDirection\n                values {\n                  label\n                  score\n                }\n              }\n              ... on ContinuousAnnotationConfig {\n                name\n                optimizationDirection\n                lowerBound\n                upperBound\n              }\n              ... on FreeformAnnotationConfig {\n                name\n                optimizationDirection\n                threshold\n                lowerBound\n                upperBound\n              }\n              ... on Node {\n                __isNode: __typename\n                id\n              }\n            }\n            currentVersion {\n              sourceCode\n              id\n            }\n          }\n        }\n      }\n    }\n  }\n  sandboxProviders {\n    backendType\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      config {\n        envVars {\n          name\n          secretKey\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n    }\n    id\n  }\n  sandboxBackends {\n    backendType\n    status\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n  }\n}\n"
+    "text": "query EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery(\n  $datasetEvaluatorId: ID!\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        name\n        description\n        inputMapping {\n          literalMapping\n          pathMapping\n        }\n        outputConfigs {\n          __typename\n          ... on CategoricalAnnotationConfig {\n            name\n            description\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on ContinuousAnnotationConfig {\n            name\n            description\n            optimizationDirection\n            lowerBound\n            upperBound\n          }\n          ... on FreeformAnnotationConfig {\n            name\n            description\n            optimizationDirection\n            threshold\n            lowerBound\n            upperBound\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n        evaluator {\n          __typename\n          id\n          kind\n          ... on CodeEvaluator {\n            name\n            description\n            language\n            sandboxConfig {\n              id\n            }\n            outputConfigs {\n              __typename\n              ... on CategoricalAnnotationConfig {\n                name\n                description\n                optimizationDirection\n                values {\n                  label\n                  score\n                }\n              }\n              ... on ContinuousAnnotationConfig {\n                name\n                description\n                optimizationDirection\n                lowerBound\n                upperBound\n              }\n              ... on FreeformAnnotationConfig {\n                name\n                description\n                optimizationDirection\n                threshold\n                lowerBound\n                upperBound\n              }\n              ... on Node {\n                __isNode: __typename\n                id\n              }\n            }\n            currentVersion {\n              sourceCode\n              id\n            }\n          }\n        }\n      }\n    }\n  }\n  sandboxProviders {\n    backendType\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      config {\n        envVars {\n          name\n          secretKey\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n    }\n    id\n  }\n  sandboxBackends {\n    backendType\n    status\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e29a5391fc87c178b46e1a713b5be376";
+(node as any).hash = "f5c6a81f5e5c4bfefaea371828df08d3";
 
 export default node;

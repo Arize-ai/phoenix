@@ -3,7 +3,9 @@ import {
   applyDraftOperations,
   type CodeEvaluatorDraftSnapshot,
   type EvaluatorSubmitResult,
+  fromOutputConfigDraft,
   parseEditCodeEvaluatorDraftInput,
+  toOutputConfigDrafts,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
 
 function makeSnapshot(
@@ -366,5 +368,39 @@ describe("code evaluator host submit capability", () => {
       ok: false,
       error: "The code-evaluator form is not mounted; cannot submit.",
     });
+  });
+
+  it("preserves output config descriptions across draft round-trips", () => {
+    const configs = [
+      {
+        name: "verdict",
+        description: "Pass or fail verdict.",
+        optimizationDirection: "MAXIMIZE" as const,
+        values: [{ label: "pass", score: 1 }],
+      },
+      {
+        name: "score",
+        description: "Continuous quality score.",
+        optimizationDirection: "MAXIMIZE" as const,
+        lowerBound: 0,
+        upperBound: 1,
+      },
+      {
+        name: "notes",
+        description: "Freeform annotation.",
+        optimizationDirection: "NONE" as const,
+        threshold: null,
+        lowerBound: null,
+        upperBound: null,
+      },
+    ];
+
+    const drafts = toOutputConfigDrafts(configs);
+    expect(drafts.map((d) => d.description)).toEqual([
+      "Pass or fail verdict.",
+      "Continuous quality score.",
+      "Freeform annotation.",
+    ]);
+    expect(drafts.map(fromOutputConfigDraft)).toEqual(configs);
   });
 });

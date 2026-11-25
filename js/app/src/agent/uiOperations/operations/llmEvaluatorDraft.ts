@@ -44,6 +44,7 @@ const classificationOutputConfigSchema = z
   .strictObject({
     kind: z.enum(["classification"]),
     name: z.string(),
+    description: z.string().nullable().optional(),
     optimizationDirection: z.enum(["MINIMIZE", "MAXIMIZE", "NONE"]),
     values: z.array(
       z.strictObject({

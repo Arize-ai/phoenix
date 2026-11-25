@@ -112,6 +112,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
                   outputConfigs {
                     ... on CategoricalAnnotationConfig {
                       name
+                      description
                       optimizationDirection
                       values {
                         label
@@ -120,6 +121,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
                     }
                     ... on ContinuousAnnotationConfig {
                       name
+                      description
                       optimizationDirection
                       lowerBound
                       upperBound
@@ -139,6 +141,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
                       outputConfigs {
                         ... on CategoricalAnnotationConfig {
                           name
+                          description
                           optimizationDirection
                           values {
                             label
@@ -147,6 +150,7 @@ function EditBuiltInDatasetEvaluatorSlideoverContent({
                         }
                         ... on ContinuousAnnotationConfig {
                           name
+                          description
                           optimizationDirection
                           lowerBound
                           upperBound
