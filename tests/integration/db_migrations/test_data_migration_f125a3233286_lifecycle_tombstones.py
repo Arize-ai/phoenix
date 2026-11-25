@@ -137,3 +137,70 @@ async def test_f125a3233286_tombstoned_dataset_evaluators_free_their_name_and_bl
 
     with pytest.raises(ValueError, match="Cannot downgrade while dataset_evaluators has deleted"):
         await _down(_engine, _alembic_config, _DOWN, _schema)
+
+
+async def test_f125a3233286_preserves_live_dataset_evaluators(
+    _engine: AsyncEngine,
+    _alembic_config: Config,
+    _schema: str,
+) -> None:
+    await _up(_engine, _alembic_config, _DOWN, _schema)
+    t0 = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+    insert_binding = (
+        "INSERT INTO dataset_evaluators "
+        "(dataset_id, evaluator_id, name, input_mapping, output_configs, project_id) "
+        "VALUES (:d, :e, :n, :im, :oc, :p)"
+    )
+
+    def _seed(conn: Connection) -> dict[str, Any]:
+        dataset = _insert(
+            conn,
+            "INSERT INTO datasets (name, metadata) VALUES ('ds', :m)",
+            m=json.dumps({}),
+        )
+        sink = _insert(
+            conn,
+            "INSERT INTO projects (name, created_at, updated_at) VALUES ('sink', :t, :t)",
+            t=t0,
+        )
+        evaluator = _insert(
+            conn,
+            "INSERT INTO evaluators (name, metadata, kind) VALUES ('builtin', :m, 'BUILTIN')",
+            m=json.dumps({}),
+        )
+        conn.execute(
+            text(
+                "INSERT INTO builtin_evaluators (id, key, input_schema, output_configs) "
+                "VALUES (:id, 'key', :s, :o)"
+            ),
+            {"id": evaluator, "s": json.dumps({}), "o": json.dumps([])},
+        )
+        params: dict[str, Any] = dict(
+            d=dataset,
+            e=evaluator,
+            n="judge",
+            im=json.dumps({"literal_mapping": {}, "path_mapping": {}}),
+            oc=json.dumps([]),
+            p=sink,
+        )
+        params["binding"] = _insert(conn, insert_binding, **params)
+        conn.commit()
+        return params
+
+    seeded = await _run_async(_engine, _seed)
+    await _up(_engine, _alembic_config, _UP, _schema)
+
+    def _verify(conn: Connection) -> None:
+        row = conn.execute(
+            text(
+                "SELECT dataset_id, evaluator_id, project_id, name, deleted_at "
+                "FROM dataset_evaluators WHERE id = :id"
+            ),
+            {"id": seeded["binding"]},
+        ).one()
+        assert tuple(row) == (seeded["d"], seeded["e"], seeded["p"], "judge", None)
+        second_binding = _insert(conn, insert_binding, **{**seeded, "n": "judge-2"})
+        assert second_binding > seeded["binding"]
+        conn.commit()
+
+    await _run_async(_engine, _verify)
