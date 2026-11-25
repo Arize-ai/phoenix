@@ -75,7 +75,8 @@ def to_connection_config(
     api_type = input.openai_api_type.value if input.openai_api_type else "chat_completions"
 
     if provider_key in OPENAI_SDK_STYLE_PROVIDER_KEYS:
-        if input.base_url is None and api_type == "chat_completions":
+        # With no base URL and no API type, return None so the model-name default applies.
+        if input.base_url is None and input.openai_api_type is None:
             return None
         return OpenAIConnectionConfig(
             type="openai",
