@@ -385,9 +385,12 @@ def test_restaging_removes_stale_workdir_files_without_overwriting_previous_data
         "trail-benchmark-dev-no-code-mode",
     ],
 )
-def test_job_paths_and_recorded_dataset_names_match_dataset_layout(job_name: str) -> None:
-    from evals.harbor.scripts.fixture_inputs import HERE
+def test_job_paths_and_recorded_dataset_names_match_dataset_layout(
+    job_name: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from evals.harbor.scripts.fixture_inputs import HERE, ROOT
 
+    monkeypatch.chdir(ROOT)
     job = yaml.safe_load((HERE / "jobs" / f"{job_name}.yaml").read_text())
     tasks = check_job_staged.select_job_tasks(job)
     dataset = "trail-benchmark-dev" if job_name.startswith("trail-") else job_name
