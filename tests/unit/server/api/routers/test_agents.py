@@ -18,6 +18,7 @@ from phoenix.server.agents.context import ResolvedContexts
 from phoenix.server.api.routers.agents import (
     ChatRequestBody,
     _build_message_metadata_chunk,
+    _ensure_project_exists,
     _get_current_context_usage,
     _interleave_agent_and_subagent_message_chunks,
     _load_phoenix_user_email,
@@ -426,6 +427,59 @@ class TestPersistDbTracesAndEmitEvent:
             assert project_session.start_time == start_time
             assert project_session.end_time == start_time + timedelta(seconds=3)
 
+    async def test_trace_does_not_join_a_session_owned_by_a_tombstoned_project(
+        self, db: DbSessionFactory
+    ) -> None:
+        async with db() as session:
+            old_project = models.Project(name="pxi-old-owner")
+            new_project = models.Project(name="pxi-new-owner")
+            session.add_all([old_project, new_project])
+            await session.flush()
+            old_project_id = old_project.id
+            new_project_id = new_project.id
+
+        start_time = datetime(2026, 6, 29, 15, 0, tzinfo=timezone.utc)
+        await _persist_db_traces_and_emit_event(
+            db=db,
+            event_queue=_EventQueue(),
+            db_traces=[
+                self._trace(
+                    project_id=old_project_id,
+                    session_id="shared-session",
+                    trace_id="old-trace",
+                    span_id="old-span",
+                    start_time=start_time,
+                )
+            ],
+        )
+        async with db() as session:
+            await session.execute(
+                update(models.Project)
+                .where(models.Project.id == old_project_id)
+                .values(deleted_at=start_time)
+            )
+
+        await _persist_db_traces_and_emit_event(
+            db=db,
+            event_queue=_EventQueue(),
+            db_traces=[
+                self._trace(
+                    project_id=new_project_id,
+                    session_id="shared-session",
+                    trace_id="new-trace",
+                    span_id="new-span",
+                    start_time=start_time + timedelta(seconds=5),
+                )
+            ],
+        )
+
+        async with db.read() as session:
+            new_trace = await session.scalar(
+                select(models.Trace).where(models.Trace.trace_id == "new-trace")
+            )
+            assert new_trace is not None
+            assert new_trace.project_session_rowid is None
+
 
 class TestBuildMessageMetadataChunk:
     def test_omits_turn_trace_context_when_none(self) -> None:
@@ -626,3 +680,38 @@ class TestLoadPhoenixUserEmail:
             )
 
         assert email is None
+
+
+class TestEnsureProjectExists:
+    async def test_follows_the_name_to_the_live_project(self, db: DbSessionFactory) -> None:
+        name = "assistant_agent_live"
+        async with db() as session:
+            live_project = models.Project(name=name)
+            session.add(live_project)
+            await session.flush()
+            live_project_id = live_project.id
+
+        assert await _ensure_project_exists(db, name) == live_project_id
+
+    async def test_ignores_a_tombstoned_project_with_the_same_name(
+        self, db: DbSessionFactory
+    ) -> None:
+        name = "assistant_agent_reuse"
+        async with db() as session:
+            tombstone = models.Project(
+                name=name,
+                created_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                deleted_at=datetime(2024, 1, 10, tzinfo=timezone.utc),
+            )
+            session.add(tombstone)
+            await session.flush()
+            tombstone_id = tombstone.id
+
+        project_id = await _ensure_project_exists(db, name)
+
+        assert project_id != tombstone_id
+        async with db() as session:
+            project = await session.get(models.Project, project_id)
+            assert project is not None
+            assert project.name == name
+            assert project.deleted_at is None

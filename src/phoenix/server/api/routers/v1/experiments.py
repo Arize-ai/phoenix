@@ -16,17 +16,31 @@ from strawberry.relay import GlobalID
 from phoenix.db import models
 from phoenix.db.helpers import (
     SupportedSQLDialect,
+    get_eval_trace_ids_for_experiments,
     get_experiment_incomplete_runs_query,
     insert_experiment_with_examples_snapshot,
 )
-from phoenix.db.insertion.helpers import insert_on_conflict
+from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.db.lifecycle import live_row_predicate
 from phoenix.db.types.db_helper_types import UNDEFINED
+from phoenix.server.api.exceptions import Conflict
 from phoenix.server.api.routers.v1.datasets import DatasetExample
 from phoenix.server.api.routers.v1.models import IsoDatetime
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.utils import delete_traces
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
-from phoenix.server.dml_event import ExperimentInsertEvent
+from phoenix.server.cleanup.lifecycle import (
+    lock_experiment_projects,
+    resolve_experiment_project_delete_candidates,
+    tombstone_exclusive_experiment_projects,
+)
+from phoenix.server.dml_event import (
+    ExperimentDeleteEvent,
+    ExperimentInsertEvent,
+    ProjectDeleteEvent,
+    SpanDeleteEvent,
+)
 from phoenix.server.experiments.utils import generate_experiment_project_name
 
 from .datasets import _resolve_split_identifiers
@@ -204,6 +218,20 @@ async def create_experiment(
         project_description = (
             f"dataset_id: {dataset_globalid}\ndataset_version_id: {dataset_version_globalid}"
         )
+        dialect = SupportedSQLDialect(session.get_bind().dialect.name)
+        await session.execute(
+            insert_on_conflict(
+                dict(
+                    name=project_name,
+                    description=project_description,
+                ),
+                dialect=dialect,
+                table=models.Project,
+                unique_by=("name",),
+                on_conflict=OnConflict.DO_NOTHING,
+                index_where=sa.text(live_row_predicate()),
+            )
+        )
         experiment = models.Experiment(
             dataset_id=int(dataset_rowid),
             dataset_version_id=int(dataset_version_id),
@@ -229,22 +257,6 @@ async def create_experiment(
 
         # crosswalk table assumes the relation is already present
         await insert_experiment_with_examples_snapshot(session, experiment)
-
-        dialect = SupportedSQLDialect(session.get_bind().dialect.name)
-        project_rowid = await session.scalar(
-            insert_on_conflict(
-                dict(
-                    name=project_name,
-                    description=project_description,
-                    created_at=experiment.created_at,
-                    updated_at=experiment.updated_at,
-                ),
-                dialect=dialect,
-                table=models.Project,
-                unique_by=("name",),
-            ).returning(models.Project.id)
-        )
-        assert project_rowid is not None
 
         experiment_globalid = GlobalID("Experiment", str(experiment.id))
         if dataset_version_globalid_str is None:
@@ -550,7 +562,13 @@ async def update_experiment(
     operation_id="deleteExperiment",
     summary="Delete experiment by ID",
     responses=add_errors_to_responses(
-        [{"status_code": 404, "description": "Experiment not found"}]
+        [
+            {"status_code": 404, "description": "Experiment not found"},
+            {
+                "status_code": 409,
+                "description": "The experiment is in use by another operation; retry the delete",
+            },
+        ]
     ),
     response_description="Experiment deleted successfully",
     status_code=204,
@@ -589,21 +607,55 @@ async def delete_experiment(
     # harmless since the experiment is being deleted anyway.
     await request.state.experiment_runner.stop_experiment(experiment_rowid)
 
+    eval_trace_ids_stmt = get_eval_trace_ids_for_experiments(experiment_rowid)
     stmt = (
         sa.delete(models.Experiment)
         .where(models.Experiment.id == experiment_rowid)
         .returning(models.Experiment.project_name)
     )
-    async with request.app.state.db() as session:
-        result = (await session.execute(stmt)).first()
-        if result is None:
-            raise HTTPException(detail="Experiment does not exist", status_code=404)
-        project_name = result.project_name
-        if delete_project and project_name:
-            delete_project_stmt = sa.delete(models.Project).where(
-                models.Project.name == project_name
-            )
-            await session.execute(delete_project_stmt)
+    db = request.app.state.db
+    enqueued_projects: list[int] = []
+    try:
+        async with db() as session:
+            eval_trace_ids = [
+                trace_id
+                for trace_id in (await session.scalars(eval_trace_ids_stmt)).all()
+                if trace_id
+            ]
+            candidate_project_ids: list[int] = []
+            if delete_project:
+                candidate_project_ids = await resolve_experiment_project_delete_candidates(
+                    session,
+                    candidate_project_names=(
+                        await session.scalars(
+                            sa.select(models.Experiment.project_name).where(
+                                models.Experiment.id == experiment_rowid
+                            )
+                        )
+                    ).all(),
+                )
+                await lock_experiment_projects(session, candidate_project_ids=candidate_project_ids)
+            result = (await session.execute(stmt)).first()
+            if result is None:
+                raise HTTPException(detail="Experiment does not exist", status_code=404)
+            if candidate_project_ids:
+                enqueued_projects = await tombstone_exclusive_experiment_projects(
+                    session,
+                    candidate_project_ids=candidate_project_ids,
+                )
+    except Conflict as error:
+        raise HTTPException(detail=str(error), status_code=409) from error
+    request.state.event_queue.put(ExperimentDeleteEvent((experiment_rowid,)))
+    if enqueued_projects:
+        tombstoned_ids = tuple(enqueued_projects)
+        request.state.event_queue.put(SpanDeleteEvent(tombstoned_ids))
+        request.state.event_queue.put(ProjectDeleteEvent(tombstoned_ids))
+    if eval_trace_ids:
+        await delete_traces(
+            db,
+            *eval_trace_ids,
+            event_queue=request.state.event_queue,
+        )
 
 
 class ListExperimentsResponseBody(PaginatedResponseBody[Experiment]):

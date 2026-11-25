@@ -65,6 +65,21 @@ class SpanErrorTypeCount:
     count: int
 
 
+async def _is_session_owner_tombstoned(
+    info: Info[Context, None], project_session_rowid: int
+) -> bool:
+    """Session readers treat a session owned by a tombstoned project as not found."""
+    owner_rowid = await info.context.data_loaders.project_session_fields.load(
+        (project_session_rowid, models.ProjectSession.project_id),
+    )
+    if owner_rowid is None:
+        return True
+    live_owner_rowid = await info.context.data_loaders.project_fields.load(
+        (owner_rowid, models.Project.id),
+    )
+    return live_owner_rowid is None
+
+
 @strawberry.type
 class Trace(Node):
     id: NodeID[TraceRowId]
@@ -169,6 +184,8 @@ class Trace(Node):
             )
         if project_session_rowid is None:
             return None
+        if await _is_session_owner_tombstoned(info, project_session_rowid):
+            return None
         from phoenix.server.api.types.ProjectSession import ProjectSession
 
         return GlobalID(type_name=ProjectSession.__name__, node_id=str(project_session_rowid))
@@ -185,6 +202,8 @@ class Trace(Node):
                 (self.id, models.Trace.project_session_rowid),
             )
         if project_session_rowid is None:
+            return None
+        if await _is_session_owner_tombstoned(info, project_session_rowid):
             return None
 
         stmt = select(models.ProjectSession).filter_by(id=project_session_rowid)

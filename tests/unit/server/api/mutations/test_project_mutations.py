@@ -1,11 +1,17 @@
+from collections.abc import AsyncIterator
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
+from typing import Any
 
+import pytest
 from sqlalchemy import select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
+from phoenix.server.api.exceptions import Conflict
+from phoenix.server.api.mutations import project_mutations
+from phoenix.server.cleanup.coordinator import CleanupCoordinator
 from phoenix.server.types import DbSessionFactory
 
 from ...._helpers import _add_live_session_work_unit
@@ -134,6 +140,52 @@ class TestProjectMutations:
                 if i < n - 1:
                     session_obj = await session.get(models.ProjectSession, project_sessions[i].id)
                     assert session_obj is None, f"Session {i} should be deleted"
+
+    async def test_clear_project_surfaces_the_conflict_when_the_clear_gives_up(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        async def _give_up(*args: Any, **kwargs: Any) -> AsyncIterator[Any]:
+            raise Conflict("Some traces are in use by another operation; run the clear again.")
+            yield
+
+        monkeypatch.setattr(project_mutations, "clear_project_traces_in_batches", _give_up)
+        async with db() as session:
+            project = models.Project(name=token_hex(8))
+            session.add(project)
+            await session.flush()
+            project_id = project.id
+
+        result = await gql_client.execute(
+            query="""
+            mutation($input: ClearProjectInput!) {
+                clearProject(input: $input) { __typename }
+            }
+            """,
+            variables={"input": {"id": str(GlobalID("Project", str(project_id)))}},
+        )
+        assert [error.message for error in result.errors or []] == [
+            "Some traces are in use by another operation; run the clear again."
+        ]
+
+    async def test_clear_project_rejects_unknown_project(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        result = await gql_client.execute(
+            query="""
+            mutation($input: ClearProjectInput!) {
+                clearProject(input: $input) { __typename }
+            }
+            """,
+            variables={"input": {"id": str(GlobalID("Project", "999999"))}},
+        )
+        assert result.errors
+        assert [error.message for error in result.errors] == [
+            f"Unknown project: {GlobalID('Project', '999999')}"
+        ]
 
     async def test_clear_project_preserves_straddling_session_and_its_newer_trace(
         self,
@@ -552,6 +604,22 @@ async def test_delete_project_also_deletes_its_evaluators_trace_projects(
     assert not response.errors
 
     async with db() as session:
+        tombstoned = (
+            await session.scalars(
+                select(models.Project.deleted_at).where(
+                    models.Project.id.in_([evaluated_project_id, trace_project_id])
+                )
+            )
+        ).all()
+        assert len(tombstoned) == 2 and all(
+            tombstoned_at is not None for tombstoned_at in tombstoned
+        )
+
+    coordinator = CleanupCoordinator(db)
+    while (await coordinator.step_or_next_delay())[0]:
+        pass
+
+    async with db() as session:
         remaining = (
             await session.scalars(
                 select(models.Project.id).where(
@@ -605,3 +673,20 @@ async def test_delete_project_refuses_an_evaluator_trace_project(
 
     async with db() as session:
         assert await session.get(models.Project, trace_project_id) is not None
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "mutation ($id: ID!) { deleteProject(id: $id) { __typename } }",
+        "mutation ($id: ID!) { clearProject(input: {id: $id}) { __typename } }",
+    ],
+)
+async def test_unknown_project_error_names_the_global_id(
+    gql_client: AsyncGraphQLClient,
+    mutation: str,
+) -> None:
+    project_global_id = str(GlobalID("Project", "999999"))
+    response = await gql_client.execute(mutation, variables={"id": project_global_id})
+    assert response.errors
+    assert response.errors[0].message == f"Unknown project: {project_global_id}"

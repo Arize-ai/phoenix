@@ -19,6 +19,8 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.insertion.dataset import ExampleContent
+from phoenix.server.api.exceptions import Conflict
+from phoenix.server.api.routers.v1 import datasets as datasets_router
 from phoenix.server.api.routers.v1.datasets import (
     MAX_DELETE_DATASET_EXAMPLE_IDS,
     FileContentEncoding,
@@ -1350,6 +1352,25 @@ async def test_post_dataset_upload_pyarrow_create_then_append(
     db_dataset_version = await session.get(models.DatasetVersion, int(version_global_id.node_id))
     assert db_dataset_version is not None
     assert db_dataset_version.dataset_id == int(GlobalID.from_id(dataset_id).node_id)
+
+
+async def test_delete_dataset_returns_conflict_when_the_delete_loses_a_lock(
+    httpx_client: httpx2.AsyncClient,
+    simple_dataset: Any,
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _conflict(*args: Any, **kwargs: Any) -> None:
+        raise Conflict("Project evaluators were modified concurrently; retry the delete operation")
+
+    monkeypatch.setattr(datasets_router, "execute_dataset_delete", _conflict)
+    response = await httpx_client.delete(f"v1/datasets/{GlobalID('Dataset', '0')}")
+    assert response.status_code == 409
+    assert response.text == (
+        "Project evaluators were modified concurrently; retry the delete operation"
+    )
+    async with db() as session:
+        assert await session.get(models.Dataset, 0) is not None
 
 
 async def test_delete_dataset(

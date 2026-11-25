@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from . import _down, _get_table_schema_info, _run_async, _TableSchemaInfo, _up
 
-_DOWN = "a7f1c3e9d2b4"
+_DOWN = "f125a3233286"
 _UP = "ef09e3bc213f"
 
 _INPUT_MAPPING: dict[str, dict[str, str]] = {"literal_mapping": {}, "path_mapping": {}}

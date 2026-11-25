@@ -70,10 +70,11 @@ from pydantic_ai.ui.vercel_ai.response_types import (
     ToolOutputAvailableChunk,
 )
 from pydantic_ai.usage import RequestUsage
-from sqlalchemy import ColumnElement, Insert, func, or_, select, tuple_, update
+from sqlalchemy import ColumnElement, Insert, func, or_, select, text, tuple_, update
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from strawberry.relay import GlobalID
@@ -86,7 +87,7 @@ from phoenix.config import (
     get_env_phoenix_agents_web_access_enabled,
 )
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.helpers import SupportedSQLDialect, is_session_owner_tombstoned
 from phoenix.db.insertion.helpers import OnConflict, advance_liveness, insert_on_conflict
 from phoenix.db.types.data_stream_protocol import (
     AssistantMessageMetadataUsage,
@@ -1352,6 +1353,23 @@ async def _persist_db_traces(
     session: AsyncSession,
     db_traces: list[models.Trace],
 ) -> tuple[int, ...]:
+    existing_traces_by_trace_id: dict[str, models.Trace] = {}
+    tombstoned_trace_ids: set[str] = set()
+    # project_session is loaded eagerly because it is read after the session may have been unset.
+    for existing_trace_row, project_deleted_at in await session.execute(
+        select(models.Trace, models.Project.deleted_at)
+        .join(models.Project, models.Project.id == models.Trace.project_rowid)
+        .where(models.Trace.trace_id.in_({db_trace.trace_id for db_trace in db_traces}))
+        .options(joinedload(models.Trace.project_session))
+    ):
+        existing_traces_by_trace_id[existing_trace_row.trace_id] = existing_trace_row
+        if project_deleted_at is not None:
+            tombstoned_trace_ids.add(existing_trace_row.trace_id)
+    # Traces of a tombstoned project are left alone: they take no part in the session upsert,
+    # the cumulative refresh or the returned project ids.
+    db_traces = [
+        db_trace for db_trace in db_traces if db_trace.trace_id not in tombstoned_trace_ids
+    ]
     project_ids = tuple(dict.fromkeys(db_trace.project_rowid for db_trace in db_traces))
     trace_ids = {db_trace.trace_id for db_trace in db_traces}
     project_sessions = [
@@ -1359,14 +1377,6 @@ async def _persist_db_traces(
     ]
     persistent_by_session_id = await _upsert_project_sessions(session, project_sessions)
 
-    existing_traces_by_trace_id = {
-        trace.trace_id: trace
-        for trace in await session.scalars(
-            select(models.Trace).where(
-                models.Trace.trace_id.in_({db_trace.trace_id for db_trace in db_traces})
-            )
-        )
-    }
     span_ids = {db_span.span_id for db_trace in db_traces for db_span in db_trace.spans}
     existing_span_ids = (
         set(
@@ -1384,11 +1394,18 @@ async def _persist_db_traces(
     for db_trace in db_traces:
         # Only inserted traces should point at the persistent ProjectSession;
         # associating skipped transient traces causes autoflush warnings.
-        persistent_project_session = (
+        persistent_project_session: models.ProjectSession | None = (
             persistent_by_session_id[db_trace.project_session.session_id]
             if db_trace.project_session is not None
             else None
         )
+        if (
+            persistent_project_session is not None
+            and persistent_project_session.project_id != db_trace.project_rowid
+            and await is_session_owner_tombstoned(session, persistent_project_session.project_id)
+        ):
+            persistent_project_session = None
+            db_trace.project_session = None  # type: ignore[assignment]
         db_trace.spans = [
             db_span for db_span in db_trace.spans if db_span.span_id not in existing_span_ids
         ]
@@ -1640,7 +1657,7 @@ async def _merge_session_summary_chunk(
 
 
 async def _ensure_project_exists(db: DbSessionFactory, project_name: str) -> int:
-    """Resolve project_id by name, creating the project row if missing."""
+    """Resolve live project_id by name, creating the project row if missing."""
     async with db() as session:
         await session.execute(
             insert_on_conflict(
@@ -1649,9 +1666,15 @@ async def _ensure_project_exists(db: DbSessionFactory, project_name: str) -> int
                 dialect=db.dialect,
                 unique_by=("name",),
                 on_conflict=OnConflict.DO_NOTHING,
+                index_where=text("deleted_at IS NULL"),
             )
         )
-        project_id = await session.scalar(select(models.Project.id).filter_by(name=project_name))
+        project_id = await session.scalar(
+            select(models.Project.id).where(
+                models.Project.name == project_name,
+                models.Project.deleted_at.is_(None),
+            )
+        )
         assert project_id is not None
         return project_id
 

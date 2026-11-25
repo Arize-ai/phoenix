@@ -13,13 +13,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.helpers import SupportedSQLDialect, get_sqlstate
 from phoenix.db.insertion.constants import DEFAULT_RETRY_ALLOWANCE, DEFAULT_RETRY_DELAY_SEC
 from phoenix.db.insertion.document_annotation import DocumentAnnotationQueueInserter
 from phoenix.db.insertion.helpers import (
     DataManipulation,
     advance_liveness,
-    get_sqlstate,
     should_calculate_span_cost,
 )
 from phoenix.db.insertion.session_annotation import SessionAnnotationQueueInserter

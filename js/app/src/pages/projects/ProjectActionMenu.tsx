@@ -2,6 +2,7 @@ import { startTransition, useCallback, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
 import {
+  Alert,
   Button,
   Dialog,
   Flex,
@@ -25,6 +26,7 @@ import {
 } from "@phoenix/components/core/dialog";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { useNotifySuccess } from "@phoenix/contexts";
+import { getMutationErrorMessage } from "@phoenix/utils/errorUtils";
 
 import type { ProjectActionMenuClearMutation } from "./__generated__/ProjectActionMenuClearMutation.graphql";
 import type { ProjectActionMenuDeleteMutation } from "./__generated__/ProjectActionMenuDeleteMutation.graphql";
@@ -54,35 +56,45 @@ export function ProjectActionMenu({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [showRemoveDataDialog, setShowRemoveDataDialog] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [clearError, setClearError] = useState<string | null>(null);
   const canDelete = projectName !== "default";
-  const [commitDelete] = useMutation<ProjectActionMenuDeleteMutation>(graphql`
-    mutation ProjectActionMenuDeleteMutation($projectId: ID!) {
-      deleteProject(id: $projectId) {
-        __typename
+  const [commitDelete, isDeleting] =
+    useMutation<ProjectActionMenuDeleteMutation>(graphql`
+      mutation ProjectActionMenuDeleteMutation($projectId: ID!) {
+        deleteProject(id: $projectId) {
+          __typename
+        }
       }
-    }
-  `);
-  const [commitClear] = useMutation<ProjectActionMenuClearMutation>(graphql`
-    mutation ProjectActionMenuClearMutation($input: ClearProjectInput!) {
-      clearProject(input: $input) {
-        __typename
+    `);
+  const [commitClear, isClearing] =
+    useMutation<ProjectActionMenuClearMutation>(graphql`
+      mutation ProjectActionMenuClearMutation($input: ClearProjectInput!) {
+        clearProject(input: $input) {
+          __typename
+        }
       }
-    }
-  `);
+    `);
   const handleDelete = useCallback(() => {
+    setDeleteError(null);
     startTransition(() => {
       commitDelete({
         variables: {
           projectId: projectId,
         },
         onCompleted: () => {
+          setShowDeleteDialog(false);
           onProjectDelete();
+        },
+        onError: (error) => {
+          setDeleteError(getMutationErrorMessage(error));
         },
       });
     });
   }, [commitDelete, projectId, onProjectDelete]);
 
   const handleClear = useCallback(() => {
+    setClearError(null);
     startTransition(() => {
       commitClear({
         variables: {
@@ -91,20 +103,23 @@ export function ProjectActionMenu({
           },
         },
         onCompleted: () => {
+          setShowClearDialog(false);
           onProjectClear();
         },
         onError: (error) => {
-          alert("Failed to clear project: " + error);
+          setClearError(getMutationErrorMessage(error));
         },
       });
     });
   }, [commitClear, projectId, onProjectClear]);
 
   const onDelete = useCallback(() => {
+    setDeleteError(null);
     setShowDeleteDialog(true);
   }, []);
 
   const onClear = useCallback(() => {
+    setClearError(null);
     setShowClearDialog(true);
   }, []);
 
@@ -206,6 +221,13 @@ export function ProjectActionMenu({
                   <DialogCloseButton />
                 </DialogTitleExtra>
               </DialogHeader>
+              {deleteError ? (
+                <View paddingX="size-200" paddingTop="size-100">
+                  <Alert variant="danger" banner>
+                    {deleteError}
+                  </Alert>
+                </View>
+              ) : null}
               <View padding="size-200">
                 <Text color="danger">
                   {`Are you sure you want to delete project ${projectName}? This cannot be undone.`}
@@ -221,10 +243,11 @@ export function ProjectActionMenu({
                 <Flex direction="row" justifyContent="end">
                   <Button
                     variant="danger"
-                    onPress={() => {
-                      handleDelete();
-                      setShowDeleteDialog(false);
-                    }}
+                    isDisabled={isDeleting}
+                    leadingVisual={
+                      isDeleting ? <Icon svg={<Icons.Loading />} /> : undefined
+                    }
+                    onPress={handleDelete}
                   >
                     Delete Project
                   </Button>
@@ -244,6 +267,13 @@ export function ProjectActionMenu({
                   <DialogCloseButton />
                 </DialogTitleExtra>
               </DialogHeader>
+              {clearError ? (
+                <View paddingX="size-200" paddingTop="size-100">
+                  <Alert variant="danger" banner>
+                    {clearError}
+                  </Alert>
+                </View>
+              ) : null}
               <View padding="size-200">
                 <Text color="danger">
                   {`Are you sure you want to clear project ${projectName}? All traces and evaluations for this project will be deleted. This cannot be undone.`}
@@ -259,10 +289,11 @@ export function ProjectActionMenu({
                 <Flex direction="row" justifyContent="end">
                   <Button
                     variant="danger"
-                    onPress={() => {
-                      handleClear();
-                      setShowClearDialog(false);
-                    }}
+                    isDisabled={isClearing}
+                    leadingVisual={
+                      isClearing ? <Icon svg={<Icons.Loading />} /> : undefined
+                    }
+                    onPress={handleClear}
                   >
                     Clear
                   </Button>

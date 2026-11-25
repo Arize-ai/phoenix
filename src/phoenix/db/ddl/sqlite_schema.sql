@@ -19,6 +19,19 @@ CREATE TABLE annotation_configs (
 );
 
 
+-- Table: cleanup_failures
+-- -----------------------
+CREATE TABLE cleanup_failures (
+    target_kind VARCHAR NOT NULL
+        CONSTRAINT "ck_cleanup_failures_`valid_cleanup_target_kind`"
+        CHECK (target_kind IN ('PROJECT', 'PROJECT_EVALUATOR', 'DATASET_EVALUATOR')),
+    target_id INTEGER NOT NULL,
+    failure_count INTEGER DEFAULT '0' NOT NULL,
+    retry_at TIMESTAMP NOT NULL,
+    CONSTRAINT pk_cleanup_failures PRIMARY KEY (target_kind, target_id)
+);
+
+
 -- Table: decision_labels
 -- ----------------------
 CREATE TABLE decision_labels (
@@ -151,7 +164,7 @@ CREATE TABLE project_trace_retention_policies (
 -- Table: projects
 -- ---------------
 CREATE TABLE projects (
-    id INTEGER NOT NULL,
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     name VARCHAR NOT NULL,
     description VARCHAR,
     gradient_start_color VARCHAR DEFAULT '#5bdbff' NOT NULL,
@@ -159,14 +172,17 @@ CREATE TABLE projects (
     created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
     updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
     trace_retention_policy_id INTEGER,
-    CONSTRAINT pk_projects PRIMARY KEY (id),
-    CONSTRAINT uq_projects_name UNIQUE (name),
+    deleted_at TIMESTAMP,
     CONSTRAINT fk_projects_trace_retention_policy_id_project_trace_retention_policies
         FOREIGN KEY (trace_retention_policy_id)
         REFERENCES project_trace_retention_policies (id)
         ON DELETE SET NULL
 );
 
+CREATE UNIQUE INDEX ix_projects_live_name ON projects (name)
+    WHERE deleted_at IS NULL;
+CREATE INDEX ix_projects_tombstoned ON projects (deleted_at, id)
+    WHERE deleted_at IS NOT NULL;
 CREATE INDEX ix_projects_trace_retention_policy_id ON projects
     (trace_retention_policy_id);
 
@@ -841,27 +857,31 @@ CREATE TABLE builtin_evaluators (
 -- Table: dataset_evaluators
 -- -------------------------
 CREATE TABLE dataset_evaluators (
-    id INTEGER NOT NULL,
-    dataset_id INTEGER NOT NULL,
-    evaluator_id INTEGER NOT NULL,
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    dataset_id INTEGER,
+    evaluator_id INTEGER,
     name VARCHAR NOT NULL,
     description VARCHAR,
     output_configs JSONB,
     input_mapping JSONB NOT NULL,
     user_id INTEGER,
     project_id INTEGER NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT pk_dataset_evaluators PRIMARY KEY (id),
-    CONSTRAINT uq_dataset_evaluators_dataset_id_name UNIQUE (dataset_id, name),
+    created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+    updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+    deleted_at TIMESTAMP,
+    CONSTRAINT "ck_dataset_evaluators_`valid_lifecycle`"
+        CHECK (
+            (deleted_at IS NULL AND dataset_id IS NOT NULL AND evaluator_id IS NOT NULL)
+            OR (deleted_at IS NOT NULL AND evaluator_id IS NULL)
+        ),
     CONSTRAINT fk_dataset_evaluators_dataset_id_datasets
         FOREIGN KEY (dataset_id)
         REFERENCES datasets (id)
-        ON DELETE CASCADE,
+        ON DELETE SET NULL,
     CONSTRAINT fk_dataset_evaluators_evaluator_id_evaluators
         FOREIGN KEY (evaluator_id)
         REFERENCES evaluators (id)
-        ON DELETE CASCADE,
+        ON DELETE RESTRICT,
     CONSTRAINT fk_dataset_evaluators_project_id_projects
         FOREIGN KEY (project_id)
         REFERENCES projects (id)
@@ -872,8 +892,14 @@ CREATE TABLE dataset_evaluators (
         ON DELETE SET NULL
 );
 
+CREATE INDEX ix_dataset_evaluators_dataset_id ON dataset_evaluators (dataset_id);
 CREATE INDEX ix_dataset_evaluators_evaluator_id ON dataset_evaluators (evaluator_id);
+CREATE UNIQUE INDEX ix_dataset_evaluators_live_name ON dataset_evaluators
+    (dataset_id, name)
+    WHERE deleted_at IS NULL;
 CREATE INDEX ix_dataset_evaluators_project_id ON dataset_evaluators (project_id);
+CREATE INDEX ix_dataset_evaluators_tombstoned ON dataset_evaluators (deleted_at, id)
+    WHERE deleted_at IS NOT NULL;
 CREATE INDEX ix_dataset_evaluators_user_id ON dataset_evaluators (user_id);
 
 
@@ -1552,9 +1578,9 @@ CREATE UNIQUE INDEX ix_password_reset_tokens_user_id ON password_reset_tokens (u
 -- Table: project_evaluators
 -- -------------------------
 CREATE TABLE project_evaluators (
-    id INTEGER NOT NULL,
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     project_id INTEGER NOT NULL,
-    evaluator_id INTEGER NOT NULL,
+    evaluator_id INTEGER,
     trace_project_id INTEGER NOT NULL,
     name VARCHAR NOT NULL,
     filter_condition VARCHAR DEFAULT '' NOT NULL,
@@ -1575,16 +1601,20 @@ CREATE TABLE project_evaluators (
     tracing_enabled BOOLEAN DEFAULT true NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT pk_project_evaluators PRIMARY KEY (id),
-    CONSTRAINT uq_project_evaluators_project_id_name UNIQUE (project_id, name),
+    deleted_at TIMESTAMP,
+    CONSTRAINT "ck_project_evaluators_`valid_lifecycle`"
+        CHECK (
+            (deleted_at IS NULL AND evaluator_id IS NOT NULL)
+            OR (deleted_at IS NOT NULL AND evaluator_id IS NULL)
+        ),
     CONSTRAINT fk_project_evaluators_evaluator_id_evaluators
         FOREIGN KEY (evaluator_id)
         REFERENCES evaluators (id)
-        ON DELETE CASCADE,
+        ON DELETE RESTRICT,
     CONSTRAINT fk_project_evaluators_project_id_projects
         FOREIGN KEY (project_id)
         REFERENCES projects (id)
-        ON DELETE CASCADE,
+        ON DELETE RESTRICT,
     CONSTRAINT fk_project_evaluators_trace_project_id_projects
         FOREIGN KEY (trace_project_id)
         REFERENCES projects (id)
@@ -1592,7 +1622,12 @@ CREATE TABLE project_evaluators (
 );
 
 CREATE INDEX ix_project_evaluators_evaluator_id ON project_evaluators (evaluator_id);
+CREATE UNIQUE INDEX ix_project_evaluators_live_name ON project_evaluators
+    (project_id, name)
+    WHERE deleted_at IS NULL;
 CREATE INDEX ix_project_evaluators_project_id ON project_evaluators (project_id);
+CREATE INDEX ix_project_evaluators_tombstoned ON project_evaluators (deleted_at, id)
+    WHERE deleted_at IS NOT NULL;
 CREATE INDEX ix_project_evaluators_trace_project_id ON project_evaluators
     (trace_project_id);
 

@@ -12,7 +12,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceResponse,
 )
 from pydantic import BeforeValidator, Field
-from sqlalchemy import Select, insert, or_, select, tuple_, update
+from sqlalchemy import Select, and_, exists, insert, or_, select, tuple_, update
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import State
 from starlette.requests import Request
@@ -28,6 +28,7 @@ from phoenix.db.helpers import (
 )
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.db.trace_aggregates import error_count_by_trace
+from phoenix.server.api.exceptions import Conflict, NotFound
 from phoenix.server.api.helpers.annotations import get_note_identifier
 from phoenix.server.api.routers.v1.annotations import TraceAnnotationData
 from phoenix.server.api.routers.v1.models import IsoDatetime
@@ -41,13 +42,13 @@ from phoenix.server.api.types.Project import Project as ProjectNodeType
 from phoenix.server.api.types.ProjectSession import ProjectSession as ProjectSessionNodeType
 from phoenix.server.api.types.Span import Span as SpanNodeType
 from phoenix.server.api.types.Trace import Trace as TraceNodeType
-from phoenix.server.api.utils import delete_traces_and_orphan_sessions
 from phoenix.server.authorization import (
     is_not_locked,
     prevent_access_in_read_only_mode,
     restrict_access_by_viewers,
 )
 from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.cleanup.lifecycle import clear_project_traces_in_batches
 from phoenix.server.dml_event import SpanDeleteEvent, TraceAnnotationInsertEvent
 from phoenix.server.trace_filters import TraceFilterConditionError, apply_trace_filter_to_page
 from phoenix.trace.otel import decode_otlp_span
@@ -393,11 +394,23 @@ async def list_project_traces(
         "Delete traces from a project without deleting the project or its configuration. "
         "Only traces whose start time is within the required `[start_time, end_time)` interval "
         "are deleted. Associated spans are cascade deleted, and project sessions left with no "
-        "remaining traces are also deleted. Naive datetimes are interpreted as UTC."
+        "remaining traces are also deleted. Naive datetimes are interpreted as UTC. "
+        "Traces are deleted in batches, each committed on its own. Returns 409 when some "
+        "traces stay in use by another operation; part of the clear may already be done, and "
+        "the same request can be run again to finish it."
     ),
     response_description="No content returned after the matching traces are deleted",
     status_code=204,
-    responses=add_errors_to_responses([404, 422]),
+    responses=add_errors_to_responses(
+        [
+            404,
+            {
+                "status_code": 409,
+                "description": "Some traces are in use by another operation; retry the request",
+            },
+            422,
+        ]
+    ),
 )
 async def delete_project_traces(
     request: Request,
@@ -418,17 +431,25 @@ async def delete_project_traces(
             status_code=422,
             detail="`start_time` must be strictly earlier than `end_time`.",
         )
-    async with request.app.state.db() as session:
-        project = await get_project_by_identifier(session, project_identifier)
-        project_rowid = project.id
-        deleted_trace_count = await delete_traces_and_orphan_sessions(
-            session,
-            project_rowid,
+    db = request.app.state.db
+    try:
+        async with db() as session:
+            project = await get_project_by_identifier(session, project_identifier)
+            project_rowid = project.id
+        async for _ in clear_project_traces_in_batches(
+            db,
+            project_id=project_rowid,
             start_time=normalized_start_time,
             end_time=normalized_end_time,
-        )
-    if deleted_trace_count:
-        request.state.event_queue.put(SpanDeleteEvent((project_rowid,)))
+            event_queue=request.state.event_queue,
+        ):
+            pass
+    except NotFound as error:
+        raise HTTPException(
+            status_code=404, detail=f"Project {project_identifier} not found"
+        ) from error
+    except Conflict as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
     return None
 
 
@@ -786,13 +807,18 @@ async def transfer_traces(
             )
         except ValueError:
             otel_trace_ids.add(identifier)
+    dialect = SupportedSQLDialect(request.app.state.db.dialect.value)
     async with request.app.state.db() as session:
         project = await get_project_by_identifier(
             session, request_body.destination_project_identifier
         )
         traces = (
             await session.execute(
-                select(models.Trace.id, models.Trace.trace_id, models.Trace.project_rowid).where(
+                select(
+                    models.Trace.id,
+                    models.Trace.trace_id,
+                    models.Trace.project_rowid,
+                ).where(
                     or_(
                         models.Trace.id.in_(trace_rowids),
                         models.Trace.trace_id.in_(otel_trace_ids),
@@ -805,6 +831,15 @@ async def transfer_traces(
         if not (trace_rowids <= found_rowids and otel_trace_ids <= found_otel_trace_ids):
             raise HTTPException(detail="One or more traces not found", status_code=404)
         source_project_rowids = {trace.project_rowid for trace in traces}
+        if await session.scalar(
+            select(
+                exists().where(
+                    models.Project.id.in_(source_project_rowids),
+                    models.Project.deleted_at.is_not(None),
+                )
+            )
+        ):
+            raise HTTPException(detail="One or more traces not found", status_code=404)
         # Mirrors the transferTracesToProject mutation: a transfer moves traces out of exactly
         # one source project, so a mixed-source request is ambiguous and is rejected.
         if len(source_project_rowids) > 1:
@@ -812,9 +847,30 @@ async def transfer_traces(
                 detail="Cannot transfer traces from multiple projects",
                 status_code=422,
             )
+
+        involved_project_ids = sorted({*source_project_rowids, project.id})
+        live_projects_stmt = (
+            select(models.Project.id)
+            .where(
+                models.Project.id.in_(involved_project_ids),
+                models.Project.deleted_at.is_(None),
+            )
+            .order_by(models.Project.id.asc())
+        )
+        if dialect is SupportedSQLDialect.POSTGRESQL:
+            live_projects_stmt = live_projects_stmt.with_for_update(read=True)
+        live_project_ids = set(await session.scalars(live_projects_stmt))
+        if project.id not in live_project_ids:
+            raise HTTPException(detail="Destination project not found", status_code=404)
+        if not (source_project_rowids <= live_project_ids):
+            raise HTTPException(detail="One or more traces not found", status_code=404)
+
         result = await session.execute(
             update(models.Trace)
-            .where(models.Trace.id.in_(found_rowids))
+            .where(
+                models.Trace.id.in_(found_rowids),
+                models.Trace.project_rowid.in_(source_project_rowids),
+            )
             .values(project_rowid=project.id)
         )
     # Invalidate per-project cached aggregates (record counts, token counts/costs, latency
@@ -874,7 +930,11 @@ async def delete_trace(
             trace_filter = models.Trace.trace_id == trace_identifier
             error_detail = f"Trace with trace_id '{trace_identifier}' not found"
 
-        project_id = await session.scalar(select(models.Trace.project_rowid).where(trace_filter))
+        project_id = await session.scalar(
+            select(models.Trace.project_rowid)
+            .join(models.Project, models.Trace.project_rowid == models.Project.id)
+            .where(trace_filter, models.Project.deleted_at.is_(None))
+        )
 
         if project_id is None:
             raise HTTPException(
@@ -882,7 +942,16 @@ async def delete_trace(
                 detail=error_detail,
             )
 
-        await delete_traces(session, trace_filter)
+        await delete_traces(
+            session,
+            and_(
+                trace_filter,
+                exists().where(
+                    models.Project.id == models.Trace.project_rowid,
+                    models.Project.deleted_at.is_(None),
+                ),
+            ),
+        )
 
     # Trigger cache invalidation event
     request.state.event_queue.put(SpanDeleteEvent((project_id,)))

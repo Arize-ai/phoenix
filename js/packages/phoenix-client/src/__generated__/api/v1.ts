@@ -1031,7 +1031,7 @@ export interface paths {
         post?: never;
         /**
          * Delete traces from a project
-         * @description Delete traces from a project without deleting the project or its configuration. Only traces whose start time is within the required `[start_time, end_time)` interval are deleted. Associated spans are cascade deleted, and project sessions left with no remaining traces are also deleted. Naive datetimes are interpreted as UTC.
+         * @description Delete traces from a project without deleting the project or its configuration. Only traces whose start time is within the required `[start_time, end_time)` interval are deleted. Associated spans are cascade deleted, and project sessions left with no remaining traces are also deleted. Naive datetimes are interpreted as UTC. Traces are deleted in batches, each committed on its own. Returns 409 when some traces stay in use by another operation; part of the clear may already be done, and the same request can be run again to finish it.
          */
         delete: operations["deleteProjectTraces"];
         options?: never;
@@ -10693,6 +10693,15 @@ export interface operations {
                     "text/plain": string;
                 };
             };
+            /** @description The dataset is in use by another operation; retry the delete */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
             /** @description Invalid dataset ID */
             422: {
                 headers: {
@@ -12658,6 +12667,15 @@ export interface operations {
                     "text/plain": string;
                 };
             };
+            /** @description The experiment is in use by another operation; retry the delete */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -13380,6 +13398,15 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Some traces are in use by another operation; retry the request */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -16129,6 +16156,15 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description The project is in use by another operation (retry the delete), or it holds an evaluator's traces (delete the evaluator instead) */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

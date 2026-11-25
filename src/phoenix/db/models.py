@@ -62,6 +62,7 @@ from phoenix.db.eval_work import (
     queued_index_predicate,
     terminal_index_predicate,
 )
+from phoenix.db.lifecycle import live_row_predicate, tombstoned_row_predicate
 from phoenix.db.types.annotation_configs import (
     AnnotationConfig as AnnotationConfigModel,
 )
@@ -232,6 +233,7 @@ EvalWorkStatus: TypeAlias = Literal[
     "SAMPLED_OUT",
 ]
 EvaluationTarget = TypeAliasType("EvaluationTarget", Literal["SPAN", "TRACE", "SESSION"])
+CleanupTargetKind: TypeAlias = Literal["PROJECT", "PROJECT_EVALUATOR", "DATASET_EVALUATOR"]
 
 # Quiet period before a trace or session is evaluated. Spans are evaluated as they arrive
 # and store 0; the check constraint on project_evaluators enforces both rules.
@@ -917,6 +919,7 @@ class Project(HasId):
         nullable=True,
         index=True,
     )
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
     trace_retention_policy: Mapped[Optional[ProjectTraceRetentionPolicy]] = relationship(
         "ProjectTraceRetentionPolicy",
         back_populates="projects",
@@ -928,10 +931,23 @@ class Project(HasId):
         passive_deletes=True,
         uselist=True,
     )
+
     __table_args__ = (
-        UniqueConstraint(
+        Index(
+            "ix_projects_live_name",
             "name",
+            unique=True,
+            postgresql_where=text(live_row_predicate()),
+            sqlite_where=text(live_row_predicate()),
         ),
+        Index(
+            "ix_projects_tombstoned",
+            "deleted_at",
+            "id",
+            postgresql_where=text(tombstoned_row_predicate()),
+            sqlite_where=text(tombstoned_row_predicate()),
+        ),
+        dict(sqlite_autoincrement=True),
     )
 
 
@@ -1660,7 +1676,7 @@ class Dataset(HasId):
         "DatasetsDatasetLabel", back_populates="dataset", passive_deletes="all"
     )
     dataset_evaluators: Mapped[list["DatasetEvaluators"]] = relationship(
-        "DatasetEvaluators", back_populates="dataset", cascade="all, delete-orphan", uselist=True
+        "DatasetEvaluators", back_populates="dataset", passive_deletes="all", uselist=True
     )
 
     @hybrid_property
@@ -3519,7 +3535,7 @@ class Evaluator(HasId):
     dataset_evaluators: Mapped[list["DatasetEvaluators"]] = relationship(
         "DatasetEvaluators",
         back_populates="evaluator",
-        cascade="all, delete-orphan",
+        passive_deletes="all",
         uselist=True,
     )
 
@@ -3890,12 +3906,15 @@ class BuiltinEvaluator(Evaluator):
 
 class DatasetEvaluators(HasId):
     __tablename__ = "dataset_evaluators"
-    dataset_id: Mapped[int] = mapped_column(
-        ForeignKey("datasets.id", ondelete="CASCADE"),
+    dataset_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("datasets.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
-    # Unified evaluator_id FK - works for all evaluator types (LLM, CODE, BUILTIN)
-    evaluator_id: Mapped[int] = mapped_column(
-        ForeignKey("evaluators.id", ondelete="CASCADE"),
+    # Unified evaluator_id FK - works for all evaluator types (LLM, CODE, BUILTIN, DECISION)
+    evaluator_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("evaluators.id", ondelete="RESTRICT"),
+        nullable=True,
         index=True,
     )
     name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
@@ -3918,16 +3937,38 @@ class DatasetEvaluators(HasId):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
-    dataset: Mapped["Dataset"] = relationship("Dataset", back_populates="dataset_evaluators")
-    evaluator: Mapped["Evaluator"] = relationship("Evaluator", back_populates="dataset_evaluators")
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
+    dataset: Mapped[Optional["Dataset"]] = relationship(
+        "Dataset", back_populates="dataset_evaluators"
+    )
+    evaluator: Mapped[Optional["Evaluator"]] = relationship(
+        "Evaluator", back_populates="dataset_evaluators"
+    )
     user: Mapped[Optional["User"]] = relationship("User")
     project: Mapped["Project"] = relationship("Project")
 
     __table_args__ = (
-        UniqueConstraint(
+        CheckConstraint(
+            "(deleted_at IS NULL AND dataset_id IS NOT NULL AND evaluator_id IS NOT NULL) "
+            "OR (deleted_at IS NOT NULL AND evaluator_id IS NULL)",
+            name="valid_lifecycle",
+        ),
+        Index(
+            "ix_dataset_evaluators_live_name",
             "dataset_id",
             "name",
+            unique=True,
+            postgresql_where=text(live_row_predicate()),
+            sqlite_where=text(live_row_predicate()),
         ),
+        Index(
+            "ix_dataset_evaluators_tombstoned",
+            "deleted_at",
+            "id",
+            postgresql_where=text(tombstoned_row_predicate()),
+            sqlite_where=text(tombstoned_row_predicate()),
+        ),
+        dict(sqlite_autoincrement=True),
     )
 
 
@@ -4309,13 +4350,13 @@ class ProjectEvaluator(HasId):
 
     __tablename__ = "project_evaluators"
     project_id: Mapped[int] = mapped_column(
-        ForeignKey("projects.id", ondelete="CASCADE"),
+        ForeignKey("projects.id", ondelete="RESTRICT"),
         nullable=False,
         index=True,
     )
-    evaluator_id: Mapped[int] = mapped_column(
-        ForeignKey("evaluators.id", ondelete="CASCADE"),
-        nullable=False,
+    evaluator_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("evaluators.id", ondelete="RESTRICT"),
+        nullable=True,
         index=True,
     )
     trace_project_id: Mapped[int] = mapped_column(
@@ -4362,12 +4403,35 @@ class ProjectEvaluator(HasId):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
 
     project: Mapped["Project"] = relationship("Project", foreign_keys=[project_id])
     trace_project: Mapped["Project"] = relationship("Project", foreign_keys=[trace_project_id])
-    evaluator: Mapped["Evaluator"] = relationship("Evaluator")
+    evaluator: Mapped[Optional["Evaluator"]] = relationship("Evaluator")
 
-    __table_args__ = (UniqueConstraint("project_id", "name"),)
+    __table_args__ = (
+        CheckConstraint(
+            "(deleted_at IS NULL AND evaluator_id IS NOT NULL) "
+            "OR (deleted_at IS NOT NULL AND evaluator_id IS NULL)",
+            name="valid_lifecycle",
+        ),
+        Index(
+            "ix_project_evaluators_live_name",
+            "project_id",
+            "name",
+            unique=True,
+            postgresql_where=text(live_row_predicate()),
+            sqlite_where=text(live_row_predicate()),
+        ),
+        Index(
+            "ix_project_evaluators_tombstoned",
+            "deleted_at",
+            "id",
+            postgresql_where=text(tombstoned_row_predicate()),
+            sqlite_where=text(tombstoned_row_predicate()),
+        ),
+        dict(sqlite_autoincrement=True),
+    )
 
 
 class ProjectEvaluatorState(Base):
@@ -4659,3 +4723,24 @@ class EvalTraceWorkUnit(HasId):
             sqlite_where=text(failed_index_predicate()),
         ),
     )
+
+
+class CleanupFailure(Base):
+    """Retry state for a tombstoned row whose cleanup is backing off.
+
+    The tombstones are the work list; a row exists here only while its target waits for
+    ``retry_at``. There is no foreign key because the target tables never reuse ids.
+    """
+
+    __tablename__ = "cleanup_failures"
+    target_kind: Mapped[CleanupTargetKind] = mapped_column(
+        String,
+        CheckConstraint(
+            "target_kind IN ('PROJECT', 'PROJECT_EVALUATOR', 'DATASET_EVALUATOR')",
+            name="valid_cleanup_target_kind",
+        ),
+        primary_key=True,
+    )
+    target_id: Mapped[int] = mapped_column(_Integer, primary_key=True, autoincrement=False)
+    failure_count: Mapped[int] = mapped_column(_Integer, nullable=False, server_default="0")
+    retry_at: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)

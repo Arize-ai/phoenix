@@ -29,12 +29,10 @@ from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.helpers import (
     SupportedSQLDialect,
-    exclude_dataset_evaluator_projects,
-    exclude_experiment_projects,
-    exclude_project_evaluator_trace_projects,
     pg_table_sizes_stmt,
     project_kind_expression,
 )
+from phoenix.db.lifecycle import DEFAULT_LISTED_PROJECT_KINDS
 from phoenix.db.models import LatencyMs
 from phoenix.db.types.annotation_configs import OptimizationDirection
 from phoenix.db.types.model_provider import MODEL_TYPES
@@ -636,7 +634,8 @@ class Query:
         if filter and isinstance(filter.kinds, list):
             kinds = filter.kinds
         projects_query = projects_query.where(
-            project_kind_expression().in_([kind.value for kind in kinds])
+            models.Project.deleted_at.is_(None),
+            project_kind_expression().in_([kind.value for kind in kinds]),
         )
         async with info.context.db.read() as session:
             projects = await session.stream_scalars(projects_query)
@@ -1201,10 +1200,20 @@ class Query:
         if type_name == "Dimension" or type_name == "EmbeddingDimension":
             raise NotFound(f"Unknown node type: {type_name}")
         if type_name == Project.__name__:
-            return Project(id=node_id)
+            async with info.context.db.read() as session:
+                if project_record := await session.scalar(
+                    select(models.Project).where(
+                        models.Project.id == node_id,
+                        models.Project.deleted_at.is_(None),
+                    )
+                ):
+                    return Project(id=node_id, db_record=project_record)
+                raise NotFound(f"Unknown project: {id}")
         elif type_name == Trace.__name__:
+            await _raise_if_in_deleted_project(info, type_name, node_id, id)
             return Trace(id=node_id)
         elif type_name == Span.__name__:
+            await _raise_if_in_deleted_project(info, type_name, node_id, id)
             return Span(id=node_id)
         elif type_name == Dataset.__name__:
             return Dataset(id=node_id)
@@ -1225,6 +1234,7 @@ class Query:
                 raise Unauthorized(MSG_ADMIN_ONLY)
             return User(id=node_id)
         elif type_name == ProjectSession.__name__:
+            await _raise_if_in_deleted_project(info, type_name, node_id, id)
             return ProjectSession(id=node_id)
         elif type_name == OAuth2Grant.__name__:
             return OAuth2Grant(id=node_id)
@@ -1255,8 +1265,10 @@ class Query:
         elif type_name == ProjectTraceRetentionPolicy.__name__:
             return ProjectTraceRetentionPolicy(id=node_id)
         elif type_name == SpanAnnotation.__name__:
+            await _raise_if_in_deleted_project(info, type_name, node_id, id)
             return SpanAnnotation(id=node_id)
         elif type_name == TraceAnnotation.__name__:
+            await _raise_if_in_deleted_project(info, type_name, node_id, id)
             return TraceAnnotation(id=node_id)
         elif type_name == GenerativeModel.__name__:
             return GenerativeModel(id=node_id)
@@ -1269,11 +1281,22 @@ class Query:
         elif type_name == BuiltInEvaluator.__name__:
             return BuiltInEvaluator(id=node_id)
         elif type_name == DatasetEvaluator.__name__:
-            return DatasetEvaluator(id=node_id)
+            async with info.context.db.read() as session:
+                if dataset_evaluator_record := await session.scalar(
+                    select(models.DatasetEvaluators).where(
+                        models.DatasetEvaluators.id == node_id,
+                        models.DatasetEvaluators.deleted_at.is_(None),
+                    )
+                ):
+                    return DatasetEvaluator(id=node_id, db_record=dataset_evaluator_record)
+                raise NotFound(f"Unknown dataset evaluator: {id}")
         elif type_name == ProjectEvaluator.__name__:
             async with info.context.db.read() as session:
                 if project_evaluator_record := await session.scalar(
-                    select(models.ProjectEvaluator).where(models.ProjectEvaluator.id == node_id)
+                    select(models.ProjectEvaluator).where(
+                        models.ProjectEvaluator.id == node_id,
+                        models.ProjectEvaluator.deleted_at.is_(None),
+                    )
                 ):
                     return ProjectEvaluator(id=node_id, db_record=project_evaluator_record)
                 else:
@@ -1430,17 +1453,14 @@ class Query:
         # escaping LIKE metacharacters (% and _) so they match literally rather
         # than acting as wildcards.
         projects_stmt = (
-            exclude_project_evaluator_trace_projects(
-                exclude_dataset_evaluator_projects(
-                    exclude_experiment_projects(
-                        select(models.Project).where(
-                            or_(
-                                models.Project.name.icontains(search_term, autoescape=True),
-                                models.Project.description.icontains(search_term, autoescape=True),
-                            )
-                        )
-                    )
-                )
+            select(models.Project)
+            .where(
+                models.Project.deleted_at.is_(None),
+                project_kind_expression().in_(DEFAULT_LISTED_PROJECT_KINDS),
+                or_(
+                    models.Project.name.icontains(search_term, autoescape=True),
+                    models.Project.description.icontains(search_term, autoescape=True),
+                ),
             )
             .order_by(
                 case((models.Project.name.icontains(search_term, autoescape=True), 0), else_=1),
@@ -1648,7 +1668,8 @@ class Query:
 
         has_dataset_association = exists(
             select(models.DatasetEvaluators.id).where(
-                models.DatasetEvaluators.evaluator_id == PolymorphicEvaluator.id
+                models.DatasetEvaluators.evaluator_id == PolymorphicEvaluator.id,
+                models.DatasetEvaluators.deleted_at.is_(None),
             )
         )
         query = select(PolymorphicEvaluator).where(
@@ -1666,6 +1687,7 @@ class Query:
                 select(models.ProjectEvaluator.id).where(
                     models.ProjectEvaluator.evaluator_id == PolymorphicEvaluator.id,
                     models.ProjectEvaluator.project_id == project_rowid,
+                    models.ProjectEvaluator.deleted_at.is_(None),
                 )
             )
             query = query.where(~has_project_association)
@@ -1676,7 +1698,10 @@ class Query:
                 # Match parent name OR any child (datasetEvaluator) name
                 child_name_exists = exists(
                     select(models.DatasetEvaluators.id)
-                    .where(models.DatasetEvaluators.evaluator_id == PolymorphicEvaluator.id)
+                    .where(
+                        models.DatasetEvaluators.evaluator_id == PolymorphicEvaluator.id,
+                        models.DatasetEvaluators.deleted_at.is_(None),
+                    )
                     .where(cast(models.DatasetEvaluators.name, String).ilike(f"%{filter.value}%"))
                 )
                 query = query.where(
@@ -1757,9 +1782,13 @@ class Query:
             first=first,
             after=after if isinstance(after, CursorString) else None,
         )
-        stmt = select(models.ProjectEvaluator).order_by(
-            models.ProjectEvaluator.created_at.desc(),
-            models.ProjectEvaluator.id.desc(),
+        stmt = (
+            select(models.ProjectEvaluator)
+            .where(models.ProjectEvaluator.deleted_at.is_(None))
+            .order_by(
+                models.ProjectEvaluator.created_at.desc(),
+                models.ProjectEvaluator.id.desc(),
+            )
         )
         if isinstance(project_id, GlobalID):
             project_rowid = from_global_id_with_expected_type(project_id, Project.__name__)
@@ -2053,7 +2082,15 @@ class Query:
         info: Info[Context, None],
         span_id: str,
     ) -> Optional[Span]:
-        stmt = select(models.Span.id).filter_by(span_id=span_id)
+        stmt = (
+            select(models.Span.id)
+            .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+            .join(models.Project, models.Trace.project_rowid == models.Project.id)
+            .where(
+                models.Span.span_id == span_id,
+                models.Project.deleted_at.is_(None),
+            )
+        )
         async with info.context.db.read() as session:
             span_rowid = await session.scalar(stmt)
         if span_rowid:
@@ -2066,7 +2103,14 @@ class Query:
         info: Info[Context, None],
         trace_id: str,
     ) -> Optional[Trace]:
-        stmt = select(models.Trace.id).where(models.Trace.trace_id == trace_id)
+        stmt = (
+            select(models.Trace.id)
+            .join(models.Project, models.Trace.project_rowid == models.Project.id)
+            .where(
+                models.Trace.trace_id == trace_id,
+                models.Project.deleted_at.is_(None),
+            )
+        )
         async with info.context.db.read() as session:
             trace_rowid = await session.scalar(stmt)
         if trace_rowid:
@@ -2079,7 +2123,10 @@ class Query:
         info: Info[Context, None],
         name: str,
     ) -> Optional[Project]:
-        stmt = select(models.Project).where(models.Project.name == name)
+        stmt = select(models.Project).where(
+            models.Project.name == name,
+            models.Project.deleted_at.is_(None),
+        )
         async with info.context.db.read() as session:
             project_row = await session.scalar(stmt)
         if project_row:
@@ -2092,7 +2139,14 @@ class Query:
         info: Info[Context, None],
         session_id: str,
     ) -> Optional[ProjectSession]:
-        stmt = select(models.ProjectSession).where(models.ProjectSession.session_id == session_id)
+        stmt = (
+            select(models.ProjectSession)
+            .join(models.Project, models.ProjectSession.project_id == models.Project.id)
+            .where(
+                models.ProjectSession.session_id == session_id,
+                models.Project.deleted_at.is_(None),
+            )
+        )
         async with info.context.db.read() as session:
             session_row = await session.scalar(stmt)
         if session_row:
@@ -2218,10 +2272,10 @@ class Query:
 
     @strawberry.field
     async def project_count(self, info: Info[Context, None]) -> int:
-        stmt = select(func.count(models.Project.id))
-        stmt = exclude_experiment_projects(stmt)
-        stmt = exclude_dataset_evaluator_projects(stmt)
-        stmt = exclude_project_evaluator_trace_projects(stmt)
+        stmt = select(func.count(models.Project.id)).where(
+            models.Project.deleted_at.is_(None),
+            project_kind_expression().in_(DEFAULT_LISTED_PROJECT_KINDS),
+        )
         async with info.context.db.read() as session:
             return await session.scalar(stmt) or 0
 
@@ -2249,7 +2303,8 @@ class Query:
     async def evaluator_count(self, info: Info[Context, None]) -> int:
         has_dataset_association = exists(
             select(models.DatasetEvaluators.id).where(
-                models.DatasetEvaluators.evaluator_id == models.Evaluator.id
+                models.DatasetEvaluators.evaluator_id == models.Evaluator.id,
+                models.DatasetEvaluators.deleted_at.is_(None),
             )
         )
         stmt = select(func.count(models.Evaluator.id)).where(
@@ -2264,12 +2319,26 @@ class Query:
     @strawberry.field(description="Number of project evaluators across all projects.")  # type: ignore
     async def project_evaluator_count(self, info: Info[Context, None]) -> int:
         async with info.context.db.read() as session:
-            return await session.scalar(select(func.count(models.ProjectEvaluator.id))) or 0
+            return (
+                await session.scalar(
+                    select(func.count(models.ProjectEvaluator.id)).where(
+                        models.ProjectEvaluator.deleted_at.is_(None)
+                    )
+                )
+                or 0
+            )
 
     @strawberry.field(description="Number of dataset evaluators across all datasets.")  # type: ignore
     async def dataset_evaluator_count(self, info: Info[Context, None]) -> int:
         async with info.context.db.read() as session:
-            return await session.scalar(select(func.count(models.DatasetEvaluators.id))) or 0
+            return (
+                await session.scalar(
+                    select(func.count(models.DatasetEvaluators.id)).where(
+                        models.DatasetEvaluators.deleted_at.is_(None)
+                    )
+                )
+                or 0
+            )
 
     @strawberry.field
     async def sandbox_backends(self, info: Info[Context, None]) -> list[SandboxBackendInfo]:
@@ -2360,6 +2429,47 @@ def _comparison_count_expression(
         ),
         0,
     )
+
+
+async def _raise_if_in_deleted_project(
+    info: Info[Context, None], type_name: str, node_id: int, global_id: strawberry.ID
+) -> None:
+    """Treat a trace, span, session, or annotation owned by a tombstoned project as not found."""
+    if type_name == Trace.__name__:
+        project_rowid = select(models.Trace.project_rowid).where(models.Trace.id == node_id)
+    elif type_name == Span.__name__:
+        project_rowid = (
+            select(models.Trace.project_rowid)
+            .join(models.Span, models.Span.trace_rowid == models.Trace.id)
+            .where(models.Span.id == node_id)
+        )
+    elif type_name == SpanAnnotation.__name__:
+        project_rowid = (
+            select(models.Trace.project_rowid)
+            .join(models.Span, models.Span.trace_rowid == models.Trace.id)
+            .join(models.SpanAnnotation, models.SpanAnnotation.span_rowid == models.Span.id)
+            .where(models.SpanAnnotation.id == node_id)
+        )
+    elif type_name == TraceAnnotation.__name__:
+        project_rowid = (
+            select(models.Trace.project_rowid)
+            .join(models.TraceAnnotation, models.TraceAnnotation.trace_rowid == models.Trace.id)
+            .where(models.TraceAnnotation.id == node_id)
+        )
+    else:
+        project_rowid = select(models.ProjectSession.project_id).where(
+            models.ProjectSession.id == node_id
+        )
+    async with info.context.db.read() as session:
+        if await session.scalar(
+            select(
+                exists().where(
+                    models.Project.id == project_rowid.scalar_subquery(),
+                    models.Project.deleted_at.is_not(None),
+                )
+            )
+        ):
+            raise NotFound(f"Unknown {type_name}: {global_id}")
 
 
 async def _decision_node(

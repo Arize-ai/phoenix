@@ -181,9 +181,9 @@ class DecisionMutationMixin:
         self, info: Info[Context, None], input: RunDecisionInput
     ) -> RunDecisionPayload:
         request = to_decision_request(input)
+        client: Optional[DecisionClient] = None
         client_error: Optional[UnreadableCustomProviderError] = None
         async with info.context.db() as session:
-            project_id = await get_or_create_playground_project_id(session)
             try:
                 client = await input.connection.resolve_client(
                     model_name=input.model_name,
@@ -194,10 +194,9 @@ class DecisionMutationMixin:
             except UnreadableCustomProviderError as error:
                 client_error = error
         if client_error is not None:
-            return await _record_unrunnable(
-                info, error=client_error, model_name=input.model_name, project_id=project_id
-            )
-        return await _run(info, client=client, request=request, project_id=project_id)
+            return await _record_unrunnable(info, error=client_error, model_name=input.model_name)
+        assert client is not None
+        return await _run(info, client=client, request=request)
 
     @strawberry.mutation(
         permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
@@ -210,6 +209,7 @@ class DecisionMutationMixin:
         self, info: Info[Context, None], input: RunDecisionVersionInput
     ) -> RunDecisionPayload:
         version_id = from_global_id_with_expected_type(input.decision_version_id, "DecisionVersion")
+        client: Optional[DecisionClient] = None
         client_error: Optional[UnreadableCustomProviderError] = None
         async with info.context.db() as session:
             version = await session.get(models.DecisionVersion, version_id)
@@ -241,13 +241,11 @@ class DecisionMutationMixin:
                     decrypt=info.context.decrypt,
                     allowed_provider_names=info.context.allowed_provider_names,
                 )
-            project_id = await get_or_create_playground_project_id(session)
             model_name = version.model_name
         if client_error is not None:
-            return await _record_unrunnable(
-                info, error=client_error, model_name=model_name, project_id=project_id
-            )
-        return await _run(info, client=client, request=request, project_id=project_id)
+            return await _record_unrunnable(info, error=client_error, model_name=model_name)
+        assert client is not None
+        return await _run(info, client=client, request=request)
 
 
 async def _record_unrunnable(
@@ -255,7 +253,6 @@ async def _record_unrunnable(
     *,
     error: UnreadableCustomProviderError,
     model_name: str,
-    project_id: int,
 ) -> RunDecisionPayload:
     """Record a run that failed before reaching its provider as an error span, so it shows
     with a trace like a run the provider rejected."""
@@ -271,9 +268,7 @@ async def _record_unrunnable(
         },
     ) as span:
         span.set_status(Status(StatusCode.ERROR, str(error)))
-    return await _save_run(
-        info, tracer=tracer, project_id=project_id, result=None, error=str(error)
-    )
+    return await _save_run(info, tracer=tracer, result=None, error=str(error))
 
 
 async def _run(
@@ -281,7 +276,6 @@ async def _run(
     *,
     client: DecisionClient,
     request: DecisionRequest,
-    project_id: int,
 ) -> RunDecisionPayload:
     """Call the provider and record the call as a span, whether it succeeds or not."""
     tracer = Tracer(span_cost_calculator=info.context.span_cost_calculator)
@@ -292,21 +286,19 @@ async def _run(
         result = to_gql_decision_result(request, response)
     except BadRequest as error:
         error_message = str(error)
-    return await _save_run(
-        info, tracer=tracer, project_id=project_id, result=result, error=error_message
-    )
+    return await _save_run(info, tracer=tracer, result=result, error=error_message)
 
 
 async def _save_run(
     info: Info[Context, None],
     *,
     tracer: Tracer,
-    project_id: int,
     result: DecisionResult | None,
     error: str | None,
 ) -> RunDecisionPayload:
-    traces = tracer.get_db_traces(project_id=project_id)
     async with info.context.db() as session:
+        project_id = await get_or_create_playground_project_id(session)
+        traces = tracer.get_db_traces(project_id=project_id)
         session.add_all(traces)
         await session.flush()
     info.context.event_queue.put(SpanInsertEvent(ids=(project_id,)))

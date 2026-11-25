@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 MAX_ATTEMPTS = 3
 
 # In queue: waiting (PENDING), running (RUNNING), or retrying after an error (ERROR).
-QUEUED_STATUSES = ("PENDING", "RUNNING", "ERROR")
+QUEUED_STATUSES: tuple[EvalWorkStatus, ...] = ("PENDING", "RUNNING", "ERROR")
 # Finished. DROPPED: cleared from the queue before it ran. CONTENT_LOST: a trace or session
 # whose content was gone when its turn came.
 TERMINAL_STATUSES = ("DONE", "FAILED", "EXPIRED", "DROPPED", "CONTENT_LOST")

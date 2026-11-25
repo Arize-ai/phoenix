@@ -4,12 +4,13 @@ import {
   parseAbsoluteToLocal,
 } from "@internationalized/date";
 import { isValid as dateIsValid } from "date-fns";
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { graphql, useMutation } from "react-relay";
 
 import type { DateValue } from "@phoenix/components";
 import {
+  Alert,
   Button,
   DateField,
   DateInput,
@@ -24,6 +25,7 @@ import {
 } from "@phoenix/components";
 import { ONE_MONTH_MS } from "@phoenix/constants/timeConstants";
 import { useCurrentTime, useLocalTimeFormatPattern } from "@phoenix/hooks";
+import { getMutationErrorMessage } from "@phoenix/utils/errorUtils";
 
 import type { RemoveProjectDataFormMutation } from "./__generated__/RemoveProjectDataFormMutation.graphql";
 
@@ -41,6 +43,7 @@ export function RemoveProjectDataForm(props: RemoveProjectDataFormProps) {
   const { projectId } = props;
   const dateFormatPattern = useLocalTimeFormatPattern();
   const formRef = useRef<HTMLFormElement>(null);
+  const [mutationError, setMutationError] = useState<string | null>(null);
   const [commit, isCommitting] = useMutation<RemoveProjectDataFormMutation>(
     graphql`
       mutation RemoveProjectDataFormMutation($input: ClearProjectInput!) {
@@ -67,6 +70,7 @@ export function RemoveProjectDataForm(props: RemoveProjectDataFormProps) {
 
   const onSubmit = useCallback(
     (params: RemoveProjectDataFormParams) => {
+      setMutationError(null);
       // Validate date is a valid date
       const parsedDate = params.endDate.toDate(getLocalTimeZone());
       if (!dateIsValid(parsedDate)) {
@@ -86,7 +90,7 @@ export function RemoveProjectDataForm(props: RemoveProjectDataFormProps) {
           props.onComplete();
         },
         onError: (error) => {
-          alert("Failed to clear project traces: " + error);
+          setMutationError(getMutationErrorMessage(error));
         },
       });
     },
@@ -94,6 +98,13 @@ export function RemoveProjectDataForm(props: RemoveProjectDataFormProps) {
   );
   return (
     <form onSubmit={handleSubmit(onSubmit)} ref={formRef}>
+      {mutationError ? (
+        <View paddingX="size-200" paddingTop="size-100">
+          <Alert variant="danger" banner>
+            {mutationError}
+          </Alert>
+        </View>
+      ) : null}
       <View padding="size-200">
         <Text color="danger">
           {` This will remove all data before the following date. This cannot be undone.`}

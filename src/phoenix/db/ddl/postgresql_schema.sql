@@ -20,6 +20,23 @@ CREATE TABLE public.annotation_configs (
 );
 
 
+-- Table: cleanup_failures
+-- -----------------------
+CREATE TABLE public.cleanup_failures (
+    target_kind VARCHAR NOT NULL,
+    target_id BIGINT NOT NULL,
+    failure_count BIGINT NOT NULL DEFAULT '0'::bigint,
+    retry_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    CONSTRAINT pk_cleanup_failures PRIMARY KEY (target_kind, target_id),
+    CONSTRAINT "ck_cleanup_failures_`valid_cleanup_target_kind`"
+        CHECK (((target_kind)::text = ANY ((ARRAY[
+            'PROJECT'::character varying,
+            'PROJECT_EVALUATOR'::character varying,
+            'DATASET_EVALUATOR'::character varying
+        ])::text[])))
+);
+
+
 -- Table: decision_labels
 -- ----------------------
 CREATE TABLE public.decision_labels (
@@ -173,15 +190,18 @@ CREATE TABLE public.projects (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     trace_retention_policy_id INTEGER,
+    deleted_at TIMESTAMP WITH TIME ZONE,
     CONSTRAINT pk_projects PRIMARY KEY (id),
-    CONSTRAINT uq_projects_name
-        UNIQUE (name),
     CONSTRAINT fk_projects_trace_retention_policy_id_project_trace_ret_aa47
         FOREIGN KEY (trace_retention_policy_id)
         REFERENCES public.project_trace_retention_policies (id)
         ON DELETE SET NULL
 );
 
+CREATE UNIQUE INDEX ix_projects_live_name ON public.projects
+    USING btree (name) WHERE (deleted_at IS NULL);
+CREATE INDEX ix_projects_tombstoned ON public.projects
+    USING btree (deleted_at, id) WHERE (deleted_at IS NOT NULL);
 CREATE INDEX ix_projects_trace_retention_policy_id ON public.projects
     USING btree (trace_retention_policy_id);
 
@@ -898,8 +918,8 @@ CREATE TABLE public.builtin_evaluators (
 -- -------------------------
 CREATE TABLE public.dataset_evaluators (
     id bigserial NOT NULL,
-    dataset_id BIGINT NOT NULL,
-    evaluator_id BIGINT NOT NULL,
+    dataset_id BIGINT,
+    evaluator_id BIGINT,
     name VARCHAR NOT NULL,
     description VARCHAR,
     output_configs JSONB,
@@ -908,17 +928,17 @@ CREATE TABLE public.dataset_evaluators (
     project_id BIGINT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMP WITH TIME ZONE,
     CONSTRAINT pk_dataset_evaluators PRIMARY KEY (id),
-    CONSTRAINT uq_dataset_evaluators_dataset_id_name
-        UNIQUE (dataset_id, name),
+    CONSTRAINT "ck_dataset_evaluators_`valid_lifecycle`" CHECK ((((deleted_at IS NULL) AND (dataset_id IS NOT NULL) AND (evaluator_id IS NOT NULL)) OR ((deleted_at IS NOT NULL) AND (evaluator_id IS NULL)))),
     CONSTRAINT fk_dataset_evaluators_dataset_id_datasets
         FOREIGN KEY (dataset_id)
         REFERENCES public.datasets (id)
-        ON DELETE CASCADE,
+        ON DELETE SET NULL,
     CONSTRAINT fk_dataset_evaluators_evaluator_id_evaluators
         FOREIGN KEY (evaluator_id)
         REFERENCES public.evaluators (id)
-        ON DELETE CASCADE,
+        ON DELETE RESTRICT,
     CONSTRAINT fk_dataset_evaluators_project_id_projects
         FOREIGN KEY (project_id)
         REFERENCES public.projects (id)
@@ -929,10 +949,16 @@ CREATE TABLE public.dataset_evaluators (
         ON DELETE SET NULL
 );
 
+CREATE INDEX ix_dataset_evaluators_dataset_id ON public.dataset_evaluators
+    USING btree (dataset_id);
 CREATE INDEX ix_dataset_evaluators_evaluator_id ON public.dataset_evaluators
     USING btree (evaluator_id);
+CREATE UNIQUE INDEX ix_dataset_evaluators_live_name ON public.dataset_evaluators
+    USING btree (dataset_id, name) WHERE (deleted_at IS NULL);
 CREATE INDEX ix_dataset_evaluators_project_id ON public.dataset_evaluators
     USING btree (project_id);
+CREATE INDEX ix_dataset_evaluators_tombstoned ON public.dataset_evaluators
+    USING btree (deleted_at, id) WHERE (deleted_at IS NOT NULL);
 CREATE INDEX ix_dataset_evaluators_user_id ON public.dataset_evaluators
     USING btree (user_id);
 
@@ -1667,7 +1693,7 @@ CREATE UNIQUE INDEX ix_password_reset_tokens_user_id ON public.password_reset_to
 CREATE TABLE public.project_evaluators (
     id bigserial NOT NULL,
     project_id BIGINT NOT NULL,
-    evaluator_id BIGINT NOT NULL,
+    evaluator_id BIGINT,
     trace_project_id BIGINT NOT NULL,
     name VARCHAR NOT NULL,
     filter_condition VARCHAR NOT NULL DEFAULT ''::character varying,
@@ -1679,9 +1705,8 @@ CREATE TABLE public.project_evaluators (
     tracing_enabled BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMP WITH TIME ZONE,
     CONSTRAINT pk_project_evaluators PRIMARY KEY (id),
-    CONSTRAINT uq_project_evaluators_project_id_name
-        UNIQUE (project_id, name),
     CONSTRAINT "ck_project_evaluators_`valid_evaluation_delay_seconds`" CHECK (((((evaluation_target)::text = 'SPAN'::text) AND (evaluation_delay_seconds = 0)) OR (((evaluation_target)::text <> 'SPAN'::text) AND (evaluation_delay_seconds >= 10)))),
     CONSTRAINT "ck_project_evaluators_`valid_evaluation_target`"
         CHECK (((evaluation_target)::text = ANY ((ARRAY[
@@ -1689,15 +1714,16 @@ CREATE TABLE public.project_evaluators (
             'TRACE'::character varying,
             'SESSION'::character varying
         ])::text[]))),
+    CONSTRAINT "ck_project_evaluators_`valid_lifecycle`" CHECK ((((deleted_at IS NULL) AND (evaluator_id IS NOT NULL)) OR ((deleted_at IS NOT NULL) AND (evaluator_id IS NULL)))),
     CONSTRAINT "ck_project_evaluators_`valid_sampling_rate`" CHECK ((((0.0)::double precision <= sampling_rate) AND (sampling_rate <= (1.0)::double precision))),
     CONSTRAINT fk_project_evaluators_evaluator_id_evaluators
         FOREIGN KEY (evaluator_id)
         REFERENCES public.evaluators (id)
-        ON DELETE CASCADE,
+        ON DELETE RESTRICT,
     CONSTRAINT fk_project_evaluators_project_id_projects
         FOREIGN KEY (project_id)
         REFERENCES public.projects (id)
-        ON DELETE CASCADE,
+        ON DELETE RESTRICT,
     CONSTRAINT fk_project_evaluators_trace_project_id_projects
         FOREIGN KEY (trace_project_id)
         REFERENCES public.projects (id)
@@ -1706,8 +1732,12 @@ CREATE TABLE public.project_evaluators (
 
 CREATE INDEX ix_project_evaluators_evaluator_id ON public.project_evaluators
     USING btree (evaluator_id);
+CREATE UNIQUE INDEX ix_project_evaluators_live_name ON public.project_evaluators
+    USING btree (project_id, name) WHERE (deleted_at IS NULL);
 CREATE INDEX ix_project_evaluators_project_id ON public.project_evaluators
     USING btree (project_id);
+CREATE INDEX ix_project_evaluators_tombstoned ON public.project_evaluators
+    USING btree (deleted_at, id) WHERE (deleted_at IS NOT NULL);
 CREATE INDEX ix_project_evaluators_trace_project_id ON public.project_evaluators
     USING btree (trace_project_id);
 

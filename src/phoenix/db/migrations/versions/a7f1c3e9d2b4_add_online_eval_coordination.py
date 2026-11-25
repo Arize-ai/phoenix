@@ -25,6 +25,12 @@ _QUEUED_PREDICATE = "status IN ('PENDING', 'RUNNING', 'ERROR')"
 _TERMINAL_PREDICATE = "status IN ('DONE', 'FAILED', 'EXPIRED', 'DROPPED', 'CONTENT_LOST')"
 _FAILED_PREDICATE = "status IN ('FAILED', 'EXPIRED')"
 _DONE_PREDICATE = "status = 'DONE'"
+_LIVE_PREDICATE = "deleted_at IS NULL"
+_TOMBSTONED_PREDICATE = "deleted_at IS NOT NULL"
+_PROJECT_EVALUATOR_LIFECYCLE_CHECK = (
+    "(deleted_at IS NULL AND evaluator_id IS NOT NULL) "
+    "OR (deleted_at IS NOT NULL AND evaluator_id IS NULL)"
+)
 
 _Integer = sa.Integer().with_variant(
     sa.BigInteger(),
@@ -332,14 +338,16 @@ def upgrade() -> None:
         sa.Column(
             "project_id",
             _Integer,
-            sa.ForeignKey("projects.id", ondelete="CASCADE"),
+            sa.ForeignKey("projects.id", ondelete="RESTRICT"),
             nullable=False,
         ),
+        # Cleared when the binding is tombstoned, so a tombstone keeps no reference to the
+        # evaluator definition.
         sa.Column(
             "evaluator_id",
             _Integer,
-            sa.ForeignKey("evaluators.id", ondelete="CASCADE"),
-            nullable=False,
+            sa.ForeignKey("evaluators.id", ondelete="RESTRICT"),
+            nullable=True,
         ),
         sa.Column(
             "trace_project_id",
@@ -398,7 +406,24 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-        sa.UniqueConstraint("project_id", "name"),
+        sa.Column("deleted_at", sa.TIMESTAMP(timezone=True), nullable=True),
+        sa.CheckConstraint(_PROJECT_EVALUATOR_LIFECYCLE_CHECK, name="valid_lifecycle"),
+        sqlite_autoincrement=True,
+    )
+    op.create_index(
+        "ix_project_evaluators_live_name",
+        "project_evaluators",
+        ["project_id", "name"],
+        unique=True,
+        postgresql_where=sa.text(_LIVE_PREDICATE),
+        sqlite_where=sa.text(_LIVE_PREDICATE),
+    )
+    op.create_index(
+        "ix_project_evaluators_tombstoned",
+        "project_evaluators",
+        ["deleted_at", "id"],
+        postgresql_where=sa.text(_TOMBSTONED_PREDICATE),
+        sqlite_where=sa.text(_TOMBSTONED_PREDICATE),
     )
     op.create_index(
         "ix_project_evaluators_project_id",

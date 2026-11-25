@@ -5,7 +5,7 @@ from typing import Annotated, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import BeforeValidator, Field
-from sqlalchemy import delete, insert, select
+from sqlalchemy import delete, exists, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from strawberry.relay import GlobalID
@@ -165,6 +165,19 @@ async def _get_session_by_identifier(
                 status_code=404,
                 detail=f"Session with session_id {session_identifier} not found",
             )
+    owner = (
+        await session.execute(
+            select(models.Project.id, models.Project.deleted_at).where(
+                models.Project.id == project_session.project_id
+            )
+        )
+    ).first()
+    # A missing owner was purged, and its sessions go with it.
+    if owner is None or owner.deleted_at is not None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Session {session_identifier} not found",
+        )
     return project_session
 
 
@@ -212,7 +225,9 @@ async def get_session(
         project_session = await _get_session_by_identifier(db_session, session_identifier)
         traces_stmt = (
             select(models.Trace)
-            .filter_by(project_session_rowid=project_session.id)
+            .join(models.Project, models.Project.id == models.Trace.project_rowid)
+            .where(models.Project.deleted_at.is_(None))
+            .where(models.Trace.project_session_rowid == project_session.id)
             .order_by(models.Trace.start_time.asc())
         )
         traces = list((await db_session.scalars(traces_stmt)).all())
@@ -237,7 +252,6 @@ async def get_session(
         "This will permanently remove the session and all associated traces, spans, "
         "and annotations via cascade delete."
     ),
-    dependencies=[Depends(is_not_locked)],
     responses=add_errors_to_responses([404]),
     status_code=204,
 )
@@ -258,7 +272,13 @@ async def delete_session(
 
         delete_stmt = (
             delete(models.ProjectSession)
-            .where(where_clause)
+            .where(
+                where_clause,
+                exists().where(
+                    models.Project.id == models.ProjectSession.project_id,
+                    models.Project.deleted_at.is_(None),
+                ),
+            )
             .returning(models.ProjectSession.project_id)
         )
         project_id = await session.scalar(delete_stmt)
@@ -283,7 +303,6 @@ async def delete_session(
         "Non-existent IDs are silently skipped. "
         "All associated traces, spans, and annotations are cascade deleted."
     ),
-    dependencies=[Depends(is_not_locked)],
     responses=add_errors_to_responses([422]),
     status_code=204,
 )
@@ -324,7 +343,13 @@ async def delete_sessions(
 
         delete_stmt = (
             delete(models.ProjectSession)
-            .where(where_clause)
+            .where(
+                where_clause,
+                exists().where(
+                    models.Project.id == models.ProjectSession.project_id,
+                    models.Project.deleted_at.is_(None),
+                ),
+            )
             .returning(models.ProjectSession.project_id)
         )
         result = await session.scalars(delete_stmt)
@@ -416,6 +441,8 @@ async def list_project_sessions(
         session_ids = [s.id for s in sessions]
         traces_stmt = (
             select(models.Trace)
+            .join(models.Project, models.Project.id == models.Trace.project_rowid)
+            .where(models.Project.deleted_at.is_(None))
             .filter(models.Trace.project_session_rowid.in_(session_ids))
             .order_by(models.Trace.start_time.asc())
         )

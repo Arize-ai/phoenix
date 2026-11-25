@@ -2296,6 +2296,140 @@ async def test_persist_db_traces_advances_session_liveness_across_turns(
     assert second_seen_at > first_seen_at
 
 
+async def test_persist_db_traces_skips_earlier_trace_in_tombstoned_project(
+    db: DbSessionFactory,
+) -> None:
+    trace_id = "a" * 32
+    async with db() as session:
+        project = models.Project(name="pxi_dev", deleted_at=datetime.now(timezone.utc))
+        session.add(project)
+        await session.flush()
+        project_id = project.id
+        session.add(
+            _build_backend_trace(project_id=project_id, trace_id=trace_id, span_id="a" * 16)
+        )
+
+    continued_trace = _build_backend_trace(
+        project_id=project_id, trace_id=trace_id, span_id="b" * 16
+    )
+    async with db() as session:
+        await _persist_db_traces(session=session, db_traces=[continued_trace])
+    async with db() as session:
+        num_spans = await session.scalar(
+            select(func.count())
+            .select_from(models.Span)
+            .join(models.Trace)
+            .where(models.Trace.trace_id == trace_id)
+        )
+    assert num_spans == 1
+
+
+async def test_persist_db_traces_continues_a_session_owned_by_a_tombstoned_project(
+    db: DbSessionFactory,
+) -> None:
+    trace_id = "c" * 32
+    now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    async with db() as session:
+        live_project = models.Project(name="pxi_dev")
+        owner_project = models.Project(name="owner", deleted_at=datetime.now(timezone.utc))
+        session.add_all([live_project, owner_project])
+        await session.flush()
+        live_project_id = live_project.id
+        earlier_trace = _build_backend_trace(
+            project_id=live_project_id, trace_id=trace_id, span_id="c" * 16
+        )
+        earlier_trace.project_session = models.ProjectSession(
+            session_id="pxi-owned-session",
+            project_id=owner_project.id,
+            start_time=now,
+            end_time=now,
+        )
+        session.add(earlier_trace)
+
+    continued_trace = _build_backend_trace(
+        project_id=live_project_id, trace_id=trace_id, span_id="d" * 16
+    )
+    continued_trace.project_session = models.ProjectSession(
+        session_id="pxi-other-session",
+        project_id=live_project_id,
+        start_time=now,
+        end_time=now,
+    )
+    async with db() as session:
+        await _persist_db_traces(session=session, db_traces=[continued_trace])
+    async with db() as session:
+        num_spans = await session.scalar(
+            select(func.count())
+            .select_from(models.Span)
+            .join(models.Trace)
+            .where(models.Trace.trace_id == trace_id)
+        )
+    assert num_spans == 2
+
+
+async def test_persist_db_traces_leaves_skipped_tombstoned_traces_untouched(
+    db: DbSessionFactory,
+) -> None:
+    tombstoned_trace_id = "e" * 32
+    live_trace_id = "f" * 32
+    root_span = _build_backend_span(span_id="e" * 16)
+    child_span = _build_backend_span(span_id="1" * 16, parent_id="e" * 16, span_kind="LLM")
+    child_span.llm_token_count_prompt = 5
+    async with db() as session:
+        tombstoned_project = models.Project(name="gone", deleted_at=datetime.now(timezone.utc))
+        live_project = models.Project(name="pxi_dev")
+        session.add_all([tombstoned_project, live_project])
+        await session.flush()
+        tombstoned_project_id, live_project_id = tombstoned_project.id, live_project.id
+        session.add(
+            _build_backend_trace(
+                project_id=tombstoned_project_id,
+                trace_id=tombstoned_trace_id,
+                spans=[root_span, child_span],
+            )
+        )
+
+    skipped_trace = _build_backend_trace(
+        project_id=tombstoned_project_id, trace_id=tombstoned_trace_id, span_id="2" * 16
+    )
+    skipped_trace.project_session = models.ProjectSession(
+        session_id="skipped-session",
+        project_id=tombstoned_project_id,
+        start_time=skipped_trace.start_time,
+        end_time=skipped_trace.end_time,
+    )
+    live_trace = _build_backend_trace(
+        project_id=live_project_id, trace_id=live_trace_id, span_id="3" * 16
+    )
+    async with db() as session:
+        project_ids = await _persist_db_traces(
+            session=session, db_traces=[skipped_trace, live_trace]
+        )
+
+    assert project_ids == (live_project_id,)
+    async with db() as session:
+        assert (
+            await session.scalar(
+                select(models.Span.cumulative_llm_token_count_prompt).where(
+                    models.Span.span_id == "e" * 16
+                )
+            )
+            == 0
+        )
+        assert (
+            await session.scalar(
+                select(func.count())
+                .select_from(models.ProjectSession)
+                .where(models.ProjectSession.session_id == "skipped-session")
+            )
+            == 0
+        )
+        assert (
+            await session.scalar(select(models.Span.id).where(models.Span.span_id == "3" * 16))
+            is not None
+        )
+
+
 def _build_backend_span(
     *,
     span_id: str,

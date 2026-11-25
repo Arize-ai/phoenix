@@ -185,7 +185,10 @@ async def get_project_by_identifier(
                 status_code=422,
                 detail=f"Invalid project identifier format: {project_identifier}",
             )
-        stmt = select(models.Project).filter_by(name=name)
+        stmt = select(models.Project).where(
+            models.Project.name == name,
+            models.Project.deleted_at.is_(None),
+        )
         project = await session.scalar(stmt)
         if project is None:
             raise HTTPException(
@@ -193,7 +196,12 @@ async def get_project_by_identifier(
                 detail=f"Project with name {name} not found",
             )
     else:
-        project = await session.get(models.Project, id_)
+        project = await session.scalar(
+            select(models.Project).where(
+                models.Project.id == id_,
+                models.Project.deleted_at.is_(None),
+            )
+        )
         if project is None:
             raise HTTPException(
                 status_code=404,

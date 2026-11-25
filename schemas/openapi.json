@@ -2418,6 +2418,16 @@
             },
             "description": "Dataset not found"
           },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The dataset is in use by another operation; retry the delete"
+          },
           "422": {
             "content": {
               "text/plain": {
@@ -5589,6 +5599,16 @@
             },
             "description": "Experiment not found"
           },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The experiment is in use by another operation; retry the delete"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -6674,7 +6694,7 @@
           "traces"
         ],
         "summary": "Delete traces from a project",
-        "description": "Delete traces from a project without deleting the project or its configuration. Only traces whose start time is within the required `[start_time, end_time)` interval are deleted. Associated spans are cascade deleted, and project sessions left with no remaining traces are also deleted. Naive datetimes are interpreted as UTC.",
+        "description": "Delete traces from a project without deleting the project or its configuration. Only traces whose start time is within the required `[start_time, end_time)` interval are deleted. Associated spans are cascade deleted, and project sessions left with no remaining traces are also deleted. Naive datetimes are interpreted as UTC. Traces are deleted in batches, each committed on its own. Returns 409 when some traces stay in use by another operation; part of the clear may already be done, and the same request can be run again to finish it.",
         "operationId": "deleteProjectTraces",
         "parameters": [
           {
@@ -6736,6 +6756,16 @@
               }
             },
             "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Some traces are in use by another operation; retry the request"
           },
           "422": {
             "content": {
@@ -10918,6 +10948,16 @@
               }
             },
             "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The project is in use by another operation (retry the delete), or it holds an evaluator's traces (delete the evaluator instead)"
           },
           "422": {
             "content": {

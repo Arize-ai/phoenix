@@ -126,6 +126,7 @@ from phoenix.server.authorization import insufficient_storage_message
 from phoenix.server.bearer_auth import BearerTokenAuthBackend, PhoenixUser, is_authenticated
 from phoenix.server.cost_tracking.span_cost_calculator import SpanCostCalculator
 from phoenix.server.daemons.agent_session_sweeper import AgentSessionSweeper
+from phoenix.server.daemons.cleanup_worker import CleanupWorker
 from phoenix.server.daemons.db_disk_usage_monitor import DbDiskUsageMonitor
 from phoenix.server.daemons.experiment_runner import ExperimentRunner
 from phoenix.server.daemons.experiment_sweeper import ExperimentSweeper
@@ -581,7 +582,10 @@ class Scaffolder(DaemonTask):
 
         async with self._db() as session:
             created_at = await session.scalar(
-                select(models.Project.created_at).where(models.Project.name == "default")
+                select(models.Project.created_at).where(
+                    models.Project.name == "default",
+                    models.Project.deleted_at.is_(None),
+                )
             )
         if created_at is None:
             return False
@@ -711,6 +715,7 @@ def _lifespan(
     online_eval_trace_consumer: Optional[EvaluationConsumer] = None,
     online_eval_session_producer: Optional[SessionEvaluationProducer] = None,
     online_eval_trace_producer: Optional[TraceEvaluationProducer] = None,
+    cleanup_worker: Optional[CleanupWorker] = None,
     token_store: Optional[TokenStore] = None,
     tracer_provider: Optional["TracerProvider"] = None,
     lifespan_telemetry: Optional[LifespanServerTelemetry] = None,
@@ -834,6 +839,8 @@ def _lifespan(
                     await stack.enter_async_context(online_eval_session_producer)
                 if online_eval_trace_producer is not None:
                     await stack.enter_async_context(online_eval_trace_producer)
+                if cleanup_worker is not None:
+                    await stack.enter_async_context(cleanup_worker)
                 if docs_mcp_server is not None:
                     # The docs MCP server connects to an external host during
                     # startup. Never let its initialization (which can hang until a
@@ -1215,7 +1222,6 @@ def create_app(
     )
     system_settings = SystemSettings(db=db, registry=SETTINGS_REGISTRY)
     agent_session_sweeper = AgentSessionSweeper(db, settings=system_settings)
-    experiment_sweeper = ExperimentSweeper(db)
     generative_model_store = GenerativeModelStore(db)
     # A read-only server leaves the built-in prices to the server that writes.
     model_cost_manifest_url = None if read_only else get_env_model_cost_manifest_url()
@@ -1297,6 +1303,8 @@ def create_app(
         )
         online_eval_session_producer = SessionEvaluationProducer(db)
         online_eval_trace_producer = TraceEvaluationProducer(db)
+    cleanup_worker: Optional[CleanupWorker] = None if read_only else CleanupWorker(db)
+    experiment_sweeper = ExperimentSweeper(db, event_queue=dml_event_handler)
     graphql_schema = build_graphql_schema(graphql_schema_extensions)
     graphql_router = create_graphql_router(
         db=db,
@@ -1355,6 +1363,7 @@ def create_app(
             online_eval_trace_consumer=online_eval_trace_consumer,
             online_eval_session_producer=online_eval_session_producer,
             online_eval_trace_producer=online_eval_trace_producer,
+            cleanup_worker=cleanup_worker,
             grpc_interceptors=grpc_interceptors,
             token_store=token_store,
             tracer_provider=tracer_provider,
@@ -1598,6 +1607,7 @@ def create_app(
     app.state.online_eval_trace_consumer = online_eval_trace_consumer
     app.state.online_eval_session_producer = online_eval_session_producer
     app.state.online_eval_trace_producer = online_eval_trace_producer
+    app.state.experiment_runner = experiment_runner
     app.state.graphql_schema = graphql_schema
     # Snapshot the provider allow-list once at app creation so the REST and
     # GraphQL surfaces answer from the same (startup-validated) value.
@@ -1621,6 +1631,7 @@ def create_app(
         secret=secret,
         token_store=token_store,
         email_sender=email_sender,
+        app=app,
     )
     app = _add_get_token_store_method(app=app, token_store=token_store)
     if allowed_origins:
@@ -1729,11 +1740,14 @@ def _get_build_graphql_context_function(
     secret: Optional[SecretStr],
     token_store: Optional[TokenStore],
     email_sender: Optional[EmailSender],
+    app: Optional[FastAPI] = None,
 ) -> Callable[[Optional[PhoenixUser]], Context]:
     """Factory for creating GraphQL context."""
 
     def build_graphql_context(user: Optional[PhoenixUser] = None) -> Context:
         scope: dict[str, Any] = {"type": "http"}
+        if app is not None:
+            scope["app"] = app
         if user is not None:
             scope["user"] = user
         request = Request(scope)

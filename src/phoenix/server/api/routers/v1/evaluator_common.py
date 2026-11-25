@@ -202,10 +202,12 @@ def evaluator_api_errors() -> Iterator[None]:
 
 def evaluator_service_context(request: Request) -> definitions.EvaluatorServiceContext:
     """Build evaluator service dependencies from the current request."""
+    request_state = getattr(request, "state", None)
     return definitions.EvaluatorServiceContext(
         db=request.app.state.db,
         sandbox_runtime=request.app.state.sandbox_runtime,
         user_id=int(request.user.identity) if "user" in request.scope else None,
+        event_queue=getattr(request_state, "event_queue", None),
     )
 
 

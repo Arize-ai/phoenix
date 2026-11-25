@@ -11,6 +11,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
+from phoenix.server.cleanup.coordinator import CleanupCoordinator
 from phoenix.server.evaluators.services import project_bindings
 from phoenix.server.online_eval.coordinator import EvalWorkCoordinator
 from phoenix.server.online_eval.span_producer import SpanEvaluationProducer
@@ -706,10 +707,20 @@ async def test_delete_project_binding_preserves_core_attached_to_another_project
         core_rowid = int(GlobalID.from_id(core_id).node_id)
         created_criteria_id = int(GlobalID.from_id(created["id"]).node_id)
         attached_criteria_id = int(GlobalID.from_id(attached["id"]).node_id)
-        assert await session.get(models.ProjectEvaluator, created_criteria_id) is None
+        tombstoned = await session.get(models.ProjectEvaluator, created_criteria_id)
+        assert tombstoned is not None and tombstoned.deleted_at is not None
+        assert tombstoned.evaluator_id is None
         attached_criteria = await session.get(models.ProjectEvaluator, attached_criteria_id)
         assert attached_criteria is not None
         assert attached_criteria.evaluator_id == core_rowid
+        assert await session.get(models.CodeEvaluator, core_rowid) is not None
+
+    coordinator = CleanupCoordinator(db)
+    while (await coordinator.step_or_next_delay())[0]:
+        pass
+
+    async with db() as session:
+        assert await session.get(models.ProjectEvaluator, created_criteria_id) is None
         assert await session.get(models.CodeEvaluator, core_rowid) is not None
 
 
@@ -756,7 +767,12 @@ async def test_delete_last_binding_removes_the_tag_and_label_when_prompt_is_kept
 
     delete_result = await gql_client.execute(
         _DELETE,
-        {"input": {"projectEvaluatorIds": [created["id"]], "deleteAssociatedPrompt": False}},
+        {
+            "input": {
+                "projectEvaluatorIds": [created["id"]],
+                "deleteAssociatedPromptOrDecision": False,
+            }
+        },
     )
     assert delete_result.data and not delete_result.errors
 
@@ -802,7 +818,12 @@ async def test_delete_binding_keeps_the_label_when_another_evaluator_shares_the_
 
     delete_result = await gql_client.execute(
         _DELETE,
-        {"input": {"projectEvaluatorIds": [first["id"]], "deleteAssociatedPrompt": False}},
+        {
+            "input": {
+                "projectEvaluatorIds": [first["id"]],
+                "deleteAssociatedPromptOrDecision": False,
+            }
+        },
     )
     assert delete_result.data and not delete_result.errors
 
@@ -816,7 +837,7 @@ async def test_delete_last_binding_with_associated_prompt_deletes_it_without_err
     gql_client: AsyncGraphQLClient,
     db: DbSessionFactory,
 ) -> None:
-    """delete_associated_prompt=true removes the prompt too; the tag and label cleanup that
+    """delete_associated_prompt_or_decision=true removes the prompt too; the tag and label cleanup that
     runs afterward is a no-op on the now-missing prompt rather than an error."""
     project = await _add_project(db)
     create_result = await gql_client.execute(
@@ -835,10 +856,59 @@ async def test_delete_last_binding_with_associated_prompt_deletes_it_without_err
 
     delete_result = await gql_client.execute(
         _DELETE,
-        {"input": {"projectEvaluatorIds": [created["id"]], "deleteAssociatedPrompt": True}},
+        {
+            "input": {
+                "projectEvaluatorIds": [created["id"]],
+                "deleteAssociatedPromptOrDecision": True,
+            }
+        },
     )
     assert delete_result.data and not delete_result.errors
 
+    async with db() as session:
+        assert await session.get(models.Prompt, prompt_id) is None
+
+
+async def test_delete_binding_deletes_an_unused_prompt_when_asked_but_keeps_a_shared_one(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    project = await _add_project(db)
+    first_result = await gql_client.execute(
+        _CREATE_LLM, {"input": _llm_input(project, name="first-llm", text="Evaluate {{input}}")}
+    )
+    assert first_result.data and not first_result.errors
+    first = first_result.data["createProjectLlmEvaluator"]["evaluator"]
+    second_input = _llm_input(project, name="second-llm", text="Evaluate {{input}}")
+    second_input["promptVersionId"] = first["evaluator"]["promptVersion"]["id"]
+    second_result = await gql_client.execute(_CREATE_LLM, {"input": second_input})
+    assert second_result.data and not second_result.errors
+    second = second_result.data["createProjectLlmEvaluator"]["evaluator"]
+    async with db() as session:
+        first_evaluator = await session.get(
+            models.LLMEvaluator, int(GlobalID.from_id(first["evaluator"]["id"]).node_id)
+        )
+        assert first_evaluator is not None
+        prompt_id = first_evaluator.prompt_id
+
+    shared_result = await gql_client.execute(
+        _DELETE,
+        {"input": {"projectEvaluatorIds": [first["id"]], "deleteAssociatedPromptOrDecision": True}},
+    )
+    assert shared_result.data and not shared_result.errors
+    async with db() as session:
+        assert await session.get(models.Prompt, prompt_id) is not None
+
+    unused_result = await gql_client.execute(
+        _DELETE,
+        {
+            "input": {
+                "projectEvaluatorIds": [second["id"]],
+                "deleteAssociatedPromptOrDecision": True,
+            }
+        },
+    )
+    assert unused_result.data and not unused_result.errors
     async with db() as session:
         assert await session.get(models.Prompt, prompt_id) is None
 
@@ -2271,9 +2341,22 @@ async def test_create_mints_a_dedicated_trace_project_and_delete_removes_it(
 
     delete_result = await gql_client.execute(
         _DELETE,
-        {"input": {"projectEvaluatorIds": [created["id"]], "deleteAssociatedPrompt": True}},
+        {
+            "input": {
+                "projectEvaluatorIds": [created["id"]],
+                "deleteAssociatedPromptOrDecision": True,
+            }
+        },
     )
     assert delete_result.data and not delete_result.errors
+
+    async with db() as session:
+        tombstoned_project = await session.get(models.Project, trace_project_id)
+        assert tombstoned_project is not None and tombstoned_project.deleted_at is not None
+
+    coordinator = CleanupCoordinator(db)
+    while (await coordinator.step_or_next_delay())[0]:
+        pass
 
     async with db() as session:
         assert (

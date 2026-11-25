@@ -27,7 +27,10 @@ class SpanProjectsDataLoader(DataLoader[Key, Result]):
                     .select_from(models.Span)
                     .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
                     .join(models.Project, models.Trace.project_rowid == models.Project.id)
-                    .where(models.Span.id.in_(span_ids))
+                    .where(
+                        models.Span.id.in_(span_ids),
+                        models.Project.deleted_at.is_(None),
+                    )
                 )
             }
         return [projects.get(span_id) or ValueError("Invalid span ID") for span_id in keys]

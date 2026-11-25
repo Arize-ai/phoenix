@@ -1326,6 +1326,8 @@ class DatasetEvaluator(Node):
             dataset_id = await info.context.data_loaders.dataset_evaluator_fields.load(
                 (self.id, models.DatasetEvaluators.dataset_id),
             )
+        if dataset_id is None:
+            raise NotFound(f"Dataset not found for DatasetEvaluator: {self.id}")
         from .Dataset import Dataset
 
         return Dataset(id=dataset_id)
@@ -1336,6 +1338,8 @@ class DatasetEvaluator(Node):
         info: Info[Context, None],
     ) -> Evaluator:
         record = await self._get_record(info)
+        if record.evaluator_id is None:
+            raise NotFound(f"Evaluator not found: {record.evaluator_id}")
         evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
         if evaluator is None:
             raise NotFound(f"Evaluator not found: {record.evaluator_id}")
@@ -1354,6 +1358,8 @@ class DatasetEvaluator(Node):
         record = await self._get_record(info)
         if record.description is not None:
             return record.description
+        if record.evaluator_id is None:
+            return None
         evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
         if evaluator is None:
             return None
@@ -1374,6 +1380,8 @@ class DatasetEvaluator(Node):
         record = await self._get_record(info)
         configs = record.output_configs
         if configs is None:
+            if record.evaluator_id is None:
+                return []
             # Fall back to the base evaluator's stored configs
             evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
             if evaluator is None:
@@ -1599,7 +1607,7 @@ class ProjectEvaluator(Node):
         range, so they are not reported as its cost.
         """
         record = await self._get_record(info)
-        if not record.tracing_enabled:
+        if not record.tracing_enabled or record.evaluator_id is None:
             return None
         evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
         if evaluator is None or evaluator.kind not in _COSTED_EVALUATOR_KINDS:
@@ -1609,6 +1617,9 @@ class ProjectEvaluator(Node):
     @strawberry.field
     async def evaluator(self, info: Info[Context, None]) -> Evaluator:
         record = await self._get_record(info)
+        if record.evaluator_id is None:
+            project_evaluator_id = GlobalID(ProjectEvaluator.__name__, str(self.id))
+            raise NotFound(f"Evaluator not found for project evaluator: {project_evaluator_id}")
         evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
         if evaluator is None:
             project_evaluator_id = GlobalID(ProjectEvaluator.__name__, str(self.id))
@@ -1723,7 +1734,11 @@ class ProjectEvaluator(Node):
         if time_range.start is None:
             raise BadRequest("Start time is required")
         record = await self._get_record(info)
-        evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
+        evaluator = (
+            await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
+            if record.evaluator_id is not None
+            else None
+        )
         annotation_name, config = result_annotation(record, evaluator, annotation_name)
         return await resolve_evaluator_distribution(
             db=info.context.db,
@@ -1758,7 +1773,7 @@ class ProjectEvaluator(Node):
         window_start, window_end = time_range.start, time_range.end
         record = await self._get_record(info)
         kind = _ANNOTATION_KIND_BY_TARGET.get(record.evaluation_target)
-        if kind is None:
+        if kind is None or record.evaluator_id is None:
             return []
         evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
         output_configs = as_output_configs(getattr(evaluator, "output_configs", None))
@@ -1840,7 +1855,7 @@ class ProjectEvaluator(Node):
     async def input_mapping(self, info: Info[Context, None]) -> EvaluatorInputMapping:
         record = await self._get_record(info)
         input_mapping = record.input_mapping
-        if input_mapping is None:
+        if input_mapping is None and record.evaluator_id is not None:
             evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
             if isinstance(evaluator, models.CodeEvaluator):
                 input_mapping = evaluator.input_mapping

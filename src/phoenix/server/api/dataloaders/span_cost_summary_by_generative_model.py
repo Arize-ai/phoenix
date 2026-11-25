@@ -31,7 +31,9 @@ class SpanCostSummaryByGenerativeModelDataLoader(DataLoader[Key, Result]):
                 coalesce(func.sum(models.SpanCost.completion_tokens), 0).label("completion_tokens"),
                 coalesce(func.sum(models.SpanCost.total_tokens), 0).label("total_tokens"),
             )
-            .where(pk.in_(keys))
+            .join(models.Trace, models.SpanCost.trace_rowid == models.Trace.id)
+            .join(models.Project, models.Trace.project_rowid == models.Project.id)
+            .where(pk.in_(keys), models.Project.deleted_at.is_(None))
             .group_by(pk)
         )
         results: defaultdict[Key, Result] = defaultdict(SpanCostSummary)

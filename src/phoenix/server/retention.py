@@ -56,7 +56,9 @@ class TraceDataSweeper(DaemonTask):
 
     async def _get_policies(self) -> list[ProjectTraceRetentionPolicy]:
         stmt = sa.select(ProjectTraceRetentionPolicy).options(
-            selectinload(ProjectTraceRetentionPolicy.projects).load_only(Project.id)
+            selectinload(ProjectTraceRetentionPolicy.projects).load_only(
+                Project.id, Project.deleted_at
+            )
         )
         async with self._db() as session:
             result = await session.scalars(stmt)
@@ -85,9 +87,14 @@ class TraceDataSweeper(DaemonTask):
         """
         try:
             project_rowids = (
-                (sa.select(Project.id).where(Project.trace_retention_policy_id.is_(None)))
+                (
+                    sa.select(Project.id).where(
+                        Project.trace_retention_policy_id.is_(None),
+                        Project.deleted_at.is_(None),
+                    )
+                )
                 if policy.id == DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
-                else [p.id for p in policy.projects]
+                else [project.id for project in policy.projects if project.deleted_at is None]
             )
             # For max_count rules the filter's row_number() window is re-evaluated per batch
             # over all of the policy's traces. The batch limit bounds deletions, not the

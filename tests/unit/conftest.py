@@ -94,6 +94,7 @@ from phoenix.server import app as server_app
 from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
 from phoenix.server.api.schema import build_graphql_schema
 from phoenix.server.app import _db, create_app
+from phoenix.server.dml_event import DmlEvent
 from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.grpc_server import GrpcServer
@@ -135,6 +136,10 @@ def pytest_configure(config: Config) -> None:
     config.addinivalue_line(
         "markers",
         "real_agent_session_sweeper: run the app's agent-session sweeper loop",
+    )
+    config.addinivalue_line(
+        "markers",
+        "real_cleanup_worker: run the app's background cleanup worker loop",
     )
     config.addinivalue_line(
         "markers",
@@ -291,6 +296,38 @@ def _agent_session_sweeper_off(request: FixtureRequest, monkeypatch: pytest.Monk
     monkeypatch.setattr(
         "phoenix.server.daemons.agent_session_sweeper.AgentSessionSweeper._run", _idle
     )
+
+
+@pytest.fixture(autouse=True)
+def _cleanup_worker_off(request: FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The app's cleanup worker drains tombstoned bindings and projects in the
+    background, racing tests that inspect tombstones or share SQLite's single
+    savepoint connection. Off suite-wide; tests that exercise the live daemon
+    loop opt in with ``@pytest.mark.real_cleanup_worker``."""
+    if request.node.get_closest_marker("real_cleanup_worker"):
+        return
+
+    async def _idle(self: Any) -> None:
+        return None
+
+    monkeypatch.setattr(
+        "phoenix.server.daemons.cleanup_worker.CleanupWorker._run",
+        _idle,
+    )
+
+
+@pytest.fixture
+def recorded_dml_events(monkeypatch: pytest.MonkeyPatch) -> list[DmlEvent]:
+    """The ``DmlEvent`` values the app puts on its event handler during a test."""
+    events: list[DmlEvent] = []
+    original_put = DmlEventHandler.put
+
+    def spy_put(self: DmlEventHandler, event: DmlEvent) -> None:
+        events.append(event)
+        original_put(self, event)
+
+    monkeypatch.setattr(DmlEventHandler, "put", spy_put)
+    return events
 
 
 @pytest.fixture(autouse=True)

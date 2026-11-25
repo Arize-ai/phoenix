@@ -68,6 +68,8 @@ def _get_stmt(
     mapper = inspect(table)
     pk_col = mapper.primary_key[0]
     stmt = select(pk_col).where(pk_col.in_(pk_vals))
+    if (deleted_at_col := getattr(table, "deleted_at", None)) is not None:
+        stmt = stmt.where(deleted_at_col.is_(None))
     for other_table in joins:
         stmt = stmt.join(other_table)
     identifiers, columns = zip(*attrs.items())

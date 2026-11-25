@@ -233,28 +233,92 @@ async def test_unbound_repin_carries_the_judges_policy_to_the_new_questions(
     assert await move_to([added]) == [{"name": "angry", "threshold": 0.5}]
 
 
-async def test_detaching_last_binding_keeps_the_standalone_judge(
+_DELETE_BINDING = (
+    "mutation($input:DeleteDatasetEvaluatorsInput!)"
+    "{deleteDatasetEvaluators(input:$input){query{__typename}}}"
+)
+
+
+async def _detach(
+    gql_client: AsyncGraphQLClient, binding_id: str, *, delete_decision: bool
+) -> None:
+    result = await gql_client.execute(
+        _DELETE_BINDING,
+        variables={
+            "input": {
+                "datasetEvaluatorIds": [binding_id],
+                "deleteAssociatedPromptOrDecision": delete_decision,
+            }
+        },
+    )
+    assert result.data and not result.errors, result.errors
+
+
+async def test_detaching_last_binding_collects_the_judge_and_keeps_the_decision(
     gql_client: AsyncGraphQLClient,
     empty_dataset: None,
     db: DbSessionFactory,
 ) -> None:
-    _, evaluator = await saved_evaluator(gql_client)
+    decision, evaluator = await saved_evaluator(gql_client)
     binding_id = await bind(gql_client, evaluator)
-    result = await gql_client.execute(
-        "mutation($input:DeleteDatasetEvaluatorsInput!){deleteDatasetEvaluators(input:$input){query{__typename}}}",
-        variables={"input": {"datasetEvaluatorIds": [binding_id]}},
-    )
-    assert result.data and not result.errors, result.errors
     judge_id = int(GlobalID.from_id(evaluator["id"]).node_id)
+    decision_id = int(GlobalID.from_id(decision["id"]).node_id)
     async with db() as session:
-        assert await session.get(models.Evaluator, judge_id) is not None
-    result = await gql_client.execute(
-        "mutation($input:DeleteDecisionEvaluatorInput!){deleteDecisionEvaluator(input:$input){query{__typename}}}",
-        variables={"input": {"evaluatorId": evaluator["id"]}},
-    )
-    assert result.data and not result.errors, result.errors
+        judge = await session.get(models.DecisionEvaluator, judge_id)
+        assert judge is not None and judge.decision_version_tag_id is not None
+        tag_id = judge.decision_version_tag_id
+    await _detach(gql_client, binding_id, delete_decision=False)
     async with db() as session:
         assert await session.get(models.Evaluator, judge_id) is None
+        assert await session.get(models.DecisionVersionTag, tag_id) is None
+        assert await session.get(models.Decision, decision_id) is not None
+
+
+async def test_detaching_last_binding_deletes_the_decision_when_asked(
+    gql_client: AsyncGraphQLClient,
+    empty_dataset: None,
+    db: DbSessionFactory,
+) -> None:
+    decision, evaluator = await saved_evaluator(gql_client)
+    binding_id = await bind(gql_client, evaluator)
+    judge_id = int(GlobalID.from_id(evaluator["id"]).node_id)
+    decision_id = int(GlobalID.from_id(decision["id"]).node_id)
+    await _detach(gql_client, binding_id, delete_decision=True)
+    async with db() as session:
+        assert await session.get(models.Evaluator, judge_id) is None
+        assert await session.get(models.Decision, decision_id) is None
+
+
+async def test_a_decision_shared_with_another_judge_survives_the_delete_option(
+    gql_client: AsyncGraphQLClient,
+    empty_dataset: None,
+    db: DbSessionFactory,
+) -> None:
+    decision, evaluator = await saved_evaluator(gql_client)
+    result = await gql_client.execute(
+        CREATE_EVALUATOR,
+        variables={
+            "input": {
+                "name": "second-judge",
+                "decisionVersionId": decision["version"]["id"],
+                "scoringPolicy": {
+                    "questions": [{"predicate": {"name": "urgent", "threshold": 0.5}}],
+                },
+            }
+        },
+    )
+    assert result.data and not result.errors, result.errors
+    other_id = int(
+        GlobalID.from_id(result.data["createDecisionEvaluator"]["evaluator"]["id"]).node_id
+    )
+    binding_id = await bind(gql_client, evaluator)
+    judge_id = int(GlobalID.from_id(evaluator["id"]).node_id)
+    decision_id = int(GlobalID.from_id(decision["id"]).node_id)
+    await _detach(gql_client, binding_id, delete_decision=True)
+    async with db() as session:
+        assert await session.get(models.Evaluator, judge_id) is None
+        assert await session.get(models.Evaluator, other_id) is not None
+        assert await session.get(models.Decision, decision_id) is not None
 
 
 async def bind(

@@ -22,7 +22,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, AsyncSessionTransaction, create
 from phoenix.db import bulk_inserter, models
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import aio_sqlite_engine, get_async_db_url
-from phoenix.db.insertion.helpers import advance_liveness, get_sqlstate
+from phoenix.db.helpers import get_sqlstate
+from phoenix.db.insertion.helpers import advance_liveness
 from phoenix.db.insertion.span import SpanInsertionEvent, insert_span
 from phoenix.server.app import _db
 from phoenix.server.cost_tracking.span_cost_calculator import SpanCostCalculator

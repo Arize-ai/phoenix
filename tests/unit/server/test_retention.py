@@ -931,3 +931,67 @@ class TestRetentionPolicyBatchedDelete:
             "a sweep stopped partway through its backlog should not count as a success"
         )
         assert self._count_executions("error") == num_errors
+
+
+class TestRetentionSkipsTombstonedProjects:
+    @pytest.mark.parametrize("use_default_policy", [True, False])
+    async def test_sweep_keeps_traces_of_tombstoned_projects(
+        self,
+        use_default_policy: bool,
+        db: DbSessionFactory,
+    ) -> None:
+        now = datetime.now(timezone.utc)
+        expired_start_time = now - timedelta(days=30)
+        rule = TraceRetentionRule(root=MaxDaysRule(max_days=7))
+
+        async with db() as session:
+            live_project = models.Project(name=token_hex(8))
+            tombstoned_project = models.Project(name=token_hex(8), deleted_at=now)
+            session.add_all([live_project, tombstoned_project])
+            await session.flush()
+            expired_traces = [
+                models.Trace(
+                    project_rowid=project.id,
+                    trace_id=token_hex(16),
+                    start_time=expired_start_time,
+                    end_time=expired_start_time + timedelta(seconds=1),
+                )
+                for project in (live_project, tombstoned_project)
+            ]
+            session.add_all(expired_traces)
+            if use_default_policy:
+                policy_id = DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
+                default_policy = await session.get(models.ProjectTraceRetentionPolicy, policy_id)
+                assert default_policy is not None
+                default_policy.rule = rule
+            else:
+                explicit_policy = models.ProjectTraceRetentionPolicy(
+                    name=token_hex(8),
+                    rule=rule,
+                    cron_expression=TraceRetentionCronExpression(root="0 * * * *"),
+                    projects=[live_project, tombstoned_project],
+                )
+                session.add(explicit_policy)
+                await session.flush()
+                policy_id = explicit_policy.id
+            await session.flush()
+            tombstoned_trace_id = expired_traces[1].trace_id
+
+        dml_event_handler = MagicMock()
+        sweeper = TraceDataSweeper(db=db, dml_event_handler=dml_event_handler)
+        sweeper._running = True
+        (policy,) = [p for p in await sweeper._get_policies() if p.id == policy_id]
+        await sweeper._apply(policy)
+
+        async with db() as session:
+            remaining_trace_ids = set(
+                (
+                    await session.scalars(
+                        sa.select(models.Trace.trace_id).where(
+                            models.Trace.project_rowid.in_([live_project.id, tombstoned_project.id])
+                        )
+                    )
+                ).all()
+            )
+        assert remaining_trace_ids == {tombstoned_trace_id}
+        dml_event_handler.put.assert_called_once_with(SpanDeleteEvent((live_project.id,)))

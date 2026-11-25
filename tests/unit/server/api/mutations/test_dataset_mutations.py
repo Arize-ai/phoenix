@@ -9,6 +9,12 @@ from strawberry.relay import GlobalID
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
 from phoenix.server.api.types.DatasetExample import DatasetExample
+from phoenix.server.dml_event import (
+    DatasetDeleteEvent,
+    DmlEvent,
+    ProjectDeleteEvent,
+    SpanDeleteEvent,
+)
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -1052,6 +1058,220 @@ async def test_deleting_a_nonexistent_dataset_fails(gql_client: AsyncGraphQLClie
     assert (errors := response.errors)
     assert len(errors) == 1
     assert f"Unknown dataset: {dataset_id}" in errors[0].message
+
+
+async def test_delete_dataset_deletes_only_sdk_eval_traces(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    from secrets import token_hex
+
+    from phoenix.db.types.evaluators import InputMapping
+    from phoenix.db.types.identifier import Identifier
+
+    now_time = datetime.now(timezone.utc)
+    async with db() as session:
+        target_dataset = models.Dataset(name=f"target-ds-{token_hex(4)}", metadata_={})
+        sdk_evaluators_project = models.Project(name="evaluators")
+        evaluator_sink_project = models.Project(name=f"ds-eval-sink-{token_hex(4)}")
+        evaluator = models.BuiltinEvaluator(
+            name=Identifier(f"ds-builtin-{token_hex(4)}"),
+            kind="BUILTIN",
+            key=token_hex(8),
+            input_schema={},
+            output_configs=[],
+        )
+        session.add_all(
+            [
+                target_dataset,
+                sdk_evaluators_project,
+                evaluator_sink_project,
+                evaluator,
+            ]
+        )
+        await session.flush()
+
+        target_version = models.DatasetVersion(dataset_id=target_dataset.id, metadata_={})
+        target_example = models.DatasetExample(dataset_id=target_dataset.id)
+        dataset_binding = models.DatasetEvaluators(
+            dataset_id=target_dataset.id,
+            evaluator_id=evaluator.id,
+            project_id=evaluator_sink_project.id,
+            name=Identifier(f"ds-eval-{token_hex(4)}"),
+            output_configs=[],
+            input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+        )
+        sdk_trace = models.Trace(
+            project_rowid=sdk_evaluators_project.id,
+            trace_id=f"sdk-eval-{token_hex(8)}",
+            start_time=now_time,
+            end_time=now_time,
+        )
+        sink_trace = models.Trace(
+            project_rowid=evaluator_sink_project.id,
+            trace_id=f"sink-eval-{token_hex(8)}",
+            start_time=now_time,
+            end_time=now_time,
+        )
+        session.add_all(
+            [
+                target_version,
+                target_example,
+                dataset_binding,
+                sdk_trace,
+                sink_trace,
+            ]
+        )
+        await session.flush()
+
+        target_experiment = models.Experiment(
+            dataset_id=target_dataset.id,
+            dataset_version_id=target_version.id,
+            name="target-running-exp",
+            repetitions=1,
+            metadata_={},
+        )
+        session.add(target_experiment)
+        await session.flush()
+
+        experiment_run = models.ExperimentRun(
+            experiment_id=target_experiment.id,
+            dataset_example_id=target_example.id,
+            repetition_number=1,
+            output={"output": "done"},
+            start_time=now_time,
+            end_time=now_time,
+        )
+        session.add(experiment_run)
+        await session.flush()
+        session.add_all(
+            [
+                models.ExperimentRunAnnotation(
+                    experiment_run_id=experiment_run.id,
+                    name="sdk-eval",
+                    annotator_kind="CODE",
+                    score=1.0,
+                    trace_id=sdk_trace.trace_id,
+                    metadata_={},
+                    start_time=now_time,
+                    end_time=now_time,
+                ),
+                models.ExperimentRunAnnotation(
+                    experiment_run_id=experiment_run.id,
+                    name="server-eval",
+                    annotator_kind="LLM",
+                    score=1.0,
+                    trace_id=sink_trace.trace_id,
+                    metadata_={},
+                    start_time=now_time,
+                    end_time=now_time,
+                ),
+            ]
+        )
+        await session.flush()
+        target_dataset_id = target_dataset.id
+        sdk_trace_rowid = sdk_trace.id
+        sink_trace_rowid = sink_trace.id
+
+    mutation = """
+      mutation ($datasetId: ID!) {
+        deleteDataset(input: { datasetId: $datasetId }) {
+          dataset {
+            id
+          }
+        }
+      }
+    """
+    response = await gql_client.execute(
+        query=mutation,
+        variables={"datasetId": str(GlobalID("Dataset", str(target_dataset_id)))},
+    )
+    assert not response.errors
+
+    async with db() as session:
+        assert await session.get(models.Trace, sdk_trace_rowid) is None
+        assert await session.get(models.Trace, sink_trace_rowid) is not None
+
+
+async def test_delete_dataset_announces_the_commit_when_the_trace_drain_fails(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+    recorded_dml_events: list[DmlEvent],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from secrets import token_hex
+
+    from phoenix.server.cleanup import lifecycle
+
+    async with db() as session:
+        dataset = models.Dataset(name=f"drain-fails-{token_hex(4)}", metadata_={})
+        session.add(dataset)
+        await session.flush()
+        dataset_version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+        dataset_example = models.DatasetExample(dataset_id=dataset.id)
+        sdk_evaluators_project = models.Project(name="evaluators")
+        experiment_project = models.Project(name=f"Experiment-{token_hex(12)}")
+        session.add_all(
+            [dataset_version, dataset_example, sdk_evaluators_project, experiment_project]
+        )
+        await session.flush()
+        sdk_trace = models.Trace(
+            project_rowid=sdk_evaluators_project.id,
+            trace_id=f"sdk-eval-{token_hex(8)}",
+            start_time=datetime.now(timezone.utc),
+            end_time=datetime.now(timezone.utc),
+        )
+        experiment = models.Experiment(
+            dataset_id=dataset.id,
+            dataset_version_id=dataset_version.id,
+            name="exp",
+            repetitions=1,
+            metadata_={},
+            project_name=experiment_project.name,
+        )
+        session.add_all([sdk_trace, experiment])
+        await session.flush()
+        experiment_run = models.ExperimentRun(
+            experiment_id=experiment.id,
+            dataset_example_id=dataset_example.id,
+            repetition_number=1,
+            output={"output": "ok"},
+            start_time=datetime.now(timezone.utc),
+            end_time=datetime.now(timezone.utc),
+        )
+        session.add(experiment_run)
+        await session.flush()
+        session.add(
+            models.ExperimentRunAnnotation(
+                experiment_run_id=experiment_run.id,
+                name="sdk-eval",
+                annotator_kind="CODE",
+                score=1.0,
+                trace_id=sdk_trace.trace_id,
+                metadata_={},
+                start_time=datetime.now(timezone.utc),
+                end_time=datetime.now(timezone.utc),
+            )
+        )
+        await session.flush()
+        dataset_id = dataset.id
+        experiment_project_id = experiment_project.id
+
+    async def _drain_fails(*args: Any, **kwargs: Any) -> None:
+        raise RuntimeError("trace drain failed")
+
+    monkeypatch.setattr(lifecycle, "delete_standalone_traces_by_trace_id", _drain_fails)
+    response = await gql_client.execute(
+        query="mutation ($id: ID!) { deleteDataset(input: { datasetId: $id }) { dataset { id } } }",
+        variables={"id": str(GlobalID("Dataset", str(dataset_id)))},
+    )
+    assert response.errors
+
+    async with db() as session:
+        assert await session.get(models.Dataset, dataset_id) is None
+    assert DatasetDeleteEvent((dataset_id,)) in recorded_dml_events
+    assert SpanDeleteEvent((experiment_project_id,)) in recorded_dml_events
+    assert ProjectDeleteEvent((experiment_project_id,)) in recorded_dml_events
 
 
 async def test_add_examples_with_intra_batch_duplicate_external_id_returns_conflict_error(
