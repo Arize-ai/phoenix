@@ -2093,6 +2093,10 @@
     <lastmod>2026-04-06T06:15:15+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/get-a-single-span-by-span_identifier</loc>
+    <lastmod>2026-11-25T05:42:47+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/delete-a-span-by-span_identifier</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
