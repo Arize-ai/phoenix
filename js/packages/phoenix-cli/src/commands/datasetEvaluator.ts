@@ -8,7 +8,6 @@ import {
   getEvaluator,
   updateDatasetEvaluator,
 } from "@arizeai/phoenix-client/evaluators";
-import { assertUnreachable } from "@arizeai/phoenix-client/utils/assertUnreachable";
 import { Command } from "commander";
 
 import { createPhoenixClient } from "../client";
@@ -277,6 +276,19 @@ async function datasetEvaluatorCreateHandler(
     });
     process.exit(ExitCode.INVALID_ARGUMENT);
   }
+  if (
+    options.evaluatorId === "." ||
+    options.evaluatorId === ".." ||
+    options.evaluatorId.includes("/")
+  ) {
+    writeStructuredError({
+      format: options.format,
+      message: `--evaluator-id ${JSON.stringify(options.evaluatorId)} is not an evaluator ID`,
+      code: "INVALID_ARGUMENT",
+      hint: `px dataset evaluator create ${datasetIdentifier} --name ${options.name} --evaluator-id <id> --input-mapping <json>  (find ids with: px evaluator list)`,
+    });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
   if (!options.inputMapping) {
     writeStructuredError({
       format: options.format,
@@ -291,20 +303,16 @@ async function datasetEvaluatorCreateHandler(
       flag: "--input-mapping",
       value: options.inputMapping,
     });
-    const outputConfigsFlag = {
-      flag: "--output-configs",
-      nonEmpty: {
-        hint: `px dataset evaluator create ${datasetIdentifier} --name ${options.name} --input-mapping <json> --evaluator-id <id>`,
-      },
-    };
-    if (options.outputConfigs !== undefined) {
-      // Refuses a malformed flag before any request; each kind parses it again
-      // as the configs that kind takes.
-      parseJsonArrayFlag<unknown>({
-        ...outputConfigsFlag,
-        value: options.outputConfigs,
-      });
-    }
+    const outputConfigs =
+      options.outputConfigs !== undefined
+        ? parseJsonArrayFlag<unknown>({
+            flag: "--output-configs",
+            value: options.outputConfigs,
+            nonEmpty: {
+              hint: `px dataset evaluator create ${datasetIdentifier} --name ${options.name} --input-mapping <json> --evaluator-id <id>`,
+            },
+          })
+        : undefined;
 
     const client = createClientOrExit(options);
 
@@ -328,36 +336,36 @@ async function datasetEvaluatorCreateHandler(
       }),
     };
     let binding: Awaited<ReturnType<typeof createDatasetEvaluator>>;
-    if (evaluatorType === "decision") {
-      if (options.outputConfigs !== undefined) {
-        throw new InvalidArgumentError(DECISION_OUTPUT_CONFIGS_MESSAGE);
-      }
-      binding = await createDatasetEvaluator({
-        ...fields,
-        evaluatorType,
-      });
-    } else if (evaluatorType === "llm") {
-      binding = await createDatasetEvaluator({
-        ...fields,
-        evaluatorType,
-        ...(options.outputConfigs !== undefined && {
-          outputConfigs: parseJsonArrayFlag<CategoricalOutputConfig>({
-            ...outputConfigsFlag,
-            value: options.outputConfigs,
+    switch (evaluatorType) {
+      case "decision":
+        if (outputConfigs !== undefined) {
+          throw new InvalidArgumentError(DECISION_OUTPUT_CONFIGS_MESSAGE);
+        }
+        binding = await createDatasetEvaluator({ ...fields, evaluatorType });
+        break;
+      case "llm":
+        binding = await createDatasetEvaluator({
+          ...fields,
+          evaluatorType,
+          ...(outputConfigs !== undefined && {
+            outputConfigs: outputConfigs as CategoricalOutputConfig[],
           }),
-        }),
-      });
-    } else {
-      binding = await createDatasetEvaluator({
-        ...fields,
-        evaluatorType,
-        ...(options.outputConfigs !== undefined && {
-          outputConfigs: parseJsonArrayFlag<OutputConfig>({
-            ...outputConfigsFlag,
-            value: options.outputConfigs,
+        });
+        break;
+      case "code":
+      case "builtin":
+        binding = await createDatasetEvaluator({
+          ...fields,
+          evaluatorType,
+          ...(outputConfigs !== undefined && {
+            outputConfigs: outputConfigs as OutputConfig[],
           }),
-        }),
-      });
+        });
+        break;
+      default:
+        throw new InvalidArgumentError(
+          `${options.evaluatorId} is not an evaluator`
+        );
     }
 
     writeOutput({
@@ -373,6 +381,23 @@ async function datasetEvaluatorCreateHandler(
       format: options.format,
     });
   }
+}
+
+/**
+ * The `output_configs` field of an update patch: `null` to inherit the
+ * definition's outputs, the parsed override when one was given, otherwise
+ * nothing so the binding keeps what it has.
+ */
+function buildOutputConfigsOverride<Config>({
+  outputConfigs,
+  inherit,
+}: {
+  outputConfigs: unknown[] | undefined;
+  inherit: boolean | undefined;
+}): { output_configs?: Config[] | null } {
+  if (inherit) return { output_configs: null };
+  if (outputConfigs === undefined) return {};
+  return { output_configs: outputConfigs as Config[] };
 }
 
 /**
@@ -439,33 +464,16 @@ async function datasetEvaluatorUpdateHandler(
         }),
       }),
     };
-    const outputConfigsFlag = {
-      flag: "--output-configs",
-      nonEmpty: {
-        hint: `px dataset evaluator update ${datasetEvaluatorId} --inherit-output-configs`,
-      },
-    };
-    if (options.outputConfigs !== undefined) {
-      // Refuses a malformed flag before any request; each kind parses it again
-      // as the configs that kind takes.
-      parseJsonArrayFlag<unknown>({
-        ...outputConfigsFlag,
-        value: options.outputConfigs,
-      });
-    }
-    const readOutputConfigs = <Config>(): {
-      output_configs?: Config[] | null;
-    } => {
-      if (options.inheritOutputConfigs) return { output_configs: null };
-      if (options.outputConfigs === undefined) return {};
-      return {
-        output_configs: parseJsonArrayFlag<Config>({
-          ...outputConfigsFlag,
-          value: options.outputConfigs,
-        }),
-      };
-    };
-
+    const outputConfigs =
+      options.outputConfigs !== undefined
+        ? parseJsonArrayFlag<unknown>({
+            flag: "--output-configs",
+            value: options.outputConfigs,
+            nonEmpty: {
+              hint: `px dataset evaluator update ${datasetEvaluatorId} (omit --output-configs, or pass --inherit-output-configs for a non-decision binding)`,
+            },
+          })
+        : undefined;
     const client = createClientOrExit(options);
 
     writeProgress({
@@ -480,7 +488,7 @@ async function datasetEvaluatorUpdateHandler(
     let patch: PatchRequest;
     switch (evaluatorType) {
       case "decision":
-        if ("output_configs" in readOutputConfigs<unknown>()) {
+        if (outputConfigs !== undefined || options.inheritOutputConfigs) {
           throw new InvalidArgumentError(DECISION_OUTPUT_CONFIGS_MESSAGE);
         }
         patch = { ...fields, evaluator_type: "decision" };
@@ -489,7 +497,10 @@ async function datasetEvaluatorUpdateHandler(
         patch = {
           ...fields,
           evaluator_type: "llm",
-          ...readOutputConfigs<CategoricalOutputConfig>(),
+          ...buildOutputConfigsOverride<CategoricalOutputConfig>({
+            outputConfigs,
+            inherit: options.inheritOutputConfigs,
+          }),
         };
         break;
       case "code":
@@ -497,11 +508,16 @@ async function datasetEvaluatorUpdateHandler(
         patch = {
           ...fields,
           evaluator_type: evaluatorType,
-          ...readOutputConfigs<OutputConfig>(),
+          ...buildOutputConfigsOverride<OutputConfig>({
+            outputConfigs,
+            inherit: options.inheritOutputConfigs,
+          }),
         };
         break;
       default:
-        return assertUnreachable(evaluatorType);
+        throw new InvalidArgumentError(
+          `${datasetEvaluatorId} is not a dataset evaluator`
+        );
     }
     const binding = await updateDatasetEvaluator({
       client,
@@ -687,7 +703,7 @@ export function createDatasetEvaluatorUpdateCommand(): Command {
         )
         .option(
           "--inherit-output-configs",
-          "Drop the output configuration overrides and inherit the definition's"
+          "Drop the output configuration overrides and inherit the definition's (decision evaluators: not accepted)"
         )
     )
   )

@@ -256,6 +256,63 @@ describe("dataset evaluator create", () => {
     expect(captured.count).toBe(0);
   });
 
+  it("rejects an --evaluator-id that cannot be an ID before any request", async () => {
+    const requests = recordRequests(mock.server);
+    captureCliOutput();
+    const exitSpy = mockProcessExit();
+
+    await expect(
+      createDatasetEvaluatorCommand().parseAsync(
+        [
+          "create",
+          "golden-questions",
+          "--name",
+          "exact-match",
+          "--evaluator-id",
+          ".",
+          "--input-mapping",
+          JSON.stringify(INPUT_MAPPING),
+          ...BASE_ARGS,
+        ],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
+    expect(requests).toEqual([]);
+  });
+
+  it("refuses an evaluator of an unknown kind without creating a binding", async () => {
+    const io = captureCliOutput();
+    const exitSpy = mockProcessExit();
+    const captured = captureCreate();
+
+    await expect(
+      createDatasetEvaluatorCommand().parseAsync(
+        [
+          "create",
+          "golden-questions",
+          "--name",
+          "exact-match",
+          "--evaluator-id",
+          "bm90LWFuLWV2YWx1YXRvcg==",
+          "--input-mapping",
+          JSON.stringify(INPUT_MAPPING),
+          "--format",
+          "raw",
+          ...BASE_ARGS,
+        ],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
+    expect(captured.count).toBe(0);
+    expect(String(io.stderr.mock.calls[0]?.[0])).toContain(
+      "is not an evaluator"
+    );
+  });
+
   it("rejects an empty --output-configs override before any request", async () => {
     const requests = recordRequests(mock.server);
     const io = captureCliOutput();
@@ -510,7 +567,7 @@ describe("dataset evaluator update", () => {
       error:
         "Error updating dataset evaluator: --output-configs must be a non-empty JSON array",
       code: "INVALID_ARGUMENT",
-      hint: `px dataset evaluator update ${BINDING_ID} --inherit-output-configs`,
+      hint: `px dataset evaluator update ${BINDING_ID} (omit --output-configs, or pass --inherit-output-configs for a non-decision binding)`,
     });
   });
 
