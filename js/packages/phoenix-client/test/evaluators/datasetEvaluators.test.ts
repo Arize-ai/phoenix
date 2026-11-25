@@ -141,6 +141,35 @@ describe("createDatasetEvaluator", () => {
       input_mapping: INPUT_MAPPING,
     });
   });
+
+  it("refuses output configs on a decision binding before any request", async () => {
+    let numRequests = 0;
+    server.use(
+      http.post(
+        "/v1/datasets/{dataset_identifier}/evaluators",
+        ({ response }) => {
+          numRequests += 1;
+          return response(201).json({ data: binding });
+        }
+      )
+    );
+
+    await expect(
+      createDatasetEvaluator({
+        client: createTestClient(),
+        dataset: { datasetId: "RGF0YXNldDox" },
+        name: "judge",
+        evaluatorId: "RGVjaXNpb25FdmFsdWF0b3I6MQ==",
+        evaluatorType: "decision",
+        inputMapping: INPUT_MAPPING,
+        // @ts-expect-error a decision binding takes no outputConfigs
+        outputConfigs: [{ type: "FREEFORM", name: "notes" }],
+      })
+    ).rejects.toThrow(
+      "A decision binding takes no outputConfigs: its outputs follow the evaluator's questions and scoring."
+    );
+    expect(numRequests).toBe(0);
+  });
 });
 
 describe("getDatasetEvaluators", () => {

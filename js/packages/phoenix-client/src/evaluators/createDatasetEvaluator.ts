@@ -54,7 +54,8 @@ interface CreateDatasetEvaluatorBaseParams extends ClientFn {
  * configurations for this binding with at least one config, each with its own
  * name; omit it to inherit them. An LLM evaluator's override must be
  * categorical and is not checked against the prompt. A decision binding takes
- * no override: its outputs follow the evaluator's questions and scoring policy.
+ * no output config override: its outputs follow the evaluator's questions and
+ * scoring policy, and passing `outputConfigs` throws.
  */
 export type CreateDatasetEvaluatorParams = CreateDatasetEvaluatorBaseParams &
   (
@@ -63,7 +64,7 @@ export type CreateDatasetEvaluatorParams = CreateDatasetEvaluatorBaseParams &
         evaluatorType: "code" | "builtin";
         outputConfigs?: EvaluatorOutputConfig[];
       }
-    | { evaluatorType: "decision" }
+    | { evaluatorType: "decision"; outputConfigs?: never }
   );
 
 function buildCreateBody(
@@ -77,13 +78,14 @@ function buildCreateBody(
       description: params.description,
     }),
   };
-  if (params.evaluatorType === "decision") {
-    return { ...fields, evaluator_type: "decision" };
-  }
-  const overrides = params.outputConfigs !== undefined && {
-    output_configs: params.outputConfigs,
-  };
   switch (params.evaluatorType) {
+    case "decision":
+      if (params.outputConfigs !== undefined) {
+        throw new Error(
+          "A decision binding takes no outputConfigs: its outputs follow the evaluator's questions and scoring."
+        );
+      }
+      return { ...fields, evaluator_type: "decision" };
     case "llm":
       return {
         ...fields,
@@ -93,9 +95,21 @@ function buildCreateBody(
         }),
       };
     case "code":
-      return { ...fields, evaluator_type: "code", ...overrides };
+      return {
+        ...fields,
+        evaluator_type: "code",
+        ...(params.outputConfigs !== undefined && {
+          output_configs: params.outputConfigs,
+        }),
+      };
     case "builtin":
-      return { ...fields, evaluator_type: "builtin", ...overrides };
+      return {
+        ...fields,
+        evaluator_type: "builtin",
+        ...(params.outputConfigs !== undefined && {
+          output_configs: params.outputConfigs,
+        }),
+      };
     default:
       return assertUnreachable(params);
   }

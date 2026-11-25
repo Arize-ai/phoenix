@@ -120,7 +120,9 @@ export type DatasetEvaluatorPatch =
   | components["schemas"]["PatchLLMDatasetEvaluatorRequest"]
   | components["schemas"]["PatchCodeDatasetEvaluatorRequest"]
   | components["schemas"]["PatchBuiltInDatasetEvaluatorRequest"]
-  | components["schemas"]["PatchDecisionDatasetEvaluatorRequest"];
+  | (components["schemas"]["PatchDecisionDatasetEvaluatorRequest"] & {
+      output_configs?: never;
+    });
 
 /**
  * Identifies a dataset by ID or by name. The server accepts either in the
