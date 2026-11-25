@@ -46,6 +46,11 @@ export function SectionNavSection({
   ref,
 }: SectionNavSectionProps) {
   const headingId = `${id}-heading`;
+  const headingEl = (
+    <Heading id={headingId} weight="heavy">
+      {heading}
+    </Heading>
+  );
   return (
     <section
       ref={ref}
@@ -56,15 +61,9 @@ export function SectionNavSection({
       css={css(sectionNavSectionCSS, _css)}
     >
       {isHeadingHidden ? (
-        <VisuallyHidden>
-          <Heading id={headingId} weight="heavy">
-            {heading}
-          </Heading>
-        </VisuallyHidden>
+        <VisuallyHidden>{headingEl}</VisuallyHidden>
       ) : (
-        <Heading id={headingId} weight="heavy">
-          {heading}
-        </Heading>
+        headingEl
       )}
       {children}
     </section>
