@@ -496,6 +496,18 @@ async def test_get_span_not_found(
     assert "not found" in response.text.lower()
 
 
+async def test_get_span_with_unknown_global_id_returns_404(
+    httpx_client: httpx2.AsyncClient,
+    project_with_a_single_trace_and_span: None,
+) -> None:
+    """Test that a well-formed Span GlobalID with no matching row returns 404."""
+    unknown_global_id = str(GlobalID("Span", "999999"))
+
+    response = await httpx_client.get(f"v1/spans/{unknown_global_id}")
+    assert response.status_code == 404
+    assert f"Span with Global ID '{unknown_global_id}' not found" in response.text
+
+
 async def test_get_span_matches_get_spans_element(
     httpx_client: httpx2.AsyncClient,
     span_search_test_data: None,
