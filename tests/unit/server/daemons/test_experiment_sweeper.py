@@ -459,3 +459,85 @@ class TestExperimentSweeper:
 
         async with db() as session:
             assert await session.scalar(sa.select(sa.func.count(models.Experiment.id))) == 0
+
+    async def _insert_expired_backlog(self, db: DbSessionFactory, count: int) -> list[int]:
+        expired_time = datetime.now(timezone.utc) - timedelta(
+            hours=EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS + 1
+        )
+        async with db() as session:
+            dataset = models.Dataset(name="paging-ds", metadata_={})
+            session.add(dataset)
+            await session.flush()
+            dataset_version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+            session.add(dataset_version)
+            await session.flush()
+            experiments = [
+                models.Experiment(
+                    dataset_id=dataset.id,
+                    dataset_version_id=dataset_version.id,
+                    name=f"paging-{index}",
+                    repetitions=1,
+                    metadata_={},
+                    is_ephemeral=True,
+                    updated_at=expired_time,
+                )
+                for index in range(count)
+            ]
+            session.add_all(experiments)
+            await session.flush()
+            return sorted(int(experiment.id) for experiment in experiments)
+
+    async def test_sweeper_keeps_paging_past_a_batch_lost_to_lock_contention(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        from phoenix.server.api.exceptions import Conflict
+        from phoenix.server.cleanup import lifecycle
+        from phoenix.server.daemons import experiment_sweeper
+
+        experiment_ids = await self._insert_expired_backlog(db, 5)
+        monkeypatch.setattr(experiment_sweeper, "CLEANUP_BATCH_ROWS", 2)
+        original_lock = lifecycle.lock_experiment_projects
+        num_calls = 0
+
+        async def lock_once_conflicting(*args: Any, **kwargs: Any) -> Any:
+            nonlocal num_calls
+            num_calls += 1
+            if num_calls == 1:
+                raise Conflict("project locked")
+            return await original_lock(*args, **kwargs)
+
+        monkeypatch.setattr(experiment_sweeper, "lock_experiment_projects", lock_once_conflicting)
+        with caplog.at_level("INFO"):
+            await ExperimentSweeper(db=db)._delete_ephemeral_experiments()
+
+        assert not [record for record in caplog.records if record.levelname == "ERROR"]
+        for experiment_id in experiment_ids[:2]:
+            assert await self._experiment_exists(db, experiment_id)
+        for experiment_id in experiment_ids[2:]:
+            assert not await self._experiment_exists(db, experiment_id)
+
+    @pytest.mark.postgres_only
+    async def test_sweeper_keeps_paging_past_rows_locked_by_another_session(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from phoenix.server.daemons import experiment_sweeper
+
+        experiment_ids = await self._insert_expired_backlog(db, 5)
+        monkeypatch.setattr(experiment_sweeper, "CLEANUP_BATCH_ROWS", 2)
+        locked_experiment_id = experiment_ids[0]
+        async with db() as locking_session:
+            await locking_session.scalars(
+                sa.select(models.Experiment.id)
+                .where(models.Experiment.id == locked_experiment_id)
+                .with_for_update()
+            )
+            await ExperimentSweeper(db=db)._delete_ephemeral_experiments()
+
+        assert await self._experiment_exists(db, locked_experiment_id)
+        for experiment_id in experiment_ids[1:]:
+            assert not await self._experiment_exists(db, experiment_id)
