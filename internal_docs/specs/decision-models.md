@@ -132,7 +132,7 @@ are in [Open Questions](#16-open-questions).
 | Decision | Current default | Must be decided before |
 |---|---|---|
 | [Answer format](#51-answer-format) | Phoenix's own | The REST routes and `phoenix-client`, or the built-in metrics, whichever ships first |
-| [Stored question format](#52-stored-question-format) | Phoenix's own, close to OpenAI's | Saved decisions ship in a release |
+| [Stored question format](#52-stored-question-format) | Decided: Phoenix's own type names in OpenAI's structure | Saved decisions ship in a release |
 | [Span contents](#53-span-contents) | Raw provider bodies only | OpenInference instruments apps that call `format` |
 | [Reference answers in datasets](#54-reference-answers-in-datasets) | No convention; evaluators map paths | The built-in metrics ship (decided with them) |
 | [Translating for apps](#55-translating-for-apps) | Phoenix translates in `format()` | `phoenix-client` ships `format()` |
@@ -215,9 +215,22 @@ migrating stored run outputs and every evaluator mapping written against them.
 What `decision_versions.questions` (and the state and inputs beside them) is
 written in.
 
-**Current default:** Phoenix's own vocabulary, translated at the edge
-([principle 1](#9-principles)); this records the alternative, so the choice is made
-on purpose.
+**Decided (2026-11-25, #17119):** keep Phoenix's own vocabulary, in OpenAI's
+structure, translated at the edge ([principle 1](#9-principles)). Questions, choice
+options, and scale levels are ordered lists. The deliberation below is kept as the
+record of the alternative.
+
+The reasons hold whatever mix of providers Phoenix users run, so the usage check
+this section originally asked for was set aside:
+
+1. Order has to survive PostgreSQL, and System One's keyed objects would lose it.
+2. Scale levels need short labels, which System One does not have.
+3. Stored rows should not follow the faster-changing vendor format.
+
+Being wrong in the other direction would also cost more. Storing System One's
+format risks question and choice order changing between databases without any
+error, while keeping this format costs only translation, which the importer
+already does.
 
 **Alternative:** store System One's format.
 
@@ -266,9 +279,9 @@ For staying with the current (OpenAI-like) shape:
 The prompt precedent picked the format with the most use, and that is the
 measure to check here too: how much Phoenix users run each provider.
 
-**Decide before** saved decisions ship in a release. Until then, changing it means
-changing code; after, it means migrating stored versions and a new API version
-for clients ([principle 7](#9-principles)).
+Changing the format after a release means migrating stored versions and their
+copies, and a new API version for clients ([principle 7](#9-principles)). The
+rules the format follows, and how it may change, are in [Questions](#102-questions).
 
 ### 5.3 Span Contents
 
@@ -717,9 +730,8 @@ that don't apply here.
    decision definitions never store provider request bodies; only a run's
    span keeps the raw bodies (see [Span Contents](#53-span-contents)). When client
    formatters ship, shared fixtures should keep them aligned with the server
-   adapters. This is the current default, under review: see
-   [Answer Format](#51-answer-format) and
-   [Stored Question Format](#52-stored-question-format).
+   adapters. [Stored Question Format](#52-stored-question-format) is decided;
+   [Answer Format](#51-answer-format) is still under review.
 2. **New types are additive, and old clients fail clearly.** Questions and
    state variants are JSON discriminated by `type`; variables are derived from
    the templates. Writes are validated strictly. Apps can pin an old
@@ -857,11 +869,13 @@ image input:
   answers by name. Renaming is allowed but flagged, because it breaks continuity
   with earlier runs and with app code.
 - **Write-time rules.** Question names are unique within a version, choice
-  values are unique within a question, a choice has 2–255 options, and a scale
-  has 2–10 levels. At least one question is required; names, instructions,
+  values are unique within a question, level labels are unique within a
+  question, a choice has 2–255 options, and a scale has 2–10 levels. At least one question is required; names, instructions,
   choice values, and level labels cannot be blank. A list loses the key
   uniqueness a JSON object would give, so
-  uniqueness is checked explicitly. There is no limit on the number of
+  uniqueness is checked explicitly. Level labels must be unique because an
+  annotation records the most probable level's label when scoring writes labels;
+  two levels with one label would make that annotation ambiguous. There is no limit on the number of
   questions.
   - *Where the limits come from:* both providers document 2–255 choices
     (TypeSafe in its API docs, OpenAI in its SDK's request types); the 2–10
@@ -888,7 +902,13 @@ image input:
   so its translation folds them into the instructions.
 - **Scale levels** have a short `label` (required by OpenAI) and an optional
   `description`. The TypeSafe translation sends the description, or the label
-  if there is none.
+  if there is none. A level's position is its score, so reordering levels
+  changes the meaning of every stored score.
+- **Choice values are strings.** OpenAI also allows booleans and treats `true`
+  and `"true"` as different values. Phoenix stores text only, so that the two
+  cannot collide as keys in answer probabilities, choice scores, and annotation
+  labels. Importing an OpenAI request reports each boolean it saves as text,
+  and refuses a question that offers both a boolean and its text form.
 - **Question text is a plain string.** Instructions, predicate criteria, and
   choice and level descriptions are `str`; only the state may be structured.
   TypeSafe also accepts JSON in these fields, but OpenAI doesn't, and nothing
@@ -908,6 +928,12 @@ image input:
   answer; judging it (overlap with a reference box) is an evaluator's job.
 - **Provider-specific options**, if one ever matters, go in an allow-listed
   `options` field on the question, not in free-form JSON.
+- **How the format changes** ([principles 2 and 7](#9-principles)). Only by
+  adding: an existing field never changes meaning, and a new feature arrives as a
+  new question type or field. A client that meets an unknown type fails with an
+  "upgrade phoenix-client" error and never drops the question. A new field needs
+  a compatibility review, because the stored types reject unknown fields and an
+  older server could fail to read a row that has one.
 
 ### 10.3 Provider Wire Formats
 
