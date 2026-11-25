@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 
-import { useStableSearchParamsUpdater } from "@phoenix/hooks";
+import { useStableSearchParams } from "@phoenix/hooks";
 
 import type { ExperimentCompareNavigationItem } from "./experimentCompareExampleNavigation";
 import type { ExperimentCompareSlideoverState } from "./experimentCompareSlideoverSearchParams";
@@ -16,7 +16,7 @@ import {
  * compare tables build their memoized columns from them.
  */
 export function useExperimentCompareSlideoverState() {
-  const [searchParams, updateSearchParams] = useStableSearchParamsUpdater();
+  const [searchParams, updateSearchParams] = useStableSearchParams();
   const state = parseExperimentCompareSlideoverState(searchParams);
 
   const updateState = useCallback(

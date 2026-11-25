@@ -69,7 +69,7 @@ import type {
 } from "@phoenix/components/table/tableFeatures";
 import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
-import { useStableSearchParamsUpdater } from "@phoenix/hooks";
+import { useStableSearchParams } from "@phoenix/hooks";
 import type { ExperimentCompareListPageQuery } from "@phoenix/pages/experiment/__generated__/ExperimentCompareListPageQuery.graphql";
 import type { ExperimentComparePageQueriesCompareListQuery as ExperimentComparePageQueriesCompareListQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareListQuery.graphql";
 import {
@@ -147,7 +147,7 @@ export function ExperimentCompareListPage({
 }: {
   queryRef: PreloadedQuery<ExperimentComparePageQueriesCompareListQueryType>;
 }) {
-  const [searchParams, updateSearchParams] = useStableSearchParamsUpdater();
+  const [searchParams, updateSearchParams] = useStableSearchParams();
   const clearSelectedSpanSearchParam = useCallback(() => {
     updateSearchParams({
       update: (currentSearchParams) => {

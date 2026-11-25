@@ -54,7 +54,7 @@ import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import type { ColumnDef, Table } from "@phoenix/components/table/tableFeatures";
 import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
-import { useStableSearchParamsUpdater } from "@phoenix/hooks";
+import { useStableSearchParams } from "@phoenix/hooks";
 import type { ComparedExperimentSelection } from "@phoenix/pages/dataset/metrics/types";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
 import {
@@ -152,7 +152,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const [filterCondition, setFilterCondition] = useState("");
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
-  const [, updateSearchParams] = useStableSearchParamsUpdater();
+  const [, updateSearchParams] = useStableSearchParams();
   const clearSelectedSpanSearchParam = useCallback(() => {
     updateSearchParams({
       update: (currentSearchParams) => {

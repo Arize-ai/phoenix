@@ -20,7 +20,7 @@ export type SearchParamsUpdater = (params: {
  * callbacks would remount every cell. The updater also skips the navigation
  * when the update leaves the search unchanged.
  */
-export function useStableSearchParamsUpdater(): [
+export function useStableSearchParams(): [
   URLSearchParams,
   SearchParamsUpdater,
 ] {
