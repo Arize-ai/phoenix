@@ -60,7 +60,8 @@ const lgtm = service("lgtm", {
   volumeMounts: { "/data": lgtmData },
   env: {
     PORT: "3000",
-    GF_AUTH_ANONYMOUS_ENABLED: "false",
+    GF_AUTH_ANONYMOUS_ENABLED: "true",
+    GF_AUTH_ANONYMOUS_ORG_ROLE: "Viewer",
     GF_AUTH_DISABLE_LOGIN_FORM: "false",
     GF_USERS_ALLOW_SIGN_UP: "false",
     GF_SECURITY_ADMIN_PASSWORD:
