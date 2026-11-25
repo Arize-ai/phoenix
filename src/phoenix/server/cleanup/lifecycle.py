@@ -343,9 +343,10 @@ async def lock_dataset_delete_targets(
     *,
     dataset_id: int,
     candidate_project_names: Iterable[Optional[str]],
-) -> list[int]:
+) -> tuple[list[int], set[int]]:
     """Acquire all ``Project`` and ``Evaluator`` locks needed for dataset deletion in canonical
-    ``Dataset -> Project (id ASC) -> Evaluator (id ASC)`` order, returning live dataset binding IDs.
+    ``Dataset -> Project (id ASC) -> Evaluator (id ASC)`` order, returning live dataset binding IDs
+    and the ids of the experiment projects that were locked.
 
     Experiment project names are resolved to live project ids before any project lock is taken.
     """
@@ -392,7 +393,7 @@ async def lock_dataset_delete_targets(
     }
     await lock_evaluators(session, all_evaluator_ids)
 
-    return [int(row.id) for row in live_dataset_bindings]
+    return [int(row.id) for row in live_dataset_bindings], set(exp_project_ids)
 
 
 async def tombstone_project(
@@ -773,20 +774,17 @@ async def delete_dataset_and_tombstone_projects(
         for trace_id in (await session.scalars(get_eval_trace_ids_for_datasets(dataset_id))).all()
         if trace_id
     ]
-    experiment_rows = (
-        await session.execute(
-            select(models.Experiment.id, models.Experiment.project_name)
-            .where(models.Experiment.dataset_id == dataset_id)
-            .order_by(models.Experiment.id.asc())
+    candidate_project_names = set(
+        await session.scalars(
+            select(models.Experiment.project_name).where(
+                models.Experiment.dataset_id == dataset_id,
+                models.Experiment.project_name.is_not(None),
+            )
         )
-    ).all()
-    experiment_ids = [int(row.id) for row in experiment_rows]
-    candidate_project_names = {
-        row.project_name for row in experiment_rows if row.project_name is not None
-    }
+    )
 
     tombstoned_project_ids: set[int] = set()
-    live_binding_ids = await lock_dataset_delete_targets(
+    live_binding_ids, locked_experiment_project_ids = await lock_dataset_delete_targets(
         session,
         dataset_id=dataset_id,
         candidate_project_names=candidate_project_names,
@@ -800,8 +798,22 @@ async def delete_dataset_and_tombstone_projects(
         )
         tombstoned_project_ids.update(deleted_bindings.tombstoned_project_ids)
 
-    candidate_project_ids = await resolve_experiment_project_delete_candidates(
-        session, candidate_project_names=candidate_project_names
+    # Only experiments deleted here count: one a concurrent request deleted while keeping its
+    # project must not get that project tombstoned, and projects locked above are the only
+    # ones that may be tombstoned.
+    deleted_experiment_rows = (
+        await session.execute(
+            delete(models.Experiment)
+            .where(models.Experiment.dataset_id == dataset_id)
+            .returning(models.Experiment.id, models.Experiment.project_name)
+        )
+    ).all()
+    experiment_ids = sorted(int(row.id) for row in deleted_experiment_rows)
+    candidate_project_ids = locked_experiment_project_ids.intersection(
+        await resolve_experiment_project_delete_candidates(
+            session,
+            candidate_project_names=[row.project_name for row in deleted_experiment_rows],
+        )
     )
     deleted_dataset = await session.scalar(
         delete(models.Dataset).where(models.Dataset.id == dataset_id).returning(models.Dataset)

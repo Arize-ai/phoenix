@@ -1061,6 +1061,71 @@ async def test_concurrent_sync_builtin_evaluators_no_unique_violation(
 
 
 @pytest.mark.postgres_only
+async def test_dataset_delete_keeps_project_of_experiment_a_user_deleted_first(
+    postgresql_engine: AsyncEngine,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
+    async with db() as session:
+        kept_project = models.Project(name=f"kept-project-{token_hex(4)}")
+        removed_project = models.Project(name=f"removed-project-{token_hex(4)}")
+        dataset = models.Dataset(name=f"kept-ds-{token_hex(4)}", metadata_={})
+        session.add_all([kept_project, removed_project, dataset])
+        await session.flush()
+        dataset_version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+        session.add(dataset_version)
+        await session.flush()
+        kept_experiment = models.Experiment(
+            dataset_id=dataset.id,
+            dataset_version_id=dataset_version.id,
+            name=f"exp-{token_hex(4)}",
+            repetitions=1,
+            metadata_={},
+            project_name=kept_project.name,
+        )
+        removed_experiment = models.Experiment(
+            dataset_id=dataset.id,
+            dataset_version_id=dataset_version.id,
+            name=f"exp-{token_hex(4)}",
+            repetitions=1,
+            metadata_={},
+            project_name=removed_project.name,
+        )
+        session.add_all([kept_experiment, removed_experiment])
+        await session.flush()
+        dataset_id = dataset.id
+        kept_project_id = kept_project.id
+        removed_project_id = removed_project.id
+        kept_experiment_id = kept_experiment.id
+        removed_experiment_id = removed_experiment.id
+
+    original_lock = lifecycle.lock_dataset_delete_targets
+
+    async def _lock_then_let_user_delete(*args: Any, **kwargs: Any) -> Any:
+        locked = await original_lock(*args, **kwargs)
+        async with db() as user_session:
+            await user_session.execute(
+                delete(models.Experiment).where(models.Experiment.id == kept_experiment_id)
+            )
+        return locked
+
+    monkeypatch.setattr(lifecycle, "lock_dataset_delete_targets", _lock_then_let_user_delete)
+    async with db() as session:
+        deleted = await lifecycle.delete_dataset_and_tombstone_projects(
+            session, dataset_id=dataset_id
+        )
+    assert deleted.experiment_ids == [removed_experiment_id]
+
+    async with db() as session:
+        assert await session.get(models.Dataset, dataset_id) is None
+        assert await session.get(models.Experiment, removed_experiment_id) is None
+        kept = await session.get(models.Project, kept_project_id)
+        removed = await session.get(models.Project, removed_project_id)
+        assert kept is not None and kept.deleted_at is None
+        assert removed is not None and removed.deleted_at is not None
+
+
+@pytest.mark.postgres_only
 async def test_delete_dataset_locks_experiment_projects_before_evaluators_and_emits_events(
     postgresql_engine: AsyncEngine,
 ) -> None:
