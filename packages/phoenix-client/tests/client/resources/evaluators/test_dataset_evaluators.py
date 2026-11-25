@@ -116,6 +116,28 @@ class TestDatasetEvaluatorsCreate:
         )
         assert result["description"] == "override"
 
+    def test_create_sends_a_decision_binding_without_output_configs(self) -> None:
+        def handler(request: httpx.Request) -> httpx.Response:
+            assert json.loads(request.content) == {
+                "evaluator_type": "decision",
+                "name": "judge",
+                "evaluator_id": EVALUATOR_ID,
+                "input_mapping": INPUT_MAPPING,
+            }
+            return httpx.Response(
+                201, json={"data": _make_binding(evaluator_type="decision", name="judge")}
+            )
+
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
+        result = DatasetEvaluators(client).create(
+            dataset="golden-questions",
+            name="judge",
+            evaluator_id=EVALUATOR_ID,
+            evaluator_type="decision",
+            input_mapping=INPUT_MAPPING,
+        )
+        assert result["evaluator_type"] == "decision"
+
     def test_create_calls_guard_before_request(self) -> None:
         with pytest.raises(_GuardSentinel):
             DatasetEvaluators(
@@ -168,19 +190,16 @@ class TestDatasetEvaluatorsGetUpdate:
         def handler(request: httpx.Request) -> httpx.Response:
             assert request.method == "PATCH"
             assert request.url.path == f"/v1/dataset_evaluators/{BINDING_ID}"
-            assert json.loads(request.content) == {"evaluator_type": "code", "name": "renamed"}
+            assert json.loads(request.content) == {"name": "renamed"}
             return httpx.Response(200, json={"data": updated})
 
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
-        result = DatasetEvaluators(client).update(
-            dataset_evaluator_id=BINDING_ID, evaluator_type="code", name="renamed"
-        )
+        result = DatasetEvaluators(client).update(dataset_evaluator_id=BINDING_ID, name="renamed")
         assert result == updated
 
     def test_update_sends_explicit_null_to_clear_overrides(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
             assert json.loads(request.content) == {
-                "evaluator_type": "code",
                 "description": None,
                 "output_configs": None,
             }
@@ -189,16 +208,13 @@ class TestDatasetEvaluatorsGetUpdate:
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
         DatasetEvaluators(client).update(
             dataset_evaluator_id=BINDING_ID,
-            evaluator_type="code",
             description=None,
             output_configs=None,
         )
 
     def test_update_requires_a_field(self) -> None:
         with pytest.raises(ValueError, match="At least one field"):
-            DatasetEvaluators(_unreachable_client()).update(
-                dataset_evaluator_id=BINDING_ID, evaluator_type="code"
-            )
+            DatasetEvaluators(_unreachable_client()).update(dataset_evaluator_id=BINDING_ID)
 
 
 class TestDatasetEvaluatorsDelete:
@@ -259,6 +275,22 @@ class TestAsyncDatasetEvaluators:
             evaluator_type="code",
         )
         assert result == created
+
+    @pytest.mark.asyncio
+    async def test_update_sends_only_given_fields(self) -> None:
+        updated = _make_binding(name="renamed")
+
+        async def handler(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PATCH"
+            assert request.url.path == f"/v1/dataset_evaluators/{BINDING_ID}"
+            assert json.loads(request.content) == {"name": "renamed"}
+            return httpx.Response(200, json={"data": updated})
+
+        client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://test")
+        result = await AsyncDatasetEvaluators(client).update(
+            dataset_evaluator_id=BINDING_ID, name="renamed"
+        )
+        assert result == updated
 
     @pytest.mark.asyncio
     async def test_list_follows_pagination(self) -> None:

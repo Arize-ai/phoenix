@@ -136,9 +136,7 @@ async def test_output_config_overrides_hold_at_least_one_config(
     assert binding["output_configs"] is None
 
     binding_route = f"v1/dataset_evaluators/{binding['id']}"
-    rejected = await httpx_client.patch(
-        binding_route, json={"evaluator_type": "code", "output_configs": []}
-    )
+    rejected = await httpx_client.patch(binding_route, json={"output_configs": []})
     assert rejected.status_code == 422, rejected.text
     assert (await httpx_client.get(binding_route)).json()["data"] == binding
 
@@ -223,7 +221,6 @@ async def test_patch_llm_binding_overrides_with_tagged_and_untagged_prompt(
     updated = await httpx_client.patch(
         binding_route,
         json={
-            "evaluator_type": "llm",
             "description": "evaluates the correctness of the output",
             "output_configs": output_configs,
         },
@@ -234,7 +231,7 @@ async def test_patch_llm_binding_overrides_with_tagged_and_untagged_prompt(
 
     inherited = await httpx_client.patch(
         binding_route,
-        json={"evaluator_type": "llm", "description": None, "output_configs": None},
+        json={"description": None, "output_configs": None},
     )
     assert inherited.status_code == 200, inherited.text
     assert inherited.json()["data"]["description"] is None
@@ -301,7 +298,7 @@ async def test_patch_rename_to_taken_name_is_already_exists(
     ).json()["data"]
 
     response = await httpx_client.patch(
-        f"v1/dataset_evaluators/{renamer['id']}", json={"evaluator_type": "code", "name": "holder"}
+        f"v1/dataset_evaluators/{renamer['id']}", json={"name": "holder"}
     )
     assert response.status_code == 409, response.text
     problem = response.json()
@@ -349,9 +346,7 @@ async def test_wrong_typed_ids_are_invalid_argument_not_a_crash(
     responses = (
         # path: dataset_evaluator_id, on every verb that takes one
         await httpx_client.get(f"v1/dataset_evaluators/{wrong_type}"),
-        await httpx_client.patch(
-            f"v1/dataset_evaluators/{wrong_type}", json={"evaluator_type": "code", "name": "x"}
-        ),
+        await httpx_client.patch(f"v1/dataset_evaluators/{wrong_type}", json={"name": "x"}),
         await httpx_client.delete(f"v1/dataset_evaluators/{wrong_type}"),
         # query: the list route's cursor, and the bulk delete's repeated id
         await httpx_client.get(dataset_route, params={"cursor": wrong_type}),
@@ -396,15 +391,17 @@ async def test_evaluator_type_must_match_the_evaluator(
     binding = created.json()["data"]
     binding_route = f"v1/dataset_evaluators/{binding['id']}"
 
-    mismatched = await httpx_client.patch(
-        binding_route, json={"evaluator_type": "decision", "name": "renamed"}
+    tagged = await httpx_client.patch(
+        binding_route, json={"evaluator_type": "llm", "name": "renamed"}
     )
-    assert mismatched.status_code == 422, mismatched.text
-    assert "evaluator_type is 'decision', but the evaluator is 'llm'" in mismatched.text
+    assert tagged.status_code == 422, tagged.text
+    problem = tagged.json()
+    assert problem["code"] == "validation_error"
+    assert any(error["code"] == "unknown_field" for error in problem["errors"]), problem
     assert (await httpx_client.get(binding_route)).json()["data"] == binding
 
 
-async def test_patch_needs_a_field_besides_evaluator_type(
+async def test_empty_patch_is_a_validation_error(
     httpx_client: httpx.AsyncClient,
     db: DbSessionFactory,
     correctness_llm_evaluator: models.LLMEvaluator,
@@ -424,7 +421,7 @@ async def test_patch_needs_a_field_besides_evaluator_type(
     )
     assert created.status_code == 201, created.text
     response = await httpx_client.patch(
-        f"v1/dataset_evaluators/{created.json()['data']['id']}", json={"evaluator_type": "llm"}
+        f"v1/dataset_evaluators/{created.json()['data']['id']}", json={}
     )
     assert response.status_code == 422, response.text
     problem = response.json()
@@ -433,3 +430,50 @@ async def test_patch_needs_a_field_besides_evaluator_type(
         error["field"] == "body" and "At least one field must be provided" in error["message"]
         for error in problem["errors"]
     ), problem
+
+
+async def test_llm_binding_refuses_a_non_categorical_override(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    correctness_llm_evaluator: models.LLMEvaluator,
+) -> None:
+    async with db() as session:
+        dataset = models.Dataset(name=f"llm-override-{token_hex(4)}", metadata_={})
+        session.add(dataset)
+        await session.flush()
+    route = f"v1/datasets/{GlobalID('Dataset', str(dataset.id))}/evaluators"
+    body = {
+        "evaluator_type": "llm",
+        "name": "llm-binding",
+        "input_mapping": {"literal_mapping": {}, "path_mapping": {}},
+        "evaluator_id": str(GlobalID("LLMEvaluator", str(correctness_llm_evaluator.id))),
+    }
+    continuous = [{"type": "CONTINUOUS", "name": "score", "optimization_direction": "MAXIMIZE"}]
+
+    refused = await httpx_client.post(route, json={**body, "output_configs": continuous})
+    assert refused.status_code == 422, refused.text
+
+    created = await httpx_client.post(route, json=body)
+    assert created.status_code == 201, created.text
+    binding = created.json()["data"]
+    binding_route = f"v1/dataset_evaluators/{binding['id']}"
+    refused = await httpx_client.patch(binding_route, json={"output_configs": continuous})
+    assert refused.status_code == 422, refused.text
+    assert (await httpx_client.get(binding_route)).json()["data"] == binding
+
+
+async def test_invalid_patch_body_is_refused_before_the_binding_is_looked_up(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    missing = f"v1/dataset_evaluators/{GlobalID('DatasetEvaluator', '999999')}"
+    continuous = {
+        "type": "CONTINUOUS",
+        "name": "score",
+        "optimization_direction": "MAXIMIZE",
+        "lower_bound": 1.0,
+        "upper_bound": 0.0,
+    }
+    invalid = await httpx_client.patch(missing, json={"output_configs": [continuous]})
+    assert invalid.status_code == 422, invalid.text
+    absent = await httpx_client.patch(missing, json={"name": "renamed"})
+    assert absent.status_code == 404, absent.text

@@ -53,7 +53,6 @@ def _build_create_body(
 
 def _build_patch_body(
     *,
-    evaluator_type: EvaluatorType,
     name: Union[str, NotGiven],
     input_mapping: Union[v1.InputMapping, NotGiven],
     description: Union[str, None, NotGiven],
@@ -70,7 +69,7 @@ def _build_patch_body(
         body["output_configs"] = None if output_configs is None else list(output_configs)
     if not body:
         raise ValueError("At least one field to update must be provided.")
-    return {"evaluator_type": evaluator_type, **body}
+    return body
 
 
 def _delete_params(ids: Sequence[str]) -> tuple[tuple[str, str], ...]:
@@ -259,7 +258,6 @@ class DatasetEvaluators:
         self,
         *,
         dataset_evaluator_id: str,
-        evaluator_type: EvaluatorType,
         name: Union[str, NotGiven] = NOT_GIVEN,
         input_mapping: Union[v1.InputMapping, NotGiven] = NOT_GIVEN,
         description: Union[str, None, NotGiven] = NOT_GIVEN,
@@ -269,17 +267,15 @@ class DatasetEvaluators:
 
         Args:
             dataset_evaluator_id (str): The binding's ID.
-            evaluator_type (EvaluatorType): The kind of the evaluator the binding
-                runs, as the binding's ``evaluator_type`` reports it. A mismatch is
-                refused.
             name (str): A new name for the binding.
             input_mapping (v1.InputMapping): A new input mapping.
             description (Optional[str]): A new description override, or ``None``
                 to inherit the shared definition's description again.
             output_configs (Optional[Sequence[EvaluatorOutputConfig]]): New
                 output configuration overrides, at least one, or ``None`` to
-                inherit the shared definition's outputs again. Not accepted for
-                decision bindings.
+                inherit the shared definition's outputs again. An LLM binding's
+                must be categorical, and the server refuses a non-null override
+                for a decision binding.
 
         Returns:
             The updated binding.
@@ -289,7 +285,6 @@ class DatasetEvaluators:
             ValueError: If no field to update is provided.
         """
         json_ = _build_patch_body(
-            evaluator_type=evaluator_type,
             name=name,
             input_mapping=input_mapping,
             description=description,
@@ -527,7 +522,6 @@ class AsyncDatasetEvaluators:
         self,
         *,
         dataset_evaluator_id: str,
-        evaluator_type: EvaluatorType,
         name: Union[str, NotGiven] = NOT_GIVEN,
         input_mapping: Union[v1.InputMapping, NotGiven] = NOT_GIVEN,
         description: Union[str, None, NotGiven] = NOT_GIVEN,
@@ -537,17 +531,15 @@ class AsyncDatasetEvaluators:
 
         Args:
             dataset_evaluator_id (str): The binding's ID.
-            evaluator_type (EvaluatorType): The kind of the evaluator the binding
-                runs, as the binding's ``evaluator_type`` reports it. A mismatch is
-                refused.
             name (str): A new name for the binding.
             input_mapping (v1.InputMapping): A new input mapping.
             description (Optional[str]): A new description override, or ``None``
                 to inherit the shared definition's description again.
             output_configs (Optional[Sequence[EvaluatorOutputConfig]]): New
                 output configuration overrides, at least one, or ``None`` to
-                inherit the shared definition's outputs again. Not accepted for
-                decision bindings.
+                inherit the shared definition's outputs again. An LLM binding's
+                must be categorical, and the server refuses a non-null override
+                for a decision binding.
 
         Returns:
             The updated binding.
@@ -557,7 +549,6 @@ class AsyncDatasetEvaluators:
             ValueError: If no field to update is provided.
         """
         json_ = _build_patch_body(
-            evaluator_type=evaluator_type,
             name=name,
             input_mapping=input_mapping,
             description=description,

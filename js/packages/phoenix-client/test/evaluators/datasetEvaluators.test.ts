@@ -267,11 +267,10 @@ describe("getDatasetEvaluator and updateDatasetEvaluator", () => {
     const result = await updateDatasetEvaluator({
       client: createTestClient(),
       datasetEvaluatorId: BINDING_ID,
-      patch: { evaluator_type: "code", name: "renamed", output_configs: null },
+      patch: { name: "renamed", output_configs: null },
     });
 
     expect(receivedBody).toEqual({
-      evaluator_type: "code",
       name: "renamed",
       output_configs: null,
     });
@@ -283,7 +282,7 @@ describe("getDatasetEvaluator and updateDatasetEvaluator", () => {
       updateDatasetEvaluator({
         client: createTestClient(),
         datasetEvaluatorId: BINDING_ID,
-        patch: { evaluator_type: "code" },
+        patch: {},
       })
     ).rejects.toThrow("At least one field to update must be provided");
   });
@@ -293,7 +292,7 @@ describe("getDatasetEvaluator and updateDatasetEvaluator", () => {
       updateDatasetEvaluator({
         client: createTestClient(),
         datasetEvaluatorId: BINDING_ID,
-        patch: { evaluator_type: "code", description: undefined },
+        patch: { description: undefined },
       })
     ).rejects.toThrow("At least one field to update must be provided");
   });
@@ -315,10 +314,10 @@ describe("getDatasetEvaluator and updateDatasetEvaluator", () => {
     await updateDatasetEvaluator({
       client: createTestClient(),
       datasetEvaluatorId: BINDING_ID,
-      patch: { evaluator_type: "code", description: null },
+      patch: { description: null },
     });
 
-    expect(receivedBody).toEqual({ evaluator_type: "code", description: null });
+    expect(receivedBody).toEqual({ description: null });
   });
 });
 

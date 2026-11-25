@@ -5052,7 +5052,7 @@
           "evaluators"
         ],
         "summary": "Patch Dataset Evaluator",
-        "description": "Update only the binding. Dataset and evaluator references are immutable.\n\n`evaluator_type` must match the bound evaluator's kind, or the request is refused with 422.\n\nLLM output overrides must be categorical; nothing checks them against the prompt.\nDecision bindings take no output configurations. Use /evaluators/{evaluator_id} to\nmodify a shared definition instead.",
+        "description": "Update only the binding. Dataset and evaluator references are immutable.\n\nLLM output overrides must be categorical; nothing checks them against the prompt.\nDecision bindings take no output configurations, and a non-null override is refused.\nUse /evaluators/{evaluator_id} to modify a shared definition instead.",
         "operationId": "patchDatasetEvaluator",
         "parameters": [
           {
@@ -5070,30 +5070,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "oneOf": [
-                  {
-                    "$ref": "#/components/schemas/PatchLLMDatasetEvaluatorRequest"
-                  },
-                  {
-                    "$ref": "#/components/schemas/PatchCodeDatasetEvaluatorRequest"
-                  },
-                  {
-                    "$ref": "#/components/schemas/PatchBuiltInDatasetEvaluatorRequest"
-                  },
-                  {
-                    "$ref": "#/components/schemas/PatchDecisionDatasetEvaluatorRequest"
-                  }
-                ],
-                "discriminator": {
-                  "propertyName": "evaluator_type",
-                  "mapping": {
-                    "llm": "#/components/schemas/PatchLLMDatasetEvaluatorRequest",
-                    "code": "#/components/schemas/PatchCodeDatasetEvaluatorRequest",
-                    "builtin": "#/components/schemas/PatchBuiltInDatasetEvaluatorRequest",
-                    "decision": "#/components/schemas/PatchDecisionDatasetEvaluatorRequest"
-                  }
-                },
-                "title": "Body"
+                "$ref": "#/components/schemas/PatchDatasetEvaluatorRequest"
               }
             }
           }
@@ -22434,144 +22411,6 @@
         ],
         "title": "PatchAgentSessionResponseBody"
       },
-      "PatchBuiltInDatasetEvaluatorRequest": {
-        "properties": {
-          "name": {
-            "$ref": "#/components/schemas/Identifier"
-          },
-          "input_mapping": {
-            "$ref": "#/components/schemas/InputMapping"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description",
-            "description": "Omit to preserve; null restores inheritance."
-          },
-          "evaluator_type": {
-            "type": "string",
-            "const": "builtin",
-            "title": "Evaluator Type",
-            "description": "The kind of the evaluator the binding runs. It must match the evaluator's own kind and selects the fields the binding takes: a decision binding takes no output configs."
-          },
-          "output_configs": {
-            "anyOf": [
-              {
-                "items": {
-                  "oneOf": [
-                    {
-                      "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
-                    },
-                    {
-                      "$ref": "#/components/schemas/ContinuousAnnotationConfigData"
-                    },
-                    {
-                      "$ref": "#/components/schemas/FreeformAnnotationConfigData"
-                    }
-                  ],
-                  "discriminator": {
-                    "propertyName": "type",
-                    "mapping": {
-                      "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigData",
-                      "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigData",
-                      "FREEFORM": "#/components/schemas/FreeformAnnotationConfigData"
-                    }
-                  }
-                },
-                "type": "array",
-                "minItems": 1
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Output Configs",
-            "description": "Omit to preserve; null restores inheritance. An override needs at least one config, each with its own name. Nothing checks them against the evaluator."
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "minProperties": 2,
-        "required": [
-          "evaluator_type"
-        ],
-        "title": "PatchBuiltInDatasetEvaluatorRequest"
-      },
-      "PatchCodeDatasetEvaluatorRequest": {
-        "properties": {
-          "name": {
-            "$ref": "#/components/schemas/Identifier"
-          },
-          "input_mapping": {
-            "$ref": "#/components/schemas/InputMapping"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description",
-            "description": "Omit to preserve; null restores inheritance."
-          },
-          "evaluator_type": {
-            "type": "string",
-            "const": "code",
-            "title": "Evaluator Type",
-            "description": "The kind of the evaluator the binding runs. It must match the evaluator's own kind and selects the fields the binding takes: a decision binding takes no output configs."
-          },
-          "output_configs": {
-            "anyOf": [
-              {
-                "items": {
-                  "oneOf": [
-                    {
-                      "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
-                    },
-                    {
-                      "$ref": "#/components/schemas/ContinuousAnnotationConfigData"
-                    },
-                    {
-                      "$ref": "#/components/schemas/FreeformAnnotationConfigData"
-                    }
-                  ],
-                  "discriminator": {
-                    "propertyName": "type",
-                    "mapping": {
-                      "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigData",
-                      "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigData",
-                      "FREEFORM": "#/components/schemas/FreeformAnnotationConfigData"
-                    }
-                  }
-                },
-                "type": "array",
-                "minItems": 1
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Output Configs",
-            "description": "Omit to preserve; null restores inheritance. An override needs at least one config, each with its own name. Nothing checks them against the evaluator."
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "minProperties": 2,
-        "required": [
-          "evaluator_type"
-        ],
-        "title": "PatchCodeDatasetEvaluatorRequest"
-      },
       "PatchCodeEvaluatorRequest": {
         "properties": {
           "type": {
@@ -22655,7 +22494,7 @@
         ],
         "title": "PatchCodeEvaluatorRequest"
       },
-      "PatchDecisionDatasetEvaluatorRequest": {
+      "PatchDatasetEvaluatorRequest": {
         "properties": {
           "name": {
             "$ref": "#/components/schemas/Identifier"
@@ -22675,21 +22514,45 @@
             "title": "Description",
             "description": "Omit to preserve; null restores inheritance."
           },
-          "evaluator_type": {
-            "type": "string",
-            "const": "decision",
-            "title": "Evaluator Type",
-            "description": "The kind of the evaluator the binding runs. It must match the evaluator's own kind and selects the fields the binding takes: a decision binding takes no output configs."
+          "output_configs": {
+            "anyOf": [
+              {
+                "items": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ContinuousAnnotationConfigData"
+                    },
+                    {
+                      "$ref": "#/components/schemas/FreeformAnnotationConfigData"
+                    }
+                  ],
+                  "discriminator": {
+                    "propertyName": "type",
+                    "mapping": {
+                      "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfigData",
+                      "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfigData",
+                      "FREEFORM": "#/components/schemas/FreeformAnnotationConfigData"
+                    }
+                  }
+                },
+                "type": "array",
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Configs",
+            "description": "Omit to preserve; null restores inheritance. An override needs at least one config, each with its own name. An LLM binding's must be categorical. A decision binding takes none and is refused. Nothing checks them against the prompt."
           }
         },
         "additionalProperties": false,
         "type": "object",
-        "minProperties": 2,
-        "required": [
-          "evaluator_type"
-        ],
-        "title": "PatchDecisionDatasetEvaluatorRequest",
-        "description": "A decision binding's outputs follow the evaluator's questions and scoring policy."
+        "minProperties": 1,
+        "title": "PatchDatasetEvaluatorRequest"
       },
       "PatchDecisionEvaluatorRequest": {
         "properties": {
@@ -22793,57 +22656,6 @@
           "data"
         ],
         "title": "PatchDecisionResponseBody"
-      },
-      "PatchLLMDatasetEvaluatorRequest": {
-        "properties": {
-          "name": {
-            "$ref": "#/components/schemas/Identifier"
-          },
-          "input_mapping": {
-            "$ref": "#/components/schemas/InputMapping"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description",
-            "description": "Omit to preserve; null restores inheritance."
-          },
-          "evaluator_type": {
-            "type": "string",
-            "const": "llm",
-            "title": "Evaluator Type",
-            "description": "The kind of the evaluator the binding runs. It must match the evaluator's own kind and selects the fields the binding takes: a decision binding takes no output configs."
-          },
-          "output_configs": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/CategoricalAnnotationConfigData"
-                },
-                "type": "array",
-                "minItems": 1
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Output Configs",
-            "description": "Omit to preserve; null restores inheritance. An override needs at least one config, each with its own name. Nothing checks them against the evaluator."
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "minProperties": 2,
-        "required": [
-          "evaluator_type"
-        ],
-        "title": "PatchLLMDatasetEvaluatorRequest"
       },
       "PatchLLMEvaluatorRequest": {
         "properties": {

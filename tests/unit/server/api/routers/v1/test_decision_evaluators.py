@@ -79,7 +79,7 @@ async def test_decision_evaluator_and_binding_lifecycle(
     assert "scoring_policy" not in binding
     response = await httpx_client.patch(
         f"v1/dataset_evaluators/{binding['id']}",
-        json={"evaluator_type": "decision", "scoring_policy": None},
+        json={"scoring_policy": None},
     )
     assert response.status_code == 422, response.text
     assert (await httpx_client.delete(route)).status_code == 409
@@ -182,13 +182,14 @@ async def test_decision_bindings_take_no_output_configs_not_even_the_derived_one
     binding = created.json()["data"]
     assert binding["output_configs"] is None
     binding_route = f"v1/dataset_evaluators/{binding['id']}"
-    for output_configs in (evaluator["output_configs"], None):
-        response = await httpx_client.patch(
-            binding_route,
-            json={"evaluator_type": "decision", "output_configs": output_configs},
-        )
-        assert response.status_code == 422, response.text
+    response = await httpx_client.patch(
+        binding_route, json={"output_configs": evaluator["output_configs"]}
+    )
+    assert response.status_code == 422, response.text
     assert (await httpx_client.get(binding_route)).json()["data"] == binding
+    response = await httpx_client.patch(binding_route, json={"output_configs": None})
+    assert response.status_code == 200, response.text
+    assert response.json()["data"]["output_configs"] is None
 
 
 async def _judge_and_newer_version(

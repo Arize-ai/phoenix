@@ -769,11 +769,9 @@ export interface paths {
          * Patch Dataset Evaluator
          * @description Update only the binding. Dataset and evaluator references are immutable.
          *
-         *     `evaluator_type` must match the bound evaluator's kind, or the request is refused with 422.
-         *
          *     LLM output overrides must be categorical; nothing checks them against the prompt.
-         *     Decision bindings take no output configurations. Use /evaluators/{evaluator_id} to
-         *     modify a shared definition instead.
+         *     Decision bindings take no output configurations, and a non-null override is refused.
+         *     Use /evaluators/{evaluator_id} to modify a shared definition instead.
          */
         patch: operations["patchDatasetEvaluator"];
         trace?: never;
@@ -5868,46 +5866,6 @@ export interface components {
         PatchAgentSessionResponseBody: {
             data: components["schemas"]["AgentSessionData"];
         };
-        /** PatchBuiltInDatasetEvaluatorRequest */
-        PatchBuiltInDatasetEvaluatorRequest: {
-            name?: components["schemas"]["Identifier"];
-            input_mapping?: components["schemas"]["InputMapping"];
-            /**
-             * Description
-             * @description Omit to preserve; null restores inheritance.
-             */
-            description?: string | null;
-            /**
-             * @description The kind of the evaluator the binding runs. It must match the evaluator's own kind and selects the fields the binding takes: a decision binding takes no output configs. (enum property replaced by openapi-typescript)
-             * @enum {string}
-             */
-            evaluator_type: "builtin";
-            /**
-             * Output Configs
-             * @description Omit to preserve; null restores inheritance. An override needs at least one config, each with its own name. Nothing checks them against the evaluator.
-             */
-            output_configs?: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[] | null;
-        };
-        /** PatchCodeDatasetEvaluatorRequest */
-        PatchCodeDatasetEvaluatorRequest: {
-            name?: components["schemas"]["Identifier"];
-            input_mapping?: components["schemas"]["InputMapping"];
-            /**
-             * Description
-             * @description Omit to preserve; null restores inheritance.
-             */
-            description?: string | null;
-            /**
-             * @description The kind of the evaluator the binding runs. It must match the evaluator's own kind and selects the fields the binding takes: a decision binding takes no output configs. (enum property replaced by openapi-typescript)
-             * @enum {string}
-             */
-            evaluator_type: "code";
-            /**
-             * Output Configs
-             * @description Omit to preserve; null restores inheritance. An override needs at least one config, each with its own name. Nothing checks them against the evaluator.
-             */
-            output_configs?: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[] | null;
-        };
         /** PatchCodeEvaluatorRequest */
         PatchCodeEvaluatorRequest: {
             /**
@@ -5931,11 +5889,8 @@ export interface components {
                 [key: string]: unknown;
             } | null;
         };
-        /**
-         * PatchDecisionDatasetEvaluatorRequest
-         * @description A decision binding's outputs follow the evaluator's questions and scoring policy.
-         */
-        PatchDecisionDatasetEvaluatorRequest: {
+        /** PatchDatasetEvaluatorRequest */
+        PatchDatasetEvaluatorRequest: {
             name?: components["schemas"]["Identifier"];
             input_mapping?: components["schemas"]["InputMapping"];
             /**
@@ -5944,10 +5899,10 @@ export interface components {
              */
             description?: string | null;
             /**
-             * @description The kind of the evaluator the binding runs. It must match the evaluator's own kind and selects the fields the binding takes: a decision binding takes no output configs. (enum property replaced by openapi-typescript)
-             * @enum {string}
+             * Output Configs
+             * @description Omit to preserve; null restores inheritance. An override needs at least one config, each with its own name. An LLM binding's must be categorical. A decision binding takes none and is refused. Nothing checks them against the prompt.
              */
-            evaluator_type: "decision";
+            output_configs?: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[] | null;
         };
         /** PatchDecisionEvaluatorRequest */
         PatchDecisionEvaluatorRequest: {
@@ -5999,26 +5954,6 @@ export interface components {
         /** PatchDecisionResponseBody */
         PatchDecisionResponseBody: {
             data: components["schemas"]["Decision"];
-        };
-        /** PatchLLMDatasetEvaluatorRequest */
-        PatchLLMDatasetEvaluatorRequest: {
-            name?: components["schemas"]["Identifier"];
-            input_mapping?: components["schemas"]["InputMapping"];
-            /**
-             * Description
-             * @description Omit to preserve; null restores inheritance.
-             */
-            description?: string | null;
-            /**
-             * @description The kind of the evaluator the binding runs. It must match the evaluator's own kind and selects the fields the binding takes: a decision binding takes no output configs. (enum property replaced by openapi-typescript)
-             * @enum {string}
-             */
-            evaluator_type: "llm";
-            /**
-             * Output Configs
-             * @description Omit to preserve; null restores inheritance. An override needs at least one config, each with its own name. Nothing checks them against the evaluator.
-             */
-            output_configs?: components["schemas"]["CategoricalAnnotationConfigData"][] | null;
         };
         /** PatchLLMEvaluatorRequest */
         PatchLLMEvaluatorRequest: {
@@ -12517,7 +12452,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["PatchLLMDatasetEvaluatorRequest"] | components["schemas"]["PatchCodeDatasetEvaluatorRequest"] | components["schemas"]["PatchBuiltInDatasetEvaluatorRequest"] | components["schemas"]["PatchDecisionDatasetEvaluatorRequest"];
+                "application/json": components["schemas"]["PatchDatasetEvaluatorRequest"];
             };
         };
         responses: {

@@ -566,13 +566,6 @@ class OtlpStatus(TypedDict):
     message: NotRequired[str]
 
 
-class PatchDecisionDatasetEvaluatorRequest(TypedDict):
-    evaluator_type: Literal["decision"]
-    name: NotRequired[str]
-    input_mapping: NotRequired[InputMapping]
-    description: NotRequired[str]
-
-
 class PatchDecisionLabelRequestBody(TypedDict):
     name: NotRequired[str]
     color: NotRequired[str]
@@ -2157,38 +2150,6 @@ class ListDatasetExamplesResponseBody(TypedDict):
     data: ListDatasetExamplesData
 
 
-class PatchBuiltInDatasetEvaluatorRequest(TypedDict):
-    evaluator_type: Literal["builtin"]
-    name: NotRequired[str]
-    input_mapping: NotRequired[InputMapping]
-    description: NotRequired[str]
-    output_configs: NotRequired[
-        Sequence[
-            Union[
-                CategoricalAnnotationConfigData,
-                ContinuousAnnotationConfigData,
-                FreeformAnnotationConfigData,
-            ]
-        ]
-    ]
-
-
-class PatchCodeDatasetEvaluatorRequest(TypedDict):
-    evaluator_type: Literal["code"]
-    name: NotRequired[str]
-    input_mapping: NotRequired[InputMapping]
-    description: NotRequired[str]
-    output_configs: NotRequired[
-        Sequence[
-            Union[
-                CategoricalAnnotationConfigData,
-                ContinuousAnnotationConfigData,
-                FreeformAnnotationConfigData,
-            ]
-        ]
-    ]
-
-
 class PatchCodeEvaluatorRequest(TypedDict):
     type: Literal["code"]
     name: NotRequired[str]
@@ -2207,6 +2168,21 @@ class PatchCodeEvaluatorRequest(TypedDict):
     input_schema: NotRequired[Mapping[str, Any]]
 
 
+class PatchDatasetEvaluatorRequest(TypedDict):
+    name: NotRequired[str]
+    input_mapping: NotRequired[InputMapping]
+    description: NotRequired[str]
+    output_configs: NotRequired[
+        Sequence[
+            Union[
+                CategoricalAnnotationConfigData,
+                ContinuousAnnotationConfigData,
+                FreeformAnnotationConfigData,
+            ]
+        ]
+    ]
+
+
 class PatchDecisionEvaluatorRequest(TypedDict):
     type: Literal["decision"]
     name: NotRequired[str]
@@ -2217,14 +2193,6 @@ class PatchDecisionEvaluatorRequest(TypedDict):
 
 class PatchDecisionResponseBody(TypedDict):
     data: Decision
-
-
-class PatchLLMDatasetEvaluatorRequest(TypedDict):
-    evaluator_type: Literal["llm"]
-    name: NotRequired[str]
-    input_mapping: NotRequired[InputMapping]
-    description: NotRequired[str]
-    output_configs: NotRequired[Sequence[CategoricalAnnotationConfigData]]
 
 
 class PatchLLMEvaluatorRequest(TypedDict):

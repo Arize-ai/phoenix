@@ -137,7 +137,7 @@ are in [Open Questions](#16-open-questions).
 | [Reference answers in datasets](#54-reference-answers-in-datasets) | No convention; evaluators map paths | The built-in metrics ship (decided with them) |
 | [Translating for apps](#55-translating-for-apps) | Phoenix translates in `format()` | `phoenix-client` ships `format()` |
 | [Evaluator annotation metadata](#56-evaluator-annotation-metadata) | Unversioned `metadata.decision` | A release stores judge results |
-| [Output configs and scoring policies](#57-output-configs-and-scoring-policies) | Dataset binding bodies are a union keyed by `evaluator_type`, and the decision variant has no `output_configs` | Settled |
+| [Output configs and scoring policies](#57-output-configs-and-scoring-policies) | Dataset binding create bodies are a union keyed by `evaluator_type` and the decision variant has no `output_configs`; patch bodies are flat | Settled |
 | [Evaluator version pinning](#58-evaluator-version-pinning) | Each evaluator runs through its own generated tag (`decision_version_tag_id`, nullable, `ON DELETE SET NULL`), or its decision's newest version once the tag is gone; tag moves and deletes aren't checked, and drifted scoring adapts | Settled |
 
 The first six choose a format at a boundary: the stored version, the run
@@ -418,19 +418,24 @@ policy, which says the same thing in more detail (thresholds, choice scores, sca
 labels), and its output configs are derived from the policy and its questions. So
 for decisions, `output_configs` is read-only in effect.
 
-Dataset binding bodies are typed by evaluator kind. `POST
-/v1/datasets/{id}/evaluators` and `PATCH /v1/dataset_evaluators/{id}` take a union
-keyed by a required `evaluator_type` (`llm`, `code`, `builtin`, `decision`), named
-like the field binding reads return. The LLM variant's `output_configs` are
-categorical, the code and built-in variants take any output config, and the
-decision variant has no `output_configs`, so sending them, even the derived ones,
-fails validation. The server refuses an `evaluator_type` that disagrees with the
-evaluator's kind with 422, and a patch needs a field besides `evaluator_type`.
+Dataset binding create bodies are typed by evaluator kind. `POST
+/v1/datasets/{id}/evaluators` takes a union keyed by a required `evaluator_type`
+(`llm`, `code`, `builtin`, `decision`), named like the field binding reads return.
+The LLM variant's `output_configs` are categorical, the code and built-in variants
+take any output config, and the decision variant has no `output_configs`, so
+sending them, even the derived ones, fails validation. The server refuses an
+`evaluator_type` that disagrees with the evaluator's kind with 422.
 
-| Binding field | REST create and patch | GraphQL |
-|---|---|---|
-| `output_configs` on a decision binding | Not a field of the decision variant | Not taken by decision mutations |
-| Reads | A binding returns only what it stores, so a decision binding's `output_configs` is null; `/v1/evaluators` returns the derived configs beside the judge's policy | Derived configs on bindings, and beside the policy on evaluators |
+`PATCH /v1/dataset_evaluators/{id}` takes a flat body, because the bound evaluator
+cannot change and only `output_configs` depends on its kind. The server requires
+categorical overrides for an LLM binding and refuses a non-null `output_configs`
+for a decision binding, even the derived ones. A null restores inheritance for
+every kind, and a patch needs at least one field.
+
+| Binding field | REST create | REST patch | GraphQL |
+|---|---|---|---|
+| `output_configs` on a decision binding | Not a field of the decision variant | Refused unless null | Not taken by decision mutations |
+| Reads | A binding returns only what it stores, so a decision binding's `output_configs` is null; `/v1/evaluators` returns the derived configs beside the judge's policy | Same as create | Derived configs on bindings, and beside the policy on evaluators |
 
 Project bindings take no output or description overrides, so their request
 bodies are the same for every evaluator kind and carry no `evaluator_type`.
@@ -439,9 +444,9 @@ Bindings have no `scoring_policy`: scoring is the judge's own (see
 [Bindings](#143-bindings)). If bindings later override a judge's scoring, the
 override becomes a field of the decision variant in its own shape.
 
-Typing the bodies puts each field only where it can be written, so the generated
-schema and SDK types state the rule. The cost is that `evaluator_type` repeats
-what `evaluator_id` implies, which is why a mismatch is refused.
+Typing the create bodies puts each field only where it can be written, so the
+generated schema and SDK types state the rule. The cost is that `evaluator_type`
+repeats what `evaluator_id` implies, which is why a mismatch is refused.
 
 A further step would split every output config into its shape (annotation names,
 labels, score types), derived from the evaluator, and its scoring (label scores,
@@ -451,7 +456,7 @@ evaluator's shape comes from its prompt's tools, a built-in evaluator's from its
 class, and only a code evaluator authors its own. Under that split, reads would
 return derived configs for every kind, and writes would take only scoring,
 except for code. The decision variant above is already that end state, so typing
-the bodies does not block it. Reads keep `output_configs` either way, because
+the create bodies does not block it. Reads keep `output_configs` either way, because
 annotation names and score types come from it.
 
 ### 5.8 Evaluator Version Pinning

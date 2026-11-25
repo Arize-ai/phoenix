@@ -434,7 +434,7 @@ describe("dataset evaluator update", () => {
       { from: "user" }
     );
 
-    expect(receivedBody).toEqual({ evaluator_type: "code", name: "renamed" });
+    expect(receivedBody).toEqual({ name: "renamed" });
   });
 
   it("sends explicit nulls for --inherit-* flags", async () => {
@@ -462,26 +462,36 @@ describe("dataset evaluator update", () => {
     );
 
     expect(receivedBody).toEqual({
-      evaluator_type: "code",
       description: null,
       output_configs: null,
     });
   });
 
-  it("refuses --inherit-output-configs on a decision binding without patching it", async () => {
-    serveBinding({
-      ...BINDING,
-      evaluator_id: DECISION_EVALUATOR_ID,
-      evaluator_type: "decision",
-    });
-    let calls = 0;
+  it("surfaces the server's refusal of --output-configs on a decision binding", async () => {
+    let numBindingReads = 0;
     mock.server.use(
-      http.patch(
+      http.get(
         "/v1/dataset_evaluators/{dataset_evaluator_id}",
         ({ response }) => {
-          calls += 1;
+          numBindingReads += 1;
           return response(200).json({ data: BINDING });
         }
+      ),
+      http.patch("/v1/dataset_evaluators/{dataset_evaluator_id}", () =>
+        Response.json(
+          {
+            type: "about:blank",
+            title: "Unprocessable Entity",
+            status: 422,
+            code: "invalid_argument",
+            detail:
+              "Decision outputs are derived from the questions and scoring policy",
+          },
+          {
+            status: 422,
+            headers: { "content-type": "application/problem+json" },
+          }
+        )
       )
     );
     const io = captureCliOutput();
@@ -492,19 +502,20 @@ describe("dataset evaluator update", () => {
         [
           "update",
           BINDING_ID,
-          "--inherit-output-configs",
+          "--output-configs",
+          JSON.stringify([{ type: "FREEFORM", name: "notes" }]),
           "--format",
           "raw",
           ...BASE_ARGS,
         ],
         { from: "user" }
       )
-    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+    ).rejects.toThrow("process.exit:");
 
-    expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
-    expect(calls).toBe(0);
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
+    expect(numBindingReads).toBe(0);
     expect(String(io.stderr.mock.calls[0]?.[0])).toContain(
-      "A decision binding takes no output configs"
+      "Decision outputs are derived"
     );
   });
 
@@ -567,7 +578,7 @@ describe("dataset evaluator update", () => {
       error:
         "Error updating dataset evaluator: --output-configs must be a non-empty JSON array",
       code: "INVALID_ARGUMENT",
-      hint: `px dataset evaluator update ${BINDING_ID} (omit --output-configs, or pass --inherit-output-configs for a non-decision binding)`,
+      hint: `px dataset evaluator update ${BINDING_ID} (omit --output-configs, or pass --inherit-output-configs to follow the evaluator's outputs)`,
     });
   });
 

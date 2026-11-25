@@ -112,17 +112,12 @@ export type EvaluatorOutputConfig =
 export type DatasetEvaluator = components["schemas"]["DatasetEvaluator"];
 
 /**
- * Fields that can change on a dataset binding. `evaluator_type` selects the
- * variant and must match the kind of the evaluator the binding runs; a decision
- * binding takes no `output_configs`. Omitted fields keep their current values.
+ * Fields that can change on a dataset binding. Omitted fields keep their
+ * current values. An `output_configs` override holds at least one config, and
+ * the server refuses a non-null override for a decision binding.
  */
 export type DatasetEvaluatorPatch =
-  | components["schemas"]["PatchLLMDatasetEvaluatorRequest"]
-  | components["schemas"]["PatchCodeDatasetEvaluatorRequest"]
-  | components["schemas"]["PatchBuiltInDatasetEvaluatorRequest"]
-  | (components["schemas"]["PatchDecisionDatasetEvaluatorRequest"] & {
-      output_configs?: never;
-    });
+  components["schemas"]["PatchDatasetEvaluatorRequest"];
 
 /**
  * Identifies a dataset by ID or by name. The server accepts either in the

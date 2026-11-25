@@ -388,16 +388,16 @@ async function datasetEvaluatorCreateHandler(
  * definition's outputs, the parsed override when one was given, otherwise
  * nothing so the binding keeps what it has.
  */
-function buildOutputConfigsOverride<Config>({
+function buildOutputConfigsOverride({
   outputConfigs,
   inherit,
 }: {
   outputConfigs: unknown[] | undefined;
   inherit: boolean | undefined;
-}): { output_configs?: Config[] | null } {
+}): { output_configs?: OutputConfig[] | null } {
   if (inherit) return { output_configs: null };
   if (outputConfigs === undefined) return {};
-  return { output_configs: outputConfigs as Config[] };
+  return { output_configs: outputConfigs as OutputConfig[] };
 }
 
 /**
@@ -470,7 +470,7 @@ async function datasetEvaluatorUpdateHandler(
             flag: "--output-configs",
             value: options.outputConfigs,
             nonEmpty: {
-              hint: `px dataset evaluator update ${datasetEvaluatorId} (omit --output-configs, or pass --inherit-output-configs for a non-decision binding)`,
+              hint: `px dataset evaluator update ${datasetEvaluatorId} (omit --output-configs, or pass --inherit-output-configs to follow the evaluator's outputs)`,
             },
           })
         : undefined;
@@ -481,44 +481,13 @@ async function datasetEvaluatorUpdateHandler(
       noProgress: !options.progress,
     });
 
-    const { evaluator_type: evaluatorType } = await getDatasetEvaluator({
-      client,
-      datasetEvaluatorId,
-    });
-    let patch: PatchRequest;
-    switch (evaluatorType) {
-      case "decision":
-        if (outputConfigs !== undefined || options.inheritOutputConfigs) {
-          throw new InvalidArgumentError(DECISION_OUTPUT_CONFIGS_MESSAGE);
-        }
-        patch = { ...fields, evaluator_type: "decision" };
-        break;
-      case "llm":
-        patch = {
-          ...fields,
-          evaluator_type: "llm",
-          ...buildOutputConfigsOverride<CategoricalOutputConfig>({
-            outputConfigs,
-            inherit: options.inheritOutputConfigs,
-          }),
-        };
-        break;
-      case "code":
-      case "builtin":
-        patch = {
-          ...fields,
-          evaluator_type: evaluatorType,
-          ...buildOutputConfigsOverride<OutputConfig>({
-            outputConfigs,
-            inherit: options.inheritOutputConfigs,
-          }),
-        };
-        break;
-      default:
-        throw new InvalidArgumentError(
-          `${datasetEvaluatorId} is not a dataset evaluator`
-        );
-    }
+    const patch: PatchRequest = {
+      ...fields,
+      ...buildOutputConfigsOverride({
+        outputConfigs,
+        inherit: options.inheritOutputConfigs,
+      }),
+    };
     const binding = await updateDatasetEvaluator({
       client,
       datasetEvaluatorId,
@@ -703,7 +672,7 @@ export function createDatasetEvaluatorUpdateCommand(): Command {
         )
         .option(
           "--inherit-output-configs",
-          "Drop the output configuration overrides and inherit the definition's (decision evaluators: not accepted)"
+          "Drop the output configuration overrides and inherit the definition's"
         )
     )
   )

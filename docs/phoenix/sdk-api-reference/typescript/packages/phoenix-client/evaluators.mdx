@@ -255,7 +255,6 @@ import { updateDatasetEvaluator } from "@arizeai/phoenix-client/evaluators";
 await updateDatasetEvaluator({
   datasetEvaluatorId: "RGF0YXNldEV2YWx1YXRvcjox",
   patch: {
-    evaluator_type: "code",
     output_configs: [
       { type: "CONTINUOUS", name: "score", optimization_direction: "MAXIMIZE" },
     ],
@@ -265,13 +264,13 @@ await updateDatasetEvaluator({
 // Drop the override and follow the evaluator's outputs again
 await updateDatasetEvaluator({
   datasetEvaluatorId: "RGF0YXNldEV2YWx1YXRvcjox",
-  patch: { evaluator_type: "code", output_configs: null },
+  patch: { output_configs: null },
 });
 ```
 
-- Every patch names `evaluator_type`, the binding's `evaluator_type`; the server refuses a mismatch.
+- A patch takes no `evaluator_type`, because a binding's evaluator cannot change.
 - An `output_configs` override needs at least one config; `[]` is rejected.
-- A decision binding takes no `output_configs`: its outputs follow the evaluator's questions and scoring policy.
+- A decision binding takes no `output_configs`, and the server refuses a non-null override: its outputs follow the evaluator's questions and scoring policy.
 - On an LLM evaluator, output overrides must be categorical. Nothing checks them, or a description override, against the prompt.
 - `getDatasetEvaluator` and `getDatasetEvaluators` return the stored overrides; `null` means the binding uses the evaluator's value.
 

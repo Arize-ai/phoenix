@@ -55,7 +55,8 @@ _CREATE_OUTPUT_CONFIGS_DESCRIPTION = (
 )
 _PATCH_OUTPUT_CONFIGS_DESCRIPTION = (
     "Omit to preserve; null restores inheritance. An override needs at least one config, "
-    "each with its own name. Nothing checks them against the evaluator."
+    "each with its own name. An LLM binding's must be categorical. A decision binding takes "
+    "none and is refused. Nothing checks them against the prompt."
 )
 
 
@@ -111,58 +112,23 @@ CreateDatasetEvaluatorRequest = Annotated[
 ]
 
 
-class _PatchDatasetEvaluatorFields(EvaluatorRequest):
-    model_config = ConfigDict(json_schema_extra={"minProperties": 2})
+class PatchDatasetEvaluatorRequest(EvaluatorRequest):
+    model_config = ConfigDict(json_schema_extra={"minProperties": 1})
 
     name: Identifier = Field(default=UNDEFINED)
     input_mapping: InputMapping = Field(default=UNDEFINED)
     description: Optional[str] = Field(
         default=UNDEFINED, description="Omit to preserve; null restores inheritance."
     )
+    output_configs: Optional[list[EvaluatorOutputConfig]] = Field(
+        default=UNDEFINED, min_length=1, description=_PATCH_OUTPUT_CONFIGS_DESCRIPTION
+    )
 
     @model_validator(mode="after")
     def require_changes(self) -> Self:
-        if not (self.model_fields_set - {"evaluator_type"}):
+        if not self.model_fields_set:
             raise ValueError("At least one field must be provided")
         return self
-
-
-class PatchLLMDatasetEvaluatorRequest(_PatchDatasetEvaluatorFields):
-    evaluator_type: Literal["llm"] = Field(description=_EVALUATOR_TYPE_DESCRIPTION)
-    output_configs: Optional[list[CategoricalAnnotationConfigData]] = Field(
-        default=UNDEFINED, min_length=1, description=_PATCH_OUTPUT_CONFIGS_DESCRIPTION
-    )
-
-
-class PatchCodeDatasetEvaluatorRequest(_PatchDatasetEvaluatorFields):
-    evaluator_type: Literal["code"] = Field(description=_EVALUATOR_TYPE_DESCRIPTION)
-    output_configs: Optional[list[EvaluatorOutputConfig]] = Field(
-        default=UNDEFINED, min_length=1, description=_PATCH_OUTPUT_CONFIGS_DESCRIPTION
-    )
-
-
-class PatchBuiltInDatasetEvaluatorRequest(_PatchDatasetEvaluatorFields):
-    evaluator_type: Literal["builtin"] = Field(description=_EVALUATOR_TYPE_DESCRIPTION)
-    output_configs: Optional[list[EvaluatorOutputConfig]] = Field(
-        default=UNDEFINED, min_length=1, description=_PATCH_OUTPUT_CONFIGS_DESCRIPTION
-    )
-
-
-class PatchDecisionDatasetEvaluatorRequest(_PatchDatasetEvaluatorFields):
-    """A decision binding's outputs follow the evaluator's questions and scoring policy."""
-
-    evaluator_type: Literal["decision"] = Field(description=_EVALUATOR_TYPE_DESCRIPTION)
-
-
-PatchDatasetEvaluatorRequest = Annotated[
-    Union[
-        PatchLLMDatasetEvaluatorRequest,
-        PatchCodeDatasetEvaluatorRequest,
-        PatchBuiltInDatasetEvaluatorRequest,
-        PatchDecisionDatasetEvaluatorRequest,
-    ],
-    Field(discriminator="evaluator_type"),
-]
 
 
 class DatasetEvaluator(V1RoutesBaseModel):
@@ -422,30 +388,18 @@ async def patch_dataset_evaluator(
 ) -> DatasetEvaluatorResponseBody:
     """Update only the binding. Dataset and evaluator references are immutable.
 
-    `evaluator_type` must match the bound evaluator's kind, or the request is refused with 422.
-
     LLM output overrides must be categorical; nothing checks them against the prompt.
-    Decision bindings take no output configurations. Use /evaluators/{evaluator_id} to
-    modify a shared definition instead.
+    Decision bindings take no output configurations, and a non-null override is refused.
+    Use /evaluators/{evaluator_id} to modify a shared definition instead.
     """
     with evaluator_api_errors():
-        fields = body.model_fields_set - {"evaluator_type"}
-        async with request.app.state.db() as session:
-            binding = await _dataset_evaluator(session, dataset_evaluator_id)
-        _refuse_mismatched_evaluator_type(
-            evaluator_type=body.evaluator_type,
-            evaluator_kind=EVALUATOR_KIND_BY_TYPE[binding.evaluator_type],
-        )
-        values = {name: getattr(body, name) for name in fields}
-        if (
-            not isinstance(body, PatchDecisionDatasetEvaluatorRequest)
-            and "output_configs" in fields
-            and body.output_configs is not None
-        ):
+        binding_id = parse_global_id(dataset_evaluator_id)
+        values = {name: getattr(body, name) for name in body.model_fields_set}
+        if "output_configs" in values and body.output_configs is not None:
             values["output_configs"] = output_configs_to_db(body.output_configs)
         await dataset_bindings.patch_dataset_evaluator(
             evaluator_service_context(request),
-            parse_global_id(dataset_evaluator_id),
+            binding_id,
             dataset_bindings.DatasetEvaluatorPatch(**values),
         )
         return DatasetEvaluatorResponseBody(

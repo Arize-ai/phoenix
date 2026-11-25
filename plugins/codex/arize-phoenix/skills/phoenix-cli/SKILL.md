@@ -549,7 +549,7 @@ px dataset evaluator create golden-questions --name exact-match --evaluator-id Q
 
 # change binding overrides only; --inherit-* flags send null to fall back to the definition
 px dataset evaluator update RGF0YXNldEV2YWx1YXRvcjox --description "Exact match on answer" --inherit-output-configs
-# --output-configs and --inherit-output-configs are refused on a decision binding, whose outputs follow the evaluator's questions and scoring
+# --output-configs is refused on a decision binding, whose outputs follow the evaluator's questions and scoring
 
 # detach — requires PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true.
 # Removes the dedicated evaluator trace project and recorded evaluator traces;

@@ -586,7 +586,7 @@ px dataset evaluator update RGF0YXNldEV2YWx1YXRvcjox --description "Runs against
 px dataset evaluator update RGF0YXNldEV2YWx1YXRvcjox --input-mapping '{"literal_mapping":{},"path_mapping":{"output":"output.text"}}'
 ```
 
-Accepts `--name`, `--description`, `--input-mapping`, and `--output-configs` as in `create`. `--inherit-description` and `--inherit-output-configs` drop the binding's overrides so it inherits the shared definition's values again. The CLI reads the binding first to learn its evaluator's kind. A decision binding takes neither `--output-configs` nor `--inherit-output-configs`: its outputs follow the evaluator's questions and scoring policy.
+Accepts `--name`, `--description`, `--input-mapping`, and `--output-configs` as in `create`. `--inherit-description` and `--inherit-output-configs` drop the binding's overrides so it inherits the shared definition's values again. A decision binding takes no `--output-configs`: the server refuses it, because the outputs follow the evaluator's questions and scoring policy.
 
 ---
 

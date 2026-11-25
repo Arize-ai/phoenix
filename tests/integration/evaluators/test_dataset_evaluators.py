@@ -40,7 +40,6 @@ def test_code_binding_overrides_and_cross_api_readback(
     response = client.patch(
         route,
         json={
-            "evaluator_type": "code",
             "name": "dataset-only",
             "description": "local",
             "output_configs": override,
@@ -62,13 +61,11 @@ def test_code_binding_overrides_and_cross_api_readback(
         {"output_configs": []},
     ]
     for invalid in invalid_patches:
-        response = client.patch(route, json={"evaluator_type": "code", **invalid})
+        response = client.patch(route, json=invalid)
         assert response.status_code == 422, response.text
         assert response.headers["content-type"] == "application/problem+json"
     assert client.get(route).json()["data"] == overridden
-    response = client.patch(
-        route, json={"evaluator_type": "code", "description": None, "output_configs": None}
-    )
+    response = client.patch(route, json={"description": None, "output_configs": None})
     assert response.status_code == 200, response.text
     assert response.json()["data"]["output_configs"] is None
     assert response.json()["data"]["name"] == "dataset-only"
@@ -116,7 +113,7 @@ def test_dataset_pagination_conflicts_and_atomic_bulk_delete(
     second = _create_dataset_evaluator(client, dataset_id, {**body, "name": "second-binding"})
     response = client.patch(
         f"v1/dataset_evaluators/{second['id']}",
-        json={"evaluator_type": "code", "name": first["name"]},
+        json={"name": first["name"]},
     )
     assert response.status_code == 409, response.text
     dataset_name = _graphql(
@@ -171,15 +168,12 @@ def test_builtin_binding_and_read_only_definition(
     assert response.status_code == 409, response.text
     assert response.json()["existing_id"] == binding["id"]
     route = f"v1/dataset_evaluators/{binding['id']}"
-    patch: dict[str, Any] = {"evaluator_type": "builtin"}
-    assert client.patch(route, json={**patch, "output_configs": []}).status_code == 422
+    assert client.patch(route, json={"output_configs": []}).status_code == 422
     override = [{"type": "CONTINUOUS", "name": "local", "optimization_direction": "MINIMIZE"}]
-    response = client.patch(
-        route, json={**patch, "output_configs": override, "description": "local"}
-    )
+    response = client.patch(route, json={"output_configs": override, "description": "local"})
     assert response.status_code == 200, response.text
     assert [config["name"] for config in response.json()["data"]["output_configs"]] == ["local"]
-    assert client.patch(route, json={**patch, "output_configs": None}).status_code == 200
+    assert client.patch(route, json={"output_configs": None}).status_code == 200
     assert client.get(definition_route).json()["data"] == definition
     assert (
         client.patch(
@@ -208,12 +202,14 @@ def test_llm_binding_overrides_across_shared_bindings(
     assert binding["evaluator_id"] == other["evaluator_id"] == definition["id"]
     assert binding["evaluator_type"] == "llm"
     route = f"v1/dataset_evaluators/{binding['id']}"
-    patch: dict[str, Any] = {"evaluator_type": "llm"}
-    assert client.patch(route, json={**patch, "output_configs": []}).status_code == 422
+    assert client.patch(route, json={"output_configs": []}).status_code == 422
+    continuous = [{"type": "CONTINUOUS", "name": "score", "optimization_direction": "MAXIMIZE"}]
+    assert client.patch(route, json={"output_configs": continuous}).status_code == 422
+    assert client.patch(route, json={"evaluator_type": "llm", "name": "x"}).status_code == 422
     assert client.get(route).json()["data"] == binding
     override = _correctness_configs()
     override[0]["values"][0]["score"] = 0.75
-    response = client.patch(route, json={**patch, "output_configs": override})
+    response = client.patch(route, json={"output_configs": override})
     assert response.status_code == 200, response.text
     assert response.json()["data"]["output_configs"][0]["values"][0]["score"] == 0.75
     assert client.get(definition_route).json()["data"] == definition
