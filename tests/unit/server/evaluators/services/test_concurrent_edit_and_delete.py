@@ -1352,13 +1352,20 @@ async def test_tombstone_project_rejects_a_project_deleted_after_it_was_loaded(
 
 
 @pytest.mark.postgres_only
-async def test_experiment_sweep_does_not_deadlock_with_dataset_delete(
+@pytest.mark.parametrize("entry_point", ["sweeper", "rest", "graphql"])
+async def test_experiment_delete_does_not_deadlock_with_dataset_delete(
     postgresql_engine: AsyncEngine,
     monkeypatch: pytest.MonkeyPatch,
+    entry_point: str,
 ) -> None:
     from datetime import datetime, timedelta, timezone
+    from unittest.mock import AsyncMock
 
     from phoenix.config import EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS
+    from phoenix.db.helpers import get_sqlstate
+    from phoenix.server.api.input_types.DeleteExperimentsInput import DeleteExperimentsInput
+    from phoenix.server.api.mutations import experiment_mutations
+    from phoenix.server.api.routers.v1 import experiments as experiments_router
     from phoenix.server.daemons import experiment_sweeper
     from phoenix.server.daemons.experiment_sweeper import ExperimentSweeper
 
@@ -1374,37 +1381,79 @@ async def test_experiment_sweep_does_not_deadlock_with_dataset_delete(
         dataset_version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
         session.add(dataset_version)
         await session.flush()
-        session.add(
-            models.Experiment(
-                dataset_id=dataset.id,
-                dataset_version_id=dataset_version.id,
-                name=f"exp-{token_hex(4)}",
-                repetitions=1,
-                metadata_={},
-                project_name=project.name,
-                is_ephemeral=True,
-                updated_at=expired_at,
-            )
+        experiment = models.Experiment(
+            dataset_id=dataset.id,
+            dataset_version_id=dataset_version.id,
+            name=f"exp-{token_hex(4)}",
+            repetitions=1,
+            metadata_={},
+            project_name=project.name,
+            is_ephemeral=True,
+            updated_at=expired_at,
         )
+        session.add(experiment)
         await session.flush()
         project_id = project.id
         dataset_id = dataset.id
+        experiment_id = experiment.id
 
     experiments_deleted = asyncio.Event()
-    release_sweeper = asyncio.Event()
+    release_experiment_delete = asyncio.Event()
     original_tombstone = lifecycle.tombstone_exclusive_experiment_projects
 
     async def _pause_before_tombstone(*args: Any, **kwargs: Any) -> list[int]:
         experiments_deleted.set()
-        await asyncio.wait_for(release_sweeper.wait(), 5)
+        await asyncio.wait_for(release_experiment_delete.wait(), 5)
         return await original_tombstone(*args, **kwargs)
 
-    monkeypatch.setattr(
-        experiment_sweeper, "tombstone_exclusive_experiment_projects", _pause_before_tombstone
-    )
+    experiment_global_id = GlobalID("Experiment", str(experiment_id))
+    experiment_runner = SimpleNamespace(stop_experiment=AsyncMock())
+    event_queue = _RecordingQueue()
 
-    async def _run_sweep() -> None:
-        await ExperimentSweeper(db=db)._delete_ephemeral_experiments()
+    async def _run_experiment_delete() -> None:
+        if entry_point == "sweeper":
+            monkeypatch.setattr(
+                experiment_sweeper,
+                "tombstone_exclusive_experiment_projects",
+                _pause_before_tombstone,
+            )
+            await ExperimentSweeper(db=db)._delete_ephemeral_experiments()
+        elif entry_point == "rest":
+            monkeypatch.setattr(
+                experiments_router,
+                "tombstone_exclusive_experiment_projects",
+                _pause_before_tombstone,
+            )
+            request = cast(
+                Any,
+                SimpleNamespace(
+                    app=SimpleNamespace(state=SimpleNamespace(db=db)),
+                    state=SimpleNamespace(
+                        event_queue=event_queue, experiment_runner=experiment_runner
+                    ),
+                ),
+            )
+            await experiments_router.delete_experiment(
+                request=request, experiment_id=str(experiment_global_id), delete_project=True
+            )
+        else:
+            monkeypatch.setattr(
+                experiment_mutations,
+                "tombstone_exclusive_experiment_projects",
+                _pause_before_tombstone,
+            )
+            info = cast(
+                Any,
+                SimpleNamespace(
+                    context=SimpleNamespace(
+                        db=db, event_queue=event_queue, experiment_runner=experiment_runner
+                    )
+                ),
+            )
+            await experiment_mutations.ExperimentMutationMixin().delete_experiments(
+                info,
+                DeleteExperimentsInput(experiment_ids=[experiment_global_id]),
+            )
 
     async def _run_dataset_delete() -> None:
         await asyncio.wait_for(experiments_deleted.wait(), 5)
@@ -1412,16 +1461,18 @@ async def test_experiment_sweep_does_not_deadlock_with_dataset_delete(
             lifecycle.execute_dataset_delete(db=db, dataset_id=dataset_id)
         )
         try:
-            await _wait_until_lock_wait_or_done(db, delete_task, "")
+            await _wait_until_lock_wait_or_done(db, delete_task, "FROM projects")
         finally:
-            release_sweeper.set()
+            release_experiment_delete.set()
         await delete_task
 
-    results = await asyncio.gather(_run_sweep(), _run_dataset_delete(), return_exceptions=True)
+    results = await asyncio.gather(
+        _run_experiment_delete(), _run_dataset_delete(), return_exceptions=True
+    )
 
     for result in results:
         if isinstance(result, DBAPIError):
-            assert getattr(result.orig, "sqlstate", None) != "40P01", result
+            assert get_sqlstate(result) != "40P01", result
     assert all(result is None or isinstance(result, NotFound) for result in results), results
     async with db() as session:
         assert await session.get(models.Dataset, dataset_id) is None
@@ -1562,3 +1613,60 @@ async def test_persist_eval_results_reports_skipped_traces_of_a_tombstoned_bindi
 
     assert await work_item._persist_eval_results(annotations=[], db_traces=[eval_trace]) is False
     assert eval_trace.id is None
+
+
+@pytest.mark.postgres_only
+async def test_tombstone_project_conflicts_when_a_late_trace_project_is_locked_by_another_session(
+    postgresql_engine: AsyncEngine,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from phoenix.server.api.exceptions import Conflict
+    from tests.unit._helpers import _bind_evaluator_trace_project
+
+    db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
+    async with db() as session:
+        trace_project = models.Project(name=f"late-trace-{token_hex(4)}")
+        session.add(trace_project)
+        await session.flush()
+        owner_project = models.Project(name=f"late-owner-{token_hex(4)}")
+        session.add(owner_project)
+        await session.flush()
+        trace_project_id = trace_project.id
+        owner_project_id = owner_project.id
+    assert trace_project_id < owner_project_id
+
+    original_read = lifecycle._live_bindings_owned_by
+    has_bound_late_trace_project = False
+
+    async def _read_then_bind_late_trace_project(*args: Any, **kwargs: Any) -> Any:
+        nonlocal has_bound_late_trace_project
+        rows = await original_read(*args, **kwargs)
+        if not has_bound_late_trace_project:
+            has_bound_late_trace_project = True
+            async with db() as binding_session:
+                late_trace_project = await binding_session.get(models.Project, trace_project_id)
+                host_project = await binding_session.get(models.Project, owner_project_id)
+                assert late_trace_project is not None and host_project is not None
+                await _bind_evaluator_trace_project(
+                    binding_session, late_trace_project, host_project=host_project
+                )
+        return rows
+
+    monkeypatch.setattr(lifecycle, "_live_bindings_owned_by", _read_then_bind_late_trace_project)
+
+    async def _tombstone_owner() -> None:
+        async with db() as tombstone_session:
+            await lifecycle.tombstone_project(tombstone_session, project_id=owner_project_id)
+
+    async with db() as holder_session:
+        await holder_session.execute(
+            select(models.Project.id)
+            .where(models.Project.id == trace_project_id)
+            .with_for_update(key_share=True)
+        )
+        with pytest.raises(Conflict, match="modified concurrently"):
+            await asyncio.wait_for(_tombstone_owner(), 5)
+
+    async with db() as session:
+        surviving_owner = await session.get(models.Project, owner_project_id)
+        assert surviving_owner is not None and surviving_owner.deleted_at is None

@@ -611,7 +611,9 @@ async def test_delete_project_also_deletes_its_evaluators_trace_projects(
                 )
             )
         ).all()
-        assert len(tombstoned) == 2 and all(ts is not None for ts in tombstoned)
+        assert len(tombstoned) == 2 and all(
+            tombstoned_at is not None for tombstoned_at in tombstoned
+        )
 
     coordinator = CleanupCoordinator(db)
     while (await coordinator.step_or_next_delay())[0]:

@@ -436,6 +436,43 @@ class TestCleanupSchedulingAndBackoff:
             assert await session.get(models.Project, older_id) is None
             assert await session.get(models.Project, newer_id) is not None
 
+    async def test_project_with_a_trace_inserted_after_its_drain_yields_instead_of_purging(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from phoenix.server.cleanup import coordinator as coordinator_module
+
+        async with db() as session:
+            project = await _add_project(session, name=f"late-trace-{token_hex(4)}")
+            project_id = project.id
+            await tombstone_project(session, project_id=project_id)
+
+        original_drain = drain_trace_scope_step
+        late_trace_id: Optional[int] = None
+
+        async def _drain_then_insert_late_trace(session: Any, **kwargs: Any) -> PrimitiveResult:
+            nonlocal late_trace_id
+            result = await original_drain(session, **kwargs)
+            late_trace = await _add_trace(session, await session.get(models.Project, project_id))
+            late_trace_id = late_trace.id
+            return result
+
+        coordinator = CleanupCoordinator(db)
+        monkeypatch.setattr(
+            coordinator_module, "drain_trace_scope_step", _drain_then_insert_late_trace
+        )
+        assert (await coordinator.step()).outcome == "yield"
+        monkeypatch.setattr(coordinator_module, "drain_trace_scope_step", original_drain)
+        async with db() as session:
+            assert await session.get(models.Project, project_id) is not None
+            assert late_trace_id is not None
+            assert await session.get(models.Trace, late_trace_id) is not None
+
+        await _expire_retries(db)
+        await _drain_all(coordinator)
+        async with db() as session:
+            assert await session.get(models.Project, project_id) is None
+            assert await session.get(models.Trace, late_trace_id) is None
+
     async def test_project_is_not_selected_while_any_binding_references_it(
         self, db: DbSessionFactory
     ) -> None:
@@ -483,14 +520,18 @@ class TestImmediateNameReuseAndHistoricalReferences:
         gql_client: AsyncGraphQLClient,
     ) -> None:
         shared_name = f"reusable-app-{token_hex(4)}"
-        t0 = datetime(2026, 5, 1, 12, 0, 0, tzinfo=timezone.utc)
+        fixed_time = datetime(2026, 5, 1, 12, 0, 0, tzinfo=timezone.utc)
 
         async with db() as session:
             old_project = await _add_project(session, name=shared_name)
             old_project_id = old_project.id
-            for i in range(5):
-                trace = await _add_trace(session, old_project, start_time=t0 + timedelta(seconds=i))
-                await _add_span(session, trace=trace, start_time=t0 + timedelta(seconds=i))
+            for index in range(5):
+                trace = await _add_trace(
+                    session, old_project, start_time=fixed_time + timedelta(seconds=index)
+                )
+                await _add_span(
+                    session, trace=trace, start_time=fixed_time + timedelta(seconds=index)
+                )
 
             dataset = models.Dataset(name=f"ds-{token_hex(4)}", metadata_={})
             session.add(dataset)
@@ -547,8 +588,8 @@ class TestImmediateNameReuseAndHistoricalReferences:
             context=SpanContext(trace_id=token_hex(16), span_id=token_hex(8)),
             span_kind=SpanKind.LLM,
             parent_id=None,
-            start_time=t0 + timedelta(minutes=1),
-            end_time=t0 + timedelta(minutes=1, seconds=1),
+            start_time=fixed_time + timedelta(minutes=1),
+            end_time=fixed_time + timedelta(minutes=1, seconds=1),
             status_code=SpanStatusCode.OK,
             status_message="",
             attributes={},
@@ -959,7 +1000,7 @@ class TestBatchedClear:
     async def test_empty_range_clear_leaves_surviving_session_evaluations_intact(
         self, db: DbSessionFactory
     ) -> None:
-        t0 = datetime(2026, 6, 2, 12, 0, 0, tzinfo=timezone.utc)
+        fixed_time = datetime(2026, 6, 2, 12, 0, 0, tzinfo=timezone.utc)
         expected_statuses: dict[int, models.EvalWorkStatus] = {}
 
         async with db() as session:
@@ -978,23 +1019,23 @@ class TestBatchedClear:
             )
             for offset, status in enumerate(resettable_statuses):
                 project_session = await _add_project_session(
-                    session, project, start_time=t0 + timedelta(hours=offset + 2)
+                    session, project, start_time=fixed_time + timedelta(hours=offset + 2)
                 )
                 trace = await _add_trace(
                     session,
                     project,
                     project_session=project_session,
-                    start_time=t0 + timedelta(hours=offset + 2),
+                    start_time=fixed_time + timedelta(hours=offset + 2),
                 )
                 await _add_span(
                     session,
                     trace=trace,
-                    start_time=t0 + timedelta(hours=offset + 2),
+                    start_time=fixed_time + timedelta(hours=offset + 2),
                 )
                 unit = models.EvalSessionWorkUnit(
                     project_session_rowid=project_session.id,
                     project_evaluator_id=binding.id,
-                    decided_through=t0 + timedelta(hours=offset + 2),
+                    decided_through=fixed_time + timedelta(hours=offset + 2),
                     status=status,
                 )
                 session.add(unit)
@@ -1004,8 +1045,8 @@ class TestBatchedClear:
         await _clear_project(
             db,
             project.id,
-            start_time=t0 - timedelta(hours=2),
-            end_time=t0 - timedelta(hours=1),
+            start_time=fixed_time - timedelta(hours=2),
+            end_time=fixed_time - timedelta(hours=1),
             batch_limit=2,
         )
 
@@ -1101,20 +1142,22 @@ class TestBatchedClear:
     async def test_clear_deletes_bounded_range_in_committed_batches_and_emits_events(
         self, db: DbSessionFactory
     ) -> None:
-        t0 = datetime(2026, 6, 6, 0, 0, 0, tzinfo=timezone.utc)
+        fixed_time = datetime(2026, 6, 6, 0, 0, 0, tzinfo=timezone.utc)
         async with db() as session:
             project = await _add_project(session, name=f"batched-clear-{token_hex(4)}")
-            boundary_session = await _add_project_session(session, project, start_time=t0)
-            emptied_session = await _add_project_session(session, project, start_time=t0)
+            boundary_session = await _add_project_session(session, project, start_time=fixed_time)
+            emptied_session = await _add_project_session(session, project, start_time=fixed_time)
             trace_ids: list[int] = []
             for offset in range(6):
                 trace = await _add_trace(
                     session,
                     project,
                     project_session=boundary_session if offset in (0, 5) else emptied_session,
-                    start_time=t0 + timedelta(minutes=offset),
+                    start_time=fixed_time + timedelta(minutes=offset),
                 )
-                await _add_span(session, trace=trace, start_time=t0 + timedelta(minutes=offset))
+                await _add_span(
+                    session, trace=trace, start_time=fixed_time + timedelta(minutes=offset)
+                )
                 trace_ids.append(trace.id)
             project_id = project.id
             boundary_session_id = boundary_session.id
@@ -1126,8 +1169,8 @@ class TestBatchedClear:
             async for batch in clear_project_traces_in_batches(
                 db,
                 project_id=project_id,
-                start_time=t0 + timedelta(minutes=1),
-                end_time=t0 + timedelta(minutes=5),
+                start_time=fixed_time + timedelta(minutes=1),
+                end_time=fixed_time + timedelta(minutes=5),
                 event_queue=event_queue,
                 batch_limit=1,
             )
@@ -1150,16 +1193,16 @@ class TestBatchedClear:
     async def test_clear_stops_when_project_is_tombstoned_between_batches(
         self, db: DbSessionFactory
     ) -> None:
-        t0 = datetime(2026, 6, 7, 0, 0, 0, tzinfo=timezone.utc)
+        fixed_time = datetime(2026, 6, 7, 0, 0, 0, tzinfo=timezone.utc)
         async with db() as session:
             project = await _add_project(session, name=f"tombstoned-clear-{token_hex(4)}")
             span_ids: list[int] = []
             for offset in range(3):
                 trace = await _add_trace(
-                    session, project, start_time=t0 + timedelta(minutes=offset)
+                    session, project, start_time=fixed_time + timedelta(minutes=offset)
                 )
                 span = await _add_span(
-                    session, trace=trace, start_time=t0 + timedelta(minutes=offset)
+                    session, trace=trace, start_time=fixed_time + timedelta(minutes=offset)
                 )
                 span_ids.append(span.id)
             project_id = project.id
@@ -1221,18 +1264,20 @@ class TestStorageLockoutExemptionsAndCleanupWorker:
         httpx_client: httpx2.AsyncClient,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        t0 = datetime(2026, 7, 1, 0, 0, 0, tzinfo=timezone.utc)
+        fixed_time = datetime(2026, 7, 1, 0, 0, 0, tzinfo=timezone.utc)
         async with db() as session:
             proj = await _add_project(session, name=f"locked-proj-{token_hex(4)}")
-            tr = await _add_trace(session, proj, start_time=t0)
-            sp = await _add_span(session, trace=tr, start_time=t0)
+            trace_record = await _add_trace(session, proj, start_time=fixed_time)
+            span_record = await _add_span(session, trace=trace_record, start_time=fixed_time)
             trace_proj = models.Project(name=f"locked-sink-{token_hex(4)}")
             session.add(trace_proj)
             await session.flush()
-            pe = await _bind_evaluator_trace_project(session, trace_proj, host_project=proj)
+            project_evaluator = await _bind_evaluator_trace_project(
+                session, trace_proj, host_project=proj
+            )
             proj_id = proj.id
-            pe_id = pe.id
-            span_id_str = sp.span_id
+            pe_id = project_evaluator.id
+            span_id_str = span_record.span_id
 
         # Simulate storage-capacity lockout!
         monkeypatch.setattr(db, "should_not_insert_or_update", True)
@@ -1367,9 +1412,11 @@ class TestTraceScopeDrain:
         base = datetime(2024, 1, 1, tzinfo=timezone.utc)
         async with db() as session:
             proj = await _add_project(session, name=f"window-{token_hex(4)}")
-            for i in range(6):
-                tr = await _add_trace(session, proj, start_time=base + timedelta(minutes=i))
-                await _add_span(session, trace=tr)
+            for index in range(6):
+                trace_record = await _add_trace(
+                    session, proj, start_time=base + timedelta(minutes=index)
+                )
+                await _add_span(session, trace=trace_record)
             project_id = proj.id
 
         steps = 0
@@ -1399,13 +1446,13 @@ class TestTraceScopeDrain:
     ) -> None:
         async with db() as session:
             proj = await _add_project(session, name=f"fanout-{token_hex(4)}")
-            tr = await _add_trace(session, proj)
-            sp = await _add_span(session, trace=tr)
+            trace_record = await _add_trace(session, proj)
+            span_record = await _add_span(session, trace=trace_record)
             session.add_all(
                 [
                     models.SpanAnnotation(
-                        span_rowid=sp.id,
-                        name=f"ann-{i}",
+                        span_rowid=span_record.id,
+                        name=f"ann-{index}",
                         label="ok",
                         score=1.0,
                         explanation=None,
@@ -1414,18 +1461,19 @@ class TestTraceScopeDrain:
                         source="API",
                         identifier="",
                     )
-                    for i in range(6)
+                    for index in range(6)
                 ]
             )
             dataset = models.Dataset(name=f"fanout-ds-{token_hex(4)}", metadata_={})
             session.add(dataset)
             await session.flush()
             examples = [
-                models.DatasetExample(dataset_id=dataset.id, span_rowid=sp.id) for _ in range(5)
+                models.DatasetExample(dataset_id=dataset.id, span_rowid=span_record.id)
+                for _ in range(5)
             ]
             session.add_all(examples)
             await session.flush()
-            example_ids = [ex.id for ex in examples]
+            example_ids = [example.id for example in examples]
             await tombstone_project(session, project_id=proj.id)
 
         # With batch_limit=2, 6 annotations + 5 dataset_example refs + 1 span + 1 trace + finalize
@@ -1442,13 +1490,13 @@ class TestTraceScopeDrain:
                 )
             ).all()
             assert len(loaded_examples) == 5
-            assert all(ex.span_rowid is None for ex in loaded_examples)
+            assert all(example.span_rowid is None for example in loaded_examples)
 
     async def test_delete_project_purges_when_it_owns_a_session_another_project_shares(
         self, db: DbSessionFactory
     ) -> None:
         shared_session_id = f"shared-session-{token_hex(4)}"
-        t0 = datetime(2026, 7, 2, 0, 0, 0, tzinfo=timezone.utc)
+        fixed_time = datetime(2026, 7, 2, 0, 0, 0, tzinfo=timezone.utc)
 
         def _span_in_shared_session(offset_seconds: int) -> Span:
             return Span(
@@ -1456,8 +1504,8 @@ class TestTraceScopeDrain:
                 context=SpanContext(trace_id=token_hex(16), span_id=token_hex(8)),
                 span_kind=SpanKind.LLM,
                 parent_id=None,
-                start_time=t0 + timedelta(seconds=offset_seconds),
-                end_time=t0 + timedelta(seconds=offset_seconds + 1),
+                start_time=fixed_time + timedelta(seconds=offset_seconds),
+                end_time=fixed_time + timedelta(seconds=offset_seconds + 1),
                 status_code=SpanStatusCode.OK,
                 status_message="",
                 attributes={"session": {"id": shared_session_id}},

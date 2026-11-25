@@ -216,7 +216,7 @@ class TestExperimentSweeper:
 
         await sweeper.stop()
 
-    async def test_sweeper_deletes_sdk_eval_traces_and_preserves_evaluator_and_live_traces(
+    async def test_sweeper_deletes_only_expired_experiments_sdk_eval_traces_and_emits_events(
         self,
         db: DbSessionFactory,
         rendezvous: Rendezvous,

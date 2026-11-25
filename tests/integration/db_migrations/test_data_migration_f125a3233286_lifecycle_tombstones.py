@@ -27,13 +27,13 @@ async def test_f125a3233286_tombstones_projects_and_guards_downgrade(
     _schema: str,
 ) -> None:
     await _up(_engine, _alembic_config, _DOWN, _schema)
-    t0 = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+    fixed_time = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
     def _seed(conn: Connection) -> int:
         standard_proj = _insert(
             conn,
-            "INSERT INTO projects (name, created_at, updated_at) VALUES ('prod-app', :t, :t)",
-            t=t0,
+            "INSERT INTO projects (name, created_at, updated_at) VALUES ('prod-app', :time, :time)",
+            time=fixed_time,
         )
         conn.commit()
         return standard_proj
@@ -44,13 +44,13 @@ async def test_f125a3233286_tombstones_projects_and_guards_downgrade(
     def _verify_upgrade_and_mark_deleted(conn: Connection) -> int:
         # Mark standard_proj deleted and reuse its name 'prod-app' immediately.
         conn.execute(
-            text("UPDATE projects SET deleted_at = :t WHERE id = :id"),
-            {"t": t0, "id": standard_proj},
+            text("UPDATE projects SET deleted_at = :time WHERE id = :id"),
+            {"time": fixed_time, "id": standard_proj},
         )
         new_prod = _insert(
             conn,
-            "INSERT INTO projects (name, created_at, updated_at) VALUES ('prod-app', :t, :t)",
-            t=t0,
+            "INSERT INTO projects (name, created_at, updated_at) VALUES ('prod-app', :time, :time)",
+            time=fixed_time,
         )
         conn.commit()
         return new_prod
@@ -67,9 +67,9 @@ async def test_f125a3233286_tombstones_projects_and_guards_downgrade(
         conn.execute(
             text(
                 "INSERT INTO cleanup_failures (target_kind, target_id, failure_count, retry_at) "
-                "VALUES ('PROJECT', :id, 1, :t)"
+                "VALUES ('PROJECT', :id, 1, :time)"
             ),
-            {"id": standard_proj, "t": t0},
+            {"id": standard_proj, "time": fixed_time},
         )
         conn.commit()
 
@@ -85,23 +85,23 @@ async def test_f125a3233286_tombstoned_dataset_evaluators_free_their_name_and_bl
     _schema: str,
 ) -> None:
     await _up(_engine, _alembic_config, _UP, _schema)
-    t0 = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+    fixed_time = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
     def _seed_binding_then_tombstone_it(conn: Connection) -> None:
         dataset = _insert(
             conn,
-            "INSERT INTO datasets (name, metadata) VALUES ('ds', :m)",
-            m=json.dumps({}),
+            "INSERT INTO datasets (name, metadata) VALUES ('ds', :metadata)",
+            metadata=json.dumps({}),
         )
         sink = _insert(
             conn,
-            "INSERT INTO projects (name, created_at, updated_at) VALUES ('sink', :t, :t)",
-            t=t0,
+            "INSERT INTO projects (name, created_at, updated_at) VALUES ('sink', :time, :time)",
+            time=fixed_time,
         )
         evaluator = _insert(
             conn,
-            "INSERT INTO evaluators (name, metadata, kind) VALUES ('builtin', :m, 'BUILTIN')",
-            m=json.dumps({}),
+            "INSERT INTO evaluators (name, metadata, kind) VALUES ('builtin', :metadata, 'BUILTIN')",
+            metadata=json.dumps({}),
         )
         conn.execute(
             text(
@@ -113,21 +113,21 @@ async def test_f125a3233286_tombstoned_dataset_evaluators_free_their_name_and_bl
         insert_binding = (
             "INSERT INTO dataset_evaluators "
             "(dataset_id, evaluator_id, name, input_mapping, output_configs, project_id) "
-            "VALUES (:d, :e, 'judge', :im, :oc, :p)"
+            "VALUES (:dataset_id, :evaluator_id, 'judge', :input_mapping, :output_configs, :project_id)"
         )
         params: dict[str, Any] = dict(
-            d=dataset,
-            e=evaluator,
-            im=json.dumps({"literal_mapping": {}, "path_mapping": {}}),
-            oc=json.dumps([]),
-            p=sink,
+            dataset_id=dataset,
+            evaluator_id=evaluator,
+            input_mapping=json.dumps({"literal_mapping": {}, "path_mapping": {}}),
+            output_configs=json.dumps([]),
+            project_id=sink,
         )
         binding = _insert(conn, insert_binding, **params)
         conn.execute(
             text(
-                "UPDATE dataset_evaluators SET deleted_at = :t, evaluator_id = NULL WHERE id = :id"
+                "UPDATE dataset_evaluators SET deleted_at = :time, evaluator_id = NULL WHERE id = :id"
             ),
-            {"t": t0, "id": binding},
+            {"time": fixed_time, "id": binding},
         )
         # The tombstone no longer holds the name, so a live binding can reuse it.
         _insert(conn, insert_binding, **params)
@@ -145,28 +145,28 @@ async def test_f125a3233286_preserves_live_dataset_evaluators(
     _schema: str,
 ) -> None:
     await _up(_engine, _alembic_config, _DOWN, _schema)
-    t0 = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+    fixed_time = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
     insert_binding = (
         "INSERT INTO dataset_evaluators "
         "(dataset_id, evaluator_id, name, input_mapping, output_configs, project_id) "
-        "VALUES (:d, :e, :n, :im, :oc, :p)"
+        "VALUES (:dataset_id, :evaluator_id, :name, :input_mapping, :output_configs, :project_id)"
     )
 
     def _seed(conn: Connection) -> dict[str, Any]:
         dataset = _insert(
             conn,
-            "INSERT INTO datasets (name, metadata) VALUES ('ds', :m)",
-            m=json.dumps({}),
+            "INSERT INTO datasets (name, metadata) VALUES ('ds', :metadata)",
+            metadata=json.dumps({}),
         )
         sink = _insert(
             conn,
-            "INSERT INTO projects (name, created_at, updated_at) VALUES ('sink', :t, :t)",
-            t=t0,
+            "INSERT INTO projects (name, created_at, updated_at) VALUES ('sink', :time, :time)",
+            time=fixed_time,
         )
         evaluator = _insert(
             conn,
-            "INSERT INTO evaluators (name, metadata, kind) VALUES ('builtin', :m, 'BUILTIN')",
-            m=json.dumps({}),
+            "INSERT INTO evaluators (name, metadata, kind) VALUES ('builtin', :metadata, 'BUILTIN')",
+            metadata=json.dumps({}),
         )
         conn.execute(
             text(
@@ -176,12 +176,12 @@ async def test_f125a3233286_preserves_live_dataset_evaluators(
             {"id": evaluator, "s": json.dumps({}), "o": json.dumps([])},
         )
         params: dict[str, Any] = dict(
-            d=dataset,
-            e=evaluator,
-            n="judge",
-            im=json.dumps({"literal_mapping": {}, "path_mapping": {}}),
-            oc=json.dumps([]),
-            p=sink,
+            dataset_id=dataset,
+            evaluator_id=evaluator,
+            name="judge",
+            input_mapping=json.dumps({"literal_mapping": {}, "path_mapping": {}}),
+            output_configs=json.dumps([]),
+            project_id=sink,
         )
         params["binding"] = _insert(conn, insert_binding, **params)
         conn.commit()
@@ -198,8 +198,14 @@ async def test_f125a3233286_preserves_live_dataset_evaluators(
             ),
             {"id": seeded["binding"]},
         ).one()
-        assert tuple(row) == (seeded["d"], seeded["e"], seeded["p"], "judge", None)
-        second_binding = _insert(conn, insert_binding, **{**seeded, "n": "judge-2"})
+        assert tuple(row) == (
+            seeded["dataset_id"],
+            seeded["evaluator_id"],
+            seeded["project_id"],
+            "judge",
+            None,
+        )
+        second_binding = _insert(conn, insert_binding, **{**seeded, "name": "judge-2"})
         assert second_binding > seeded["binding"]
         conn.commit()
 
