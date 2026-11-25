@@ -9,7 +9,7 @@ import { getModelProviders } from "@arizeai/phoenix-client/models";
 const modelProviders = await getModelProviders();
 ```
 
-Each result has a typed `provider` identifier and a display `name`. The list reflects the server's `PHOENIX_ALLOWED_PROVIDERS` setting and can be empty.
+Each result has a typed `provider` identifier and a display `name`. The list reflects the server's `PHOENIX_ALLOWED_PROVIDERS` setting and can be empty. Requires Phoenix server 20.4.0 or newer.
 
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">
   <h2>Source Map</h2>
