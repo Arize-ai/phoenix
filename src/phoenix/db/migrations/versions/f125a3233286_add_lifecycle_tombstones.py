@@ -120,13 +120,16 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    connection = op.get_bind()
-    for table in ("projects", "dataset_evaluators"):
-        if connection.scalar(sa.text(f"SELECT COUNT(*) FROM {table} WHERE deleted_at IS NOT NULL")):
-            raise ValueError(
-                f"Cannot downgrade while {table} has deleted rows awaiting background cleanup; "
-                "run the server until background cleanup drains first."
-            )
+    if not op.get_context().as_sql:
+        connection = op.get_bind()
+        for table in ("projects", "dataset_evaluators"):
+            if connection.scalar(
+                sa.text(f"SELECT COUNT(*) FROM {table} WHERE deleted_at IS NOT NULL")
+            ):
+                raise ValueError(
+                    f"Cannot downgrade while {table} has deleted rows awaiting background "
+                    "cleanup; run the server until background cleanup drains first."
+                )
 
     op.drop_table("cleanup_failures")
     for table in ("dataset_evaluators", "projects"):

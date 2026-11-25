@@ -608,3 +608,16 @@ def test_ddl_documents_deleted_at_on_projects_and_dataset_evaluators() -> None:
     deleted_at_notes = [line for line in ddl.splitlines() if line.startswith("-- deleted_at:")]
     assert len(deleted_at_notes) == 2
     assert any("projects.name" in line for line in deleted_at_notes)
+
+
+def test_brief_ddl_carries_tombstone_guidance_in_grains() -> None:
+    ddl = render_schema_ddl(
+        tables=["projects", "dataset_evaluators", "experiment_logs"],
+        detail="brief",
+        dialect="sqlite",
+    )
+    lines = {line.split(":", 1)[0]: line for line in ddl.splitlines() if line.startswith("-- ")}
+    assert "deleted_at IS NULL" in lines["-- projects"]
+    assert "unique only among live rows" in lines["-- projects"]
+    assert "deleted_at IS NULL" in lines["-- dataset_evaluators"]
+    assert "dataset_evaluators" in lines["-- experiment_logs"]
