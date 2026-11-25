@@ -204,7 +204,10 @@ class Subscription:
         connection = (
             custom_provider_id
             if custom_provider_id is not None
-            else to_connection_config(model_provider, input.connection_config)
+            else to_connection_config(
+                model_provider=model_provider,
+                connection_config_input=input.connection_config,
+            )
         )
         headers = cast(dict[str, str], input.headers) if input.headers else None
         async with info.context.db() as session:
@@ -411,7 +414,10 @@ class Subscription:
             task_connection = (
                 None
                 if prompt_version.custom_provider_id is not None
-                else to_connection_config(prompt_version.model_provider, input.connection_config)
+                else to_connection_config(
+                    model_provider=prompt_version.model_provider,
+                    connection_config_input=input.connection_config,
+                )
             )
 
             prompt_version_id = (

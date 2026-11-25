@@ -330,7 +330,7 @@ class TestChatCompletionSubscription:
                     "invocationParameters": {"openai": {"temperature": 0.1}},
                     "tools": None,
                 },
-                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
+                "connectionConfig": CHAT_COMPLETIONS_CONNECTION_CONFIG,
                 "repetitions": 1,
             },
         }
@@ -482,7 +482,7 @@ class TestChatCompletionSubscription:
                     "invocationParameters": {"openai": {"temperature": 0.1}},
                     "tools": None,
                 },
-                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
+                "connectionConfig": CHAT_COMPLETIONS_CONNECTION_CONFIG,
                 "repetitions": 1,
             },
         }
@@ -649,7 +649,7 @@ class TestChatCompletionSubscription:
                         "toolChoice": {"zeroOrMore": True},
                     },
                 },
-                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
+                "connectionConfig": CHAT_COMPLETIONS_CONNECTION_CONFIG,
                 "repetitions": 1,
             },
         }
@@ -833,7 +833,7 @@ class TestChatCompletionSubscription:
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
-                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
+                "connectionConfig": CHAT_COMPLETIONS_CONNECTION_CONFIG,
                 "repetitions": 1,
             }
         }
@@ -1281,7 +1281,7 @@ class TestChatCompletionOverDatasetSubscription:
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
-                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
+                "connectionConfig": CHAT_COMPLETIONS_CONNECTION_CONFIG,
                 "repetitions": 1,
                 "createEphemeralExperiment": True,
             }
@@ -1696,7 +1696,7 @@ class TestChatCompletionOverDatasetSubscription:
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
-                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
+                "connectionConfig": CHAT_COMPLETIONS_CONNECTION_CONFIG,
                 "repetitions": 1,
             }
         }
@@ -1805,7 +1805,7 @@ class TestChatCompletionOverDatasetSubscription:
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
-                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
+                "connectionConfig": CHAT_COMPLETIONS_CONNECTION_CONFIG,
                 "repetitions": 1,
                 "splitIds": [train_split_id],  # Only train split
             }
@@ -1905,7 +1905,7 @@ class TestChatCompletionOverDatasetSubscription:
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
-                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
+                "connectionConfig": CHAT_COMPLETIONS_CONNECTION_CONFIG,
                 "repetitions": 1,
                 "splitIds": [train_split_id, test_split_id],  # Both splits
             }
@@ -2058,7 +2058,7 @@ class TestChatCompletionOverDatasetSubscription:
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
-                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
+                "connectionConfig": CHAT_COMPLETIONS_CONNECTION_CONFIG,
                 "repetitions": 1,
                 "splitIds": [train_split_id, test_split_id],
             }
@@ -2130,7 +2130,7 @@ class TestChatCompletionOverDatasetSubscription:
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
-                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
+                "connectionConfig": CHAT_COMPLETIONS_CONNECTION_CONFIG,
                 "repetitions": 1,
                 # No splitIds provided
             }
@@ -2263,7 +2263,7 @@ class TestChatCompletionOverDatasetSubscription:
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
-                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
+                "connectionConfig": CHAT_COMPLETIONS_CONNECTION_CONFIG,
                 "repetitions": 1,
                 "tracingEnabled": True,
                 "evaluators": [
@@ -2963,7 +2963,7 @@ class TestChatCompletionOverDatasetSubscription:
                     "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
-                "connectionConfig": {"openaiApiType": "CHAT_COMPLETIONS"},
+                "connectionConfig": CHAT_COMPLETIONS_CONNECTION_CONFIG,
                 "repetitions": 1,
                 "evaluators": [
                     {
@@ -3024,6 +3024,10 @@ def _dataset_example_id(work_item: object) -> Optional[int]:
         return int(work_item.dataset_example_revision.dataset_example_id)
     return None
 
+
+# Pins the OpenAI API type so cassettes stay on /v1/chat/completions regardless of
+# the model-name routing default.
+CHAT_COMPLETIONS_CONNECTION_CONFIG = {"openaiApiType": "CHAT_COMPLETIONS"}
 
 # span kind values
 LLM = OpenInferenceSpanKindValues.LLM.value
