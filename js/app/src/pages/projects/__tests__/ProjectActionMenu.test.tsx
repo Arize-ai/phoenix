@@ -141,10 +141,11 @@ describe("ProjectActionMenu", () => {
     expect(findButtonByText({ text: "Delete Project" })?.disabled).toBe(true);
 
     await act(async () => {
-      environment.mock.resolveMostRecentOperation({
-        data: { deleteProject: { __typename: "Query" } },
-        errors: [{ message: "Cannot delete project while cleanup is running" }],
-      });
+      environment.mock.rejectMostRecentOperation(
+        new Error(
+          `Error fetching GraphQL query 'ProjectActionMenuDeleteMutation': [{"message":"Cannot delete project while cleanup is running"}]`
+        )
+      );
     });
 
     expect(document.body.textContent).toContain(
@@ -187,5 +188,6 @@ describe("ProjectActionMenu", () => {
     });
 
     expect(onProjectRemoveData).toHaveBeenLastCalledWith();
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   });
 });

@@ -84,11 +84,7 @@ export function ProjectActionMenu({
         variables: {
           projectId: projectId,
         },
-        onCompleted: (_response, errors) => {
-          if (errors?.length) {
-            setDeleteError(errors.map(({ message }) => message).join("\n"));
-            return;
-          }
+        onCompleted: () => {
           setShowDeleteDialog(false);
           onProjectDelete();
         },
@@ -108,12 +104,7 @@ export function ProjectActionMenu({
             id: projectId,
           },
         },
-        onCompleted: (_response, errors) => {
-          if (errors?.length) {
-            setClearError(errors.map(({ message }) => message).join("\n"));
-            onProjectClear({ didFail: true });
-            return;
-          }
+        onCompleted: () => {
           setShowClearDialog(false);
           onProjectClear();
         },

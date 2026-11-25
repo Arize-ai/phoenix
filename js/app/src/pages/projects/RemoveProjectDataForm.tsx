@@ -87,12 +87,7 @@ export function RemoveProjectDataForm(props: RemoveProjectDataFormProps) {
             endTime: new Date(parsedDate).toISOString(),
           },
         },
-        onCompleted: (_response, errors) => {
-          if (errors?.length) {
-            setMutationError(errors.map(({ message }) => message).join("\n"));
-            props.onFailure();
-            return;
-          }
+        onCompleted: () => {
           props.onComplete();
         },
         onError: (error) => {
