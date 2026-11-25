@@ -13,11 +13,13 @@ already hide the project.
 from __future__ import annotations
 
 import logging
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Literal, Optional
 
 from sqlalchemy import (
+    ColumnElement,
     Select,
     and_,
     delete,
@@ -33,6 +35,7 @@ from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import InstrumentedAttribute
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
@@ -331,14 +334,39 @@ class CleanupCoordinator:
                 project_id=target.id,
             )
         if target.kind == "PROJECT_EVALUATOR":
-            return await self._step_project_evaluator_delete(
+            return await self._step_binding_delete(
                 session,
+                binding_model=models.ProjectEvaluator,
                 binding_id=target.id,
+                trace_project_column=models.ProjectEvaluator.trace_project_id,
+                drain_dependents=lambda: drain_eval_work_units_step(
+                    session,
+                    project_evaluator_id=target.id,
+                    batch_limit=self._batch_limit,
+                ),
+                dependent_residuals=[
+                    exists().where(models.EvalWorkUnit.project_evaluator_id == target.id),
+                    exists().where(models.EvalTraceWorkUnit.project_evaluator_id == target.id),
+                    exists().where(models.EvalSessionWorkUnit.project_evaluator_id == target.id),
+                ],
             )
         if target.kind == "DATASET_EVALUATOR":
-            return await self._step_dataset_evaluator_delete(
+            return await self._step_binding_delete(
                 session,
+                binding_model=models.DatasetEvaluators,
                 binding_id=target.id,
+                trace_project_column=models.DatasetEvaluators.project_id,
+                drain_dependents=lambda: drain_dataset_evaluator_dependents_step(
+                    session,
+                    dataset_evaluator_id=target.id,
+                    batch_limit=self._batch_limit,
+                ),
+                dependent_residuals=[
+                    exists().where(models.ExperimentEvalLog.dataset_evaluator_id == target.id),
+                    exists().where(
+                        models.ExperimentDatasetEvaluator.dataset_evaluator_id == target.id
+                    ),
+                ],
             )
         assert_never(target.kind)
 
@@ -390,28 +418,26 @@ class CleanupCoordinator:
         await session.execute(delete(models.Project).where(models.Project.id == project_id))
         return PrimitiveResult(PrimitiveStatus.EMPTY, 1)
 
-    async def _step_project_evaluator_delete(
+    async def _step_binding_delete(
         self,
         session: AsyncSession,
         *,
+        binding_model: type[models.HasId],
         binding_id: int,
+        trace_project_column: InstrumentedAttribute[int],
+        drain_dependents: Callable[[], Awaitable[PrimitiveResult]],
+        dependent_residuals: Sequence[ColumnElement[bool]],
     ) -> PrimitiveResult:
         dialect = SupportedSQLDialect(session.get_bind().dialect.name)
         trace_project_id = await session.scalar(
-            select(models.ProjectEvaluator.trace_project_id).where(
-                models.ProjectEvaluator.id == binding_id
-            )
+            select(trace_project_column).where(binding_model.id == binding_id)
         )
         if trace_project_id is None:
             return PrimitiveResult(PrimitiveStatus.EMPTY, 0)
 
-        work_res = await drain_eval_work_units_step(
-            session,
-            project_evaluator_id=binding_id,
-            batch_limit=self._batch_limit,
-        )
-        if work_res.status is not PrimitiveStatus.EMPTY:
-            return work_res
+        dependents_res = await drain_dependents()
+        if dependents_res.status is not PrimitiveStatus.EMPTY:
+            return dependents_res
 
         annotation_config_res = await drain_project_annotation_config_links_step(
             session,
@@ -436,19 +462,13 @@ class CleanupCoordinator:
                 .with_for_update()
             )
             await session.execute(
-                select(models.ProjectEvaluator.id)
-                .where(models.ProjectEvaluator.id == binding_id)
-                .with_for_update()
+                select(binding_model.id).where(binding_model.id == binding_id).with_for_update()
             )
         residual = bool(
             await session.scalar(
                 select(
                     or_(
-                        exists().where(models.EvalWorkUnit.project_evaluator_id == binding_id),
-                        exists().where(models.EvalTraceWorkUnit.project_evaluator_id == binding_id),
-                        exists().where(
-                            models.EvalSessionWorkUnit.project_evaluator_id == binding_id
-                        ),
+                        *dependent_residuals,
                         exists().where(models.Trace.project_rowid == trace_project_id),
                     )
                 )
@@ -457,81 +477,7 @@ class CleanupCoordinator:
         if residual:
             return PrimitiveResult(PrimitiveStatus.YIELD, 0)
 
-        await session.execute(
-            delete(models.ProjectEvaluator).where(models.ProjectEvaluator.id == binding_id)
-        )
-        await session.execute(delete(models.Project).where(models.Project.id == trace_project_id))
-        return PrimitiveResult(PrimitiveStatus.EMPTY, 1)
-
-    async def _step_dataset_evaluator_delete(
-        self,
-        session: AsyncSession,
-        *,
-        binding_id: int,
-    ) -> PrimitiveResult:
-        dialect = SupportedSQLDialect(session.get_bind().dialect.name)
-        trace_project_id = await session.scalar(
-            select(models.DatasetEvaluators.project_id).where(
-                models.DatasetEvaluators.id == binding_id
-            )
-        )
-        if trace_project_id is None:
-            return PrimitiveResult(PrimitiveStatus.EMPTY, 0)
-
-        dep_res = await drain_dataset_evaluator_dependents_step(
-            session,
-            dataset_evaluator_id=binding_id,
-            batch_limit=self._batch_limit,
-        )
-        if dep_res.status is not PrimitiveStatus.EMPTY:
-            return dep_res
-
-        annotation_config_res = await drain_project_annotation_config_links_step(
-            session,
-            project_id=trace_project_id,
-            batch_limit=self._batch_limit,
-        )
-        if annotation_config_res.status is not PrimitiveStatus.EMPTY:
-            return annotation_config_res
-
-        trace_res = await drain_trace_scope_step(
-            session,
-            project_id=trace_project_id,
-            batch_limit=self._batch_limit,
-        )
-        if trace_res.status is not PrimitiveStatus.EMPTY:
-            return trace_res
-
-        if dialect is SupportedSQLDialect.POSTGRESQL:
-            await session.execute(
-                select(models.Project.id)
-                .where(models.Project.id == trace_project_id)
-                .with_for_update()
-            )
-            await session.execute(
-                select(models.DatasetEvaluators.id)
-                .where(models.DatasetEvaluators.id == binding_id)
-                .with_for_update()
-            )
-        residual = bool(
-            await session.scalar(
-                select(
-                    or_(
-                        exists().where(models.ExperimentEvalLog.dataset_evaluator_id == binding_id),
-                        exists().where(
-                            models.ExperimentDatasetEvaluator.dataset_evaluator_id == binding_id
-                        ),
-                        exists().where(models.Trace.project_rowid == trace_project_id),
-                    )
-                )
-            )
-        )
-        if residual:
-            return PrimitiveResult(PrimitiveStatus.YIELD, 0)
-
-        await session.execute(
-            delete(models.DatasetEvaluators).where(models.DatasetEvaluators.id == binding_id)
-        )
+        await session.execute(delete(binding_model).where(binding_model.id == binding_id))
         await session.execute(delete(models.Project).where(models.Project.id == trace_project_id))
         return PrimitiveResult(PrimitiveStatus.EMPTY, 1)
 
