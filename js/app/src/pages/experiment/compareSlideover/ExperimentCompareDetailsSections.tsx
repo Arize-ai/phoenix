@@ -51,6 +51,7 @@ const detailsSectionsCSS = css`
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
+    scrollbar-gutter: stable;
     --section-nav-scroll-inset: 0px;
   }
 

@@ -137,6 +137,14 @@ const slideoverCSS = css`
       var(--global-border-color-default);
   }
 
+  /* Details mode scrolls under the lane headers. Both reserve the scrollbar's
+     width so the divider between the lanes stays in one line. */
+  .experiment-compare-slideover__body[data-mode="details"]
+    .experiment-compare-slideover__lane-headers {
+    overflow: hidden;
+    scrollbar-gutter: stable;
+  }
+
   /* Marks the lane the repetition shortcuts act on */
   .experiment-compare-slideover__body[data-active-lane="base"]
     .experiment-compare-slideover__lane-headers
@@ -606,6 +614,7 @@ function ExperimentCompareSlideoverBody({
   return (
     <div
       className="experiment-compare-slideover__body"
+      data-mode={state.mode}
       data-active-lane={hasSteppableLanes ? activeLane?.side : undefined}
       onFocusCapture={activateLaneOfEvent}
       onPointerDownCapture={activateLaneOfEvent}
