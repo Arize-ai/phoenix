@@ -118,3 +118,42 @@ export function formatRetainedOutcomeCounts(
     .filter((part): part is string => part !== false)
     .join(" · ");
 }
+
+/** How many project names a usage line spells out before "+N". */
+const MAX_NAMED_USAGE_PROJECTS = 2;
+
+/**
+ * e.g. "Used in this project, support-bot +1 · 2 datasets". Tells apart
+ * evaluators with similar names and shows what editing a shared one reaches.
+ */
+export function formatEvaluatorUsage({
+  projects,
+  currentProjectId,
+  numDatasets,
+}: {
+  projects: ReadonlyArray<{ id: string; name: string }>;
+  currentProjectId: string;
+  numDatasets: number;
+}): string {
+  const isInCurrentProject = projects.some(
+    (project) => project.id === currentProjectId
+  );
+  const projectNames = [
+    ...(isInCurrentProject ? ["this project"] : []),
+    ...projects
+      .filter((project) => project.id !== currentProjectId)
+      .map((project) => project.name),
+  ];
+  const namedProjects = projectNames.slice(0, MAX_NAMED_USAGE_PROJECTS);
+  const numUnnamedProjects = projectNames.length - namedProjects.length;
+  const parts: string[] = [];
+  if (namedProjects.length > 0) {
+    const unnamedSuffix =
+      numUnnamedProjects > 0 ? ` +${numUnnamedProjects}` : "";
+    parts.push(`${namedProjects.join(", ")}${unnamedSuffix}`);
+  }
+  if (numDatasets > 0) {
+    parts.push(`${numDatasets} dataset${numDatasets === 1 ? "" : "s"}`);
+  }
+  return parts.length > 0 ? `Used in ${parts.join(" · ")}` : "Not used yet";
+}

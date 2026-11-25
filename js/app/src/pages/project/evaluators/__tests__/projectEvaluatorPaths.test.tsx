@@ -46,6 +46,7 @@ function TestProjectEvaluatorPaths() {
         data-new-code={creation.newCode}
         data-copy-llm={creation.copyLlm("Evaluator:llm/source")}
         data-copy-code={creation.copyCode("Evaluator:code/source")}
+        data-copy-decision={creation.copyDecision("Evaluator:decision/source")}
         data-attach-code={creation.attach("Evaluator:code/source")}
       />
       <Outlet />
@@ -190,6 +191,9 @@ describe("useProjectEvaluatorCreationPaths", () => {
     );
     expect(path("copy-code")).toBe(
       "/projects/project-1/evaluators/new/copy-code/Evaluator%3Acode%2Fsource?timeRangeKey=7d&proof=preserved"
+    );
+    expect(path("copy-decision")).toBe(
+      "/projects/project-1/evaluators/new/copy-decision/Evaluator%3Adecision%2Fsource?timeRangeKey=7d&proof=preserved"
     );
     expect(path("attach-code")).toBe(
       "/projects/project-1/evaluators/new/attach/Evaluator%3Acode%2Fsource?timeRangeKey=7d&proof=preserved"

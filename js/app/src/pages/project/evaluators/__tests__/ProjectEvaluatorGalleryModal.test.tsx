@@ -74,7 +74,7 @@ describe("ProjectEvaluatorGalleryModal", () => {
     return { resolve };
   }
 
-  it("lists a saved decision evaluator as Decision and attaches it", async () => {
+  it("lists a saved decision evaluator as Decision and copies it", async () => {
     const { resolve } = await renderGallery();
     await resolve("projectEvaluatorGalleryModalQuery", () => ({
       evaluatorGalleryConfigs: [],
@@ -82,7 +82,14 @@ describe("ProjectEvaluatorGalleryModal", () => {
         edges: [
           {
             cursor: "cursor-1",
-            evaluator: { ...decisionEvaluator, description: null },
+            evaluator: {
+              ...decisionEvaluator,
+              description: null,
+              projects: {
+                edges: [{ project: { id: "project-2", name: "support-bot" } }],
+              },
+              datasets: { edges: [] },
+            },
             node: decisionEvaluator,
           },
         ],
@@ -124,14 +131,19 @@ describe("ProjectEvaluatorGalleryModal", () => {
 
     const details = document.querySelector("aside");
     expect(details?.textContent).toContain("relevance-decision");
+    expect(details?.textContent).toContain("Used in support-bot");
     expect(details?.textContent).toContain("output");
-    const attach = Array.from(details?.querySelectorAll("button") ?? []).find(
-      (button) => button.textContent === "Use this evaluator"
+    const buttonLabels = Array.from(
+      details?.querySelectorAll("button") ?? []
+    ).map((button) => button.textContent);
+    expect(buttonLabels).not.toContain("Use this evaluator");
+    const copy = Array.from(details?.querySelectorAll("button") ?? []).find(
+      (button) => button.textContent === "Copy and edit"
     );
-    expect(attach).toBeDefined();
-    await act(async () => attach?.click());
+    expect(copy).toBeDefined();
+    await act(async () => copy?.click());
     expect(document.querySelector("[data-testid=path]")?.textContent).toMatch(
-      /\/new\/attach\/evaluator-1$/
+      /\/new\/copy-decision\/evaluator-1$/
     );
   });
 

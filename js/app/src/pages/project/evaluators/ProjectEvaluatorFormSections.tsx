@@ -20,7 +20,6 @@ import {
 } from "@phoenix/components";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { DecisionEvaluatorForm } from "@phoenix/components/evaluators/decision/DecisionEvaluatorForm";
-import type { DecisionEvaluatorData } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
 import type { DecisionEvaluatorDraft } from "@phoenix/components/evaluators/decision/useDecisionEvaluatorDraft";
 import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorInputVariables";
 import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
@@ -292,10 +291,7 @@ export const ProjectCodeEvaluatorFormSections = ({
   if (codeDefinition == null) {
     return (
       <>
-        <ProjectEvaluatorAttachSummary
-          evaluatorKind="code"
-          evaluatorName={codeEvaluatorName}
-        />
+        <ProjectEvaluatorAddExistingSummary evaluatorName={codeEvaluatorName} />
         <ProjectEvaluatorScopeSection {...scopeProps} />
         <ProjectEvaluatorAdvancedSection {...scopeProps} />
       </>
@@ -315,33 +311,15 @@ export const ProjectCodeEvaluatorFormSections = ({
   );
 };
 
-/**
- * The left definition panel for a decision project evaluator, laid out like
- * {@link ProjectCodeEvaluatorFormSections}: a draft gets the name, scope, and
- * decision definition; an attached evaluator gets its summary card and scope.
- */
-export const ProjectDecisionEvaluatorFormSections = (
-  props: ProjectEvaluatorScopeProps &
-    (
-      | { draft: DecisionEvaluatorDraft; isDisabled?: boolean }
-      | { attachedEvaluator: DecisionEvaluatorData }
-    )
-) => {
-  if ("attachedEvaluator" in props) {
-    const { attachedEvaluator, ...scopeProps } = props;
-    return (
-      <>
-        <ProjectEvaluatorAttachSummary
-          evaluatorKind="decision"
-          evaluatorName={attachedEvaluator.name}
-          subtitle={attachedEvaluator.decisionVersion.decision.name}
-        />
-        <ProjectEvaluatorScopeSection {...scopeProps} />
-        <ProjectEvaluatorAdvancedSection {...scopeProps} />
-      </>
-    );
-  }
-  const { draft, isDisabled, ...scopeProps } = props;
+/** Laid out like {@link ProjectCodeEvaluatorFormSections}. */
+export const ProjectDecisionEvaluatorFormSections = ({
+  draft,
+  isDisabled,
+  ...scopeProps
+}: ProjectEvaluatorScopeProps & {
+  draft: DecisionEvaluatorDraft;
+  isDisabled?: boolean;
+}) => {
   return (
     <>
       <EvaluatorNameAndDescriptionFields isNameRequired />
@@ -357,21 +335,18 @@ export const ProjectDecisionEvaluatorFormSections = (
   );
 };
 
-const ProjectEvaluatorAttachSummary = ({
-  evaluatorKind,
+/** Read-only: adding an existing evaluator shares its definition, not a copy. */
+const ProjectEvaluatorAddExistingSummary = ({
   evaluatorName,
-  subtitle,
 }: {
-  evaluatorKind: "code" | "decision";
   evaluatorName?: string;
-  subtitle?: string;
 }) => {
   return (
     <View marginBottom="size-200" flex="none">
       <Flex direction="column" gap="size-100">
         <EvaluatorSectionHeader
           title="Evaluator"
-          description={`Attach the selected ${evaluatorKind} evaluator to this project.`}
+          description="Adds this same evaluator to the project. Edits to it apply everywhere it is used."
         />
         <View
           borderRadius="medium"
@@ -379,14 +354,7 @@ const ProjectEvaluatorAttachSummary = ({
           borderColor="default"
           padding="size-200"
         >
-          <Flex direction="column" gap="size-50">
-            <Heading level={3}>{evaluatorName}</Heading>
-            {subtitle ? (
-              <Text size="S" color="text-500">
-                {subtitle}
-              </Text>
-            ) : null}
-          </Flex>
+          <Heading level={3}>{evaluatorName}</Heading>
         </View>
       </Flex>
     </View>

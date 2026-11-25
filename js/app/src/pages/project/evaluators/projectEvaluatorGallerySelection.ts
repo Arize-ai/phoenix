@@ -7,6 +7,16 @@ export type CustomEvaluator = {
   readonly id: string;
   readonly name: string;
   readonly description: string | null;
+  readonly projects: {
+    readonly edges: ReadonlyArray<{
+      readonly project: { readonly id: string; readonly name: string };
+    }>;
+  };
+  readonly datasets: {
+    readonly edges: ReadonlyArray<{
+      readonly dataset: { readonly id: string };
+    }>;
+  };
 };
 
 export type GalleryItem =

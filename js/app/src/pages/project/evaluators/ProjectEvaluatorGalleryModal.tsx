@@ -51,7 +51,10 @@ import type { projectEvaluatorGalleryModalQuery as ProjectEvaluatorGalleryModalQ
 import type { EvaluatorCategory } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
 import { AddProjectEvaluatorMenu } from "@phoenix/pages/project/evaluators/AddProjectEvaluatorMenu";
 import { EvaluatorTemplateCard } from "@phoenix/pages/project/evaluators/EvaluatorTemplateCard";
-import { formatEvaluationTargetPlural } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
+import {
+  formatEvaluationTargetPlural,
+  formatEvaluatorUsage,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import {
   type CustomEvaluator,
   type GalleryItem,
@@ -71,7 +74,10 @@ import {
   type CodeProjectEvaluatorDetails,
   type LlmProjectEvaluatorDetails,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
-import { useProjectEvaluatorCreationPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
+import {
+  type ProjectEvaluatorCreationPaths,
+  useProjectEvaluatorCreationPaths,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
 import { getProjectEvaluatorTargetIconSvg } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTargetIcon";
 import {
   getProjectEvaluatorTemplateCategoryLabel,
@@ -83,6 +89,7 @@ import {
 import type { ProjectEvaluatorTarget } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import type { PlaygroundChatTemplate } from "@phoenix/store";
 import type { EvaluatorOptimizationDirection } from "@phoenix/types";
+import { assertUnreachable } from "@phoenix/typeUtils";
 import { convertPromptVersionMessagesToPlaygroundInstanceMessages } from "@phoenix/utils/promptUtils";
 
 const OTHER_CATEGORY = "other" as const;
@@ -172,6 +179,21 @@ const projectEvaluatorGalleryModalQuery = graphql`
           id
           name
           description
+          projects {
+            edges {
+              project: node {
+                id
+                name
+              }
+            }
+          }
+          datasets {
+            edges {
+              dataset: node {
+                id
+              }
+            }
+          }
         }
       }
     }
@@ -245,6 +267,26 @@ const CUSTOM_EVALUATOR_KINDS = {
 const getCustomEvaluatorKind = (
   evaluator: Pick<CustomEvaluator, "__typename">
 ): CustomEvaluatorKind => CUSTOM_EVALUATOR_KINDS[evaluator.__typename];
+
+function getCustomEvaluatorCopyPath({
+  evaluator,
+  creationPaths,
+}: {
+  evaluator: Pick<CustomEvaluator, "__typename" | "id">;
+  creationPaths: ProjectEvaluatorCreationPaths;
+}): string {
+  const kind = getCustomEvaluatorKind(evaluator);
+  switch (kind) {
+    case "LLM":
+      return creationPaths.copyLlm(evaluator.id);
+    case "CODE":
+      return creationPaths.copyCode(evaluator.id);
+    case "DECISION":
+      return creationPaths.copyDecision(evaluator.id);
+    default:
+      return assertUnreachable(kind);
+  }
+}
 
 function getGalleryItemSection(item: GalleryItem): GallerySection {
   return item.kind === "custom"
@@ -688,10 +730,14 @@ function EvaluatorGallery({
             // The second press of a double-click deselects the card first.
             setSelection(getGalleryItemSelection(item));
             if (item.kind === "custom") {
+              // Same as the details panel's primary action.
               navigate(
-                getCustomEvaluatorKind(item.evaluator) === "LLM"
-                  ? creationPaths.copyLlm(item.evaluator.id)
-                  : creationPaths.attach(item.evaluator.id)
+                getCustomEvaluatorKind(item.evaluator) === "CODE"
+                  ? creationPaths.attach(item.evaluator.id)
+                  : getCustomEvaluatorCopyPath({
+                      evaluator: item.evaluator,
+                      creationPaths,
+                    })
               );
               return;
             }
@@ -844,9 +890,10 @@ function EvaluatorGallery({
                 }
                 onDuplicateEvaluator={() =>
                   navigate(
-                    getCustomEvaluatorKind(selectedItem.evaluator) === "LLM"
-                      ? creationPaths.copyLlm(selectedItem.evaluator.id)
-                      : creationPaths.copyCode(selectedItem.evaluator.id)
+                    getCustomEvaluatorCopyPath({
+                      evaluator: selectedItem.evaluator,
+                      creationPaths,
+                    })
                   )
                 }
               />
@@ -948,12 +995,19 @@ function CustomEvaluatorDetails({
     { id: evaluatorSummary.id },
     { fetchPolicy: "store-and-network" }
   );
+  const { projectId } = useParams();
+  const usage = formatEvaluatorUsage({
+    projects: evaluatorSummary.projects.edges.map(({ project }) => project),
+    currentProjectId: projectId ?? "",
+    numDatasets: evaluatorSummary.datasets.edges.length,
+  });
   if (data.evaluator.__typename === "DecisionEvaluator") {
     return (
       <DecisionCustomEvaluatorDetails
+        usage={usage}
         evaluator={evaluatorSummary}
         details={data.evaluator}
-        onAttachEvaluator={onAttachEvaluator}
+        onDuplicateEvaluator={onDuplicateEvaluator}
       />
     );
   }
@@ -964,6 +1018,7 @@ function CustomEvaluatorDetails({
   if (evaluator.__typename === "LLMEvaluator") {
     return (
       <LlmCustomEvaluatorDetails
+        usage={usage}
         evaluator={evaluator}
         onDuplicateEvaluator={onDuplicateEvaluator}
       />
@@ -972,6 +1027,7 @@ function CustomEvaluatorDetails({
   if (evaluator.__typename === "CodeEvaluator") {
     return (
       <CodeCustomEvaluatorDetails
+        usage={usage}
         evaluator={evaluator}
         onAttachEvaluator={onAttachEvaluator}
         onDuplicateEvaluator={onDuplicateEvaluator}
@@ -983,10 +1039,13 @@ function CustomEvaluatorDetails({
 
 function CustomEvaluatorDetailsHeader({
   evaluator,
+  usage,
 }: {
   evaluator: Pick<CustomEvaluator, "__typename" | "name" | "description"> & {
     readonly language?: CodeProjectEvaluatorDetails["language"];
   };
+  /** Tells apart evaluators with similar names. */
+  usage: string;
 }) {
   return (
     <Flex direction="column" gap="size-50">
@@ -999,6 +1058,9 @@ function CustomEvaluatorDetailsHeader({
           evaluatorKind={getCustomEvaluatorKind(evaluator)}
           language={evaluator.language}
         />
+        <Text size="XS" color="text-500">
+          {usage}
+        </Text>
       </Flex>
       {evaluator.description ? (
         <Text size="S" color="text-700">
@@ -1127,9 +1189,11 @@ function AnnotationValues({
 
 function LlmCustomEvaluatorDetails({
   evaluator,
+  usage,
   onDuplicateEvaluator,
 }: {
   evaluator: LlmProjectEvaluatorDetails;
+  usage: string;
   onDuplicateEvaluator: () => void;
 }) {
   const promptTemplate = evaluator.promptVersion?.template;
@@ -1149,7 +1213,7 @@ function LlmCustomEvaluatorDetails({
         : [];
   return (
     <Flex direction="column" gap="size-300" minHeight="100%">
-      <CustomEvaluatorDetailsHeader evaluator={evaluator} />
+      <CustomEvaluatorDetailsHeader evaluator={evaluator} usage={usage} />
       <EvaluatorOutputSummary outputConfigs={evaluator.outputConfigs} />
       <EvaluatorInputSummary inputs={evaluator.inputs} />
       <EvaluatorPromptPreview messages={messages} />
@@ -1162,16 +1226,18 @@ function LlmCustomEvaluatorDetails({
 
 function CodeCustomEvaluatorDetails({
   evaluator,
+  usage,
   onAttachEvaluator,
   onDuplicateEvaluator,
 }: {
   evaluator: CodeProjectEvaluatorDetails;
+  usage: string;
   onAttachEvaluator: () => void;
   onDuplicateEvaluator: () => void;
 }) {
   return (
     <Flex direction="column" gap="size-300" minHeight="100%">
-      <CustomEvaluatorDetailsHeader evaluator={evaluator} />
+      <CustomEvaluatorDetailsHeader evaluator={evaluator} usage={usage} />
       <EvaluatorOutputSummary outputConfigs={evaluator.outputConfigs} />
       <EvaluatorInputSummary inputs={evaluator.inputs} />
       <Flex direction="column" gap="size-75">
@@ -1201,16 +1267,18 @@ function CodeCustomEvaluatorDetails({
 
 function DecisionCustomEvaluatorDetails({
   evaluator,
+  usage,
   details,
-  onAttachEvaluator,
+  onDuplicateEvaluator,
 }: {
   evaluator: CustomEvaluator;
+  usage: string;
   details: ProjectEvaluatorDetailsQueryType["response"]["evaluator"];
-  onAttachEvaluator: () => void;
+  onDuplicateEvaluator: () => void;
 }) {
   return (
     <Flex direction="column" gap="size-300" minHeight="100%">
-      <CustomEvaluatorDetailsHeader evaluator={evaluator} />
+      <CustomEvaluatorDetailsHeader evaluator={evaluator} usage={usage} />
       <EvaluatorInputSummary
         inputs={getEvaluatorInputSummaries(details.inputSchema)}
       />
@@ -1220,8 +1288,8 @@ function DecisionCustomEvaluatorDetails({
         </Text>
         <DecisionEvaluatorSummary evaluator={details} />
       </Flex>
-      <EvaluatorDetailsAction onPress={onAttachEvaluator}>
-        Use this evaluator
+      <EvaluatorDetailsAction onPress={onDuplicateEvaluator}>
+        Copy and edit
       </EvaluatorDetailsAction>
     </Flex>
   );

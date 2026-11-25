@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1d108fd033085a5646c7d4a3d33cacf9>>
+ * @generated SignedSource<<140a6883a81ae765bfd6ca229d954457>>
  * @lightSyntaxTransform
  */
 
@@ -38,9 +38,24 @@ export type projectEvaluatorGalleryModalQuery$data = {
     readonly edges: ReadonlyArray<{
       readonly evaluator: {
         readonly __typename: string;
+        readonly datasets: {
+          readonly edges: ReadonlyArray<{
+            readonly dataset: {
+              readonly id: string;
+            };
+          }>;
+        };
         readonly description: string | null;
         readonly id: string;
         readonly name: string;
+        readonly projects: {
+          readonly edges: ReadonlyArray<{
+            readonly project: {
+              readonly id: string;
+              readonly name: string;
+            };
+          }>;
+        };
       };
     }>;
   };
@@ -196,7 +211,76 @@ v16 = {
     (v14/*:: as any*/),
     (v15/*:: as any*/),
     (v1/*:: as any*/),
-    (v2/*:: as any*/)
+    (v2/*:: as any*/),
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "ProjectConnection",
+      "kind": "LinkedField",
+      "name": "projects",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "ProjectEdge",
+          "kind": "LinkedField",
+          "name": "edges",
+          "plural": true,
+          "selections": [
+            {
+              "alias": "project",
+              "args": null,
+              "concreteType": "Project",
+              "kind": "LinkedField",
+              "name": "node",
+              "plural": false,
+              "selections": [
+                (v15/*:: as any*/),
+                (v1/*:: as any*/)
+              ],
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "DatasetConnection",
+      "kind": "LinkedField",
+      "name": "datasets",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "DatasetEdge",
+          "kind": "LinkedField",
+          "name": "edges",
+          "plural": true,
+          "selections": [
+            {
+              "alias": "dataset",
+              "args": null,
+              "concreteType": "Dataset",
+              "kind": "LinkedField",
+              "name": "node",
+              "plural": false,
+              "selections": [
+                (v15/*:: as any*/)
+              ],
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    }
   ],
   "storageKey": null
 },
@@ -455,7 +539,7 @@ return {
     ]
   },
   "params": {
-    "cacheID": "75758c79b690a9eded9a55967caebe90",
+    "cacheID": "3788af035b8cb944e3f8a8d874627c23",
     "id": null,
     "metadata": {
       "connection": [
@@ -471,11 +555,11 @@ return {
     },
     "name": "projectEvaluatorGalleryModalQuery",
     "operationKind": "query",
-    "text": "query projectEvaluatorGalleryModalQuery(\n  $projectId: ID!\n) {\n  evaluatorGalleryConfigs {\n    name\n    description\n    choices\n    optimizationDirection\n    scope\n    category\n    details\n    inputs {\n      name\n      description\n    }\n    defaultFilterCondition\n    defaultPathMapping\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n  evaluators(first: 100, sort: {col: updatedAt, dir: desc}, excludeProjectId: $projectId) {\n    edges {\n      evaluator: node {\n        __typename\n        id\n        name\n        description\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n"
+    "text": "query projectEvaluatorGalleryModalQuery(\n  $projectId: ID!\n) {\n  evaluatorGalleryConfigs {\n    name\n    description\n    choices\n    optimizationDirection\n    scope\n    category\n    details\n    inputs {\n      name\n      description\n    }\n    defaultFilterCondition\n    defaultPathMapping\n    messages {\n      ...promptUtils_promptMessages\n    }\n  }\n  evaluators(first: 100, sort: {col: updatedAt, dir: desc}, excludeProjectId: $projectId) {\n    edges {\n      evaluator: node {\n        __typename\n        id\n        name\n        description\n        projects {\n          edges {\n            project: node {\n              id\n              name\n            }\n          }\n        }\n        datasets {\n          edges {\n            dataset: node {\n              id\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n"
   }
 };
 })();
 
-(node as any).hash = "83e2482bcf7e5c287500aecf32c40425";
+(node as any).hash = "b61405ca5fdb64e81e65825b05d38d3a";
 
 export default node;

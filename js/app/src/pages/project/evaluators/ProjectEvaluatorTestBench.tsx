@@ -102,7 +102,6 @@ export type ProjectEvaluatorInlineCode = {
 };
 
 export type ProjectEvaluatorDecisionPreview =
-  | { decisionEvaluatorId: string }
   | { definition: Omit<InlineDecisionEvaluatorInput, "name"> }
   | { blocker: string };
 
@@ -650,7 +649,6 @@ export type PreviewEvaluatorInput =
   | { codeEvaluatorId: string }
   | { inlineCodeEvaluator: InlineCodeEvaluatorInput }
   | { inlineLlmEvaluator: InlineLLMEvaluatorInput }
-  | { decisionEvaluatorId: string }
   | { inlineDecisionEvaluator: InlineDecisionEvaluatorInput };
 
 /**
@@ -705,9 +703,6 @@ function buildPreviewEvaluator({
   }
   const { name, outputConfigs } = withPreviewName(state);
   if (decision) {
-    if ("decisionEvaluatorId" in decision) {
-      return { decisionEvaluatorId: decision.decisionEvaluatorId };
-    }
     if ("definition" in decision) {
       return { inlineDecisionEvaluator: { ...decision.definition, name } };
     }

@@ -103,6 +103,7 @@ from phoenix.server.api.types.Evaluator import (
     DatasetEvaluator,
     DecisionEvaluator,
     Evaluator,
+    EvaluatorKind,
     LLMEvaluator,
     ProjectEvaluator,
     to_gql_evaluator,
@@ -1626,6 +1627,7 @@ class Query:
         sort: Optional[EvaluatorSort] = UNSET,
         filter: Optional[EvaluatorFilter] = UNSET,
         exclude_project_id: Optional[GlobalID] = UNSET,
+        kinds: Optional[list[EvaluatorKind]] = UNSET,
     ) -> Connection[Evaluator]:
         args = ConnectionArgs(
             first=first,
@@ -1669,6 +1671,9 @@ class Query:
                 )
             )
             query = query.where(~has_project_association)
+
+        if isinstance(kinds, list):
+            query = query.where(PolymorphicEvaluator.kind.in_([kind.value for kind in kinds]))
 
         if filter:
             if filter.col.value == "name":

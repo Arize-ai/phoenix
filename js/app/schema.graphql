@@ -6107,7 +6107,7 @@ type Query {
     names: [String!]
   ): DatasetSplitConnection!
   builtInEvaluators: [BuiltInEvaluator!]!
-  evaluators(first: Int = 50, last: Int, after: String, before: String, sort: EvaluatorSort, filter: EvaluatorFilter, excludeProjectId: ID): EvaluatorConnection!
+  evaluators(first: Int = 50, last: Int, after: String, before: String, sort: EvaluatorSort, filter: EvaluatorFilter, excludeProjectId: ID, kinds: [EvaluatorKind!]): EvaluatorConnection!
 
   """
   Every dataset evaluator on the server, across datasets, ordered by name unless sorted. The name filter matches the dataset evaluator's name or its dataset's name.
