@@ -641,10 +641,10 @@ async def delete_standalone_traces_by_trace_id(
         return
 
     dialect = SupportedSQLDialect(db.dialect.value)
-    chunk_size = min(batch_limit, CLEANUP_BATCH_ROWS)
+    batch_limit = min(batch_limit, CLEANUP_BATCH_ROWS)
 
-    for chunk_start in range(0, len(unique_trace_ids), chunk_size):
-        chunk_trace_ids = unique_trace_ids[chunk_start : chunk_start + chunk_size]
+    for chunk_start in range(0, len(unique_trace_ids), batch_limit):
+        chunk_trace_ids = unique_trace_ids[chunk_start : chunk_start + batch_limit]
         chunk_affected_project_ids: set[int] = set()
         async with db() as session:
             if dialect is SupportedSQLDialect.POSTGRESQL:
