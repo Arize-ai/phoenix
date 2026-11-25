@@ -49,7 +49,7 @@ export async function deleteExperiment({
 }: DeleteExperimentParams): Promise<void> {
   const client = _client ?? createClient();
 
-  const { error, response } = await client.DELETE("/v1/experiments/{experiment_id}", {
+  const { error } = await client.DELETE("/v1/experiments/{experiment_id}", {
     params: {
       path: {
         experiment_id: experimentId,
@@ -61,7 +61,12 @@ export async function deleteExperiment({
   });
 
   if (error) {
-    if (response.status === 404) {
+    const isNotFound =
+      typeof error === "object" &&
+      error !== null &&
+      "status" in error &&
+      error.status === 404;
+    if (isNotFound) {
       throw new Error(`Experiment not found: ${experimentId}`);
     }
 
