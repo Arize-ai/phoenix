@@ -1353,13 +1353,6 @@ async def _persist_db_traces(
     session: AsyncSession,
     db_traces: list[models.Trace],
 ) -> tuple[int, ...]:
-    project_ids = tuple(dict.fromkeys(db_trace.project_rowid for db_trace in db_traces))
-    trace_ids = {db_trace.trace_id for db_trace in db_traces}
-    project_sessions = [
-        db_trace.project_session for db_trace in db_traces if db_trace.project_session is not None
-    ]
-    persistent_by_session_id = await _upsert_project_sessions(session, project_sessions)
-
     existing_traces_by_trace_id: dict[str, models.Trace] = {}
     tombstoned_trace_ids: set[str] = set()
     # project_session is loaded eagerly because it is read after the session may have been unset.
@@ -1372,6 +1365,18 @@ async def _persist_db_traces(
         existing_traces_by_trace_id[existing_trace_row.trace_id] = existing_trace_row
         if project_deleted_at is not None:
             tombstoned_trace_ids.add(existing_trace_row.trace_id)
+    # Traces of a tombstoned project are left alone: they take no part in the session upsert,
+    # the cumulative refresh or the returned project ids.
+    db_traces = [
+        db_trace for db_trace in db_traces if db_trace.trace_id not in tombstoned_trace_ids
+    ]
+    project_ids = tuple(dict.fromkeys(db_trace.project_rowid for db_trace in db_traces))
+    trace_ids = {db_trace.trace_id for db_trace in db_traces}
+    project_sessions = [
+        db_trace.project_session for db_trace in db_traces if db_trace.project_session is not None
+    ]
+    persistent_by_session_id = await _upsert_project_sessions(session, project_sessions)
+
     span_ids = {db_span.span_id for db_trace in db_traces for db_span in db_trace.spans}
     existing_span_ids = (
         set(
@@ -1411,8 +1416,6 @@ async def _persist_db_traces(
                     db_trace.project_session = persistent_project_session
                     project_session_rowids_with_new_spans.add(persistent_project_session.id)
                 traces_to_insert.append(db_trace)
-            continue
-        if db_trace.trace_id in tombstoned_trace_ids:
             continue
         if db_trace.start_time < existing_trace.start_time:
             existing_trace.start_time = db_trace.start_time

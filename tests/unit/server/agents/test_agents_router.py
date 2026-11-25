@@ -2367,6 +2367,69 @@ async def test_persist_db_traces_continues_a_session_owned_by_a_tombstoned_proje
     assert num_spans == 2
 
 
+async def test_persist_db_traces_leaves_skipped_tombstoned_traces_untouched(
+    db: DbSessionFactory,
+) -> None:
+    tombstoned_trace_id = "e" * 32
+    live_trace_id = "f" * 32
+    root_span = _build_backend_span(span_id="e" * 16)
+    child_span = _build_backend_span(span_id="1" * 16, parent_id="e" * 16, span_kind="LLM")
+    child_span.llm_token_count_prompt = 5
+    async with db() as session:
+        tombstoned_project = models.Project(name="gone", deleted_at=datetime.now(timezone.utc))
+        live_project = models.Project(name="pxi_dev")
+        session.add_all([tombstoned_project, live_project])
+        await session.flush()
+        tombstoned_project_id, live_project_id = tombstoned_project.id, live_project.id
+        session.add(
+            _build_backend_trace(
+                project_id=tombstoned_project_id,
+                trace_id=tombstoned_trace_id,
+                spans=[root_span, child_span],
+            )
+        )
+
+    skipped_trace = _build_backend_trace(
+        project_id=tombstoned_project_id, trace_id=tombstoned_trace_id, span_id="2" * 16
+    )
+    skipped_trace.project_session = models.ProjectSession(
+        session_id="skipped-session",
+        project_id=tombstoned_project_id,
+        start_time=skipped_trace.start_time,
+        end_time=skipped_trace.end_time,
+    )
+    live_trace = _build_backend_trace(
+        project_id=live_project_id, trace_id=live_trace_id, span_id="3" * 16
+    )
+    async with db() as session:
+        project_ids = await _persist_db_traces(
+            session=session, db_traces=[skipped_trace, live_trace]
+        )
+
+    assert project_ids == (live_project_id,)
+    async with db() as session:
+        assert (
+            await session.scalar(
+                select(models.Span.cumulative_llm_token_count_prompt).where(
+                    models.Span.span_id == "e" * 16
+                )
+            )
+            == 0
+        )
+        assert (
+            await session.scalar(
+                select(func.count())
+                .select_from(models.ProjectSession)
+                .where(models.ProjectSession.session_id == "skipped-session")
+            )
+            == 0
+        )
+        assert (
+            await session.scalar(select(models.Span.id).where(models.Span.span_id == "3" * 16))
+            is not None
+        )
+
+
 def _build_backend_span(
     *,
     span_id: str,
