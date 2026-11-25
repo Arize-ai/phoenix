@@ -473,6 +473,33 @@ async def test_late_span_for_a_trace_in_a_tombstoned_project_is_dropped(
         )
 
 
+async def test_live_trace_does_not_join_a_session_owned_by_a_tombstoned_project(
+    db: DbSessionFactory,
+) -> None:
+    session_attributes = {"session": {"id": "shared-session"}}
+    async with db() as session:
+        owner_span = replace(_span("owner", "owner-trace", "owner"), attributes=session_attributes)
+        assert await insert_span(session, owner_span, "tombstoned") is not None
+        await session.execute(
+            update(models.Project)
+            .where(models.Project.name == "tombstoned")
+            .values(deleted_at=datetime(2026, 1, 1, tzinfo=timezone.utc))
+        )
+
+    async with db() as session:
+        live_span = replace(_span("live", "live-trace", "live"), attributes=session_attributes)
+        inserted = await insert_span(session, live_span, "live")
+        assert inserted is not None
+        assert inserted.project_session_rowid is None
+
+    async with db() as session:
+        await session.execute(delete(models.Project).where(models.Project.name == "tombstoned"))
+
+    async with db() as session:
+        assert await session.scalar(select(func.count(models.Trace.id))) == 1
+        assert await session.scalar(select(func.count(models.Span.id))) == 1
+
+
 async def test_late_span_preserves_transferred_project_and_established_session(
     db: DbSessionFactory,
 ) -> None:

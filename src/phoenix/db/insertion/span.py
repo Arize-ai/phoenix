@@ -315,32 +315,44 @@ async def insert_span(
                 end_time=trace.end_time,
             ),
         )
-        # Coalesce is evaluated against the locked row, so a concurrent attachment
-        # wins over our earlier read of a sessionless trace.
-        attached_trace = await _fetch_row(
-            session,
-            update(models.Trace)
-            .where(models.Trace.id == trace.id)
-            .values(
-                project_session_rowid=func.coalesce(
-                    models.Trace.project_session_rowid, project_session.id
+        if project_session.project_id != trace.project_rowid and (
+            await session.scalar(
+                select(models.Project.deleted_at).where(
+                    models.Project.id == project_session.project_id
                 )
             )
-            .returning(*_columns(models.Trace, _TraceRow))
-            .execution_options(synchronize_session=False),
-            _TraceRow,
-        )
-        if attached_trace is None:
-            return None
-        trace = attached_trace
-        if trace.project_session_rowid != project_session.id:
-            project_session = await _fetch_row(
+            is not None
+        ):
+            # A session owned by a tombstoned project is deleted with it, so a live trace must
+            # not join it.
+            project_session = None
+        else:
+            # Coalesce is evaluated against the locked row, so a concurrent attachment
+            # wins over our earlier read of a sessionless trace.
+            attached_trace = await _fetch_row(
                 session,
-                select(*_columns(models.ProjectSession, _ProjectSessionRow)).filter_by(
-                    id=trace.project_session_rowid
-                ),
-                _ProjectSessionRow,
+                update(models.Trace)
+                .where(models.Trace.id == trace.id)
+                .values(
+                    project_session_rowid=func.coalesce(
+                        models.Trace.project_session_rowid, project_session.id
+                    )
+                )
+                .returning(*_columns(models.Trace, _TraceRow))
+                .execution_options(synchronize_session=False),
+                _TraceRow,
             )
+            if attached_trace is None:
+                return None
+            trace = attached_trace
+            if trace.project_session_rowid != project_session.id:
+                project_session = await _fetch_row(
+                    session,
+                    select(*_columns(models.ProjectSession, _ProjectSessionRow)).filter_by(
+                        id=trace.project_session_rowid
+                    ),
+                    _ProjectSessionRow,
+                )
 
     if project_session is not None:
         await _extend_time_range(
