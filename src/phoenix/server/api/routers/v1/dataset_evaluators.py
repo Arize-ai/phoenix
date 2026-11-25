@@ -241,11 +241,6 @@ async def create_dataset_evaluator(
     experiment.
     """
     with evaluator_api_errors():
-        # The writer sees a dataset created just before this request; a replica may not.
-        async with request.app.state.db() as session:
-            dataset = await get_dataset_by_identifier(session, dataset_identifier)
-            dataset_id = GlobalID("Dataset", str(dataset.id))
-        context = evaluator_service_context(request)
         evaluator_id = parse_global_id(body.evaluator_id)
         evaluator_kind = EVALUATOR_KIND_BY_TYPENAME.get(evaluator_id.type_name)
         if evaluator_kind is None:
@@ -253,6 +248,17 @@ async def create_dataset_evaluator(
         _refuse_mismatched_evaluator_type(
             evaluator_type=body.evaluator_type, evaluator_kind=evaluator_kind
         )
+        configs = (
+            output_configs_to_db(body.output_configs)
+            if not isinstance(body, CreateDecisionDatasetEvaluatorRequest)
+            and body.output_configs is not None
+            else None
+        )
+        # The writer sees a dataset created just before this request; a replica may not.
+        async with request.app.state.db() as session:
+            dataset = await get_dataset_by_identifier(session, dataset_identifier)
+            dataset_id = GlobalID("Dataset", str(dataset.id))
+        context = evaluator_service_context(request)
         row: models.DatasetEvaluators
         if isinstance(body, CreateDecisionDatasetEvaluatorRequest):
             row = await decisions.create_dataset_decision_binding(
@@ -265,50 +271,44 @@ async def create_dataset_evaluator(
                     description=body.description,
                 ),
             )
-        else:
-            configs = (
-                output_configs_to_db(body.output_configs)
-                if body.output_configs is not None
-                else None
+        elif isinstance(body, CreateLLMDatasetEvaluatorRequest):
+            row = await dataset_bindings.create_dataset_llm_binding(
+                context,
+                dataset_bindings.CreateDatasetLLMBindingInput(
+                    dataset_id=dataset_id,
+                    evaluator_id=evaluator_id,
+                    name=body.name,
+                    input_mapping=body.input_mapping,
+                    description=body.description,
+                    output_configs=configs,
+                ),
             )
-            if isinstance(body, CreateLLMDatasetEvaluatorRequest):
-                row = await dataset_bindings.create_dataset_llm_binding(
-                    context,
-                    dataset_bindings.CreateDatasetLLMBindingInput(
-                        dataset_id=dataset_id,
-                        evaluator_id=evaluator_id,
-                        name=body.name,
-                        input_mapping=body.input_mapping,
-                        description=body.description,
-                        output_configs=configs,
-                    ),
-                )
-            elif isinstance(body, CreateCodeDatasetEvaluatorRequest):
-                row = await dataset_bindings.create_dataset_code_evaluator(
-                    context,
-                    dataset_bindings.CreateDatasetCodeEvaluatorInput(
-                        dataset_id=dataset_id,
-                        name=body.name,
-                        evaluator_id=evaluator_id,
-                        input_mapping=body.input_mapping,
-                        description=body.description,
-                        output_configs=configs,
-                    ),
-                )
-            elif isinstance(body, CreateBuiltInDatasetEvaluatorRequest):
-                row = await dataset_bindings.create_dataset_builtin_evaluator(
-                    context,
-                    dataset_bindings.CreateDatasetBuiltinEvaluatorInput(
-                        dataset_id=dataset_id,
-                        name=body.name,
-                        evaluator_id=evaluator_id,
-                        input_mapping=body.input_mapping,
-                        description=body.description,
-                        output_configs=configs,
-                    ),
-                )
-            else:
-                assert_never(body)
+        elif isinstance(body, CreateCodeDatasetEvaluatorRequest):
+            row = await dataset_bindings.create_dataset_code_evaluator(
+                context,
+                dataset_bindings.CreateDatasetCodeEvaluatorInput(
+                    dataset_id=dataset_id,
+                    name=body.name,
+                    evaluator_id=evaluator_id,
+                    input_mapping=body.input_mapping,
+                    description=body.description,
+                    output_configs=configs,
+                ),
+            )
+        elif isinstance(body, CreateBuiltInDatasetEvaluatorRequest):
+            row = await dataset_bindings.create_dataset_builtin_evaluator(
+                context,
+                dataset_bindings.CreateDatasetBuiltinEvaluatorInput(
+                    dataset_id=dataset_id,
+                    name=body.name,
+                    evaluator_id=evaluator_id,
+                    input_mapping=body.input_mapping,
+                    description=body.description,
+                    output_configs=configs,
+                ),
+            )
+        else:
+            assert_never(body)
         return DatasetEvaluatorResponseBody(
             data=await _written_dataset_evaluator(
                 request, encode_global_id("DatasetEvaluator", row.id)

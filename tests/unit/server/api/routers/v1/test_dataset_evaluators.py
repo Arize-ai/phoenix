@@ -477,3 +477,20 @@ async def test_invalid_patch_body_is_refused_before_the_binding_is_looked_up(
     assert invalid.status_code == 422, invalid.text
     absent = await httpx_client.patch(missing, json={"name": "renamed"})
     assert absent.status_code == 404, absent.text
+
+
+async def test_create_refuses_a_non_evaluator_id_before_the_dataset_is_looked_up(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    wrong_type = str(GlobalID("Project", "1"))
+    response = await httpx_client.post(
+        "v1/datasets/no-such-dataset/evaluators",
+        json={
+            "evaluator_type": "code",
+            "name": "binding",
+            "input_mapping": {"literal_mapping": {}, "path_mapping": {}},
+            "evaluator_id": wrong_type,
+        },
+    )
+    assert response.status_code == 422, response.text
+    assert f"Not an evaluator id: {wrong_type}" in response.text
