@@ -44,9 +44,9 @@ single measurement. Re-measure whenever the cases or the skill change materially
 | ----------------------------- | ----- | ---------- | ---------------------------------------------------------------------------------------------- |
 | `01-rag-groundedness-judge`   | yes   | Python     | Builds a `ClassificationEvaluator` LLM judge with discrete labels; recommends validation       |
 | `02-json-schema-code-eval`    | yes   | Python     | Code evaluator via `@create_evaluator`: closed schema (extra keys fail), bool rejected as `age`, binds `output` |
-| `03-run-evaluator-experiment` | yes   | Python     | Uploads the examples with `create_dataset`, binds `output`/`expected`, `run_experiment` with `repetitions` and an `experiment_name` |
-| `04-validate-judge-labels`    | yes   | Python     | TPR/TNR against the bar, human–human agreement as the ceiling, class balance, 80 < 100 examples, inspects FP/FN |
-| `05-faithfulness-ci-gate`     | yes   | Python     | pytest plugin (`phoenix.client.pytest`, stable `ids`): the model decides to assert the invariants and log faithfulness per case |
+| `03-run-evaluator-experiment` | yes   | Python     | Routes to `phoenix-experiments`. Uploads the examples with `create_dataset`, binds `output`/`expected`, `run_experiment` with `repetitions` and an `experiment_name` |
+| `04-validate-judge-labels`    | yes   | Python     | Routes to `phoenix-judge-alignment`. Per-class rates (TPR/TNR or recall/precision) against a bar, human–human agreement as the ceiling, class balance, 80 < 100 examples, inspects FP/FN |
+| `05-faithfulness-ci-gate`     | yes   | Python     | Routes to `phoenix-experiments`. pytest plugin (`phoenix.client.pytest`, stable `ids`): the model decides to assert the invariants and log faithfulness per case |
 | `06-ts-relevance-judge`       | yes   | TypeScript | `createClassificationEvaluator` from `@arizeai/phoenix-evals`, discrete choices                |
 | `07-neg-elixir-exunit`        | no    | —          | Name collision: Elixir Phoenix + ExUnit "evaluate" — the evals skill must not fire             |
 | `08-neg-generic-metric-q`     | no    | —          | Corpus BLEU over 500 translations: a batch metric question that still needs no Phoenix evaluator |

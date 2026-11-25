@@ -25,7 +25,9 @@
     "skills/phoenix-cli",
     "skills/phoenix-error-analysis",
     "skills/phoenix-evals",
+    "skills/phoenix-experiments",
     "skills/phoenix-harbor",
+    "skills/phoenix-judge-alignment",
     "skills/phoenix-tracing"
   ],
   "variables": {

@@ -1,5 +1,5 @@
 ---
 type: tool_used
 tool: Skill
-input_match: phoenix-evals
+input_match: phoenix-judge-alignment
 ---

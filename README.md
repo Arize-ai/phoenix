@@ -293,8 +293,10 @@ The **[skills](https://arize.com/docs/phoenix/integrations/developer-tools/skill
 | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | [phoenix-cli](skills/phoenix-cli/)                       | Debug LLM applications with the Phoenix CLI. Fetch traces, analyze errors, review experiments, and query the GraphQL API  |
 | [phoenix-error-analysis](skills/phoenix-error-analysis/) | Read sampled traces, write notes, and group them into failure categories that pick eval targets and fix priorities         |
-| [phoenix-evals](skills/phoenix-evals/)                   | Build, run, and validate evaluators for AI/LLM applications using Phoenix                                                  |
+| [phoenix-evals](skills/phoenix-evals/)                   | Write code and LLM-as-a-judge evaluators and score traces, spans, and sessions in Phoenix                                  |
+| [phoenix-experiments](skills/phoenix-experiments/)       | Build datasets, run and compare experiments, and gate CI on evals                                                          |
 | [phoenix-harbor](skills/phoenix-harbor/)                 | Configure and interpret the Phoenix plugin for Harbor agent evaluations                                                    |
+| [phoenix-judge-alignment](skills/phoenix-judge-alignment/) | Check an LLM judge against human labels, improve it, and decide whether to trust it                                      |
 | [phoenix-tracing](skills/phoenix-tracing/)               | OpenInference semantic conventions and instrumentation for tracing LLM applications                                        |
 
 ## Security & Privacy
