@@ -22,6 +22,7 @@ const { URL } = require("url");
 const CARD_HREF_REGEX = /<Card\b[^>]*?\bhref\s*=\s*(['"])(?<href>[^'\"]+)\1/gis;
 const THIS_REPO_FILE_URL = /^https:\/\/github\.com\/Arize-ai\/phoenix\/(?:blob|tree)\/main\/(?<path>[^#?]+)/;
 const MDX_COMMENT_BLOCK = /\{\/\*.*?\*\/\}/gs;
+const SONATYPE_ARTIFACT_URL = /^https:\/\/central\.sonatype\.com\/artifact\/(?<group>[^/?#]+)\/(?<artifact>[^/?#]+)\/?$/;
 
 function parseArgs(argv) {
   const args = {
@@ -178,6 +179,34 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+const MAX_RETRY_AFTER_MS = 30_000;
+
+/**
+ * central.sonatype.com rate-limits GitHub Actions runners, so artifact pages are
+ * verified against the Maven Central repository that backs them instead.
+ */
+function toMavenRepositoryUrl(href) {
+  const match = href.match(SONATYPE_ARTIFACT_URL);
+  if (match === null) {
+    return null;
+  }
+  const groupPath = match.groups.group.replace(/\./g, "/");
+  return `https://repo1.maven.org/maven2/${groupPath}/${match.groups.artifact}/maven-metadata.xml`;
+}
+
+function isRetryableStatus(status) {
+  return status === 429 || status >= 500;
+}
+
+function parseRetryAfterMs(retryAfter) {
+  if (!retryAfter) {
+    return 0;
+  }
+  const seconds = Number(retryAfter);
+  const delayMs = Number.isNaN(seconds) ? Date.parse(retryAfter) - Date.now() : seconds * 1000;
+  return Number.isNaN(delayMs) ? 0 : Math.min(Math.max(delayMs, 0), MAX_RETRY_AFTER_MS);
+}
+
 async function checkExternal(href, timeoutMs, maxRetries = 5, backoffBaseMs = 500) {
   if (href.startsWith("mailto:")) {
     return [true, "mailto link"];
@@ -203,6 +232,8 @@ async function checkExternal(href, timeoutMs, maxRetries = 5, backoffBaseMs = 50
     return [true, "Slack link"];
   }
 
+  const checkUrl = toMavenRepositoryUrl(href) ?? href;
+
   const headers = {
     "User-Agent": "Mozilla/5.0 (compatible; LinkChecker/1.0; +https://github.com/)",
     Accept: "*/*",
@@ -212,10 +243,11 @@ async function checkExternal(href, timeoutMs, maxRetries = 5, backoffBaseMs = 50
   let lastReason = "";
 
   for (let attempt = 0; attempt < maxRetries; attempt += 1) {
+    const backoffMs = backoffBaseMs * (2 ** attempt) + Math.random() * 200;
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), timeoutMs);
-      const res = await fetch(href, {
+      const res = await fetch(checkUrl, {
         method: "HEAD",
         headers,
         redirect: "follow",
@@ -225,6 +257,13 @@ async function checkExternal(href, timeoutMs, maxRetries = 5, backoffBaseMs = 50
 
       if (res.status >= 200 && res.status < 400) {
         return [true, `HTTP ${res.status}`];
+      }
+      // Rate limits and server errors are transient: back off and retry
+      // instead of reporting a valid link as broken.
+      if (isRetryableStatus(res.status)) {
+        lastReason = `HTTP ${res.status}`;
+        await sleep(Math.max(backoffMs, parseRetryAfterMs(res.headers.get("retry-after"))));
+        continue;
       }
       if (res.status !== 405) {
         return [false, `HTTP ${res.status}`];
@@ -236,7 +275,7 @@ async function checkExternal(href, timeoutMs, maxRetries = 5, backoffBaseMs = 50
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), timeoutMs);
-      const res = await fetch(href, {
+      const res = await fetch(checkUrl, {
         method: "GET",
         headers: { ...headers, Range: "bytes=0-0" },
         redirect: "follow",
@@ -252,9 +291,7 @@ async function checkExternal(href, timeoutMs, maxRetries = 5, backoffBaseMs = 50
       lastReason = `GET failed: ${err?.message || String(err)}`;
     }
 
-    const jitter = Math.random() * 200;
-    const waitMs = backoffBaseMs * (2 ** attempt) + jitter;
-    await sleep(waitMs);
+    await sleep(backoffMs);
   }
 
   return [false, `Failed after ${maxRetries} retries: ${lastReason}`];
