@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3cdf51f9ffd5d31732a274da87a0f7e6>>
+ * @generated SignedSource<<970327b867a47c217a6685235d980e10>>
  * @lightSyntaxTransform
  */
 
@@ -248,6 +248,11 @@ return {
       "name": "after"
     },
     {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "experimentFilterCondition"
+    },
+    {
       "defaultValue": 100,
       "kind": "LocalArgument",
       "name": "first"
@@ -468,7 +473,13 @@ return {
     },
     {
       "alias": "experiments",
-      "args": null,
+      "args": [
+        {
+          "kind": "Variable",
+          "name": "experimentFilterCondition",
+          "variableName": "experimentFilterCondition"
+        }
+      ],
       "concreteType": "ExperimentConnection",
       "kind": "LinkedField",
       "name": "__ExperimentsTable_experiments_connection",
@@ -759,6 +770,6 @@ return {
 };
 })();
 
-(node as any).hash = "1f43803ba5c929080ce7453a214b11cf";
+(node as any).hash = "63b7465b1f83de03c150933a9fb275c3";
 
 export default node;

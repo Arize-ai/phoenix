@@ -64,6 +64,11 @@ type ExperimentActionMenuBaseProps = {
   metadata: unknown;
   jobStatus?: ExperimentJobStatus | null;
   size?: ButtonProps["size"];
+  /**
+   * The search string, such as `?experimentFilterCondition=...`, to keep on the URL when
+   * opening the experiment's details.
+   */
+  experimentDetailsSearch?: string;
 } & (
   | {
       canSetBaseline: true;
@@ -91,11 +96,13 @@ type ExperimentActionMenuProps = ExperimentActionMenuBaseProps &
         canEditExperiment: true;
         experimentName: string;
         experimentDescription: string | null;
+        onExperimentEdited?: () => void;
       }
     | {
         canEditExperiment?: false;
         experimentName?: undefined;
         experimentDescription?: undefined;
+        onExperimentEdited?: undefined;
       }
   );
 
@@ -357,9 +364,10 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
                 }
                 case ExperimentAction.VIEW_EXPERIMENT_DETAILS: {
                   if (datasetId) {
-                    navigate(
-                      `/datasets/${datasetId}/experiments/${props.experimentId}`
-                    );
+                    navigate({
+                      pathname: `/datasets/${datasetId}/experiments/${props.experimentId}`,
+                      search: props.experimentDetailsSearch,
+                    });
                   }
                   break;
                 }
@@ -516,6 +524,7 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
           experimentId={props.experimentId}
           experimentName={props.experimentName}
           experimentDescription={props.experimentDescription}
+          onExperimentEdited={props.onExperimentEdited}
           isOpen={isEditDialogOpen}
           onOpenChange={setIsEditDialogOpen}
         />
@@ -553,12 +562,14 @@ function EditExperimentDialog({
   experimentId,
   experimentName,
   experimentDescription,
+  onExperimentEdited,
   isOpen,
   onOpenChange,
 }: {
   experimentId: string;
   experimentName: string;
   experimentDescription: string | null;
+  onExperimentEdited?: () => void;
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
 }) {
@@ -638,6 +649,7 @@ function EditExperimentDialog({
                       title: "Experiment updated",
                     });
                     onOpenChange(false);
+                    onExperimentEdited?.();
                   },
                   onError: (error) => {
                     setEditError(

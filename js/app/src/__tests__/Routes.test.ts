@@ -1,6 +1,9 @@
 import type { ShouldRevalidateFunctionArgs } from "react-router";
 
-import { revalidateOnProjectChange } from "@phoenix/Routes";
+import {
+  revalidateOnProjectChange,
+  revalidateUnlessOnlySearchChanges,
+} from "@phoenix/Routes";
 
 function makeArgs({
   currentPath,
@@ -57,5 +60,39 @@ describe("revalidateOnProjectChange", () => {
     });
 
     expect(revalidateOnProjectChange(args)).toBe(true);
+  });
+});
+
+describe("revalidateUnlessOnlySearchChanges", () => {
+  it("skips revalidation when only the search string changes", () => {
+    const args = makeArgs({
+      currentPath: "/datasets/dataset-1/experiments",
+      nextPath:
+        "/datasets/dataset-1/experiments?experimentFilterCondition=repetitions%20%3E%201",
+    });
+
+    expect(revalidateUnlessOnlySearchChanges(args)).toBe(false);
+  });
+
+  it("defers path changes to React Router", () => {
+    // The search strings differ too, so only the pathname check defers this.
+    const args = makeArgs({
+      currentPath:
+        "/datasets/dataset-1/experiments?experimentFilterCondition=repetitions%20%3E%201",
+      nextPath: "/datasets/dataset-1/examples",
+    });
+
+    expect(revalidateUnlessOnlySearchChanges(args)).toBe(true);
+  });
+
+  it("defers same-URL revalidation to React Router", () => {
+    const args = makeArgs({
+      currentPath:
+        "/datasets/dataset-1/experiments?experimentFilterCondition=repetitions%20%3E%201",
+      nextPath:
+        "/datasets/dataset-1/experiments?experimentFilterCondition=repetitions%20%3E%201",
+    });
+
+    expect(revalidateUnlessOnlySearchChanges(args)).toBe(true);
   });
 });

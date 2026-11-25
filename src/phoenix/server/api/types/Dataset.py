@@ -37,6 +37,11 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.SortDir import SortDir
+from phoenix.server.api.types.ValidationResult import ValidationResult
+from phoenix.server.experiment_filters import (
+    ExperimentFilterConditionError,
+    apply_experiment_filter,
+)
 
 if TYPE_CHECKING:
     from .ExperimentJob import ExperimentJob
@@ -409,6 +414,13 @@ class Dataset(Node):
             ),
         ] = UNSET,
         sort: Optional[ExperimentSort] = UNSET,
+        experiment_filter_condition: Annotated[
+            Optional[str],
+            strawberry.argument(
+                description="When provided, return only the experiments that match this "
+                'filter expression, e.g. `metadata["model"] == "gpt-5" and repetitions > 1`.'
+            ),
+        ] = UNSET,
     ) -> Connection[Experiment]:
         args = ConnectionArgs(
             first=first,
@@ -442,6 +454,9 @@ class Dataset(Node):
                 models.Experiment.description.ilike(f"%{filter_condition}%"),
             )
             query = query.where(search_filter)
+
+        if experiment_filter_condition:
+            query = apply_experiment_filter(condition=experiment_filter_condition, stmt=query)
 
         if filter_ids:
             filter_rowids = []
@@ -653,6 +668,16 @@ class Dataset(Node):
         # re-sort the final results by kind, this is necessary because builtin evaluators are not
         #  part of the polymorphic table
         return connection_from_list(data=data, args=args)
+
+    @strawberry.field(
+        description="Validate an experiment filter condition for SQLite and PostgreSQL."
+    )  # type: ignore
+    def validate_experiment_filter_condition(self, condition: str) -> ValidationResult:
+        try:
+            apply_experiment_filter(condition=condition, stmt=select(models.Experiment))
+        except ExperimentFilterConditionError as error:
+            return ValidationResult(is_valid=False, error_message=str(error))
+        return ValidationResult(is_valid=True, error_message=None)
 
     @strawberry.field
     def last_updated_at(self, info: Info[Context, None]) -> Optional[datetime]:

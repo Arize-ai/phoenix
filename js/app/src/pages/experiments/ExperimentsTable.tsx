@@ -6,12 +6,13 @@ import {
   memo,
   startTransition,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { Cell, Pie, PieChart } from "recharts";
 
 import {
@@ -33,7 +34,7 @@ import {
 import type { AnnotationConfig } from "@phoenix/components/annotation";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation";
 import { CopyToClipboardButton } from "@phoenix/components/core/copy/CopyToClipboardButton";
-import { DebouncedSearch } from "@phoenix/components/core/field/DebouncedSearch";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import {
   BaselineExperimentBadge,
@@ -62,6 +63,7 @@ import {
   IntCell,
   LoadMoreRow,
   RowExpandToggleButton,
+  TableEmptyWrap,
   TableViewSettingsButton,
   useColumnOrder,
   useTableRowsExpanded,
@@ -83,11 +85,16 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
+import { EXPERIMENT_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
 import { EXPERIMENTS_TABLE_STORAGE_KEY_PREFIX } from "@phoenix/constants/storageConstants";
 import { usePersistedState } from "@phoenix/hooks";
 import { useInterval } from "@phoenix/hooks/useInterval";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
 import { calculateAnnotationScorePercentile } from "@phoenix/pages/experiment/utils";
+import {
+  readFilterConditionParam,
+  withFilterConditionParam,
+} from "@phoenix/pages/project/filterConditionParam";
 import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
 import {
   floatFormatter,
@@ -105,12 +112,22 @@ import { ACTIONS_COLUMN_ID, ANNOTATION_COLUMN_PREFIX } from "./constants";
 import { DownloadExperimentActionMenu } from "./DownloadExperimentActionMenu";
 import { ErrorRateText } from "./ErrorRateText";
 import { ExperimentColumnSelector } from "./ExperimentColumnSelector";
+import {
+  ExperimentFilterConditionField,
+  type ExperimentFilterValidConditionArgs,
+} from "./ExperimentFilterConditionField";
 import { useExperimentsDeltasViewSetting } from "./experimentsDeltasViewSetting";
 import { ExperimentSelectionToolbar } from "./ExperimentSelectionToolbar";
 import { useExperimentsMetricChartsViewSetting } from "./ExperimentsMetricsCharts";
 import { ExperimentsMetricsChartSelector } from "./ExperimentsMetricsChartSelector";
+import { shouldRestoreFilterConditionParam } from "./experimentsTableFilters";
 
 const PAGE_SIZE = 100;
+
+const toolbarFilterFieldCSS = css`
+  flex: 2 1 420px;
+  min-width: min(100%, 320px);
+`;
 
 /**
  * Poll interval for refetching experiment data when experiments are running
@@ -159,14 +176,31 @@ const TableBody = <T extends { id: string }>({
   onLoadNext,
   isLoadingNext,
   dataset,
+  isFiltered,
 }: {
   table: Table<T>;
   hasNext: boolean;
   onLoadNext: () => void;
   isLoadingNext: boolean;
   dataset: ExperimentsTableFragment$data;
+  /**
+   * Whether a filter condition is active, so an empty table reads
+   * "No results" instead of "No experiments".
+   */
+  isFiltered: boolean;
 }) => {
   const navigate = useNavigate();
+  if (!table.getRowModel().rows.length && !hasNext) {
+    return (
+      <TableEmptyWrap>
+        <CompactEmptyState
+          icon={<Icon svg={<Icons.Experiment />} />}
+          description="No experiments"
+          isFiltered={isFiltered}
+        />
+      </TableEmptyWrap>
+    );
+  }
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
@@ -222,12 +256,35 @@ export const MemoizedTableBody = memo(
 
 export function ExperimentsTable({
   dataset,
+  initialFilterCondition,
+  appliedFilterCondition: initialAppliedFilterCondition,
 }: {
   dataset: ExperimentsTableFragment$key;
+  /**
+   * The filter field's text on mount, which the server may have rejected.
+   */
+  initialFilterCondition: string;
+  /**
+   * The filter condition the page query fetched the dataset's experiments
+   * with. The table owns the condition from then on, so the rows always match
+   * the condition it last applied.
+   */
+  appliedFilterCondition: string;
 }) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [rowSelection, setRowSelection] = useState({});
-  const [, setSearchText] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { search } = useLocation();
+  // The field's text, which may not be valid yet.
+  const [draftFilterCondition, setDraftFilterCondition] = useState(
+    initialFilterCondition
+  );
+  // The last condition that passed validation, which the rows match.
+  const [filterCondition, setFilterCondition] = useState(
+    initialAppliedFilterCondition
+  );
+  const requestedFilterConditionRef = useRef(initialAppliedFilterCondition);
+  const isFiltered = Boolean(filterCondition);
   const {
     isExpanded: areRowsExpanded,
     setIsExpanded: setAreRowsExpanded,
@@ -243,6 +300,7 @@ export function ExperimentsTable({
         @argumentDefinitions(
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 100 }
+          experimentFilterCondition: { type: "String", defaultValue: null }
         ) {
           id
           experimentAnnotationSummaries {
@@ -297,8 +355,11 @@ export function ExperimentsTable({
               }
             }
           }
-          experiments(first: $first, after: $after)
-            @connection(key: "ExperimentsTable_experiments") {
+          experiments(
+            first: $first
+            after: $after
+            experimentFilterCondition: $experimentFilterCondition
+          ) @connection(key: "ExperimentsTable_experiments") {
             edges {
               experiment: node {
                 id
@@ -406,6 +467,77 @@ export function ExperimentsTable({
     [data.experiments.edges]
   );
 
+  const refetchExperiments = ({
+    fetchPolicy,
+    condition = requestedFilterConditionRef.current,
+  }: {
+    fetchPolicy: "network-only" | "store-and-network";
+    condition?: string;
+  }) => {
+    requestedFilterConditionRef.current = condition;
+    startTransition(() => {
+      refetch(
+        { experimentFilterCondition: condition || null },
+        { fetchPolicy }
+      );
+    });
+  };
+
+  const onValidFilterCondition = ({
+    condition,
+    isInitialSettlement,
+  }: ExperimentFilterValidConditionArgs) => {
+    // The page query already fetched the rows for the condition it settled on.
+    // A URL condition it fell back from still applies once the field accepts it.
+    const isChanged = condition !== requestedFilterConditionRef.current;
+    // The URL can still hold a condition the server rejected, so a condition
+    // the user settles on is written even when the rows already match it.
+    if (isChanged || !isInitialSettlement) {
+      setSearchParams(
+        (prev) =>
+          withFilterConditionParam(
+            prev,
+            EXPERIMENT_FILTER_CONDITION_PARAM,
+            condition
+          ),
+        { replace: true }
+      );
+    }
+    if (!isChanged) {
+      return;
+    }
+    setFilterCondition(condition);
+    refetchExperiments({
+      fetchPolicy: "network-only",
+      condition,
+    });
+  };
+
+  const urlFilterCondition = readFilterConditionParam(
+    searchParams,
+    EXPERIMENT_FILTER_CONDITION_PARAM
+  );
+  useEffect(() => {
+    const appliedCondition = requestedFilterConditionRef.current;
+    if (
+      !shouldRestoreFilterConditionParam({
+        urlCondition: urlFilterCondition,
+        appliedCondition,
+      })
+    ) {
+      return;
+    }
+    setSearchParams(
+      (prev) =>
+        withFilterConditionParam(
+          prev,
+          EXPERIMENT_FILTER_CONDITION_PARAM,
+          appliedCondition
+        ),
+      { replace: true }
+    );
+  }, [urlFilterCondition, setSearchParams]);
+
   const hasRunningExperiments = useMemo(
     () => tableData.some((row) => row.job?.status === "RUNNING"),
     [tableData]
@@ -413,9 +545,7 @@ export function ExperimentsTable({
 
   useInterval(
     () => {
-      startTransition(() => {
-        refetch({}, { fetchPolicy: "store-and-network" });
-      });
+      refetchExperiments({ fetchPolicy: "store-and-network" });
     },
     hasRunningExperiments ? RUNNING_EXPERIMENTS_POLL_INTERVAL_MS : null
   );
@@ -835,12 +965,16 @@ export function ExperimentsTable({
                 metadata={metadata}
                 jobStatus={row.original.job?.status ?? null}
                 size="S"
+                experimentDetailsSearch={search}
                 canEditExperiment
                 experimentName={row.original.name}
                 experimentDescription={row.original.description ?? null}
+                onExperimentEdited={() => {
+                  refetchExperiments({ fetchPolicy: "network-only" });
+                }}
                 canDeleteExperiment={true}
                 onExperimentDeleted={() => {
-                  refetch({}, { fetchPolicy: "network-only" });
+                  refetchExperiments({ fetchPolicy: "network-only" });
                 }}
               />
             </Flex>
@@ -948,14 +1082,21 @@ export function ExperimentsTable({
         borderBottomWidth="thin"
         flex="none"
       >
-        <Flex direction="row" gap="size-100" width="100%" alignItems="center">
-          <View flex="1 1 auto">
-            <DebouncedSearch
-              placeholder="Search experiments"
-              aria-label="Search experiments"
-              onChange={setSearchText}
+        <Flex
+          direction="row"
+          gap="size-100"
+          width="100%"
+          alignItems="center"
+          wrap="wrap"
+        >
+          <div css={toolbarFilterFieldCSS}>
+            <ExperimentFilterConditionField
+              datasetId={data.id}
+              value={draftFilterCondition}
+              onChange={setDraftFilterCondition}
+              onValidCondition={onValidFilterCondition}
             />
-          </View>
+          </div>
           <ExperimentsMetricsChartSelector />
           <ExperimentColumnSelector
             columns={selectorColumns}
@@ -1059,6 +1200,7 @@ export function ExperimentsTable({
                 onLoadNext={() => loadNext(PAGE_SIZE)}
                 isLoadingNext={isLoadingNext}
                 dataset={data}
+                isFiltered={isFiltered}
               />
             ) : (
               <TableBody
@@ -1067,6 +1209,7 @@ export function ExperimentsTable({
                 onLoadNext={() => loadNext(PAGE_SIZE)}
                 isLoadingNext={isLoadingNext}
                 dataset={data}
+                isFiltered={isFiltered}
               />
             )}
           </table>
@@ -1077,7 +1220,7 @@ export function ExperimentsTable({
             selectedExperiments={selectedExperiments}
             onClearSelection={clearSelection}
             onExperimentsDeleted={() => {
-              refetch({}, { fetchPolicy: "network-only" });
+              refetchExperiments({ fetchPolicy: "network-only" });
             }}
           />
         ) : null}
@@ -1095,6 +1238,8 @@ function ExperimentJobStatusMarker({
   experimentId: string;
   datasetId: string;
 }) {
+  // Keep the table's filters in the URL for when the dialog closes.
+  const { search } = useLocation();
   if (status === "RUNNING" || status === "STOPPED") {
     return <ExperimentStatus status={status} isLabelHidden />;
   }
@@ -1103,7 +1248,7 @@ function ExperimentJobStatusMarker({
       <ExperimentStatus
         status={status}
         isLabelHidden
-        detailsHref={`/datasets/${datasetId}/experiments/${experimentId}`}
+        detailsHref={`/datasets/${datasetId}/experiments/${experimentId}${search}`}
       />
     );
   }

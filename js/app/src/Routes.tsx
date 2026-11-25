@@ -172,6 +172,24 @@ export const revalidateOnProjectChange: ShouldRevalidateFunction = ({
   return currentParams.projectId !== nextParams.projectId;
 };
 
+// The dataset loaders don't read the search string, so a change to only the
+// search string, such as the experiments table's filter condition, skips them.
+// Other navigations, including same-URL requests (useRevalidator), defer to
+// the router's default, so dataset counts still refresh between tabs.
+export const revalidateUnlessOnlySearchChanges: ShouldRevalidateFunction = ({
+  currentUrl,
+  nextUrl,
+  defaultShouldRevalidate,
+}) => {
+  if (
+    currentUrl.pathname === nextUrl.pathname &&
+    currentUrl.search !== nextUrl.search
+  ) {
+    return false;
+  }
+  return defaultShouldRevalidate;
+};
+
 // :promptId's loader always revalidates so versions saved elsewhere show up,
 // except when opening or switching versions of the same prompt: its query
 // holds only the first page of the paginated versions list, so re-running it
@@ -583,12 +601,13 @@ export const appRouteObjects = createRoutesFromElements(
           <Route
             path=":datasetId"
             loader={datasetLoader}
+            shouldRevalidate={revalidateUnlessOnlySearchChanges}
             handle={{
               crumb: (data: DatasetLoaderData) => data?.dataset?.name,
               agentRoute: {
                 label: "Dataset Experiments",
                 description:
-                  "View dataset experiments, experiment runs, and evaluation results.",
+                  "View dataset experiments, experiment runs, and evaluation results. Filter experiments by name, metadata, and other fields with filter expressions.",
               },
               copy: (data: DatasetLoaderData) => [
                 {
@@ -604,7 +623,11 @@ export const appRouteObjects = createRoutesFromElements(
               ],
             }}
           >
-            <Route element={<DatasetPage />} loader={datasetLoader}>
+            <Route
+              element={<DatasetPage />}
+              loader={datasetLoader}
+              shouldRevalidate={revalidateUnlessOnlySearchChanges}
+            >
               <Route index element={<ExperimentsPage />} />
               <Route
                 path="experiments"
@@ -613,7 +636,7 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Dataset Experiments",
                     description:
-                      "View dataset experiments, experiment runs, and evaluation results.",
+                      "View dataset experiments, experiment runs, and evaluation results. Filter experiments by name, metadata, and other fields with filter expressions.",
                   },
                 }}
               >
