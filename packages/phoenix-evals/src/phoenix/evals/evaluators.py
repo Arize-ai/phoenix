@@ -299,8 +299,8 @@ class Criterion(TypedDict):
     name: str
     instruction: str
     labels: Dict[Label, Description]
-    score_map: NotRequired[Optional[Dict[Label, Union[float, int]]]]
-    direction: NotRequired[Optional[DirectionType]]
+    score_map: NotRequired[Dict[Label, Union[float, int]]]
+    direction: NotRequired[DirectionType]
 
 
 def _validate_criterion(criterion: Criterion) -> None:
@@ -902,9 +902,10 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
             name=self.name,
             instruction="",
             labels=labels,
-            score_map=score_map,
             direction=direction,
         )
+        if score_map is not None:
+            criterion["score_map"] = score_map
         _validate_criterion(criterion)
         return [criterion]
 

@@ -482,8 +482,12 @@ class TestClassificationEvaluator:
         assert criterion["name"] == "test_evaluator"
         assert criterion["instruction"] == ""
         assert criterion["labels"] == expected_labels
-        assert criterion.get("score_map") == expected_score_map
         assert criterion.get("direction") == "minimize"  # inherits the evaluator's direction
+        if expected_score_map is None:
+            # No scores -> the key is omitted, not set to None.
+            assert "score_map" not in criterion
+        else:
+            assert criterion["score_map"] == expected_score_map
 
     def test_criteria_list_choices_passthrough(self):
         """The new List[Criterion] format passes through, one criterion each."""
