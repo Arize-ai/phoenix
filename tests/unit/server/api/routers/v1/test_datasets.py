@@ -5624,3 +5624,79 @@ async def test_list_dataset_splits_counts_are_dataset_scoped_for_cross_dataset_s
 
     assert await _list_split_counts(httpx_client, dataset_a) == {"cross_ds": 1}
     assert await _list_split_counts(httpx_client, dataset_b) == {"cross_ds": 1}
+
+
+async def test_delete_dataset_removes_experiment_projects_and_eval_traces(
+    httpx_client: httpx2.AsyncClient,
+    simple_dataset: Any,
+    db: DbSessionFactory,
+) -> None:
+    project_name = "dataset-delete-experiment-project"
+    # The evaluator trace lives outside the experiment project so that only the
+    # trace cleanup, not the project delete's cascade, can remove it.
+    eval_project_name = "dataset-delete-eval-project"
+    eval_trace_id = "dataset-delete-eval-trace"
+    async with db() as session:
+        session.add(models.Project(name=project_name))
+        eval_project = models.Project(name=eval_project_name)
+        session.add(eval_project)
+        await session.flush()
+        trace = models.Trace(
+            project_rowid=eval_project.id,
+            trace_id=eval_trace_id,
+            start_time=datetime.now(),
+            end_time=datetime.now(),
+        )
+        session.add(trace)
+        experiment = models.Experiment(
+            dataset_id=0,
+            dataset_version_id=0,
+            name="dataset delete experiment",
+            repetitions=1,
+            project_name=project_name,
+            metadata_={},
+        )
+        session.add(experiment)
+        await session.flush()
+        experiment_run = models.ExperimentRun(
+            experiment_id=experiment.id,
+            dataset_example_id=0,
+            repetition_number=1,
+            output={"out": "bar"},
+            start_time=datetime.now(),
+            end_time=datetime.now(),
+        )
+        session.add(experiment_run)
+        await session.flush()
+        session.add(
+            models.ExperimentRunAnnotation(
+                experiment_run_id=experiment_run.id,
+                name="eval",
+                annotator_kind="LLM",
+                label="test",
+                score=1.0,
+                metadata_={},
+                trace_id=eval_trace_id,
+                start_time=datetime.now(),
+                end_time=datetime.now(),
+            )
+        )
+
+    response = await httpx_client.delete(f"/v1/datasets/{GlobalID('Dataset', '0')}")
+    assert response.status_code == 204
+
+    async with db() as session:
+        surviving_project_name = await session.scalar(
+            select(models.Project.name).where(models.Project.name == project_name)
+        )
+        surviving_eval_trace_id = await session.scalar(
+            select(models.Trace.trace_id).where(models.Trace.trace_id == eval_trace_id)
+        )
+        surviving_eval_project_name = await session.scalar(
+            select(models.Project.name).where(models.Project.name == eval_project_name)
+        )
+    assert surviving_project_name is None, "experiment project survived dataset deletion"
+    assert surviving_eval_trace_id is None, "evaluator trace survived dataset deletion"
+    assert surviving_eval_project_name == eval_project_name, (
+        "project not owned by the dataset's experiments was deleted"
+    )
