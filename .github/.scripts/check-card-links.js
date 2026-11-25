@@ -178,6 +178,21 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+const MAX_RETRY_AFTER_MS = 30_000;
+
+function isRetryableStatus(status) {
+  return status === 429 || status >= 500;
+}
+
+function parseRetryAfterMs(retryAfter) {
+  if (!retryAfter) {
+    return 0;
+  }
+  const seconds = Number(retryAfter);
+  const delayMs = Number.isNaN(seconds) ? Date.parse(retryAfter) - Date.now() : seconds * 1000;
+  return Number.isNaN(delayMs) ? 0 : Math.min(Math.max(delayMs, 0), MAX_RETRY_AFTER_MS);
+}
+
 async function checkExternal(href, timeoutMs, maxRetries = 5, backoffBaseMs = 500) {
   if (href.startsWith("mailto:")) {
     return [true, "mailto link"];
@@ -212,6 +227,7 @@ async function checkExternal(href, timeoutMs, maxRetries = 5, backoffBaseMs = 50
   let lastReason = "";
 
   for (let attempt = 0; attempt < maxRetries; attempt += 1) {
+    const backoffMs = backoffBaseMs * (2 ** attempt) + Math.random() * 200;
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -225,6 +241,13 @@ async function checkExternal(href, timeoutMs, maxRetries = 5, backoffBaseMs = 50
 
       if (res.status >= 200 && res.status < 400) {
         return [true, `HTTP ${res.status}`];
+      }
+      // Rate limits and server errors are transient: back off and retry
+      // instead of reporting a valid link as broken.
+      if (isRetryableStatus(res.status)) {
+        lastReason = `HTTP ${res.status}`;
+        await sleep(Math.max(backoffMs, parseRetryAfterMs(res.headers.get("retry-after"))));
+        continue;
       }
       if (res.status !== 405) {
         return [false, `HTTP ${res.status}`];
@@ -252,9 +275,7 @@ async function checkExternal(href, timeoutMs, maxRetries = 5, backoffBaseMs = 50
       lastReason = `GET failed: ${err?.message || String(err)}`;
     }
 
-    const jitter = Math.random() * 200;
-    const waitMs = backoffBaseMs * (2 ** attempt) + jitter;
-    await sleep(waitMs);
+    await sleep(backoffMs);
   }
 
   return [false, `Failed after ${maxRetries} retries: ${lastReason}`];
