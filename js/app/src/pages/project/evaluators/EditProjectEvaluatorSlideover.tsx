@@ -12,7 +12,10 @@ import {
   extractCodeEvaluatorVariables,
   extractRequiredCodeEvaluatorVariables,
 } from "@phoenix/components/evaluators/codeEvaluatorUtils";
-import { readDecisionEvaluatorData } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
+import {
+  commitAsync,
+  readDecisionEvaluatorData,
+} from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
 import { useLLMEvaluatorVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useLLMEvaluatorVariables";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
 import {
@@ -42,6 +45,11 @@ import { convertProjectEvaluatorOutputConfigs } from "@phoenix/pages/project/eva
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideover";
 import {
+  getProjectEvaluatorSubmitRefusal,
+  useProjectEvaluatorFilterValidity,
+  type ProjectEvaluatorSubmitGateInput,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorSubmitGate";
+import {
   isSameInputMapping,
   toEvaluationDelayInput,
   toEvaluatorRecordKind,
@@ -52,6 +60,7 @@ import {
   useEvaluatorFormDirtyCheck,
   type EvaluatorFormDirtyCheck,
 } from "@phoenix/pages/project/evaluators/useEvaluatorFormDirtyCheck";
+import { ProjectCodeEvaluatorDraftRegistration } from "@phoenix/pages/project/evaluators/useProjectCodeEvaluatorDraftRegistration";
 import {
   DEFAULT_DECISION_EVALUATOR_STORE_VALUES,
   DEFAULT_LLM_EVALUATOR_STORE_VALUES,
@@ -63,7 +72,10 @@ import type {
   CodeEvaluatorLanguage,
   EvaluatorInputMapping,
 } from "@phoenix/types";
-import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
+import {
+  getErrorMessagesFromRelayMutationError,
+  getMutationErrorMessage,
+} from "@phoenix/utils/errorUtils";
 
 type ProjectEvaluatorNode = Extract<
   NonNullable<
@@ -434,7 +446,7 @@ function EditLlmProjectEvaluatorContent({
   const variables = useLLMEvaluatorVariables({ instanceId });
   const [error, setError] = useState<string>();
   const [scope, setScope] = useState(() => getScope(evaluator));
-  const [isFilterValid, setIsFilterValid] = useState(true);
+  const filterValidity = useProjectEvaluatorFilterValidity();
   const trackStoreForDirtyCheck = useEvaluatorFormDirtyCheck({
     registerDirtyCheck,
     scope,
@@ -556,7 +568,7 @@ function EditLlmProjectEvaluatorContent({
         return (
           <ProjectLlmEvaluatorDialogContent
             targetType={scope.targetType}
-            isFilterValid={isFilterValid}
+            filterValidity={filterValidity}
             title={title}
             onClose={onClose}
             onSubmit={() => submit(store)}
@@ -569,7 +581,7 @@ function EditLlmProjectEvaluatorContent({
                 projectId={evaluator.project.id}
                 scope={scope}
                 onScopeChange={setScope}
-                onFilterValidityChange={setIsFilterValid}
+                onFilterValidityChange={filterValidity.onFilterValidityChange}
                 isTargetDisabled
               />
             }
@@ -621,6 +633,14 @@ function EditCodeProjectEvaluator({
   // snapshot the stored value to tell an edit from an inherited setting.
   const initialInputMapping = evaluator.inputMapping as EvaluatorInputMapping;
   const [scope, setScope] = useState(() => getScope(evaluator));
+  const filterValidity = useProjectEvaluatorFilterValidity();
+  const submitGate: ProjectEvaluatorSubmitGateInput = {
+    targetType: scope.targetType,
+    filterValidity,
+    variables,
+    requiredVariables,
+    submitLabel: "save",
+  };
   const [error, setError] = useState<string>();
   const clearError = () => setError(undefined);
   // See the LLM edit path: the details page loader must re-run after a save.
@@ -675,135 +695,152 @@ function EditCodeProjectEvaluator({
       toEvaluatorRecordKind(scope.targetType)
     ),
   };
+  /** Validates and saves the edit; the Save button and PXI share it. */
+  const submitUpdate = async (
+    store: EvaluatorStoreInstance
+  ): Promise<EvaluatorSubmitResult> => {
+    setError(undefined);
+    const refusal = await getProjectEvaluatorSubmitRefusal({
+      gate: submitGate,
+      store,
+    });
+    if (refusal) {
+      return refusal;
+    }
+    const state = store.getState();
+    const inputMappingChanged = !isSameInputMapping(
+      state.evaluator.inputMapping,
+      initialInputMapping
+    );
+    const descriptionChanged =
+      state.evaluator.description !== initialDescription;
+    const outputConfigsChanged =
+      JSON.stringify(state.outputConfigs) !== initialOutputConfigsJson;
+    const sourceCodeChanged = sourceCode !== initialSourceCode;
+    const sandboxConfigChanged = sandboxConfigId !== initialSandboxConfigId;
+    // The update treats an omitted inputSchema as "keep", so it is sent only
+    // when a description of a declared parameter changed.
+    const inputSchema = buildInputSchemaInput({
+      variables,
+      inputDescriptions: state.evaluator.inputDescriptions,
+    });
+    const inputSchemaChanged =
+      JSON.stringify(inputSchema) !==
+      JSON.stringify(
+        buildInputSchemaInput({
+          variables,
+          inputDescriptions: initialInputDescriptions,
+        })
+      );
+    const outputConfigErrors = getOutputConfigValidationErrors(
+      state.outputConfigs
+    );
+    const validationError =
+      sourceCode.trim().length === 0
+        ? "Source code is required."
+        : sandboxConfigId == null
+          ? "Sandbox configuration is required."
+          : outputConfigErrors.length
+            ? outputConfigErrors.join("\n")
+            : undefined;
+    if (validationError) {
+      setError(validationError);
+      return { ok: false, error: validationError };
+    }
+    try {
+      const response = await commitAsync(commitUpdate, {
+        input: {
+          projectEvaluatorId: evaluator.id,
+          name: state.evaluator.globalName,
+          ...(descriptionChanged
+            ? { description: state.evaluator.description.trim() || null }
+            : {}),
+          ...(sourceCodeChanged ? { sourceCode } : {}),
+          ...(sandboxConfigChanged ? { sandboxConfigId } : {}),
+          ...(outputConfigsChanged
+            ? { outputConfigs: buildOutputConfigsInput(state.outputConfigs) }
+            : {}),
+          ...(inputMappingChanged
+            ? { inputMapping: state.evaluator.inputMapping }
+            : {}),
+          ...(inputSchemaChanged ? { inputSchema } : {}),
+          samplingRate: scope.samplingRate,
+          evaluationTarget: scope.targetType,
+          filterCondition: scope.filterCondition,
+          ...toEvaluationDelayInput(scope),
+          tracingEnabled: scope.tracingEnabled,
+        },
+      });
+      notifySuccess({ title: "Evaluator updated" });
+      void revalidate();
+      onClose();
+      const saved = response.updateProjectCodeEvaluator.evaluator;
+      return {
+        ok: true,
+        acceptedBy: "user",
+        evaluator: { id: saved.id, name: saved.name },
+      };
+    } catch (mutationError) {
+      const message = getMutationErrorMessage(mutationError);
+      setError(message);
+      return { ok: false, error: message };
+    }
+  };
   return (
     <EvaluatorStoreProvider initialState={initialState}>
       {({ store }) => {
         trackStoreForDirtyCheck(store);
         return (
-          <ProjectCodeEvaluatorDialogContent
-            mode="update"
-            title={title}
-            projectId={evaluator.project.id}
-            evaluatorId={evaluator.evaluator.id}
-            evaluatorName={evaluator.name}
-            variables={variables}
-            requiredVariables={requiredVariables}
-            codeDefinition={
-              <CodeAuthoringFields
-                language={language}
-                isLanguageDisabled
-                sandboxConfigs={sandboxConfigs}
-                selectedSandboxConfigId={sandboxConfigId}
-                onSandboxChange={setSandboxConfigId}
-                sourceCode={sourceCode}
-                onSourceCodeChange={setSourceCode}
-                onFieldChange={clearError}
-                resetSource={{
-                  language,
-                  sourceCode: initialSourceCode,
-                  kind: "saved",
-                }}
-              />
-            }
-            inlineCode={{
-              language,
-              sourceCode,
-              sandboxConfigId,
-            }}
-            scope={scope}
-            onScopeChange={setScope}
-            isSubmitting={isUpdating}
-            error={error}
-            onFieldChange={clearError}
-            onSubmit={() => {
-              setError(undefined);
-              const state = store.getState();
-              const inputMappingChanged = !isSameInputMapping(
-                state.evaluator.inputMapping,
-                initialInputMapping
-              );
-              const descriptionChanged =
-                state.evaluator.description !== initialDescription;
-              const outputConfigsChanged =
-                JSON.stringify(state.outputConfigs) !==
-                initialOutputConfigsJson;
-              const sourceCodeChanged = sourceCode !== initialSourceCode;
-              const sandboxConfigChanged =
-                sandboxConfigId !== initialSandboxConfigId;
-              // The update treats an omitted inputSchema as "keep", so it is
-              // sent only when a description of a declared parameter changed.
-              const inputSchema = buildInputSchemaInput({
-                variables,
-                inputDescriptions: state.evaluator.inputDescriptions,
-              });
-              const inputSchemaChanged =
-                JSON.stringify(inputSchema) !==
-                JSON.stringify(
-                  buildInputSchemaInput({
-                    variables,
-                    inputDescriptions: initialInputDescriptions,
-                  })
-                );
-              const outputConfigErrors = getOutputConfigValidationErrors(
-                state.outputConfigs
-              );
-              const validationError =
-                sourceCode.trim().length === 0
-                  ? "Source code is required."
-                  : sandboxConfigId == null
-                    ? "Sandbox configuration is required."
-                    : outputConfigErrors.length
-                      ? outputConfigErrors.join("\n")
-                      : undefined;
-              if (validationError) {
-                setError(validationError);
-                return;
+          <>
+            <ProjectCodeEvaluatorDraftRegistration
+              mode="edit"
+              evaluatorNodeId={evaluator.evaluator.id}
+              fields={{ language, sourceCode, sandboxConfigId }}
+              setSourceCode={setSourceCode}
+              setSandboxConfigId={setSandboxConfigId}
+              sandboxConfigs={sandboxConfigs}
+              submit={() => submitUpdate(store)}
+            />
+            <ProjectCodeEvaluatorDialogContent
+              mode="update"
+              title={title}
+              projectId={evaluator.project.id}
+              evaluatorId={evaluator.evaluator.id}
+              evaluatorName={evaluator.name}
+              variables={variables}
+              requiredVariables={requiredVariables}
+              codeDefinition={
+                <CodeAuthoringFields
+                  language={language}
+                  isLanguageDisabled
+                  sandboxConfigs={sandboxConfigs}
+                  selectedSandboxConfigId={sandboxConfigId}
+                  onSandboxChange={setSandboxConfigId}
+                  sourceCode={sourceCode}
+                  onSourceCodeChange={setSourceCode}
+                  onFieldChange={clearError}
+                  resetSource={{
+                    language,
+                    sourceCode: initialSourceCode,
+                    kind: "saved",
+                  }}
+                />
               }
-              commitUpdate({
-                variables: {
-                  input: {
-                    projectEvaluatorId: evaluator.id,
-                    name: state.evaluator.globalName,
-                    ...(descriptionChanged
-                      ? {
-                          description:
-                            state.evaluator.description.trim() || null,
-                        }
-                      : {}),
-                    ...(sourceCodeChanged ? { sourceCode } : {}),
-                    ...(sandboxConfigChanged ? { sandboxConfigId } : {}),
-                    ...(outputConfigsChanged
-                      ? {
-                          outputConfigs: buildOutputConfigsInput(
-                            state.outputConfigs
-                          ),
-                        }
-                      : {}),
-                    ...(inputMappingChanged
-                      ? { inputMapping: state.evaluator.inputMapping }
-                      : {}),
-                    ...(inputSchemaChanged ? { inputSchema } : {}),
-                    samplingRate: scope.samplingRate,
-                    evaluationTarget: scope.targetType,
-                    filterCondition: scope.filterCondition,
-                    ...toEvaluationDelayInput(scope),
-                    tracingEnabled: scope.tracingEnabled,
-                  },
-                },
-                onCompleted: () => {
-                  notifySuccess({ title: "Evaluator updated" });
-                  void revalidate();
-                  onClose();
-                },
-                onError: (mutationError) =>
-                  setError(
-                    getErrorMessagesFromRelayMutationError(mutationError)?.join(
-                      "\n"
-                    ) ?? mutationError.message
-                  ),
-              });
-            }}
-          />
+              inlineCode={{
+                language,
+                sourceCode,
+                sandboxConfigId,
+              }}
+              scope={scope}
+              onScopeChange={setScope}
+              submitGate={submitGate}
+              onFilterValidityChange={filterValidity.onFilterValidityChange}
+              isSubmitting={isUpdating}
+              error={error}
+              onFieldChange={clearError}
+              onSubmit={() => void submitUpdate(store)}
+            />
+          </>
         );
       }}
     </EvaluatorStoreProvider>

@@ -1,7 +1,7 @@
 ---
 name: evaluators
 description: >
-  Author or refine a Phoenix evaluator — code or LLM-as-a-judge — that scores a run's output. Trigger when the user wants to create a new evaluator, improve an existing one's logic or rubric, choose labels, or decide what to measure on a dataset or experiment. Do NOT trigger on: (1) manual prompt drafting (use `playground`), (2) running or comparing experiments themselves (use `experiments`), (3) cross-trace failure diagnosis with no evaluator in scope (use `phoenix-error-analysis`).
+  Author or refine a Phoenix evaluator — code or LLM-as-a-judge — that scores a run's output. Trigger when the user wants to create a new evaluator, improve an existing one's logic or rubric, choose labels, or decide what to measure on a dataset, an experiment, or a project's live traffic (online evaluators). Do NOT trigger on: (1) manual prompt drafting (use `playground`), (2) running or comparing experiments themselves (use `experiments`), (3) cross-trace failure diagnosis with no evaluator in scope (use `phoenix-error-analysis`).
 summary: Design or refine a code or LLM evaluator — labels, logic or rubric, the field it reads, and representative preview cases.
 ---
 
@@ -94,6 +94,36 @@ floor** of primitives plus **judged dimensions** for what the floor cannot settl
 - Prefer reading fields directly and parsing nested or stringified JSON in the logic over a custom
   input mapping; in relational checks, normalize `output` and `reference` the same way before
   comparing, or matching values will spuriously diverge.
+
+## Online (Project) Evaluators
+
+A project evaluator runs on a project's live records instead of a dataset's examples. Its form adds
+a **scope** — the target (span, trace, or session), a filter in that target's filter language, a
+sampling rate, and for traces and sessions a delay — and a **test bench** of real records that match
+the scope.
+
+- Calibrate on the bench's records, not hand-written payloads: they are the inputs the evaluator
+  will see. Read a record's fields before writing the judgment; a session's or trace's `input` and
+  `output` are not a single LLM span's.
+- Set the scope before testing: the bench lists only records that match it, so a test on the wrong
+  scope calibrates against the wrong traffic.
+- The scope is saved with the evaluator. A saved evaluator keeps its target.
+- Attaching an existing code or decision evaluator keeps its definition: the project sets only the
+  scope and how the evaluator's inputs map to the record. Check the mapping on the bench before
+  attaching; to change the logic, edit the evaluator itself instead.
+- To start from a ready-made judge, read the evaluator gallery with
+  `evaluators.project.gallery.read` and open a template (or an evaluator saved on another project)
+  with `evaluators.project.gallery.open`; the form opens prefilled, and the form operations take
+  over. Check the template's inputs: one other than `input`, `output`, or `metadata` with no
+  default path (e.g. faithfulness's `context`) needs a mapping before the form saves.
+- A form submit is refused, with the reason, whenever the form's own save button is disabled: a
+  required input with no mapping, or a filter that does not parse. Fix what it names and submit
+  again.
+- For what the other evaluator pages show (the evaluators table and queue, the details tabs, the
+  compare page) and the fields behind them, load the `phoenix-graphql` skill's
+  `references/project-evaluators.md`. Before enabling, disabling, clearing a queue, or deleting, say
+  what will change, including the queued evaluations a disable or clear drops, and prefer pointing
+  the human to the switch or menu on that page so they see the result.
 
 ## Things To Avoid
 

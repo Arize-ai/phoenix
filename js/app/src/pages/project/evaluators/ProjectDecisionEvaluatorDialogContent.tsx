@@ -2,6 +2,7 @@ import { type ReactNode, useState } from "react";
 import { graphql, useMutation, useRelayEnvironment } from "react-relay";
 import { useRevalidator } from "react-router";
 
+import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/approval";
 import type { AnnotationConfig } from "@phoenix/components/annotation/types";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { DecisionEvaluatorDraftProvider } from "@phoenix/components/evaluators/decision/DecisionEvaluatorDraftProvider";
@@ -40,9 +41,12 @@ import {
   ProjectEvaluatorScopePanel,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import {
-  useProjectEvaluatorSubmitHint,
-  useUnboundRequiredVariables,
-} from "@phoenix/pages/project/evaluators/ProjectEvaluatorSubmitHint";
+  ATTACH_MAP_WITH,
+  getProjectEvaluatorSubmitRefusal,
+  useProjectEvaluatorFilterValidity,
+  type ProjectEvaluatorSubmitGateInput,
+  useProjectEvaluatorSubmitGate,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorSubmitGate";
 import { selectPreviewEvaluatorName } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTestBench";
 import {
   toEvaluationDelayInput,
@@ -55,6 +59,8 @@ import {
   type EvaluatorFormDirtyCheck,
   useEvaluatorFormDirtyCheck,
 } from "@phoenix/pages/project/evaluators/useEvaluatorFormDirtyCheck";
+import { useProjectDecisionEvaluatorDraftRegistration } from "@phoenix/pages/project/evaluators/useProjectDecisionEvaluatorDraftRegistration";
+import { useProjectEvaluatorAttachRegistration } from "@phoenix/pages/project/evaluators/useProjectEvaluatorAttachRegistration";
 import { getMutationErrorMessage } from "@phoenix/utils/errorUtils";
 
 type ScopeProps = {
@@ -118,6 +124,15 @@ const SUBMIT_LABELS: Record<SubmitKind, string> = {
   attach: "Attach evaluator",
 };
 
+/** Why a form whose Decision version is still loading cannot save yet. */
+function getDecisionPendingReason(
+  draft: DecisionEvaluatorDraft
+): string | null {
+  return draft.isLoading || !draft.isVersionReady
+    ? "the form is still loading its Decision version; try again in a moment."
+    : null;
+}
+
 const ERROR_TITLES: Record<SubmitKind, string> = {
   create: "Failed to create evaluator",
   update: "Failed to update evaluator",
@@ -134,8 +149,7 @@ function ProjectDecisionEvaluatorLayout({
   decision,
   outputConfigs,
   isSubmitting,
-  isSubmitDisabled,
-  isFilterValid,
+  submitGate,
   error,
   showValidationError = false,
   onSubmit,
@@ -150,19 +164,16 @@ function ProjectDecisionEvaluatorLayout({
   /** What the bench colours results against: the draft's derived outputs. */
   outputConfigs: AnnotationConfig[];
   isSubmitting: boolean;
-  isSubmitDisabled: boolean;
-  isFilterValid: boolean;
+  /**
+   * What the save button waits on. The form holds it, so the submit it hands
+   * PXI is held by the same gate.
+   */
+  submitGate: ProjectEvaluatorSubmitGateInput;
   error?: string;
   showValidationError?: boolean;
   onSubmit: () => void;
 }) {
-  const unboundVariables = useUnboundRequiredVariables({ variables });
-  const submitHint = useProjectEvaluatorSubmitHint({
-    targetType: scope.targetType,
-    isFilterValid,
-    unboundVariables,
-    submitLabel,
-  });
+  const gate = useProjectEvaluatorSubmitGate(submitGate);
   const recordKind = toEvaluatorRecordKind(scope.targetType);
   // The bench names a draft's results the way it names its preview runs.
   const evaluatorName = useEvaluatorStore(selectPreviewEvaluatorName);
@@ -175,10 +186,8 @@ function ProjectDecisionEvaluatorLayout({
         submitLabel={SUBMIT_LABELS[submitLabel]}
         onSubmit={onSubmit}
         isSubmitting={isSubmitting}
-        isSubmitDisabled={
-          isSubmitDisabled || !isFilterValid || unboundVariables.length > 0
-        }
-        submitHint={submitHint}
+        isSubmitDisabled={gate.isSubmitDisabled}
+        submitHint={gate.submitHint}
         error={error}
         errorTitle={ERROR_TITLES[submitLabel]}
         banner={showValidationError ? <EvaluatorValidationBanner /> : null}
@@ -235,7 +244,7 @@ function CreateProjectDecisionEvaluatorForm({
     useMutation<ProjectDecisionEvaluatorDialogContentCreateMutation>(
       createMutation
     );
-  const [isFilterValid, setIsFilterValid] = useState(true);
+  const filterValidity = useProjectEvaluatorFilterValidity();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string>();
   const [showValidationError, setShowValidationError] = useState(false);
@@ -245,16 +254,30 @@ function CreateProjectDecisionEvaluatorForm({
     alwaysDirty: true,
   });
   trackStoreForDirtyCheck(store);
+  const submitGate: ProjectEvaluatorSubmitGateInput = {
+    targetType: scope.targetType,
+    filterValidity,
+    variables: draft.variables,
+    submitLabel: "create",
+    pendingReason: getDecisionPendingReason(draft),
+  };
 
-  const onSubmit = async () => {
+  const onSubmit = async (): Promise<EvaluatorSubmitResult> => {
     setSubmitError(undefined);
     setShowValidationError(false);
+    const refusal = await getProjectEvaluatorSubmitRefusal({
+      gate: submitGate,
+      store,
+    });
+    if (refusal) {
+      return refusal;
+    }
     try {
       const input = await buildCreateInput(
         store.getState().evaluator.globalName
       );
       setIsSubmitting(true);
-      await commitAsync(create, {
+      const response = await commitAsync(create, {
         input: {
           ...input,
           projectId,
@@ -268,16 +291,36 @@ function CreateProjectDecisionEvaluatorForm({
         timeRange: timeRangeISOStrings,
       });
       onSuccess();
+      const { evaluator } = response.createProjectDecisionEvaluator;
+      return {
+        ok: true,
+        acceptedBy: "user",
+        evaluator: { id: evaluator.id, name: evaluator.name },
+      };
     } catch (error) {
-      if (error instanceof DecisionEvaluatorValidationError) {
-        setShowValidationError(true);
-      } else {
-        setSubmitError(getMutationErrorMessage(error));
-      }
+      return handleSubmitError(error);
     } finally {
       setIsSubmitting(false);
     }
   };
+  const handleSubmitError = (error: unknown): EvaluatorSubmitResult => {
+    if (error instanceof DecisionEvaluatorValidationError) {
+      setShowValidationError(true);
+      return {
+        ok: false,
+        error: `The form refused to save: ${error.message}`,
+      };
+    }
+    const message = getMutationErrorMessage(error);
+    setSubmitError(message);
+    return { ok: false, error: message };
+  };
+  useProjectDecisionEvaluatorDraftRegistration({
+    mode: "create",
+    evaluatorNodeId: null,
+    draft,
+    submit: onSubmit,
+  });
 
   return (
     <ProjectDecisionEvaluatorLayout
@@ -289,8 +332,7 @@ function CreateProjectDecisionEvaluatorForm({
       decision={toDecisionPreview(draft)}
       outputConfigs={deriveDecisionOutputConfigs(draft.questions, draft.policy)}
       isSubmitting={isSubmitting}
-      isSubmitDisabled={draft.isLoading || !draft.isVersionReady}
-      isFilterValid={isFilterValid}
+      submitGate={submitGate}
       error={submitError ?? draft.loadError}
       showValidationError={showValidationError}
       onSubmit={() => void onSubmit()}
@@ -299,7 +341,7 @@ function CreateProjectDecisionEvaluatorForm({
           projectId={projectId}
           scope={scope}
           onScopeChange={onScopeChange}
-          onFilterValidityChange={setIsFilterValid}
+          onFilterValidityChange={filterValidity.onFilterValidityChange}
           draft={draft}
           isDisabled={isSubmitting}
         />
@@ -330,14 +372,21 @@ export function AttachProjectDecisionEvaluatorDialogContent({
         onSuccess,
       }
     );
-  const [isFilterValid, setIsFilterValid] = useState(true);
+  const filterValidity = useProjectEvaluatorFilterValidity();
   const trackStoreForDirtyCheck = useEvaluatorFormDirtyCheck({
     registerDirtyCheck,
     scope,
   });
   trackStoreForDirtyCheck(store);
+  const submitGate: ProjectEvaluatorSubmitGateInput = {
+    targetType: scope.targetType,
+    filterValidity,
+    variables,
+    submitLabel: "attach",
+    mapWith: ATTACH_MAP_WITH,
+  };
 
-  const onSubmit = () =>
+  const attachEvaluator = () =>
     attach({
       input: {
         projectId,
@@ -348,6 +397,36 @@ export function AttachProjectDecisionEvaluatorDialogContent({
         enabled: true,
       },
     });
+  const onSubmit = () => void attachEvaluator();
+  useProjectEvaluatorAttachRegistration({
+    target: {
+      evaluatorId: evaluator.id,
+      name: evaluator.name,
+      kind: "DECISION",
+      variables,
+      // The layout holds the save while any variable is unbound.
+      requiredVariables: variables,
+    },
+    submit: async (): Promise<EvaluatorSubmitResult> => {
+      const refusal = await getProjectEvaluatorSubmitRefusal({
+        gate: submitGate,
+        store,
+      });
+      if (refusal) {
+        return refusal;
+      }
+      const result = await attachEvaluator();
+      if (!result.ok) {
+        return result;
+      }
+      const saved = result.response.createProjectDecisionEvaluator.evaluator;
+      return {
+        ok: true,
+        acceptedBy: "auto",
+        evaluator: { id: saved.id, name: saved.name },
+      };
+    },
+  });
 
   return (
     <ProjectDecisionEvaluatorLayout
@@ -359,8 +438,7 @@ export function AttachProjectDecisionEvaluatorDialogContent({
       decision={{ decisionEvaluatorId: evaluator.id }}
       outputConfigs={deriveDecisionOutputConfigs(view.questions, view.policy)}
       isSubmitting={isAttaching}
-      isSubmitDisabled={false}
-      isFilterValid={isFilterValid}
+      submitGate={submitGate}
       error={error}
       onSubmit={onSubmit}
       definition={
@@ -368,7 +446,7 @@ export function AttachProjectDecisionEvaluatorDialogContent({
           projectId={projectId}
           scope={scope}
           onScopeChange={onScopeChange}
-          onFilterValidityChange={setIsFilterValid}
+          onFilterValidityChange={filterValidity.onFilterValidityChange}
           attachedEvaluator={evaluator}
         />
       }
@@ -445,20 +523,34 @@ function EditProjectDecisionEvaluatorForm({
         }
       }
     `);
-  const [isFilterValid, setIsFilterValid] = useState(true);
+  const filterValidity = useProjectEvaluatorFilterValidity();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string>();
   const [showValidationError, setShowValidationError] = useState(false);
+  const submitGate: ProjectEvaluatorSubmitGateInput = {
+    targetType: scope.targetType,
+    filterValidity,
+    variables: draft.variables,
+    submitLabel: "update",
+    pendingReason: getDecisionPendingReason(draft),
+  };
 
-  const onSubmit = async () => {
+  const onSubmit = async (): Promise<EvaluatorSubmitResult> => {
     setSubmitError(undefined);
     setShowValidationError(false);
+    const refusal = await getProjectEvaluatorSubmitRefusal({
+      gate: submitGate,
+      store,
+    });
+    if (refusal) {
+      return refusal;
+    }
     try {
       const input = await buildUpdateInput(
         store.getState().evaluator.globalName
       );
       setIsSubmitting(true);
-      await commitAsync(update, {
+      const response = await commitAsync(update, {
         input: {
           ...input,
           projectEvaluatorId,
@@ -468,16 +560,33 @@ function EditProjectDecisionEvaluatorForm({
       notifySuccess({ title: "Evaluator updated" });
       void revalidate();
       onClose();
+      const { evaluator } = response.updateProjectDecisionEvaluator;
+      return {
+        ok: true,
+        acceptedBy: "user",
+        evaluator: { id: evaluator.id, name: evaluator.name },
+      };
     } catch (error) {
       if (error instanceof DecisionEvaluatorValidationError) {
         setShowValidationError(true);
-      } else {
-        setSubmitError(getMutationErrorMessage(error));
+        return {
+          ok: false,
+          error: `The form refused to save: ${error.message}`,
+        };
       }
+      const message = getMutationErrorMessage(error);
+      setSubmitError(message);
+      return { ok: false, error: message };
     } finally {
       setIsSubmitting(false);
     }
   };
+  useProjectDecisionEvaluatorDraftRegistration({
+    mode: "edit",
+    evaluatorNodeId: draft.initialEvaluator?.id ?? null,
+    draft,
+    submit: onSubmit,
+  });
 
   return (
     <>
@@ -500,8 +609,7 @@ function EditProjectDecisionEvaluatorForm({
           draft.policy
         )}
         isSubmitting={isSubmitting}
-        isSubmitDisabled={draft.isLoading || !draft.isVersionReady}
-        isFilterValid={isFilterValid}
+        submitGate={submitGate}
         error={submitError ?? draft.loadError}
         showValidationError={showValidationError}
         onSubmit={() => void onSubmit()}
@@ -510,7 +618,7 @@ function EditProjectDecisionEvaluatorForm({
             projectId={projectId}
             scope={scope}
             onScopeChange={onScopeChange}
-            onFilterValidityChange={setIsFilterValid}
+            onFilterValidityChange={filterValidity.onFilterValidityChange}
             isTargetDisabled
             draft={draft}
             isDisabled={isSubmitting}

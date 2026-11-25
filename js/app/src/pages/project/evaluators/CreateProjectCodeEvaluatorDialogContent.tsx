@@ -6,6 +6,7 @@ import {
   useRelayEnvironment,
 } from "react-relay";
 
+import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/approval";
 import { Alert, LinkButton } from "@phoenix/components";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { CodeAuthoringFields } from "@phoenix/components/evaluators/CodeAuthoringFields";
@@ -15,6 +16,7 @@ import {
   extractCodeEvaluatorVariables,
   extractRequiredCodeEvaluatorVariables,
 } from "@phoenix/components/evaluators/codeEvaluatorUtils";
+import { commitAsync } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
 import { EvaluatorFormDialogContent } from "@phoenix/components/evaluators/EvaluatorFormDialogContent";
 import { CodeEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/CodeEvaluatorInputVariablesProvider";
 import {
@@ -31,15 +33,18 @@ import {
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorFormSections";
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import {
-  formatUnboundVariablesHint,
-  useUnboundRequiredVariables,
-} from "@phoenix/pages/project/evaluators/ProjectEvaluatorSubmitHint";
+  getProjectEvaluatorSubmitRefusal,
+  useProjectEvaluatorFilterValidity,
+  type ProjectEvaluatorSubmitGateInput,
+  useProjectEvaluatorSubmitGate,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorSubmitGate";
 import {
   toEvaluationDelayInput,
   toEvaluatorRecordKind,
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
+import { useProjectCodeEvaluatorDraftRegistration } from "@phoenix/pages/project/evaluators/useProjectCodeEvaluatorDraftRegistration";
 import type { CodeEvaluatorLanguage } from "@phoenix/types";
 import { getMutationErrorMessage } from "@phoenix/utils/errorUtils";
 
@@ -124,17 +129,21 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
   const [validationMessage, setValidationMessage] = useState<
     string | undefined
   >();
-  const [isFilterValid, setIsFilterValid] = useState(true);
+  const filterValidity = useProjectEvaluatorFilterValidity();
 
   const variables = extractCodeEvaluatorVariables({ language, sourceCode });
   const requiredVariables = extractRequiredCodeEvaluatorVariables({
     language,
     sourceCode,
   });
-  const unboundVariables = useUnboundRequiredVariables({
+  const gateInput: ProjectEvaluatorSubmitGateInput = {
+    targetType: scope.targetType,
+    filterValidity,
     variables,
     requiredVariables,
-  });
+    submitLabel: "create",
+  };
+  const gate = useProjectEvaluatorSubmitGate(gateInput);
 
   // A sandbox config is only valid for its own language.
   const selectedSandboxConfigId = sandboxConfigs.some(
@@ -175,8 +184,16 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
 
   const clearValidationMessage = () => setValidationMessage(undefined);
 
-  const onSubmit = () => {
+  /** Validates and creates the evaluator; the Create button and PXI share it. */
+  const submit = async (): Promise<EvaluatorSubmitResult> => {
     setError(undefined);
+    const refusal = await getProjectEvaluatorSubmitRefusal({
+      gate: gateInput,
+      store,
+    });
+    if (refusal) {
+      return refusal;
+    }
     const state = store.getState();
     // Lets the name field show its own empty error beside the message below.
     void state.validateAll();
@@ -194,14 +211,14 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
             ? outputConfigErrors.join("\n")
             : undefined;
     if (nextValidationMessage || selectedSandboxConfigId == null) {
-      setValidationMessage(
-        nextValidationMessage ?? "Please select a sandbox configuration."
-      );
-      return;
+      const message =
+        nextValidationMessage ?? "Please select a sandbox configuration.";
+      setValidationMessage(message);
+      return { ok: false, error: message };
     }
     setValidationMessage(undefined);
-    createEvaluator({
-      variables: {
+    try {
+      const response = await commitAsync(createEvaluator, {
         input: {
           projectId,
           name,
@@ -224,39 +241,45 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
           tracingEnabled: scope.tracingEnabled,
           enabled: true,
         },
-      },
-      onCompleted: (_response, errors) => {
-        if (errors?.length) {
-          setError(errors.map(({ message }) => message).join("\n"));
-          return;
-        }
-        void refetchProjectEvaluators({
-          environment,
-          projectId,
-          timeRange: timeRangeISOStrings,
-        })
-          .then(onSuccess)
-          .catch((refetchError: unknown) =>
-            setError(
-              refetchError instanceof Error
-                ? refetchError.message
-                : "Unable to refresh project evaluators"
-            )
-          );
-      },
-      onError: (mutationError) =>
-        setError(getMutationErrorMessage(mutationError)),
-    });
+      });
+      await refetchProjectEvaluators({
+        environment,
+        projectId,
+        timeRange: timeRangeISOStrings,
+      });
+      onSuccess();
+      const { evaluator } = response.createProjectCodeEvaluator;
+      return {
+        ok: true,
+        acceptedBy: "user",
+        evaluator: { id: evaluator.id, name: evaluator.name },
+      };
+    } catch (submissionError) {
+      const message = getMutationErrorMessage(submissionError);
+      setError(message);
+      return { ok: false, error: message };
+    }
   };
+
+  useProjectCodeEvaluatorDraftRegistration({
+    mode: "create",
+    evaluatorNodeId: null,
+    fields: { language, sourceCode, sandboxConfigId: selectedSandboxConfigId },
+    setSourceCode,
+    setLanguage,
+    setSandboxConfigId,
+    sandboxConfigs,
+    submit,
+  });
 
   return (
     <EvaluatorFormDialogContent
       title={title}
       submitLabel="Create"
-      onSubmit={onSubmit}
+      onSubmit={() => void submit()}
       isSubmitting={isCreating}
-      isSubmitDisabled={!isFilterValid || unboundVariables.length > 0}
-      submitHint={formatUnboundVariablesHint(unboundVariables, "create")}
+      isSubmitDisabled={gate.isSubmitDisabled}
+      submitHint={gate.submitHint}
       error={error}
       errorTitle="Failed to create evaluator"
       contentGap="var(--global-dimension-size-100)"
@@ -304,7 +327,7 @@ export const CreateProjectCodeEvaluatorDialogContent = ({
           projectId={projectId}
           scope={scope}
           onScopeChange={onScopeChange}
-          onFilterValidityChange={setIsFilterValid}
+          onFilterValidityChange={filterValidity.onFilterValidityChange}
           onFieldChange={clearValidationMessage}
           codeDefinition={
             <CodeAuthoringFields

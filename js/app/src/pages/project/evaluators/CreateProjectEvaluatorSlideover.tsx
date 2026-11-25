@@ -40,6 +40,13 @@ import {
 import { ProjectEvaluatorScopePanel } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import { ProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideover";
 import {
+  ATTACH_MAP_WITH,
+  getProjectEvaluatorSubmitRefusal,
+  type ProjectEvaluatorFilterValidity,
+  useProjectEvaluatorFilterValidity,
+  type ProjectEvaluatorSubmitGateInput,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorSubmitGate";
+import {
   DEFAULT_EVALUATION_DELAY_SECONDS,
   getDefaultProjectEvaluatorFilterCondition,
   isSameInputMapping,
@@ -55,6 +62,7 @@ import {
   useEvaluatorFormDirtyCheck,
   type EvaluatorFormDirtyCheck,
 } from "@phoenix/pages/project/evaluators/useEvaluatorFormDirtyCheck";
+import { useProjectEvaluatorAttachRegistration } from "@phoenix/pages/project/evaluators/useProjectEvaluatorAttachRegistration";
 import type { PlaygroundChatTemplate } from "@phoenix/store";
 import {
   DEFAULT_DECISION_EVALUATOR_STORE_VALUES,
@@ -481,6 +489,15 @@ function AttachCodeProjectEvaluatorDialog({
     scope,
   });
   trackStoreForDirtyCheck(store);
+  const filterValidity = useProjectEvaluatorFilterValidity();
+  const submitGate: ProjectEvaluatorSubmitGateInput = {
+    targetType: scope.targetType,
+    filterValidity,
+    variables: creationMode.variables,
+    requiredVariables: creationMode.requiredVariables,
+    submitLabel: "attach",
+    mapWith: ATTACH_MAP_WITH,
+  };
   const {
     attach,
     isAttaching: isAddingCodeEvaluator,
@@ -512,6 +529,57 @@ function AttachCodeProjectEvaluatorDialog({
       onSuccess,
     }
   );
+  const attachEvaluator = () =>
+    attach({
+      input: {
+        projectId,
+        evaluatorId: creationMode.evaluatorId,
+        name: creationMode.name,
+        samplingRate: scope.samplingRate,
+        evaluationTarget: scope.targetType,
+        filterCondition: scope.filterCondition,
+        ...toEvaluationDelayInput(scope),
+        tracingEnabled: scope.tracingEnabled,
+        enabled: true,
+        // Left as it was, the project keeps reading through the
+        // evaluator's own mapping, and follows it if that changes.
+        inputMapping: isSameInputMapping(
+          store.getState().evaluator.inputMapping,
+          creationMode.inputMapping
+        )
+          ? null
+          : store.getState().evaluator.inputMapping,
+      },
+    });
+  useProjectEvaluatorAttachRegistration({
+    target: {
+      evaluatorId: creationMode.evaluatorId,
+      name: creationMode.name,
+      kind: "CODE",
+      variables: creationMode.variables,
+      requiredVariables: creationMode.requiredVariables,
+      inputDescriptions: creationMode.inputDescriptions,
+    },
+    submit: async (): Promise<EvaluatorSubmitResult> => {
+      const refusal = await getProjectEvaluatorSubmitRefusal({
+        gate: submitGate,
+        store,
+      });
+      if (refusal) {
+        return refusal;
+      }
+      const result = await attachEvaluator();
+      if (!result.ok) {
+        return result;
+      }
+      const saved = result.response.addProjectCodeEvaluator.evaluator;
+      return {
+        ok: true,
+        acceptedBy: "auto",
+        evaluator: { id: saved.id, name: saved.name },
+      };
+    },
+  });
   return (
     <ProjectCodeEvaluatorDialogContent
       title={title}
@@ -523,31 +591,11 @@ function AttachCodeProjectEvaluatorDialog({
       canDescribeInputs={false}
       scope={scope}
       onScopeChange={onScopeChange}
+      submitGate={submitGate}
+      onFilterValidityChange={filterValidity.onFilterValidityChange}
       isSubmitting={isAddingCodeEvaluator}
       error={error}
-      onSubmit={() =>
-        attach({
-          input: {
-            projectId,
-            evaluatorId: creationMode.evaluatorId,
-            name: creationMode.name,
-            samplingRate: scope.samplingRate,
-            evaluationTarget: scope.targetType,
-            filterCondition: scope.filterCondition,
-            ...toEvaluationDelayInput(scope),
-            tracingEnabled: scope.tracingEnabled,
-            enabled: true,
-            // Left as it was, the project keeps reading through the
-            // evaluator's own mapping, and follows it if that changes.
-            inputMapping: isSameInputMapping(
-              store.getState().evaluator.inputMapping,
-              creationMode.inputMapping
-            )
-              ? null
-              : store.getState().evaluator.inputMapping,
-          },
-        })
-      }
+      onSubmit={() => void attachEvaluator()}
     />
   );
 }
@@ -580,7 +628,7 @@ function CreateLlmProjectEvaluatorDialog({
   const variables = useLLMEvaluatorVariables({ instanceId });
   const [error, setError] = useState<string>();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isFilterValid, setIsFilterValid] = useState(true);
+  const filterValidity = useProjectEvaluatorFilterValidity();
   const trackStoreForDirtyCheck = useEvaluatorFormDirtyCheck({
     registerDirtyCheck,
     scope,
@@ -652,8 +700,7 @@ function CreateLlmProjectEvaluatorDialog({
       projectId={projectId}
       scope={scope}
       onScopeChange={onScopeChange}
-      isFilterValid={isFilterValid}
-      onFilterValidityChange={setIsFilterValid}
+      filterValidity={filterValidity}
       onClose={onClose}
       onSubmit={submit}
       isSubmitting={isSubmitting}
@@ -667,8 +714,7 @@ const ScratchLlmDialogContent = ({
   projectId,
   scope,
   onScopeChange,
-  isFilterValid,
-  onFilterValidityChange,
+  filterValidity,
   onClose,
   onSubmit,
   isSubmitting,
@@ -678,8 +724,7 @@ const ScratchLlmDialogContent = ({
   projectId: string;
   scope: ProjectEvaluatorScope;
   onScopeChange: (scope: ProjectEvaluatorScope) => void;
-  isFilterValid: boolean;
-  onFilterValidityChange: (isValid: boolean) => void;
+  filterValidity: ProjectEvaluatorFilterValidity;
   onClose: () => void;
   onSubmit: () => Promise<EvaluatorSubmitResult>;
   isSubmitting: boolean;
@@ -688,7 +733,7 @@ const ScratchLlmDialogContent = ({
   return (
     <ProjectLlmEvaluatorDialogContent
       targetType={scope.targetType}
-      isFilterValid={isFilterValid}
+      filterValidity={filterValidity}
       title={title}
       onClose={onClose}
       onSubmit={onSubmit}
@@ -700,7 +745,7 @@ const ScratchLlmDialogContent = ({
           projectId={projectId}
           scope={scope}
           onScopeChange={onScopeChange}
-          onFilterValidityChange={onFilterValidityChange}
+          onFilterValidityChange={filterValidity.onFilterValidityChange}
         />
       }
       formLeftDock={

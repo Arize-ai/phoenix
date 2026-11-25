@@ -1,4 +1,3 @@
-import { useState } from "react";
 import type { ReactNode } from "react";
 
 import { EvaluatorFormDialogContent } from "@phoenix/components/evaluators/EvaluatorFormDialogContent";
@@ -12,9 +11,9 @@ import {
   type ProjectEvaluatorInlineCode,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorScopePanel";
 import {
-  formatUnboundVariablesHint,
-  useUnboundRequiredVariables,
-} from "@phoenix/pages/project/evaluators/ProjectEvaluatorSubmitHint";
+  type ProjectEvaluatorSubmitGateInput,
+  useProjectEvaluatorSubmitGate,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorSubmitGate";
 import {
   type ProjectEvaluatorScope,
   toEvaluatorRecordKind,
@@ -31,6 +30,8 @@ export const ProjectCodeEvaluatorDialogContent = ({
   inlineCode,
   scope,
   onScopeChange,
+  submitGate,
+  onFilterValidityChange,
   onFieldChange,
   onSubmit,
   isSubmitting,
@@ -50,6 +51,12 @@ export const ProjectCodeEvaluatorDialogContent = ({
   inlineCode?: ProjectEvaluatorInlineCode;
   scope: ProjectEvaluatorScope;
   onScopeChange: (scope: ProjectEvaluatorScope) => void;
+  /**
+   * What the save button waits on. The parent holds it, so the submit it
+   * hands PXI is held by the same gate.
+   */
+  submitGate: ProjectEvaluatorSubmitGateInput;
+  onFilterValidityChange: (isValid: boolean) => void;
   /** Fires when the name or description changes, so stale error banners can be cleared. */
   onFieldChange?: () => void;
   onSubmit: () => void;
@@ -62,22 +69,15 @@ export const ProjectCodeEvaluatorDialogContent = ({
    */
   canDescribeInputs?: boolean;
 }) => {
-  const [isFilterValid, setIsFilterValid] = useState(true);
-  const unboundVariables = useUnboundRequiredVariables({
-    variables,
-    requiredVariables,
-  });
+  const gate = useProjectEvaluatorSubmitGate(submitGate);
   return (
     <EvaluatorFormDialogContent
       title={title}
       submitLabel={mode === "create" ? "Attach evaluator" : "Save changes"}
       onSubmit={onSubmit}
       isSubmitting={isSubmitting}
-      isSubmitDisabled={!isFilterValid || unboundVariables.length > 0}
-      submitHint={formatUnboundVariablesHint(
-        unboundVariables,
-        mode === "create" ? "attach" : "save"
-      )}
+      isSubmitDisabled={gate.isSubmitDisabled}
+      submitHint={gate.submitHint}
       error={error}
       errorTitle={
         mode === "create"
@@ -95,7 +95,7 @@ export const ProjectCodeEvaluatorDialogContent = ({
           projectId={projectId}
           scope={scope}
           onScopeChange={onScopeChange}
-          onFilterValidityChange={setIsFilterValid}
+          onFilterValidityChange={onFilterValidityChange}
           isTargetDisabled={mode === "update"}
           codeEvaluatorName={evaluatorName}
           codeDefinition={codeDefinition}

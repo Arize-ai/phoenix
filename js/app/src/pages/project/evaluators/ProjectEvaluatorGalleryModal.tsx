@@ -54,13 +54,17 @@ import { EvaluatorTemplateCard } from "@phoenix/pages/project/evaluators/Evaluat
 import { formatEvaluationTargetPlural } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
 import {
   type CustomEvaluator,
+  type CustomEvaluatorKind,
   type GalleryItem,
   type GallerySelection,
   getCustomEvaluatorItemKey,
+  getCustomEvaluatorKind,
+  getGalleryItemCreationPath,
   getGalleryItemKey,
   getGalleryItemSelection,
   getGallerySelectionFromKeys,
   getTemplateItemKey,
+  isGalleryCustomEvaluator,
   NO_GALLERY_SELECTION,
   resolveGallerySelection,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorGallerySelection";
@@ -234,18 +238,6 @@ function getSectionHeadingId(section: GallerySection): string {
   return `project-evaluator-gallery-section-${section.toLowerCase()}`;
 }
 
-type CustomEvaluatorKind = "LLM" | "CODE" | "DECISION";
-
-const CUSTOM_EVALUATOR_KINDS = {
-  LLMEvaluator: "LLM",
-  CodeEvaluator: "CODE",
-  DecisionEvaluator: "DECISION",
-} satisfies Record<CustomEvaluator["__typename"], CustomEvaluatorKind>;
-
-const getCustomEvaluatorKind = (
-  evaluator: Pick<CustomEvaluator, "__typename">
-): CustomEvaluatorKind => CUSTOM_EVALUATOR_KINDS[evaluator.__typename];
-
 function getGalleryItemSection(item: GalleryItem): GallerySection {
   return item.kind === "custom"
     ? CUSTOM_EVALUATORS_SECTION
@@ -317,9 +309,7 @@ function useEvaluatorGalleryContents({
   const isFilteredByName = trimmedNameQuery !== "";
   const allCustomEvaluators = data.evaluators.edges
     .map(({ evaluator }) => evaluator)
-    .filter((evaluator): evaluator is CustomEvaluator =>
-      Object.hasOwn(CUSTOM_EVALUATOR_KINDS, evaluator.__typename)
-    );
+    .filter(isGalleryCustomEvaluator);
   const hasGalleryItems =
     allCustomEvaluators.length > 0 || data.evaluatorGalleryConfigs.length > 0;
   const templates = data.evaluatorGalleryConfigs.filter((template) =>
@@ -687,15 +677,7 @@ function EvaluatorGallery({
             if (!item) return;
             // The second press of a double-click deselects the card first.
             setSelection(getGalleryItemSelection(item));
-            if (item.kind === "custom") {
-              navigate(
-                getCustomEvaluatorKind(item.evaluator) === "LLM"
-                  ? creationPaths.copyLlm(item.evaluator.id)
-                  : creationPaths.attach(item.evaluator.id)
-              );
-              return;
-            }
-            navigate(creationPaths.newLlmFromTemplate(item.template.name));
+            navigate(getGalleryItemCreationPath({ item, creationPaths }));
           }}
         >
           {hasCustomEvaluators ? (
