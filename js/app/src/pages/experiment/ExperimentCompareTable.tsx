@@ -172,6 +172,16 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     },
     [clearSelectedSpanSearchParam]
   );
+  // The slideover and the trace drawer share a plane, where the one opened
+  // last is on top. Opening an example from the table closes the trace drawer
+  // so the slideover is never treated as covered while it is the one on top.
+  const openExampleFromTable = useCallback(
+    (exampleId: string) => {
+      setSelectedTraceDetails(null);
+      openExample({ exampleId });
+    },
+    [openExample]
+  );
   const { baseExperimentColor, getExperimentColor } = useExperimentColors();
 
   const preloadedData = usePreloadedQuery<ExperimentCompareTableQueryType>(
@@ -543,7 +553,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               repeatedRunGroup={repeatedRunGroup}
               baseRepeatedRunGroup={baseRepeatedRunGroup}
               onOpenTraceDetails={openTraceDetails}
-              onOpenExample={() => openExample({ exampleId: row.original.id })}
+              onOpenExample={() => openExampleFromTable(row.original.id)}
               annotationSummaries={annotationSummaries}
               annotationConfigs={annotationConfigs}
               height={CELL_PRIMARY_CONTENT_HEIGHT}
@@ -561,7 +571,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     compareExperimentIds,
     experimentInfoById,
     getExperimentColor,
-    openExample,
+    openExampleFromTable,
     openTraceDetails,
   ]);
 
@@ -573,9 +583,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     loadNext(PAGE_SIZE);
   }, [loadNext]);
   const handleRowClick =
-    selectedExampleId != null
-      ? (exampleId: string) => openExample({ exampleId })
-      : undefined;
+    selectedExampleId != null ? openExampleFromTable : undefined;
 
   const table = useTable({
     features: appTableFeatures,

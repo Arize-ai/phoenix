@@ -20,21 +20,13 @@ export function useExperimentCompareSlideoverState() {
   const state = parseExperimentCompareSlideoverState(searchParams);
 
   const updateState = useCallback(
-    ({
-      changes,
-      replace,
-    }: {
-      changes: Partial<ExperimentCompareSlideoverState>;
-      /** Whether the change replaces the current history entry (default true) */
-      replace?: boolean;
-    }) => {
+    ({ changes }: { changes: Partial<ExperimentCompareSlideoverState> }) => {
       updateSearchParams({
         update: (currentSearchParams) =>
           applyExperimentCompareSlideoverState({
             searchParams: currentSearchParams,
             changes,
           }),
-        replace,
       });
     },
     [updateSearchParams]

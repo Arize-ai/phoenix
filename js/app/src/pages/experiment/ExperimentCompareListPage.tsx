@@ -156,9 +156,12 @@ export function ExperimentCompareListPage({
       },
     });
   }, [updateSearchParams]);
-  const experimentIds = useMemo(
-    () => searchParams.getAll("experimentId"),
-    [searchParams]
+  // Keyed on the picked IDs rather than the search params, which also carry
+  // view state that changes without the selection changing
+  const experimentIdsKey = JSON.stringify(searchParams.getAll("experimentId"));
+  const experimentIds: string[] = useMemo(
+    () => JSON.parse(experimentIdsKey),
+    [experimentIdsKey]
   );
 
   const { state: slideoverState, openExample } =

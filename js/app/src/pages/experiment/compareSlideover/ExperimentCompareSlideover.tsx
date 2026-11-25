@@ -20,6 +20,7 @@ import {
   useDefaultDrawerSize,
   useOverlayFrame,
 } from "@phoenix/components/core/overlay";
+import { ErrorBoundary } from "@phoenix/components/exception";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import { indexAnnotationConfigsByName } from "@phoenix/components/experiment/experimentDeltaUtils";
 import { ExampleDetailsPaginator } from "@phoenix/pages/experiment/ExampleDetailsPaginator";
@@ -80,11 +81,13 @@ type ExperimentCompareSlideoverProps = {
 /**
  * Options for the slideover's arrow shortcuts: off while another overlay has
  * the keyboard, and never taken from an element that uses arrow keys itself.
+ * The event is ignored rather than the shortcut disabled, because a disabled
+ * shortcut still cancels the key press for the rest of the page.
  */
 function getArrowHotkeyOptions(areHotkeysEnabled: boolean) {
   return {
-    enabled: (event: KeyboardEvent) =>
-      areHotkeysEnabled && !isArrowKeyConsumer(event.target),
+    ignoreEventWhen: (event: KeyboardEvent) =>
+      !areHotkeysEnabled || isArrowKeyConsumer(event.target),
     preventDefault: true,
   };
 }
@@ -230,7 +233,7 @@ function OpenExperimentCompareSlideover({
   const currentItem = navigationItems[currentIndex];
 
   // The example next was pressed on while its neighbor was still on an
-  // unfetched page. It is dropped as soon as another example is opened.
+  // unfetched page. It is dropped as soon as another stop is opened.
   const pendingAdvanceRef = useRef<{
     fromIndex: number;
     exampleId: string;
@@ -266,7 +269,10 @@ function OpenExperimentCompareSlideover({
     if (pendingAdvance == null) {
       return;
     }
-    if (pendingAdvance.exampleId !== selectedExampleId) {
+    if (
+      pendingAdvance.exampleId !== selectedExampleId ||
+      pendingAdvance.fromIndex !== currentIndex
+    ) {
       pendingAdvanceRef.current = null;
       return;
     }
@@ -275,7 +281,7 @@ function OpenExperimentCompareSlideover({
       pendingAdvanceRef.current = null;
       openExample(nextItem);
     }
-  }, [navigationItems, openExample, selectedExampleId]);
+  }, [currentIndex, navigationItems, openExample, selectedExampleId]);
 
   const arrowHotkeyOptions = getArrowHotkeyOptions(areHotkeysEnabled);
   useHotkeys(
@@ -314,6 +320,7 @@ function OpenExperimentCompareSlideover({
               onExampleChange={navigateToIndex}
               hasMoreExamples={hasMoreItems}
               isLoadingMoreExamples={isLoadingMoreItems}
+              areHotkeysEnabled={areHotkeysEnabled}
             />
             <TitleWithID
               title="Example"
@@ -355,18 +362,28 @@ function OpenExperimentCompareSlideover({
               </SegmentedControl>
             </div>
           </header>
-          <Suspense fallback={<ExperimentCompareSlideoverBodySkeleton />}>
-            <ExperimentCompareSlideoverBody
-              datasetId={datasetId}
-              exampleId={selectedExampleId}
-              baseExperimentId={baseExperimentId}
-              compareExperimentIds={compareExperimentIds}
-              state={state}
-              onStateChange={(changes) => updateState({ changes })}
-              onOpenTrace={onOpenTrace}
-              areHotkeysEnabled={areHotkeysEnabled}
-            />
-          </Suspense>
+          {/* Keyed so that opening another example or changing the experiments
+              leaves a failed load behind */}
+          <ErrorBoundary
+            key={[
+              selectedExampleId,
+              baseExperimentId,
+              ...compareExperimentIds,
+            ].join(":")}
+          >
+            <Suspense fallback={<ExperimentCompareSlideoverBodySkeleton />}>
+              <ExperimentCompareSlideoverBody
+                datasetId={datasetId}
+                exampleId={selectedExampleId}
+                baseExperimentId={baseExperimentId}
+                compareExperimentIds={compareExperimentIds}
+                state={state}
+                onStateChange={(changes) => updateState({ changes })}
+                onOpenTrace={onOpenTrace}
+                areHotkeysEnabled={areHotkeysEnabled}
+              />
+            </Suspense>
+          </ErrorBoundary>
         </div>
       </Dialog>
     </Drawer>

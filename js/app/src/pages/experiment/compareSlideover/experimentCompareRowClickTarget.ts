@@ -7,9 +7,15 @@ const INTERACTIVE_ELEMENT_SELECTOR = [
   "textarea",
   "select",
   "summary",
+  "label",
   '[role="button"]',
   '[role="link"]',
   '[role="menuitem"]',
+  '[role="option"]',
+  '[role="checkbox"]',
+  '[role="radio"]',
+  '[role="switch"]',
+  '[role="tab"]',
   '[contenteditable]:not([contenteditable="false"])',
 ].join(", ");
 
@@ -44,7 +50,12 @@ export function getCompareRowProps({
     onClick:
       onRowClick != null
         ? (event: MouseEvent<HTMLTableRowElement>) => {
-            if (!isInteractiveClickTarget(event.target)) {
+            // React delivers clicks from portaled overlays, such as a popover
+            // opened from the row, to the row as well
+            const isInsideRow =
+              event.target instanceof Node &&
+              event.currentTarget.contains(event.target);
+            if (isInsideRow && !isInteractiveClickTarget(event.target)) {
               onRowClick(rowId);
             }
           }

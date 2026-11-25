@@ -22,6 +22,7 @@ export const ExampleDetailsPaginator = ({
   onExampleChange,
   hasMoreExamples = false,
   isLoadingMoreExamples = false,
+  areHotkeysEnabled = true,
 }: {
   currentExampleIndex: number;
   exampleIds: readonly string[];
@@ -34,6 +35,8 @@ export const ExampleDetailsPaginator = ({
   hasMoreExamples?: boolean;
   /** Whether the next page of examples is being fetched */
   isLoadingMoreExamples?: boolean;
+  /** Whether the shortcuts respond, e.g. not while another overlay is on top */
+  areHotkeysEnabled?: boolean;
 }) => {
   const hasPrevious = currentExampleIndex > 0;
   const isOnLastLoadedExample = currentExampleIndex >= exampleIds.length - 1;
@@ -55,13 +58,24 @@ export const ExampleDetailsPaginator = ({
     }
   };
 
-  useHotkeys(NEXT_EXAMPLE_HOTKEY, () => {
-    handleNext();
-  });
+  // Ignored rather than disabled: a disabled shortcut still cancels the key
+  // press for the rest of the page
+  const hotkeyOptions = { ignoreEventWhen: () => !areHotkeysEnabled };
+  useHotkeys(
+    NEXT_EXAMPLE_HOTKEY,
+    () => {
+      handleNext();
+    },
+    hotkeyOptions
+  );
 
-  useHotkeys(PREVIOUS_EXAMPLE_HOTKEY, () => {
-    handlePrevious();
-  });
+  useHotkeys(
+    PREVIOUS_EXAMPLE_HOTKEY,
+    () => {
+      handlePrevious();
+    },
+    hotkeyOptions
+  );
 
   return (
     <Flex direction="row" gap="size-50" alignItems="center">
