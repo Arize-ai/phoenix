@@ -3,7 +3,11 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { useLocation, useNavigate, useParams } from "react-router";
 import invariant from "tiny-invariant";
 
-import { readDecisionEvaluatorData } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
+import {
+  type DecisionEvaluatorData,
+  readDecisionEvaluatorData,
+} from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
+import { getEvaluatorCopyName } from "@phoenix/components/evaluators/evaluatorCopyName";
 import type { projectEvaluatorDetailsQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorDetailsQuery.graphql";
 import type { ProjectEvaluatorSlideoverRoutesCopyNamesQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorSlideoverRoutesCopyNamesQuery.graphql";
 import type { projectEvaluatorTemplatesQuery as ProjectEvaluatorTemplatesQueryType } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
@@ -171,7 +175,7 @@ export function NewLlmFromTemplateProjectEvaluatorPage() {
   );
 }
 
-const COPY_LLM_ERROR_TITLE = "Cannot copy evaluator";
+const COPY_ERROR_TITLE = "Cannot copy evaluator";
 
 export function CopyLlmProjectEvaluatorPage() {
   const onOpenChange = useCloseSlideover();
@@ -179,7 +183,7 @@ export function CopyLlmProjectEvaluatorPage() {
   if (evaluator?.__typename !== "LLMEvaluator") {
     return (
       <ProjectEvaluatorSlideoverError
-        title={COPY_LLM_ERROR_TITLE}
+        title={COPY_ERROR_TITLE}
         message="This link does not name an LLM evaluator."
         onOpenChange={onOpenChange}
       />
@@ -205,7 +209,7 @@ function CopyLlmProjectEvaluatorRoute({
   if (!built.ok) {
     return (
       <ProjectEvaluatorSlideoverError
-        title={COPY_LLM_ERROR_TITLE}
+        title={COPY_ERROR_TITLE}
         message={UNSUPPORTED_PROMPT_TEMPLATE_ERROR}
         onOpenChange={onOpenChange}
       />
@@ -216,27 +220,21 @@ function CopyLlmProjectEvaluatorRoute({
 
 export function AttachProjectEvaluatorPage() {
   const onOpenChange = useCloseSlideover();
-  const node = useSourceEvaluatorNode();
-  const evaluator = readProjectEvaluatorDetails(node);
+  const evaluator = useSourceEvaluator();
   // Memoized for the same reason as the copy route: it parses the evaluator's
   // source twice to extract its variables.
-  const creationMode = useMemo<ProjectEvaluatorCreationMode | null>(() => {
-    const decisionEvaluator =
-      node?.__typename === "DecisionEvaluator"
-        ? readDecisionEvaluatorData(node)
-        : null;
-    if (decisionEvaluator) {
-      return { kind: "attachDecision", evaluator: decisionEvaluator };
-    }
-    return evaluator?.__typename === "CodeEvaluator"
-      ? buildAttachCodeCreationMode(evaluator)
-      : null;
-  }, [node, evaluator]);
+  const creationMode = useMemo(
+    () =>
+      evaluator?.__typename === "CodeEvaluator"
+        ? buildAttachCodeCreationMode(evaluator)
+        : null,
+    [evaluator]
+  );
   if (!creationMode) {
     return (
       <ProjectEvaluatorSlideoverError
-        title="Cannot attach evaluator"
-        message="This link does not name a code or decision evaluator."
+        title="Cannot add evaluator"
+        message="This link does not name a code evaluator."
         onOpenChange={onOpenChange}
       />
     );
@@ -250,7 +248,7 @@ export function CopyCodeProjectEvaluatorPage() {
   if (evaluator?.__typename !== "CodeEvaluator") {
     return (
       <ProjectEvaluatorSlideoverError
-        title="Cannot duplicate evaluator"
+        title={COPY_ERROR_TITLE}
         message="This link does not name a code evaluator."
         onOpenChange={onOpenChange}
       />
@@ -268,6 +266,52 @@ function CopyCodeProjectEvaluatorRoute({
   return (
     <CreateProjectEvaluatorRoute
       creationMode={buildCopyCodeCreationMode(evaluator, takenNames)}
+    />
+  );
+}
+
+export function CopyDecisionProjectEvaluatorPage() {
+  const onOpenChange = useCloseSlideover();
+  const node = useSourceEvaluatorNode();
+  const evaluator =
+    node?.__typename === "DecisionEvaluator"
+      ? readDecisionEvaluatorData(node)
+      : null;
+  if (node?.__typename !== "DecisionEvaluator" || !evaluator) {
+    return (
+      <ProjectEvaluatorSlideoverError
+        title={COPY_ERROR_TITLE}
+        message="This link does not name a decision evaluator."
+        onOpenChange={onOpenChange}
+      />
+    );
+  }
+  return (
+    <CopyDecisionProjectEvaluatorRoute
+      evaluator={evaluator}
+      description={node.description ?? ""}
+    />
+  );
+}
+
+function CopyDecisionProjectEvaluatorRoute({
+  evaluator,
+  description,
+}: {
+  evaluator: DecisionEvaluatorData;
+  description: string;
+}) {
+  const takenNames = useTakenCopyNames(evaluator.name);
+  return (
+    <CreateProjectEvaluatorRoute
+      creationMode={{
+        kind: "copyDecision",
+        initialState: {
+          copyName: getEvaluatorCopyName(evaluator.name, takenNames),
+          description,
+          evaluator,
+        },
+      }}
     />
   );
 }

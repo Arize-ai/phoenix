@@ -26,15 +26,38 @@ import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { convertPromptVersionMessagesToPlaygroundInstanceMessages } from "@phoenix/utils/promptUtils";
 
 export const projectEvaluatorOptionsQuery = graphql`
-  query projectEvaluatorOptionsQuery {
-    evaluators(first: 100, sort: { col: updatedAt, dir: desc }) {
+  query projectEvaluatorOptionsQuery(
+    $kinds: [EvaluatorKind!]!
+    $filter: EvaluatorFilter
+    $excludeProjectId: ID
+  ) {
+    evaluators(
+      first: 50
+      sort: { col: updatedAt, dir: desc }
+      kinds: $kinds
+      filter: $filter
+      excludeProjectId: $excludeProjectId
+    ) {
       edges {
         evaluator: node {
-          __typename
           id
           name
           description
-          kind
+          projects {
+            edges {
+              project: node {
+                id
+                name
+              }
+            }
+          }
+          datasets {
+            edges {
+              dataset: node {
+                id
+              }
+            }
+          }
         }
       }
       pageInfo {
@@ -158,6 +181,7 @@ export const projectEvaluatorDetailsQueryNode = graphql`
       ...projectEvaluatorOptions_llmEvaluatorDetails
       ...projectEvaluatorOptions_codeEvaluatorDetails
       ... on DecisionEvaluator {
+        description
         ...decisionEvaluatorFragment_evaluator @relay(mask: false)
         ...DecisionEvaluatorSummary_evaluator
       }

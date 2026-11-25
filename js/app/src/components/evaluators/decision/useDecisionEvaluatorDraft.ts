@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
 
 import { DECISION_EVALUATOR_DRAFT_INSTANCE_ID } from "@phoenix/components/evaluators/decision/DecisionEvaluatorDraftProvider";
-import type { DecisionEvaluatorData } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
+import {
+  type DecisionEvaluatorData,
+  inputNamesFromSchema,
+} from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
 import {
   type DecisionQuestionDefinition,
   type DecisionScoringPolicyValue,
   isPolicyValid,
   normalizePolicy,
   policyOutputToInput,
+  toDecisionQuestionDefinitions,
   validatePolicy,
 } from "@phoenix/components/evaluators/decision/decisionPolicyUtils";
 import type { DecisionVersionSelection } from "@phoenix/components/evaluators/decision/DecisionVersionPicker";
@@ -23,11 +27,33 @@ import { getMutationErrorMessage } from "@phoenix/utils/errorUtils";
 
 type DecisionVersionInput = ReturnType<typeof toDecisionVersionInput>;
 
-/** Must render inside a {@link DecisionEvaluatorDraftProvider}. */
+/** Selects the source evaluator's decision version, as the version picker would. */
+function toSourceSelection(
+  sourceEvaluator: DecisionEvaluatorData
+): DecisionVersionSelection {
+  const { decisionVersion } = sourceEvaluator;
+  return {
+    decisionId: decisionVersion.decision.id,
+    decisionName: decisionVersion.decision.name,
+    versionId: decisionVersion.id,
+    tagName: null,
+    questions: toDecisionQuestionDefinitions(decisionVersion.questions),
+    variables: inputNamesFromSchema(sourceEvaluator.inputSchema),
+  };
+}
+
+/**
+ * Must render inside a {@link DecisionEvaluatorDraftProvider}.
+ *
+ * `initialEvaluator` edits an existing evaluator. `sourceEvaluator` starts a
+ * new one with that evaluator's decision version and scoring.
+ */
 export function useDecisionEvaluatorDraft({
   initialEvaluator,
+  sourceEvaluator,
 }: {
   initialEvaluator?: DecisionEvaluatorData;
+  sourceEvaluator?: DecisionEvaluatorData;
 }) {
   const playground = usePlaygroundStore();
   const instance = usePlaygroundContext((state) => state.instances[0]);
@@ -36,21 +62,20 @@ export function useDecisionEvaluatorDraft({
   );
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
   const [selection, setSelection] = useState<DecisionVersionSelection | null>(
-    null
+    () => (sourceEvaluator ? toSourceSelection(sourceEvaluator) : null)
   );
+  const seedEvaluator = initialEvaluator ?? sourceEvaluator;
   const [policyDraft, setPolicyDraft] =
     useState<DecisionScoringPolicyValue | null>(
-      initialEvaluator
-        ? policyOutputToInput(initialEvaluator.scoringPolicy)
-        : null
+      seedEvaluator ? policyOutputToInput(seedEvaluator.scoringPolicy) : null
     );
   const [selectedTagName, setSelectedTagName] = useState<string | null>(null);
   const [loadedVersionId, setLoadedVersionId] = useState(
     initialEvaluator?.decisionVersion.id
   );
   const [loadedVersion, setLoadedVersion] = useState<string | null>(null);
-  const [isVersionReady, setIsVersionReady] = useState(!initialEvaluator);
-  const [isLoading, setIsLoading] = useState(!!initialEvaluator);
+  const [isVersionReady, setIsVersionReady] = useState(!seedEvaluator);
+  const [isLoading, setIsLoading] = useState(!!seedEvaluator);
   const [loadError, setLoadError] = useState<string | undefined>();
   const selectedDecisionId =
     selection?.decisionId ?? initialEvaluator?.decisionVersion.decision.id;
