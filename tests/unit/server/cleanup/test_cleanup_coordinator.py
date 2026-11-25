@@ -2460,6 +2460,57 @@ async def test_delete_traces_handles_more_than_32767_trace_ids_without_bind_para
         assert await session.get(models.Trace, sdk_trace_rowid) is None
 
 
+async def test_sqlite_standalone_trace_delete_looks_traces_up_by_primary_key(
+    db: DbSessionFactory,
+) -> None:
+    if db.dialect is not SupportedSQLDialect.SQLITE:
+        pytest.skip("SQLite EXPLAIN QUERY PLAN check")
+    from phoenix.server.api.utils import delete_traces
+
+    base_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    async with db() as session:
+        project = await _add_project(session, name=f"plan-proj-{token_hex(4)}")
+        traces = [
+            await _add_trace(session, project, start_time=base_time + timedelta(seconds=offset))
+            for offset in range(3)
+        ]
+        trace_ids = [trace.trace_id for trace in traces[:2]]
+
+    recorded_selects: list[tuple[str, Any]] = []
+
+    def record_select(
+        _connection: Any,
+        _cursor: Any,
+        statement: str,
+        parameters: Any,
+        _context: Any,
+        _executemany: bool,
+    ) -> None:
+        if statement.lstrip().upper().startswith("SELECT"):
+            recorded_selects.append((statement, parameters))
+
+    async with db() as session:
+        bind = session.get_bind()
+    event.listen(bind, "before_cursor_execute", record_select)
+    try:
+        await delete_traces(db, *trace_ids)
+    finally:
+        event.remove(bind, "before_cursor_execute", record_select)
+
+    window_plans = []
+    async with db() as session:
+        connection = await session.connection()
+        for statement, parameters in recorded_selects:
+            if "SELECT traces.id" in statement and "LIMIT" in statement:
+                plan_rows = (
+                    await connection.exec_driver_sql(f"EXPLAIN QUERY PLAN {statement}", parameters)
+                ).all()
+                window_plans.append(" | ".join(str(row[-1]) for row in plan_rows))
+    assert window_plans
+    for plan in window_plans:
+        assert "SEARCH traces USING INTEGER PRIMARY KEY (rowid=?)" in plan, plan
+
+
 async def test_delete_traces_announces_each_chunk_once_it_commits(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:

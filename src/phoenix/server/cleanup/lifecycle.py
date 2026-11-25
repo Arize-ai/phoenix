@@ -677,7 +677,8 @@ async def delete_standalone_traces_by_trace_id(
                 )
             )
             trace_condition = and_(
-                models.Trace.project_rowid == project_rowid,
+                # "+ 0" keeps SQLite from scanning the project's trace index to find these ids.
+                models.Trace.project_rowid + 0 == project_rowid,
                 models.Trace.id.in_(project_trace_rowids),
                 live_non_evaluator_project,
             )
