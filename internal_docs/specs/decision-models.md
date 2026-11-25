@@ -132,7 +132,7 @@ are in [Open Questions](#16-open-questions).
 | Decision | Current default | Must be decided before |
 |---|---|---|
 | [Answer format](#51-answer-format) | Phoenix's own | The REST routes and `phoenix-client`, or the built-in metrics, whichever ships first |
-| [Stored question format](#52-stored-question-format) | Decided: Phoenix's own type names in OpenAI's structure | Saved decisions ship in a release |
+| [Stored question format](#52-stored-question-format) | Phoenix's own type names in OpenAI's structure | Settled |
 | [Span contents](#53-span-contents) | Raw provider bodies only | OpenInference instruments apps that call `format` |
 | [Reference answers in datasets](#54-reference-answers-in-datasets) | No convention; evaluators map paths | The built-in metrics ship (decided with them) |
 | [Translating for apps](#55-translating-for-apps) | Phoenix translates in `format()` | `phoenix-client` ships `format()` |
@@ -212,36 +212,12 @@ migrating stored run outputs and every evaluator mapping written against them.
 
 ### 5.2 Stored Question Format
 
-What `decision_versions.questions` (and the state and inputs beside them) is
-written in.
+`decision_versions.questions` stores Phoenix's own type names in OpenAI's
+structure: questions, choice options, and scale levels are ordered lists. System
+One requests are translated at the edge ([principle 1](#9-principles)). The full
+format and its rules are in [Questions](#102-questions).
 
-**Decided (2026-11-25, #17119):** keep Phoenix's own vocabulary, in OpenAI's
-structure, translated at the edge ([principle 1](#9-principles)). Questions, choice
-options, and scale levels are ordered lists. The deliberation below is kept as the
-record of the alternative.
-
-The reasons hold whatever mix of providers Phoenix users run, so the usage check
-this section originally asked for was set aside:
-
-1. Order has to survive PostgreSQL, and System One's keyed objects would lose it.
-2. Scale levels need short labels, which System One does not have.
-3. Stored rows should not follow the faster-changing vendor format.
-
-Being wrong in the other direction would also cost more. Storing System One's
-format risks question and choice order changing between databases without any
-error, while keeping this format costs only translation, which the importer
-already does.
-
-**Alternative:** store System One's format.
-
-The precedent is mixed. Prompt versions store tools (`{type: "function",
-function: {name, description, parameters, strict}}`) and the response format
-(`json_schema`) in OpenAI's shape, chosen because OpenAI's was the most widely
-used. Messages, content parts, and tool choice are Phoenix's own. Decisions
-follow the same path today: the stored questions use Phoenix's type names in
-OpenAI's structure.
-
-| Question | Phoenix (current) | OpenAI Decisions | System One |
+| Question | Phoenix | OpenAI Decisions | System One |
 |---|---|---|---|
 | Collection | Ordered list, each with a `name` | Ordered list, each with an optional `name` | Object keyed by name |
 | Yes / no | `predicate`: `instructions`, optional `criteria: {true, false}` | `predicate`: `instructions` | `noul`: `instructions`, optional `criteria: {true, false}` |
@@ -250,38 +226,26 @@ OpenAI's structure.
 | Text fields | Plain strings | Plain strings | Strings or JSON |
 | Box | `box` (later) | None | `box` |
 
-**Tradeoffs.** For storing System One:
+System One's format is not stored, for three reasons that hold whatever mix of
+providers Phoenix users run:
 
-- **Reach.** Its ecosystem already uses the format: Ollama serves it, and the typed-decisions dataset
-  writes its questions in it, so they could be saved verbatim.
-- **Features arrive there first.** `box`, assets in question text, and JSON in
-  text fields are System One's; a Phoenix or OpenAI shape lags them.
-- **Cheapest to switch now.** No release has stored a decision version yet.
+- **Order.** Question order decides what the model is asked and the order its
+  answers are written in, choice order breaks ties between equally likely
+  choices, and a scale level's position is its score. System One keys questions
+  and choice options by name in JSON objects, and PostgreSQL's `JSONB` doesn't
+  keep object key order, so the same version would come back in a different
+  order on PostgreSQL than on SQLite. Storing the order separately would no
+  longer be System One's format.
+- **Level labels.** OpenAI requires a short label per level, and the UI and
+  annotations use it. System One levels are descriptions only, so translating
+  them yields sentence-long labels (`None: everything reconciles.`).
+- **Stability.** Stored rows outlast provider formats, which change faster (see
+  [Stable and Volatile](#4-stable-and-volatile)). Storing System One would also
+  bring `noul` and an annotation-colliding `score` into Phoenix's vocabulary.
 
-For staying with the current (OpenAI-like) shape:
-
-- **Order survives storage.** Questions are ordered and answers come back in
-  that order. PostgreSQL's `JSONB` doesn't keep object key order, and System One
-  uses objects twice: for the questions, and for each choice question's
-  `criteria`, which holds its options. Both would need their order stored
-  separately, or be turned into lists, which is no longer System One.
-- **Scale levels have labels.** OpenAI requires a short label per level, and the
-  UI and annotations need one. System One levels are descriptions only, so
-  translating them yields sentence-long labels (`None: everything reconciles.`).
-- **Provider-neutral, and tied to neither vendor's pace.** Both providers
-  translate from it, with one loss each way (OpenAI has no predicate criteria;
-  System One has no level labels). Storing System One ties stored rows to the
-  faster-changing vendor (see [Stable and Volatile](#4-stable-and-volatile)), and
-  `noul` and an annotation-colliding `score` enter Phoenix's vocabulary.
-- **Datasets supply values, not question definitions.** Each decision task uses
-  fixed Phoenix questions across its examples, independently of the provider.
-
-The prompt precedent picked the format with the most use, and that is the
-measure to check here too: how much Phoenix users run each provider.
-
-Changing the format after a release means migrating stored versions and their
-copies, and a new API version for clients ([principle 7](#9-principles)). The
-rules the format follows, and how it may change, are in [Questions](#102-questions).
+System One requests still import through the playground, which creates the level
+labels System One lacks. System One features such as `box` arrive as new question
+types ([principle 7](#9-principles)).
 
 ### 5.3 Span Contents
 
@@ -730,8 +694,8 @@ that don't apply here.
    decision definitions never store provider request bodies; only a run's
    span keeps the raw bodies (see [Span Contents](#53-span-contents)). When client
    formatters ship, shared fixtures should keep them aligned with the server
-   adapters. [Stored Question Format](#52-stored-question-format) is decided;
-   [Answer Format](#51-answer-format) is still under review.
+   adapters. Whether answers follow this rule is still open: see
+   [Answer Format](#51-answer-format).
 2. **New types are additive, and old clients fail clearly.** Questions and
    state variants are JSON discriminated by `type`; variables are derived from
    the templates. Writes are validated strictly. Apps can pin an old
