@@ -81,8 +81,8 @@ console.log(response.output)
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `user` | Sets the OS user that runs the command.<br />**Example:** `'nobody'` |
 | `shell` | Sets the shell that runs the command.<br />**Default:** `bash`, or `sh` if bash is not installed<br />**Format:** a path, or a name looked up on PATH<br />**Example:** `'sh'` |
+| `user` | Sets the OS user that runs the command.<br />**Example:** `'nobody'` |
 
 > **Notes:**
 >
@@ -318,9 +318,9 @@ await handle.kill()
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `signal` | Sets the signal to send.<br />**Default:** `'TERM'`<br />**Value:** `'TERM'`, `'KILL'`, `'INT'`, `'HUP'`, `'QUIT'`, `'USR1'`, or `'USR2'`<br />**Example:** `'INT'` |
-| `escalateAfterSeconds` | Sets how many seconds to wait before sending the escalation signal to a process that still runs.<br />**Maximum:** `600`<br />**Example:** `5` |
+| `escalateAfterSeconds` | Sets how many seconds to wait before sending the escalation signal to a process that still runs.<br />**Minimum:** `0`<br />**Maximum:** `600`<br />**Example:** `5` |
 | `escalateTo` | Sets the escalation signal.<br />**Default:** `'KILL'`<br />**Value:** `'TERM'`, `'KILL'`, `'INT'`, `'HUP'`, `'QUIT'`, `'USR1'`, or `'USR2'`<br />**Example:** `'QUIT'` |
+| `signal` | Sets the signal to send.<br />**Default:** `'TERM'`<br />**Value:** `'TERM'`, `'KILL'`, `'INT'`, `'HUP'`, `'QUIT'`, `'USR1'`, or `'USR2'`<br />**Example:** `'INT'` |
 
 ### Stop processes by tag
 
@@ -443,9 +443,9 @@ console.log(session.id)
 | --- | --- |
 | `cwd` | Sets the working directory of the shell.<br />**Default:** the sandbox's default working directory<br />**Example:** `'/tmp'` |
 | `env` | Sets environment variables for the shell.<br />**Example:** `{ CI: '1' }` |
-| `shell` | Sets the shell of the session.<br />**Default:** `bash`, or `sh` if bash is not installed<br />**Format:** a path or name of a POSIX shell<br />**Value:** `bash`, `sh`, `dash`, `zsh`, or `ksh`<br />**Example:** `'zsh'` |
 | `login` | Starts the shell as a login shell. |
 | `name` | Sets a name that replaces the session ID in requests while the session runs.<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, other than a single or double period, entrypoint, or dockerd<br />**Example:** `'build-session'` |
+| `shell` | Sets the shell of the session.<br />**Default:** `bash`, or `sh` if bash is not installed<br />**Format:** a path or name of a POSIX shell<br />**Value:** `bash`, `sh`, `dash`, `zsh`, or `ksh`<br />**Example:** `'zsh'` |
 | `tag` | Sets the tag that every command in the session takes.<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, other than a single or double period<br />**Example:** `'build'` |
 
 > **Notes:**
@@ -480,9 +480,9 @@ await command.kill({ signal: 'INT' })
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `timeoutSeconds` | Sets how many seconds run() waits for the command to exit.<br />**Default:** no limit<br />**Value:** `0` for no limit<br />**Example:** `60` |
 | `executionTimeoutSeconds` | Sets how many seconds the command can run before Daytona stops it.<br />**Value:** `0` for no limit<br />**Example:** `30` |
 | `name` | Sets a name for the command process.<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, other than a single or double period, entrypoint, or dockerd<br />**Example:** `'print-stage'` |
+| `timeoutSeconds` | Sets how many seconds run() waits for the command to exit.<br />**Default:** no limit<br />**Value:** `0` for no limit<br />**Example:** `60` |
 
 ### Reconnect to a session
 
@@ -637,8 +637,8 @@ try {
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `name` | Sets a name that replaces the process ID in requests while the process runs.<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, other than a single or double period, entrypoint, or dockerd<br />**Example:** `"my-process"` |
 | `keepLogs` | Sets how long the record and logs are kept after the process exits.<br />**Default:** `"on_exit_ttl"`<br />**Value:** `"until_cleanup"`, `"on_exit_ttl"`, or `"none"`<br />**Example:** `"until_cleanup"` |
+| `name` | Sets a name that replaces the process ID in requests while the process runs.<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, other than a single or double period, entrypoint, or dockerd<br />**Example:** `"my-process"` |
 
 ## Permissions
 

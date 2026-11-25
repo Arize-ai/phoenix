@@ -128,10 +128,11 @@ Create a snapshot.
 **Python:**
 
 ```python
-from daytona import Daytona, CreateSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSnapshotParams
 
 daytona = Daytona()
-snapshot = daytona.snapshot.create(
+snapshot = daytona.v0.snapshot.create(
     CreateSnapshotParams(name="my-awesome-snapshot", image="ubuntu:22.04"),
 )
 ```
@@ -142,7 +143,7 @@ snapshot = daytona.snapshot.create(
 import { Daytona } from "@daytona/sdk";
 
 const daytona = new Daytona();
-const snapshot = await daytona.snapshot.create({
+const snapshot = await daytona.v0.snapshot.create({
   name: "my-awesome-snapshot",
   image: "python:3.12",
 });

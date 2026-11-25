@@ -128,12 +128,12 @@ Schema: **CreateSandbox**
 | `outboundProxyUrl` | string | No | Outbound proxy URL to route the sandbox HTTP(S) traffic through (http or https; credentials may be included in the URL). On its own this is convenience routing, not a security boundary: it is applied by injecting the standard HTTP(S)_PROXY environment variables at creation, so a process that clears those variables egresses directly. Combine with domainAllowList to have web-port (80/443) egress transparently redirected through the proxy chain at the network layer, which cannot be bypassed from inside the sandbox. |
 | `otelEndpointOverride` | string | No | OTel collector endpoint override for this sandbox. When set, sandbox OTel data is sent to this endpoint instead of the default collector (the Daytona-hosted collector or the region-configured endpoint) and will not be available in the Daytona analytics API or dashboard. |
 | `target` | string | No | The target (region) where the sandbox will be created |
-| `cpu` | integer | No | CPU cores allocated to the sandbox |
+| `cpu` | integer | No | CPU cores allocated to the sandbox. On a multi-node sandbox this scalar applies to every node. |
 | `gpu` | integer | No | GPU units allocated to the sandbox |
 | `gpuType` | array of [GpuType](#schema-gputype) | No | Preferred GPU type for the sandbox. Accepts a single value or an ordered preference list — the scheduler tries each in order and pins the sandbox to the first that has capacity. |
 | `spot` | boolean | No | GPU-only. When true, the sandbox may be instantly terminated without notice to free GPU capacity for an on-demand (non-spot) GPU sandbox. Ignored / rejected when the sandbox requests no GPUs. |
-| `memory` | integer | No | Memory allocated to the sandbox in GB |
-| `disk` | integer | No | Disk space allocated to the sandbox in GB |
+| `memory` | integer | No | Memory in GB allocated to the sandbox. On a multi-node sandbox this scalar applies to every node. |
+| `disk` | integer | No | Disk space in GB allocated to the sandbox. On a multi-node sandbox this scalar applies to every node. |
 | `autoStopInterval` | integer | No | Auto-stop interval in minutes (0 means disabled) |
 | `autoPauseInterval` | integer | No | Auto-pause interval in minutes (0 means disabled). Only supported for sandbox classes that support pausing. Not allowed for ephemeral sandboxes. At most one of autoStopInterval and autoPauseInterval may be non-zero. For non-ephemeral sandbox classes that support pausing, defaults to 60 minutes (with auto-stop disabled) when neither interval is provided. |
 | `autoArchiveInterval` | integer | No | Auto-archive interval in minutes (0 means the maximum interval will be used) |
@@ -259,6 +259,8 @@ Starts a stopped or archived sandbox, or resumes a paused sandbox. The transitio
 
 **Stop sandbox**
 
+Stops a single-node sandbox. For a multi-node GPU sandbox head, stop is irreversible and destroys the entire gang, including all ephemeral local data.
+
 ### Parameters
 
 | Name | In | Type | Required | Description |
@@ -271,7 +273,7 @@ Starts a stopped or archived sandbox, or resumes a paused sandbox. The transitio
 
 | Status | Description | Schema |
 |--------|-------------|--------|
-| 200 | Sandbox has been stopped | Sandbox |
+| 200 | Sandbox has been stopped, or the complete multi-node gang has been marked for destruction | Sandbox |
 
 ---
 
@@ -648,7 +650,7 @@ Schema: **UpdateLastActivity**
 |------|-----|------|----------|-------------|
 | `X-Daytona-Organization-ID` | header | string | No | Use with JWT to specify the organization ID |
 | `sandboxIdOrName` | path | string | Yes | ID or name of the sandbox |
-| `ttlMinutes` | path | number | Yes | Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived |
+| `ttlMinutes` | path | number | Yes | Maximum time to live in minutes, re-anchored from the current time (0 to disable). When it elapses the sandbox is destroyed, even if it is stopped, paused, or archived. On a multi-node head, expiry destroys every member and all ephemeral local data |
 
 ### Responses
 

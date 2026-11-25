@@ -40,22 +40,23 @@ Set `networkAllowList`, `domainAllowList`, or `networkBlockAll` when creating a 
 On Tier 3 and Tier 4, setting an allow list or `networkBlockAll` at create time applies that policy for the sandbox. Destinations not on the allow list are blocked, including [essential services](#essential-services) such as GitHub, npm, and PyPI, unless you add those domains or CIDRs yourself.
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
 
 # Allow access to specific IP addresses (Wikipedia, X/Twitter, private network)
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     network_allow_list='208.80.154.232/32,199.16.156.103/32,192.168.1.0/24'
 ))
 
 # Allow access to specific domains
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     domain_allow_list='example.com,*.daytona.io'
 ))
 
 # Or block all network access
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     network_block_all=True
 ))
 ```
@@ -120,16 +121,17 @@ The URL may use `http` or `https` and may include credentials in the userinfo, f
 | Host           | Must not be **`localhost`** or a private, loopback, or link-local IP literal |
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
 
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     outbound_proxy_url='http://user:pass@proxy.example.com:3128',
 ))
 
 # Returned on single-sandbox reads
-sandbox = daytona.get(sandbox.id)
+sandbox = daytona.v0.get(sandbox.id)
 print(sandbox.outbound_proxy_url)
 ```
 

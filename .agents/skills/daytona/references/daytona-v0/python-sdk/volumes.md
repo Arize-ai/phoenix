@@ -45,7 +45,7 @@ This is the default pattern we recommend because it:
 from daytona import Daytona
 
 daytona = Daytona()
-volume = daytona.volume.create("my-awesome-volume")
+volume = daytona.v0.volume.create("my-awesome-volume")
 ```
 
 ## Wait for a volume to be ready
@@ -58,11 +58,11 @@ import time
 from daytona import Daytona
 
 daytona = Daytona()
-volume = daytona.volume.create("my-awesome-volume")
+volume = daytona.v0.volume.create("my-awesome-volume")
 
 while volume.state != "ready":
     time.sleep(1)
-    volume = daytona.volume.get("my-awesome-volume")
+    volume = daytona.v0.volume.get("my-awesome-volume")
 ```
 
 ## Mount volumes
@@ -86,12 +86,13 @@ When you set `subpath`, the value must meet the following requirements:
 - **No consecutive slashes**: cannot contain `//`
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams, Daytona, VolumeMount
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams, VolumeMount
 
 daytona = Daytona()
 
 # Create a new volume or get an existing one
-volume = daytona.volume.get("my-awesome-volume", create=True)
+volume = daytona.v0.volume.get("my-awesome-volume", create=True)
 
 mount_dir = "/home/daytona/volume"
 
@@ -100,14 +101,14 @@ params = CreateSandboxFromSnapshotParams(
     language="python",
     volumes=[VolumeMount(volume_id=volume.id, mount_path=mount_dir, subpath="users/alice")],
 )
-sandbox = daytona.create(params)
+sandbox = daytona.v0.create(params)
 
 # Entire volume at mount path (omit subpath) when all sandboxes should share the same tree
 params_full = CreateSandboxFromSnapshotParams(
     language="python",
     volumes=[VolumeMount(volume_id=volume.id, mount_path=mount_dir)],
 )
-sandbox_shared = daytona.create(params_full)
+sandbox_shared = daytona.v0.create(params_full)
 ```
 
 ## Work with volumes
@@ -128,7 +129,7 @@ sandbox.delete()
 Get a volume by its name.
 
 ```python
-daytona.volume.get("my-awesome-volume", create=True)
+daytona.v0.volume.get("my-awesome-volume", create=True)
 ```
 
 ## Get a volume by ID
@@ -147,7 +148,7 @@ curl 'https://app.daytona.io/api/volumes/<VOLUME_ID>' \
 List all volumes.
 
 ```python
-daytona.volume.list()
+daytona.v0.volume.list()
 ```
 
 ## Delete volumes
@@ -161,7 +162,7 @@ A volume can be deleted only when it is in the `ready` or `error` state and is n
 3. Confirm the deletion
 
 ```python
-daytona.volume.delete(volume)
+daytona.v0.volume.delete(volume)
 ```
 
 ## Share data between sandboxes
@@ -173,14 +174,15 @@ A producer sandbox writes to the volume and is then deleted; a separately create
 Sandboxes that mount the same volume see writes immediately, but FUSE-backed volumes are not transactional. If two sandboxes write to the same path concurrently, the last write wins. Coordinate access in your application when ordering matters.
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams, Daytona, VolumeMount
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams, VolumeMount
 
 daytona = Daytona()
-volume = daytona.volume.get("shared-data", create=True)
+volume = daytona.v0.volume.get("shared-data", create=True)
 mount_dir = "/home/daytona/volume"
 
 # Producer: write data into the volume, then delete the sandbox
-producer = daytona.create(CreateSandboxFromSnapshotParams(
+producer = daytona.v0.create(CreateSandboxFromSnapshotParams(
     language="python",
     volumes=[VolumeMount(volume_id=volume.id, mount_path=mount_dir)],
 ))
@@ -188,7 +190,7 @@ producer.fs.upload_file(b"shared payload", f"{mount_dir}/payload.bin")
 producer.delete()
 
 # Consumer: a separate sandbox mounts the same volume by ID and reads the data
-consumer = daytona.create(CreateSandboxFromSnapshotParams(
+consumer = daytona.v0.create(CreateSandboxFromSnapshotParams(
     language="python",
     volumes=[VolumeMount(volume_id=volume.id, mount_path=mount_dir)],
 ))
@@ -201,13 +203,14 @@ print(data.decode())
 Mount more than one volume to a single sandbox by passing entries in the `volumes` list. Use this pattern to combine shared assets, models, or datasets in one volume with separate per-application or per-user state in another, exposed at distinct mount paths.
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams, Daytona, VolumeMount
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams, VolumeMount
 
 daytona = Daytona()
-shared_assets = daytona.volume.get("shared-assets", create=True)
-logs = daytona.volume.get("logs", create=True)
+shared_assets = daytona.v0.volume.get("shared-assets", create=True)
+logs = daytona.v0.volume.get("logs", create=True)
 
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     language="python",
     volumes=[
         VolumeMount(volume_id=shared_assets.id, mount_path="/home/daytona/assets"),
@@ -223,21 +226,22 @@ Isolate per-tenant or per-user data inside a single shared volume by setting a u
 Isolation is enforced at the FUSE mount boundary. Each sandbox sees its assigned subpath as the volume root, so a sandbox mounted at `users/alice` cannot reach `users/bob` through relative paths such as `../bob`.
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams, Daytona, VolumeMount
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams, VolumeMount
 
 daytona = Daytona()
-volume = daytona.volume.get("tenants", create=True)
+volume = daytona.v0.volume.get("tenants", create=True)
 mount_dir = "/home/daytona/data"
 
 # Tenant A
-alice_sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+alice_sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     language="python",
     volumes=[VolumeMount(volume_id=volume.id, mount_path=mount_dir, subpath="users/alice")],
 ))
 alice_sandbox.fs.upload_file(b"alice's data", f"{mount_dir}/notes.txt")
 
 # Tenant B sees only its own subpath; alice's notes.txt is invisible
-bob_sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+bob_sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     language="python",
     volumes=[VolumeMount(volume_id=volume.id, mount_path=mount_dir, subpath="users/bob")],
 ))

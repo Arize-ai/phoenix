@@ -109,8 +109,8 @@ sandbox = daytona.v2.create(
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `block_all` | Denies all egress that is not explicitly allowed.<br />**Default:** `True` with allow_domains, otherwise `False` |
 | `allow_cidrs` | Allows egress to IPv4 addresses and CIDR blocks, on any port.<br />**Default:** `[]`<br />**Maximum:** 128 domains and CIDR blocks combined<br />**Format:** the [network allow list format](#network-allow-list-format)<br />**Example:** `["208.80.152.0/22"]` |
+| `block_all` | Denies all egress that is not explicitly allowed.<br />**Default:** `True` with allow_domains, otherwise `False` |
 
 ### Allow domains
 
@@ -305,8 +305,8 @@ python3 -c "import urllib.request as u; print(u.urlopen('https://example.com', t
 
 | **Flag** | **Description** |
 | --- | --- |
-| `-I` | Sends a HEAD request and prints only the response headers. |
 | `--connect-timeout` | Sets the seconds that curl waits for the connection.<br />**Example:** `10` |
+| `-I` | Sends a HEAD request and prints only the response headers. |
 
 ## Permissions
 

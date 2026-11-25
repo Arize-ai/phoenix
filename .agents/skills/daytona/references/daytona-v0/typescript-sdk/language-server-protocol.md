@@ -37,11 +37,12 @@ Create an LSP server instance by providing the language ID and the path to the p
 - **Custom**: Install the language server for your target language
 
 ```typescript
-import { Daytona, LspLanguageId } from '@daytona/sdk'
+import { Daytona } from '@daytona/sdk'
+import { LspLanguageId } from '@daytona/sdk/v0'
 
 // Create sandbox
 const daytona = new Daytona()
-const sandbox = await daytona.create()
+const sandbox = await daytona.v0.create()
 
 // Create LSP server for TypeScript
 const lspServer = await sandbox.createLspServer(
@@ -55,7 +56,7 @@ const lspServer = await sandbox.createLspServer(
 Start an LSP server by calling **`start()`** before any other LSP operation.
 
 ```typescript
-import { LspLanguageId } from '@daytona/sdk'
+import { LspLanguageId } from '@daytona/sdk/v0'
 
 const lsp = await sandbox.createLspServer(
   LspLanguageId.TYPESCRIPT,

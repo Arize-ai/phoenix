@@ -18,7 +18,17 @@ import {
   GradientCircleRadio,
   GradientCircleRadioGroup,
 } from "@phoenix/components/project";
-import { URI_SAFE_PATTERN } from "@phoenix/constants";
+import {
+  PROJECT_NAME_DESCRIPTION,
+  URI_SAFE_LEADING_AND_TRAILING_MESSAGE,
+  URI_SAFE_LEADING_AND_TRAILING_PATTERN,
+  URI_SAFE_PATTERN,
+} from "@phoenix/constants";
+import { TransformingInputController } from "@phoenix/hooks/useTransformingInput";
+import {
+  transformURISafeInput,
+  trimURISafeSeparators,
+} from "@phoenix/utils/uriUtils";
 
 export type ProjectFormParams = {
   name: string;
@@ -212,6 +222,11 @@ export function ProjectForm({
                 message:
                   "Project name must be URI safe. Use only letters, numbers, hyphens, underscores, and dots. No spaces or special characters.",
               },
+              // Existing names that predate this rule can be kept as they are
+              validate: (value) =>
+                value === defaultValues?.name ||
+                URI_SAFE_LEADING_AND_TRAILING_PATTERN.test(value) ||
+                URI_SAFE_LEADING_AND_TRAILING_MESSAGE,
               minLength: {
                 value: 1,
                 message: "Project name must be at least 1 character long",
@@ -225,23 +240,35 @@ export function ProjectForm({
               field: { onChange, onBlur, value },
               fieldState: { invalid, error },
             }) => (
-              <TextField
-                isInvalid={invalid}
-                onChange={onChange}
-                onBlur={onBlur}
+              <TransformingInputController
                 value={value.toString()}
+                onValueChange={onChange}
+                transformValue={transformURISafeInput}
+                finalizeValue={trimURISafeSeparators}
               >
-                <Label>Project Name</Label>
-                <Input placeholder="e.x. my-ai-project" />
-                {error?.message ? (
-                  <FieldError>{error.message}</FieldError>
-                ) : (
-                  <Text slot="description">
-                    The name of the project. Must be URI safe (letters, numbers,
-                    hyphens, underscores, dots only).
-                  </Text>
+                {(transformingInput) => (
+                  <TextField
+                    isInvalid={invalid}
+                    onChange={transformingInput.handleValueChange}
+                    onBlur={() => {
+                      transformingInput.handleBlur();
+                      onBlur();
+                    }}
+                    value={transformingInput.displayValue}
+                  >
+                    <Label>Project Name</Label>
+                    <Input
+                      {...transformingInput.inputProps}
+                      placeholder="e.x. my-ai-project"
+                    />
+                    {error?.message ? (
+                      <FieldError>{error.message}</FieldError>
+                    ) : (
+                      <Text slot="description">{PROJECT_NAME_DESCRIPTION}</Text>
+                    )}
+                  </TextField>
                 )}
-              </TextField>
+              </TransformingInputController>
             )}
           />
         )}

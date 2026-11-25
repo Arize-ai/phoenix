@@ -81,7 +81,7 @@ Examples are complete programs that show one task from start to end. They let a 
 
 An example in the playground is a TypeScript program that opens in the editor and acts on real sandboxes when it runs, like a program you write yourself.
 
-Start from the example that matches your task, and run it as is or with your changes. The Images and Build from a Dockerfile examples appear only when images are enabled for your organization, and the Snapshots example only when snapshots are. For the operations in the examples, see [sandboxes](../python-sdk/sandboxes.md), [process execution](../python-sdk/process-execution.md), [file system operations](../python-sdk/file-system-operations.md), [images](../python-sdk/images.md), and [snapshots](../python-sdk/snapshots.md).
+Start from the example that matches your task, and run it as is or with your changes. For the operations in the examples, see [sandboxes](../python-sdk/sandboxes.md), [process execution](../python-sdk/process-execution.md), [file system operations](../python-sdk/file-system-operations.md), [images](../python-sdk/images.md), and [snapshots](../python-sdk/snapshots.md).
 
 | **Example**                 | **Description**                                                                          |
 | --------------------------- | ---------------------------------------------------------------------------------------- |

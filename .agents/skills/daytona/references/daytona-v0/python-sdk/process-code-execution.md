@@ -25,7 +25,7 @@ Daytona provides methods to execute code in sandboxes. You can run code snippets
 Run code snippets in sandboxes using stateless execution. Each invocation starts from a clean interpreter, making it ideal for independent code snippets.
 
 ```python
-from daytona import CodeRunParams
+from daytona.v0 import CodeRunParams
 
 # Run Python code
 response = sandbox.process.code_run('''
@@ -72,7 +72,8 @@ if response.artifacts and response.artifacts.charts:
 Run Python code with persistent state using the code interpreter. You can maintain variables and imports between calls, create isolated contexts with optional working directories, list active contexts, and stream stdout, stderr, and errors via callbacks.
 
 ```python
-from daytona import Daytona, OutputMessage, ExecutionError
+from daytona import Daytona
+from daytona.v0 import OutputMessage, ExecutionError
 
 def handle_stdout(message: OutputMessage):
     print(f"[STDOUT] {message.output}")
@@ -84,7 +85,7 @@ def handle_error(error: ExecutionError):
     print(f"[ERROR] {error.name}: {error.value}")
 
 daytona = Daytona()
-sandbox = daytona.create()
+sandbox = daytona.v0.create()
 
 # Shared default context
 sandbox.code_interpreter.run_code(
@@ -213,11 +214,12 @@ Execute interactive commands in sessions. You can send input to running commands
 
 ```python
 import asyncio
-from daytona import AsyncDaytona, SessionExecuteRequest
+from daytona import AsyncDaytona
+from daytona.v0 import SessionExecuteRequest
 
 async def main():
     async with AsyncDaytona() as daytona:
-        sandbox = await daytona.create()
+        sandbox = await daytona.v0.create()
 
         session_id = "interactive-session"
         await sandbox.process.create_session(session_id)
@@ -271,7 +273,7 @@ finally:
 Handle process exceptions properly, log error details for debugging, and use try-catch blocks for error handling.
 
 ```python
-from daytona import DaytonaError
+from daytona.v0 import DaytonaError
 
 try:
     response = sandbox.process.code_run("invalid python code")

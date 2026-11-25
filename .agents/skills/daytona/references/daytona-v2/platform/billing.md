@@ -15,21 +15,28 @@ Billing covers your [wallet](#wallet) and [spending](#spending). It is pay-as-yo
 
 ## Sandbox billing
 
-Daytona meters each sandbox per second for three resources, from the moment the sandbox starts until it is stopped, paused, or deleted. An ephemeral Linux sandbox cannot be stopped or paused, so it is metered until it is deleted. Each resource is priced per hour. macOS sandboxes are not metered; their [Mac reservation](../python-sdk/macos-sandboxes.md#mac-reservations) is charged instead.
+Daytona bills the compute, memory, GPUs, and operating system of each running sandbox per second, and volumes for the data they store, with each rate priced per hour. See [pricing](https://www.daytona.com/pricing) for the prices.
 
-| **Resource** | **Unit**  | **Billed quantity**                                                                          |
-| ------------ | --------- | -------------------------------------------------------------------------------------------- |
-| **CPU**      | core-hour | The greater of measured CPU time and the guaranteed `cpu` reservation over the same window   |
-| **Memory**   | GiB-hour  | The greater of measured memory and the guaranteed `memory_mib` reservation over the same window |
-| **Disk**     | GiB-hour  | Measured disk in use                                                                         |
+| **Rate** | **Unit** | **Billed for** |
+| --- | --- | --- |
+| **Compute** | Core per hour | The CPU guarantee, or the CPU the sandbox uses when it uses more, at the price of its CPU type |
+| **Memory** | GiB per hour | The memory guarantee, or the memory the sandbox uses when it uses more |
+| **Ephemeral disk** | GiB per hour | Nothing, since the NVMe SSD disk of a sandbox is free |
+| [**Volumes**](../python-sdk/volumes.md) | GiB per hour | The data stored, at the on-demand price only |
+| **GPU** | GPU per hour | Each GPU attached to the sandbox |
+| **Operating system** | Core per hour | Nothing on Linux, and each core on macOS and Windows |
+| [**Mac reservation**](../python-sdk/macos-sandboxes.md#mac-reservations) | Mac per 24 hours | Each reserved Mac, paid when each 24-hour period starts |
 
-CPU and memory usage within the guarantee is billed at the guarantee; usage above it, up to the sandbox's [resource limits](../python-sdk/limits.md#sandbox-limits), is billed as measured. A sandbox with a fixed shape, where every limit equals its request, is billed for its full CPU and memory reservation, since usage never exceeds it. Disk, unlike CPU and memory, is always billed as measured. Stopped, paused, and deleted sandboxes are not metered for CPU, memory, or disk. [Bucket volume](../python-sdk/volumes.md) traffic is billed per uploaded GiB, downloaded GiB, and 1,000 requests, independent of sandbox class.
-
-### Pricing dimensions
-
-Each resource's price depends on what you requested at creation: the region, spot capacity, and the CPU type. The CPU type applies to CPU usage only. See [pricing](https://www.daytona.com/pricing) for the prices.
-
-A sandbox that omits a hardware preference is billed at the baseline for that dimension, even if placement lands on premium hardware. Forked and restored sandboxes inherit the preferences of their source. See [Linux sandbox parameters](../python-sdk/linux-sandboxes.md#create-a-linux-sandbox) for how to set these values.
+| **Factor** | **Effect on the bill** |
+| --- | --- |
+| **Running** | Billed per second for every rate except Mac reservations |
+| **Stopped or paused** | Not billed for compute, memory, GPUs, or the operating system, while its volumes stay billed |
+| **Deleted** | Not billed |
+| [**Preemptible**](../python-sdk/preemption.md#spot-sandboxes) | A lower price than on demand for every rate except volumes and Mac reservations |
+| **CPU type** | One of three compute price tiers: AMD Zen 3, Intel Ice Lake, AWS Graviton 4, and Apple M4; AMD Zen 4, Intel Rapids, AWS Graviton 5, and Apple M4 Pro; AMD Zen 5 and Apple M5 Pro |
+| [**Region**](../python-sdk/regions.md#list-region-price-multipliers) | Set by the price multiplier of the region you request |
+| **Core** | 2 vCPUs where SMT is available and enabled, and 1 vCPU otherwise |
+| [**Free credits**](#credit-balances) | Used before paid credits for every rate except GPUs, with a one-time grant on Starter and a monthly grant on Team that expires at the end of each billing period |
 
 ## Plan
 
@@ -182,6 +189,8 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/billing/wallet' \
   --header 'Authorization: Bearer YOUR_OIDC_TOKEN'
 ```
 
+**Response:**
+
 ```json
 {
   "balance_cents": 12500,
@@ -225,9 +234,9 @@ daytona billing balances --org ORGANIZATION_ID --limit 25
 
 | **Flag** | **Description** |
 | --- | --- |
-| `--limit` | Sets the page size.<br />**Default:** `25`<br />**Minimum:** `1`<br />**Maximum:** `100` |
-| `--cursor` | Continues from a previous page. |
 | `--all` | Reads every page. |
+| `--cursor` | Continues from a previous page. |
+| `--limit` | Sets the page size.<br />**Default:** `25`<br />**Minimum:** `1`<br />**Maximum:** `100` |
 
 > **Notes:**
 >
@@ -243,8 +252,8 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/billing/balances?limit=25' \
 
 | **Field** | **Description** |
 | --- | --- |
-| `limit` | Sets the page size.<br />**Minimum:** `1`<br />**Maximum:** `100`<br />**Example:** `25` |
 | `cursor` | Continues from a previous page. |
+| `limit` | Sets the page size.<br />**Minimum:** `1`<br />**Maximum:** `100`<br />**Example:** `25` |
 
 > **Notes:**
 >
@@ -542,8 +551,8 @@ daytona billing invoice payment-session INVOICE_ID --org ORGANIZATION_ID
 
 | **Flag** | **Description** |
 | --- | --- |
-| `--unpaid` | Lists only unpaid invoices. |
 | `--out` | Writes the PDF to a file in place of standard output.<br />**Example:** `invoice.pdf` |
+| `--unpaid` | Lists only unpaid invoices. |
 
 > **Notes:**
 >
@@ -570,8 +579,8 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/billing/invoices/INVOICE_ID/p
 
 | **Field** | **Description** |
 | --- | --- |
-| `unpaid` | Lists only unpaid invoices.<br />**Default:** `false` |
 | `cursor` | Continues from a previous page. |
+| `unpaid` | Lists only unpaid invoices.<br />**Default:** `false` |
 
 > **Notes:**
 >
@@ -645,9 +654,9 @@ curl 'https://api.daytona.com/usage/report?start_at=2026-09-01T00:00:00Z&end_at=
 
 | **Field** | **Description** |
 | --- | --- |
-| `start_at` | Sets the inclusive start of the window.<br />**Default:** 24 hours before end_at<br />**Format:** an RFC 3339 timestamp<br />**Example:** `2026-09-01T00:00:00Z` |
 | `end_at` | Sets the exclusive end of the window.<br />**Default:** the current time<br />**Format:** an RFC 3339 timestamp<br />**Example:** `2026-09-08T00:00:00Z` |
 | `resolution` | Sets the interval that usage is grouped by.<br />**Default:** `hour`<br />**Value:** `hour` or `day`<br />**Example:** `day` |
+| `start_at` | Sets the inclusive start of the window.<br />**Default:** 24 hours before end_at<br />**Format:** an RFC 3339 timestamp<br />**Example:** `2026-09-01T00:00:00Z` |
 
 ### Usage timeline
 
@@ -689,9 +698,9 @@ curl 'https://api.daytona.com/sandboxes/SANDBOX_ID/usage/history?resolution=hour
 
 | **Field** | **Description** |
 | --- | --- |
+| `end_at` | Sets the exclusive end of the window.<br />**Default:** the current time<br />**Format:** an RFC 3339 timestamp<br />**Example:** `2026-09-02T00:00:00Z` |
 | `resolution` | Sets the interval that usage history is grouped by.<br />**Default:** `minute`<br />**Value:** `minute` or `hour`<br />**Example:** `hour` |
 | `start_at` | Sets the inclusive start of the window.<br />**Default:** 24 hours before end_at<br />**Format:** an RFC 3339 timestamp<br />**Example:** `2026-09-01T00:00:00Z` |
-| `end_at` | Sets the exclusive end of the window.<br />**Default:** the current time<br />**Format:** an RFC 3339 timestamp<br />**Example:** `2026-09-02T00:00:00Z` |
 
 ### Billing period
 
@@ -726,6 +735,8 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/billing/usage-periods?limit=3
   --header 'Authorization: Bearer YOUR_OIDC_TOKEN'
 ```
 
+**Response:**
+
 ```json
 {
   "usage_periods": [
@@ -756,8 +767,8 @@ curl 'https://api.daytona.com/orgs/ORGANIZATION_ID/billing/usage-periods?limit=3
 
 | **Field** | **Description** |
 | --- | --- |
-| `limit` | Sets the page size.<br />**Minimum:** `1`<br />**Maximum:** `60`<br />**Example:** `3` |
 | `cursor` | Continues from a previous page. |
+| `limit` | Sets the page size.<br />**Minimum:** `1`<br />**Maximum:** `60`<br />**Example:** `3` |
 
 > **Notes:**
 >

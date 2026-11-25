@@ -16,6 +16,7 @@ const commaFormat = format(",");
 const siPrefixFormat = format("0.2s");
 const threeSignificantSIPrefixFormat = format(".3~s");
 const twoDecimalFormat = format("0.2f");
+const groupedTwoDecimalFormat = format(",.2f");
 const exponentFormat = format(".2e");
 const percentDecimalFormat = format(".2f");
 const oneDecimalFormat = format(".1f");
@@ -141,7 +142,7 @@ export function formatCost(cost: number): string {
   }
   // Show 2 decimal places for small costs under 100
   if (cost < 100) return `$${twoDecimalFormat(cost)}`;
-  if (cost < 10000) return `$${commaFormat(cost)}`;
+  if (cost < 10000) return `$${groupedTwoDecimalFormat(cost)}`;
   return `$${siPrefixFormat(cost).replace("G", "B").replace("k", "K")}`;
 }
 

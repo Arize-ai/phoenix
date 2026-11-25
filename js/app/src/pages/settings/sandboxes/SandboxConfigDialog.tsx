@@ -35,7 +35,6 @@ import {
   Text,
   TextArea,
   TextField,
-  transformInputValue,
   View,
 } from "@phoenix/components";
 import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
@@ -43,11 +42,15 @@ import {
   SandboxProviderSelect,
   SandboxProviderSelectFallback,
 } from "@phoenix/components/sandbox/SandboxProviderSelect";
+import { IDENTIFIER_DESCRIPTION } from "@phoenix/constants";
 import { useNotifySuccess } from "@phoenix/contexts";
+import { TransformingInputController } from "@phoenix/hooks/useTransformingInput";
+import { transformCasePreservingEnvironmentVariableInput } from "@phoenix/utils/environmentVariableUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import {
   getIdentifier,
   transformIdentifierInput,
+  trimIdentifierSeparators,
   validateIdentifier,
 } from "@phoenix/utils/identifierUtils";
 import { validateDependencyPackages } from "@phoenix/utils/packageSpecUtils";
@@ -199,6 +202,7 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
   const defaultProvider = mode === "create" ? props.defaultProvider : undefined;
   const notifySuccess = useNotifySuccess();
   const [error, setError] = useState<string | null>(null);
+  const [isNameFocused, setIsNameFocused] = useState(false);
 
   const existingBackend = mode === "edit" ? props.backend : undefined;
   const existingConfig = mode === "edit" ? props.config : undefined;
@@ -545,30 +549,47 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                   required: "Name is required",
                   validate: validateIdentifier,
                 }}
-                render={({ field, fieldState }) => (
-                  <TextField
-                    {...field}
-                    onChange={(value) =>
-                      field.onChange(
-                        transformInputValue({
-                          value,
-                          transform: transformIdentifierInput,
-                        })
-                      )
-                    }
-                    isInvalid={fieldState.invalid}
-                  >
-                    <Label>Name</Label>
-                    <Input />
-                    <Text slot="description" size="S" color="text-700">
-                      Lowercase letters, digits, dashes, and underscores. Must
-                      start and end with a letter or digit.
-                    </Text>
-                    {fieldState.error ? (
-                      <FieldError>{fieldState.error.message}</FieldError>
-                    ) : null}
-                  </TextField>
-                )}
+                render={({ field, fieldState }) => {
+                  const shouldShowError =
+                    (fieldState.isTouched && !isNameFocused) ||
+                    form.formState.isSubmitted;
+                  const displayedError = shouldShowError
+                    ? fieldState.error
+                    : undefined;
+                  return (
+                    <TransformingInputController
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      transformValue={transformIdentifierInput}
+                      finalizeValue={trimIdentifierSeparators}
+                    >
+                      {(transformingInput) => (
+                        <TextField
+                          {...field}
+                          value={transformingInput.displayValue}
+                          onChange={transformingInput.handleValueChange}
+                          onFocus={() => setIsNameFocused(true)}
+                          onBlur={() => {
+                            setIsNameFocused(false);
+                            transformingInput.handleBlur();
+                            field.onBlur();
+                            void form.trigger("name");
+                          }}
+                          isInvalid={!!displayedError}
+                        >
+                          <Label>Name</Label>
+                          <Input {...transformingInput.inputProps} />
+                          <Text slot="description" size="S" color="text-700">
+                            {IDENTIFIER_DESCRIPTION}
+                          </Text>
+                          {displayedError ? (
+                            <FieldError>{displayedError.message}</FieldError>
+                          ) : null}
+                        </TextField>
+                      )}
+                    </TransformingInputController>
+                  );
+                }}
               />
             )}
             <Controller
@@ -775,13 +796,30 @@ function EnvVarRow({
         control={form.control}
         rules={{ required: "Name is required" }}
         render={({ field, fieldState }) => (
-          <TextField {...field} isInvalid={fieldState.invalid}>
-            <Label>Variable Name</Label>
-            <Input placeholder="MY_VAR" />
-            {fieldState.error ? (
-              <FieldError>{fieldState.error.message}</FieldError>
-            ) : null}
-          </TextField>
+          <TransformingInputController
+            value={field.value}
+            onValueChange={field.onChange}
+            transformValue={transformCasePreservingEnvironmentVariableInput}
+          >
+            {(transformingInput) => (
+              <TextField
+                {...field}
+                value={transformingInput.displayValue}
+                onChange={transformingInput.handleValueChange}
+                isInvalid={fieldState.invalid}
+              >
+                <Label>Variable Name</Label>
+                <Input {...transformingInput.inputProps} placeholder="MY_VAR" />
+                {fieldState.error ? (
+                  <FieldError>{fieldState.error.message}</FieldError>
+                ) : (
+                  <Text slot="description">
+                    Letters, digits, and underscores. Case is kept.
+                  </Text>
+                )}
+              </TextField>
+            )}
+          </TransformingInputController>
         )}
       />
     </div>

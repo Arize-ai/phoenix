@@ -56,6 +56,8 @@ def matches_expected(output: str, expected: dict) -> bool:
 | `dict` with `score`/`label`/`explanation`/`metadata` | Mapped to Score fields directly |
 | `Score` object | Used as-is |
 
+NumPy scalars (`np.int64`, `np.float32`, `np.bool_`, ...) are converted to their Python types first, including inside tuples and a dict's `score`, so returning values computed with NumPy or pandas works without casting.
+
 ## Important: Code vs LLM Evaluators
 
 The `@create_evaluator` decorator wraps a plain Python function.

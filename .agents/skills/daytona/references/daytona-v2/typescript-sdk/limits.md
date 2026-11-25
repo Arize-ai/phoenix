@@ -2,7 +2,7 @@
 
 Overview of sandbox resource limits, organization limits, and API rate limits.
 
-Limits come in three kinds: [sandbox limits](#sandbox-limits), which cap the resources that a single sandbox can reserve, [organization limits](#organization-limits), which cap how many sandboxes, image builds, volumes, images, snapshots, members, secrets, and API keys an organization can hold, and [rate limits](#rate-limits), which cap how many API requests a project can make within a time window. For information about spending and wallet management in an organization, see [billing](../platform/billing.md).
+Limits come in three kinds. [Sandbox limits](#sandbox-limits) cap the size of a single sandbox and how long it can run, and [organization limits](#organization-limits) cap what an organization has at once. [Rate limits](#rate-limits) cap how many API requests a project can make within a time window.
 
 ## Contents
 
@@ -14,42 +14,30 @@ Limits come in three kinds: [sandbox limits](#sandbox-limits), which cap the res
 
 ## Sandbox limits
 
-Sandbox limits cap the CPU, memory, and disk a single sandbox can reserve. The limits apply per sandbox, not as a shared pool across the organization.
+Sandbox limits cap the size of a single sandbox and how long it can run. They depend on the [plan](../platform/billing.md#get-the-plan): a sandbox without set limits can use up to the limits of its plan, and a request above them is rejected. The default and minimum size of a sandbox are listed under [resources](./sandboxes.md#resources).
 
-| **Resource** | **Unit** | **Default** | **Minimum**                       | **Maximum**  |
-| ------------ | -------- | ----------- | --------------------------------- | ------------ |
-| CPU          | Cores    | `0.5`   | **`0.125`** (when set explicitly) | **`16`**     |
-| Memory       | MiB      | `1024`  | **`512`** (when set explicitly)   | **`32768`**  |
-| Disk         | MiB      | `512`   | **`10240`** (when set explicitly) | **`262144`** |
-
-A create request that reserves more than the maximum on any axis is rejected with a 400 error that names the exceeded cap. Requests below the minimum are raised to the minimum. The minimums apply once a create sets any of CPU, memory, or disk; a create that sets none keeps the defaults. A request raised above a limit set in the same create is rejected with a 400 error. Guaranteed CPU is also raised to at least one core per 8 GiB of guaranteed memory. A sandbox may additionally set per-sandbox limits on cores (a multiple of 0.5, between 0.5 and 16), memory in MiB (between 256 and 32768), and disk in MiB (between 512 and 262144), which can only lower the boot shape below the platform maximum. See [sandbox resources](./sandboxes.md#resources).
-
-The organization's [plan](../platform/billing.md#get-the-plan) can cap Linux sandbox cores and memory below the platform maximum:
-
-| **Plan**   | **Cores**    | **Memory (MiB)** |
-| ---------- | ------------ | ---------------- |
-| Starter    | **`4`**      | **`16384`**      |
-| Team       | **`8`**      | **`32768`**      |
-| Enterprise | **`64`**     | **`262144`**     |
-
-The Enterprise caps are above the platform maximum, so the platform maximum applies. The plan caps apply to both the guarantee and the per-sandbox limits. A request above a plan cap is rejected with a 400 error that names the plan limit, and an omitted per-sandbox limit defaults to the plan cap. The plan response reports the core and memory caps of the organization.
+|  | **Starter** | **Team** | **Enterprise** |
+| --- | --- | --- | --- |
+| **Cores** | 64 | 64 | Custom |
+| **Memory** | 128 GiB | 128 GiB | Custom |
+| **Ephemeral disk** | 512 GiB | 1 TiB | 3 TiB |
+| **GPU cards** | 1 | 8 | 8 |
+| **Session length** | 24 hours | 48 hours | Custom |
 
 ## Organization limits
 
-Organization limits cap the number of sandboxes, image builds, volumes, images, snapshots, and members across every project in an organization, and the number of secrets and API keys. Each limit is a ceiling, not a reservation: reaching it refuses new work, but nothing is set aside. A request that would exceed a limit is rejected with a 429 error with the code LIMIT_EXCEEDED that names the limit, the current count, and the maximum.
+Organization limits cap how many members an organization has and how many sandboxes, GPUs, Windows core licenses, and Mac reservations it uses at once. They depend on the [plan](../platform/billing.md#get-the-plan), and a request above a limit is rejected.
 
-| **Limit**                 | **What it counts**                                                                                                         | **Checked on**                                | **Name in errors**      |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | ----------------------- |
-| `sandboxes.concurrent`    | Sandboxes that hold or are about to hold compute: queued, pending, assigned, booting, running, pausing, stopping, or deleting | Create, fork, snapshot restore, start, resume | `max_concurrent_vms`    |
-| `sandboxes.total`         | Concurrent sandboxes plus stopped and paused sandboxes. Deleted, failed, and lost sandboxes do not count                   | Create, fork, snapshot restore                | `max_total_vms`         |
-| `image_builds.concurrent` | Image builds that are pending or building                                                                                  | Image build                                   | `max_concurrent_builds` |
-| `storage.volumes`         | Volumes. Deleted volumes do not count                                                                                      | Volume create                                 | `max_volumes`           |
-| `storage.images`          | Captured, built, and imported images. Failed images do not count                                                           | Image build, capture, and import              | `max_images`            |
-| `storage.snapshots`       | Snapshots. Failed snapshots do not count                                                                                   | Snapshot create                               | `max_snapshots`         |
-| `members`                 | Organization members. A pending invitation holds a member slot until it is accepted or declined                            | Member invitation                             | `max_members`           |
-| `secrets_per_project`     | Secrets in one project. The response reports the highest count in any project                                              | Secret create                                 | `secrets_per_project`   |
-| `api_keys_per_project`    | Live API keys in one project. Revoked and expired keys do not count. The response reports the highest count in any project | Project API key create                        | `api_keys_per_project`  |
-| `api_keys_per_organization` | Live organization API keys. Revoked and expired keys do not count                                                        | Organization API key create                   | `api_keys_per_organization` |
+|  | **Starter** | **Team** | **Enterprise** |
+| --- | --- | --- | --- |
+| **Members** | Up to 3 | Unlimited | Unlimited |
+| **Concurrent sandboxes** | 100 | 5,000 | Custom |
+| **CPU cores** | Unlimited | Unlimited | Unlimited |
+| **GPU cards** | 7 | 50 | Custom |
+| **Windows core licenses** | 10 | 50 | Custom |
+| **Mac reservations** | 10 | 50 | Custom |
+| **Secrets** | Unlimited | Unlimited | Unlimited |
+| **Snapshots** | Unlimited | Unlimited | Unlimited |
 
 ### Get organization limits
 
@@ -114,6 +102,8 @@ The error response is a JSON object with the following properties:
 | **`current`**          | The organization's current count for `limit`. Present on `LIMIT_EXCEEDED` responses.                                          |
 | **`max`**              | The organization's value for `limit`. Present on `LIMIT_EXCEEDED` responses.                                                  |
 | **`trace_id`**         | The request trace ID.                                                                                                         |
+
+**Response:**
 
 ```json
 {

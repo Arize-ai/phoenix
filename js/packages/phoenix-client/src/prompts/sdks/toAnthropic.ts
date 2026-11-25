@@ -25,7 +25,9 @@ export const toAnthropic = <PromptVariables extends Variables = Variables>({
   variables,
 }: ToAnthropicParams<PromptVariables>): MessageCreateParams | null => {
   try {
-    let invocationParameters: { max_tokens: number } | undefined;
+    let invocationParameters:
+      | { max_tokens: number; extra_body?: Record<string, unknown> }
+      | undefined;
     if (prompt.invocation_parameters.type === "anthropic") {
       invocationParameters = prompt.invocation_parameters.anthropic;
     } else {
@@ -35,10 +37,12 @@ export const toAnthropic = <PromptVariables extends Variables = Variables>({
       );
       invocationParameters = { max_tokens: 1024 };
     }
+    const { extra_body: extraBody, ...anthropicInvocationParameters } =
+      invocationParameters;
     // parts of the prompt that can be directly converted to Anthropic params
     const baseCompletionParams = {
       model: prompt.model_name,
-      ...invocationParameters,
+      ...anthropicInvocationParameters,
     } satisfies Partial<MessageCreateParams>;
 
     if (!("messages" in prompt.template)) {
@@ -118,6 +122,7 @@ export const toAnthropic = <PromptVariables extends Variables = Variables>({
       messages,
       tools,
       tool_choice,
+      ...extraBody,
     } satisfies Partial<MessageCreateParams>;
 
     return completionParams;

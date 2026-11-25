@@ -60,10 +60,11 @@ Create a Windows sandbox from a default snapshot. The snapshot sets the sandbox 
 4. Click <Button>Create</Button>
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="windows-small"))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="windows-small"))
 ```
 
 **Custom:**
@@ -81,17 +82,18 @@ Create a Windows sandbox from your own snapshot. Windows snapshots are created f
 9. Click <Button>Create</Button>
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="windows-small"))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="windows-small"))
 
 # Install and configure the software you need, then create a snapshot
 sandbox.stop()
 sandbox.create_snapshot("my-windows-snapshot")
 
 # Create a Windows sandbox from your snapshot
-new_sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="my-windows-snapshot"))
+new_sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="my-windows-snapshot"))
 ```
 
 ## Filesystem snapshot
@@ -99,10 +101,11 @@ new_sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="my-window
 A filesystem snapshot, also called a cold snapshot, saves the filesystem of a stopped Windows sandbox. A snapshot without the include memory option is a filesystem snapshot.
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="windows-small"))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="windows-small"))
 
 # Write a file to the filesystem
 sandbox.fs.upload_file(b"done", "setup.txt")
@@ -112,7 +115,7 @@ sandbox.stop()
 sandbox.create_snapshot("my-windows-snapshot")
 
 # A sandbox created from the snapshot starts with the same filesystem
-new_sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="my-windows-snapshot"))
+new_sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="my-windows-snapshot"))
 content = new_sandbox.fs.download_file("setup.txt")
 print(content.decode())  # done
 ```
@@ -141,10 +144,11 @@ Filesystem persistence keeps the contents of a sandbox's disk: files, installed 
 Windows sandboxes preserve their filesystem across [stop and start](#stop--start) and [filesystem snapshots](#filesystem-snapshot) created from a sandbox. An [ephemeral sandbox](./sandboxes.md#ephemeral-sandboxes) is deleted on stop, so its filesystem is not kept.
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="windows-small"))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="windows-small"))
 
 # Write a file to the filesystem
 sandbox.fs.upload_file(b"done", "setup.txt")
@@ -165,10 +169,11 @@ Memory persistence keeps the runtime state of a sandbox: running processes, open
 Windows sandboxes preserve their memory across [pause and resume](#pause--resume), [memory snapshots](#memory-snapshot) created from a sandbox, and [forks](#fork). Memory state is cleared on every stop.
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams, SessionExecuteRequest
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams, SessionExecuteRequest
 
 daytona = Daytona()
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="windows-small"))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="windows-small"))
 
 # Start a process that runs in the background
 sandbox.process.create_session("keepalive")
@@ -353,9 +358,9 @@ The interval is set in minutes:
 The sandbox pauses after no new events occur for the specified interval. Events include sandbox state changes and interactions with the sandbox through the SDK. Interactions through [sandbox previews](./preview.md) do not reset the timer.
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     snapshot="windows-small",
     auto_pause_interval=60,
 ))
@@ -376,7 +381,7 @@ Set `ttl_minutes` when creating a sandbox, or update it later. The value is in m
 Calling `set_ttl` after creation resets the deadline from the current moment. Use wall-clock TTL for agent sessions, CI jobs, and any sandbox that must not outlive a fixed deadline.
 
 ```python
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     snapshot="windows-small",
     ttl_minutes=120,
 ))

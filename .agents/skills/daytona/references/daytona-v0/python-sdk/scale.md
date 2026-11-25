@@ -36,12 +36,13 @@ Resizing changes the allocation of an existing sandbox. On a running sandbox, CP
 Reserve CPU, memory, and disk when creating a sandbox from an image.
 
 ```python
-from daytona import CreateSandboxFromImageParams, Daytona, Resources
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromImageParams, Resources
 
 daytona = Daytona()
 
 # Reserve 2 vCPUs, 4GiB of RAM, and 8GiB of disk for the sandbox
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxFromImageParams(
         image="ubuntu:22.04",
         resources=Resources(cpu=2, memory=4, disk=8),
@@ -54,10 +55,11 @@ sandbox = daytona.create(
 Change the resource allocation of an existing sandbox.
 
 ```python
-from daytona import Daytona, Resources
+from daytona import Daytona
+from daytona.v0 import Resources
 
 daytona = Daytona()
-sandbox = daytona.get("my-sandbox")
+sandbox = daytona.v0.get("my-sandbox")
 
 # CPU and memory can be increased while the sandbox is running
 sandbox.resize(Resources(cpu=4, memory=8))
@@ -89,12 +91,13 @@ The mechanisms differ in what state each new sandbox starts with:
 ```python
 import asyncio
 
-from daytona import AsyncDaytona, CreateSandboxFromSnapshotParams
+from daytona import AsyncDaytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 
 async def run_task(daytona: AsyncDaytona, shard: int) -> str:
     # Each task gets its own isolated, ephemeral sandbox
-    sandbox = await daytona.create(
+    sandbox = await daytona.v0.create(
         CreateSandboxFromSnapshotParams(snapshot="my-env-snapshot", ephemeral=True)
     )
     response = await sandbox.process.exec(f"python3 run.py --shard {shard}")
@@ -119,10 +122,11 @@ asyncio.run(main())
 **Forking** duplicates a running VM sandbox, filesystem and memory included, into an independent sandbox. Where snapshot fan-out distributes a prepared baseline, forks branch live state: each fork continues from the exact point the original was at. Forking is supported for [VM sandboxes](./sandboxes.md#vm-sandboxes) only.
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="daytona-vm-small"))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="daytona-vm-small"))
 
 # Prepare live state once: running processes, loaded caches, open connections
 sandbox.process.exec("python3 warmup.py")
@@ -136,15 +140,16 @@ forks = [sandbox.fork(name=f"agent-{i}") for i in range(5)]
 **Linked sandboxes** attach ephemeral child sandboxes to a parent. Children are scheduled on the same runner as the parent and share a link network, so the group communicates over local connections. One parent may have many children, and deleting the parent deletes all of them.
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
 
-parent = daytona.create()
+parent = daytona.v0.create()
 
 # Children are co-located with the parent and share a link network
 children = [
-    daytona.create(
+    daytona.v0.create(
         CreateSandboxFromSnapshotParams(
             linked_sandbox=parent.id,
             ephemeral=True,
@@ -170,10 +175,11 @@ Commands within a session run sequentially, so parallelism comes from running mu
 Run multiple independent shells in the same sandbox so processes can execute in parallel.
 
 ```python
-from daytona import Daytona, SessionExecuteRequest
+from daytona import Daytona
+from daytona.v0 import SessionExecuteRequest
 
 daytona = Daytona()
-sandbox = daytona.create()
+sandbox = daytona.v0.create()
 
 # Each session is an independent shell inside the same sandbox
 sandbox.process.create_session("server")
@@ -195,10 +201,11 @@ print(response.output)
 Start a command asynchronously, then poll its status by command ID.
 
 ```python
-from daytona import Daytona, SessionExecuteRequest
+from daytona import Daytona
+from daytona.v0 import SessionExecuteRequest
 
 daytona = Daytona()
-sandbox = daytona.create()
+sandbox = daytona.v0.create()
 sandbox.process.create_session("build")
 
 # Async commands return immediately with a command ID

@@ -30,7 +30,7 @@ Create a sandbox.
 from daytona import Daytona
 
 daytona = Daytona()
-sandbox = daytona.create()
+sandbox = daytona.v0.create()
 ```
 
 ### Snapshots
@@ -56,10 +56,11 @@ Create a sandbox from a [default snapshot](./snapshots.md#default-snapshots).
 4. Click <Button>Create</Button>
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxFromSnapshotParams(
         snapshot="daytona-small",
     )
@@ -76,10 +77,11 @@ Create a sandbox from an image. The image must be publicly accessible and includ
 4. Click <Button>Create</Button>
 
 ```python
-from daytona import Daytona, CreateSandboxFromImageParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromImageParams
 
 daytona = Daytona()
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxFromImageParams(
         image="ubuntu:22.04",
     )
@@ -105,10 +107,11 @@ Sandboxes have **1 vCPU**, **1GB RAM**, and **3GiB disk** by default. Organizati
 5. Click <Button>Create</Button>
 
 ```python
-from daytona import Daytona, CreateSandboxFromImageParams, Image, Resources
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromImageParams, Image, Resources
 
 daytona = Daytona()
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxFromImageParams(
         image="ubuntu:22.04",
         resources=Resources(cpu=2, memory=4, disk=8),
@@ -124,22 +127,23 @@ Create a sandbox with a specific language runtime.
 Daytona sandboxes support **Python**, **TypeScript**, and **JavaScript** programming language runtimes for direct code execution inside the sandbox. The language parameter controls which programming language runtime is used for the sandbox. If omitted, it defaults to Python.
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
 
 # Python runtime (default)
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(language="python"))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(language="python"))
 response = sandbox.process.code_run('print("Hello from Python")')
 print(response.result)
 
 # TypeScript runtime
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(language="typescript"))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(language="typescript"))
 response = sandbox.process.code_run('console.log("Hello from TypeScript")')
 print(response.result)
 
 # JavaScript runtime
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(language="javascript"))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(language="javascript"))
 response = sandbox.process.code_run('console.log("Hello from JavaScript")')
 print(response.result)
 ```
@@ -154,10 +158,11 @@ Create a sandbox with environment variables. Use [secrets](./secrets.md) for API
 4. Click <Button>Create</Button>
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     env_vars={"DEBUG": "true", "LOG_LEVEL": "info"},
 ))
 ```
@@ -177,10 +182,11 @@ Create a sandbox in a specific [region](./regions.md).
 4. Click <Button>Create</Button>
 
 ```python
-from daytona import Daytona, DaytonaConfig
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
-daytona = Daytona(DaytonaConfig(target="us"))
-sandbox = daytona.create()
+daytona = Daytona()
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(target="us"))
 ```
 
 ### VM sandboxes
@@ -212,8 +218,8 @@ Create a Linux VM sandbox.
 10. Click <Button>Create</Button>
 
 ```python
-from daytona import (
-    Daytona,
+from daytona import Daytona
+from daytona.v0 import (
     CreateSnapshotParams,
     CreateSandboxFromSnapshotParams,
     SandboxClass,
@@ -222,7 +228,7 @@ from daytona import (
 daytona = Daytona()
 
 # 1. Create a VM snapshot (Linux VM class)
-daytona.snapshot.create(
+daytona.v0.snapshot.create(
     CreateSnapshotParams(
         name="my-vm-snapshot",
         image="ubuntu:22.04",
@@ -231,7 +237,7 @@ daytona.snapshot.create(
 )
 
 # 2. Create a VM sandbox from the snapshot
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="my-vm-snapshot"))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="my-vm-snapshot"))
 ```
 
 **Default:**
@@ -244,10 +250,11 @@ Create a Linux VM sandbox from a default snapshot.
 4. Click <Button>Create</Button>
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="daytona-vm-small"))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="daytona-vm-small"))
 ```
 
 **Windows:**
@@ -260,10 +267,11 @@ Create a Windows sandbox.
 4. Click <Button>Create</Button>
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxFromSnapshotParams(
         snapshot="windows-small",
     )
@@ -277,10 +285,11 @@ Daytona provides nested virtualization for Linux VM sandboxes. Nested virtualiza
 > KVM sandboxes must be enabled for your organization. Contact [support@daytona.io](mailto:support@daytona.io).
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxFromSnapshotParams(
         snapshot="daytona-vm-small",
         kvm=True,
@@ -325,10 +334,11 @@ Create a GPU sandbox with custom GPU resources: units and types.
     Daytona uses the first available type in the order you provide. This lets you fall back from a preferred GPU to an alternative when the first choice is not available.
 
 ```python
-from daytona import Daytona, CreateSandboxFromImageParams, Resources, GpuType
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromImageParams, Resources, GpuType
 
 daytona = Daytona()
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxFromImageParams(
         image="pytorch/pytorch:2.11.0-cuda12.8-cudnn9-runtime",
         auto_delete_interval=0,
@@ -350,10 +360,11 @@ Create a GPU sandbox from a default snapshot.
 4. Click <Button>Create</Button>
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxFromSnapshotParams(
         snapshot="daytona-gpu",
         auto_delete_interval=0,
@@ -376,10 +387,11 @@ Spot GPU sandboxes require Tier 2 or higher. Spot GPU sandboxes do not count aga
 Create a spot GPU sandbox with custom GPU resources: units and types.
 
 ```python
-from daytona import Daytona, CreateSandboxFromImageParams, Resources, GpuType
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromImageParams, Resources, GpuType
 
 daytona = Daytona()
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxFromImageParams(
         image="pytorch/pytorch:2.11.0-cuda12.8-cudnn9-runtime",
         auto_delete_interval=0,
@@ -394,10 +406,11 @@ sandbox = daytona.create(
 Create a spot GPU sandbox from a default snapshot.
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxFromSnapshotParams(
         snapshot="daytona-gpu",
         auto_delete_interval=0,
@@ -448,14 +461,15 @@ Create an ephemeral sandbox. Ephemeral sandboxes are automatically deleted when 
 4. Click <Button>Create</Button>
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
 params = CreateSandboxFromSnapshotParams(
     ephemeral=True,
     auto_stop_interval=5,
 )
-sandbox = daytona.create(params)
+sandbox = daytona.v0.create(params)
 ```
 
 ### Linked sandboxes
@@ -476,13 +490,14 @@ Create a linked sandbox. Linked sandboxes attach ephemeral child sandboxes to a 
 This records the relationship on the child sandbox as the linked sandbox ID. Omitting the linked sandbox parameter yields an unlinked sandbox.
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams, Daytona
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
 
-parent = daytona.create()
+parent = daytona.v0.create()
 
-child = daytona.create(
+child = daytona.v0.create(
     CreateSandboxFromSnapshotParams(
         linked_sandbox=parent.id,
         ephemeral=True,
@@ -502,7 +517,7 @@ Sandbox operations manage sandboxes after creation. They cover discovery, inspec
 List sandboxes.
 
 ```python
-for sandbox in daytona.list():
+for sandbox in daytona.v0.list():
     print(sandbox.id)
 ```
 
@@ -511,7 +526,7 @@ for sandbox in daytona.list():
 Get a sandbox by ID or name.
 
 ```python
-sandbox = daytona.get("my-sandbox-id-or-name")
+sandbox = daytona.v0.get("my-sandbox-id-or-name")
 ```
 
 ### Label sandboxes
@@ -544,7 +559,7 @@ On a running sandbox, you can increase CPU and memory without interruption. To d
 4. **Start** the sandbox
 
 ```python
-from daytona import Resources
+from daytona.v0 import Resources
 
 # Resize a started sandbox (CPU and memory can be increased)
 sandbox.resize(Resources(cpu=2, memory=4))
@@ -859,9 +874,9 @@ The auto-stop interval sets the amount of time after which a running sandbox is 
 4. Click <Button>Create</Button>
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     snapshot="my-snapshot",
     # Disables the auto-stop feature - default is 15 minutes
     auto_stop_interval=0,
@@ -917,9 +932,9 @@ Auto-pause is not supported for container sandboxes. Use <u>[**auto-stop**](#aut
 5. Click <Button>Create</Button>
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     snapshot="daytona-vm-small",
     # Auto-pause after 1 hour of inactivity
     auto_pause_interval=60,
@@ -943,9 +958,9 @@ sandbox.set_auto_pause_interval(0)
 5. Click <Button>Create</Button>
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     snapshot="windows-small",
     # Auto-pause after 1 hour of inactivity
     auto_pause_interval=60,
@@ -975,9 +990,9 @@ The auto-archive interval sets the amount of time after which a continuously sto
 4. Click <Button>Create</Button>
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     snapshot="my-snapshot",
     # Auto-archive after a sandbox has been stopped for 1 hour
     auto_archive_interval=60,
@@ -998,9 +1013,9 @@ The auto-delete interval sets the amount of time after which a continuously stop
 4. Click <Button>Create</Button>
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     snapshot="my-snapshot",
     # Auto-delete after a sandbox has been stopped for 1 hour
     auto_delete_interval=60,
@@ -1025,9 +1040,9 @@ Set `ttl_minutes` when creating a sandbox, or update it later. The value is in m
 Calling `set_ttl` after creation resets the deadline from the current moment. Use wall-clock TTL for agent sessions, CI jobs, and any sandbox that must not outlive a fixed deadline.
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     snapshot="my-snapshot",
     # Destroy the sandbox 2 hours after creation, regardless of state
     ttl_minutes=120,
@@ -1062,9 +1077,9 @@ By default, Daytona sandboxes auto-stop after 15 minutes of inactivity. To keep 
 4. Click <Button>Create</Button>
 
 ```python
-from daytona import CreateSandboxFromSnapshotParams
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(
     snapshot="my_awesome_snapshot",
     # Disables the auto-stop feature - default is 15 minutes
     auto_stop_interval=0,

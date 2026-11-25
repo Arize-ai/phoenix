@@ -117,9 +117,9 @@ curl 'https://3000-{sandboxUuid}.{previewDomain}/?daytona_token=<API_KEY>'
 
 | **Flag** | **Description** |
 | --- | --- |
+| `daytona_token` | Sets an API key from a client that cannot set headers.<br />**Rules:** a query parameter |
 | `-H` | Sets a request header. |
 | `x-daytona-preview-token` | Sets the standard preview token.<br />**Rules:** a header, not a query parameter |
-| `daytona_token` | Sets an API key from a client that cannot set headers.<br />**Rules:** a query parameter |
 
 ### Browser sign-in
 
@@ -238,8 +238,8 @@ for endpoint in sandbox.ports.iter_endpoints():
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `cursor` | Continues from a previous page. |
+| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 
 ### Unexpose ports
 

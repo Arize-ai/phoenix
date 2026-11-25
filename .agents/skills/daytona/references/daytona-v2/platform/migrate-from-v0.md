@@ -33,6 +33,8 @@ curl 'https://api.daytona.com/migration/v0/summary' \
   --header 'Authorization: Bearer YOUR_API_KEY'
 ```
 
+**Response:**
+
 ```json
 {
   "from_v0": true,
@@ -70,6 +72,8 @@ curl 'https://api.daytona.com/migration/v0/sandboxes?limit=100&cursor={nextCurso
   --header 'Authorization: Bearer YOUR_API_KEY'
 ```
 
+**Response:**
+
 ```json
 {
   "sandboxes": [
@@ -92,8 +96,8 @@ curl 'https://api.daytona.com/migration/v0/sandboxes?limit=100&cursor={nextCurso
 
 | **Field** | **Description** |
 | --- | --- |
-| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `cursor` | Continues from a previous page. |
+| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 
 > **Notes:**
 >
@@ -128,6 +132,8 @@ curl 'https://api.daytona.com/migration/v0/sandboxes/{v0Id}/import' \
 }'
 ```
 
+**Response:**
+
 ```json
 {
   "sandbox_id": "sbx_4kQm9TzVb2LxWp7R",
@@ -144,8 +150,8 @@ curl 'https://api.daytona.com/migration/v0/sandboxes/{v0Id}/import' \
 
 | **Field** | **Description** |
 | --- | --- |
-| `v0_id` | Sets the Daytona v0 sandbox to import.<br />**Format:** a Daytona v0 sandbox ID, a UUID<br />**Example:** `0b6c5c43-7a52-4c1f-9a42-3f0c3d7f2a11` |
 | `force` | Creates another sandbox even when a live import of the sandbox exists.<br />**Default:** `false` |
+| `v0_id` | Sets the Daytona v0 sandbox to import.<br />**Format:** a Daytona v0 sandbox ID, a UUID<br />**Example:** `0b6c5c43-7a52-4c1f-9a42-3f0c3d7f2a11` |
 
 > **Notes:**
 >

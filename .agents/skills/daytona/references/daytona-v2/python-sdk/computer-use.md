@@ -595,8 +595,8 @@ print(tree.root.role, tree.root.name, tree.truncated)
 | **Parameter** | **Description** |
 | --- | --- |
 | `scope` | Sets the root of the search.<br />**Required**<br />**Value:** `focused`, `pid`, or `all`<br />**Example:** `"focused"` |
-| `pid` | Selects the application by the ID of its process. |
 | `max_depth` | Limits the depth below the root.<br />**Default:** `256`<br />**Minimum:** `0`<br />**Maximum:** `256`<br />**Value:** `0` for the root only |
+| `pid` | Selects the application by the ID of its process. |
 
 > **Notes:**
 >
@@ -631,12 +631,12 @@ for node in buttons.matches:
 | **Parameter** | **Description** |
 | --- | --- |
 | `scope` | Sets the root of the search.<br />**Required**<br />**Value:** `focused`, `pid`, or `all`<br />**Example:** `"focused"` |
-| `pid` | Selects the application by the ID of its process. |
-| `role` | Matches the node role exactly.<br />**Example:** `"button"` |
+| `limit` | Caps the number of matches.<br />**Default:** `50`<br />**Value:** `0` or less for the default<br />**Example:** `10` |
 | `name` | Matches the accessible name.<br />**Example:** `"Submit"` |
 | `name_match` | Sets how name is compared.<br />**Default:** `exact`<br />**Value:** `exact`, `substring`, or `regex`, with `regex` taking a valid regular expression in name<br />**Example:** `"substring"` |
+| `pid` | Selects the application by the ID of its process. |
+| `role` | Matches the node role exactly.<br />**Example:** `"button"` |
 | `states` | Requires every listed state on the node.<br />**Format:** a list of state names<br />**Value:** the [node states](#find-nodes)<br />**Example:** `["enabled", "focusable"]` |
-| `limit` | Caps the number of matches.<br />**Default:** `50`<br />**Value:** `0` or less for the default<br />**Example:** `10` |
 
 > **Notes:**
 >
@@ -844,9 +844,9 @@ print(f"Compressed size: {screenshot.size_bytes} bytes")
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `region` | Sets the screen rectangle to capture.<br />**Format:** x, y, width, and height in pixels, with a width and height of at least `1`<br />**Example:** `ComputerUseRegion(x=0, y=0, width=800, height=600)` |
 | `format` | Sets the image format.<br />**Default:** `png`<br />**Value:** `png` or `jpeg`<br />**Example:** `"jpeg"` |
 | `quality` | Sets the JPEG quality.<br />**Default:** `85`<br />**Minimum:** `1`<br />**Maximum:** `100` |
+| `region` | Sets the screen rectangle to capture.<br />**Format:** x, y, width, and height in pixels, with a width and height of at least `1`<br />**Example:** `ComputerUseRegion(x=0, y=0, width=800, height=600)` |
 
 > **Notes:**
 >

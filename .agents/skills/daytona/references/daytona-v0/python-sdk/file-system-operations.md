@@ -73,7 +73,7 @@ sandbox.fs.upload_file("local_file.txt", "remote_file.txt")
 Upload multiple files by providing the content to upload and their destination paths.
 
 ```python
-from daytona import FileUpload
+from daytona.v0 import FileUpload
 
 # Upload multiple files at once
 files_to_upload = []
@@ -117,7 +117,7 @@ Daytona provides methods to download files from sandboxes.
 Download a single file by providing the path to the file to download.
 
 ```python
-from daytona import DaytonaNotFoundError
+from daytona.v0 import DaytonaNotFoundError
 
 try:
     content = sandbox.fs.download_file("file1.txt")
@@ -138,7 +138,7 @@ sandbox.fs.download_file("workspace/large-file.bin", "local_copy.bin")
 Download multiple files by providing the paths to the files to download.
 
 ```python
-from daytona import FileDownloadRequest
+from daytona.v0 import FileDownloadRequest
 
 # Download multiple files at once
 files_to_download = [

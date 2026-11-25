@@ -43,6 +43,7 @@ import {
   formatToolingOutput,
   type OutputFormat,
 } from "./formatSetup";
+import { createSetupDoctorCommand } from "./setupDoctor";
 import { exitWithError } from "./setupErrors";
 import { createSetupMcpCommand } from "./setupMcp";
 
@@ -480,6 +481,7 @@ Subcommands:
   px setup instrument   Instrument and verify, without redoing the questions
   px setup skills       Install the coding-agent skills alone
   px setup mcp          Register the Phoenix MCP server with a coding agent
+  px setup doctor       Check config, connectivity, server version, and auth
 
 Exit codes:
   0  Verified, registered only, or you chose to verify later
@@ -490,5 +492,6 @@ Exit codes:
   command.addCommand(createSetupInstrumentCommand());
   command.addCommand(createSetupSkillsCommand());
   command.addCommand(createSetupMcpCommand());
+  command.addCommand(createSetupDoctorCommand());
   return command;
 }

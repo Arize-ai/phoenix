@@ -89,7 +89,7 @@ import { Daytona } from '@daytona/sdk'
 const daytona = new Daytona()
 
 async function main() {
-    const sandbox = await daytona.create()
+    const sandbox = await daytona.v0.create()
 
     // Shared default context
     await sandbox.codeInterpreter.runCode(
@@ -266,7 +266,7 @@ try {
 Handle process exceptions properly, log error details for debugging, and use try-catch blocks for error handling.
 
 ```typescript
-import { DaytonaError } from '@daytona/sdk'
+import { DaytonaError } from '@daytona/sdk/v0'
 
 try {
     const response = await sandbox.process.codeRun("invalid typescript code");

@@ -64,8 +64,7 @@ print(response.stdout)
 | **Parameter** | **Description** |
 | --- | --- |
 | `image` | Sets the registry reference that pull() registers.<br />**Required**<br />**Format:** an OCI image reference<br />**Example:** `"docker:dind"` |
-| `name` | Sets the image name.<br />**Example:** `"docker-dind"` |
-| `image` | Sets the registered image that the sandbox starts from.<br />**Format:** an image name or ID<br />**Example:** `"docker-dind"` |
+| `name` | Sets the image name, which the sandbox starts from.<br />**Example:** `"docker-dind"` |
 | `timeout` | Sets how many seconds the wait for Docker lasts.<br />**Default:** `60`<br />**Value:** `0` for no deadline<br />**Example:** `120` |
 
 > **Notes:**
@@ -107,8 +106,8 @@ sandbox = daytona.v2.create(
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `image` | Sets the registered image that the sandbox starts from.<br />**Format:** an image name or ID<br />**Example:** `"docker-dind"` |
 | `env` | Sets environment variables inside the sandbox.<br />**Format:** names of letters, digits, and underscores that do not start with a digit<br />**Example:** `{"DAYTONA_DOCKER_START": "entrypoint"}` |
+| `image` | Sets the registered image that the sandbox starts from.<br />**Format:** an image name or ID<br />**Example:** `"docker-dind"` |
 
 ## Get Docker status
 

@@ -30,7 +30,7 @@ A PTY (Pseudo Terminal) is a virtual terminal interface that allows programs to 
 Create an interactive terminal session that can execute commands and handle user input.
 
 ```python
-from daytona.common.pty import PtySize
+from daytona.v0 import PtySize
 
 pty_handle = sandbox.process.create_pty_session(
     id="my-session",
@@ -97,7 +97,7 @@ for pty_session in pty_sessions:
 Resize a PTY session, allowing you to change the terminal dimensions of an active PTY session.
 
 ```python
-from daytona.common.pty import PtySize
+from daytona.v0 import PtySize
 
 # Resize a PTY session to a larger terminal
 new_size = PtySize(rows=40, cols=150)
@@ -116,7 +116,7 @@ Handle interactive commands with PTY sessions, allowing you to handle interactiv
 ```python
 import time
 import threading
-from daytona.common.pty import PtySize
+from daytona.v0 import PtySize
 
 def handle_pty_data(data: bytes):
     text = data.decode("utf-8", errors="replace")
@@ -155,8 +155,9 @@ Manage long-running processes with PTY sessions, allowing you to manage long-run
 ```python
 import time
 import threading
-from daytona import Daytona, Sandbox
-from daytona.common.pty import PtySize
+from daytona import Daytona
+from daytona.v0 import Sandbox
+from daytona.v0 import PtySize
 
 def handle_pty_data(data: bytes):
     text = data.decode("utf-8", errors="replace")
@@ -193,7 +194,7 @@ Manage resource leaks with PTY sessions, allowing you to always clean up PTY ses
 
 ```python
 # Python: Use try/finally
-from daytona import PtySize
+from daytona.v0 import PtySize
 
 pty_handle = None
 try:
@@ -255,7 +256,7 @@ pty_handle.kill()
 Resize the PTY terminal dimensions directly from the handle.
 
 ```python
-from daytona.common.pty import PtySize
+from daytona.v0 import PtySize
 
 pty_handle.resize(PtySize(cols=120, rows=30))
 ```

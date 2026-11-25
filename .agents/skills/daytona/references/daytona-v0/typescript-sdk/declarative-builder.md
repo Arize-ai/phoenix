@@ -28,7 +28,7 @@ Declarative images are cached for 24 hours, and are automatically reused when ru
 Create a container sandbox from a declarative image.
 
 ```typescript
-import { Image } from '@daytona/sdk'
+import { Image } from '@daytona/sdk/v0'
 
 // Define a declarative image with python packages
 const declarativeImage = Image.debianSlim('3.12')
@@ -36,7 +36,7 @@ const declarativeImage = Image.debianSlim('3.12')
   .workdir('/home/daytona')
 
 // Create a new sandbox with the declarative image and stream the build logs
-const sandbox = await daytona.create(
+const sandbox = await daytona.v0.create(
   {
     image: declarativeImage,
   },
@@ -52,7 +52,7 @@ const sandbox = await daytona.create(
 Create a GPU sandbox from a declarative image.
 
 ```typescript
-import { Image } from '@daytona/sdk'
+import { Image } from '@daytona/sdk/v0'
 
 // Define a declarative image with python packages
 const declarativeImage = Image.debianSlim('3.12')
@@ -60,7 +60,7 @@ const declarativeImage = Image.debianSlim('3.12')
   .workdir('/home/daytona')
 
 // Create a GPU sandbox with the declarative image and stream the build logs
-const sandbox = await daytona.create(
+const sandbox = await daytona.v0.create(
   {
     image: declarativeImage,
     autoDeleteInterval: 0,
@@ -83,7 +83,7 @@ Create a pre-built snapshot by building a declarative image and registering it a
 2. Create a sandbox from that snapshot
 
 ```typescript
-import { Image } from '@daytona/sdk'
+import { Image } from '@daytona/sdk/v0'
 
 // Define the declarative image for the snapshot
 const image = Image.debianSlim('3.12')
@@ -91,7 +91,7 @@ const image = Image.debianSlim('3.12')
   .workdir('/home/daytona')
 
 // Create and register the snapshot, streaming the build logs
-await daytona.snapshot.create(
+await daytona.v0.snapshot.create(
   {
     name: 'my-snapshot',
     image,
@@ -102,7 +102,7 @@ await daytona.snapshot.create(
 )
 
 // Create a new sandbox from the pre-built snapshot
-const sandbox = await daytona.create({ snapshot: 'my-snapshot' })
+const sandbox = await daytona.v0.create({ snapshot: 'my-snapshot' })
 ```
 
 **GPU:**
@@ -111,7 +111,7 @@ const sandbox = await daytona.create({ snapshot: 'my-snapshot' })
 2. Create a sandbox from that snapshot
 
 ```typescript
-import { Image } from '@daytona/sdk'
+import { Image } from '@daytona/sdk/v0'
 
 // Define the declarative image for the GPU snapshot
 const image = Image.debianSlim('3.12')
@@ -119,7 +119,7 @@ const image = Image.debianSlim('3.12')
   .workdir('/home/daytona')
 
 // Create and register the GPU snapshot, streaming the build logs
-await daytona.snapshot.create(
+await daytona.v0.snapshot.create(
   {
     name: 'my-gpu-snapshot',
     image,
@@ -131,7 +131,7 @@ await daytona.snapshot.create(
 )
 
 // Create a new GPU sandbox from the pre-built snapshot
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   snapshot: 'my-gpu-snapshot',
   autoDeleteInterval: 0,
 })
@@ -174,7 +174,7 @@ Daytona provides an option to define images programmatically. Chain the methods 
     Set the container entrypoint and default command with `entrypoint()` and `cmd()`.
 
 ```typescript
-import { Image } from '@daytona/sdk'
+import { Image } from '@daytona/sdk/v0'
 
 // 1. Base image
 const image = Image.debianSlim('3.12')
@@ -216,7 +216,7 @@ const image = Image.debianSlim('3.12')
 Integrate Dockerfiles and custom Dockerfile commands.
 
 ```typescript
-import { Image } from '@daytona/sdk'
+import { Image } from '@daytona/sdk/v0'
 
 // Add custom Dockerfile commands
 let image = Image.debianSlim('3.12').dockerfileCommands(['RUN echo "Hello, world!"'])

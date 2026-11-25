@@ -133,7 +133,7 @@ print(f"ssh -p 2222 '{sandbox.id}#{token.access_token}'@<sshGatewayHost>")
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `operations` | Sets the operations the token allows.<br />**Default:** every operation the caller can grant<br />**Value:** `toolbox`, `toolbox:exec`, `toolbox:fs`, `toolbox:git`, `toolbox:lsp`, `desktop`, `ssh`, `sandbox:stop`, `sandbox:pause`, or `sandbox:delete`<br />**Example:** `["ssh"]` |
+| `operations` | Sets the operations the token allows.<br />**Default:** every operation the caller can grant<br />**Value:** `toolbox`, `toolbox:exec`, `toolbox:fs`, `toolbox:git`, `desktop`, `ssh`, `sandbox:stop`, `sandbox:pause`, or `sandbox:delete`<br />**Example:** `["ssh"]` |
 | `ports` | Sets the private preview ports the token reaches.<br />**Default:** every private preview port of the sandbox<br />**Format:** a list of up to 128 port numbers from 1 to 65535, other than 2280, 2281, and 22220<br />**Value:** `[]` for no private preview port<br />**Example:** `[]` |
 | `ttl_seconds` | Sets the token lifetime in seconds.<br />**Default:** the deployment default, `3600` unless the deployment overrides it<br />**Minimum:** `1`<br />**Maximum:** the deployment cap, `86400` by default |
 
@@ -192,9 +192,9 @@ ssh -p 2222 -N -L 8080:localhost:8080 '<sandboxId>#<token>'@<sshGatewayHost>
 
 | **Flag** | **Description** |
 | --- | --- |
-| `-p` | Sets the port of the SSH gateway.<br />**Example:** `2222` |
-| `-N` | Runs no remote command, so the connection only forwards ports. |
 | `-L` | Forwards a local port to an address that resolves inside the sandbox.<br />**Format:** LOCAL_PORT:HOST:PORT<br />**Example:** `8080:localhost:8080` |
+| `-N` | Runs no remote command, so the connection only forwards ports. |
+| `-p` | Sets the port of the SSH gateway.<br />**Example:** `2222` |
 
 > **Notes:**
 >
@@ -264,9 +264,9 @@ ssh -p 2222 -o ServerAliveInterval=3 -o ServerAliveCountMax=2 '<sandboxId>#<toke
 
 | **Flag** | **Description** |
 | --- | --- |
-| `-p` | Sets the port of the SSH gateway.<br />**Example:** `2222` |
-| `-o ServerAliveInterval` | Sets the seconds without data from the gateway before the client sends a keepalive message. Set it with ServerAliveCountMax so that the client detects a dead connection quickly.<br />**Example:** `3` |
 | `-o ServerAliveCountMax` | Sets the number of unanswered keepalive messages before the client closes the connection.<br />**Example:** `2` |
+| `-o ServerAliveInterval` | Sets the seconds without data from the gateway before the client sends a keepalive message. Set it with ServerAliveCountMax so that the client detects a dead connection quickly.<br />**Example:** `3` |
+| `-p` | Sets the port of the SSH gateway.<br />**Example:** `2222` |
 
 ## Host keys
 

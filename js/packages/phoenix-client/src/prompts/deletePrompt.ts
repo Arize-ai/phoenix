@@ -27,7 +27,8 @@ export interface DeletePromptParams extends ClientFn {
  * @param params - The parameters to delete the prompt.
  * @param params.prompt - The prompt to delete, selected by `name` or `promptId`.
  * @returns A promise that resolves once the prompt is deleted.
- * @throws An error if the prompt does not exist, or if the deletion fails.
+ * @throws An error if the prompt does not exist, if an LLM evaluator uses the
+ * prompt (HTTP 409), or if the deletion fails.
  *
  * @requires Phoenix server >= 13.20.0
  *

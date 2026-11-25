@@ -32,6 +32,7 @@
 - type ListSecretsQuery
 - type ListSecretsResponse
 - type LspLanguageID
+- type MultiNodeImageParams
 - type OutputMessage
 - type PaginatedSnapshots
 - type Position
@@ -86,6 +87,7 @@ import "github.com/daytona/clients/sdk-go/pkg/types"
 - [type ListSecretsQuery](https://www.daytona.io/docs/en<#ListSecretsQuery>)
 - [type ListSecretsResponse](https://www.daytona.io/docs/en<#ListSecretsResponse>)
 - [type LspLanguageID](https://www.daytona.io/docs/en<#LspLanguageID>)
+- [type MultiNodeImageParams](https://www.daytona.io/docs/en<#MultiNodeImageParams>)
 - [type OutputMessage](https://www.daytona.io/docs/en<#OutputMessage>)
 - [type PaginatedSnapshots](https://www.daytona.io/docs/en<#PaginatedSnapshots>)
 - [type Position](https://www.daytona.io/docs/en<#Position>)
@@ -506,6 +508,20 @@ const (
     LspLanguageJavaScript LspLanguageID = "javascript"
     LspLanguageTypeScript LspLanguageID = "typescript"
 )
+```
+
+<a name="MultiNodeImageParams"></a>
+## type MultiNodeImageParams
+
+MultiNodeImageParams creates a multi\-node GPU sandbox from an image. Set GPU on ImageParams.Resources to a multiple of 8 starting at 16, and specify at least one GpuType. For each of CPU, memory and disk, a scalar applies to every node. To set that resource by rank, leave its scalar at zero and supply exactly GPU/8 positive values. Rank zero is the head.
+
+```go
+type MultiNodeImageParams struct {
+    ImageParams
+    CPUPerNode    []int32
+    MemoryPerNode []int32
+    DiskPerNode   []int32
+}
 ```
 
 <a name="OutputMessage"></a>

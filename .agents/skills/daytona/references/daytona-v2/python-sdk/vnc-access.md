@@ -208,7 +208,7 @@ Connect any WebSocket-capable VNC client, such as noVNC, once the desktop is [st
 
 | **Part**              | **Value**                                                   | **Description**                                                                                                         |
 | --------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| **WebSocket address** | `wss://{proxyHost}/vnc/{sandboxId}`                         | The `{proxyHost}` is the host of the sandbox's toolbox_proxy_url from [get a sandbox](./sandboxes.md#get-a-sandbox). |
+| **WebSocket address** | `wss://{proxyHost}/vnc/{sandboxId}`                         | The `{proxyHost}` is the host of the [toolbox URL](./sandboxes.md#toolbox) of the sandbox. |
 | **Header credential** | `Authorization: Bearer <API_KEY>`                           | The header carries the API key.                                                                                         |
 | **Query credential**  | `wss://{proxyHost}/vnc/{sandboxId}?daytona_token=<API_KEY>` | The daytona_token query parameter carries the API key for browser clients that cannot set headers.                      |
 
@@ -252,9 +252,9 @@ screenshot = sandbox.computer_use.screen.screenshot()
 | --- | --- |
 | `x` | Sets the horizontal position of the click in desktop pixels.<br />**Required**<br />**Example:** `50` |
 | `y` | Sets the vertical position of the click in desktop pixels.<br />**Required**<br />**Example:** `50` |
-| `button` | Sets the mouse button.<br />**Default:** `"left"`<br />**Value:** `"left"`, `"middle"`, or `"right"`<br />**Example:** `"right"` |
 | `text` | Sets the text to type.<br />**Required**<br />**Example:** `"https://www.daytona.com/docs/"` |
 | `key` | Sets the name of the key to press.<br />**Required**<br />**Example:** `"enter"` |
+| `button` | Sets the mouse button.<br />**Default:** `"left"`<br />**Value:** `"left"`, `"middle"`, or `"right"`<br />**Example:** `"right"` |
 
 > **Notes:**
 >
