@@ -118,6 +118,17 @@ describe("getCompareRowProps", () => {
     ).not.toHaveBeenCalled();
   });
 
+  it("ignores the click that ends a text selection in the row", () => {
+    const container = renderHTML(
+      '<table><tr><td><p id="target">output</p></td></tr></table>'
+    );
+    window.getSelection()?.selectAllChildren(container);
+    expect(
+      clickRow({ container, targetSelector: "#target" })
+    ).not.toHaveBeenCalled();
+    window.getSelection()?.removeAllRanges();
+  });
+
   it("ignores a click on a list option inside the row", () => {
     const container = renderHTML(
       '<table><tr><td><div id="target" role="option">label</div></td></tr></table>'

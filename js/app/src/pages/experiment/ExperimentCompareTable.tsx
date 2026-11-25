@@ -582,9 +582,6 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const loadNextPage = useCallback(() => {
     loadNext(PAGE_SIZE);
   }, [loadNext]);
-  const handleRowClick =
-    selectedExampleId != null ? openExampleFromTable : undefined;
-
   const table = useTable({
     features: appTableFeatures,
     columns: columns,
@@ -768,7 +765,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 table={table}
                 tableContainerRef={tableContainerRef}
                 selectedRowId={selectedExampleId}
-                onRowClick={handleRowClick}
+                onRowClick={openExampleFromTable}
                 estimatedRowHeight={calculateEstimatedRowHeight(
                   maxAnnotationCount
                 )}
@@ -778,7 +775,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 table={table}
                 tableContainerRef={tableContainerRef}
                 selectedRowId={selectedExampleId}
-                onRowClick={handleRowClick}
+                onRowClick={openExampleFromTable}
                 estimatedRowHeight={calculateEstimatedRowHeight(
                   maxAnnotationCount
                 )}

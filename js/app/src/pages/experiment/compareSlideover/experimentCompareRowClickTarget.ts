@@ -32,8 +32,10 @@ export function isInteractiveClickTarget(target: EventTarget | null): boolean {
 
 /**
  * The props that tie a compare table row to the slideover: the selected
- * highlight, and a click handler that leaves clicks on controls inside the
- * row to those controls. Without `onRowClick` the row is not clickable.
+ * highlight, and a click handler that opens the row's example. Clicks on
+ * controls inside the row stay with those controls, and a click that ends a
+ * text selection is not a row click. Without `onRowClick` the row is not
+ * clickable.
  */
 export function getCompareRowProps({
   rowId,
@@ -55,7 +57,13 @@ export function getCompareRowProps({
             const isInsideRow =
               event.target instanceof Node &&
               event.currentTarget.contains(event.target);
-            if (isInsideRow && !isInteractiveClickTarget(event.target)) {
+            const isSelectingText =
+              window.getSelection()?.isCollapsed === false;
+            if (
+              isInsideRow &&
+              !isSelectingText &&
+              !isInteractiveClickTarget(event.target)
+            ) {
               onRowClick(rowId);
             }
           }

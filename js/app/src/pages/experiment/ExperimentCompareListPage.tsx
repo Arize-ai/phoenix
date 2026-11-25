@@ -1287,15 +1287,15 @@ export function ExperimentCompareListPage({
     },
     [clearSelectedSpanSearchParam]
   );
-  const handleRowClick =
-    selectedExampleId != null
-      ? (rowId: string) => {
-          const row = rows.find((candidate) => candidate.id === rowId);
-          if (row != null) {
-            openExample(getRowNavigationItem(row.original));
-          }
-        }
-      : undefined;
+  const handleRowClick = useCallback(
+    (rowId: string) => {
+      const row = rows.find((candidate) => candidate.id === rowId);
+      if (row != null) {
+        openExample(getRowNavigationItem(row.original));
+      }
+    },
+    [rows, openExample, getRowNavigationItem]
+  );
 
   return (
     <View overflow="auto">
