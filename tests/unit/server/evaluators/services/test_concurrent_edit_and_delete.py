@@ -1349,3 +1349,82 @@ async def test_tombstone_project_rejects_a_project_deleted_after_it_was_loaded(
             await lifecycle.tombstone_project(first_session, project_id=project_id)
         with pytest.raises(NotFound):
             await lifecycle.tombstone_project(late_session, project_id=project_id)
+
+
+@pytest.mark.postgres_only
+async def test_experiment_sweep_does_not_deadlock_with_dataset_delete(
+    postgresql_engine: AsyncEngine,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from datetime import datetime, timedelta, timezone
+
+    from phoenix.config import EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS
+    from phoenix.server.daemons import experiment_sweeper
+    from phoenix.server.daemons.experiment_sweeper import ExperimentSweeper
+
+    db = DbSessionFactory(db=_db(postgresql_engine), dialect="postgresql")
+    expired_at = datetime.now(timezone.utc) - timedelta(
+        hours=EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS + 1
+    )
+    async with db() as session:
+        project = models.Project(name=f"exp-project-{token_hex(4)}")
+        dataset = models.Dataset(name=f"exp-dl4-{token_hex(4)}", metadata_={})
+        session.add_all([project, dataset])
+        await session.flush()
+        dataset_version = models.DatasetVersion(dataset_id=dataset.id, metadata_={})
+        session.add(dataset_version)
+        await session.flush()
+        session.add(
+            models.Experiment(
+                dataset_id=dataset.id,
+                dataset_version_id=dataset_version.id,
+                name=f"exp-{token_hex(4)}",
+                repetitions=1,
+                metadata_={},
+                project_name=project.name,
+                is_ephemeral=True,
+                updated_at=expired_at,
+            )
+        )
+        await session.flush()
+        project_id = project.id
+        dataset_id = dataset.id
+
+    experiments_deleted = asyncio.Event()
+    release_sweeper = asyncio.Event()
+    original_tombstone = lifecycle.tombstone_exclusive_experiment_projects
+
+    async def _pause_before_tombstone(*args: Any, **kwargs: Any) -> list[int]:
+        experiments_deleted.set()
+        await asyncio.wait_for(release_sweeper.wait(), 5)
+        return await original_tombstone(*args, **kwargs)
+
+    monkeypatch.setattr(
+        experiment_sweeper, "tombstone_exclusive_experiment_projects", _pause_before_tombstone
+    )
+
+    async def _run_sweep() -> None:
+        await ExperimentSweeper(db=db)._delete_ephemeral_experiments()
+
+    async def _run_dataset_delete() -> None:
+        await asyncio.wait_for(experiments_deleted.wait(), 5)
+        delete_task = asyncio.create_task(
+            lifecycle.execute_dataset_delete(db=db, dataset_id=dataset_id)
+        )
+        try:
+            await _wait_until_lock_wait_or_done(db, delete_task, "")
+        finally:
+            release_sweeper.set()
+        await delete_task
+
+    results = await asyncio.gather(_run_sweep(), _run_dataset_delete(), return_exceptions=True)
+
+    for result in results:
+        if isinstance(result, DBAPIError):
+            assert getattr(result.orig, "sqlstate", None) != "40P01", result
+    assert all(result is None or isinstance(result, NotFound) for result in results), results
+    async with db() as session:
+        assert await session.get(models.Dataset, dataset_id) is None
+        tombstoned_project = await session.get(models.Project, project_id)
+        assert tombstoned_project is not None and tombstoned_project.deleted_at is not None
+        assert await session.scalar(select(func.count(models.Experiment.id))) == 0

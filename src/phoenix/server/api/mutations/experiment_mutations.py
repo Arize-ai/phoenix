@@ -29,6 +29,7 @@ from phoenix.server.api.types.ExperimentJob import ExperimentJob
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.utils import delete_traces
 from phoenix.server.cleanup.lifecycle import (
+    lock_experiment_projects,
     resolve_experiment_project_delete_candidates,
     tombstone_exclusive_experiment_projects,
 )
@@ -371,6 +372,7 @@ class ExperimentMutationMixin:
                     )
                 ).all(),
             )
+            await lock_experiment_projects(session, candidate_project_ids=candidate_project_ids)
             savepoint = await session.begin_nested()
             experiments = {
                 experiment.id: experiment

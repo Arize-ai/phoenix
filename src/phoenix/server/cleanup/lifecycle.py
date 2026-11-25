@@ -542,8 +542,8 @@ async def resolve_experiment_project_delete_candidates(
 
     Call this before the experiment rows are deleted. A project is only recognizable as an
     experiment project while an experiment still names it, so the names must be resolved first.
-    The read takes no locks; ``tombstone_exclusive_experiment_projects`` locks the ids and
-    re-verifies them.
+    The read takes no locks; ``lock_experiment_projects`` locks the ids before the experiment rows
+    are deleted and ``tombstone_exclusive_experiment_projects`` re-verifies them.
     """
     names = sorted({project_name for project_name in candidate_project_names if project_name})
     if not names:
@@ -562,6 +562,20 @@ async def resolve_experiment_project_delete_candidates(
             .order_by(models.Project.id.asc())
         )
     ]
+
+
+async def lock_experiment_projects(
+    session: AsyncSession,
+    *,
+    candidate_project_ids: Iterable[int],
+) -> None:
+    """Lock the candidates from ``resolve_experiment_project_delete_candidates``.
+
+    Call this before deleting experiment rows so that experiment deletes take ``Project`` then
+    ``Experiment`` locks, the order ``delete_dataset_and_tombstone_projects`` uses; the reverse
+    order deadlocks against a concurrent dataset delete.
+    """
+    await _lock_projects(session, candidate_project_ids, mode="no_key_update")
 
 
 async def tombstone_exclusive_experiment_projects(

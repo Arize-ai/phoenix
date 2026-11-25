@@ -13,6 +13,7 @@ from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, get_eval_trace_ids_for_experiments
 from phoenix.server.cleanup.lifecycle import (
     delete_standalone_traces_by_trace_id,
+    lock_experiment_projects,
     resolve_experiment_project_delete_candidates,
     tombstone_exclusive_experiment_projects,
 )
@@ -73,8 +74,6 @@ class ExperimentSweeper(DaemonTask):
                 )
                 .order_by(models.Experiment.id.asc())
             )
-            if dialect is SupportedSQLDialect.POSTGRESQL:
-                candidate_stmt = candidate_stmt.with_for_update(skip_locked=True)
             candidate_experiment_ids = [
                 int(experiment_id)
                 for experiment_id in (await session.scalars(candidate_stmt)).all()
@@ -85,10 +84,6 @@ class ExperimentSweeper(DaemonTask):
             candidate_project_ids: set[int] = set()
             for chunk_start in range(0, len(candidate_experiment_ids), CLEANUP_BATCH_ROWS):
                 chunk_ids = candidate_experiment_ids[chunk_start : chunk_start + CLEANUP_BATCH_ROWS]
-                chunk_eval_trace_ids = (
-                    await session.scalars(get_eval_trace_ids_for_experiments(*chunk_ids))
-                ).all()
-                eval_trace_ids.extend(trace_id for trace_id in chunk_eval_trace_ids if trace_id)
                 candidate_project_ids.update(
                     await resolve_experiment_project_delete_candidates(
                         session,
@@ -101,6 +96,22 @@ class ExperimentSweeper(DaemonTask):
                         ).all(),
                     )
                 )
+            # Project locks come before experiment row locks, matching dataset delete.
+            await lock_experiment_projects(session, candidate_project_ids=candidate_project_ids)
+            if dialect is SupportedSQLDialect.POSTGRESQL:
+                candidate_experiment_ids = [
+                    int(experiment_id)
+                    for experiment_id in (
+                        await session.scalars(candidate_stmt.with_for_update(skip_locked=True))
+                    ).all()
+                ]
+
+            for chunk_start in range(0, len(candidate_experiment_ids), CLEANUP_BATCH_ROWS):
+                chunk_ids = candidate_experiment_ids[chunk_start : chunk_start + CLEANUP_BATCH_ROWS]
+                chunk_eval_trace_ids = (
+                    await session.scalars(get_eval_trace_ids_for_experiments(*chunk_ids))
+                ).all()
+                eval_trace_ids.extend(trace_id for trace_id in chunk_eval_trace_ids if trace_id)
                 deleted_rows = (
                     await session.execute(
                         sa.delete(models.Experiment)
