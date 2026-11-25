@@ -119,7 +119,7 @@
     "typecheck": "tsc --noEmit && tsc -p examples/tsconfig.examples.json"
   },
   "dependencies": {
-    "@arizeai/openinference-semantic-conventions": "^2.17.0",
+    "@arizeai/openinference-semantic-conventions": "^2.18.0",
     "@arizeai/phoenix-config": "workspace:*",
     "@arizeai/phoenix-otel": "workspace:*",
     "async": "^3.2.6",
@@ -143,7 +143,7 @@
     "openai": "^6.49.0",
     "openapi-typescript": "^7.13.0",
     "tsx": "^4.23.15",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.1"
   },
   "peerDependencies": {
     "@anthropic-ai/sdk": "^0.35.0",
