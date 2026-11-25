@@ -23,6 +23,7 @@ Every helper requires a Phoenix server on 21.0.0 or later. Each one checks the s
 | `llm` | `createEvaluator`, pinned to an existing prompt version | By reference | By reference | `updateEvaluator`, `deleteEvaluator` |
 | `code` | `createEvaluator`, with its first version | By reference | By reference | `updateEvaluator`, `createCodeEvaluatorVersion`, `deleteEvaluator` |
 | `builtin` | Ships with Phoenix | By reference | Not accepted | Never edited or deleted |
+| `decision` | REST `POST /v1/evaluators` with `type: "decision"`, or the UI; no SDK helper creates one | By reference | By reference | REST `PATCH /v1/evaluators/{id}`, `deleteEvaluator` when nothing binds it |
 
 Create a definition first, then bind it by its `id`. One definition can back any number of bindings, and deleting a binding never deletes the definition.
 

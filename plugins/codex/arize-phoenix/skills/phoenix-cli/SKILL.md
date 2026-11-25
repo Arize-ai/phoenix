@@ -507,7 +507,7 @@ Categorical values are specified the same way in `create` and `update`: repeatab
 
 ## Evaluators
 
-Shared evaluator definitions (LLM, code, built-in) that projects and datasets bind. Requires Phoenix server >= 21.0.0; older servers fail fast with exit `1` and a message naming the required version. Ids are typed GlobalIDs (`CodeEvaluator:…`, `LLMEvaluator:…`, `BuiltInEvaluator:…`). Create a definition here, then bind it to projects and datasets by its id; deleting a binding never deletes the definition.
+Shared evaluator definitions (LLM, code, built-in, decision) that projects and datasets bind. Requires Phoenix server >= 21.0.0; older servers fail fast with exit `1` and a message naming the required version. Ids are typed GlobalIDs (`CodeEvaluator:…`, `LLMEvaluator:…`, `BuiltInEvaluator:…`). Create a definition here, then bind it to projects and datasets by its id; deleting a binding never deletes the definition.
 
 ```bash
 px evaluator list --format raw --no-progress | jq '.[] | {id, type, name}'
@@ -544,11 +544,12 @@ Attach evaluators to a dataset so experiments on it are scored. Ids are `Dataset
 px dataset evaluator list golden-questions --format raw --no-progress | jq '.[] | {id, name, evaluator_id}'
 px dataset evaluator get RGF0YXNldEV2YWx1YXRvcjox --format raw --no-progress
 
-# attach an existing LLM, code, or built-in evaluator
+# attach an existing LLM, code, built-in, or decision evaluator
 px dataset evaluator create golden-questions --name exact-match --evaluator-id Q29kZUV2YWx1YXRvcjoy --input-mapping '{"literal_mapping":{},"path_mapping":{"output":"output"}}'
 
 # change binding overrides only; --inherit-* flags send null to fall back to the definition
 px dataset evaluator update RGF0YXNldEV2YWx1YXRvcjox --description "Exact match on answer" --inherit-output-configs
+# --output-configs and --inherit-output-configs are refused on a decision binding, whose outputs follow the evaluator's questions and scoring
 
 # detach — requires PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true.
 # Removes the dedicated evaluator trace project and recorded evaluator traces;
