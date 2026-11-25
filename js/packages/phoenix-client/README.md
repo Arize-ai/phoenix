@@ -1015,7 +1015,7 @@ console.log(version.id, version.was_created);
 
 ### Binding Evaluators to Datasets
 
-A dataset binding registers an existing evaluator definition to run against the dataset's experiments. It carries its own name and input mapping and may override the definition's description and output configurations. Creating a binding does not run an experiment. Create LLM and code definitions with `createEvaluator` first, or bind a built-in evaluator by ID; one definition can back many bindings.
+A dataset binding registers an existing evaluator definition to run against the dataset's experiments. It carries its own name and input mapping and may override the definition's description and output configurations. Creating a binding does not run an experiment. Create LLM and code definitions with `createEvaluator` first, then bind them, or bind a built-in or decision evaluator by ID. Each binding request names the evaluator's kind as `evaluatorType`, and the server refuses a mismatch. One definition can back many bindings.
 
 ```ts
 import {
