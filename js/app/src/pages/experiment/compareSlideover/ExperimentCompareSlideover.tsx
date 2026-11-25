@@ -330,6 +330,19 @@ function OpenExperimentCompareSlideover({
               isLoadingMoreExamples={isLoadingMoreItems}
               areHotkeysEnabled={areHotkeysEnabled}
             />
+            <SegmentedControl
+              aria-label="View"
+              size="S"
+              selectedKey={state.mode}
+              onSelectionChange={(mode) =>
+                updateState({
+                  changes: { mode: mode as ExperimentCompareDetailsMode },
+                })
+              }
+            >
+              <SegmentedControlItem id="details">Details</SegmentedControlItem>
+              <SegmentedControlItem id="traces">Traces</SegmentedControlItem>
+            </SegmentedControl>
             <TitleWithID
               title="Example"
               id={currentItem?.exampleExternalId ?? selectedExampleId}
@@ -355,21 +368,6 @@ function OpenExperimentCompareSlideover({
               >
                 View Example
               </LinkButton>
-              <SegmentedControl
-                aria-label="View"
-                size="S"
-                selectedKey={state.mode}
-                onSelectionChange={(mode) =>
-                  updateState({
-                    changes: { mode: mode as ExperimentCompareDetailsMode },
-                  })
-                }
-              >
-                <SegmentedControlItem id="details">
-                  Details
-                </SegmentedControlItem>
-                <SegmentedControlItem id="traces">Traces</SegmentedControlItem>
-              </SegmentedControl>
             </div>
           </header>
           {/* Keyed so that opening another example or changing the experiments
