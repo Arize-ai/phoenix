@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-24T13:08:04Z",
-  "models_sha256": "d98a7277fa9898c224916880fa331057d73e7bccae6efd80e19273646d13d654",
+  "generated_at": "2026-11-25T13:07:46Z",
+  "models_sha256": "26ada83dbfa533cc877644130637efa18172229e03f3917db4c72684bbeb2650",
   "models": [
     {
       "name": "anthropic.claude-3-5-haiku-20241022-v1:0",
@@ -7728,6 +7728,46 @@
       ]
     },
     {
+      "name": "gpt-6-astra-healthcare",
+      "name_pattern": "gpt-6-astra-healthcare",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.00001,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00002
+          }
+        },
+        {
+          "base_rate": 0.00005,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000075
+          }
+        },
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 2e-6
+          }
+        }
+      ]
+    },
+    {
       "name": "gpt-6-astra-law",
       "name_pattern": "gpt-6-astra-law",
       "source": "litellm",
@@ -8017,6 +8057,46 @@
       ]
     },
     {
+      "name": "gpt-6.1-sol-healthcare",
+      "name_pattern": "gpt-6\\.1-sol-healthcare",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 4e-6
+          }
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000015
+          }
+        },
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 2e-7
+          }
+        }
+      ]
+    },
+    {
       "name": "gpt-6.1-terra",
       "name_pattern": "gpt-6\\.1-terra",
       "source": "litellm",
@@ -8119,6 +8199,57 @@
       ]
     },
     {
+      "name": "gpt-6.2-astra-healthcare",
+      "name_pattern": "gpt-6\\.2-astra-healthcare",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 8e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000016
+          }
+        },
+        {
+          "base_rate": 0.00004,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00006
+          }
+        },
+        {
+          "base_rate": 4e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 8e-7
+          }
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.00002
+          }
+        }
+      ]
+    },
+    {
       "name": "gpt-6.2-astra-law",
       "name_pattern": "gpt-6\\.2-astra-law",
       "source": "litellm",
@@ -8172,6 +8303,57 @@
     {
       "name": "gpt-6.2-sol",
       "name_pattern": "gpt-6\\.2-sol",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2e-6,
+          "is_prompt": true,
+          "token_type": "input",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 4e-6
+          }
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": false,
+          "token_type": "output",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 0.000015
+          }
+        },
+        {
+          "base_rate": 1e-7,
+          "is_prompt": true,
+          "token_type": "cache_read",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 2e-7
+          }
+        },
+        {
+          "base_rate": 2.5e-6,
+          "is_prompt": true,
+          "token_type": "cache_write",
+          "customization": {
+            "type": "threshold_based",
+            "key": "llm.token_count.prompt",
+            "threshold": 272000.0,
+            "new_rate": 5e-6
+          }
+        }
+      ]
+    },
+    {
+      "name": "gpt-6.2-sol-healthcare",
+      "name_pattern": "gpt-6\\.2-sol-healthcare",
       "source": "litellm",
       "token_prices": [
         {
@@ -10623,6 +10805,33 @@
           "base_rate": 3.3e-7,
           "is_prompt": true,
           "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "us-gov.openai.gpt-5.6-cyber",
+      "name_pattern": "us-gov\\.openai\\.gpt-5\\.6-cyber",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.000016875,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00010125,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.6875e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.00002109375,
+          "is_prompt": true,
+          "token_type": "cache_write"
         }
       ]
     },
