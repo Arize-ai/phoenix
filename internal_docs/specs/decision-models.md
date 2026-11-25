@@ -1727,8 +1727,11 @@ answer scoring across previews, experiments, and online evaluation. These notes
 explain the integration points and behavior to preserve when changing them;
 [Implementation Status](#17-implementation-status) tracks the remaining work.
 
-- **Persistence.** The evaluator subtype stores a direct version pin and scoring
-  policy. Attached decision judges load from the evaluator and binding at each
+- **Persistence.** The evaluator subtype stores `decision_id` (`NOT NULL`,
+  `ON DELETE RESTRICT`), a nullable `decision_version_tag_id`
+  (`ON DELETE SET NULL`) for the evaluator's own tag, and the scoring policy.
+  Without a tag, the evaluator runs its decision's newest version. Attached
+  decision judges load from the evaluator and binding at each
   experiment start and resume; calibration tasks store their definitions.
   Definition edits and deletion guards use
   the shared evaluator services and lock ordering. Annotation kind remains
