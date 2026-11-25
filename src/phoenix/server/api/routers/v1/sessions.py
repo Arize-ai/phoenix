@@ -219,7 +219,9 @@ async def get_session(
         project_session = await _get_session_by_identifier(db_session, session_identifier)
         traces_stmt = (
             select(models.Trace)
-            .filter_by(project_session_rowid=project_session.id)
+            .join(models.Project, models.Project.id == models.Trace.project_rowid)
+            .where(models.Project.deleted_at.is_(None))
+            .where(models.Trace.project_session_rowid == project_session.id)
             .order_by(models.Trace.start_time.asc())
         )
         traces = list((await db_session.scalars(traces_stmt)).all())
@@ -433,6 +435,8 @@ async def list_project_sessions(
         session_ids = [s.id for s in sessions]
         traces_stmt = (
             select(models.Trace)
+            .join(models.Project, models.Project.id == models.Trace.project_rowid)
+            .where(models.Project.deleted_at.is_(None))
             .filter(models.Trace.project_session_rowid.in_(session_ids))
             .order_by(models.Trace.start_time.asc())
         )

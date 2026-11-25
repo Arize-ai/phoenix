@@ -135,6 +135,56 @@ class TestDeletedProjectVisibility:
             expected_global_id = str(GlobalID(type_name, str(rowid)))
             assert response.errors[0].message == f"Unknown {type_name}: {expected_global_id}"
 
+    async def test_trace_in_live_project_hides_session_owned_by_deleted_project(
+        self, db: DbSessionFactory, gql_client: AsyncGraphQLClient
+    ) -> None:
+        async with db() as session:
+            owner_project = await _add_project(session, name=f"owner-{token_hex(4)}")
+            live_project = await _add_project(session, name=f"live-{token_hex(4)}")
+            project_session = await _add_project_session(session, owner_project)
+            trace = await _add_trace(session, live_project, project_session)
+            owner_project_id, trace_id = owner_project.id, trace.id
+        query = """
+        query($id: ID!) {
+          node(id: $id) { ... on Trace { projectSessionId session { id project { name } } } }
+        }
+        """
+        trace_global_id = str(GlobalID("Trace", str(trace_id)))
+        before = await gql_client.execute(query, variables={"id": trace_global_id})
+        assert not before.errors and before.data
+        assert before.data["node"]["session"] is not None
+        assert before.data["node"]["projectSessionId"] is not None
+
+        await _tombstone(db, owner_project_id)
+
+        after = await gql_client.execute(query, variables={"id": trace_global_id})
+        assert not after.errors and after.data
+        assert after.data["node"]["session"] is None
+        assert after.data["node"]["projectSessionId"] is None
+
+    async def test_rest_session_readers_omit_traces_of_deleted_projects(
+        self, db: DbSessionFactory, httpx_client: httpx2.AsyncClient
+    ) -> None:
+        async with db() as session:
+            live_project = await _add_project(session, name=f"live-{token_hex(4)}")
+            deleted_project = await _add_project(session, name=f"gone-{token_hex(4)}")
+            project_session = await _add_project_session(session, live_project)
+            live_trace = await _add_trace(session, live_project, project_session)
+            deleted_trace = await _add_trace(session, deleted_project, project_session)
+            session_id, live_project_name = project_session.session_id, live_project.name
+            live_trace_id, deleted_trace_id = live_trace.trace_id, deleted_trace.trace_id
+            deleted_project_id = deleted_project.id
+        await _tombstone(db, deleted_project_id)
+
+        get_response = await httpx_client.get(f"v1/sessions/{session_id}")
+        assert get_response.status_code == 200
+        list_response = await httpx_client.get(f"v1/projects/{live_project_name}/sessions")
+        assert list_response.status_code == 200
+        for session_data in (get_response.json()["data"], list_response.json()["data"][0]):
+            trace_ids = [trace["trace_id"] for trace in session_data["traces"]]
+            assert trace_ids == [live_trace_id]
+            assert deleted_trace_id not in trace_ids
+
     async def test_rest_session_in_deleted_project_is_not_found(
         self, db: DbSessionFactory, httpx_client: httpx2.AsyncClient
     ) -> None:
