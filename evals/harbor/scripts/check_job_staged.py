@@ -28,6 +28,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from evals.harbor.scripts.fixture_inputs import (  # noqa: E402
     STAGE_STATUS,
+    compute_environment_key,
     compute_fixture_key,
     hash_phoenix_sources,
 )
@@ -69,6 +70,14 @@ def select_job_tasks(job: dict[str, Any]) -> list[Path]:
     return tasks
 
 
+def infer_dataset_name(job: dict[str, Any]) -> str:
+    datasets = job.get("datasets") or []
+    if len(datasets) != 1 or job.get("tasks"):
+        raise ValueError("Set HARBOR_DATASET for jobs without exactly one local dataset")
+    directory = Path(datasets[0]["path"]).resolve()
+    return directory.parent.name if directory.name == "tasks" else directory.name
+
+
 def requires_cli_archive(job: dict[str, Any], agents_replaced: bool = False) -> bool:
     return not agents_replaced and any(
         str(agent.get("import_path", "")).endswith("CliAgent") for agent in job.get("agents") or []
@@ -80,12 +89,18 @@ def main() -> int:
     parser.add_argument("job", type=Path)
     parser.add_argument("--agents-replaced", action="store_true")
     parser.add_argument("--client-wheel-dir", type=Path)
+    parser.add_argument(
+        "--dataset-name", action="store_true", help="Print the Phoenix dataset name"
+    )
     args = parser.parse_args()
     job = yaml.safe_load(args.job.read_text()) or {}
 
     failures = []
     try:
         tasks = select_job_tasks(job)
+        if args.dataset_name:
+            print(infer_dataset_name(job))
+            return 0
     except (ValueError, OSError) as error:
         print(str(error), file=sys.stderr)
         return 1
@@ -94,7 +109,7 @@ def main() -> int:
         environment = task / "environment"
         missing = [part for part in STAGED if not any(environment.glob(part))]
         try:
-            key = compute_fixture_key(task, source_hash)
+            key = compute_environment_key(task, compute_fixture_key(task, source_hash))
             status = environment / STAGE_STATUS
             if not status.is_file() or status.read_text() != key:
                 failures.append(f"{task} has incomplete or outdated staging")

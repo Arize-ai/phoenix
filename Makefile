@@ -34,7 +34,7 @@ NC := \033[0m # No Color
 	graphql schema-graphql relay-build \
 	openapi schema-openapi schema-generative-ui ui-message-stream-fixtures codegen-python-client codegen-ts-client codegen-ts-app codegen-harbor-graphql \
 	dev dev-backend dev-frontend dev-docker dev-mock-llm \
-	test test-python test-harbor test-frontend test-ts test-helm test-jcs doctest typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
+	test test-python test-frontend test-ts test-helm test-jcs doctest typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
 	skills skills-check codegen-prompts sync-models test-sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples check-skill-filter-examples check-skill-python-examples check-skill-typescript-examples check-skill-px-commands sync-docs-snippets check-docs-snippets gen-otel-models \
@@ -84,7 +84,6 @@ help: ## Show this help message
 	@echo -e "  test-helm              - Run Helm chart tests"
 	@echo -e "  test-integration-docs  - Run configured integration docs against a running Phoenix server"
 	@echo -e "  doctest                - Run doctests across all modules in src/ (override with MODULES=...)"
-	@echo -e "  test-harbor            - Run offline Harbor unit tests"
 	@echo -e "  typecheck              - Type check all code (Python + TypeScript workspace)"
 	@echo -e "  typecheck-python       - Type check Python only"
 	@echo -e "  typecheck-python-ty    - Type check Python with ty (verify expected errors only)"
@@ -294,9 +293,6 @@ dev-frontend: ## Frontend only (React dev server)
 
 test-integration-docs: ## Run configured integration docs against a running Phoenix server
 	@$(UV) run python scripts/testing/integration_docs/run.py $(INTEGRATION_DOCS_ARGS)
-
-test-harbor: ## Run offline Harbor unit tests
-	@$(UV) run --all-packages pytest -q tests/unit/harbor
 
 test-python: ## Run Python tests (unit + integration)
 	@echo -e "$(CYAN)Running Python unit tests...$(NC)"
@@ -565,10 +561,10 @@ HARBOR_ARGS ?=
 # when the job uses CLI agents. HARBOR_CLI=0 or 1 overrides automatic detection.
 HARBOR_CLI ?= auto
 # The arize-phoenix plugin records tasks, trials, scores, and traces under a dataset
-# named after the job's task directory. HARBOR_DATASET overrides the name. Set
+# named after the dataset directory. HARBOR_DATASET overrides the name. Set
 # HARBOR_PLUGIN to an empty value to disable recording.
-HARBOR_DATASET ?=
-HARBOR_PLUGIN ?= --plugin arize-phoenix $(if $(HARBOR_DATASET),--plugin-kwarg dataset=$(HARBOR_DATASET),)
+HARBOR_DATASET ?= $(shell $(UV) run --script evals/harbor/scripts/check_job_staged.py "$(HARBOR_JOB)" --dataset-name)
+HARBOR_PLUGIN ?= --plugin arize-phoenix --plugin-kwarg dataset="$(HARBOR_DATASET)"
 HARBOR_VERSION ?= 0.21.0
 # The client package provides the arize-phoenix Harbor plugin. harbor-stage builds it from
 # this checkout so a job records with the plugin in the tree. Set HARBOR_CLIENT_VERSION to
@@ -592,9 +588,7 @@ endef
 
 harbor-stage: ## Prepare HARBOR_JOB tasks and fixtures, build wheels, and infer the px CLI archive from agents (HF_TOKEN=..., RESEED=1, HARBOR_CLI=0, HARBOR_CLI_PLATFORM=..., HARBOR_CLIENT_VERSION=...)
 	@echo -e "$(CYAN)Staging Harbor task environments...$(NC)"
-	HARBOR_JOB="$(HARBOR_JOB)" HARBOR_CLI="$(HARBOR_CLI)" ./evals/harbor/scripts/stage_harbor_environments.sh $(if $(filter -a --agent-name --agent-name=%,$(HARBOR_ARGS)),--agents-replaced,)
-	$(if $(HARBOR_CLIENT_VERSION),@echo -e "$(YELLOW)Skipping the client wheel (HARBOR_CLIENT_VERSION=$(HARBOR_CLIENT_VERSION))$(NC)",\
-	rm -rf $(HARBOR_CLIENT_WHEEL_DIR) && $(UV) build --wheel packages/phoenix-client --out-dir $(HARBOR_CLIENT_WHEEL_DIR))
+	HARBOR_JOB="$(HARBOR_JOB)" HARBOR_CLI="$(HARBOR_CLI)" HARBOR_CLIENT_VERSION="$(HARBOR_CLIENT_VERSION)" ./evals/harbor/scripts/stage_harbor_environments.sh $(if $(filter -a --agent-name --agent-name=%,$(HARBOR_ARGS)),--agents-replaced,)
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
 harbor-plugin-e2e: ## Manually run the credentialed Harbor plugin E2E matrix

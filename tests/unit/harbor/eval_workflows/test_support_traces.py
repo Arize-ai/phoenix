@@ -5,7 +5,7 @@ from importlib import import_module
 
 import pytest
 
-_support_traces = import_module("evals.harbor.tasks.eval-workflows.fixtures.support_traces")
+_support_traces = import_module("evals.harbor.datasets.eval-workflows.fixtures.support_traces")
 BASE, Trace = _support_traces.BASE, _support_traces.Trace
 
 

@@ -22,6 +22,7 @@ from evals.harbor.scripts.fixture_inputs import (  # noqa: E402
     HERE,
     ROOT,
     STAGE_STATUS,
+    compute_environment_key,
     compute_fixture_key,
     hash_phoenix_sources,
     list_fixture_inputs,
@@ -90,22 +91,43 @@ def stage_task(task: Path, context: Path, database: Path, key: str) -> None:
         )
     else:
         (staged / "workdir").mkdir()
+    if not any((staged / "workdir").iterdir()):
         (staged / "workdir/.keep").touch()
     (staged / "data").mkdir()
     shutil.copy2(database, staged / "data/phoenix.db")
     (staged / STAGE_STATUS).write_text(key)
-    environment = task / "environment"
-    if environment.exists():
-        previous = Path(tempfile.mkdtemp(prefix=f"previous-{task.name}-", dir=cache))
-        environment.rename(previous / "environment")
-    staged.rename(environment)
+    publish_directory(staged, task / "environment", cache)
 
 
-def prepare_tasks(tasks: list[Path], reseed: bool) -> None:
+def publish_directory(staged: Path, destination: Path, cache: Path) -> None:
+    if destination.exists():
+        previous = Path(tempfile.mkdtemp(prefix=f"previous-{destination.parent.name}-", dir=cache))
+        destination.rename(previous / destination.name)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    staged.rename(destination)
+
+
+def build_client_wheel() -> None:
+    cache = HERE / ".cache"
+    cache.mkdir(parents=True, exist_ok=True)
+    wheels = Path(tempfile.mkdtemp(prefix="client-", dir=cache))
+    subprocess.run(
+        ["uv", "build", "--wheel", "packages/phoenix-client", "--out-dir", str(wheels)],
+        cwd=ROOT,
+        check=True,
+    )
+    publish_directory(wheels, ROOT / "dist/phoenix-client", cache)
+
+
+def mark_tasks_incomplete(tasks: list[Path]) -> None:
     for task in tasks:
         environment = task / "environment"
         environment.mkdir(parents=True, exist_ok=True)
         (environment / STAGE_STATUS).write_text("incomplete")
+
+
+def prepare_tasks(tasks: list[Path], reseed: bool) -> None:
+    mark_tasks_incomplete(tasks)
     source_hash = hash_phoenix_sources()
     keys = {task: compute_fixture_key(task, source_hash) for task in tasks}
     context = build_context()
@@ -114,7 +136,7 @@ def prepare_tasks(tasks: list[Path], reseed: bool) -> None:
         key = keys[task]
         if key not in databases:
             databases[key] = prepare_fixture(task, key, reseed)
-        stage_task(task, context, databases[key], key)
+        stage_task(task, context, databases[key], compute_environment_key(task, key))
     print(f"Staged {len(tasks)} task(s).")
 
 
@@ -126,17 +148,25 @@ def main() -> int:
     if os.environ.get("HARBOR_TASKS_DIR"):
         parser.error("Use HARBOR_JOB to select tasks for both harbor-stage and harbor-run")
     job = yaml.safe_load(args.job.read_text()) or {}
+    tasks: list[Path] = []
+    complete = False
     try:
         tasks = select_job_tasks(job)
         cli = os.environ.get("HARBOR_CLI", "auto")
         if cli not in {"auto", "0", "1"}:
             raise ValueError("HARBOR_CLI must be auto, 0, or 1")
         prepare_tasks(tasks, reseed=os.environ.get("RESEED") == "1")
+        if not os.environ.get("HARBOR_CLIENT_VERSION"):
+            build_client_wheel()
         if cli == "1" or (cli == "auto" and requires_cli_archive(job, args.agents_replaced)):
             subprocess.run([str(HERE / "scripts/build_phoenix_cli_archive.sh")], check=True)
+        complete = True
     except (ValueError, OSError, subprocess.CalledProcessError) as error:
         print(str(error), file=sys.stderr)
         return 1
+    finally:
+        if not complete:
+            mark_tasks_incomplete(tasks)
     return 0
 
 

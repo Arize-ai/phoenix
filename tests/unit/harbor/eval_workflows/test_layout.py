@@ -7,7 +7,14 @@ from pathlib import Path
 
 import pytest
 
-TASKS_DIR = Path(__file__).resolve().parents[4] / "evals" / "harbor" / "tasks" / "eval-workflows"
+TASKS_DIR = (
+    Path(__file__).resolve().parents[4]
+    / "evals"
+    / "harbor"
+    / "datasets"
+    / "eval-workflows"
+    / "tasks"
+)
 TASKS = sorted(path for path in TASKS_DIR.iterdir() if (path / "task.toml").exists())
 
 
@@ -40,6 +47,6 @@ def test_task_page_quotes_the_instruction(task: Path) -> None:
 
 
 def test_suite_readme_links_every_task() -> None:
-    readme = (TASKS_DIR / "README.md").read_text()
+    readme = (TASKS_DIR.parent / "README.md").read_text()
     for task in TASKS:
-        assert f"({task.name}/Task.md)" in readme, task.name
+        assert f"(tasks/{task.name}/Task.md)" in readme, task.name

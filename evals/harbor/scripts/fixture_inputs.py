@@ -22,9 +22,9 @@ def list_fixture_inputs(task: Path) -> list[Path]:
     if fixture == "phoenix-seed":
         paths = [task / "fixture/phoenix_seed.json", HERE / "environments/fixtures/seed_phoenix.py"]
     elif fixture in {"error-analysis", "prompt-hill-climb"}:
-        paths = [HERE / "tasks/regression/fixtures" / fixture / "fixture.sh"]
+        paths = [HERE / "datasets/regression/fixtures" / fixture / "fixture.sh"]
     elif fixture == "trail":
-        directory = HERE / "tasks/trail-benchmark-dev/fixtures"
+        directory = HERE / "datasets/trail-benchmark-dev/fixtures"
         paths = [
             directory / "fixture.sh",
             directory / "download_trail.py",
@@ -42,8 +42,20 @@ def list_fixture_inputs(task: Path) -> list[Path]:
 def hash_files(paths: list[Path]) -> str:
     digest = hashlib.sha256()
     for path in paths:
-        digest.update(path.name.encode())
-        digest.update(path.read_bytes())
+        files = (
+            sorted(
+                child
+                for child in path.rglob("*")
+                if child.is_file() and "__pycache__" not in child.parts
+            )
+            if path.is_dir()
+            else [path]
+        )
+        for file in files:
+            name = str(file.relative_to(path)) if path.is_dir() else path.name
+            digest.update(name.encode() + b"\0")
+            digest.update(str(file.stat().st_mode & 0o777).encode() + b"\0")
+            digest.update(file.read_bytes() + b"\0")
     return digest.hexdigest()
 
 
@@ -61,3 +73,16 @@ def hash_phoenix_sources() -> str:
 
 def compute_fixture_key(task: Path, source_hash: str) -> str:
     return hash_files(list_fixture_inputs(task)) + "-" + source_hash
+
+
+def compute_environment_key(task: Path, fixture_key: str) -> str:
+    paths = [
+        HERE / "environments/Dockerfile",
+        HERE / "environments/container_assets",
+        HERE / "verifiers/pyproject.toml",
+        HERE / "verifiers/harbor_verifiers",
+        task / "task.toml",
+    ]
+    if (task / "workdir").exists():
+        paths.append(task / "workdir")
+    return hashlib.sha256((fixture_key + hash_files(paths)).encode()).hexdigest()

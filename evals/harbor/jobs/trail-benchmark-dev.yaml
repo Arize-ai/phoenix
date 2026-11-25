@@ -6,7 +6,7 @@
 # Each condition uses the same image and TRAIL fixture. The plugin records all results in
 # the trail-benchmark-dev Phoenix dataset.
 datasets:
-  - path: evals/harbor/tasks/trail-benchmark-dev
+  - path: evals/harbor/datasets/trail-benchmark-dev/tasks
 agents:
   - name: claude-code-mcp
     import_path: evals.harbor.agents.coding_agents:ClaudeCodeMcpAgent

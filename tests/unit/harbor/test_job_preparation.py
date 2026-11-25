@@ -4,7 +4,11 @@ import pytest
 import yaml
 
 from evals.harbor.scripts import check_job_staged
-from evals.harbor.scripts.fixture_inputs import STAGE_STATUS, compute_fixture_key
+from evals.harbor.scripts.fixture_inputs import (
+    STAGE_STATUS,
+    compute_environment_key,
+    compute_fixture_key,
+)
 
 
 def create_task(task: Path) -> Path:
@@ -79,7 +83,7 @@ def test_failed_restage_blocks_preflight_and_preserves_old_database(
     monkeypatch.setattr(staging, "build_context", lambda: context)
     monkeypatch.setattr(staging, "hash_phoenix_sources", lambda: "source")
     monkeypatch.setattr(check_job_staged, "hash_phoenix_sources", lambda: "source")
-    key = compute_fixture_key(task, "source")
+    key = compute_environment_key(task, compute_fixture_key(task, "source"))
     (task / "environment" / STAGE_STATUS).write_text(key)
     job = tmp_path / "job.yaml"
     job.write_text(yaml.safe_dump({"tasks": [{"path": str(task)}]}))
@@ -158,6 +162,7 @@ def test_staging_prepares_only_job_selection_and_preserves_previous_environment(
     monkeypatch.setattr(staging, "list_fixture_inputs", lambda task: [script])
     monkeypatch.setattr(staging, "hash_phoenix_sources", lambda: "source")
     monkeypatch.setenv("HARBOR_CLI", "0")
+    monkeypatch.setenv("HARBOR_CLIENT_VERSION", "released")
     monkeypatch.delenv("HARBOR_TASKS_DIR", raising=False)
     job = tmp_path / "job.yaml"
     job.write_text(
@@ -242,3 +247,149 @@ def test_job_selection_rejects_remote_datasets_instead_of_staging_part_of_job(
                 "datasets": [{"name": "remote-dataset"}],
             }
         )
+
+
+def test_preflight_rejects_changed_workdir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    task = create_task(tmp_path / "task")
+    (task / "fixture").mkdir()
+    (task / "fixture/phoenix_seed.json").write_text("{}")
+    (task / "environment" / STAGE_STATUS).write_text(
+        compute_environment_key(task, compute_fixture_key(task, "source"))
+    )
+    job = tmp_path / "job.yaml"
+    job.write_text(yaml.safe_dump({"tasks": [{"path": str(task)}]}))
+    monkeypatch.setattr(check_job_staged, "hash_phoenix_sources", lambda: "source")
+    monkeypatch.setattr("sys.argv", ["check_job_staged.py", str(job)])
+    assert check_job_staged.main() == 0
+    (task / "workdir").mkdir()
+    (task / "workdir/app.py").write_text("new application")
+    assert check_job_staged.main() == 1
+
+
+def test_empty_workdir_contains_a_file_for_daytona_uploads(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from evals.harbor.scripts import stage_harbor_environments as staging
+
+    task = create_task(tmp_path / "task")
+    (task / "workdir").mkdir()
+    context = tmp_path / "context"
+    context.mkdir()
+    database = tmp_path / "fixture.db"
+    database.write_bytes(b"fixture")
+    monkeypatch.setattr(staging, "HERE", tmp_path)
+    staging.stage_task(task, context, database, "key")
+    assert (task / "environment/workdir/.keep").is_file()
+
+
+@pytest.mark.parametrize("phase", ["client", "cli", "interrupt"])
+def test_late_build_failure_invalidates_all_selected_environments(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, phase: str
+) -> None:
+    import subprocess
+
+    from evals.harbor.scripts import stage_harbor_environments as staging
+
+    task = create_task(tmp_path / "task")
+    job = tmp_path / "job.yaml"
+    job.write_text(yaml.safe_dump({"tasks": [{"path": str(task)}]}))
+    monkeypatch.setattr("sys.argv", ["stage_harbor_environments.py", str(job)])
+    monkeypatch.delenv("HARBOR_TASKS_DIR", raising=False)
+    monkeypatch.setenv("HARBOR_CLI", "1")
+    monkeypatch.setenv("HARBOR_CLIENT_VERSION", "released" if phase == "cli" else "")
+
+    def stage_ready(tasks: list[Path], reseed: bool) -> None:
+        for selected in tasks:
+            (selected / "environment" / STAGE_STATUS).write_text("ready")
+
+    def fail_client() -> None:
+        if phase == "interrupt":
+            raise KeyboardInterrupt
+        raise subprocess.CalledProcessError(1, "build client")
+
+    def fail_cli(command: list[str], *, check: bool) -> None:
+        raise subprocess.CalledProcessError(1, command)
+
+    monkeypatch.setattr(staging, "prepare_tasks", stage_ready)
+    monkeypatch.setattr(staging, "build_client_wheel", fail_client)
+    monkeypatch.setattr(subprocess, "run", fail_cli)
+    if phase == "interrupt":
+        with pytest.raises(KeyboardInterrupt):
+            staging.main()
+    else:
+        assert staging.main() == 1
+    assert (task / "environment" / STAGE_STATUS).read_text() == "incomplete"
+
+
+@pytest.mark.parametrize(
+    "input_path",
+    [
+        "environments/Dockerfile",
+        "environments/container_assets/start.sh",
+        "verifiers/harbor_verifiers/grade.py",
+    ],
+)
+def test_environment_key_tracks_shared_runtime_inputs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, input_path: str
+) -> None:
+    from evals.harbor.scripts import fixture_inputs
+
+    task = create_task(tmp_path / "task")
+    for name in [
+        "environments/Dockerfile",
+        "environments/container_assets/start.sh",
+        "verifiers/pyproject.toml",
+        "verifiers/harbor_verifiers/grade.py",
+    ]:
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("original")
+    monkeypatch.setattr(fixture_inputs, "HERE", tmp_path)
+    original = compute_environment_key(task, "fixture")
+    (tmp_path / input_path).write_text("changed")
+    assert compute_environment_key(task, "fixture") != original
+
+
+def test_restaging_removes_stale_workdir_files_without_overwriting_previous_database(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from evals.harbor.scripts import stage_harbor_environments as staging
+
+    task = create_task(tmp_path / "task")
+    old_file = task / "environment/workdir/removed.py"
+    old_file.parent.mkdir()
+    old_file.write_text("old application")
+    (task / "workdir").mkdir()
+    (task / "workdir/current.py").write_text("current application")
+    context = tmp_path / "context"
+    context.mkdir()
+    database = tmp_path / "fixture.db"
+    database.write_bytes(b"new database")
+    monkeypatch.setattr(staging, "HERE", tmp_path)
+    staging.stage_task(task, context, database, "key")
+    assert not old_file.exists()
+    assert (task / "environment/workdir/current.py").read_text() == "current application"
+    preserved = list(
+        (tmp_path / ".cache/task-environments").glob("previous-*/environment/workdir/removed.py")
+    )
+    assert len(preserved) == 1
+    assert preserved[0].read_text() == "old application"
+
+
+@pytest.mark.parametrize(
+    "job_name",
+    [
+        "regression",
+        "eval-workflows",
+        "trail-benchmark-dev",
+        "trail-benchmark-dev-no-code-mode",
+    ],
+)
+def test_job_paths_and_recorded_dataset_names_match_dataset_layout(job_name: str) -> None:
+    from evals.harbor.scripts.fixture_inputs import HERE
+
+    job = yaml.safe_load((HERE / "jobs" / f"{job_name}.yaml").read_text())
+    tasks = check_job_staged.select_job_tasks(job)
+    dataset = "trail-benchmark-dev" if job_name.startswith("trail-") else job_name
+    assert all(task.parent == (HERE / "datasets" / dataset / "tasks").resolve() for task in tasks)
+    assert check_job_staged.infer_dataset_name(job) == dataset

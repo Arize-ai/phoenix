@@ -9,7 +9,14 @@ import pytest
 
 from harbor_verifiers import grading, verify
 
-TASKS_DIR = Path(__file__).resolve().parents[4] / "evals" / "harbor" / "tasks" / "eval-workflows"
+TASKS_DIR = (
+    Path(__file__).resolve().parents[4]
+    / "evals"
+    / "harbor"
+    / "datasets"
+    / "eval-workflows"
+    / "tasks"
+)
 
 
 @pytest.mark.parametrize("task", ["compare-experiments", "compare-experiments-ship"])
