@@ -131,7 +131,7 @@ are in [Open Questions](#16-open-questions).
 
 | Decision | Current default | Must be decided before |
 |---|---|---|
-| [Answer format](#51-answer-format) | Phoenix's own | The REST routes and `phoenix-client`, or the built-in metrics, whichever ships first |
+| [Answer format](#51-answer-format) | Phoenix's own | Settled |
 | [Stored question format](#52-stored-question-format) | Phoenix's own type names in OpenAI's structure | Settled |
 | [Span contents](#53-span-contents) | Raw provider bodies only | OpenInference instruments apps that call `format` |
 | [Reference answers in datasets](#54-reference-answers-in-datasets) | No convention; evaluators map paths | The built-in metrics ship (decided with them) |
@@ -152,63 +152,56 @@ the **tradeoffs**, and the point to **decide before**.
 
 ### 5.1 Answer Format
 
-**Current default:** answers are stored, returned by GraphQL, and written as
-experiment run outputs in Phoenix's own format.
+Answers are stored, returned by GraphQL, and written as experiment run outputs in
+Phoenix's own format. Run outputs are a map keyed by question name, so evaluators
+reach values by path; an annotation carries the single answer for its question in
+`metadata.decision.answer`; GraphQL lists named answers in the question's order.
+`refusal` is an answer type on every surface.
 
-**Alternatives:** adopt a provider's format, most likely TypeSafe's System One
-("jev"), which TypeSafe and Ollama both return; or, more narrowly, align only
-scales (below).
-
-| Answer | Phoenix (current) | System One | OpenAI Decisions |
+| Answer | Phoenix | System One | OpenAI Decisions |
 |---|---|---|---|
 | Yes / no | `predicate`: `probability` | `noul`: `noul` | `predicate`: `probability` |
 | Choice | `choice`, `confidence`, `probabilities` (map) | Same as Phoenix | `choice`, `confidence`, `probabilities` (list of `{value, probability}`) |
 | Scale | `scale`: `expected_level`, `confidence`, `probabilities` (map) | `score`: `score`, `confidence`, `probabilities` (map), `legend` | `score`: `score`, `confidence`, `probabilities` (list of `{label, value, probability}`) |
 | Refusal | `refusal` | No refusal type | `refusal` |
 
-Phoenix's maps are the run-output form; GraphQL lists the same probabilities in
-the question's order (see "One vocabulary everywhere" below).
+Phoenix's maps are the run-output form; GraphQL lists the same probabilities in the
+question's order, with camelCase fields. Gemini's answers use System One's names
+(`noul`, `score`), and a blocked Gemini request becomes a refusal for every
+question ([Google](#108-google)).
 
-**Tradeoffs.** For a provider's format:
+Phoenix uses its own format, not a provider's, for three reasons:
 
-- Familiar to that provider's users, and close to its raw response.
-- Market reach is the argument for it, but neither format is a standard. On
-  yes/no answers, OpenAI matches Phoenix and System One doesn't; on choice
-  answers, System One matches Phoenix and OpenAI doesn't.
-
-For Phoenix's own (the current default):
-
-- **Provider-neutral.** Phoenix runs both providers, so storing one's format
-  means translating the other's into it, and each direction loses something:
-  OpenAI answers stored as System One lose their refusal, which System One has
-  no field for, and OpenAI questions stored as System One lose boolean choice
-  values. Storing a vendor's format also means following its changes (System One
+- **Provider-neutral.** Phoenix runs every provider, so storing one's format means
+  translating the others into it, and each direction loses something: OpenAI
+  answers stored as System One lose their refusal, which System One has no field
+  for. Storing a vendor's format also means following its changes (System One
   added `legend` and `box`).
 - **One answer vocabulary.** GraphQL and run outputs describe the same answer
-  concepts, with different representations: GraphQL uses named answers in a
-  list, camelCase fields, and probability lists; run outputs use a map keyed by
-  question name, snake_case fields, and probability maps inside `task_output`.
-  A provider format in run outputs alone would also change the answer vocabulary.
-- **Self-describing.** `predicate` and `probability` say what they are; `noul`
-  doesn't.
-- **Adopting a provider format wouldn't remove the reference mismatch.** The
-  typed-decisions references use `label`, which neither API returns, so
-  evaluators map different paths for output and reference either way.
+  concepts. A provider format in run outputs alone would split the vocabulary.
+- **Self-describing.** `predicate` and `probability` say what they are; `noul` is
+  a term System One coined.
 
-A narrower option: **scales.** Both providers say `score` for the type and its
-expected value; only Phoenix says `scale` and `expected_level`. Renaming would
-follow both providers without adopting either format. Phoenix avoided the name
-on purpose, though. Every annotation already has a `score`, and a judge's
-annotation carries its answer in `metadata.decision.answer`, so one record would
-use `score` for two different things: the annotation's score, which the
-scoring policy decides, and the answer's expected level. By default the two
-values happen to match, which makes the shared name easier to misread, not
-safer (see [Questions](#102-questions)).
+Scales are `scale` with an `expected_level`, although every provider says `score`
+for both. Every annotation already has a `score`, and a judge's annotation carries
+its answer in `metadata.decision.answer`, so one record would use `score` for two
+different things: the annotation's score, which the scoring policy decides, and
+the answer's expected level. By default the two values match, which makes a shared
+name easier to misread (see [Questions](#102-questions)).
 
-**Decide before** run outputs become a contract: before the REST routes and
-`phoenix-client` (the [Apps step](#18-build-order)) or the built-in decision
-metrics (the Measurement step), whichever comes first. Changing it after means
-migrating stored run outputs and every evaluator mapping written against them.
+`confidence` on a choice or scale answer is the model's reported certainty, not
+the probability of an outcome. A chosen option's probability is
+`probabilities[choice]`, and metrics and calibration read `probability` and
+`probabilities`, never `confidence`.
+
+Phoenix stores the probabilities a provider returns as they are. Answers are
+checked only for values within 0 to 1, a chosen option that exists, and
+probabilities for exactly the question's options; the raw response is kept on the
+run's span. A metric that needs exactly normalized probabilities normalizes them
+when it computes.
+
+Changing this format after a release means migrating stored run outputs and every
+evaluator mapping written against them.
 
 ### 5.2 Stored Question Format
 
@@ -694,8 +687,7 @@ that don't apply here.
    decision definitions never store provider request bodies; only a run's
    span keeps the raw bodies (see [Span Contents](#53-span-contents)). When client
    formatters ship, shared fixtures should keep them aligned with the server
-   adapters. Whether answers follow this rule is still open: see
-   [Answer Format](#51-answer-format).
+   adapters.
 2. **New types are additive, and old clients fail clearly.** Questions and
    state variants are JSON discriminated by `type`; variables are derived from
    the templates. Writes are validated strictly. Apps can pin an old
