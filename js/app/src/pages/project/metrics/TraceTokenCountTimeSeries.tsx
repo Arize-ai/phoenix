@@ -261,12 +261,14 @@ export function TraceTokenCountTimeSeries({
                 {...defaultTooltipProps}
               />
               <Bar
+                isAnimationActive={false}
                 dataKey="prompt"
                 stackId="a"
                 fill={colors.category1}
                 hide={isDataKeyHidden("prompt")}
               />
               <Bar
+                isAnimationActive={false}
                 dataKey="completion"
                 stackId="a"
                 fill={colors.category2}
@@ -372,6 +374,7 @@ function TraceTokenDetailsTimeSeries({
                 const dataKey = getTokenDetailDataKey(tokenType);
                 return (
                   <Bar
+                    isAnimationActive={false}
                     dataKey={dataKey}
                     fill={getTokenDetailColor({ colors, index, tokenType })}
                     hide={isDataKeyHidden(dataKey)}

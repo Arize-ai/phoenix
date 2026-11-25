@@ -165,12 +165,14 @@ export function TraceTokenCostTimeSeries({
                 {...defaultTooltipProps}
               />
               <Bar
+                isAnimationActive={false}
                 dataKey="prompt"
                 stackId="a"
                 fill={colors.category1}
                 hide={isDataKeyHidden("prompt")}
               />
               <Bar
+                isAnimationActive={false}
                 dataKey="completion"
                 stackId="a"
                 fill={colors.category2}
