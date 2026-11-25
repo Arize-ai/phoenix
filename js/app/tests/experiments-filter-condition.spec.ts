@@ -162,6 +162,44 @@ test.describe("Experiments filter condition", () => {
     await expectExperiments(page, ALL_EXPERIMENTS);
   });
 
+  for (const field of ["name", "description"] as const) {
+    test(`refetches after an edit stops matching the ${field} filter`, async ({
+      page,
+      request,
+    }) => {
+      const name = `edit-${field}-${SUFFIX}`;
+      const marker = `matching-${field}-${SUFFIX}`;
+      const originalName = field === "name" ? marker : name;
+      const response = await request.post(
+        `/v1/datasets/${datasetId}/experiments`,
+        {
+          data: { name: originalName, description: marker },
+        }
+      );
+      expect(response.ok()).toBeTruthy();
+      const condition = `"${marker}" in ${field}`;
+      await page.goto(
+        `/datasets/${datasetId}/experiments?experimentFilterCondition=${encodeURIComponent(condition)}`
+      );
+      const row = page.getByRole("row").filter({
+        has: page.getByRole("link", { name: originalName, exact: true }),
+      });
+      await row.getByRole("button", { name: "Experiment action menu" }).click();
+      await page.getByRole("menuitem", { name: "Edit", exact: true }).click();
+      const dialog = page.getByRole("dialog");
+      await dialog
+        .getByRole("textbox", {
+          name: field === "name" ? "Name" : "Description",
+          exact: true,
+        })
+        .fill("updated");
+      await dialog.getByRole("button", { name: "Save", exact: true }).click();
+      await expect(dialog).toHaveCount(0);
+      await expect(page.getByText("No results", { exact: true })).toBeVisible();
+      expect(urlFilterCondition(page)).toBe(condition);
+    });
+  }
+
   test("keeps the condition in the URL after the dataset breadcrumb", async ({
     page,
   }) => {

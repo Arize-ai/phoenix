@@ -1274,6 +1274,7 @@ class TestDatasetExperimentsFilterCondition:
         metadata_by_name: dict[str, dict[str, Any]] = {
             "gpt-hot": {
                 "model": "gpt-5",
+                "large": 2,
                 "harbor_agent": {"model_params": {"temperature": 0.7, "stream": True}},
             },
             "gpt-cold": {
@@ -1328,6 +1329,7 @@ class TestDatasetExperimentsFilterCondition:
                     dataset_id=dataset.id,
                     dataset_version_id=version.id,
                     name=name,
+                    description="reference run" if name == "claude" else None,
                     repetitions=3 if name == "claude" else 1,
                     metadata_=metadata,
                     project_name="gpt-project" if name.startswith("gpt-") else None,
@@ -1468,7 +1470,6 @@ class TestDatasetExperimentsFilterCondition:
                 {
                     "gpt-hot",
                     "gpt-cold",
-                    "claude",
                     "string-numbers",
                     "bool-like-numbers",
                     "bool-like-zeros",
@@ -1529,6 +1530,68 @@ class TestDatasetExperimentsFilterCondition:
                 'metadata["harbor_agent"]["model_params"]["stream"] in [True]',
                 {"gpt-hot", "string-numbers", "bool-like-numbers"},
             ),
+            ("description is not None", {"claude"}),
+            ("None is not description", {"claude"}),
+            ("description != None", {"claude"}),
+            (
+                'metadata["model"] != None',
+                {
+                    "gpt-hot",
+                    "gpt-cold",
+                    "claude",
+                    "string-numbers",
+                    "bool-like-numbers",
+                    "bool-like-zeros",
+                    "string-one",
+                    "model-array",
+                    "model-object",
+                },
+            ),
+            (
+                'metadata["model"] is not None',
+                {
+                    "gpt-hot",
+                    "gpt-cold",
+                    "claude",
+                    "string-numbers",
+                    "bool-like-numbers",
+                    "bool-like-zeros",
+                    "string-one",
+                    "model-array",
+                    "model-object",
+                },
+            ),
+            (
+                'metadata["harbor_agent"]["model_params"]["temperature"] == 1',
+                {"claude", "string-one"},
+            ),
+            (
+                'metadata["harbor_agent"]["model_params"]["temperature"] in [1]',
+                {"claude", "string-one"},
+            ),
+            (
+                'float(metadata["harbor_agent"]["model_params"]["temperature"]) > 0',
+                {"gpt-hot", "claude", "string-numbers", "string-one"},
+            ),
+            (
+                'metadata["harbor_agent"]["model_params"]["temperature"] == "true"',
+                {"bool-like-numbers"},
+            ),
+            (
+                'str(metadata["harbor_agent"]["model_params"]["temperature"]) == "true"',
+                {"bool-like-numbers"},
+            ),
+            (
+                'str(metadata["harbor_agent"]["model_params"]["temperature"]) == "false"',
+                {"bool-like-zeros"},
+            ),
+            (
+                'metadata["harbor_agent"]["model_params"]["temperature"] == "1"',
+                {"claude", "string-one"},
+            ),
+            ('repetitions * 9223372036854775807 > 1 and name == "claude"', {"claude"}),
+            ('float(metadata["large"]) * 1e308 > 1', {"gpt-hot"}),
+            ('float(metadata["large"]) * 1e308 > 1e308', {"gpt-hot"}),
         ],
     )
     async def test_independent_compiler_operations(
@@ -1610,6 +1673,16 @@ class TestDatasetExperimentsFilterCondition:
                 "filter condition is nested too deeply",
                 id="nested-too-deeply",
             ),
+            pytest.param(
+                "name == 'x'" + " " * 4096,
+                "filter condition must be at most 4096 characters",
+                id="overlong-condition",
+            ),
+            pytest.param(
+                'name == "\\ud800"',
+                "string literals must contain valid UTF-8",
+                id="surrogate-literal",
+            ),
         ],
     )
     async def test_rejects_invalid_condition(
@@ -1637,6 +1710,18 @@ class TestDatasetExperimentsFilterCondition:
                 False,
                 "filter condition is nested too deeply",
                 id="nested-too-deeply",
+            ),
+            pytest.param(
+                "name == 'x'" + " " * 4096,
+                False,
+                "filter condition must be at most 4096 characters",
+                id="overlong-condition",
+            ),
+            pytest.param(
+                'name == "\\ud800"',
+                False,
+                "string literals must contain valid UTF-8",
+                id="surrogate-literal",
             ),
         ],
     )

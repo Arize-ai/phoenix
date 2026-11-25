@@ -8,9 +8,11 @@ from datetime import datetime, timezone
 from difflib import get_close_matches
 from typing import Any, Callable, Literal, Optional, cast
 
-from sqlalchemy import BigInteger, ColumnElement, Float, Numeric, and_, func, literal, not_, or_
+from sqlalchemy import BigInteger, ColumnElement, Numeric, and_, func, literal, not_, or_
+from sqlalchemy.sql.visitors import iterate
 
 from phoenix.db import models
+from phoenix.server.experiments.metadata import get_metadata_number, get_metadata_text
 
 _Kind = Literal["text", "number", "datetime", "boolean", "json", "none"]
 _KIND_DESCRIPTIONS = {
@@ -21,8 +23,10 @@ _KIND_DESCRIPTIONS = {
     "json": "a metadata value",
     "none": "None",
 }
+_MAX_CONDITION_LENGTH = 4096
 _MAX_EXPRESSION_DEPTH = 64
 _MAX_EXPRESSION_NODES = 1000
+_MAX_SQL_EXPRESSION_NODES = 10000
 
 
 @dataclass(frozen=True)
@@ -34,10 +38,10 @@ class _Value:
         if self.kind != "json":
             return self
         if kind == "number":
-            return _Value(kind, models.SafeJsonFloat(self.expression))
+            return _Value(kind, get_metadata_number(self.expression))
         if kind == "boolean":
             return _Value(kind, models.SafeJsonBoolean(self.expression))
-        return _Value("text", self.expression.as_string())
+        return _Value("text", get_metadata_text(self.expression))
 
 
 _FIELDS = {
@@ -71,7 +75,10 @@ def compile_experiment_filter(condition: str) -> Optional[ColumnElement[bool]]:
     """
     if not condition:
         return None
+    if len(condition) > _MAX_CONDITION_LENGTH:
+        raise SyntaxError(f"filter condition must be at most {_MAX_CONDITION_LENGTH} characters")
     try:
+        source_lines = condition.encode("utf-8").splitlines() if not condition.isascii() else []
         expression = ast.parse(condition, mode="eval")
         pending: list[tuple[ast.AST, int]] = [(expression, 0)]
         node_count = 0
@@ -80,14 +87,22 @@ def compile_experiment_filter(condition: str) -> Optional[ColumnElement[bool]]:
             node_count += 1
             if depth > _MAX_EXPRESSION_DEPTH or node_count > _MAX_EXPRESSION_NODES:
                 raise SyntaxError("filter condition is nested too deeply")
-            if isinstance(node, ast.Name) and ast.get_source_segment(condition, node) != node.id:
-                raise SyntaxError("write experiment field names using their ASCII spelling")
+            if source_lines and isinstance(node, ast.Name):
+                spelling = source_lines[node.lineno - 1][node.col_offset : node.end_col_offset]
+                if spelling.decode("utf-8") != node.id:
+                    raise SyntaxError("write experiment field names using their ASCII spelling")
             pending.extend((child, depth + 1) for child in ast.iter_child_nodes(node))
         compiler = _Compiler()
         if not isinstance(expression.body, (ast.Compare, ast.BoolOp, ast.UnaryOp)):
             raise SyntaxError(f"`{ast.unparse(expression.body)}` is not a condition")
-        return compiler.predicate(expression.body)
-    except RecursionError:
+        predicate = compiler.predicate(expression.body)
+        for index, _ in enumerate(iterate(predicate)):
+            if index >= _MAX_SQL_EXPRESSION_NODES:
+                raise SyntaxError("filter condition expands to too much SQL")
+        return predicate
+    except UnicodeEncodeError:
+        raise SyntaxError("filter conditions must contain valid UTF-8") from None
+    except (RecursionError, MemoryError):
         raise SyntaxError("filter condition is nested too deeply") from None
     except SyntaxError as error:
         raise SyntaxError(error.msg) from None
@@ -151,7 +166,9 @@ class _Compiler:
                 self.expect(value, "number", node.operand)
                 return _Value(
                     "number",
-                    -value.expression if isinstance(node.op, ast.USub) else value.expression,
+                    -value.expression.cast(Numeric)
+                    if isinstance(node.op, ast.USub)
+                    else value.expression,
                 )
         if isinstance(node, ast.BinOp):
             return self.arithmetic(node)
@@ -175,6 +192,10 @@ class _Compiler:
         if isinstance(value, str):
             if "\x00" in value:
                 raise SyntaxError("string literals cannot contain a NUL character")
+            try:
+                value.encode("utf-8")
+            except UnicodeEncodeError:
+                raise SyntaxError("string literals must contain valid UTF-8") from None
             return _Value("text", literal(value))
         if isinstance(value, int):
             if not -(2**63) <= value < 2**63:
@@ -203,15 +224,15 @@ class _Compiler:
         left, right = self.value(node.left), self.value(node.right)
         self.expect(left, "number", node.left)
         self.expect(right, "number", node.right)
+        numerator = left.expression.cast(Numeric)
+        denominator = right.expression.cast(Numeric)
         if operation := _ARITHMETIC.get(type(node.op)):
-            return _Value("number", operation(left.expression, right.expression))
+            return _Value("number", operation(numerator, denominator))
         if isinstance(node.op, (ast.Div, ast.Mod)):
             # A zero denominator must yield NULL on both databases.
-            denominator = func.nullif(right.expression, 0)
+            numeric_denominator = func.nullif(denominator, 0)
             if isinstance(node.op, ast.Div):
-                return _Value("number", left.expression.cast(Float) / denominator)
-            numerator = left.expression.cast(Numeric)
-            numeric_denominator = denominator.cast(Numeric)
+                return _Value("number", numerator / numeric_denominator)
             return _Value(
                 "number",
                 func.mod(
@@ -267,6 +288,8 @@ class _Compiler:
         if is_ordering and left.kind not in ("number", "datetime"):
             raise SyntaxError(f"ordered comparisons cannot compare {_KIND_DESCRIPTIONS[left.kind]}")
         if compare := _COMPARISONS.get(type(operation)):
+            if left.kind == "number":
+                return compare(left.expression.cast(Numeric), right.expression.cast(Numeric))
             return compare(left.expression, right.expression)
         raise SyntaxError(f"unsupported comparison: `{ast.unparse(operation)}`")
 
@@ -296,6 +319,10 @@ class _Compiler:
             needle = needle.as_scalar(kind)
             if values and needle.kind != kind:
                 raise SyntaxError("membership values must match the field's type")
+            if needle.kind == "number":
+                return needle.expression.cast(Numeric).in_(
+                    [value.expression.cast(Numeric) for value in values]
+                )
             return needle.expression.in_([value.expression for value in values])
         haystack = self.value(haystack_node).as_scalar("text")
         self.expect(haystack, "text", haystack_node)

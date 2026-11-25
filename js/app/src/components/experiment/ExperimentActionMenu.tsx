@@ -96,11 +96,13 @@ type ExperimentActionMenuProps = ExperimentActionMenuBaseProps &
         canEditExperiment: true;
         experimentName: string;
         experimentDescription: string | null;
+        onExperimentEdited?: () => void;
       }
     | {
         canEditExperiment?: false;
         experimentName?: undefined;
         experimentDescription?: undefined;
+        onExperimentEdited?: undefined;
       }
   );
 
@@ -522,6 +524,7 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
           experimentId={props.experimentId}
           experimentName={props.experimentName}
           experimentDescription={props.experimentDescription}
+          onExperimentEdited={props.onExperimentEdited}
           isOpen={isEditDialogOpen}
           onOpenChange={setIsEditDialogOpen}
         />
@@ -559,12 +562,14 @@ function EditExperimentDialog({
   experimentId,
   experimentName,
   experimentDescription,
+  onExperimentEdited,
   isOpen,
   onOpenChange,
 }: {
   experimentId: string;
   experimentName: string;
   experimentDescription: string | null;
+  onExperimentEdited?: () => void;
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
 }) {
@@ -644,6 +649,7 @@ function EditExperimentDialog({
                       title: "Experiment updated",
                     });
                     onOpenChange(false);
+                    onExperimentEdited?.();
                   },
                   onError: (error) => {
                     setEditError(

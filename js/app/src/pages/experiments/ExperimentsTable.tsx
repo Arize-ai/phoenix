@@ -969,6 +969,9 @@ export function ExperimentsTable({
                 canEditExperiment
                 experimentName={row.original.name}
                 experimentDescription={row.original.description ?? null}
+                onExperimentEdited={() => {
+                  refetchExperiments({ fetchPolicy: "network-only" });
+                }}
                 canDeleteExperiment={true}
                 onExperimentDeleted={() => {
                   refetchExperiments({ fetchPolicy: "network-only" });

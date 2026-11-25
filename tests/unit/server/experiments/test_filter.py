@@ -103,7 +103,7 @@ def test_binds_untrusted_text_as_a_parameter() -> None:
 
 
 @pytest.mark.parametrize(
-    "condition", ["-" * 300 + "repetitions > 1", " or ".join(["name == 'x'"] * 300)]
+    "condition", ["-" * 300 + "repetitions > 1", " or ".join(["1 == 1"] * 300)]
 )
 def test_rejects_excessive_expression_complexity(condition: str) -> None:
     with pytest.raises(ExperimentFilterConditionError, match="nested too deeply"):
@@ -120,3 +120,24 @@ def test_syntax_error_does_not_report_a_python_filename() -> None:
     with pytest.raises(ExperimentFilterConditionError) as error:
         apply_experiment_filter(condition="repetitions >", stmt=select(models.Experiment))
     assert str(error.value) == "invalid syntax"
+
+
+@pytest.mark.parametrize("condition", ["name == 'x'" + " " * 4096, "-" * 10000 + "repetitions > 1"])
+def test_rejects_overlong_conditions_before_parsing(condition: str) -> None:
+    with pytest.raises(ExperimentFilterConditionError, match="at most 4096 characters"):
+        apply_experiment_filter(condition=condition, stmt=select(models.Experiment))
+
+
+def test_rejects_parser_stack_exhaustion_as_input_error() -> None:
+    with pytest.raises(ExperimentFilterConditionError, match="nested too deeply"):
+        apply_experiment_filter(
+            condition="-" * 3000 + "repetitions > 1", stmt=select(models.Experiment)
+        )
+
+
+def test_rejects_excessive_sql_expansion() -> None:
+    denominator = "2"
+    for _ in range(12):
+        denominator = f"(repetitions % {denominator})"
+    with pytest.raises(ExperimentFilterConditionError, match="expands to too much SQL"):
+        apply_experiment_filter(condition=f"{denominator} > 1", stmt=select(models.Experiment))

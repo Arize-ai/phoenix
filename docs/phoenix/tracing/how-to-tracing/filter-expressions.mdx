@@ -240,10 +240,13 @@ Experiment-specific notes:
   index `0` of an array. On SQLite, it reads only an object key, and a key that contains `"` or `\`
   matches nothing.
 - **Metadata types:** a numeric comparison or numeric membership list reads numeric metadata
-  values and numeric strings. A boolean comparison also reads `1`/`0` and `"true"`/`"false"`.
+  values and numeric strings, excluding booleans. A boolean comparison also reads `1`/`0` and
+  `"true"`/`"false"`. Text reads render booleans as `"true"` or `"false"` on both databases.
   Use `float(metadata["key"])` for arithmetic and `str(metadata["key"])` for text comparisons.
-- **Literal limits:** numbers must be finite, and integer literals must fit in a signed 64-bit
-  integer. Conditions with more than 1,000 syntax nodes or nesting deeper than 64 nodes are rejected.
+- **Literal limits:** numbers must be finite, integer literals must fit in a signed 64-bit
+  integer, and strings must be valid UTF-8 without NUL characters.
+- **Condition limits:** conditions can contain up to 4,096 characters, 1,000 syntax nodes, and
+  64 levels of syntax nesting. Conditions whose SQL expansion exceeds 10,000 nodes are rejected.
 - The filter bar suggests the names above and your recent filters, not your metadata keys.
 
 ## Finding field names
