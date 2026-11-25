@@ -136,10 +136,11 @@ def _code_definition(client: httpx2.Client, sandbox_id: str) -> dict[str, Any]:
     return data
 
 
-def _binding_body(evaluator_id: str, **fields: Any) -> dict[str, Any]:
+def _binding_body(definition: dict[str, Any], **fields: Any) -> dict[str, Any]:
     return {
+        "evaluator_type": definition["type"],
         "name": f"binding-{token_hex(8)}",
-        "evaluator_id": evaluator_id,
+        "evaluator_id": definition["id"],
         "input_mapping": _mapping("dataset value"),
         **fields,
     }

@@ -171,9 +171,13 @@ _UNION_TAGS = frozenset(
 """Discriminator tag values used by the opted-in routers' `Field(discriminator="type")` unions.
 A tagged union's error `loc` repeats the tag as a path segment (e.g. `body.code.name`) even
 though it names no real field, so `_normalize_field_path` drops it. Where the submitted body
-can be followed, a segment is a tag exactly when the object there names it as its `type`, so a
-real field of the same name (`version` in `POST /v1/decisions`) is kept; this set is the
-fallback where it can't."""
+can be followed, a segment is a tag exactly when the object there names it under one of
+`_DISCRIMINATOR_FIELDS`, so a real field of the same name (`version` in `POST /v1/decisions`)
+is kept; this set is the fallback where it can't."""
+
+_DISCRIMINATOR_FIELDS = ("type", "evaluator_type")
+"""The fields the opted-in routers' tagged unions discriminate on; dataset evaluator bindings
+are tagged by the kind of evaluator they run."""
 
 _CODE_BY_ERROR_TYPE: dict[str, str] = {
     "missing": "missing",
@@ -206,11 +210,12 @@ def _field_error_code(error_type: str) -> str:
 
 def _is_union_tag(node: Any, part: Union[str, int]) -> bool:
     """Whether `part` is the tag of the union value `node`. A submitted object is tagged by
-    its own `type`, whatever the router; without one to read, the known tags are used."""
+    its own discriminator field, whatever the router; without one to read, the known tags are
+    used."""
     if not isinstance(part, str):
         return False
     if isinstance(node, dict):
-        return node.get("type") == part
+        return any(node.get(field) == part for field in _DISCRIMINATOR_FIELDS)
     return part in _UNION_TAGS
 
 

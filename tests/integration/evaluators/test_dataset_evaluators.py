@@ -1,5 +1,7 @@
 """Dataset binding deletion removes trace projects while retaining shared definitions."""
 
+from typing import Any
+
 import httpx2
 
 from .._helpers import _AppInfo, _httpx_client
@@ -20,7 +22,7 @@ def test_code_binding_overrides_and_cross_api_readback(
     client: httpx2.Client, dataset_id: str, sandbox_id: str, _app: _AppInfo
 ) -> None:
     definition = _code_definition(client, sandbox_id)
-    body = _binding_body(definition["id"])
+    body = _binding_body(definition)
     response = client.post(
         f"v1/datasets/{dataset_id}/evaluators", json={**body, "output_configs": []}
     )
@@ -37,7 +39,12 @@ def test_code_binding_overrides_and_cross_api_readback(
     override = [{"type": "CONTINUOUS", "name": "score", "optimization_direction": "MINIMIZE"}]
     response = client.patch(
         route,
-        json={"name": "dataset-only", "description": "local", "output_configs": override},
+        json={
+            "evaluator_type": "code",
+            "name": "dataset-only",
+            "description": "local",
+            "output_configs": override,
+        },
     )
     assert response.status_code == 200, response.text
     overridden = response.json()["data"]
@@ -46,19 +53,22 @@ def test_code_binding_overrides_and_cross_api_readback(
     ]
     assert overridden["input_mapping"] == body["input_mapping"]
     assert client.get(definition_route).json()["data"] == before
-    for invalid in [
+    invalid_patches: list[dict[str, Any]] = [
         {},
         {"input_mapping": None},
         {"dataset_id": dataset_id},
         {"evaluator_id": definition["id"]},
         {"enabled": True},
         {"output_configs": []},
-    ]:
-        response = client.patch(route, json=invalid)
+    ]
+    for invalid in invalid_patches:
+        response = client.patch(route, json={"evaluator_type": "code", **invalid})
         assert response.status_code == 422, response.text
         assert response.headers["content-type"] == "application/problem+json"
     assert client.get(route).json()["data"] == overridden
-    response = client.patch(route, json={"description": None, "output_configs": None})
+    response = client.patch(
+        route, json={"evaluator_type": "code", "description": None, "output_configs": None}
+    )
     assert response.status_code == 200, response.text
     assert response.json()["data"]["output_configs"] is None
     assert response.json()["data"]["name"] == "dataset-only"
@@ -96,7 +106,7 @@ def test_dataset_pagination_conflicts_and_atomic_bulk_delete(
     client: httpx2.Client, dataset_id: str, sandbox_id: str, _app: _AppInfo
 ) -> None:
     definition = _code_definition(client, sandbox_id)
-    body = _binding_body(definition["id"])
+    body = _binding_body(definition)
     first = _create_dataset_evaluator(client, dataset_id, body)
     collection = f"v1/datasets/{dataset_id}/evaluators"
     response = client.post(collection, json=body)
@@ -104,7 +114,10 @@ def test_dataset_pagination_conflicts_and_atomic_bulk_delete(
     assert response.json()["code"] == "already_exists"
     assert response.json()["existing_id"] == first["id"]
     second = _create_dataset_evaluator(client, dataset_id, {**body, "name": "second-binding"})
-    response = client.patch(f"v1/dataset_evaluators/{second['id']}", json={"name": first["name"]})
+    response = client.patch(
+        f"v1/dataset_evaluators/{second['id']}",
+        json={"evaluator_type": "code", "name": first["name"]},
+    )
     assert response.status_code == 409, response.text
     dataset_name = _graphql(
         _app, "query($id: ID!) { node(id: $id) { ... on Dataset { name } } }", {"id": dataset_id}
@@ -145,7 +158,12 @@ def test_builtin_binding_and_read_only_definition(
     definition = response.json()["data"]
     assert definition["type"] == "builtin"
     assert definition["name"] == builtin["name"]
-    body = {"name": "built-in-binding", "input_mapping": _mapping(), "evaluator_id": builtin["id"]}
+    body = {
+        "evaluator_type": "builtin",
+        "name": "built-in-binding",
+        "input_mapping": _mapping(),
+        "evaluator_id": builtin["id"],
+    }
     binding = _create_dataset_evaluator(client, dataset_id, body)
     assert binding["evaluator_type"] == "builtin"
     assert binding["output_configs"] is None
@@ -153,12 +171,15 @@ def test_builtin_binding_and_read_only_definition(
     assert response.status_code == 409, response.text
     assert response.json()["existing_id"] == binding["id"]
     route = f"v1/dataset_evaluators/{binding['id']}"
-    assert client.patch(route, json={"output_configs": []}).status_code == 422
+    patch: dict[str, Any] = {"evaluator_type": "builtin"}
+    assert client.patch(route, json={**patch, "output_configs": []}).status_code == 422
     override = [{"type": "CONTINUOUS", "name": "local", "optimization_direction": "MINIMIZE"}]
-    response = client.patch(route, json={"output_configs": override, "description": "local"})
+    response = client.patch(
+        route, json={**patch, "output_configs": override, "description": "local"}
+    )
     assert response.status_code == 200, response.text
     assert [config["name"] for config in response.json()["data"]["output_configs"]] == ["local"]
-    assert client.patch(route, json={"output_configs": None}).status_code == 200
+    assert client.patch(route, json={**patch, "output_configs": None}).status_code == 200
     assert client.get(definition_route).json()["data"] == definition
     assert (
         client.patch(
@@ -182,16 +203,17 @@ def test_llm_binding_overrides_across_shared_bindings(
 ) -> None:
     definition = _llm_definition(client)
     definition_route = f"v1/evaluators/{definition['id']}"
-    binding = _create_dataset_evaluator(client, dataset_id, _binding_body(definition["id"]))
-    other = _create_dataset_evaluator(client, dataset_id, _binding_body(definition["id"]))
+    binding = _create_dataset_evaluator(client, dataset_id, _binding_body(definition))
+    other = _create_dataset_evaluator(client, dataset_id, _binding_body(definition))
     assert binding["evaluator_id"] == other["evaluator_id"] == definition["id"]
     assert binding["evaluator_type"] == "llm"
     route = f"v1/dataset_evaluators/{binding['id']}"
-    assert client.patch(route, json={"output_configs": []}).status_code == 422
+    patch: dict[str, Any] = {"evaluator_type": "llm"}
+    assert client.patch(route, json={**patch, "output_configs": []}).status_code == 422
     assert client.get(route).json()["data"] == binding
     override = _correctness_configs()
     override[0]["values"][0]["score"] = 0.75
-    response = client.patch(route, json={"output_configs": override})
+    response = client.patch(route, json={**patch, "output_configs": override})
     assert response.status_code == 200, response.text
     assert response.json()["data"]["output_configs"][0]["values"][0]["score"] == 0.75
     assert client.get(definition_route).json()["data"] == definition
@@ -231,7 +253,7 @@ def test_dataset_endpoint_errors_and_auth(
     client: httpx2.Client, dataset_id: str, _app: _AppInfo
 ) -> None:
     collection = f"v1/datasets/{dataset_id}/evaluators"
-    response = client.post(collection, json={"name": "invalid"})
+    response = client.post(collection, json={"evaluator_type": "code", "name": "invalid"})
     assert response.status_code == 422, response.text
     fields = {error["field"] for error in response.json()["errors"]}
     assert {"body.evaluator_id", "body.input_mapping"} <= fields
@@ -240,7 +262,12 @@ def test_dataset_endpoint_errors_and_auth(
     assert response.json()["code"] == "not_found"
     response = client.post(
         collection,
-        json={"name": "invalid", "input_mapping": _mapping(), "evaluator_id": dataset_id},
+        json={
+            "evaluator_type": "code",
+            "name": "invalid",
+            "input_mapping": _mapping(),
+            "evaluator_id": dataset_id,
+        },
     )
     assert response.status_code == 422, response.text
     assert response.json()["code"] == "invalid_argument"

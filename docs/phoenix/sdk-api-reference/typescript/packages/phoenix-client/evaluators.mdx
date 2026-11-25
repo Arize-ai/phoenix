@@ -233,12 +233,14 @@ const binding = await createDatasetEvaluator({
   dataset: { datasetName: "golden-questions" },
   name: "exact-match",
   evaluatorId: "Q29kZUV2YWx1YXRvcjoy",
+  evaluatorType: "code",
   inputMapping: { literal_mapping: {}, path_mapping: { output: "output" } },
 });
 ```
 
 - Select the dataset with `datasetName`, `datasetId`, or the shorthand `dataset`, which accepts either.
-- `evaluatorId` names an LLM, code, or built-in definition.
+- `evaluatorId` names an LLM, code, built-in, or decision definition.
+- `evaluatorType` is that definition's `type`. The server refuses a mismatch, and a decision binding takes no `outputConfigs`.
 - The input mapping lives on the binding and is required.
 - A name the dataset already uses is refused with `409` and `already_exists`.
 
@@ -252,6 +254,7 @@ import { updateDatasetEvaluator } from "@arizeai/phoenix-client/evaluators";
 await updateDatasetEvaluator({
   datasetEvaluatorId: "RGF0YXNldEV2YWx1YXRvcjox",
   patch: {
+    evaluator_type: "code",
     output_configs: [
       { type: "CONTINUOUS", name: "score", optimization_direction: "MAXIMIZE" },
     ],
@@ -261,11 +264,13 @@ await updateDatasetEvaluator({
 // Drop the override and follow the evaluator's outputs again
 await updateDatasetEvaluator({
   datasetEvaluatorId: "RGF0YXNldEV2YWx1YXRvcjox",
-  patch: { output_configs: null },
+  patch: { evaluator_type: "code", output_configs: null },
 });
 ```
 
+- Every patch names `evaluator_type`, the binding's `evaluator_type`; the server refuses a mismatch.
 - An `output_configs` override needs at least one config; `[]` is rejected.
+- A decision binding takes no `output_configs`: its outputs follow the evaluator's questions and scoring policy.
 - On an LLM evaluator, output overrides must be categorical. Nothing checks them, or a description override, against the prompt.
 - `getDatasetEvaluator` and `getDatasetEvaluators` return the stored overrides; `null` means the binding uses the evaluator's value.
 

@@ -18,10 +18,13 @@ export interface UpdateDatasetEvaluatorParams extends ClientFn {
    */
   datasetEvaluatorId: string;
   /**
-   * The fields to change. At least one must be present; omitted fields keep
-   * their current values. Set `description` or `output_configs` to `null` to
-   * inherit the shared definition's value again; an `output_configs` override
-   * holds at least one config.
+   * The fields to change. `evaluator_type` is the kind of the evaluator the
+   * binding runs, as the binding's `evaluator_type` reports it; the server
+   * refuses a mismatch. Besides it, at least one field must be present; omitted
+   * fields keep their current values. Set `description` or `output_configs` to
+   * `null` to inherit the shared definition's value again; an `output_configs`
+   * override holds at least one config. Decision bindings take no
+   * `output_configs`.
    */
   patch: DatasetEvaluatorPatch;
 }
@@ -43,7 +46,10 @@ export interface UpdateDatasetEvaluatorParams extends ClientFn {
  *
  * await updateDatasetEvaluator({
  *   datasetEvaluatorId: "RGF0YXNldEV2YWx1YXRvcjox",
- *   patch: { description: "Runs against the nightly golden set" },
+ *   patch: {
+ *     evaluator_type: "code",
+ *     description: "Runs against the nightly golden set",
+ *   },
  * });
  * ```
  */
@@ -52,7 +58,10 @@ export async function updateDatasetEvaluator({
   datasetEvaluatorId,
   patch,
 }: UpdateDatasetEvaluatorParams): Promise<DatasetEvaluator> {
-  if (Object.values(patch).every((value) => value === undefined)) {
+  const hasNoField = Object.entries(patch).every(
+    ([field, value]) => field === "evaluator_type" || value === undefined
+  );
+  if (hasNoField) {
     throw new Error("At least one field to update must be provided");
   }
 

@@ -42,13 +42,38 @@ const BINDING: componentsV1["schemas"]["DatasetEvaluator"] = {
   output_configs: null,
 };
 
+const DECISION_EVALUATOR_ID = "RGVjaXNpb25FdmFsdWF0b3I6MQ==";
+
+const EVALUATOR_TYPE_BY_ID: Record<string, string | undefined> = {
+  [BINDING.evaluator_id]: "code",
+  [DECISION_EVALUATOR_ID]: "decision",
+};
+
 beforeEach(() => {
   mock.server.use(
     http.get("/arize_phoenix_version", ({ response }) =>
       response.untyped(new Response("21.0.0", { status: 200 }))
+    ),
+    http.get("/v1/evaluators/{evaluator_id}", ({ params, response }) =>
+      response.untyped(
+        Response.json({
+          data: {
+            id: params.evaluator_id,
+            type: EVALUATOR_TYPE_BY_ID[params.evaluator_id],
+          },
+        })
+      )
     )
   );
 });
+
+function serveBinding(binding: componentsV1["schemas"]["DatasetEvaluator"]) {
+  mock.server.use(
+    http.get("/v1/dataset_evaluators/{dataset_evaluator_id}", ({ response }) =>
+      response(200).json({ data: binding })
+    )
+  );
+}
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -165,6 +190,7 @@ describe("dataset evaluator create", () => {
     expect(captured.count).toBe(1);
     expect(captured.identifier).toBe("golden-questions");
     expect(captured.body).toEqual({
+      evaluator_type: "code",
       name: "exact-match",
       evaluator_id: "Q29kZUV2YWx1YXRvcjoy",
       input_mapping: INPUT_MAPPING,
@@ -197,6 +223,7 @@ describe("dataset evaluator create", () => {
     );
 
     expect(captured.body).toEqual({
+      evaluator_type: "code",
       name: "exact-match",
       evaluator_id: "Q29kZUV2YWx1YXRvcjoy",
       input_mapping: INPUT_MAPPING,
@@ -265,9 +292,73 @@ describe("dataset evaluator create", () => {
       hint: "px dataset evaluator create golden-questions --name exact-match --input-mapping <json> --evaluator-id <id>",
     });
   });
+
+  it("binds a decision evaluator under its own kind", async () => {
+    const captured = captureCreate();
+    captureCliOutput();
+
+    await createDatasetEvaluatorCommand().parseAsync(
+      [
+        "create",
+        "golden-questions",
+        "--name",
+        "judge",
+        "--evaluator-id",
+        DECISION_EVALUATOR_ID,
+        "--input-mapping",
+        JSON.stringify(INPUT_MAPPING),
+        ...BASE_ARGS,
+      ],
+      { from: "user" }
+    );
+
+    expect(captured.body).toEqual({
+      evaluator_type: "decision",
+      name: "judge",
+      evaluator_id: DECISION_EVALUATOR_ID,
+      input_mapping: INPUT_MAPPING,
+    });
+  });
+
+  it("refuses --output-configs on a decision binding without binding it", async () => {
+    const captured = captureCreate();
+    const io = captureCliOutput();
+    const exitSpy = mockProcessExit();
+
+    await expect(
+      createDatasetEvaluatorCommand().parseAsync(
+        [
+          "create",
+          "golden-questions",
+          "--name",
+          "judge",
+          "--evaluator-id",
+          DECISION_EVALUATOR_ID,
+          "--input-mapping",
+          JSON.stringify(INPUT_MAPPING),
+          "--output-configs",
+          '[{"type":"FREEFORM","name":"notes"}]',
+          "--format",
+          "raw",
+          ...BASE_ARGS,
+        ],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
+    expect(captured.count).toBe(0);
+    expect(String(io.stderr.mock.calls[0]?.[0])).toContain(
+      "A decision binding takes no output configs"
+    );
+  });
 });
 
 describe("dataset evaluator update", () => {
+  beforeEach(() => {
+    serveBinding(BINDING);
+  });
+
   it("PATCHes only the flags given", async () => {
     let receivedBody: unknown;
     mock.server.use(
@@ -286,7 +377,7 @@ describe("dataset evaluator update", () => {
       { from: "user" }
     );
 
-    expect(receivedBody).toEqual({ name: "renamed" });
+    expect(receivedBody).toEqual({ evaluator_type: "code", name: "renamed" });
   });
 
   it("sends explicit nulls for --inherit-* flags", async () => {
@@ -313,7 +404,51 @@ describe("dataset evaluator update", () => {
       { from: "user" }
     );
 
-    expect(receivedBody).toEqual({ description: null, output_configs: null });
+    expect(receivedBody).toEqual({
+      evaluator_type: "code",
+      description: null,
+      output_configs: null,
+    });
+  });
+
+  it("refuses --inherit-output-configs on a decision binding without patching it", async () => {
+    serveBinding({
+      ...BINDING,
+      evaluator_id: DECISION_EVALUATOR_ID,
+      evaluator_type: "decision",
+    });
+    let calls = 0;
+    mock.server.use(
+      http.patch(
+        "/v1/dataset_evaluators/{dataset_evaluator_id}",
+        ({ response }) => {
+          calls += 1;
+          return response(200).json({ data: BINDING });
+        }
+      )
+    );
+    const io = captureCliOutput();
+    const exitSpy = mockProcessExit();
+
+    await expect(
+      createDatasetEvaluatorCommand().parseAsync(
+        [
+          "update",
+          BINDING_ID,
+          "--inherit-output-configs",
+          "--format",
+          "raw",
+          ...BASE_ARGS,
+        ],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
+    expect(calls).toBe(0);
+    expect(String(io.stderr.mock.calls[0]?.[0])).toContain(
+      "A decision binding takes no output configs"
+    );
   });
 
   it("rejects --description together with --inherit-description", async () => {

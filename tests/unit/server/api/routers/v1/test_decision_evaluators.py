@@ -66,6 +66,7 @@ async def test_decision_evaluator_and_binding_lifecycle(
     response = await httpx_client.post(
         dataset_route,
         json={
+            "evaluator_type": "decision",
             "name": "judge",
             "evaluator_id": evaluator_id,
             "input_mapping": {"literal_mapping": {}, "path_mapping": {"ticket": "input.ticket"}},
@@ -77,7 +78,8 @@ async def test_decision_evaluator_and_binding_lifecycle(
     # Scoring is the judge's own; a binding has no policy to set.
     assert "scoring_policy" not in binding
     response = await httpx_client.patch(
-        f"v1/dataset_evaluators/{binding['id']}", json={"scoring_policy": None}
+        f"v1/dataset_evaluators/{binding['id']}",
+        json={"evaluator_type": "decision", "scoring_policy": None},
     )
     assert response.status_code == 422, response.text
     assert (await httpx_client.delete(route)).status_code == 409
@@ -143,7 +145,7 @@ async def test_default_scoring_policy_keeps_discriminators_in_responses(
     assert DecisionScoringPolicy.model_validate(policy) == expected
 
 
-async def test_binding_output_configs_must_match_the_derived_outputs(
+async def test_decision_bindings_take_no_output_configs_not_even_the_derived_ones(
     httpx_client: httpx.AsyncClient,
     gql_client: AsyncGraphQLClient,
     empty_dataset: None,
@@ -160,25 +162,33 @@ async def test_binding_output_configs_must_match_the_derived_outputs(
         },
     )
     assert response.status_code == 201, response.text
-    response = await httpx_client.post(
-        f"v1/datasets/{GlobalID('Dataset', '1')}/evaluators",
-        json={
-            "name": "judge",
-            "evaluator_id": response.json()["data"]["id"],
-            "input_mapping": {"literal_mapping": {}, "path_mapping": {"ticket": "input.ticket"}},
-            "output_configs": [
-                {
-                    "type": "CONTINUOUS",
-                    "name": "urgent",
-                    "optimization_direction": "NONE",
-                    "lower_bound": 0,
-                    "upper_bound": 5,
-                }
-            ],
-        },
+    evaluator = response.json()["data"]
+    dataset_route = f"v1/datasets/{GlobalID('Dataset', '1')}/evaluators"
+    body = {
+        "evaluator_type": "decision",
+        "name": "judge",
+        "evaluator_id": evaluator["id"],
+        "input_mapping": {"literal_mapping": {}, "path_mapping": {"ticket": "input.ticket"}},
+    }
+
+    echoed = await httpx_client.post(
+        dataset_route, json={**body, "output_configs": evaluator["output_configs"]}
     )
-    assert response.status_code == 422, response.text
-    assert "Decision outputs are derived from the questions and scoring policy" in response.text
+    assert echoed.status_code == 422, echoed.text
+    assert (await httpx_client.get(dataset_route)).json()["data"] == []
+
+    created = await httpx_client.post(dataset_route, json=body)
+    assert created.status_code == 201, created.text
+    binding = created.json()["data"]
+    assert binding["output_configs"] is None
+    binding_route = f"v1/dataset_evaluators/{binding['id']}"
+    for output_configs in (evaluator["output_configs"], None):
+        response = await httpx_client.patch(
+            binding_route,
+            json={"evaluator_type": "decision", "output_configs": output_configs},
+        )
+        assert response.status_code == 422, response.text
+    assert (await httpx_client.get(binding_route)).json()["data"] == binding
 
 
 async def _judge_and_newer_version(

@@ -272,6 +272,7 @@ def seed_dataset_decision_evaluators(
             response = http.post(
                 path,
                 json={
+                    "evaluator_type": "decision",
                     "name": "accuracy",
                     "evaluator_id": evaluator_id,
                     "input_mapping": _INPUT_MAPPING,
@@ -284,7 +285,7 @@ def seed_dataset_decision_evaluators(
         elif binding["input_mapping"] != _INPUT_MAPPING:
             response = http.patch(
                 f"v1/dataset_evaluators/{quote(binding['id'], safe='')}",
-                json={"input_mapping": _INPUT_MAPPING},
+                json={"evaluator_type": "decision", "input_mapping": _INPUT_MAPPING},
             )
             response.raise_for_status()
         results.append((f"{dataset.name}/accuracy", binding["id"]))

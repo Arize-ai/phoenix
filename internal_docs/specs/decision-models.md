@@ -137,7 +137,7 @@ are in [Open Questions](#16-open-questions).
 | [Reference answers in datasets](#54-reference-answers-in-datasets) | No convention; evaluators map paths | The built-in metrics ship (decided with them) |
 | [Translating for apps](#55-translating-for-apps) | Phoenix translates in `format()` | `phoenix-client` ships `format()` |
 | [Evaluator annotation metadata](#56-evaluator-annotation-metadata) | Unversioned `metadata.decision` | A release stores judge results |
-| [Output configs and scoring policies](#57-output-configs-and-scoring-policies) | Accept and check: a decision binding takes `output_configs` only as an echo | The evaluator REST routes ship decision judges |
+| [Output configs and scoring policies](#57-output-configs-and-scoring-policies) | Decided: dataset binding bodies are a union keyed by `evaluator_type`, and the decision variant has no `output_configs` | The evaluator REST routes ship decision judges |
 | [Evaluator version pinning](#58-evaluator-version-pinning) | Each evaluator runs through its own generated tag (`decision_version_tag_id`, nullable, `ON DELETE SET NULL`), or its decision's newest version once the tag is gone; tag moves and deletes aren't checked, and drifted scoring adapts | A release ships `decision_evaluators` and `/v1/evaluators` for decision judges |
 
 The first six choose a format at a boundary: the stored version, the run
@@ -418,24 +418,35 @@ policy, which says the same thing in more detail (thresholds, choice scores, sca
 labels), and its output configs are derived from the policy and its questions. So
 for decisions, `output_configs` is read-only in effect.
 
-**Current default:** accept and check.
+**Decided:** type the binding bodies. `POST /v1/datasets/{id}/evaluators` and
+`PATCH /v1/dataset_evaluators/{id}` take a union keyed by a required
+`evaluator_type` (`llm`, `code`, `builtin`, `decision`), named like the field
+binding reads already return. The server refuses an `evaluator_type` that
+disagrees with the evaluator's kind with 422. The LLM variant's `output_configs`
+are categorical, the code and built-in variants take any output config, and the
+decision variant has no `output_configs`, so sending them, even the derived
+ones, fails validation. A patch needs a field besides `evaluator_type`. No
+untyped variant is kept: these routes had not shipped in a release, so no
+existing caller sends bodies without `evaluator_type`.
 
 | Binding field | REST create and patch | GraphQL |
 |---|---|---|
-| `output_configs` on a decision binding | Accepted only if equal to the derived configs; not stored | Not taken by decision mutations |
+| `output_configs` on a decision binding | Not a field of the decision variant | Not taken by decision mutations |
 | Reads | A binding returns only what it stores, so a decision binding's `output_configs` is null; `/v1/evaluators` returns the derived configs beside the judge's policy | Derived configs on bindings, and beside the policy on evaluators |
 
-A decision binding's `output_configs` can therefore only repeat the server's own
-answer. Bindings have no `scoring_policy`: scoring is the judge's own (see
-[Bindings](#143-bindings)).
+Bindings have no `scoring_policy`: scoring is the judge's own (see
+[Bindings](#143-bindings)). If bindings later override a judge's scoring, the
+override becomes a field of the decision variant in its own shape.
+
+The deliberation below is kept as the record of the alternatives.
 
 **Alternatives and tradeoffs:**
 
-- **Accept and check** (current): one request shape for every kind, and a client
+- **Accept and check** (the previous default): one request shape for every kind, and a client
   can send back derived configs it read from `/v1/evaluators` or GraphQL. (A
   binding read returns null, which needs no check.) But the field looks writable
   and isn't.
-- **Type the binding bodies:** make the REST create and patch bodies a union
+- **Type the binding bodies** (decided): make the REST create and patch bodies a union
   keyed by `type`, as `/v1/evaluators` already is (`CreateDecisionEvaluatorRequest`,
   `PatchDecisionEvaluatorRequest`). The decision variant has no
   `output_configs`; the others keep it. The field then exists only where it can
@@ -462,12 +473,9 @@ answer. Bindings have no `scoring_policy`: scoring is the judge's own (see
 
 Typing the bodies doesn't block unifying them later: its decision variant is
 already Unify's end state, and only the other variant would shrink to scoring. So
-the likely path is to type the bodies before release and leave Unify for when LLM
-evaluators are next reworked. Reads keep `output_configs` under every option,
-because annotation names and score types come from it. **Decide before**
-`/v1/evaluators` and `/v1/datasets/{id}/evaluators` ship decision judges in a
-release: the request bodies and the SDK's generated types freeze whichever shape
-ships.
+the bodies are typed now, and Unify is left for when LLM evaluators are next
+reworked. Reads keep `output_configs` under every option, because annotation
+names and score types come from it.
 
 ### 5.8 Evaluator Version Pinning
 
@@ -1324,8 +1332,8 @@ wherever it runs, and an edit to its policy reaches every binding. Scoring one
 judge differently in two places takes two judges. A per-binding override could be
 added later as a nullable binding column without breaking anything. A decision
 binding stores no `output_configs`: they are derived from the judge whenever they
-are read; how requests may still send them is under [Output Configs and
-Scoring Policies](#57-output-configs-and-scoring-policies).
+are read; binding requests can't send them (see [Output Configs and
+Scoring Policies](#57-output-configs-and-scoring-policies)).
 
 On an update, omitting the scoring policy carries it to the selected version:
 settings for removed questions or choices are dropped and new questions receive

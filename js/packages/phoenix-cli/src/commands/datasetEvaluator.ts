@@ -5,8 +5,10 @@ import {
   deleteDatasetEvaluators,
   getDatasetEvaluator,
   getDatasetEvaluators,
+  getEvaluator,
   updateDatasetEvaluator,
 } from "@arizeai/phoenix-client/evaluators";
+import { assertUnreachable } from "@arizeai/phoenix-client/utils/assertUnreachable";
 import { Command } from "commander";
 
 import { createPhoenixClient } from "../client";
@@ -16,7 +18,7 @@ import {
   validateConfig,
 } from "../config";
 import { assertDeletesEnabled, confirmOrExit } from "../confirm";
-import { ExitCode } from "../exitCodes";
+import { ExitCode, InvalidArgumentError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import { parseFormatOption, parsePositiveIntOption } from "../optionParsers";
 import { writeStructuredError } from "../structuredError";
@@ -29,10 +31,17 @@ import {
 } from "./formatDatasetEvaluator";
 import type { CommonOptions, DeleteOptions } from "./options";
 
-type CreateRequest = componentsV1["schemas"]["CreateDatasetEvaluatorRequest"];
-type PatchRequest = componentsV1["schemas"]["PatchDatasetEvaluatorRequest"];
+type PatchRequest = Parameters<typeof updateDatasetEvaluator>[0]["patch"];
 type InputMapping = componentsV1["schemas"]["InputMapping"];
-type OutputConfig = NonNullable<CreateRequest["output_configs"]>[number];
+type OutputConfig = NonNullable<
+  componentsV1["schemas"]["CreateCodeDatasetEvaluatorRequest"]["output_configs"]
+>[number];
+type CategoricalOutputConfig = NonNullable<
+  componentsV1["schemas"]["CreateLLMDatasetEvaluatorRequest"]["output_configs"]
+>[number];
+
+const DECISION_OUTPUT_CONFIGS_MESSAGE =
+  "A decision binding takes no output configs: its outputs follow the evaluator's questions and scoring policy";
 
 /**
  * Options for `px dataset evaluator list <dataset-identifier>`.
@@ -79,7 +88,7 @@ interface DatasetEvaluatorFieldOptions extends CommonOptions<OutputFormat> {
    * `--output-configs <json>`: JSON array of at least one output
    * configuration that overrides the shared definition's on this binding,
    * each with its own name. For LLM evaluators they must be categorical. They
-   * are not checked against the prompt.
+   * are not checked against the prompt. Decision bindings take none.
    */
   outputConfigs?: string;
 }
@@ -89,8 +98,8 @@ interface DatasetEvaluatorFieldOptions extends CommonOptions<OutputFormat> {
  */
 interface DatasetEvaluatorCreateOptions extends DatasetEvaluatorFieldOptions {
   /**
-   * `--evaluator-id <id>`: The LLM, code, or built-in evaluator definition to
-   * bind. Required; create a definition with `px evaluator create`.
+   * `--evaluator-id <id>`: The LLM, code, built-in, or decision evaluator
+   * definition to bind. Required; create a definition with `px evaluator create`.
    *
    * @example "Q29kZUV2YWx1YXRvcjoy"
    */
@@ -282,16 +291,20 @@ async function datasetEvaluatorCreateHandler(
       flag: "--input-mapping",
       value: options.inputMapping,
     });
-    const outputConfigs =
-      options.outputConfigs === undefined
-        ? undefined
-        : parseJsonArrayFlag<OutputConfig>({
-            flag: "--output-configs",
-            value: options.outputConfigs,
-            nonEmpty: {
-              hint: `px dataset evaluator create ${datasetIdentifier} --name ${options.name} --input-mapping <json> --evaluator-id <id>`,
-            },
-          });
+    const outputConfigsFlag = {
+      flag: "--output-configs",
+      nonEmpty: {
+        hint: `px dataset evaluator create ${datasetIdentifier} --name ${options.name} --input-mapping <json> --evaluator-id <id>`,
+      },
+    };
+    if (options.outputConfigs !== undefined) {
+      // Refuses a malformed flag before any request; each kind parses it again
+      // as the configs that kind takes.
+      parseJsonArrayFlag<unknown>({
+        ...outputConfigsFlag,
+        value: options.outputConfigs,
+      });
+    }
 
     const client = createClientOrExit(options);
 
@@ -300,7 +313,11 @@ async function datasetEvaluatorCreateHandler(
       noProgress: !options.progress,
     });
 
-    const binding = await createDatasetEvaluator({
+    const { type: evaluatorType } = await getEvaluator({
+      client,
+      evaluatorId: options.evaluatorId,
+    });
+    const fields = {
       client,
       dataset: datasetRef(datasetIdentifier),
       name: options.name,
@@ -309,8 +326,39 @@ async function datasetEvaluatorCreateHandler(
       ...(options.description !== undefined && {
         description: options.description,
       }),
-      ...(outputConfigs !== undefined && { outputConfigs }),
-    });
+    };
+    let binding: Awaited<ReturnType<typeof createDatasetEvaluator>>;
+    if (evaluatorType === "decision") {
+      if (options.outputConfigs !== undefined) {
+        throw new InvalidArgumentError(DECISION_OUTPUT_CONFIGS_MESSAGE);
+      }
+      binding = await createDatasetEvaluator({
+        ...fields,
+        evaluatorType,
+      });
+    } else if (evaluatorType === "llm") {
+      binding = await createDatasetEvaluator({
+        ...fields,
+        evaluatorType,
+        ...(options.outputConfigs !== undefined && {
+          outputConfigs: parseJsonArrayFlag<CategoricalOutputConfig>({
+            ...outputConfigsFlag,
+            value: options.outputConfigs,
+          }),
+        }),
+      });
+    } else {
+      binding = await createDatasetEvaluator({
+        ...fields,
+        evaluatorType,
+        ...(options.outputConfigs !== undefined && {
+          outputConfigs: parseJsonArrayFlag<OutputConfig>({
+            ...outputConfigsFlag,
+            value: options.outputConfigs,
+          }),
+        }),
+      });
+    }
 
     writeOutput({
       message: formatDatasetEvaluatorOutput({
@@ -378,34 +426,45 @@ async function datasetEvaluatorUpdateHandler(
   }
 
   try {
-    const body: PatchRequest = {};
-    if (options.name !== undefined) {
-      body.name = options.name;
-    }
-    if (options.description !== undefined) {
-      body.description = options.description;
-    }
-    if (options.inheritDescription) {
-      body.description = null;
-    }
-    if (options.inputMapping !== undefined) {
-      body.input_mapping = parseJsonObjectFlag<InputMapping>({
-        flag: "--input-mapping",
-        value: options.inputMapping,
-      });
-    }
+    const fields = {
+      ...(options.name !== undefined && { name: options.name }),
+      ...(options.description !== undefined && {
+        description: options.description,
+      }),
+      ...(options.inheritDescription && { description: null }),
+      ...(options.inputMapping !== undefined && {
+        input_mapping: parseJsonObjectFlag<InputMapping>({
+          flag: "--input-mapping",
+          value: options.inputMapping,
+        }),
+      }),
+    };
+    const outputConfigsFlag = {
+      flag: "--output-configs",
+      nonEmpty: {
+        hint: `px dataset evaluator update ${datasetEvaluatorId} --inherit-output-configs`,
+      },
+    };
     if (options.outputConfigs !== undefined) {
-      body.output_configs = parseJsonArrayFlag<OutputConfig>({
-        flag: "--output-configs",
+      // Refuses a malformed flag before any request; each kind parses it again
+      // as the configs that kind takes.
+      parseJsonArrayFlag<unknown>({
+        ...outputConfigsFlag,
         value: options.outputConfigs,
-        nonEmpty: {
-          hint: `px dataset evaluator update ${datasetEvaluatorId} --inherit-output-configs`,
-        },
       });
     }
-    if (options.inheritOutputConfigs) {
-      body.output_configs = null;
-    }
+    const readOutputConfigs = <Config>(): {
+      output_configs?: Config[] | null;
+    } => {
+      if (options.inheritOutputConfigs) return { output_configs: null };
+      if (options.outputConfigs === undefined) return {};
+      return {
+        output_configs: parseJsonArrayFlag<Config>({
+          ...outputConfigsFlag,
+          value: options.outputConfigs,
+        }),
+      };
+    };
 
     const client = createClientOrExit(options);
 
@@ -414,10 +473,40 @@ async function datasetEvaluatorUpdateHandler(
       noProgress: !options.progress,
     });
 
+    const { evaluator_type: evaluatorType } = await getDatasetEvaluator({
+      client,
+      datasetEvaluatorId,
+    });
+    let patch: PatchRequest;
+    switch (evaluatorType) {
+      case "decision":
+        if ("output_configs" in readOutputConfigs<unknown>()) {
+          throw new InvalidArgumentError(DECISION_OUTPUT_CONFIGS_MESSAGE);
+        }
+        patch = { ...fields, evaluator_type: "decision" };
+        break;
+      case "llm":
+        patch = {
+          ...fields,
+          evaluator_type: "llm",
+          ...readOutputConfigs<CategoricalOutputConfig>(),
+        };
+        break;
+      case "code":
+      case "builtin":
+        patch = {
+          ...fields,
+          evaluator_type: evaluatorType,
+          ...readOutputConfigs<OutputConfig>(),
+        };
+        break;
+      default:
+        return assertUnreachable(evaluatorType);
+    }
     const binding = await updateDatasetEvaluator({
       client,
       datasetEvaluatorId,
-      patch: body,
+      patch,
     });
 
     writeOutput({
@@ -501,7 +590,7 @@ function addBindingFieldOptions(command: Command): Command {
     )
     .option(
       "--output-configs <json>",
-      "JSON array of at least one output configuration that overrides the definition's (LLM evaluators: categorical only)"
+      "JSON array of at least one output configuration that overrides the definition's (LLM evaluators: categorical only; decision evaluators: not accepted)"
     );
 }
 
@@ -566,7 +655,7 @@ export function createDatasetEvaluatorCreateCommand(): Command {
         .argument("<dataset-identifier>", "Dataset name or ID")
         .option(
           "--evaluator-id <id>",
-          "The LLM, code, or built-in evaluator to bind (required)"
+          "The LLM, code, built-in, or decision evaluator to bind (required)"
         )
     )
   )

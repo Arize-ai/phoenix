@@ -566,6 +566,13 @@ class OtlpStatus(TypedDict):
     message: NotRequired[str]
 
 
+class PatchDecisionDatasetEvaluatorRequest(TypedDict):
+    evaluator_type: Literal["decision"]
+    name: NotRequired[str]
+    input_mapping: NotRequired[InputMapping]
+    description: NotRequired[str]
+
+
 class PatchDecisionLabelRequestBody(TypedDict):
     name: NotRequired[str]
     color: NotRequired[str]
@@ -1765,12 +1772,29 @@ class CreateDatasetSplitResponseBody(TypedDict):
     data: DatasetSplit
 
 
+class CreateDecisionDatasetEvaluatorRequest(TypedDict):
+    name: str
+    evaluator_id: str
+    input_mapping: InputMapping
+    evaluator_type: Literal["decision"]
+    description: NotRequired[str]
+
+
 class CreateExperimentResponseBody(TypedDict):
     data: Experiment
 
 
 class CreateExperimentRunResponseBody(TypedDict):
     data: CreateExperimentRunResponseBodyData
+
+
+class CreateLLMDatasetEvaluatorRequest(TypedDict):
+    name: str
+    evaluator_id: str
+    input_mapping: InputMapping
+    evaluator_type: Literal["llm"]
+    description: NotRequired[str]
+    output_configs: NotRequired[Sequence[CategoricalAnnotationConfigData]]
 
 
 class CreateProjectEvaluatorRequest(TypedDict):
@@ -2133,6 +2157,38 @@ class ListDatasetExamplesResponseBody(TypedDict):
     data: ListDatasetExamplesData
 
 
+class PatchBuiltInDatasetEvaluatorRequest(TypedDict):
+    evaluator_type: Literal["builtin"]
+    name: NotRequired[str]
+    input_mapping: NotRequired[InputMapping]
+    description: NotRequired[str]
+    output_configs: NotRequired[
+        Sequence[
+            Union[
+                CategoricalAnnotationConfigData,
+                ContinuousAnnotationConfigData,
+                FreeformAnnotationConfigData,
+            ]
+        ]
+    ]
+
+
+class PatchCodeDatasetEvaluatorRequest(TypedDict):
+    evaluator_type: Literal["code"]
+    name: NotRequired[str]
+    input_mapping: NotRequired[InputMapping]
+    description: NotRequired[str]
+    output_configs: NotRequired[
+        Sequence[
+            Union[
+                CategoricalAnnotationConfigData,
+                ContinuousAnnotationConfigData,
+                FreeformAnnotationConfigData,
+            ]
+        ]
+    ]
+
+
 class PatchCodeEvaluatorRequest(TypedDict):
     type: Literal["code"]
     name: NotRequired[str]
@@ -2151,21 +2207,6 @@ class PatchCodeEvaluatorRequest(TypedDict):
     input_schema: NotRequired[Mapping[str, Any]]
 
 
-class PatchDatasetEvaluatorRequest(TypedDict):
-    name: NotRequired[str]
-    input_mapping: NotRequired[InputMapping]
-    description: NotRequired[str]
-    output_configs: NotRequired[
-        Sequence[
-            Union[
-                CategoricalAnnotationConfigData,
-                ContinuousAnnotationConfigData,
-                FreeformAnnotationConfigData,
-            ]
-        ]
-    ]
-
-
 class PatchDecisionEvaluatorRequest(TypedDict):
     type: Literal["decision"]
     name: NotRequired[str]
@@ -2176,6 +2217,14 @@ class PatchDecisionEvaluatorRequest(TypedDict):
 
 class PatchDecisionResponseBody(TypedDict):
     data: Decision
+
+
+class PatchLLMDatasetEvaluatorRequest(TypedDict):
+    evaluator_type: Literal["llm"]
+    name: NotRequired[str]
+    input_mapping: NotRequired[InputMapping]
+    description: NotRequired[str]
+    output_configs: NotRequired[Sequence[CategoricalAnnotationConfigData]]
 
 
 class PatchLLMEvaluatorRequest(TypedDict):
@@ -2571,6 +2620,40 @@ class CreateAnnotationConfigResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
 
 
+class CreateBuiltInDatasetEvaluatorRequest(TypedDict):
+    name: str
+    evaluator_id: str
+    input_mapping: InputMapping
+    evaluator_type: Literal["builtin"]
+    description: NotRequired[str]
+    output_configs: NotRequired[
+        Sequence[
+            Union[
+                CategoricalAnnotationConfigData,
+                ContinuousAnnotationConfigData,
+                FreeformAnnotationConfigData,
+            ]
+        ]
+    ]
+
+
+class CreateCodeDatasetEvaluatorRequest(TypedDict):
+    name: str
+    evaluator_id: str
+    input_mapping: InputMapping
+    evaluator_type: Literal["code"]
+    description: NotRequired[str]
+    output_configs: NotRequired[
+        Sequence[
+            Union[
+                CategoricalAnnotationConfigData,
+                ContinuousAnnotationConfigData,
+                FreeformAnnotationConfigData,
+            ]
+        ]
+    ]
+
+
 class CreateCodeEvaluatorRequest(TypedDict):
     type: Literal["code"]
     name: str
@@ -2587,22 +2670,6 @@ class CreateCodeEvaluatorRequest(TypedDict):
     ]
     description: NotRequired[str]
     input_schema: NotRequired[Mapping[str, Any]]
-
-
-class CreateDatasetEvaluatorRequest(TypedDict):
-    name: str
-    evaluator_id: str
-    input_mapping: InputMapping
-    description: NotRequired[str]
-    output_configs: NotRequired[
-        Sequence[
-            Union[
-                CategoricalAnnotationConfigData,
-                ContinuousAnnotationConfigData,
-                FreeformAnnotationConfigData,
-            ]
-        ]
-    ]
 
 
 class CreateDecisionEvaluatorRequest(TypedDict):

@@ -740,16 +740,14 @@ def dataset_binding_overrides(
 ) -> Optional[list[OutputConfigType]]:
     """The output configs a dataset binding of this evaluator stores when it is given these;
     None inherits the evaluator's. A decision evaluator's outputs follow its questions and
-    scoring policy, so its binding stores None and is refused any other outputs."""
-    if isinstance(evaluator, models.DecisionEvaluator):
-        if output_configs is None or list(output_configs) != evaluator.output_configs:
-            raise BadRequest(
-                "Decision outputs are derived from the questions and scoring policy; "
-                "edit the scoring policy to change scoring"
-            )
-        return None
+    scoring policy, so its binding always inherits them."""
     if output_configs is None:
         return None
+    if isinstance(evaluator, models.DecisionEvaluator):
+        raise BadRequest(
+            "Decision outputs are derived from the questions and scoring policy; "
+            "edit the scoring policy to change scoring"
+        )
     if isinstance(evaluator, models.LLMEvaluator):
         return list(check_output_configs("LLM", output_configs))
     return check_output_configs("CODE", output_configs)

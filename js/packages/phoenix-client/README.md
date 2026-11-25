@@ -1031,6 +1031,7 @@ const binding = await createDatasetEvaluator({
   dataset: { datasetName: "golden-questions" },
   name: "exact-match",
   evaluatorId: "Q29kZUV2YWx1YXRvcjoy",
+  evaluatorType: "code",
   inputMapping: { literal_mapping: {}, path_mapping: { output: "output" } },
 });
 
@@ -1040,7 +1041,7 @@ const bindings = await getDatasetEvaluators({
 
 await updateDatasetEvaluator({
   datasetEvaluatorId: binding.id,
-  patch: { name: "nightly-exact-match" },
+  patch: { evaluator_type: binding.evaluator_type, name: "nightly-exact-match" },
 });
 
 // Deleting a binding removes its dedicated evaluator trace project and

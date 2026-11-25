@@ -112,11 +112,26 @@ export type EvaluatorOutputConfig =
 export type DatasetEvaluator = components["schemas"]["DatasetEvaluator"];
 
 /**
- * Fields that can change on a dataset binding. Omitted fields keep their
- * current values.
+ * A dataset binding to create. `evaluator_type` selects the variant and must
+ * match the kind of the evaluator it binds; a decision binding takes no
+ * `output_configs`.
+ */
+export type DatasetEvaluatorCreate =
+  | components["schemas"]["CreateLLMDatasetEvaluatorRequest"]
+  | components["schemas"]["CreateCodeDatasetEvaluatorRequest"]
+  | components["schemas"]["CreateBuiltInDatasetEvaluatorRequest"]
+  | components["schemas"]["CreateDecisionDatasetEvaluatorRequest"];
+
+/**
+ * Fields that can change on a dataset binding. `evaluator_type` selects the
+ * variant and must match the kind of the evaluator the binding runs; a decision
+ * binding takes no `output_configs`. Omitted fields keep their current values.
  */
 export type DatasetEvaluatorPatch =
-  components["schemas"]["PatchDatasetEvaluatorRequest"];
+  | components["schemas"]["PatchLLMDatasetEvaluatorRequest"]
+  | components["schemas"]["PatchCodeDatasetEvaluatorRequest"]
+  | components["schemas"]["PatchBuiltInDatasetEvaluatorRequest"]
+  | components["schemas"]["PatchDecisionDatasetEvaluatorRequest"];
 
 /**
  * Identifies a dataset by ID or by name. The server accepts either in the

@@ -74,6 +74,7 @@ class TestDatasetEvaluatorsCreate:
             assert request.method == "POST"
             assert request.url.path == "/v1/datasets/golden-questions/evaluators"
             assert json.loads(request.content) == {
+                "evaluator_type": "code",
                 "name": "exact-match",
                 "evaluator_id": EVALUATOR_ID,
                 "input_mapping": INPUT_MAPPING,
@@ -85,6 +86,7 @@ class TestDatasetEvaluatorsCreate:
             dataset="golden-questions",
             name="exact-match",
             evaluator_id=EVALUATOR_ID,
+            evaluator_type="code",
             input_mapping=INPUT_MAPPING,
         )
         assert result == created
@@ -107,6 +109,7 @@ class TestDatasetEvaluatorsCreate:
             dataset="RGF0YXNldDox",
             name="exact-match",
             evaluator_id=EVALUATOR_ID,
+            evaluator_type="code",
             input_mapping=INPUT_MAPPING,
             description="override",
             output_configs=output_configs,
@@ -118,7 +121,13 @@ class TestDatasetEvaluatorsCreate:
             DatasetEvaluators(
                 _unreachable_client(),
                 _guard=_refusing_guard(CREATE_DATASET_EVALUATOR),  # type: ignore[arg-type]
-            ).create(dataset="d", name="n", input_mapping=INPUT_MAPPING, evaluator_id="e")
+            ).create(
+                dataset="d",
+                name="n",
+                input_mapping=INPUT_MAPPING,
+                evaluator_id="e",
+                evaluator_type="code",
+            )
 
 
 class TestDatasetEvaluatorsList:
@@ -159,26 +168,37 @@ class TestDatasetEvaluatorsGetUpdate:
         def handler(request: httpx.Request) -> httpx.Response:
             assert request.method == "PATCH"
             assert request.url.path == f"/v1/dataset_evaluators/{BINDING_ID}"
-            assert json.loads(request.content) == {"name": "renamed"}
+            assert json.loads(request.content) == {"evaluator_type": "code", "name": "renamed"}
             return httpx.Response(200, json={"data": updated})
 
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
-        result = DatasetEvaluators(client).update(dataset_evaluator_id=BINDING_ID, name="renamed")
+        result = DatasetEvaluators(client).update(
+            dataset_evaluator_id=BINDING_ID, evaluator_type="code", name="renamed"
+        )
         assert result == updated
 
     def test_update_sends_explicit_null_to_clear_overrides(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
-            assert json.loads(request.content) == {"description": None, "output_configs": None}
+            assert json.loads(request.content) == {
+                "evaluator_type": "code",
+                "description": None,
+                "output_configs": None,
+            }
             return httpx.Response(200, json={"data": _make_binding()})
 
         client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://test")
         DatasetEvaluators(client).update(
-            dataset_evaluator_id=BINDING_ID, description=None, output_configs=None
+            dataset_evaluator_id=BINDING_ID,
+            evaluator_type="code",
+            description=None,
+            output_configs=None,
         )
 
     def test_update_requires_a_field(self) -> None:
         with pytest.raises(ValueError, match="At least one field"):
-            DatasetEvaluators(_unreachable_client()).update(dataset_evaluator_id=BINDING_ID)
+            DatasetEvaluators(_unreachable_client()).update(
+                dataset_evaluator_id=BINDING_ID, evaluator_type="code"
+            )
 
 
 class TestDatasetEvaluatorsDelete:
@@ -225,7 +245,9 @@ class TestAsyncDatasetEvaluators:
 
         async def handler(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/v1/datasets/golden-questions/evaluators"
-            assert json.loads(request.content)["evaluator_id"] == EVALUATOR_ID
+            body = json.loads(request.content)
+            assert body["evaluator_id"] == EVALUATOR_ID
+            assert body["evaluator_type"] == "code"
             return httpx.Response(201, json={"data": created})
 
         client = httpx.AsyncClient(transport=httpx.MockTransport(handler), base_url="http://test")
@@ -234,6 +256,7 @@ class TestAsyncDatasetEvaluators:
             name="exact-match",
             input_mapping=INPUT_MAPPING,
             evaluator_id=EVALUATOR_ID,
+            evaluator_type="code",
         )
         assert result == created
 

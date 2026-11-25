@@ -68,11 +68,13 @@ describe("createDatasetEvaluator", () => {
       dataset: { datasetName: "golden-questions" },
       name: "exact-match",
       evaluatorId: "RXZhbHVhdG9yOjI=",
+      evaluatorType: "code",
       inputMapping: INPUT_MAPPING,
     });
 
     expect(receivedIdentifier).toBe("golden-questions");
     expect(receivedBody).toEqual({
+      evaluator_type: "code",
       name: "exact-match",
       evaluator_id: "RXZhbHVhdG9yOjI=",
       input_mapping: INPUT_MAPPING,
@@ -98,6 +100,7 @@ describe("createDatasetEvaluator", () => {
       name: "notes",
       inputMapping: INPUT_MAPPING,
       evaluatorId: "RXZhbHVhdG9yOjI=",
+      evaluatorType: "code",
       description: "override",
       outputConfigs: [{ type: "FREEFORM", name: "notes" }],
     });
@@ -106,6 +109,37 @@ describe("createDatasetEvaluator", () => {
     expect(receivedBody?.output_configs).toEqual([
       { type: "FREEFORM", name: "notes" },
     ]);
+  });
+
+  it("sends a decision binding without output configs", async () => {
+    let receivedBody: unknown;
+    server.use(
+      http.post(
+        "/v1/datasets/{dataset_identifier}/evaluators",
+        async ({ request, response }) => {
+          receivedBody = await request.json();
+          return response(201).json({
+            data: { ...binding, evaluator_type: "decision" },
+          });
+        }
+      )
+    );
+
+    await createDatasetEvaluator({
+      client: createTestClient(),
+      dataset: { datasetId: "RGF0YXNldDox" },
+      name: "judge",
+      evaluatorId: "RGVjaXNpb25FdmFsdWF0b3I6MQ==",
+      evaluatorType: "decision",
+      inputMapping: INPUT_MAPPING,
+    });
+
+    expect(receivedBody).toEqual({
+      evaluator_type: "decision",
+      name: "judge",
+      evaluator_id: "RGVjaXNpb25FdmFsdWF0b3I6MQ==",
+      input_mapping: INPUT_MAPPING,
+    });
   });
 });
 
@@ -204,10 +238,14 @@ describe("getDatasetEvaluator and updateDatasetEvaluator", () => {
     const result = await updateDatasetEvaluator({
       client: createTestClient(),
       datasetEvaluatorId: BINDING_ID,
-      patch: { name: "renamed", output_configs: null },
+      patch: { evaluator_type: "code", name: "renamed", output_configs: null },
     });
 
-    expect(receivedBody).toEqual({ name: "renamed", output_configs: null });
+    expect(receivedBody).toEqual({
+      evaluator_type: "code",
+      name: "renamed",
+      output_configs: null,
+    });
     expect(result.name).toBe("renamed");
   });
 
@@ -216,7 +254,7 @@ describe("getDatasetEvaluator and updateDatasetEvaluator", () => {
       updateDatasetEvaluator({
         client: createTestClient(),
         datasetEvaluatorId: BINDING_ID,
-        patch: {},
+        patch: { evaluator_type: "code" },
       })
     ).rejects.toThrow("At least one field to update must be provided");
   });
@@ -226,7 +264,7 @@ describe("getDatasetEvaluator and updateDatasetEvaluator", () => {
       updateDatasetEvaluator({
         client: createTestClient(),
         datasetEvaluatorId: BINDING_ID,
-        patch: { description: undefined },
+        patch: { evaluator_type: "code", description: undefined },
       })
     ).rejects.toThrow("At least one field to update must be provided");
   });
@@ -248,10 +286,10 @@ describe("getDatasetEvaluator and updateDatasetEvaluator", () => {
     await updateDatasetEvaluator({
       client: createTestClient(),
       datasetEvaluatorId: BINDING_ID,
-      patch: { description: null },
+      patch: { evaluator_type: "code", description: null },
     });
 
-    expect(receivedBody).toEqual({ description: null });
+    expect(receivedBody).toEqual({ evaluator_type: "code", description: null });
   });
 });
 
