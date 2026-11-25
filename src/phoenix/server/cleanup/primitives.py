@@ -13,13 +13,15 @@ with an unskipped ``EXISTS`` check and distinguishes:
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy import (
     ColumnElement,
+    Select,
     and_,
     delete,
     exists,
@@ -83,6 +85,32 @@ def trace_scope_condition(
     return and_(*conditions)
 
 
+async def _claim_and_mutate(
+    session: AsyncSession,
+    *,
+    candidates: Select[Any],
+    condition: ColumnElement[bool],
+    mutate: Callable[[list[int]], Awaitable[object]],
+    lock_candidates: bool = True,
+) -> PrimitiveResult:
+    """Claim a bounded batch of candidate ids and mutate it in ascending id order.
+
+    Returns ``PROGRESS`` when rows changed, ``YIELD`` when none changed although rows matching
+    ``condition`` remain (for example, locked by another writer), and ``EMPTY`` otherwise.
+    """
+    dialect = SupportedSQLDialect(session.get_bind().dialect.name)
+    if lock_candidates and dialect is SupportedSQLDialect.POSTGRESQL:
+        candidates = candidates.with_for_update(skip_locked=True)
+    ids = sorted(await session.scalars(candidates))
+    if ids:
+        changed = _rowcount(await mutate(ids))
+        if changed > 0:
+            return PrimitiveResult(PrimitiveStatus.PROGRESS, changed)
+    if await _has_any(session, condition):
+        return PrimitiveResult(PrimitiveStatus.YIELD, 0)
+    return PrimitiveResult(PrimitiveStatus.EMPTY, 0)
+
+
 async def _delete_by_ids(
     session: AsyncSession,
     *,
@@ -90,19 +118,12 @@ async def _delete_by_ids(
     condition: ColumnElement[bool],
     batch_limit: int,
 ) -> PrimitiveResult:
-    dialect = SupportedSQLDialect(session.get_bind().dialect.name)
-    candidates = select(model.id).where(condition).limit(batch_limit)
-    if dialect is SupportedSQLDialect.POSTGRESQL:
-        candidates = candidates.with_for_update(skip_locked=True)
-    ids = list(await session.scalars(candidates))
-    if ids:
-        ids.sort()
-        deleted = _rowcount(await session.execute(delete(model).where(model.id.in_(ids))))
-        if deleted > 0:
-            return PrimitiveResult(PrimitiveStatus.PROGRESS, deleted)
-    if await _has_any(session, condition):
-        return PrimitiveResult(PrimitiveStatus.YIELD, 0)
-    return PrimitiveResult(PrimitiveStatus.EMPTY, 0)
+    return await _claim_and_mutate(
+        session,
+        candidates=select(model.id).where(condition).limit(batch_limit),
+        condition=condition,
+        mutate=lambda ids: session.execute(delete(model).where(model.id.in_(ids))),
+    )
 
 
 async def _drain_overflow_by_ids(
@@ -181,47 +202,35 @@ async def drain_dataset_evaluator_dependents_step(
         )
     else:
         log_ids_stmt = select(eval_log_table.c.id).where(eval_log_condition).limit(batch_limit)
-    log_ids: list[int] = [int(log_id) for log_id in await session.scalars(log_ids_stmt)]
-    if log_ids:
-        log_ids.sort()
-        deleted_logs = _rowcount(
-            await session.execute(
-                delete(models.ExperimentLog).where(
-                    models.ExperimentLog.category == "EVAL",
-                    models.ExperimentLog.id.in_(log_ids),
-                )
+    logs_result = await _claim_and_mutate(
+        session,
+        candidates=log_ids_stmt,
+        condition=eval_log_condition,
+        mutate=lambda log_ids: session.execute(
+            delete(models.ExperimentLog).where(
+                models.ExperimentLog.category == "EVAL",
+                models.ExperimentLog.id.in_(log_ids),
             )
-        )
-        if deleted_logs > 0:
-            return PrimitiveResult(PrimitiveStatus.PROGRESS, deleted_logs)
-    if await _has_any(session, eval_log_condition):
-        return PrimitiveResult(PrimitiveStatus.YIELD, 0)
+        ),
+        lock_candidates=False,
+    )
+    if logs_result.status is not PrimitiveStatus.EMPTY:
+        return logs_result
 
     link_condition = models.ExperimentDatasetEvaluator.dataset_evaluator_id == dataset_evaluator_id
-    experiment_ids_stmt = (
-        select(models.ExperimentDatasetEvaluator.experiment_id)
+    return await _claim_and_mutate(
+        session,
+        candidates=select(models.ExperimentDatasetEvaluator.experiment_id)
         .where(link_condition)
-        .limit(batch_limit)
-    )
-    if dialect is SupportedSQLDialect.POSTGRESQL:
-        experiment_ids_stmt = experiment_ids_stmt.with_for_update(skip_locked=True)
-    experiment_ids = list(await session.scalars(experiment_ids_stmt))
-    if experiment_ids:
-        experiment_ids.sort()
-        deleted_links = _rowcount(
-            await session.execute(
-                delete(models.ExperimentDatasetEvaluator).where(
-                    link_condition,
-                    models.ExperimentDatasetEvaluator.experiment_id.in_(experiment_ids),
-                )
+        .limit(batch_limit),
+        condition=link_condition,
+        mutate=lambda experiment_ids: session.execute(
+            delete(models.ExperimentDatasetEvaluator).where(
+                link_condition,
+                models.ExperimentDatasetEvaluator.experiment_id.in_(experiment_ids),
             )
-        )
-        if deleted_links > 0:
-            return PrimitiveResult(PrimitiveStatus.PROGRESS, deleted_links)
-    if await _has_any(session, link_condition):
-        return PrimitiveResult(PrimitiveStatus.YIELD, 0)
-
-    return PrimitiveResult(PrimitiveStatus.EMPTY, 0)
+        ),
+    )
 
 
 async def _drain_span_children_batch(
@@ -231,26 +240,20 @@ async def _drain_span_children_batch(
     batch_limit: int,
 ) -> Optional[PrimitiveResult]:
     """Ensure no selected span batch triggers an unbounded child cascade or SET NULL update."""
-    dialect = SupportedSQLDialect(session.get_bind().dialect.name)
     # 1. Clear dataset_examples.span_rowid in bounded updates before deleting spans.
     example_cond = models.DatasetExample.span_rowid.in_(span_ids)
-    example_ids_stmt = select(models.DatasetExample.id).where(example_cond).limit(batch_limit)
-    if dialect is SupportedSQLDialect.POSTGRESQL:
-        example_ids_stmt = example_ids_stmt.with_for_update(skip_locked=True)
-    example_ids = list(await session.scalars(example_ids_stmt))
-    if example_ids:
-        example_ids.sort()
-        cleared = _rowcount(
-            await session.execute(
-                update(models.DatasetExample)
-                .where(models.DatasetExample.id.in_(example_ids))
-                .values(span_rowid=None)
-            )
-        )
-        if cleared > 0:
-            return PrimitiveResult(PrimitiveStatus.PROGRESS, cleared)
-    if await _has_any(session, example_cond):
-        return PrimitiveResult(PrimitiveStatus.YIELD, 0)
+    example_result = await _claim_and_mutate(
+        session,
+        candidates=select(models.DatasetExample.id).where(example_cond).limit(batch_limit),
+        condition=example_cond,
+        mutate=lambda example_ids: session.execute(
+            update(models.DatasetExample)
+            .where(models.DatasetExample.id.in_(example_ids))
+            .values(span_rowid=None)
+        ),
+    )
+    if example_result.status is not PrimitiveStatus.EMPTY:
+        return example_result
 
     # 2. Drain potentially high-fanout child tables if their count across the selected spans
     # exceeds batch_limit; small child sets cascade directly with the span batch. SpanCostDetail
@@ -502,26 +505,17 @@ async def reset_session_evaluations_step(
     batch_limit: int,
 ) -> PrimitiveResult:
     """Reset final session evaluation decisions for span-drained traces about to be cleared."""
-    dialect = SupportedSQLDialect(session.get_bind().dialect.name)
     condition = _resettable_session_evaluations_condition(ready_trace_cond)
-    candidates = select(models.EvalSessionWorkUnit.id).where(condition).limit(batch_limit)
-    if dialect is SupportedSQLDialect.POSTGRESQL:
-        candidates = candidates.with_for_update(skip_locked=True)
-    ids = list(await session.scalars(candidates))
-    if ids:
-        ids.sort()
-        count = _rowcount(
-            await session.execute(
-                update(models.EvalSessionWorkUnit)
-                .where(
-                    models.EvalSessionWorkUnit.id.in_(ids),
-                    models.EvalSessionWorkUnit.status.in_(_RESETTABLE_SESSION_EVAL_STATUSES),
-                )
-                .values(status="DROPPED")
+    return await _claim_and_mutate(
+        session,
+        candidates=select(models.EvalSessionWorkUnit.id).where(condition).limit(batch_limit),
+        condition=condition,
+        mutate=lambda ids: session.execute(
+            update(models.EvalSessionWorkUnit)
+            .where(
+                models.EvalSessionWorkUnit.id.in_(ids),
+                models.EvalSessionWorkUnit.status.in_(_RESETTABLE_SESSION_EVAL_STATUSES),
             )
-        )
-        if count > 0:
-            return PrimitiveResult(PrimitiveStatus.PROGRESS, count)
-    if await _has_any(session, condition):
-        return PrimitiveResult(PrimitiveStatus.YIELD, 0)
-    return PrimitiveResult(PrimitiveStatus.EMPTY, 0)
+            .values(status="DROPPED")
+        ),
+    )
