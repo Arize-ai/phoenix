@@ -166,7 +166,7 @@ const ProjectEvaluatorEvaluationDelayField = ({
   return (
     <Flex direction="column" gap="size-50">
       <Text size="XS" weight="heavy" color="text-700">
-        Evaluation delay
+        Evaluation delay (seconds)
       </Text>
       {/* Stays at the default M size so it lines up with the segmented
           control, slider, and select sharing this row. */}

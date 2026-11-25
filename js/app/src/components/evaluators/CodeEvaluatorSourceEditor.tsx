@@ -320,6 +320,26 @@ const cmLineNumberGutterCSS = css`
     min-width: 2.25em;
     box-sizing: border-box;
   }
+  /* The global gutter tint is translucent, so code scrolled sideways under
+     the sticky gutter would show through it. Stacking the tint on the layers
+     behind it (the editor's tint, the container's, and the surface) keeps
+     its color and makes it opaque. */
+  & .cm-gutters {
+    background:
+      linear-gradient(
+        var(--code-mirror-gutters-background-color),
+        var(--code-mirror-gutters-background-color)
+      ),
+      linear-gradient(
+        var(--code-mirror-editor-background-color),
+        var(--code-mirror-editor-background-color)
+      ),
+      linear-gradient(
+        var(--code-mirror-editor-background-color),
+        var(--code-mirror-editor-background-color)
+      ),
+      var(--global-background-color-default) !important;
+  }
 `;
 
 const editorWrapCSS = css`

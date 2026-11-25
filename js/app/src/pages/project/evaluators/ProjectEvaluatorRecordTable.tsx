@@ -39,8 +39,14 @@ import {
 import type { ProjectEvaluatorRecordKind } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
-/** The one column that takes whatever width the fixed columns leave. */
-const NAME_COLUMN_ID = "name";
+/** The columns that split whatever width the fixed-size columns leave. */
+const FLEXIBLE_COLUMN_IDS: ReadonlySet<string> = new Set(["name", "result"]);
+
+/**
+ * The least a flexible column shrinks to: room for its header and the start
+ * of its value. Below it, the table scrolls sideways instead.
+ */
+const FLEXIBLE_COLUMN_MIN_WIDTH = 128;
 
 /** What the per-kind size column adds up, in its header. */
 const SIZE_HEADER_BY_RECORD_KIND: Record<
@@ -108,7 +114,7 @@ export function ProjectEvaluatorRecordTable({
         ]
       : []),
     {
-      id: NAME_COLUMN_ID,
+      id: "name",
       header: recordNoun,
       cell: ({ row: { original } }) => (
         <div className="record-table__name">
@@ -176,7 +182,6 @@ export function ProjectEvaluatorRecordTable({
     {
       id: "result",
       header: "Result",
-      size: 300,
       cell: ({ row: { original } }) => (
         <RecordedRunResultCell
           entry={original}
@@ -195,6 +200,15 @@ export function ProjectEvaluatorRecordTable({
     getRowId: (entry) => entry.row.key,
   });
   const tableRows = table.getRowModel().rows;
+  const leafColumns = table.getAllLeafColumns();
+  const tableMinWidth = leafColumns.reduce(
+    (total, column) =>
+      total +
+      (FLEXIBLE_COLUMN_IDS.has(column.id)
+        ? FLEXIBLE_COLUMN_MIN_WIDTH
+        : column.getSize()),
+    0
+  );
   const focusRowAt = (
     event: KeyboardEvent<HTMLTableRowElement>,
     index: number
@@ -215,19 +229,21 @@ export function ProjectEvaluatorRecordTable({
     <div css={tableScrollCSS}>
       <table
         css={recordTableCSS}
+        style={{ minWidth: tableMinWidth }}
         aria-label={`Recent matching ${recordKind}s`}
         data-testid="project-evaluator-record-table"
       >
         {/* Fixed layout reads the column widths from here: every column but
-            the name takes its size, and the name takes what is left. */}
+            the name and result takes its size, and those two split what is
+            left. */}
         <colgroup>
-          {table.getAllLeafColumns().map((column) => (
+          {leafColumns.map((column) => (
             <col
               key={column.id}
               style={
-                column.id === NAME_COLUMN_ID
+                FLEXIBLE_COLUMN_IDS.has(column.id)
                   ? undefined
-                  : { width: column.columnDef.size ?? 150 }
+                  : { width: column.getSize() }
               }
             />
           ))}
