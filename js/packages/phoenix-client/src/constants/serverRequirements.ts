@@ -332,6 +332,13 @@ export const AGENT_SESSION_MESSAGES: RouteRequirement = {
   minServerVersion: [20, 0, 0],
 };
 
+export const LIST_MODEL_PROVIDERS: RouteRequirement = {
+  kind: "route",
+  method: "GET",
+  path: "/v1/model_providers",
+  minServerVersion: [20, 4, 0],
+};
+
 /**
  * Aggregate list of every known capability requirement.
  *
@@ -382,4 +389,5 @@ export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   AGENT_SESSION_TOOL_OUTPUTS,
   AGENT_SESSION_CHAT,
   AGENT_SESSION_MESSAGES,
+  LIST_MODEL_PROVIDERS,
 ] as const;
