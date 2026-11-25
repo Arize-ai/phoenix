@@ -19,12 +19,12 @@ _LIVE_BINDING_NOTE = (
     "to exclude rows awaiting cleanup, join dataset_evaluators with deleted_at IS NULL"
 )
 _DELETED_PROJECT_SPAN_NOTE = (
-    "can point into a deleted project's spans until cleanup; join spans, traces and projects "
-    "with deleted_at IS NULL"
+    "can point into a deleted project's spans until cleanup; LEFT JOIN spans, traces and "
+    "projects and exclude rows whose project has deleted_at set, keeping rows with no span"
 )
 _DELETED_PROJECT_TRACE_NOTE = (
-    "can point into a deleted project's traces until cleanup; join traces and projects "
-    "with deleted_at IS NULL"
+    "can point into a deleted project's traces until cleanup; LEFT JOIN traces and projects "
+    "and exclude rows whose project has deleted_at set, keeping rows with no trace"
 )
 
 
@@ -321,8 +321,9 @@ MANIFEST = AnalyticsSqlManifest(
                         "experiment_logs": TableCuration(
                             grain=(
                                 "One experiment log; EVAL rows of a deleted dataset evaluator stay "
-                                "until cleanup, so join experiment_eval_logs to dataset_evaluators "
-                                "on dataset_evaluator_id with deleted_at IS NULL"
+                                "until cleanup, so LEFT JOIN experiment_eval_logs and "
+                                "dataset_evaluators (on dataset_evaluator_id) and exclude rows "
+                                "whose dataset evaluator has deleted_at set, keeping TASK logs"
                             ),
                             time_column="occurred_at",
                             column_notes=MappingProxyType(

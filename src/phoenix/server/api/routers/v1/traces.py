@@ -406,7 +406,7 @@ async def list_project_traces(
             404,
             {
                 "status_code": 409,
-                "description": "Some traces are in use by another operation (retry the request), or the project holds an evaluator's traces (delete the evaluator instead)",  # noqa: E501
+                "description": "Some traces are in use by another operation; retry the request",
             },
             422,
         ]

@@ -535,6 +535,8 @@ class TestExperimentSweeper:
     ) -> None:
         from phoenix.server.daemons import experiment_sweeper
 
+        if db.dialect.name_literal != "postgresql":
+            pytest.skip("Requires independent PostgreSQL transactions")
         experiment_ids = await self._insert_expired_backlog(db, 5)
         monkeypatch.setattr(experiment_sweeper, "CLEANUP_BATCH_ROWS", 2)
         locked_experiment_id = experiment_ids[0]

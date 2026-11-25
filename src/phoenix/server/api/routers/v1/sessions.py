@@ -165,9 +165,15 @@ async def _get_session_by_identifier(
                 status_code=404,
                 detail=f"Session with session_id {session_identifier} not found",
             )
-    if await session.scalar(
-        select(models.Project.deleted_at).where(models.Project.id == project_session.project_id)
-    ):
+    owner = (
+        await session.execute(
+            select(models.Project.id, models.Project.deleted_at).where(
+                models.Project.id == project_session.project_id
+            )
+        )
+    ).first()
+    # A missing owner was purged, and its sessions go with it.
+    if owner is None or owner.deleted_at is not None:
         raise HTTPException(
             status_code=404,
             detail=f"Session {session_identifier} not found",

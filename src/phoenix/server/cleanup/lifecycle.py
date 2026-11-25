@@ -70,7 +70,6 @@ class TombstonedProject:
 @dataclass(frozen=True)
 class DeletedDataset:
     dataset: models.Dataset
-    experiment_ids: list[int]
     eval_trace_ids: list[str]
     tombstoned_project_ids: list[int]
 
@@ -808,7 +807,6 @@ async def delete_dataset_and_tombstone_projects(
             .returning(models.Experiment.id, models.Experiment.project_name)
         )
     ).all()
-    experiment_ids = sorted(int(row.id) for row in deleted_experiment_rows)
     candidate_project_ids = locked_experiment_project_ids.intersection(
         await resolve_experiment_project_delete_candidates(
             session,
@@ -830,7 +828,6 @@ async def delete_dataset_and_tombstone_projects(
 
     return DeletedDataset(
         dataset=deleted_dataset,
-        experiment_ids=experiment_ids,
         eval_trace_ids=eval_trace_ids,
         tombstoned_project_ids=sorted(tombstoned_project_ids),
     )

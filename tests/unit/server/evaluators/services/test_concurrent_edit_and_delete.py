@@ -674,13 +674,11 @@ async def _wait_until_lock_wait_or_done(
     db: DbSessionFactory,
     task: "asyncio.Task[Any]",
     query_fragment: str,
-    *,
-    expect_done: bool = False,
 ) -> None:
     """Return once PostgreSQL parks ``task``'s query on a row lock.
 
-    A task that finishes without ever waiting fails the caller unless ``expect_done`` is set,
-    and one that never settles is cancelled so it cannot leak its sessions.
+    A task that finishes without ever waiting fails the caller, and one that never settles is
+    cancelled so it cannot leak its sessions.
     """
     from sqlalchemy import text
 
@@ -709,11 +707,11 @@ async def _wait_until_lock_wait_or_done(
             await _cancel_pending_task()
             raise TimeoutError(f"Timed out waiting for lock wait on {query_fragment!r}")
         await asyncio.sleep(0.01)
-    assert expect_done, f"the task finished without waiting on a lock for {query_fragment!r}"
+    raise AssertionError(f"the task finished without waiting on a lock for {query_fragment!r}")
 
 
 @pytest.mark.postgres_only
-async def test_experiment_runner_persist_traces_does_not_deadlock_with_dataset_evaluator_delete(
+async def test_persisting_eval_traces_finishes_while_a_dataset_evaluator_delete_holds_its_locks(
     postgresql_engine: AsyncEngine,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -808,17 +806,13 @@ async def test_experiment_runner_persist_traces_does_not_deadlock_with_dataset_e
 
     async def _run_persist() -> None:
         await asyncio.wait_for(project_locked_by_delete.wait(), 5)
-        persist_task = asyncio.create_task(
-            work_item._persist_eval_results(annotations=[], db_traces=[eval_trace])
-        )
         try:
-            # The persist locks only the binding row, so it finishes while the delete holds the project.
-            await _wait_until_lock_wait_or_done(
-                db, persist_task, "FROM dataset_evaluators JOIN projects", expect_done=True
+            # The persist locks only the binding row, so it must not wait for the project lock.
+            await asyncio.wait_for(
+                work_item._persist_eval_results(annotations=[], db_traces=[eval_trace]), 5
             )
         finally:
             release_delete_binding_lock.set()
-        await persist_task
 
     await asyncio.gather(_run_delete(), _run_persist())
 
@@ -1017,9 +1011,7 @@ async def test_delete_project_evaluator_skips_surviving_prompt_lock(
                 ),
             )
         )
-        await _wait_until_lock_wait_or_done(db, delete_task, "FROM prompts", expect_done=True)
-        assert delete_task.done()
-        await delete_task
+        await asyncio.wait_for(delete_task, 5)
 
 
 async def test_delete_project_evaluator_emits_tombstone_events(
@@ -1126,14 +1118,12 @@ async def test_dataset_delete_keeps_project_of_experiment_a_user_deleted_first(
 
     monkeypatch.setattr(lifecycle, "lock_dataset_delete_targets", _lock_then_let_user_delete)
     async with db() as session:
-        deleted = await lifecycle.delete_dataset_and_tombstone_projects(
-            session, dataset_id=dataset_id
-        )
-    assert deleted.experiment_ids == [removed_experiment_id]
+        await lifecycle.delete_dataset_and_tombstone_projects(session, dataset_id=dataset_id)
 
     async with db() as session:
         assert await session.get(models.Dataset, dataset_id) is None
         assert await session.get(models.Experiment, removed_experiment_id) is None
+        assert await session.get(models.Experiment, kept_experiment_id) is None
         kept = await session.get(models.Project, kept_project_id)
         removed = await session.get(models.Project, removed_project_id)
         assert kept is not None and kept.deleted_at is None

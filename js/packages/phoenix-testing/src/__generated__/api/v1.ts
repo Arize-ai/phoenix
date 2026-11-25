@@ -13405,7 +13405,7 @@ export interface operations {
                     "text/plain": string;
                 };
             };
-            /** @description Some traces are in use by another operation (retry the request), or the project holds an evaluator's traces (delete the evaluator instead) */
+            /** @description Some traces are in use by another operation; retry the request */
             409: {
                 headers: {
                     [name: string]: unknown;
