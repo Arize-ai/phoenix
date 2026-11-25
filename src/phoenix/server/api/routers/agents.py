@@ -74,6 +74,7 @@ from sqlalchemy import ColumnElement, Insert, func, or_, select, text, tuple_, u
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from strawberry.relay import GlobalID
@@ -1359,14 +1360,18 @@ async def _persist_db_traces(
     ]
     persistent_by_session_id = await _upsert_project_sessions(session, project_sessions)
 
-    existing_traces_by_trace_id = {
-        trace.trace_id: trace
-        for trace in await session.scalars(
-            select(models.Trace).where(
-                models.Trace.trace_id.in_({db_trace.trace_id for db_trace in db_traces})
-            )
-        )
-    }
+    existing_traces_by_trace_id: dict[str, models.Trace] = {}
+    tombstoned_trace_ids: set[str] = set()
+    # project_session is loaded eagerly because it is read after the session may have been unset.
+    for existing_trace_row, project_deleted_at in await session.execute(
+        select(models.Trace, models.Project.deleted_at)
+        .join(models.Project, models.Project.id == models.Trace.project_rowid)
+        .where(models.Trace.trace_id.in_({db_trace.trace_id for db_trace in db_traces}))
+        .options(joinedload(models.Trace.project_session))
+    ):
+        existing_traces_by_trace_id[existing_trace_row.trace_id] = existing_trace_row
+        if project_deleted_at is not None:
+            tombstoned_trace_ids.add(existing_trace_row.trace_id)
     span_ids = {db_span.span_id for db_trace in db_traces for db_span in db_trace.spans}
     existing_span_ids = (
         set(
@@ -1406,6 +1411,8 @@ async def _persist_db_traces(
                     db_trace.project_session = persistent_project_session
                     project_session_rowids_with_new_spans.add(persistent_project_session.id)
                 traces_to_insert.append(db_trace)
+            continue
+        if db_trace.trace_id in tombstoned_trace_ids:
             continue
         if db_trace.start_time < existing_trace.start_time:
             existing_trace.start_time = db_trace.start_time
