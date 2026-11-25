@@ -436,7 +436,12 @@ export function getDecisionValidationError({
     }
     if (questionErrors.levels) return `${label}: ${questionErrors.levels}`;
     if (questionErrors.levelLabels) {
-      return `${label}: every level needs a label`;
+      const hasEmptyLevelLabel = Object.values(
+        questionErrors.levelLabels
+      ).includes(REQUIRED_ERROR);
+      return hasEmptyLevelLabel
+        ? `${label}: every level needs a label`
+        : `${label}: level labels must be unique`;
     }
   }
   return null;
@@ -1224,8 +1229,6 @@ export type DecisionImportResult = {
    * exactly as it was.
    */
   templateFormat: TemplateFormat;
-  /** What the import changed to fit Phoenix's format, for the user to review. */
-  notices: string[];
 };
 
 /**
@@ -1302,46 +1305,37 @@ function toSystemOneFromGemini(body: GeminiDecisionsBody): SystemOneBody {
  * Phoenix stores choice values as text, so an OpenAI boolean value becomes its
  * text form. A question offering both a boolean and that same text would then
  * have two identical choices, so it is refused here, naming the question.
- * @returns a notice for each converted value
  */
-function readOpenAIChoiceValueNotices({
+function assertDistinctOpenAIChoiceValues({
   questionName,
   values,
 }: {
   questionName: string;
   values: Array<string | boolean>;
-}): string[] {
+}): void {
   const textValues = new Set(
     values.filter((value): value is string => typeof value === "string")
   );
-  const notices: string[] = [];
-  for (const value of values) {
-    if (typeof value !== "boolean") continue;
-    const text = String(value);
-    if (textValues.has(text)) {
-      throw new Error(
-        `Question "${questionName}" offers both ${text} and "${text}" as choices. Phoenix stores choice values as text, so they would be the same choice.`
-      );
-    }
-    notices.push(
-      `Question "${questionName}": the choice ${text} was a boolean and is saved as the text "${text}".`
-    );
-  }
-  return notices;
+  const clashingBoolean = values.find(
+    (value): value is boolean =>
+      typeof value === "boolean" && textValues.has(String(value))
+  );
+  if (clashingBoolean === undefined) return;
+  const text = String(clashingBoolean);
+  throw new Error(
+    `Question "${questionName}" has two choices that Phoenix would store as the same value: the boolean ${text} and the string "${text}". Remove one of them.`
+  );
 }
 
 function toDraftFromOpenAIDecisions(
   body: OpenAIDecisionsBody
-): Pick<DecisionImportResult, "draft" | "notices"> {
-  const notices: string[] = [];
+): Pick<DecisionImportResult, "draft"> {
   const questions = body.questions.map((question): DecisionQuestionDraft => {
     if (question.type === "choice") {
-      notices.push(
-        ...readOpenAIChoiceValueNotices({
-          questionName: question.name,
-          values: question.choices.map((choice) => choice.value),
-        })
-      );
+      assertDistinctOpenAIChoiceValues({
+        questionName: question.name,
+        values: question.choices.map((choice) => choice.value),
+      });
       return createDecisionQuestion({
         type: "choice",
         name: question.name,
@@ -1373,7 +1367,7 @@ function toDraftFromOpenAIDecisions(
       instructions: question.instructions,
     });
   });
-  return { draft: { state: toStateDraft(body.input), questions }, notices };
+  return { draft: { state: toStateDraft(body.input), questions } };
 }
 
 function toDraftFromSystemOne(
@@ -1447,12 +1441,11 @@ export function parseDecisionImport(text: string): DecisionImportResult {
         `Not a valid OpenAI Decisions request: ${describeImportIssue(parsed.error.issues[0])}`
       );
     }
-    const { draft, notices } = toDraftFromOpenAIDecisions(parsed.data);
+    const { draft } = toDraftFromOpenAIDecisions(parsed.data);
     return {
       model: parsed.data.model ?? null,
       draft,
       templateFormat: getImportedTemplateFormat(draft),
-      notices,
     };
   }
   if (isStringKeyedObject(json.questions) && "input" in json) {
@@ -1467,7 +1460,6 @@ export function parseDecisionImport(text: string): DecisionImportResult {
       model: parsed.data.model ?? null,
       draft,
       templateFormat: getImportedTemplateFormat(draft),
-      notices: [],
     };
   }
   const parsed = systemOneSchema.safeParse(json);
@@ -1486,7 +1478,6 @@ export function parseDecisionImport(text: string): DecisionImportResult {
     model: parsed.data.model ?? null,
     draft,
     templateFormat: getImportedTemplateFormat(draft),
-    notices: [],
   };
 }
 
@@ -1760,29 +1751,25 @@ function readDecisionTarget(decisionAttributes: Record<string, unknown>): {
 function readDecisionDraft(inputText: string | null): {
   draft: DecisionPromptDraft;
   templateFormat: TemplateFormat;
-  messages: string[];
+  error: string | null;
 } {
   if (inputText == null) {
     return {
       draft: createDecisionDraft(),
       templateFormat: TemplateFormats.Mustache,
-      messages: [
-        "The span has no input body; starting from an example request.",
-      ],
+      error: "The span has no input body; starting from an example request.",
     };
   }
   try {
-    const { draft, templateFormat, notices } = parseDecisionImport(inputText);
-    return { draft, templateFormat, messages: notices };
+    const { draft, templateFormat } = parseDecisionImport(inputText);
+    return { draft, templateFormat, error: null };
   } catch (error) {
     return {
       draft: createDecisionDraft(),
       templateFormat: TemplateFormats.Mustache,
-      messages: [
-        `Could not read the decision prompt from the span: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      ],
+      error: `Could not read the decision prompt from the span: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
     };
   }
 }
@@ -1834,10 +1821,10 @@ export function buildDecisionInstanceFromSpanAttributes({
   if (!modelName) {
     parsingErrors.push("Could not determine the decision model from the span.");
   }
-  const { draft, templateFormat, messages } = readDecisionDraft(
+  const { draft, templateFormat, error } = readDecisionDraft(
     readAttributeValueText(spanAttributes.input)
   );
-  parsingErrors.push(...messages);
+  if (error) parsingErrors.push(error);
   const output = readAttributeValueText(spanAttributes.output);
   const isFailedRun = status?.code === "ERROR" && output == null;
 

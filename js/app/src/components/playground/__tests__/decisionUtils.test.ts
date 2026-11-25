@@ -191,6 +191,12 @@ describe("decision prompt draft", () => {
     expect(errors.byQuestionId[scale.id]?.levelLabels).toEqual({
       [scale.levels[1].id]: "Duplicate",
     });
+    expect(
+      getDecisionValidationError({
+        draft,
+        templateFormat: TemplateFormats.Mustache,
+      })
+    ).toBe("severity: level labels must be unique");
   });
 
   it("caps the question count like the server does", () => {
@@ -1008,7 +1014,7 @@ describe("request import", () => {
   });
 
   it("imports an OpenAI Decisions body", () => {
-    const { draft, notices } = parseDecisionImport(
+    const { draft } = parseDecisionImport(
       JSON.stringify({
         model: "gpt-6",
         input: "Refund please",
@@ -1032,9 +1038,6 @@ describe("request import", () => {
       "billing",
       "true",
     ]);
-    expect(notices).toEqual([
-      'Question "team": the choice true was a boolean and is saved as the text "true".',
-    ]);
   });
 
   it('refuses an OpenAI choice question offering both true and "true"', () => {
@@ -1052,11 +1055,9 @@ describe("request import", () => {
           ],
         })
       )
-    ).toThrow('Question "refund" offers both true and "true" as choices');
-  });
-
-  it("reports nothing to review for a System One body", () => {
-    expect(parseDecisionImport(systemOne('"Late refund"')).notices).toEqual([]);
+    ).toThrow(
+      'Question "refund" has two choices that Phoenix would store as the same value: the boolean true and the string "true".'
+    );
   });
 
   it("names the field a schema error refers to", () => {
