@@ -5,7 +5,7 @@ import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 import { validateIdentifier } from "@phoenix/utils/identifierUtils";
 
 /** The store's input mapping, limited to the variables the evaluator declares. */
-export function useDeclaredInputMapping(variables: readonly string[]) {
+function useDeclaredInputMapping(variables: readonly string[]) {
   const store = useEvaluatorStoreInstance();
   return () =>
     pickDeclaredInputMapping(

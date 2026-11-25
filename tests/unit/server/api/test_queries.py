@@ -3520,6 +3520,36 @@ class TestEvaluatorsQuery:
         assert not response.errors
         assert response.data == {"evaluators": {"edges": []}}
 
+    async def test_evaluators_filter_by_kinds(
+        self,
+        gql_client: AsyncGraphQLClient,
+        evaluators_for_querying: Any,
+    ) -> None:
+        query = """
+          query ($kinds: [EvaluatorKind!]) {
+            evaluators(kinds: $kinds, sort: { col: name, dir: asc }) {
+              edges {
+                evaluator: node {
+                  name
+                }
+              }
+            }
+          }
+        """
+
+        async def list_evaluator_names(*, kinds: Optional[list[str]]) -> list[str]:
+            response = await gql_client.execute(query=query, variables={"kinds": kinds})
+            assert not response.errors
+            assert (data := response.data) is not None
+            return [edge["evaluator"]["name"] for edge in data["evaluators"]["edges"]]
+
+        assert await list_evaluator_names(kinds=["LLM"]) == ["llm_eval"]
+        assert await list_evaluator_names(kinds=["BUILTIN"]) == ["contains"]
+        assert await list_evaluator_names(kinds=["LLM", "BUILTIN"]) == ["contains", "llm_eval"]
+        assert await list_evaluator_names(kinds=["CODE", "DECISION"]) == []
+        assert await list_evaluator_names(kinds=[]) == []
+        assert await list_evaluator_names(kinds=None) == ["contains", "llm_eval"]
+
     async def test_evaluators_excludes_project_associations_before_pagination(
         self,
         gql_client: AsyncGraphQLClient,

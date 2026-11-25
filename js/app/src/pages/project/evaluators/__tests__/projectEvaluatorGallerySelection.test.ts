@@ -13,6 +13,8 @@ const item: GalleryItem = {
     id: "LLMEvaluator:1",
     name: "correctness",
     description: null,
+    projects: { edges: [] },
+    datasets: { edges: [] },
   },
 };
 const itemsByKey = new Map([[getGalleryItemKey(item), item]]);

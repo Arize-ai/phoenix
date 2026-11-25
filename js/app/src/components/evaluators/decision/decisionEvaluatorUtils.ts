@@ -7,9 +7,7 @@ import type {
 import {
   buildDefaultPolicy,
   normalizePolicy,
-  policyOutputToInput,
   questionScoringEqual,
-  toDecisionQuestionDefinitions,
 } from "@phoenix/components/evaluators/decision/decisionPolicyUtils";
 import { normalizeInputMapping } from "@phoenix/components/evaluators/utils";
 import type { EvaluatorInputMapping } from "@phoenix/types";
@@ -46,18 +44,6 @@ export function readDecisionEvaluatorData(node: {
   return { id, name, inputSchema, scoringPolicy, decisionVersion };
 }
 
-/** What a binding form needs to know about the evaluator it is bound to. */
-export type DecisionEvaluatorView = {
-  /** Null for a evaluator that has not been created yet. */
-  id: string | null;
-  name: string;
-  /** The declared input names, in declared order. */
-  variables: string[];
-  questions: DecisionQuestionDefinition[];
-  /** The evaluator's own policy, one entry per question in declared order. */
-  policy: DecisionScoringPolicyValue;
-};
-
 /** The property names of a JSON schema object, in declared order. */
 export function inputNamesFromSchema(schema: unknown): string[] {
   if (!isStringKeyedObject(schema)) return [];
@@ -81,25 +67,6 @@ export function pickDeclaredInputMapping(
       Object.entries(normalized.literalMapping).filter(([name]) =>
         declared.has(name)
       )
-    ),
-  };
-}
-
-/** Describes a saved evaluator for a binding form. */
-export function toDecisionEvaluatorView(
-  evaluator: DecisionEvaluatorData
-): DecisionEvaluatorView {
-  const questions = toDecisionQuestionDefinitions(
-    evaluator.decisionVersion.questions
-  );
-  return {
-    id: evaluator.id,
-    name: evaluator.name,
-    variables: inputNamesFromSchema(evaluator.inputSchema),
-    questions,
-    policy: normalizePolicy(
-      questions,
-      policyOutputToInput(evaluator.scoringPolicy)
     ),
   };
 }

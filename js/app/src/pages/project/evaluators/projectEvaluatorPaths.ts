@@ -31,6 +31,7 @@ export type ProjectEvaluatorCreationPaths = {
   newLlmFromTemplate: (templateName: string) => string;
   copyLlm: (evaluatorId: string) => string;
   copyCode: (evaluatorId: string) => string;
+  copyDecision: (evaluatorId: string) => string;
   attach: (evaluatorId: string) => string;
 };
 
@@ -162,6 +163,8 @@ export function useProjectEvaluatorCreationPaths(): ProjectEvaluatorCreationPath
         creation(`copy-llm/${encodeURIComponent(evaluatorId)}`),
       copyCode: (evaluatorId: string) =>
         creation(`copy-code/${encodeURIComponent(evaluatorId)}`),
+      copyDecision: (evaluatorId: string) =>
+        creation(`copy-decision/${encodeURIComponent(evaluatorId)}`),
       attach: (evaluatorId: string) =>
         creation(`attach/${encodeURIComponent(evaluatorId)}`),
     };

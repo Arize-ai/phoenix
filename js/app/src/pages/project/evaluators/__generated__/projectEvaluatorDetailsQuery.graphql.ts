@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<00693a4887a66ca7a55e353a922b4167>>
+ * @generated SignedSource<<a208d950714a9d8158e8df545e7f44f8>>
  * @lightSyntaxTransform
  */
 
@@ -43,6 +43,7 @@ export type projectEvaluatorDetailsQuery$data = {
         readonly __typename: "%other";
       }>;
     };
+    readonly description?: string | null;
     readonly id?: string;
     readonly inputSchema?: any;
     readonly name?: string;
@@ -712,6 +713,7 @@ return {
           {
             "kind": "InlineFragment",
             "selections": [
+              (v5/*:: as any*/),
               (v3/*:: as any*/),
               (v4/*:: as any*/),
               (v29/*:: as any*/),
@@ -852,6 +854,7 @@ return {
           {
             "kind": "InlineFragment",
             "selections": [
+              (v5/*:: as any*/),
               (v4/*:: as any*/),
               (v29/*:: as any*/),
               (v30/*:: as any*/),
@@ -900,16 +903,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "68c3f61a30b8e6f9d66c3d376eb88b35",
+    "cacheID": "eb694ed531e1eb011bccadf6e797e959",
     "id": null,
     "metadata": {},
     "name": "projectEvaluatorDetailsQuery",
     "operationKind": "query",
-    "text": "query projectEvaluatorDetailsQuery(\n  $id: ID!\n) {\n  evaluator: node(id: $id) {\n    __typename\n    ...projectEvaluatorOptions_llmEvaluatorDetails\n    ...projectEvaluatorOptions_codeEvaluatorDetails\n    ... on DecisionEvaluator {\n      id\n      name\n      inputSchema\n      scoringPolicy {\n        questions {\n          __typename\n          name\n          optimizationDirection\n          ... on DecisionPredicateScoring {\n            threshold\n          }\n          ... on DecisionChoiceScoring {\n            scores {\n              choice\n              score\n            }\n          }\n          ... on DecisionScaleScoring {\n            includeLabel\n          }\n        }\n      }\n      decisionVersion {\n        id\n        decision {\n          id\n          name\n        }\n        questions {\n          __typename\n          ... on DecisionPredicateQuestion {\n            name\n          }\n          ... on DecisionChoiceQuestion {\n            name\n            choices {\n              value\n            }\n          }\n          ... on DecisionScaleQuestion {\n            name\n            levels {\n              label\n            }\n          }\n        }\n      }\n      ...DecisionEvaluatorSummary_evaluator\n    }\n    id\n  }\n}\n\nfragment DecisionEvaluatorSummary_evaluator on DecisionEvaluator {\n  decisionVersion {\n    id\n    decisionId\n    decision {\n      name\n      id\n    }\n    modelProvider\n    modelName\n  }\n  scoringPolicy {\n    questions {\n      __typename\n      name\n      optimizationDirection\n      ... on DecisionPredicateScoring {\n        threshold\n      }\n      ... on DecisionChoiceScoring {\n        scores {\n          choice\n          score\n        }\n      }\n      ... on DecisionScaleScoring {\n        includeLabel\n      }\n    }\n  }\n}\n\nfragment projectEvaluatorOptions_codeEvaluatorDetails on CodeEvaluator {\n  __typename\n  id\n  name\n  description\n  kind\n  codeInputSchema: inputSchema\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on FreeformAnnotationConfig {\n      name\n      optimizationDirection\n      threshold\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n  sourceCode\n  language\n  sandboxConfig {\n    id\n  }\n  inputMapping {\n    pathMapping\n    literalMapping\n  }\n}\n\nfragment projectEvaluatorOptions_llmEvaluatorDetails on LLMEvaluator {\n  __typename\n  id\n  name\n  description\n  kind\n  llmInputSchema: inputSchema\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on FreeformAnnotationConfig {\n      name\n      optimizationDirection\n      threshold\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n  promptVersion {\n    templateFormat\n    template {\n      __typename\n      ... on PromptChatTemplate {\n        messages {\n          ...promptUtils_promptMessages\n        }\n      }\n      ... on PromptStringTemplate {\n        template\n      }\n    }\n    tools {\n      tools {\n        __typename\n        ... on PromptToolFunction {\n          function {\n            parameters\n          }\n        }\n        ... on PromptToolRaw {\n          raw\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n"
+    "text": "query projectEvaluatorDetailsQuery(\n  $id: ID!\n) {\n  evaluator: node(id: $id) {\n    __typename\n    ...projectEvaluatorOptions_llmEvaluatorDetails\n    ...projectEvaluatorOptions_codeEvaluatorDetails\n    ... on DecisionEvaluator {\n      description\n      id\n      name\n      inputSchema\n      scoringPolicy {\n        questions {\n          __typename\n          name\n          optimizationDirection\n          ... on DecisionPredicateScoring {\n            threshold\n          }\n          ... on DecisionChoiceScoring {\n            scores {\n              choice\n              score\n            }\n          }\n          ... on DecisionScaleScoring {\n            includeLabel\n          }\n        }\n      }\n      decisionVersion {\n        id\n        decision {\n          id\n          name\n        }\n        questions {\n          __typename\n          ... on DecisionPredicateQuestion {\n            name\n          }\n          ... on DecisionChoiceQuestion {\n            name\n            choices {\n              value\n            }\n          }\n          ... on DecisionScaleQuestion {\n            name\n            levels {\n              label\n            }\n          }\n        }\n      }\n      ...DecisionEvaluatorSummary_evaluator\n    }\n    id\n  }\n}\n\nfragment DecisionEvaluatorSummary_evaluator on DecisionEvaluator {\n  decisionVersion {\n    id\n    decisionId\n    decision {\n      name\n      id\n    }\n    modelProvider\n    modelName\n  }\n  scoringPolicy {\n    questions {\n      __typename\n      name\n      optimizationDirection\n      ... on DecisionPredicateScoring {\n        threshold\n      }\n      ... on DecisionChoiceScoring {\n        scores {\n          choice\n          score\n        }\n      }\n      ... on DecisionScaleScoring {\n        includeLabel\n      }\n    }\n  }\n}\n\nfragment projectEvaluatorOptions_codeEvaluatorDetails on CodeEvaluator {\n  __typename\n  id\n  name\n  description\n  kind\n  codeInputSchema: inputSchema\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on FreeformAnnotationConfig {\n      name\n      optimizationDirection\n      threshold\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n  sourceCode\n  language\n  sandboxConfig {\n    id\n  }\n  inputMapping {\n    pathMapping\n    literalMapping\n  }\n}\n\nfragment projectEvaluatorOptions_llmEvaluatorDetails on LLMEvaluator {\n  __typename\n  id\n  name\n  description\n  kind\n  llmInputSchema: inputSchema\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on FreeformAnnotationConfig {\n      name\n      optimizationDirection\n      threshold\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n  promptVersion {\n    templateFormat\n    template {\n      __typename\n      ... on PromptChatTemplate {\n        messages {\n          ...promptUtils_promptMessages\n        }\n      }\n      ... on PromptStringTemplate {\n        template\n      }\n    }\n    tools {\n      tools {\n        __typename\n        ... on PromptToolFunction {\n          function {\n            parameters\n          }\n        }\n        ... on PromptToolRaw {\n          raw\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment promptUtils_promptMessages on PromptMessage {\n  content {\n    __typename\n    ... on TextContentPart {\n      text {\n        text\n      }\n    }\n  }\n  role\n}\n"
   }
 };
 })();
 
-(node as any).hash = "241326047e8889b5141b02bb09c9576d";
+(node as any).hash = "d2d274441c79fbcc37bf858798bfd938";
 
 export default node;

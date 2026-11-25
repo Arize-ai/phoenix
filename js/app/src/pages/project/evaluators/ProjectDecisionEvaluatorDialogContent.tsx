@@ -8,7 +8,6 @@ import { DecisionEvaluatorDraftProvider } from "@phoenix/components/evaluators/d
 import {
   commitAsync,
   type DecisionEvaluatorData,
-  toDecisionEvaluatorView,
 } from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
 import { deriveDecisionOutputConfigs } from "@phoenix/components/evaluators/decision/decisionPolicyUtils";
 import {
@@ -18,7 +17,6 @@ import {
 import {
   DecisionEvaluatorValidationError,
   useDecisionEvaluatorSave,
-  useDeclaredInputMapping,
 } from "@phoenix/components/evaluators/decision/useDecisionEvaluatorSave";
 import { EvaluatorFormDialogContent } from "@phoenix/components/evaluators/EvaluatorFormDialogContent";
 import { EvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/EvaluatorInputVariablesProvider";
@@ -50,7 +48,6 @@ import {
   type ProjectEvaluatorScope,
 } from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
 import { refetchProjectEvaluators } from "@phoenix/pages/project/evaluators/refetchProjectEvaluators";
-import { useAttachProjectEvaluator } from "@phoenix/pages/project/evaluators/useAttachProjectEvaluator";
 import {
   type EvaluatorFormDirtyCheck,
   useEvaluatorFormDirtyCheck,
@@ -110,18 +107,16 @@ function getBindingFields(scope: ProjectEvaluatorScope) {
   };
 }
 
-type SubmitKind = "create" | "update" | "attach";
+type SubmitKind = "create" | "update";
 
 const SUBMIT_LABELS: Record<SubmitKind, string> = {
   create: "Create",
   update: "Update",
-  attach: "Attach evaluator",
 };
 
 const ERROR_TITLES: Record<SubmitKind, string> = {
   create: "Failed to create evaluator",
   update: "Failed to update evaluator",
-  attach: "Failed to attach evaluator",
 };
 
 function ProjectDecisionEvaluatorLayout({
@@ -209,7 +204,7 @@ function ProjectDecisionEvaluatorLayout({
 }
 
 export function CreateProjectDecisionEvaluatorDialogContent(
-  props: DialogProps
+  props: DialogProps & { sourceEvaluator?: DecisionEvaluatorData }
 ) {
   return (
     <DecisionEvaluatorDraftProvider surface="project">
@@ -225,11 +220,12 @@ function CreateProjectDecisionEvaluatorForm({
   onScopeChange,
   onSuccess,
   registerDirtyCheck,
-}: DialogProps) {
+  sourceEvaluator,
+}: Parameters<typeof CreateProjectDecisionEvaluatorDialogContent>[0]) {
   const store = useEvaluatorStoreInstance();
   const environment = useRelayEnvironment();
   const { timeRangeISOStrings } = useTimeRange();
-  const draft = useDecisionEvaluatorDraft({});
+  const draft = useDecisionEvaluatorDraft({ sourceEvaluator });
   const { buildCreateInput } = useDecisionEvaluatorSave(draft);
   const [create] =
     useMutation<ProjectDecisionEvaluatorDialogContentCreateMutation>(
@@ -302,74 +298,6 @@ function CreateProjectDecisionEvaluatorForm({
           onFilterValidityChange={setIsFilterValid}
           draft={draft}
           isDisabled={isSubmitting}
-        />
-      }
-    />
-  );
-}
-
-export function AttachProjectDecisionEvaluatorDialogContent({
-  evaluator,
-  title,
-  projectId,
-  scope,
-  onScopeChange,
-  onSuccess,
-  registerDirtyCheck,
-}: DialogProps & { evaluator: DecisionEvaluatorData }) {
-  const store = useEvaluatorStoreInstance();
-  const view = toDecisionEvaluatorView(evaluator);
-  const variables = view.variables;
-  const getInputMapping = useDeclaredInputMapping(variables);
-  const { attach, isAttaching, error } =
-    useAttachProjectEvaluator<ProjectDecisionEvaluatorDialogContentCreateMutation>(
-      {
-        mutation: createMutation,
-        projectId,
-        evaluatorId: evaluator.id,
-        onSuccess,
-      }
-    );
-  const [isFilterValid, setIsFilterValid] = useState(true);
-  const trackStoreForDirtyCheck = useEvaluatorFormDirtyCheck({
-    registerDirtyCheck,
-    scope,
-  });
-  trackStoreForDirtyCheck(store);
-
-  const onSubmit = () =>
-    attach({
-      input: {
-        projectId,
-        evaluatorId: evaluator.id,
-        name: evaluator.name,
-        inputMapping: getInputMapping(),
-        ...getBindingFields(scope),
-        enabled: true,
-      },
-    });
-
-  return (
-    <ProjectDecisionEvaluatorLayout
-      title={title}
-      submitLabel="attach"
-      projectId={projectId}
-      scope={scope}
-      variables={variables}
-      decision={{ decisionEvaluatorId: evaluator.id }}
-      outputConfigs={deriveDecisionOutputConfigs(view.questions, view.policy)}
-      isSubmitting={isAttaching}
-      isSubmitDisabled={false}
-      isFilterValid={isFilterValid}
-      error={error}
-      onSubmit={onSubmit}
-      definition={
-        <ProjectDecisionEvaluatorFormSections
-          projectId={projectId}
-          scope={scope}
-          onScopeChange={onScopeChange}
-          onFilterValidityChange={setIsFilterValid}
-          attachedEvaluator={evaluator}
         />
       }
     />

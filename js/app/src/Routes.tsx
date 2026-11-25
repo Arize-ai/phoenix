@@ -100,6 +100,7 @@ import {
   AuthenticatedRoot,
   authenticatedRootLoader,
   CopyCodeProjectEvaluatorPage,
+  CopyDecisionProjectEvaluatorPage,
   CopyLlmProjectEvaluatorPage,
   dashboardsLoader,
   DashboardsEmptyPage,
@@ -332,9 +333,20 @@ const projectEvaluatorCreationRoutes = (
       element={<CopyCodeProjectEvaluatorPage />}
       handle={{
         agentRoute: {
-          label: "Duplicate Code Evaluator Into Project",
+          label: "Copy Code Evaluator Into Project",
           description:
-            "Create and attach a new project code evaluator seeded from an existing code evaluator. The evaluatorId route param uses the GraphQL Evaluator.id Relay node ID of the evaluator being duplicated.",
+            "Create a new, independent project code evaluator seeded from a copy of an existing code evaluator. The evaluatorId route param uses the GraphQL Evaluator.id Relay node ID of the evaluator being copied.",
+        },
+      }}
+    />
+    <Route
+      path="new/copy-decision/:evaluatorId"
+      element={<CopyDecisionProjectEvaluatorPage />}
+      handle={{
+        agentRoute: {
+          label: "Copy Decision Evaluator Into Project",
+          description:
+            "Create a new, independent project decision evaluator seeded from a copy of an existing decision evaluator's decision version and scoring. The evaluatorId route param uses the GraphQL Evaluator.id Relay node ID of the evaluator being copied.",
         },
       }}
     />
@@ -343,9 +355,9 @@ const projectEvaluatorCreationRoutes = (
       element={<AttachProjectEvaluatorPage />}
       handle={{
         agentRoute: {
-          label: "Attach Evaluator To Project",
+          label: "Add Existing Code Evaluator To Project",
           description:
-            "Attach an existing code or decision evaluator to a project. The evaluatorId route param uses the GraphQL Evaluator.id Relay node ID of the evaluator being attached.",
+            "Add an existing code evaluator to a project as the same, shared evaluator, so edits to it apply everywhere it runs. The evaluatorId route param uses the GraphQL Evaluator.id Relay node ID of the evaluator being added.",
         },
       }}
     />
