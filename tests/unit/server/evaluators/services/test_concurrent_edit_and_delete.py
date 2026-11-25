@@ -468,7 +468,7 @@ async def test_tombstone_evaluators_ignores_binding_committed_after_discovery(
             delete_session,
             binding_ids=[first_binding.id, second_binding_id],
             collect_unused_evaluator=False,
-            delete_associated_prompt=False,
+            delete_associated_prompt_or_decision=False,
         )
     await asyncio.wait_for(stager_task, 5)
 
@@ -801,7 +801,7 @@ async def test_persisting_eval_traces_finishes_while_a_dataset_evaluator_delete_
                 delete_session,
                 binding_ids=[dataset_binding.id],
                 collect_unused_evaluator=False,
-                delete_associated_prompt=False,
+                delete_associated_prompt_or_decision=False,
             )
 
     async def _run_persist() -> None:
@@ -1007,7 +1007,7 @@ async def test_delete_project_evaluator_skips_surviving_prompt_lock(
                         GlobalID("ProjectEvaluator", str(sole_binding.id)),
                         GlobalID("ProjectEvaluator", str(first_shared_binding.id)),
                     ],
-                    delete_associated_prompt=True,
+                    delete_associated_prompt_or_decision=True,
                 ),
             )
         )

@@ -453,14 +453,14 @@ async def garbage_collect_evaluators(
     session: AsyncSession,
     *,
     evaluator_ids: set[int],
-    delete_associated_prompt: bool,
+    delete_associated_prompt_or_decision: bool,
 ) -> None:
     """Delete the evaluators nothing live binds, with the version tags they run through.
 
-    Built-in evaluators are shared definitions and decision evaluators are standalone and may
-    serve several datasets or projects; neither is ever garbage-collected. With
-    ``delete_associated_prompt``, also lock the prompts of deleted LLM evaluators in ascending
-    ID order and, in a subsequent statement, delete each one that no remaining evaluator uses.
+    Built-in evaluators are shared definitions and are never garbage-collected. With
+    ``delete_associated_prompt_or_decision``, also lock the prompts of deleted LLM evaluators
+    and the decisions of deleted decision evaluators, each in ascending ID order, and in a
+    subsequent statement delete each one that no remaining evaluator uses.
     """
     dialect = SupportedSQLDialect(session.get_bind().dialect.name)
     if not evaluator_ids:
@@ -480,12 +480,22 @@ async def garbage_collect_evaluators(
             ).where(models.LLMEvaluator.id.in_(evaluator_ids))
         )
     }
+    decision_evaluators: dict[int, tuple[Optional[int], int]] = {
+        int(row.id): (row.decision_version_tag_id, int(row.decision_id))
+        for row in await session.execute(
+            select(
+                models.DecisionEvaluator.id,
+                models.DecisionEvaluator.decision_version_tag_id,
+                models.DecisionEvaluator.decision_id,
+            ).where(models.DecisionEvaluator.id.in_(evaluator_ids))
+        )
+    }
     deleted_ids = set(
         await session.scalars(
             delete(models.Evaluator)
             .where(
                 models.Evaluator.id.in_(evaluator_ids),
-                models.Evaluator.kind.not_in(("BUILTIN", "DECISION")),
+                models.Evaluator.kind != "BUILTIN",
                 ~select(models.DatasetEvaluators.id)
                 .where(
                     models.DatasetEvaluators.evaluator_id == models.Evaluator.id,
@@ -511,7 +521,12 @@ async def garbage_collect_evaluators(
         for evaluator_id in deleted_ids
         if evaluator_id in llm_evaluators
     }
-    if delete_associated_prompt and prompt_ids:
+    decision_ids = {
+        decision_evaluators[evaluator_id][1]
+        for evaluator_id in deleted_ids
+        if evaluator_id in decision_evaluators
+    }
+    if delete_associated_prompt_or_decision and prompt_ids:
         sorted_prompts = sorted(prompt_ids)
         if dialect is SupportedSQLDialect.POSTGRESQL:
             await session.execute(
@@ -529,7 +544,29 @@ async def garbage_collect_evaluators(
             )
         )
 
+    if delete_associated_prompt_or_decision and decision_ids:
+        sorted_decisions = sorted(decision_ids)
+        if dialect is SupportedSQLDialect.POSTGRESQL:
+            await session.execute(
+                select(models.Decision.id)
+                .where(models.Decision.id.in_(sorted_decisions))
+                .order_by(models.Decision.id.asc())
+                .with_for_update()
+            )
+        await session.execute(
+            delete(models.Decision).where(
+                models.Decision.id.in_(sorted_decisions),
+                ~select(models.DecisionEvaluator.id)
+                .where(models.DecisionEvaluator.decision_id == models.Decision.id)
+                .exists(),
+            )
+        )
+
     for evaluator_id in sorted(deleted_ids):
+        if (decision_info := decision_evaluators.get(evaluator_id)) is not None:
+            decision_tag_id = decision_info[0]
+            if decision_tag_id is not None:
+                await release_decision_evaluator_tag(session, decision_tag_id)
         if (prompt_info := llm_evaluators.get(evaluator_id)) is not None:
             tag_id, prompt_id = prompt_info
             await release_llm_evaluator_prompt(

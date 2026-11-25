@@ -1056,7 +1056,7 @@ async def test_online_eval_fences_tombstoned_binding_on_hydration_publish_and_tr
             session,
             binding_ids=[pe.id],
             collect_unused_evaluator=False,
-            delete_associated_prompt=False,
+            delete_associated_prompt_or_decision=False,
         )
 
     # 1. Hydration returns HydrationFailure(terminal_status='DROPPED') so consumer clears it.
@@ -1175,7 +1175,7 @@ async def test_recover_lapsed_claims_ignores_tombstoned_project_evaluator(
             session,
             binding_ids=[tombstoned_binding_id],
             collect_unused_evaluator=False,
-            delete_associated_prompt=False,
+            delete_associated_prompt_or_decision=False,
         )
 
     work_coordinator = EvalWorkCoordinator(db, evaluation_target="SPAN")

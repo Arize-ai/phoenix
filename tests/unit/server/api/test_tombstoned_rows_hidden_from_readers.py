@@ -82,7 +82,7 @@ async def rows(db: DbSessionFactory, correctness_llm_evaluator: models.LLMEvalua
             session,
             binding_ids=[tombstoned_dataset_evaluator.id],
             collect_unused_evaluator=False,
-            delete_associated_prompt=False,
+            delete_associated_prompt_or_decision=False,
         )
         return _Rows(
             live_project=live_project,

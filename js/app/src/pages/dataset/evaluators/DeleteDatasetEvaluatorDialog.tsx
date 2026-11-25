@@ -45,13 +45,13 @@ export function DeleteDatasetEvaluatorDialog({
       onOpenChange={onOpenChange}
       onDeleted={onDeleted}
       isDeleting={isDeleting}
-      onDelete={({ deleteAssociatedPrompt }) =>
+      onDelete={({ deleteAssociatedPromptOrDecision }) =>
         new Promise<void>((resolve, reject) => {
           commitDelete({
             variables: {
               input: {
                 datasetEvaluatorIds: [datasetEvaluatorId],
-                deleteAssociatedPrompt,
+                deleteAssociatedPromptOrDecision,
               },
               connectionIds: updateConnectionIds,
             },

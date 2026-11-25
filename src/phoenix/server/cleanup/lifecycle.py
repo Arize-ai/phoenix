@@ -168,7 +168,7 @@ async def _tombstone_bindings(
     dataset_column: Optional[InstrumentedAttribute[Optional[int]]],
     tombstone_values: dict[str, Any],
     collect_unused_evaluator: bool,
-    delete_associated_prompt: bool,
+    delete_associated_prompt_or_decision: bool,
 ) -> TombstonedEvaluatorBindings:
     """Tombstone live bindings under canonical lock order, optionally run synchronous
     shared-definition GC; the tombstones are what the cleanup worker drains."""
@@ -253,7 +253,7 @@ async def _tombstone_bindings(
         await garbage_collect_evaluators(
             session,
             evaluator_ids=candidate_evaluator_ids,
-            delete_associated_prompt=delete_associated_prompt,
+            delete_associated_prompt_or_decision=delete_associated_prompt_or_decision,
         )
 
     return TombstonedEvaluatorBindings(
@@ -267,7 +267,7 @@ async def tombstone_project_evaluators(
     *,
     binding_ids: Iterable[int],
     collect_unused_evaluator: bool,
-    delete_associated_prompt: bool,
+    delete_associated_prompt_or_decision: bool,
 ) -> TombstonedEvaluatorBindings:
     """Tombstone live project evaluator bindings under canonical lock order."""
     return await _tombstone_bindings(
@@ -279,7 +279,7 @@ async def tombstone_project_evaluators(
         dataset_column=None,
         tombstone_values={"enabled": False},
         collect_unused_evaluator=collect_unused_evaluator,
-        delete_associated_prompt=delete_associated_prompt,
+        delete_associated_prompt_or_decision=delete_associated_prompt_or_decision,
     )
 
 
@@ -288,7 +288,7 @@ async def tombstone_dataset_evaluators(
     *,
     binding_ids: Iterable[int],
     collect_unused_evaluator: bool,
-    delete_associated_prompt: bool,
+    delete_associated_prompt_or_decision: bool,
 ) -> TombstonedEvaluatorBindings:
     """Tombstone live dataset evaluator bindings under canonical lock order."""
     return await _tombstone_bindings(
@@ -300,7 +300,7 @@ async def tombstone_dataset_evaluators(
         dataset_column=models.DatasetEvaluators.dataset_id,
         tombstone_values={},
         collect_unused_evaluator=collect_unused_evaluator,
-        delete_associated_prompt=delete_associated_prompt,
+        delete_associated_prompt_or_decision=delete_associated_prompt_or_decision,
     )
 
 
@@ -434,7 +434,7 @@ async def tombstone_project(
             session,
             binding_ids=[int(row.id) for row in live_bindings_under_project_lock],
             collect_unused_evaluator=False,
-            delete_associated_prompt=False,
+            delete_associated_prompt_or_decision=False,
         )
         tombstoned_trace_project_ids = binding_delete_result.tombstoned_project_ids
 
@@ -647,7 +647,7 @@ async def tombstone_exclusive_experiment_projects(
             session,
             binding_ids=[int(row.id) for row in live_bindings_under_project_lock],
             collect_unused_evaluator=False,
-            delete_associated_prompt=False,
+            delete_associated_prompt_or_decision=False,
         )
         tombstoned_trace_project_ids = binding_delete_result.tombstoned_project_ids
 
@@ -793,7 +793,7 @@ async def delete_dataset_and_tombstone_projects(
             session,
             binding_ids=live_binding_ids,
             collect_unused_evaluator=False,
-            delete_associated_prompt=False,
+            delete_associated_prompt_or_decision=False,
         )
         tombstoned_project_ids.update(deleted_bindings.tombstoned_project_ids)
 

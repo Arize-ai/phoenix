@@ -1904,7 +1904,7 @@ async def test_dataset_evaluator_delete_drains_eval_logs_and_links_in_batches(
             session,
             binding_ids=[target_binding_id],
             collect_unused_evaluator=False,
-            delete_associated_prompt=False,
+            delete_associated_prompt_or_decision=False,
         )
 
     coordinator = CleanupCoordinator(db, batch_limit=2)

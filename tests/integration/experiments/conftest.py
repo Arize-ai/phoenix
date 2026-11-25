@@ -665,7 +665,7 @@ async def _dataset_evaluators(
                         google_id,
                         bedrock_id,
                     ],
-                    "deleteAssociatedPrompt": True,
+                    "deleteAssociatedPromptOrDecision": True,
                 }
             },
         )
