@@ -41,6 +41,10 @@ The return value becomes a `Score`:
 | `dict` with `score`, `label`, `explanation`, `metadata` | those fields |
 | `Score` | as is |
 
+NumPy scalars such as `np.int64`, `np.float32`, and `np.bool_` become Python
+values first, including inside tuples and a dict's `score`, so values computed with
+NumPy or pandas need no cast.
+
 `create_evaluator` takes `name`, `direction` (`"maximize"` by default,
 `"minimize"`, or `"neutral"`), and `kind` (`"code"` by default). It never calls a
 model, so a function marked `kind="llm"` must make the call itself. For a model-graded check, use

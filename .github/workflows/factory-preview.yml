@@ -1,7 +1,6 @@
 name: Factory Preview
 
-# This job holds write tokens: PR code must run only inside the Docker build.
-# Keep scripts, shared actions and the preview Dockerfile on the base branch.
+# Only authorized PRs enter the deployment workflow. The PR checkout is a Docker build context.
 on:
   # zizmor: ignore[dangerous-triggers] See above: the PR's checkout is a build context only.
   pull_request_target:
@@ -31,6 +30,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PR_BRANCH: ${{ github.event.pull_request.head.ref }}
           FACTORY_LOGIN: ${{ vars.FACTORY_GITHUB_LOGIN }}
         run: |
@@ -42,99 +43,39 @@ jobs:
             echo "::notice::Previews are disabled for factory-finish copies."
             exit 0
           fi
-          if [ -n "$FACTORY_LOGIN" ] && [ "$PR_AUTHOR" = "$FACTORY_LOGIN" ]; then
-            echo "allowed=true" >> "$GITHUB_OUTPUT"
-          else
+          if [[ -z "$FACTORY_LOGIN" || "$PR_AUTHOR" != "$FACTORY_LOGIN" ]]; then
             permission=$(gh api "repos/$GH_REPO/collaborators/$PR_AUTHOR/permission" --jq '.permission')
             case "$permission" in
-              admin|write|maintain) echo "allowed=true" >> "$GITHUB_OUTPUT" ;;
+              admin|write|maintain) ;;
               *)
                 echo "allowed=false" >> "$GITHUB_OUTPUT"
                 echo "::notice::Previews require a PR opened by the factory or a maintainer."
+                exit 0
                 ;;
             esac
           fi
+          current_head=$(gh pr view "$PR_NUMBER" --json headRefOid --jq .headRefOid)
+          if [[ "$current_head" != "$HEAD_SHA" ]]; then
+            echo "allowed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::A newer commit superseded this preview."
+            exit 0
+          fi
+          echo "allowed=true" >> "$GITHUB_OUTPUT"
 
   deploy:
-    name: Build and deploy
-    cache-mode: write
+    name: Build and deploy the preview
     needs: authorize
     if: needs.authorize.outputs.allowed == 'true'
+    # The hourly sweep takes the same lock before deleting the project.
     concurrency:
-      group: factory-preview-${{ github.event.pull_request.number }}
+      group: factory-preview-${{ github.event.pull_request.number }}-deploy
       cancel-in-progress: true
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
     permissions:
       contents: read
       packages: write
       pull-requests: write
-    env:
-      GH_REPO: ${{ github.repository }}
-      PR_NUMBER: ${{ github.event.pull_request.number }}
-      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-    steps:
-      - name: Check out the base branch for the scripts
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          ref: ${{ github.event.pull_request.base.ref }}
-          path: base
-          persist-credentials: false
-      - name: Check out the PR as the build context
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          path: head
-          persist-credentials: false
-
-      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-        with:
-          version-file: base/pyproject.toml
-          resolution-strategy: "lowest"
-          python-version: "3.12"
-          enable-cache: false
-
-      - name: Prepare startup files, sample data, and tags
-        id: plan
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          image="ghcr.io/$(echo "$GH_REPO" | tr '[:upper:]' '[:lower:]' | cut -d/ -f1)/phoenix"
-          echo "image=$image" >> "$GITHUB_OUTPUT"
-          mkdir -p "$RUNNER_TEMP/preview-startup"
-          cp base/factory/preview/{Dockerfile,launch.py,seed_log.py} "$RUNNER_TEMP/preview-startup/"
-          uv run --script base/factory/preview/plan.py --pr "$PR_NUMBER" --head-sha "$HEAD_SHA" --seed-dir "$RUNNER_TEMP/preview-startup" > "$RUNNER_TEMP/plan.out"
-          cat "$RUNNER_TEMP/plan.out" >> "$GITHUB_OUTPUT"
-
-      - name: Build image
-        uses: ./base/.github/actions/docker-build-image
-        with:
-          variants: root
-          revision: ${{ github.event.pull_request.head.sha }}
-          platform: linux/amd64
-          source-dir: ${{ github.workspace }}/head
-          startup-and-data-dir: ${{ runner.temp }}/preview-startup
-          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
-          dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
-
-      - name: Upload image and publish GHCR tags
-        uses: ./base/.github/actions/docker-publish-image
-        with:
-          variant: root
-          tags: |
-            ${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }}
-            ${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }}-${{ steps.plan.outputs.short-sha }}
-          expected-digests: 1
-
-      - name: Deploy to Railway
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RAILWAY_TOKEN: ${{ secrets.FACTORY_RAILWAY_TOKEN }}
-          IMAGE: ${{ steps.plan.outputs.image }}:pr-${{ github.event.pull_request.number }}-${{ steps.plan.outputs.short-sha }}
-          SEED_SUMMARY: ${{ steps.plan.outputs.seed-summary }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: >-
-          uv run --script base/factory/preview/deploy.py deploy
-          --pr "$PR_NUMBER" --image "$IMAGE" --head-sha "$HEAD_SHA"
-          --seed "$SEED_SUMMARY" --run-url "$RUN_URL"
+    uses: ./.github/workflows/factory-preview-deploy.yml
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+      FACTORY_PREVIEW_RAILWAY_TOKEN: ${{ secrets.FACTORY_PREVIEW_RAILWAY_TOKEN }}

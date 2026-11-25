@@ -3,6 +3,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import Field
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
+from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from starlette.requests import Request
 from strawberry.relay import GlobalID
 
@@ -198,6 +200,7 @@ async def get_project(
     response_description="The newly created project",  # noqa: E501
     responses=add_errors_to_responses(
         [
+            409,
             422,
         ]
     ),
@@ -217,7 +220,8 @@ async def create_project(
         CreateProjectResponseBody: Response containing the created project.
 
     Raises:
-        HTTPException: If any validation error occurs.
+        HTTPException: If any validation error occurs, or with status 409 if a project
+            with the same name already exists.
     """
     async with request.app.state.db() as session:
         project = models.Project(
@@ -225,7 +229,13 @@ async def create_project(
             description=request_body.description,
         )
         session.add(project)
-        await session.flush()
+        try:
+            await session.flush()
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+            raise HTTPException(
+                status_code=409,
+                detail=f"Project with name '{request_body.name}' already exists",
+            )
     data = _to_project_response(project)
     return CreateProjectResponseBody(data=data)
 

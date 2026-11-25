@@ -300,19 +300,8 @@ jobs:
     needs: [discover-branches, unit-tests, integration-tests, phoenix-client-non-linux, phoenix-evals-non-linux, phoenix-otel-non-linux]
     if: always()
     steps:
-      - name: Notify success
-        if: ${{ !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
-        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
-        with:
-          method: chat.postMessage
-          token: ${{ secrets.SLACK_BOT_TOKEN }}
-          payload: |
-            {
-              "channel": "${{ vars.SLACK_CHANNEL_ID }}",
-              "text": "Python tests passed\n${{ env.ACTIONS_RUN_URL }}"
-            }
       - name: Notify failure
-        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        if: ${{ contains(needs.*.result, 'failure') }}
         uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
         with:
           method: chat.postMessage
@@ -320,5 +309,5 @@ jobs:
           payload: |
             {
               "channel": "${{ vars.SLACK_CHANNEL_ID }}",
-              "text": "🚨🚨🚨 PYTHON TESTS FAILED 🚨🚨🚨\n${{ env.ACTIONS_RUN_URL }}"
+              "text": ":rotating_light: Python tests failed (${{ github.workflow }})\n${{ env.ACTIONS_RUN_URL }}"
             }

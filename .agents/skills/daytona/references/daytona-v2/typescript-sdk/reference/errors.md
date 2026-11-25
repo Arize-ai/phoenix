@@ -82,8 +82,6 @@
 - [SnapshotTooLargeError](#snapshottoolargeerror)
 - [SandboxNotRunningError](#sandboxnotrunningerror)
 - [KernelUnavailableError](#kernelunavailableerror)
-- [LspNotStartedError](#lspnotstartederror)
-- [LspServerUnavailableError](#lspserverunavailableerror)
 - [AddonUnavailableError](#addonunavailableerror)
 - [FileNotFoundError](#filenotfounderror)
 - [InvalidFilePathError](#invalidfilepatherror)
@@ -744,14 +742,6 @@ running, such as a stopped one. Start the sandbox and retry. Not a
 ***
 
 ## KernelUnavailableError
-
-***
-
-## LspNotStartedError
-
-***
-
-## LspServerUnavailableError
 
 ***
 

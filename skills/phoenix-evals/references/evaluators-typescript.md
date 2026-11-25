@@ -70,10 +70,11 @@ console.log(result.label, result.score, result.explanation);
 ### Decision models
 
 Any classification evaluator accepts an AI SDK decision model, such as
-`openai.decisionModel("gpt-6-luna")`, in place of a language model. A decision model
-picks a label directly. It's cheaper and faster, returns no explanation, and puts
-label probabilities in `metadata.probabilities`. With OpenAI, use `@ai-sdk/openai`
-4.0.89 or later.
+`openai.decisionModel("gpt-6-luna")` or `google.decisionModel("gemini-decision-1")`,
+in place of a language model. A decision model picks a label directly. It's cheaper
+and faster, returns no explanation, and puts label probabilities in
+`metadata.probabilities`. With OpenAI, use `@ai-sdk/openai` 4.0.89 or later. With
+Google, use `@ai-sdk/google` 4.0.118 or later.
 
 ## Map your field names to the evaluator's
 

@@ -37,12 +37,13 @@ Resizing changes the allocation of an existing sandbox. On a running sandbox, CP
 Reserve CPU, memory, and disk when creating a sandbox from an image.
 
 ```typescript
-import { Daytona, Image } from '@daytona/sdk'
+import { Daytona } from '@daytona/sdk'
+import { Image } from '@daytona/sdk/v0'
 
 const daytona = new Daytona()
 
 // Reserve 2 vCPUs, 4GiB of RAM, and 8GiB of disk for the sandbox
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   image: Image.base('ubuntu:22.04'),
   resources: { cpu: 2, memory: 4, disk: 8 },
 })
@@ -56,7 +57,7 @@ Change the resource allocation of an existing sandbox.
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const sandbox = await daytona.get('my-sandbox')
+const sandbox = await daytona.v0.get('my-sandbox')
 
 // CPU and memory can be increased while the sandbox is running
 await sandbox.resize({ cpu: 4, memory: 8 })
@@ -92,7 +93,7 @@ const daytona = new Daytona()
 
 async function runTask(shard: number): Promise<string> {
   // Each task gets its own isolated, ephemeral sandbox
-  const sandbox = await daytona.create({
+  const sandbox = await daytona.v0.create({
     snapshot: 'my-env-snapshot',
     ephemeral: true,
   })
@@ -120,7 +121,7 @@ console.log(results)
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const sandbox = await daytona.create({ snapshot: 'daytona-vm-small' })
+const sandbox = await daytona.v0.create({ snapshot: 'daytona-vm-small' })
 
 // Prepare live state once: running processes, loaded caches, open connections
 await sandbox.process.executeCommand('python3 warmup.py')
@@ -142,12 +143,12 @@ import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
 
-const parent = await daytona.create()
+const parent = await daytona.v0.create()
 
 // Children are co-located with the parent and share a link network
 const children = await Promise.all(
   Array.from({ length: 3 }, () =>
-    daytona.create({
+    daytona.v0.create({
       linkedSandbox: parent.id,
       ephemeral: true,
     })
@@ -176,7 +177,7 @@ Run multiple independent shells in the same sandbox so processes can execute in 
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const sandbox = await daytona.create()
+const sandbox = await daytona.v0.create()
 
 // Each session is an independent shell inside the same sandbox
 await sandbox.process.createSession('server')
@@ -201,7 +202,7 @@ Start a command asynchronously, then poll its status by command ID.
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const sandbox = await daytona.create()
+const sandbox = await daytona.v0.create()
 await sandbox.process.createSession('build')
 
 // Async commands return immediately with a command ID

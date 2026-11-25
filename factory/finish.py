@@ -328,7 +328,13 @@ def start_session(
         environment_id=read_lock_id(lock=lock, lock_key=ENVIRONMENT_LOCK_KEY),
         vault_ids=read_vault_ids(lock=lock),
         title=f"finish: {repo}#{pr['number']}",
-        metadata={"repo": repo, "pr": str(pr["number"]), "lane": "finish", "sha": pr["headRefOid"]},
+        metadata={
+            "repo": repo,
+            "issues": json.dumps(issue_numbers, separators=(",", ":")),
+            "prs": json.dumps([pr["number"]]),
+            "lane": "finish",
+            "sha": pr["headRefOid"],
+        },
         budget={
             "type": "limit",
             "max_list_cost": {"amount": str(budget_cents), "currency": "USD"},

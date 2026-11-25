@@ -87,7 +87,7 @@ import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
 
-const secret = await daytona.secret.create({
+const secret = await daytona.v0.secret.create({
   name: 'my-secret',
   value: 'secret-value',
   description: 'Optional description',
@@ -112,7 +112,7 @@ import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
 
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   language: 'typescript',
   secrets: {
     MY_API_KEY: 'my-secret',
@@ -131,13 +131,13 @@ import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
 
-await daytona.secret.create({
+await daytona.v0.secret.create({
   name: 'github-token',
   value: 'ghp_your_real_token',
   hosts: ['api.github.com'],
 })
 
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   secrets: {
     GITHUB_TOKEN: 'github-token',
   },
@@ -173,7 +173,7 @@ Daytona provides methods to list secrets.
 List operations use cursor-based pagination (`GET /secret/paginated`) and return one page at a time: the page's secrets in `items`, the `total` count, and a cursor for the next page (unset when there are no more pages). Pass the cursor from a previous response to fetch the next page. List operations return metadata only. Secret values are never returned after creation.
 
 ```typescript
-const page = await daytona.secret.list()
+const page = await daytona.v0.secret.list()
 page.items.forEach((secret) => console.log(secret.name))
 ```
 
@@ -184,7 +184,7 @@ Daytona provides methods to get a single secret by its ID.
 Get operations return metadata only. Secret values are never returned after creation.
 
 ```typescript
-const secret = await daytona.secret.get(secretId)
+const secret = await daytona.v0.secret.get(secretId)
 ```
 
 ## Update a secret
@@ -194,7 +194,7 @@ Daytona provides methods to update a secret's value, description, or host allowl
 Updating the value rotates the credential. The placeholder stays the same, so existing sandboxes that reference the secret pick up the new value on subsequent requests without recreation. The change takes effect in all sandboxes that use the secret within 30 seconds. Send only the fields you want to change. Omitting a field leaves it unchanged.
 
 ```typescript
-const secret = await daytona.secret.update(secretId, {
+const secret = await daytona.v0.secret.update(secretId, {
   value: 'new-secret-value',
   hosts: ['api.example.com', '*.example.com'],
 })
@@ -207,7 +207,7 @@ Daytona provides methods to delete a secret.
 Deleted secrets cannot be recovered. Sandboxes that reference a deleted secret stop resolving its value within 30 seconds.
 
 ```typescript
-await daytona.secret.delete(secretId)
+await daytona.v0.secret.delete(secretId)
 ```
 
 ## HTTP Basic Auth
@@ -224,13 +224,13 @@ import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
 
-await daytona.secret.create({
+await daytona.v0.secret.create({
   name: 'basic-auth-password',
   value: 'password',
   hosts: ['api.example.com'],
 })
 
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   secrets: {
     BASIC_AUTH_PASSWORD: 'basic-auth-password',
   },

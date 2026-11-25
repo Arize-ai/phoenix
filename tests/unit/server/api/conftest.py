@@ -961,7 +961,7 @@ async def correctness_llm_evaluator(db: DbSessionFactory) -> models.LLMEvaluator
                     ),
                     response_format=None,
                     model_provider=ModelProvider.OPENAI,
-                    model_name="gpt-4",
+                    model_name="gpt-4o",
                     metadata_={},
                 )
             ],

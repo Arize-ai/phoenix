@@ -1,8 +1,9 @@
-import type {
-  Completion,
-  CompletionContext,
-  CompletionResult,
-  CompletionSource,
+import {
+  type Completion,
+  type CompletionContext,
+  type CompletionResult,
+  type CompletionSource,
+  insertCompletionText,
 } from "@codemirror/autocomplete";
 
 const quotedSubscriptPattern = String.raw`(?:"(?:\\.|[^"\\])*"?|'(?:\\.|[^'\\])*'?)`;
@@ -24,6 +25,95 @@ const dslFilterTokenPattern = new RegExp(
 const tokenBeforeCursorPattern = new RegExp(
   String.raw`${dslFilterTokenPattern.source}$`
 );
+
+/**
+ * The rest of the token segment after the cursor, which accepting a completion
+ * must replace too: identifier characters (`mo|del_name`) and, inside an
+ * unclosed subscript, the rest of the key up to its `]` (word, `.`, `:`, `/`,
+ * `-` characters) including the `']` that closeBrackets auto-inserts
+ * (`attributes['us|']`). Never whitespace, operators or values. Applied in
+ * `withTokenTailReplaced` at accept time; the dropdown still filters on the
+ * text up to the cursor.
+ */
+const identifierTailPattern = /^\w*/;
+const subscriptTailPattern = /^(?:[\w.:/-]*['"]?\]|\w*)/;
+const openSubscriptPattern = /\[[^\]]*$/;
+
+/**
+ * One accessor segment of a DSL token, matched at a given offset: the leading
+ * identifier, a `.member`, or a `[...]` subscript (complete or still being
+ * typed).
+ */
+const accessorSegmentPattern = new RegExp(
+  String.raw`[A-Za-z_]\w*|${dottedMemberPattern}|${subscriptPattern}`,
+  "y"
+);
+
+/**
+ * The complete `.member` and `[...]` segments that follow the segment under
+ * the cursor, e.g. `['model_name']` after `attributes['ll|m']`.
+ */
+const accessorChainPattern = new RegExp(
+  String.raw`^(?:\.[A-Za-z_]\w*|\[(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\d+)\])*`
+);
+
+/**
+ * How many accessor segments `text` consists of, or null when it isn't a
+ * single DSL token (e.g. a snippet or a whole condition).
+ * `attributes['llm']['model_name']` has three; `attributes['ll` has two.
+ */
+function countAccessorSegments(text: string): number | null {
+  let count = 0;
+  let index = 0;
+  while (index < text.length) {
+    accessorSegmentPattern.lastIndex = index;
+    const match = accessorSegmentPattern.exec(text);
+    if (!match || match[0] === "") return null;
+    if (count === 0 && !/^[A-Za-z_]/.test(match[0])) return null;
+    index += match[0].length;
+    count++;
+  }
+  return count;
+}
+
+/**
+ * The text after the cursor that accepting `label` replaces. Always the rest
+ * of the segment under the cursor. The segments chained after it
+ * (`attributes['ll|m']['model_name']`) are replaced only when the picked
+ * label is itself a longer path, which brings its own segments; a label that
+ * stops at the cursor's segment keeps them verbatim. Otherwise accepting
+ * `attributes['llm']['model_name']` there would duplicate `['model_name']`.
+ */
+function getReplacedTextAfterCursor({
+  typed,
+  textAfterCursor,
+  label,
+}: {
+  typed: string;
+  textAfterCursor: string;
+  label: string;
+}): string {
+  if (typed === "") return "";
+  const isInSubscript = openSubscriptPattern.test(typed);
+  const segmentTail =
+    textAfterCursor.match(
+      isInSubscript ? subscriptTailPattern : identifierTailPattern
+    )?.[0] ?? "";
+  // an unclosed subscript (`attributes['us| and x`) ends where its key does
+  if (isInSubscript && !segmentTail.endsWith("]")) return segmentTail;
+  const chain =
+    textAfterCursor
+      .slice(segmentTail.length)
+      .match(accessorChainPattern)?.[0] ?? "";
+  if (chain === "") return segmentTail;
+  const typedSegments = countAccessorSegments(typed);
+  const labelSegments = countAccessorSegments(label);
+  const labelExtendsPastCursorSegment =
+    typedSegments !== null &&
+    labelSegments !== null &&
+    labelSegments > typedSegments;
+  return labelExtendsPastCursorSegment ? segmentTail + chain : segmentTail;
+}
 
 /**
  * CodeMirror's `validFor` guard for the token returned by
@@ -480,6 +570,35 @@ export type DSLFilterCompletionRequest = {
 };
 
 /**
+ * Makes accepting `completion` also replace the rest of the token after the
+ * cursor (see `getReplacedTextAfterCursor`). Done at accept time from the live doc (typing may have changed it
+ * since the source ran) rather than via `to`, which would also make
+ * CodeMirror filter on text after the cursor. Options that bring their own
+ * `apply` (e.g. history entries that replace the whole condition) are kept.
+ */
+function withTokenTailReplaced(completion: Completion): Completion {
+  if (completion.apply !== undefined) return completion;
+  return {
+    ...completion,
+    apply: (view, picked, from, to) => {
+      const replaced = getReplacedTextAfterCursor({
+        typed: view.state.doc.sliceString(from, to),
+        textAfterCursor: view.state.doc.sliceString(to),
+        label: picked.label,
+      });
+      view.dispatch(
+        insertCompletionText(
+          view.state,
+          picked.label,
+          from,
+          to + replaced.length
+        )
+      );
+    },
+  };
+}
+
+/**
  * Builds a CodeMirror completion source over the given DSL vocabulary, with
  * the token and string-literal awareness the filter DSL needs. `getOptions`
  * may be async (e.g. real values fetched from the server); each source
@@ -525,7 +644,7 @@ export function createDSLFilterCompletionSource(
 
     return {
       from: word.from,
-      options,
+      options: options.map(withTokenTailReplaced),
       // A browse result may be a curated subset — force a fresh query on
       // the next keystroke rather than letting CodeMirror filter the subset
       // in place, so typing matches against the full vocabulary

@@ -2,7 +2,7 @@
 
 Keeping sandbox state beyond the life of a sandbox.
 
-Persistence is the ability of data and state to outlive the process or sandbox that created them. An ephemeral sandbox discards its state when it ends, and persistent storage keeps that state for the next run, in the same sandbox or in a new one.
+Persistence is how long the state of a sandbox lasts: the files on its disk, and the processes and data in its memory. State that persists outlives the events that would otherwise discard it.
 
 Sandboxes are ephemeral by default. The writable filesystem of a sandbox exists only while the sandbox does, and deleting a sandbox discards its filesystem, memory, and processes. Persistence carries the files, installed tools, and running state of a sandbox over to the next one.
 
@@ -38,11 +38,7 @@ Persistence is used when the state of a sandbox must survive past the sandbox it
 
 ## Filesystem persistence
 
-Filesystem persistence keeps the contents of a disk beyond the sandbox that wrote them: files, installed packages, cloned repositories, and build artifacts. A sandbox that starts from a preserved filesystem has nothing to reinstall or rebuild.
-
-The filesystem of a sandbox lives as long as the sandbox. Deleting the sandbox discards its filesystem, and a host failure loses an ephemeral sandbox together with its filesystem.
-
-Capture an [**image**](./images.md#capture-images) to start new sandboxes from the filesystem, or write results to external storage to keep them. Image capture works on a stopped persistent macOS sandbox and on a running Linux or Windows sandbox, which keeps running during the capture. Any number of new sandboxes can then start from the same captured image.
+Filesystem persistence keeps the contents of a sandbox's disk, such as installed packages and build artifacts. A sandbox that starts from a preserved filesystem has its environment intact, with nothing to reinstall or rebuild.
 
 ```python
 from daytona import Daytona
@@ -73,9 +69,9 @@ print(response.stdout)  # requests is already installed
 
 | **Parameter** | **Description** |
 | --- | --- |
+| `image` | Sets the image that create() boots the new sandbox from.<br />**Format:** an image name or ID<br />**Example:** `"my-env"` |
 | `name` | Sets the image name.<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, not starting with a period or a reserved prefix: sbx_, vol_, fn_, img_, snap_, snap-, build-, refs, by-digest, prj-, or glb-, not the names cache or search, and unique among the image and snapshot names of the project<br />**Example:** `"my-env"` |
 | `wait` | Holds the request until the image is ready.<br />**Value:** `"ready"` |
-| `image` | Sets the image that create() boots the new sandbox from.<br />**Format:** an image name or ID<br />**Example:** `"my-env"` |
 
 > **Notes:**
 >
@@ -84,11 +80,7 @@ print(response.stdout)  # requests is already installed
 
 ## Memory persistence
 
-Memory persistence keeps the runtime state of a running sandbox: its processes, open connections, and everything in RAM. A sandbox restored from preserved memory continues from the point it was captured, with processes still running, instead of starting from a clean boot.
-
-The memory of a sandbox, with its running processes and the connections inside it, is discarded when the sandbox is deleted. A snapshot of a sandbox holds its memory and disk, and a sandbox restored from it continues with the captured processes still running.
-
-Take a [**snapshot**](./snapshots.md#create-snapshots) to keep running processes beyond the sandbox, such as a server that resumes without a restart. A snapshot can capture a running Linux sandbox that is persistent, that is served from a warm template, or that was restored from another snapshot. A restored sandbox gets a fresh IP, and connections to hosts outside the sandbox do not continue: processes open them again. macOS sandboxes have no memory snapshots.
+Memory persistence keeps the runtime state of a sandbox: its running processes and everything loaded in memory. A sandbox that starts from preserved memory continues from the point it was saved, with its processes still running, instead of a clean boot.
 
 ```python
 from daytona import Daytona
@@ -124,8 +116,8 @@ print(response.stdout)  # 200
 | **Parameter** | **Description** |
 | --- | --- |
 | `name` | Sets the snapshot name.<br />**Required**<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, not starting with a period or a reserved prefix: sbx_, vol_, fn_, img_, snap_, snap-, build-, refs, by-digest, prj-, or glb-, not the name search, and unique among the image and snapshot names of the project<br />**Example:** `"my-snapshot"` |
-| `wait` | Holds the request until the snapshot is ready.<br />**Value:** `"ready"` |
 | `snapshot` | Sets the snapshot that create_from_snapshot() restores from.<br />**Required**<br />**Format:** a snapshot name or ID<br />**Example:** `"my-snapshot"` |
+| `wait` | Holds the request until the snapshot is ready.<br />**Value:** `"ready"` |
 
 > **Notes:**
 >
@@ -150,11 +142,7 @@ Capture an [image](./images.md#capture-images) to boot new sandboxes from a file
 
 ### Volumes
 
-A volume is storage that exists apart from any one sandbox. Sandboxes attach it to read and write data, and the data stays when a sandbox ends.
-
-A volume of a sandbox is project-scoped storage that the sandbox attaches when it is created. Volume data stays when the sandbox is deleted, and a later sandbox can attach and read it.
-
-Attach a [volume](./volumes.md) to keep data after a sandbox is deleted. A disk volume mounts as a local filesystem and commits each sandbox's changes in the background. A bucket volume mounts an S3 bucket, managed by Daytona or your own, and writes go straight to it.
+[Volumes](./volumes.md) are storage that exists independently of any one sandbox that uses it.
 
 ## Retention and lifecycle
 

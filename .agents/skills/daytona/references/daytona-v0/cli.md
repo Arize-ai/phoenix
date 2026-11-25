@@ -92,7 +92,7 @@ The script downloads the latest 0.x release, verifies its checksum, installs it 
 powershell -Command "irm https://get.daytona.io/windows-v0 | iex"
 ```
 
-> **Note:** If you installed the Daytona CLI as `daytona`, install `daytona-v0` and replace `daytona` with `daytona-v0` in your scripts. When Daytona CLI 2.0.0 becomes the default release, the `daytona` command installs the Daytona v2 CLI. To keep a Homebrew `daytona` install on 0.x, run `brew pin daytona`.
+> **Note:** If you installed the Daytona CLI as `daytona`, install `daytona-v0` and replace `daytona` with `daytona-v0` in your scripts. Since Daytona CLI 2.1.0, the `daytona` command installs the Daytona v2 CLI. To keep a Homebrew `daytona` install on 0.x, run `brew pin daytona` before you upgrade.
 
 After installing the Daytona CLI, use the `daytona-v0` command to interact with Daytona sandboxes from the command line.
 

@@ -64,59 +64,69 @@ OPENAI_SDK_STYLE_PROVIDER_KEYS: frozenset[GenerativeProviderKey] = frozenset(
 
 
 def to_connection_config(
+    *,
     model_provider: ModelProvider,
-    input: ConnectionConfigInput | None,
+    connection_config_input: ConnectionConfigInput | None,
 ) -> ConnectionConfig | None:
-    """Convert a flat ConnectionConfigInput to the typed discriminated union for DB storage."""
-    if input is None:
+    """Convert provider overrides to a typed connection config for DB storage.
+
+    Return None when no connection override applies, preserving default provider routing.
+    """
+    if connection_config_input is None:
         return None
 
     provider_key = GenerativeProviderKey.from_model_provider(model_provider)
-    api_type = input.openai_api_type.value if input.openai_api_type else "chat_completions"
+    openai_api_type_or_default = (
+        connection_config_input.openai_api_type or OpenAIApiType.CHAT_COMPLETIONS
+    ).value
 
     if provider_key in OPENAI_SDK_STYLE_PROVIDER_KEYS:
-        if input.base_url is None and api_type == "chat_completions":
+        has_routing_override = (
+            connection_config_input.base_url is not None
+            or connection_config_input.openai_api_type is not None
+        )
+        if not has_routing_override:
             return None
         return OpenAIConnectionConfig(
             type="openai",
-            base_url=input.base_url,
-            organization=input.organization,
-            project=input.project,
-            openai_api_type=api_type,
+            base_url=connection_config_input.base_url,
+            organization=connection_config_input.organization,
+            project=connection_config_input.project,
+            openai_api_type=openai_api_type_or_default,
         )
 
     if provider_key is GenerativeProviderKey.AZURE_OPENAI:
-        if input.azure_endpoint is None:
+        if connection_config_input.azure_endpoint is None:
             return None
         return AzureOpenAIConnectionConfig(
             type="azure_openai",
-            azure_endpoint=input.azure_endpoint,
-            openai_api_type=api_type,
+            azure_endpoint=connection_config_input.azure_endpoint,
+            openai_api_type=openai_api_type_or_default,
         )
 
     if provider_key is GenerativeProviderKey.ANTHROPIC:
-        if input.base_url is None:
+        if connection_config_input.base_url is None:
             return None
         return AnthropicConnectionConfig(
             type="anthropic",
-            base_url=input.base_url,
+            base_url=connection_config_input.base_url,
         )
 
     if provider_key is GenerativeProviderKey.GOOGLE:
-        if input.base_url is None:
+        if connection_config_input.base_url is None:
             return None
         return GoogleGenAIConnectionConfig(
             type="google_genai",
-            base_url=input.base_url,
+            base_url=connection_config_input.base_url,
         )
 
     if provider_key is GenerativeProviderKey.AWS:
-        if input.region_name is None:
+        if connection_config_input.region_name is None:
             return None
         return AWSBedrockConnectionConfig(
             type="aws_bedrock",
-            region_name=input.region_name,
-            endpoint_url=input.endpoint_url,
+            region_name=connection_config_input.region_name,
+            endpoint_url=connection_config_input.endpoint_url,
         )
 
     return None

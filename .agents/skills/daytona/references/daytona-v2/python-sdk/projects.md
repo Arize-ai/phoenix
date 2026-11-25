@@ -71,6 +71,8 @@ curl 'https://api.daytona.com/orgs/ORG_ID/projects' \
   --data '{ "name": "my-project" }'
 ```
 
+**Response:**
+
 ```json
 {
   "id": "PROJECT_ID",
@@ -124,6 +126,8 @@ curl 'https://api.daytona.com/orgs/ORG_ID/projects' \
   --header 'Authorization: Bearer YOUR_OIDC_TOKEN'
 ```
 
+**Response:**
+
 ```json
 {
   "projects": [
@@ -151,8 +155,8 @@ curl 'https://api.daytona.com/orgs/ORG_ID/projects' \
 
 | **Field** | **Description** |
 | --- | --- |
-| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `cursor` | Continues from a previous page. |
+| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 
 > **Notes:**
 >
@@ -429,6 +433,8 @@ curl 'https://api.daytona.com/projects/PROJECT_ID/lifecycle-policy' \
 
 The following response is abridged to the effective defaults of ephemeral Linux sandboxes and the platform defaults of macOS sandboxes. The full response also has the effective defaults of Windows and GPU sandboxes.
 
+**Response:**
+
 ```json
 {
   "policy": {
@@ -513,6 +519,8 @@ curl 'https://api.daytona.com/projects/PROJECT_ID/limits' \
   --header 'Authorization: Bearer YOUR_OIDC_TOKEN'
 ```
 
+**Response:**
+
 ```json
 {
   "sandboxes": {
@@ -554,8 +562,8 @@ curl 'https://api.daytona.com/projects/PROJECT_ID/limits' \
 | **Field** | **Description** |
 | --- | --- |
 | `max_concurrent_vms` | Sets the number of sandboxes that the project may run at one time.<br />**Minimum:** `0`<br />**Maximum:** `2147483647`<br />**Value:** `null` for no project limit<br />**Example:** `20` |
-| `max_total_vms` | Sets the number of sandboxes that the project may have, stopped and paused ones included.<br />**Minimum:** `0`<br />**Maximum:** `2147483647`<br />**Value:** `null` for no project limit<br />**Example:** `50` |
 | `max_persistent_vms` | Sets the number of persistent sandboxes that the project may have.<br />**Minimum:** `0`<br />**Maximum:** `2147483647`<br />**Value:** `null` for no project limit<br />**Example:** `5` |
+| `max_total_vms` | Sets the number of sandboxes that the project may have, stopped and paused ones included.<br />**Minimum:** `0`<br />**Maximum:** `2147483647`<br />**Value:** `null` for no project limit<br />**Example:** `50` |
 
 > **Notes:**
 >
@@ -594,6 +602,8 @@ curl 'https://api.daytona.com/projects/PROJECT_ID/members' \
   --header 'Authorization: Bearer YOUR_OIDC_TOKEN'
 ```
 
+**Response:**
+
 ```json
 {
   "members": [
@@ -610,8 +620,8 @@ curl 'https://api.daytona.com/projects/PROJECT_ID/members' \
 
 | **Field** | **Description** |
 | --- | --- |
-| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `cursor` | Continues from a previous page. |
+| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 
 > **Notes:**
 >
@@ -636,7 +646,7 @@ daytona project member add --bulk USER_ID_1,USER_ID_2 --project PROJECT_ID --org
 | **Flag** | **Description** |
 | --- | --- |
 | `<user>` | Sets the member to add.<br />**Format:** a user ID, email, or name<br />**Example:** `jane@example.com` |
-| `--bulk` | Adds several members in one request.<br />**Maximum:** 200 members<br />**Format:** a comma-separated list of user IDs, emails, or names<br />**Example:** `jane@example.com,john@example.com` |
+| `--bulk` | Adds several members in one request.<br />**Minimum:** 1 member<br />**Maximum:** 200 members<br />**Format:** a comma-separated list of user IDs, emails, or names<br />**Example:** `jane@example.com,john@example.com` |
 
 > **Notes:**
 >
@@ -651,6 +661,8 @@ curl 'https://api.daytona.com/projects/PROJECT_ID/members' \
   --header 'Content-Type: application/json' \
   --data '{ "user_ids": ["USER_ID_1", "USER_ID_2"] }'
 ```
+
+**Response:**
 
 ```json
 { "added_user_ids": ["USER_ID_1", "USER_ID_2"] }
@@ -730,8 +742,8 @@ curl 'https://api.daytona.com/projects/PROJECT_ID/service-accounts' \
 
 | **Field** | **Description** |
 | --- | --- |
-| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `cursor` | Continues from a previous page. |
+| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 
 > **Notes:**
 >

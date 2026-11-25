@@ -74,7 +74,7 @@ Create a GPU sandbox from a default snapshot.
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   snapshot: 'daytona-gpu',
   autoDeleteInterval: 0,
 })
@@ -95,10 +95,11 @@ Create a GPU sandbox with custom GPU resources: units and types.
     Daytona uses the first available type in the order you provide. This lets you fall back from a preferred GPU to an alternative when the first choice is not available.
 
 ```typescript
-import { Daytona, GpuType } from '@daytona/sdk'
+import { Daytona } from '@daytona/sdk'
+import { GpuType } from '@daytona/sdk/v0'
 
 const daytona = new Daytona()
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   image: 'pytorch/pytorch:2.11.0-cuda12.8-cudnn9-runtime',
   autoDeleteInterval: 0,
   resources: {
@@ -119,10 +120,11 @@ Create a GPU sandbox with NVIDIA GPUs.
 5. Select <Button>GPU Type</Button>: **`H100`**, **`H200`**, **`B200`**, **`B300`**, **`RTX-PRO-6000`**, **`RTX-4090`**, **`RTX-5090`**, **`L40S`**
 
 ```typescript
-import { Daytona, GpuType } from '@daytona/sdk'
+import { Daytona } from '@daytona/sdk'
+import { GpuType } from '@daytona/sdk/v0'
 
 const daytona = new Daytona()
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   image: 'pytorch/pytorch:2.11.0-cuda12.8-cudnn9-runtime',
   autoDeleteInterval: 0,
   resources: {
@@ -143,10 +145,11 @@ Create a GPU sandbox with AMD GPUs.
 5. Select <Button>GPU Type</Button>: **`MI355X`**
 
 ```typescript
-import { Daytona, GpuType } from '@daytona/sdk'
+import { Daytona } from '@daytona/sdk'
+import { GpuType } from '@daytona/sdk/v0'
 
 const daytona = new Daytona()
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   image: 'rocm/vllm:rocm10.0.0_ubuntu24.04_py3.14_pytorch_2.12.0_vllm_0.27.0',
   autoDeleteInterval: 0,
   resources: {
@@ -167,10 +170,11 @@ When a spot GPU sandbox is destroyed, normal [sandbox lifecycle state](#lifecycl
 Spot GPU sandboxes require Tier 2 or higher. Spot GPU sandboxes do not count against the organization's GPU quota. Available GPU capacity is the only limit. If no spot GPU is available, create fails immediately.
 
 ```typescript
-import { Daytona, GpuType } from '@daytona/sdk'
+import { Daytona } from '@daytona/sdk'
+import { GpuType } from '@daytona/sdk/v0'
 
 const daytona = new Daytona()
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   image: 'pytorch/pytorch:2.11.0-cuda12.8-cudnn9-runtime',
   autoDeleteInterval: 0,
   spot: true,
@@ -245,10 +249,10 @@ GPU sandboxes are ephemeral: stop deletes the sandbox and its filesystem. To kee
 import { Daytona } from '@daytona/sdk'
 
 const daytona = new Daytona()
-const volume = await daytona.volume.get('gpu-results', true)
+const volume = await daytona.v0.volume.get('gpu-results', true)
 
 // Mount the volume in the GPU sandbox
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   snapshot: 'daytona-gpu',
   autoDeleteInterval: 0,
   volumes: [{ volumeId: volume.id, mountPath: '/home/daytona/results' }],
@@ -330,7 +334,7 @@ Two intervals end a GPU sandbox automatically. Each interval is set in minutes.
 - [Wall-clock TTL](./sandboxes.md#wall-clock-ttl) deletes the sandbox at a fixed deadline, whether or not it is active.
 
 ```typescript
-const sandbox = await daytona.create({
+const sandbox = await daytona.v0.create({
   snapshot: 'daytona-gpu',
   autoDeleteInterval: 0,
   autoStopInterval: 30,

@@ -70,7 +70,7 @@ dependencies = [
   "bashkit>=0.10.0,!=0.14.2",  # 0.14.2 shipped no sdist and only cp310/cp311 wheels, breaking installs on 3.14; see https://pypi.org/project/bashkit/0.14.2/
   "authlib>=1.8.0",
   "joserfc",
-  "arize-phoenix-client>=3.7.0",
+  "arize-phoenix-client>=3.8.0",
   "email-validator",
   "python-dateutil",
   "prometheus_client",
@@ -175,7 +175,7 @@ dev = [
   "jupyter>=1.1.1",
   "ruff>=0.15.2",
   "libcst>=1.8.6",
-  "datamodel-code-generator==0.72.2",
+  "datamodel-code-generator==0.81.0",
   "grpcio-tools>=1.78.0",
   "mypy-protobuf>=5.0.0",
   "jinja2>=3.1.6",
@@ -433,6 +433,7 @@ exclude = [
   "skills/**/*.md",
   "src/phoenix/server/mcp/skills/**/*.md",
   "src/phoenix/server/agents/prompts/public_skills/**/*.md",
+  "src/phoenix/server/agents/prompts/skills/phoenix-graphql/references/filter-expressions.md",
   "plugins/codex/arize-phoenix/skills/**/*.md",
   ".claude/**/*.md",
   ".cursor/**/*.md",
@@ -483,7 +484,7 @@ exclude-newer = "3 days"
 # this to be installable at all on the day it publishes. The openinference
 # packages are ours too (Arize-ai/openinference), and phoenix regularly needs a
 # semantic convention or instrumentation helper the day it is released.
-exclude-newer-package = { arize-phoenix-client = "2099-12-31T00:00:00Z", arize-phoenix-evals = "2099-12-31T00:00:00Z", arize-phoenix-otel = "2099-12-31T00:00:00Z", arize-phoenix-sqlean = "2099-12-31T00:00:00Z", openinference-instrumentation = "2099-12-31T00:00:00Z", openinference-semantic-conventions = "2099-12-31T00:00:00Z", pydantic-ai-slim = "2026-11-20T00:00:00Z", pydantic-graph = "2026-11-20T00:00:00Z" }
+exclude-newer-package = { arize-phoenix-client = "2099-12-31T00:00:00Z", arize-phoenix-evals = "2099-12-31T00:00:00Z", arize-phoenix-otel = "2099-12-31T00:00:00Z", arize-phoenix-sqlean = "2099-12-31T00:00:00Z", openinference-instrumentation = "2099-12-31T00:00:00Z", openinference-semantic-conventions = "2099-12-31T00:00:00Z" }
 # litellm bounds shared dependencies below what the rest of the tree needs: it
 # caps `openai<3` while phoenix and pydantic-ai require openai 3, and it has
 # capped `python-dotenv` below the `>=1.1.0` fastmcp requires. Overriding is safe

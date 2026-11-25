@@ -120,4 +120,5 @@ const decisionJudge = openai.decisionModel("gpt-6-luna");
 ```
 
 A decision model returns a label with probabilities in `metadata.probabilities` and
-no explanation. With OpenAI, it needs `@ai-sdk/openai` 4.0.89 or later.
+no explanation. With OpenAI, it needs `@ai-sdk/openai` 4.0.89 or later. Google's
+`google.decisionModel("gemini-decision-1")` needs `@ai-sdk/google` 4.0.118 or later.

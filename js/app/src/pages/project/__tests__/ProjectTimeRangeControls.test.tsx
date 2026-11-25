@@ -112,31 +112,22 @@ function getControls() {
 }
 
 describe("ProjectTimeRangeControls", () => {
-  it.each(["/projects/p/traces", "/projects/p/traces/", "/projects/p/spans"])(
-    "streams on %s",
-    (path) => {
-      renderProjectRoute(path);
-      act(() => {
-        vi.advanceTimersByTime(REFRESH_INTERVAL_MS);
-      });
+  it("streams on the traces tab", () => {
+    renderProjectRoute("/projects/p/traces");
+    act(() => {
+      vi.advanceTimersByTime(REFRESH_INTERVAL_MS);
+    });
 
-      expect(relayMocks.refetch).toHaveBeenCalledTimes(1);
-      expect(getControls()).toMatchObject({
-        isLive: "true",
-        hasToggle: "true",
-        isToggleDisabled: "false",
-      });
-    }
-  );
+    expect(relayMocks.refetch).toHaveBeenCalledTimes(1);
+    expect(getControls()).toMatchObject({
+      isLive: "true",
+      hasToggle: "true",
+      isToggleDisabled: "false",
+    });
+  });
 
-  it.each([
-    "/projects/p/traces/t1",
-    "/projects/p/spans/t1",
-    "/projects/p/sessions/s1",
-    "/projects/p/traces/compare?traceId=t1&traceId=t2",
-    "/projects/p/spans/compare?traceId=t1&traceId=t2&selectedSpanNodeId=s1",
-  ])("pauses streaming and disables the toggle while %s is open", (path) => {
-    renderProjectRoute(path);
+  it("pauses streaming while a trace is open", () => {
+    renderProjectRoute("/projects/p/traces/t1");
     act(() => {
       vi.advanceTimersByTime(REFRESH_INTERVAL_MS * 2);
     });

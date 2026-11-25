@@ -2,19 +2,19 @@
 
 ## What is Daytona v2
 
-Daytona provides sandboxes for agents: hardware-isolated virtual machines, each with its own kernel, filesystem, network stack, and allocated vCPU, RAM, and disk. Sandboxes run as Linux (default, Firecracker microVMs), Windows, macOS, or GPU virtual machines. A running sandbox exposes a toolbox for code and command execution, sessions, file system and git operations, computer use, and language servers.
+Daytona provides sandboxes for agents: hardware-isolated virtual machines, each with its own kernel, filesystem, network stack, and allocated vCPU, RAM, and disk. Sandboxes run as Linux (default, Firecracker microVMs), Windows, macOS, or GPU virtual machines. A running sandbox exposes a toolbox for code and command execution, sessions, file system and git operations, and computer use.
 
 Every sandbox belongs to a **project**. A project API key reaches only the sandboxes, images, snapshots, volumes, and secrets of its own project.
 
-**Scope:** This guide covers Daytona v2 (`app.daytona.com`, `api.daytona.com`). The SDKs are pre-release: Python `daytona==2.0.0a13` and TypeScript `@daytona/sdk@2.0.0-alpha.13`.
+**Scope:** This guide covers Daytona v2 (`app.daytona.com`, `api.daytona.com`). The SDKs are Python `daytona==2.1.0` and TypeScript `@daytona/sdk@2.1.0`.
 
 ## Using v0 from the v2 SDK
 
-The v2 SDK also exposes the v0 API as `daytona.v0` (Python needs `pip install 'daytona[v0-sdk]==2.0.0a13'`). To move an organization's resources from v0, see [migrate-from-v0.md](./platform/migrate-from-v0.md).
+The v2 SDK also exposes the v0 API as `daytona.v0` (Python needs `pip install 'daytona[v0-sdk]==2.1.0'`). To move an organization's resources from v0, see [migrate-from-v0.md](./platform/migrate-from-v0.md).
 
 ## Before You Start
 
-1. **SDK installed?** Check that the v2 SDK is installed: `pip show daytona` reports `2.0.0a13` or a later `2.x` release, or `package.json` lists `@daytona/sdk` at `2.0.0-alpha.13` or later. A `0.x` version is the v0 SDK. Install with `pip install daytona==2.0.0a13` (Python 3.10 or later) or `npm install @daytona/sdk@2.0.0-alpha.13` (Node.js 22.4 or later).
+1. **SDK installed?** Check that the v2 SDK is installed: `pip show daytona` reports a `2.x` release, or `package.json` lists `@daytona/sdk` at `2.x`. A `0.x` version is the v0 SDK. Install with `pip install daytona==2.1.0` (Python 3.10 or later) or `npm install @daytona/sdk@2.1.0` (Node.js 22.15 or later).
 2. **API key set?** Check `DAYTONA_API_KEY` in the shell environment or in environment files. If it is not set, tell the user to create a project API key at [Daytona Dashboard > API Keys](https://app.daytona.com/dashboard/keys).
 
 ## Sandbox Lifetime
@@ -224,7 +224,7 @@ token = sandbox.create_access_token(operations=["toolbox:fs", "ssh"], ttl_second
 
 ## REST API
 
-Platform requests go to `https://api.daytona.com` with `Authorization: Bearer $DAYTONA_API_KEY`. Toolbox requests (processes, files, git, LSP, computer use) go to the sandbox's `toolbox_proxy_url` followed by the sandbox ID.
+Platform requests go to `https://api.daytona.com` with `Authorization: Bearer $DAYTONA_API_KEY`. Toolbox requests (processes, files, git, computer use) go to the sandbox's `toolbox_proxy_url` followed by the sandbox ID.
 
 ```bash
 # Create a sandbox, then wait until it is running
@@ -259,13 +259,23 @@ An exception raised by code in `run_code` is not an SDK error; it is returned in
 
 ## Limits
 
-| Resource | Default | Maximum per Linux sandbox |
+| Linux sandbox | Default | Minimum |
 |---|---|---|
-| CPU | 0.5 cores | 16 cores |
-| Memory | 1024 MiB | 32768 MiB |
-| Disk | 512 MiB | 262144 MiB |
+| CPU | 0.5 cores | 0.125 cores |
+| Memory | 1 GiB | 0.5 GiB |
+| Disk | 0.5 GiB, or 10 GiB when CPU or memory is set | 10 GiB |
 
-One core is 2 vCPUs where SMT is enabled. When a create sets any of CPU, memory, or disk, the disk is raised to at least 10 GiB. The organization's plan can cap cores and memory lower (Starter: 4 cores, 16384 MiB; Team: 8 cores, 32768 MiB). Organization limits cap concurrent and total sandboxes, image builds, images, snapshots, and volumes. See [limits.md](./python-sdk/limits.md) and [sandboxes.md](./python-sdk/sandboxes.md#resources).
+`cpu`, `memory`, and `disk` in `Resources` are the guaranteed resources, reserved and billed as a floor. `cpu_max`, `memory_max`, and `disk_max` are the limits the sandbox can use, up to the sandbox limits of the plan. One core is 2 vCPUs, and `cpu_max` is a multiple of 0.5 cores.
+
+| Sandbox limit | Starter | Team | Enterprise |
+|---|---|---|---|
+| Cores | 64 | 64 | Custom |
+| Memory | 128 GiB | 128 GiB | Custom |
+| Ephemeral disk | 512 GiB | 1 TiB | 3 TiB |
+| GPU cards | 1 | 8 | 8 |
+| Session length | 24 hours | 48 hours | Custom |
+
+Organization limits cap members, concurrent sandboxes (Starter 100, Team 5,000), GPU cards, Windows core licenses, and Mac reservations. A request above a limit is rejected. Read the current usage and limits with `daytona.v2.get_limits()`. See [limits.md](./python-sdk/limits.md), [sandboxes.md](./python-sdk/sandboxes.md#resources), and [linux-sandboxes.md](./python-sdk/linux-sandboxes.md#resources).
 
 ## Quick Decision Tree
 
@@ -367,14 +377,13 @@ Python: [python-sdk/README.md](./python-sdk/README.md). TypeScript: [typescript-
 | [billing.md](./platform/billing.md) | Billing, wallet, and usage |
 | [gpu-sandboxes.md](./platform/gpu-sandboxes.md) | GPU sandboxes and checkpoints |
 | [windows-sandboxes.md](./platform/windows-sandboxes.md) | Windows sandboxes |
-| [language-server-protocol.md](./platform/language-server-protocol.md) | Language servers through the Toolbox API |
 | [migrate-from-v0.md](./platform/migrate-from-v0.md) | Migration summary and v0 sandbox import |
 | [playground.md](./platform/playground.md) | Browser playground for the TypeScript SDK |
 | [sso.md](./platform/sso.md) | Single sign-on and directory sync |
 
 ## CLI Reference
 
-Install with `brew install daytonaio/cli/daytona-alpha` (macOS) or the install script in [cli/README.md](./cli/README.md), then run `daytona login --token "$DAYTONA_API_KEY" --api-url https://api.daytona.com`.
+Install with `brew install daytonaio/cli/daytona` (macOS) or the install script in [cli/README.md](./cli/README.md), then run `daytona login --token "$DAYTONA_API_KEY" --api-url https://api.daytona.com`.
 
 | File | Commands |
 |---|---|

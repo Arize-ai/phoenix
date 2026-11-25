@@ -14,13 +14,10 @@ Regions managed by Daytona and available to all organizations:
 ```typescript
 import { Daytona } from '@daytona/sdk'
 
-// Configure Daytona to use the US region
-const daytona = new Daytona({
-  target: 'us',
-})
+const daytona = new Daytona()
 
 // Create a sandbox in the US region
-const sandbox = await daytona.create()
+const sandbox = await daytona.v0.create({ target: 'us' })
 ```
 
 List regions managed by Daytona and available to all organizations:

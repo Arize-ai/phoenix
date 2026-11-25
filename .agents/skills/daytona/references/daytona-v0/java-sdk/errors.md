@@ -26,6 +26,7 @@
 - DaytonaInternalServerException
 - DaytonaInvalidFilePathException
 - DaytonaLspServerNotInitializedException
+- DaytonaNodeOperationException
 - DaytonaNotFoundException
 - DaytonaProcessExecutionTimeoutException
 - DaytonaProcessNotFoundException
@@ -179,6 +180,26 @@ Creates a Daytona exception with HTTP status code, cause, error code, and source
 - `source` _String_ - component that originated the error
 
 ### Methods
+
+#### getOperationId()
+```java
+public String getOperationId()
+```
+
+Accepted membership operation to inspect when polling fails.
+
+**Returns**:
+
+- `String` -
+
+#### setOperationId()
+```java
+public void setOperationId(String id)
+```
+
+**Parameters**:
+
+- `id` _String_ -
 
 #### setPendingHeaders()
 ```java
@@ -1555,6 +1576,42 @@ public DaytonaLspServerNotInitializedException(String message, Throwable cause, 
 - `cause` _Throwable_ -
 - `code` _String_ -
 - `source` _String_ -
+
+## DaytonaNodeOperationException
+
+Rank-specific failures and successful results from a parallel node operation.
+
+### Constructors
+
+#### new DaytonaNodeOperationException()
+```java
+public DaytonaNodeOperationException(Map<Integer, Throwable> failures, Map<Integer, ExecuteResponse> results)
+```
+
+**Parameters**:
+
+- `failures` _Map\<Integer, Throwable\>_ -
+- `results` _Map\<Integer, ExecuteResponse\>_ -
+
+### Methods
+
+#### getFailures()
+```java
+public Map<Integer, Throwable> getFailures()
+```
+
+**Returns**:
+
+- `Map\<Integer, Throwable\>` -
+
+#### getResults()
+```java
+public Map<Integer, ExecuteResponse> getResults()
+```
+
+**Returns**:
+
+- `Map\<Integer, ExecuteResponse\>` -
 
 ## DaytonaNotFoundException
 

@@ -1293,8 +1293,8 @@ Options for `Sandbox.createAccessToken`.
 **Properties**:
 
 - `operations?` _readonly string\[\]_ - Requested operation subset (the sandbox-operation vocabulary: `toolbox`,
-  `toolbox:exec`, `toolbox:fs`, `toolbox:git`, `toolbox:lsp`, `desktop`,
-  `ssh`, `sandbox:stop`, `sandbox:pause`, `sandbox:delete`). Omitted = the
+  `toolbox:exec`, `toolbox:fs`, `toolbox:git`, `desktop`, `ssh`,
+  `sandbox:stop`, `sandbox:pause`, `sandbox:delete`). Omitted = the
   minter's full grantable set; `[]` is a valid ports-only grant. Unknown
   operations are a 400, never a silent narrowing. `toolbox:git` without
   `toolbox:exec` covers the git operations except writing git config:

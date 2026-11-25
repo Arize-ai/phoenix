@@ -75,10 +75,10 @@ const sandbox = await daytona.v2.create('python-3.12')
 | **Parameter** | **Description** |
 | --- | --- |
 | `ref` | Sets the registry reference that pull() registers.<br />**Required**<br />**Format:** an OCI image reference<br />**Example:** `'python:3.12-slim'` |
-| `name` | Sets the image name.<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, not starting with a period or a reserved prefix: sbx_, vol_, fn_, img_, snap_, snap-, build-, refs, by-digest, prj-, or glb-, and not the names cache or search<br />**Example:** `'python-3.12'` |
-| `wait` | Holds the get() request until the image is ready or failed.<br />**Value:** `'ready'` |
-| `timeoutSeconds` | Sets how many seconds get() waits in total for the image to be ready or failed.<br />**Default:** one wait of at most 30 seconds<br />**Value:** `0` for one wait of at most 30 seconds<br />**Example:** `600` |
 | `image` | Sets the image that create() boots the new sandbox from.<br />**Format:** an image name or ID<br />**Example:** `'python-3.12'` |
+| `name` | Sets the image name.<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, not starting with a period or a reserved prefix: sbx_, vol_, fn_, img_, snap_, snap-, build-, refs, by-digest, prj-, or glb-, and not the names cache or search<br />**Example:** `'python-3.12'` |
+| `timeoutSeconds` | Sets how many seconds get() waits in total for the image to be ready or failed.<br />**Default:** one wait of at most 30 seconds<br />**Value:** `0` for one wait of at most 30 seconds<br />**Example:** `600` |
+| `wait` | Holds the get() request until the image is ready or failed.<br />**Value:** `'ready'` |
 
 ### Inline Dockerfile
 
@@ -104,10 +104,10 @@ const sandbox = await daytona.v2.createFromBuild(
 | --- | --- |
 | `builder` | Sets the Dockerfile or the steps to build.<br />**Required**<br />**Format:** an ImageBuilder<br />**Example:** `ImageBuilder.fromDockerfile('FROM python:3.12-slim\nRUN pip install requests\n')` |
 | `buildTimeoutSeconds` | Sets how many seconds createFromBuild() waits for the build.<br />**Default:** no limit<br />**Value:** `0` for no limit<br />**Example:** `1800` |
-| `waitSeconds` | Sets how many seconds the create waits for the sandbox to start.<br />**Default:** `60`<br />**Value:** `0` for no wait<br />**Example:** `120` |
-| `idleExpirySeconds` | Sets how many seconds the anonymous image can go without a sandbox create before deletion. The window starts when the image is created, so a window shorter than the build deletes the image before it is ready.<br />**Default:** the server maximum of 7 days<br />**Minimum:** `1`<br />**Maximum:** the server maximum<br />**Value:** `-1` for the maximum |
-| `region` | Sets the region of the build and the sandbox.<br />**Default:** the project's default region, then the organization's, then the platform's<br />**Format:** a listed region ID inside a country region<br />**Example:** `'us-east'` |
 | `cpuArch` | Sets the CPU architecture of the build and the sandbox.<br />**Default:** the region's default architecture, or `amd64` if the region sets none<br />**Value:** `amd64` or `arm64`<br />**Example:** `'amd64'` |
+| `idleExpirySeconds` | Sets how many seconds the anonymous image can go without a sandbox create before deletion. The window starts when the image is created, so a window shorter than the build deletes the image before it is ready.<br />**Default:** the server maximum of 7 days<br />**Minimum:** `1`<br />**Maximum:** the server maximum<br />**Value:** `-1` for the maximum |
+| `region` | Sets the region of the build and the sandbox.<br />**Default:** the project's default region, then the organization's, then the platform's<br />**Value:** `earth`, `us`, `us-east`, `us-east-ash-1`, `us-east-bos-1`, or `us-east-iad-1`<br />**Example:** `'us-east'` |
+| `waitSeconds` | Sets how many seconds the create waits for the sandbox to start.<br />**Default:** `60`<br />**Value:** `0` for no wait<br />**Example:** `120` |
 
 > **Notes:**
 >
@@ -155,8 +155,8 @@ const image = await daytona.v2.images.pull('node:22-slim', { name: 'my-awesome-i
 | --- | --- |
 | `ref` | Sets the registry reference to pull.<br />**Required**<br />**Format:** an OCI image reference<br />**Example:** `'node:22-slim'` |
 | `name` | Sets the image name.<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, not starting with a period or a reserved prefix: sbx_, vol_, fn_, img_, snap_, snap-, build-, refs, by-digest, prj-, or glb-, and not the names cache or search<br />**Example:** `'my-awesome-image'` |
-| `wait` | Waits until the image is ready or failed.<br />**Default:** `true` |
 | `timeoutSeconds` | Sets how many seconds pull() waits in total.<br />**Default:** no limit<br />**Value:** `0` for no limit<br />**Example:** `600` |
+| `wait` | Waits until the image is ready or failed.<br />**Default:** `true` |
 
 ## Build images
 
@@ -181,8 +181,8 @@ const image = await daytona.v2.images.build(
 | **Parameter** | **Description** |
 | --- | --- |
 | `builder` | Sets the Dockerfile or the steps to build.<br />**Required**<br />**Format:** an ImageBuilder<br />**Example:** `ImageBuilder.fromDockerfile('FROM python:3.12-slim\nRUN pip install requests')` |
-| `name` | Sets the image name.<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, not starting with a period or a reserved prefix: sbx_, vol_, fn_, img_, snap_, snap-, build-, refs, by-digest, prj-, or glb-, and not the names cache or search<br />**Example:** `'my-built-image'` |
 | `idleExpirySeconds` | Sets how many seconds an anonymous image can go without a sandbox create before deletion.<br />**Default:** the server maximum<br />**Minimum:** `1`<br />**Maximum:** the server maximum<br />**Value:** `-1` for the maximum |
+| `name` | Sets the image name.<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, not starting with a period or a reserved prefix: sbx_, vol_, fn_, img_, snap_, snap-, build-, refs, by-digest, prj-, or glb-, and not the names cache or search<br />**Example:** `'my-built-image'` |
 
 > **Notes:**
 >
@@ -208,10 +208,10 @@ const image = await daytona.v2.images.buildFromContext('context.tar', { name: 'm
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `context` | Sets the build context that holds the Dockerfile.<br />**Required**<br />**Maximum:** 1 GiB<br />**Format:** the bytes of a tar archive as an ArrayBuffer, a view, or a Blob, or in Node.js the path of a .tar file or a directory<br />**Example:** `'context.tar'` |
+| `context` | Sets the build context that holds the Dockerfile.<br />**Required**<br />**Minimum:** 1 byte<br />**Maximum:** 1 GiB<br />**Format:** the bytes of a tar archive as an ArrayBuffer, a view, or a Blob, or in Node.js the path of a .tar file or a directory<br />**Example:** `'context.tar'` |
 | `dockerfile` | Sets the path of the Dockerfile inside the context.<br />**Default:** `'Dockerfile'`<br />**Example:** `'docker/Dockerfile'` |
-| `name` | Sets the image name.<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, not starting with a period or a reserved prefix: sbx_, vol_, fn_, img_, snap_, snap-, build-, refs, by-digest, prj-, or glb-, and not the names cache or search<br />**Example:** `'my-context-image'` |
 | `idleExpirySeconds` | Sets how many seconds an anonymous image can go without a sandbox create before deletion.<br />**Default:** the server maximum<br />**Minimum:** `1`<br />**Maximum:** the server maximum<br />**Value:** `-1` for the maximum |
+| `name` | Sets the image name.<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, not starting with a period or a reserved prefix: sbx_, vol_, fn_, img_, snap_, snap-, build-, refs, by-digest, prj-, or glb-, and not the names cache or search<br />**Example:** `'my-context-image'` |
 
 > **Notes:**
 >
@@ -273,10 +273,10 @@ curl 'https://api.daytona.com/images' \
 | --- | --- |
 | `bytes` | Sets the size of the archive in bytes.<br />**Required**<br />**Minimum:** `1`<br />**Maximum:** `1073741824`<br />**Example:** `10240` |
 | `sha256` | Sets the SHA-256 of the archive.<br />**Required**<br />**Format:** 64 lowercase hexadecimal characters |
-| `dockerfile` | Sets the path of the Dockerfile inside the context.<br />**Default:** `"Dockerfile"`<br />**Example:** `"docker/Dockerfile"` |
-| `region_id` | Sets the region of the upload in the declare and complete requests.<br />**Default:** in the declare request, the project's default region, then the organization's, then the platform's<br />**Format:** a listed region ID inside a country region<br />**Example:** `"us-east"` |
 | `context_upload_id` | Sets the verified upload that the build uses.<br />**Format:** the upload ID that the declare request returned |
+| `dockerfile` | Sets the path of the Dockerfile inside the context.<br />**Default:** `"Dockerfile"`<br />**Example:** `"docker/Dockerfile"` |
 | `name` | Sets the image name.<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, not starting with a period or a reserved prefix: sbx_, vol_, fn_, img_, snap_, snap-, build-, refs, by-digest, prj-, or glb-, and not the names cache or search<br />**Example:** `"my-context-image"` |
+| `region_id` | Sets the region of the upload in the declare and complete requests.<br />**Default:** in the declare request, the project's default region, then the organization's, then the platform's<br />**Value:** `earth`, `us`, `us-east`, `us-east-ash-1`, `us-east-bos-1`, or `us-east-iad-1`<br />**Example:** `"us-east"` |
 
 > **Notes:**
 >
@@ -308,8 +308,8 @@ const image = await daytona.v2.images.build(
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `region` | Sets the home region of the image.<br />**Default:** the project's default region, then the organization's, then the platform's<br />**Format:** a listed region ID inside a country region<br />**Value:** `'local'` for the default region<br />**Example:** `'us-east'` |
 | `cpuArch` | Sets the CPU architecture of the image.<br />**Default:** the region's default architecture, or `amd64` if the region sets none<br />**Value:** `amd64` or `arm64`<br />**Example:** `'amd64'` |
+| `region` | Sets the home region of the image.<br />**Default:** the project's default region, then the organization's, then the platform's<br />**Value:** `earth`, `us`, `us-east`, `us-east-ash-1`, `us-east-bos-1`, `us-east-iad-1`, or `'local'` for the default region<br />**Example:** `'us-east'` |
 
 ### Declarative builds
 
@@ -339,14 +339,14 @@ const image = await daytona.v2.images.build(builder, { name: 'my-declared-image'
 
 | **Parameter** | **Description** |
 | --- | --- |
+| `cmd` | Sets the image command, or the default arguments of the entrypoint, rendered as CMD in exec form.<br />**Example:** `'-m', 'http.server', '8080'` |
+| `entrypoint` | Sets the image entrypoint, rendered as ENTRYPOINT in exec form.<br />**Example:** `'python'` |
+| `env` | Sets environment variables as one ENV step per variable.<br />**Format:** a name and a value, or a record of names to values<br />**Example:** `{ LOG_LEVEL: 'debug' }` |
 | `fromRegistry` | Starts the image from a registry image, rendered as FROM.<br />**Format:** an OCI image reference<br />**Example:** `'python:3.12-slim'` |
 | `pipInstall` | Adds Python packages as one RUN python -m pip install step.<br />**Format:** one or more pip requirement specifiers<br />**Example:** `'numpy>=1.26'` |
 | `runCommands` | Adds shell commands as one RUN step per command.<br />**Example:** `'useradd --create-home app'` |
-| `env` | Sets environment variables as one ENV step per variable.<br />**Format:** a name and a value, or a record of names to values<br />**Example:** `{ LOG_LEVEL: 'debug' }` |
 | `user` | Sets the user for the steps that follow and for sandboxes from the image, rendered as USER.<br />**Example:** `'app'` |
 | `workdir` | Sets the working directory, rendered as WORKDIR. A sandbox from an image that sets none, or sets the root directory, starts in the user's home directory.<br />**Example:** `'/home/app'` |
-| `entrypoint` | Sets the image entrypoint, rendered as ENTRYPOINT in exec form.<br />**Example:** `'python'` |
-| `cmd` | Sets the image command, or the default arguments of the entrypoint, rendered as CMD in exec form.<br />**Example:** `'-m', 'http.server', '8080'` |
 
 > **Notes:**
 >
@@ -385,10 +385,10 @@ const image = await daytona.v2.images.build(builder, { name: 'my-local-files-ima
 
 | **Parameter** | **Description** |
 | --- | --- |
+| `addLocalDir` | Copies a local directory to a path in the image, rendered as COPY.<br />**Format:** a local directory path, then a path in the image<br />**Example:** `'data', '/app/data'` |
+| `addLocalFile` | Copies a local file to a path in the image, rendered as COPY.<br />**Format:** a local file path, then a path in the image that keeps the file name when it ends with `/`<br />**Example:** `'main.py', '/app/'` |
 | `debianSlim` | Starts the image from the slim Debian Python image, with gcc, gfortran, and build-essential installed and pip upgraded.<br />**Default:** `'3.13'`<br />**Value:** `'3.10'`, `'3.11'`, `'3.12'`, `'3.13'`, or `'3.14'`<br />**Example:** `'3.12'` |
 | `pipInstallFromRequirements` | Copies a local requirements file into the image and installs it as one RUN python -m pip install -r step.<br />**Format:** the path of a local file<br />**Example:** `'requirements.txt'` |
-| `addLocalFile` | Copies a local file to a path in the image, rendered as COPY.<br />**Format:** a local file path, then a path in the image that keeps the file name when it ends with `/`<br />**Example:** `'main.py', '/app/'` |
-| `addLocalDir` | Copies a local directory to a path in the image, rendered as COPY.<br />**Format:** a local directory path, then a path in the image<br />**Example:** `'data', '/app/data'` |
 
 > **Notes:**
 >
@@ -441,10 +441,10 @@ const clone = await daytona.v2.create('my-env')
 
 | **Parameter** | **Description** |
 | --- | --- |
-| `name` | Sets the image name.<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, not starting with a period or a reserved prefix: sbx_, vol_, fn_, img_, snap_, snap-, build-, refs, by-digest, prj-, or glb-, and not the names cache or search<br />**Example:** `'my-env'` |
 | `idleExpirySeconds` | Sets how many seconds an anonymous image can go without a sandbox create before deletion.<br />**Default:** the server maximum<br />**Minimum:** `1`<br />**Maximum:** the server maximum<br />**Value:** `-1` for the maximum |
-| `wait` | Holds the get() request until the image is ready or failed.<br />**Value:** `'ready'` |
 | `image` | Sets the image that create() boots the new sandbox from.<br />**Format:** an image name or ID<br />**Example:** `'my-env'` |
+| `name` | Sets the image name.<br />**Format:** 1 to 128 letters, digits, periods, underscores, and hyphens, not starting with a period or a reserved prefix: sbx_, vol_, fn_, img_, snap_, snap-, build-, refs, by-digest, prj-, or glb-, and not the names cache or search<br />**Example:** `'my-env'` |
+| `wait` | Holds the get() request until the image is ready or failed.<br />**Value:** `'ready'` |
 
 > **Notes:**
 >
@@ -499,8 +499,8 @@ curl 'https://api.daytona.com/images/{imageId}?wait=ready&timeout_ms=60000' \
 | **Field** | **Description** |
 | --- | --- |
 | `id` | Identifies the image to convert, in the path.<br />**Format:** an image ID or name |
-| `wait` | Holds the wait request until the image reaches this status.<br />**Value:** an image status, such as `ready`<br />**Example:** `ready` |
 | `timeout_ms` | Sets how many milliseconds the wait request holds.<br />**Default:** `30000`<br />**Minimum:** `0`<br />**Maximum:** `60000` |
+| `wait` | Holds the wait request until the image reaches this status.<br />**Value:** an image status, such as `ready`<br />**Example:** `ready` |
 
 > **Notes:**
 >
@@ -536,11 +536,11 @@ for (const image of page.items) {
 | **Parameter** | **Description** |
 | --- | --- |
 | `anonymous` | Lists anonymous images instead of named images.<br />**Default:** `false` |
-| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `cursor` | Continues from a previous page.<br />**Format:** the nextCursor of the previous page |
+| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `name` | Filters by exact image name.<br />**Example:** `'my-env'` |
-| `sandboxId` | Filters by the sandbox that the images were captured from.<br />**Format:** a sandbox ID |
 | `platform` | Selects platform images, which Daytona publishes for every project.<br />**Default:** `'false'`<br />**Value:** `'true'` for platform images only, `'false'` for the project's images only, or `'any'` for both<br />**Example:** `'any'` |
+| `sandboxId` | Filters by the sandbox that the images were captured from.<br />**Format:** a sandbox ID |
 
 | **Field**         | **Description**                                                                                                                                                                                 |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -605,24 +605,24 @@ curl 'https://api.daytona.com/images/search?q=my-declared-image' \
 
 | **Field** | **Description** |
 | --- | --- |
-| `q` | Matches free text against the image name, or one image ID exactly.<br />**Example:** `my-declared-image` |
+| `anonymous` | Returns anonymous images when `true` and named images when `false`.<br />**Default:** `false` |
+| `class` | Filters by the sandbox classes that the image supports.<br />**Format:** a comma-separated list<br />**Value:** `linux`, `windows`, or `macos`<br />**Example:** `linux` |
+| `created_end_at` | Filters by creation time, exclusive upper bound.<br />**Format:** an RFC 3339 time<br />**Example:** `2026-02-01T00:00:00Z` |
+| `created_start_at` | Filters by creation time, inclusive lower bound.<br />**Format:** an RFC 3339 time<br />**Example:** `2026-01-01T00:00:00Z` |
+| `cursor` | Continues from a previous page.<br />**Format:** the next_cursor of a previous page with the same filters and sort |
+| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
 | `name` | Filters by an exact image name.<br />**Example:** `my-declared-image` |
 | `name_prefix` | Filters by the start of the image name, case-sensitive.<br />**Example:** `my-` |
-| `status` | Filters by build status.<br />**Format:** a comma-separated list<br />**Value:** `pending`, `building`, `ready`, or `failed`<br />**Example:** `ready` |
-| `class` | Filters by the sandbox classes that the image supports.<br />**Format:** a comma-separated list<br />**Value:** `linux`, `windows`, or `macos`<br />**Example:** `linux` |
-| `origin` | Filters by how the image was created.<br />**Format:** a comma-separated list<br />**Value:** `registry`, `dockerfile`, `capture`, `windows`, or `macos`<br />**Example:** `capture` |
-| `region_ids` | Filters by home region, and a broader region such as `earth` matches every region inside it.<br />**Default:** every region<br />**Format:** a comma-separated list of listed region IDs<br />**Example:** `us-east` |
-| `sandbox_id` | Filters by the sandbox that the image was captured from.<br />**Format:** a sandbox ID |
-| `anonymous` | Returns anonymous images when `true` and named images when `false`.<br />**Default:** `false` |
-| `platform` | Returns the images of the project, of the platform, or both.<br />**Default:** `false`<br />**Value:** `false` for the project's, `true` for the platform's, or `any` for both |
-| `created_start_at` | Filters by creation time, inclusive lower bound.<br />**Format:** an RFC 3339 time<br />**Example:** `2026-01-01T00:00:00Z` |
-| `created_end_at` | Filters by creation time, exclusive upper bound.<br />**Format:** an RFC 3339 time<br />**Example:** `2026-02-01T00:00:00Z` |
-| `updated_start_at` | Filters by last-modified time, inclusive lower bound.<br />**Format:** an RFC 3339 time<br />**Example:** `2026-01-01T00:00:00Z` |
-| `updated_end_at` | Filters by last-modified time, exclusive upper bound.<br />**Format:** an RFC 3339 time<br />**Example:** `2026-02-01T00:00:00Z` |
-| `sort` | Sets the sort field.<br />**Default:** `created_at`<br />**Value:** `created_at`, `updated_at`, `name`, or `bytes`<br />**Example:** `name` |
 | `order` | Sets the sort order.<br />**Default:** `desc`<br />**Value:** `asc` or `desc`<br />**Example:** `asc` |
-| `limit` | Sets the page size.<br />**Default:** `100`<br />**Minimum:** `1`<br />**Maximum:** `200` |
-| `cursor` | Continues from a previous page.<br />**Format:** the next_cursor of a previous page with the same filters and sort |
+| `origin` | Filters by how the image was created.<br />**Format:** a comma-separated list<br />**Value:** `registry`, `dockerfile`, `capture`, `windows`, or `macos`<br />**Example:** `capture` |
+| `platform` | Returns the images of the project, of the platform, or both.<br />**Default:** `false`<br />**Value:** `false` for the project's, `true` for the platform's, or `any` for both |
+| `q` | Matches free text against the image name, or one image ID exactly.<br />**Example:** `my-declared-image` |
+| `region_ids` | Filters by home region, and a broader region such as `earth` matches every region inside it.<br />**Default:** every region<br />**Format:** a comma-separated list of region IDs<br />**Value:** `earth`, `us`, `us-east`, `us-east-ash-1`, `us-east-bos-1`, or `us-east-iad-1`<br />**Example:** `us-east` |
+| `sandbox_id` | Filters by the sandbox that the image was captured from.<br />**Format:** a sandbox ID |
+| `sort` | Sets the sort field.<br />**Default:** `created_at`<br />**Value:** `created_at`, `updated_at`, `name`, or `bytes`<br />**Example:** `name` |
+| `status` | Filters by build status.<br />**Format:** a comma-separated list<br />**Value:** `pending`, `building`, `ready`, or `failed`<br />**Example:** `ready` |
+| `updated_end_at` | Filters by last-modified time, exclusive upper bound.<br />**Format:** an RFC 3339 time<br />**Example:** `2026-02-01T00:00:00Z` |
+| `updated_start_at` | Filters by last-modified time, inclusive lower bound.<br />**Format:** an RFC 3339 time<br />**Example:** `2026-01-01T00:00:00Z` |
 
 ### Get an image
 
@@ -694,8 +694,8 @@ await daytona.v2.images.followBuildLogs(image.id, { onLogs: (chunk) => { process
 | --- | --- |
 | `imageId` | Identifies the image whose build output to read.<br />**Required**<br />**Format:** an image ID or name |
 | `onLogs` | Receives the build output as text.<br />**Required**<br />**Example:** `(chunk) => { process.stdout.write(chunk) }` |
-| `onEvent` | Receives every stream event, including state changes.<br />**Example:** `(event) => { console.log(event.type) }` |
 | `cursor` | Continues the follow after the output that a previous follow delivered.<br />**Format:** the cursor of a previous follow |
+| `onEvent` | Receives every stream event, including state changes.<br />**Example:** `(event) => { console.log(event.type) }` |
 | `timeoutSeconds` | Sets how many seconds the follow runs at most.<br />**Default:** no limit<br />**Value:** `0` for no limit<br />**Example:** `600` |
 
 ### Build status

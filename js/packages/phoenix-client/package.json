@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-client",
-  "version": "8.0.2",
+  "version": "8.0.4",
   "description": "A client for the Phoenix API",
   "keywords": [
     "arize",
@@ -64,6 +64,10 @@
     "./users": {
       "import": "./dist/esm/users/index.js",
       "require": "./dist/src/users/index.js"
+    },
+    "./models": {
+      "import": "./dist/esm/models/index.js",
+      "require": "./dist/src/models/index.js"
     },
     "./traces": {
       "import": "./dist/esm/traces/index.js",

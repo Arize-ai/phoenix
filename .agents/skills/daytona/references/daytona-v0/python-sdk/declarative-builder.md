@@ -27,7 +27,7 @@ Declarative images are cached for 24 hours, and are automatically reused when ru
 Create a container sandbox from a declarative image.
 
 ```python
-from daytona import Image, CreateSandboxFromImageParams
+from daytona.v0 import Image, CreateSandboxFromImageParams
 
 # Define a declarative image with python packages
 declarative_image = (
@@ -37,7 +37,7 @@ declarative_image = (
 )
 
 # Create a new sandbox with the declarative image and stream the build logs
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
   CreateSandboxFromImageParams(image=declarative_image),
   timeout=0,
   on_snapshot_create_logs=print,
@@ -49,7 +49,7 @@ sandbox = daytona.create(
 Create a GPU sandbox from a declarative image.
 
 ```python
-from daytona import Image, CreateSandboxFromImageParams, Resources
+from daytona.v0 import Image, CreateSandboxFromImageParams, Resources
 
 # Define a declarative image with python packages
 declarative_image = (
@@ -59,7 +59,7 @@ declarative_image = (
 )
 
 # Create a GPU sandbox with the declarative image and stream the build logs
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
   CreateSandboxFromImageParams(
     image=declarative_image,
     auto_delete_interval=0,
@@ -80,7 +80,7 @@ Create a pre-built snapshot by building a declarative image and registering it a
 2. Create a sandbox from that snapshot
 
 ```python
-from daytona import Image, CreateSnapshotParams, CreateSandboxFromSnapshotParams
+from daytona.v0 import Image, CreateSnapshotParams, CreateSandboxFromSnapshotParams
 
 # Define the declarative image for the snapshot
 image = (
@@ -90,13 +90,13 @@ image = (
 )
 
 # Create and register the snapshot, streaming the build logs
-daytona.snapshot.create(
+daytona.v0.snapshot.create(
   CreateSnapshotParams(name="my-snapshot", image=image),
   on_logs=print,
 )
 
 # Create a new sandbox from the pre-built snapshot
-sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="my-snapshot"))
+sandbox = daytona.v0.create(CreateSandboxFromSnapshotParams(snapshot="my-snapshot"))
 ```
 
 **GPU:**
@@ -105,7 +105,7 @@ sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot="my-snapshot")
 2. Create a sandbox from that snapshot
 
 ```python
-from daytona import Image, CreateSnapshotParams, CreateSandboxFromSnapshotParams, Resources
+from daytona.v0 import Image, CreateSnapshotParams, CreateSandboxFromSnapshotParams, Resources
 
 # Define the declarative image for the GPU snapshot
 image = (
@@ -115,7 +115,7 @@ image = (
 )
 
 # Create and register the GPU snapshot, streaming the build logs
-daytona.snapshot.create(
+daytona.v0.snapshot.create(
   CreateSnapshotParams(
     name="my-gpu-snapshot",
     image=image,
@@ -125,7 +125,7 @@ daytona.snapshot.create(
 )
 
 # Create a new GPU sandbox from the pre-built snapshot
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
   CreateSandboxFromSnapshotParams(
     snapshot="my-gpu-snapshot",
     auto_delete_interval=0,
@@ -170,7 +170,7 @@ Daytona provides an option to define images programmatically. Chain the methods 
     Set the container entrypoint and default command with `entrypoint()` and `cmd()`.
 
 ```python
-from daytona import Image
+from daytona.v0 import Image
 
 image = (
   # 1. Base image
@@ -214,7 +214,7 @@ image = (
 Integrate Dockerfiles and custom Dockerfile commands.
 
 ```python
-from daytona import Image
+from daytona.v0 import Image
 
 # Add custom Dockerfile commands
 image = Image.debian_slim("3.12").dockerfile_commands(["RUN echo 'Hello, world!'"])

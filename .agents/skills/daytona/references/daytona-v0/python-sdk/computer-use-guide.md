@@ -338,7 +338,7 @@ with_cursor = sandbox.computer_use.screenshot.take_full_screen(True)
 Take a screenshot of a specific region.
 
 ```python
-from daytona import ScreenshotRegion
+from daytona.v0 import ScreenshotRegion
 
 region = ScreenshotRegion(x=100, y=100, width=300, height=200)
 screenshot = sandbox.computer_use.screenshot.take_region(region)
@@ -350,7 +350,7 @@ print(f"Captured {region.width}x{region.height} region, base64 length: {len(scre
 Take a compressed screenshot of the entire screen.
 
 ```python
-from daytona import ScreenshotOptions
+from daytona.v0 import ScreenshotOptions
 
 # Default compression
 screenshot = sandbox.computer_use.screenshot.take_compressed()
@@ -371,7 +371,7 @@ scaled = sandbox.computer_use.screenshot.take_compressed(
 Take a compressed screenshot of a specific region.
 
 ```python
-from daytona import ScreenshotRegion, ScreenshotOptions
+from daytona.v0 import ScreenshotRegion, ScreenshotOptions
 
 region = ScreenshotRegion(x=0, y=0, width=800, height=600)
 screenshot = sandbox.computer_use.screenshot.take_compressed_region(
@@ -390,10 +390,11 @@ Computer Use supports screen recording capabilities, allowing you to capture des
 By default, recordings are saved to `~/.daytona/recordings`. You can specify a custom directory by passing the `DAYTONA_RECORDINGS_DIR` environment variable when creating a sandbox:
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxFromSnapshotParams(
         snapshot="daytonaio/sandbox:0.6.0",
         name="my-sandbox",
@@ -503,10 +504,11 @@ The recording dashboard provides:
 By default, the virtual desktop runs at **1024x768**. Choose a different resolution by passing the `VNC_RESOLUTION` environment variable when creating a sandbox. Use the `<width>x<height>` format; widths from 640 to 7680 pixels and heights from 480 to 4320 pixels are supported.
 
 ```python
-from daytona import Daytona, CreateSandboxFromSnapshotParams
+from daytona import Daytona
+from daytona.v0 import CreateSandboxFromSnapshotParams
 
 daytona = Daytona()
-sandbox = daytona.create(
+sandbox = daytona.v0.create(
     CreateSandboxFromSnapshotParams(
         env_vars={"VNC_RESOLUTION": "1920x1080"}
     )

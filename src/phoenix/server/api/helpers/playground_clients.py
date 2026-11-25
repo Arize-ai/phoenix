@@ -14,6 +14,7 @@ from typing import (
     Generic,
     Hashable,
     Iterable,
+    Literal,
     Mapping,
     NamedTuple,
     Optional,
@@ -1321,7 +1322,6 @@ class OllamaClient(OpenAICompatibleClient):
     model_names=[
         PROVIDER_DEFAULT,
         "qwen-3.8-27b",
-        "llama3.1-8b",
         "gpt-oss-120b",
     ],
 )
@@ -1356,17 +1356,14 @@ class GroqClient(OpenAICompatibleClient):
     provider_key=GenerativeProviderKey.MOONSHOT,
     model_names=[
         PROVIDER_DEFAULT,
+        "kimi-k3.1-pro",
+        "kimi-k3.1-pro-highspeed",
         "kimi-k3",
         "kimi-k2.7-code",
         "kimi-k2.6",
         "kimi-k2-turbo-preview",
         "kimi-k2-thinking-turbo",
         "kimi-k2-thinking",
-        "kimi-k2.5",
-        "moonshot-v1-128k",
-        "moonshot-v1-32k",
-        "moonshot-v1-8k",
-        "moonshot-v1-auto",
     ],
 )
 class MoonshotClient(OpenAICompatibleClient):
@@ -1454,6 +1451,7 @@ class MetaClient(OpenAICompatibleClient):
     provider_key=GenerativeProviderKey.AWS,
     model_names=[
         PROVIDER_DEFAULT,
+        "anthropic.claude-fable-5-2",
         "anthropic.claude-fable-5-1",
         "anthropic.claude-fable-5",
         "anthropic.claude-opus-5-5",
@@ -1469,7 +1467,6 @@ class MetaClient(OpenAICompatibleClient):
         "anthropic.claude-sonnet-4-5-20250929-v1:0",
         "anthropic.claude-haiku-4-5-20251001-v1:0",
         "anthropic.claude-opus-4-20250514-v1:0",
-        "anthropic.claude-sonnet-4-20250514-v1:0",
         "amazon.titan-embed-text-v2:0",
         "amazon.nova-pro-v1:0",
         "amazon.nova-premier-v1:0:8k",
@@ -1485,11 +1482,6 @@ class MetaClient(OpenAICompatibleClient):
         "meta.llama3-1-8b-instruct-v1:0",
         "meta.llama3-1-70b-instruct-v1:0:128k",
         "meta.llama3-1-70b-instruct-v1:0",
-        "meta.llama3-1-405b-instruct-v1:0",
-        "meta.llama3-2-11b-instruct-v1:0",
-        "meta.llama3-2-90b-instruct-v1:0",
-        "meta.llama3-2-1b-instruct-v1:0",
-        "meta.llama3-2-3b-instruct-v1:0",
         "meta.llama3-3-70b-instruct-v1:0",
         "meta.llama4-scout-17b-instruct-v1:0",
         "meta.llama4-maverick-17b-instruct-v1:0",
@@ -1635,9 +1627,8 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
             ToolTypeDef,
         )
 
-        request = ConverseStreamRequestTypeDef(modelId=self.model_name)
-
-        request["messages"] = self._build_converse_messages(messages)
+        # messages are filled in once it is known whether a toolConfig is sent
+        request = ConverseStreamRequestTypeDef(modelId=self.model_name, messages=[])
 
         system_prompt = self._extract_system_prompt(messages)
         if system_prompt:
@@ -1699,6 +1690,11 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
 
             if send_tools:
                 request["toolConfig"] = tool_config
+
+        # Converse rejects toolUse/toolResult blocks in a request without a toolConfig.
+        request["messages"] = self._build_converse_messages(
+            messages, tool_blocks_as_text="toolConfig" not in request
+        )
 
         if response_format:
             json_schema = JsonSchemaDefinitionTypeDef(
@@ -1918,8 +1914,22 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
     def _build_converse_messages(
         self,
         messages: Sequence[PlaygroundMessage],
+        *,
+        tool_blocks_as_text: bool = False,
     ) -> list[MessageTypeDef]:
-        """Convert messages to Converse API format."""
+        """
+        Convert messages to Converse API format.
+
+        Converse requires user and assistant turns to alternate, so consecutive
+        messages with the same role are merged into one turn. In particular, the
+        results of parallel tool calls become one user turn holding every
+        `toolResult` block, right after the assistant turn with the `toolUse`
+        blocks.
+
+        With `tool_blocks_as_text`, replayed tool calls and results are sent as
+        text blocks instead, for requests that have no toolConfig: Converse
+        rejects `toolUse`/`toolResult` blocks without one.
+        """
         from types_aiobotocore_bedrock_runtime.type_defs import (
             ContentBlockTypeDef,
             MessageTypeDef,
@@ -1928,49 +1938,62 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
         )
 
         converse_messages: list[MessageTypeDef] = []
+
+        def append(role: Literal["user", "assistant"], blocks: list[ContentBlockTypeDef]) -> None:
+            if converse_messages and converse_messages[-1]["role"] == role:
+                converse_messages[-1]["content"] = [*converse_messages[-1]["content"], *blocks]
+            else:
+                converse_messages.append(MessageTypeDef(role=role, content=blocks))
+
         for msg in messages:
             role = msg["role"]
             content = msg["content"]
             tool_call_id = msg.get("tool_call_id")
             tool_calls = msg.get("tool_calls")
             if role == ChatCompletionMessageRole.USER:
-                converse_messages.append(
-                    MessageTypeDef(
-                        role="user",
-                        content=[ContentBlockTypeDef(text=content)],
-                    )
-                )
+                append("user", [ContentBlockTypeDef(text=content)])
             elif role == ChatCompletionMessageRole.TOOL:
+                if tool_blocks_as_text:
+                    append(
+                        "user",
+                        [ContentBlockTypeDef(text=f"[tool result {tool_call_id or ''}] {content}")],
+                    )
+                    continue
                 tool_result = ToolResultBlockTypeDef(
                     toolUseId=tool_call_id or "",
                     content=[ToolResultContentBlockTypeDef(text=content)],
                 )
-                converse_messages.append(
-                    MessageTypeDef(
-                        role="user", content=[ContentBlockTypeDef(toolResult=tool_result)]
-                    )
-                )
+                append("user", [ContentBlockTypeDef(toolResult=tool_result)])
             elif role == ChatCompletionMessageRole.AI:
                 blocks: list[ContentBlockTypeDef] = []
                 if content:
                     blocks.append(ContentBlockTypeDef(text=content))
-                if tool_calls:
-                    # tool_calls are already in Bedrock ContentBlock format
-                    # ({"toolUse": {...}}) from prior AI responses
-                    blocks.extend(cast(Any, tool_calls))
-                converse_messages.append(MessageTypeDef(role="assistant", content=blocks))
+                for tc in tool_calls or []:
+                    tool_use_id = tc.get("id", "")
+                    name = tc.get("function", {}).get("name", "")
+                    arguments = tc.get("function", {}).get("arguments", {})
+                    if tool_blocks_as_text:
+                        blocks.append(
+                            ContentBlockTypeDef(
+                                text=f"[tool call {tool_use_id}] {name}"
+                                f"({safe_json_dumps(arguments)})"
+                            )
+                        )
+                    else:
+                        blocks.append(
+                            ContentBlockTypeDef(
+                                toolUse={"toolUseId": tool_use_id, "name": name, "input": arguments}
+                            )
+                        )
+                append("assistant", blocks)
         return converse_messages
 
 
 OPENAI_CHAT_COMPLETIONS_MODELS = [
     "gpt-4.1",
     "gpt-4.1-mini",
-    "gpt-4.1-nano",
     "gpt-4o",
     "gpt-4o-mini",
-    "gpt-4-turbo",
-    "gpt-4",
-    "gpt-3.5-turbo",
 ]
 """OpenAI models that default to /v1/chat/completions. Any other name, known or
 not, defaults to the Responses API. See ``get_openai_client_class``."""
@@ -2011,12 +2034,8 @@ OPENAI_REASONING_MODELS = [
     "gpt-5-mini",
     "gpt-5-nano",
     "gpt-5-pro",
-    "o1",
-    "o1-pro",
     "o3",
     "o3-pro",
-    "o3-mini",
-    "o4-mini",
 ]
 
 
@@ -2024,6 +2043,7 @@ OPENAI_REASONING_MODELS = [
     provider_key=GenerativeProviderKey.OPENAI,
     model_names=[
         PROVIDER_DEFAULT,
+        "gpt-6.2-astra",
         "gpt-6.2-sol",
         "gpt-6.1-terra",
         *OPENAI_REASONING_MODELS,
@@ -2670,8 +2690,8 @@ class AnthropicClient(PlaygroundClient["AsyncAnthropic"]):
                 ToolUseBlockParam(
                     type="tool_use",
                     id=tc.get("id", ""),
-                    name=tc.get("function", {}).get("name", ""),
-                    input=tc.get("function", {}).get("arguments", {}),
+                    name=(tc.get("function") or {}).get("name", ""),
+                    input=(tc.get("function") or {}).get("arguments", {}),
                 )
                 for tc in tool_calls
             )
