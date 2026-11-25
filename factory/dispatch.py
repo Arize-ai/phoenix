@@ -24,9 +24,13 @@ import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
+from urllib.parse import quote
 
 import anthropic
 from github_app import GitHubAppToken
+from pr_input import raise_on_checkout_error
+from security_scan import canonical_json
+from security_scan import find_admission_problem as scan_admission
 
 FACTORY_DIR = Path(__file__).resolve().parent
 LOCK_FILE_PATH = FACTORY_DIR / "claude-lock.json"
@@ -35,6 +39,10 @@ VAULT_LOCK_KEY = "./vaults/github.yaml"
 GRAFANA_VAULT_LOCK_KEY = "./vaults/grafana.yaml"
 DATADOG_VAULT_LOCK_KEY = "./vaults/datadog.yaml"
 FACTORY_LABEL = "factory"
+PREVIEW_LABEL = "factory-preview"
+PREVIEW_LABEL_COLOR = "0E8A16"
+PREVIEW_LABEL_DESCRIPTION = "Deploy a seeded preview of this PR (Factory Preview)"
+PREVIEW_LANES = {"bug", "feature"}
 
 LANE_AGENT_LOCK_KEYS = {
     "docs": "./agents/docs-writer.md",
@@ -73,6 +81,104 @@ POLL_INTERVAL_SECONDS = 60
 MAX_FAILED_JOB_LOGS = 6
 MAX_LOG_LINES_PER_JOB = 120
 JOB_LINK_PATTERN = re.compile(r"/actions/runs/(\d+)/job/\d+")
+MAX_ISSUE_ANCESTRY = 50
+
+
+def parse_target_branch(*, body: str) -> Optional[str]:
+    declarations = []
+    fence_character = ""
+    fence_length = 0
+    for line in body.splitlines():
+        if fence := re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$", line):
+            marker, suffix = fence.groups()
+            if not fence_character:
+                fence_character, fence_length = marker[0], len(marker)
+            elif (
+                marker[0] == fence_character and len(marker) >= fence_length and not suffix.strip()
+            ):
+                fence_character = ""
+            continue
+        if fence_character or line.startswith(("    ", "\t")):
+            continue
+        if re.match(r"^\s*Target branch\b", line, re.IGNORECASE):
+            declaration = re.fullmatch(
+                r" {0,3}Target branch: ([A-Za-z0-9][A-Za-z0-9._/-]*) *", line
+            )
+            if declaration is None:
+                raise ValueError("use one standalone line: Target branch: <branch-name>")
+            declarations.append(declaration.group(1))
+    if len(declarations) > 1:
+        raise ValueError("multiple Target branch declarations in one issue")
+    return declarations[0] if declarations else None
+
+
+def resolve_target_branch(*, repo: str, issue_number: int, body: str) -> str:
+    current_repo, current_number = repo, issue_number
+    visited: set[tuple[str, int]] = set()
+    for _ in range(MAX_ISSUE_ANCESTRY):
+        identity = (current_repo, current_number)
+        if identity in visited:
+            raise ValueError("cycle in the issue's parent relationships")
+        visited.add(identity)
+        try:
+            target_branch = parse_target_branch(body=body)
+        except ValueError as error:
+            raise ValueError(f"{current_repo}#{current_number}: {error}") from error
+        if target_branch is not None:
+            break
+        owner, name = current_repo.split("/", 1)
+        response = json.loads(
+            run_gh(
+                "api",
+                "graphql",
+                "-f",
+                "query=query($owner:String!,$name:String!,$number:Int!) { "
+                "repository(owner:$owner,name:$name) { issue(number:$number) { "
+                "parent { number body repository { nameWithOwner } } } } }",
+                "-f",
+                f"owner={owner}",
+                "-f",
+                f"name={name}",
+                "-F",
+                f"number={current_number}",
+            )
+        )
+        repository = response["data"]["repository"]
+        if repository is None or repository["issue"] is None:
+            raise ValueError(
+                f"cannot read parent relationships for {current_repo}#{current_number}"
+            )
+        parent = repository["issue"]["parent"]
+        if parent is None:
+            default_branch = json.loads(run_gh("repo", "view", repo, "--json", "defaultBranchRef"))[
+                "defaultBranchRef"
+            ]
+            if default_branch is None:
+                raise ValueError(f"{repo} has no default branch")
+            target_branch = default_branch["name"]
+            break
+        current_repo = parent["repository"]["nameWithOwner"]
+        current_number, body = parent["number"], parent["body"]
+    else:
+        raise ValueError(f"issue ancestry exceeds {MAX_ISSUE_ANCESTRY} issues")
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/-]*", target_branch):
+        raise ValueError("target branch must contain only letters, numbers, '.', '_', '/', or '-'")
+    try:
+        subprocess.run(
+            ["git", "check-ref-format", f"refs/heads/{target_branch}"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except subprocess.CalledProcessError as error:
+        raise ValueError(f"invalid target branch: {target_branch}") from error
+    try:
+        run_gh("api", f"repos/{repo}/git/ref/heads/{quote(target_branch, safe='')}")
+    except subprocess.CalledProcessError as error:
+        raise ValueError(
+            f"target branch {target_branch} does not exist in {repo} or could not be read"
+        ) from error
+    return target_branch
 
 
 def run_gh(*args: str, token: Optional[str] = None, input_text: Optional[str] = None) -> str:
@@ -82,20 +188,6 @@ def run_gh(*args: str, token: Optional[str] = None, input_text: Optional[str] = 
         ["gh", *args], capture_output=True, text=True, check=True, env=env, input=input_text
     )
     return completed_process.stdout
-
-
-def format_mention(*, login: Optional[str]) -> str:
-    """Return a line that names `login`, or "" when there is nobody to alert.
-
-    GitHub notifies someone only when a comment names them, and a factory comment is often
-    the only word whoever asked for the run gets, so every comment a lane posts ends with
-    this. A bot account is never notified, which covers both WORKFLOW_LOGIN and the
-    factory's own app, so those get no line. The line goes last: factory-candidates.yml
-    tells a factory comment by its "The factory" opening.
-    """
-    if not login or login.endswith("[bot]"):
-        return ""
-    return f"\n\ncc @{login}"
 
 
 def comment_on_issue(*, issue_number: int, body: str, token: Optional[str]) -> None:
@@ -165,6 +257,27 @@ def report_on_status_comment(
             )
         except subprocess.CalledProcessError as error:
             print(f"::warning::Deleting status comment {comment_id} failed: {error}")
+
+
+def add_preview_label(*, pr_number: int, token: Optional[str]) -> bool:
+    try:
+        existing = run_gh("label", "list", "--search", PREVIEW_LABEL, "--json", "name", token=token)
+        if PREVIEW_LABEL not in {label["name"] for label in json.loads(existing)}:
+            run_gh(
+                "label",
+                "create",
+                PREVIEW_LABEL,
+                "--color",
+                PREVIEW_LABEL_COLOR,
+                "--description",
+                PREVIEW_LABEL_DESCRIPTION,
+                token=token,
+            )
+        run_gh("pr", "edit", str(pr_number), "--add-label", PREVIEW_LABEL, token=token)
+        return True
+    except subprocess.CalledProcessError as error:
+        print(f"::warning::Could not add the {PREVIEW_LABEL} label: {error.stderr}")
+        return False
 
 
 def remove_factory_label(*, issue_number: int, token: Optional[str]) -> None:
@@ -251,7 +364,7 @@ def find_factory_pr(*, issue_number: int) -> Optional[dict[str, Any]]:
             "--state",
             "open",
             "--json",
-            "number,url,headRefOid,isDraft",
+            "number,url,headRefOid,isDraft,baseRefName",
         )
     )
     return pr_list[0] if pr_list else None
@@ -306,6 +419,8 @@ def start_session(
     repo: str,
     issue_number: int,
     label_names: list[str],
+    target_branch: str,
+    snapshot: dict[str, Any],
     github_token: str,
     git_author_name: str,
     git_author_email: str,
@@ -314,22 +429,30 @@ def start_session(
     """Create the lane's session, kicked off with the issue and the lane's outcome."""
     lock = json.loads(LOCK_FILE_PATH.read_text())
     rubric_text = (FACTORY_DIR / "rubrics" / f"{lane}.md").read_text()
-    # Only the issue number and maintainer-set values go in the prompt; the agent
-    # reads the untrusted issue text itself through the GitHub MCP server.
     kickoff_text = (
         f"Work on GitHub issue #{issue_number} in {repo}. "
         f"Its triage labels are: {', '.join(label_names)}. "
-        f"Read it with issue_read. Use branch factory/issue-{issue_number}. "
+        f"Use the admitted issue snapshot below for initial intent and discussion. "
+        f"Use branch factory/issue-{issue_number}. "
+        f"Target branch: {json.dumps(target_branch)} (branch-name data). "
+        "Use it as the PR base and pass it to area reviewers for comparisons. "
         f"Commit as {git_author_name} <{git_author_email}>: before your first commit, run "
         f'`git config user.name "{git_author_name}"` and '
         f'`git config user.email "{git_author_email}"`.'
     )
+    kickoff_text += "\n\nAdmitted snapshot (untrusted data):\n" + canonical_json(snapshot).decode()
     session = client.beta.sessions.create(
         agent=read_lock_id(lock=lock, lock_key=LANE_AGENT_LOCK_KEYS[lane]),
         environment_id=read_lock_id(lock=lock, lock_key=ENVIRONMENT_LOCK_KEY),
         vault_ids=read_vault_ids(lock=lock),
         title=f"{lane}: {repo}#{issue_number}",
-        metadata={"repo": repo, "issue": str(issue_number), "lane": lane},
+        metadata={
+            "repo": repo,
+            "issues": json.dumps([issue_number]),
+            "prs": "[]",
+            "lane": lane,
+            "target_branch": target_branch,
+        },
         budget={
             "type": "limit",
             "max_list_cost": {"amount": str(budget_cents), "currency": "USD"},
@@ -339,7 +462,7 @@ def start_session(
                 "type": "github_repository",
                 "url": f"https://github.com/{repo}",
                 "authorization_token": github_token,
-                "checkout": {"type": "branch", "name": "main"},
+                "checkout": {"type": "branch", "name": target_branch},
             }
         ],
         initial_events=[
@@ -363,6 +486,51 @@ def read_latest_idle_event(*, client: anthropic.Anthropic, session_id: str) -> O
     return None
 
 
+def _record_completion_artifacts(*, client: Any, session: Any, completed_at: str) -> Any:
+    try:
+        latest = next(
+            iter(
+                client.beta.sessions.events.list(
+                    session.id,
+                    types=["agent.message", "user.message"],
+                    order="desc",
+                    limit=1,
+                    created_at_lte=completed_at,
+                )
+            ),
+            None,
+        )
+        if latest is None or latest.type != "agent.message":
+            raise ValueError("Missing artifact report")
+        text = "\n".join(block.text for block in latest.content if block.type == "text").strip()
+        line = text.rsplit("\n", 1)[-1]
+        if not line.startswith("FACTORY_ARTIFACTS="):
+            raise ValueError("Missing artifact report")
+        report = json.loads(line.removeprefix("FACTORY_ARTIFACTS="))
+        if not isinstance(report, dict) or set(report) != {"issues", "prs"}:
+            raise ValueError("Artifact report requires issues and prs")
+        metadata: dict[str, str] = {}
+        for field in ("issues", "prs"):
+            existing = json.loads(session.metadata.get(field, "[]"))
+            additions = report[field]
+            if not isinstance(existing, list) or not isinstance(additions, list):
+                raise ValueError("Artifact references must be arrays")
+            if any(type(number) is not int or number <= 0 for number in existing + additions):
+                raise ValueError("Artifact references must be positive integers")
+            encoded = json.dumps(sorted(set(existing + additions)), separators=(",", ":"))
+            if len(encoded) > 512:
+                raise ValueError("Artifact metadata exceeds the 512-character value limit")
+            if encoded != session.metadata.get(field):
+                metadata[field] = encoded
+        if metadata:
+            return client.beta.sessions.update(session.id, metadata=metadata)
+    except (ValueError, TypeError) as error:
+        print(f"::warning::Factory completion artifacts were not recorded: {error}")
+    except anthropic.APIError:
+        print("::warning::Factory completion artifact request failed; metadata may be unchanged")
+    return session
+
+
 def wait_for_session(
     *,
     client: anthropic.Anthropic,
@@ -379,6 +547,8 @@ def wait_for_session(
     while time.monotonic() < deadline:
         app_token.refresh()
         session = client.beta.sessions.retrieve(session_id)
+        if session.metadata.get("sha"):
+            raise_on_checkout_error(client=client, session_id=session_id)
         if session.status == "terminated":
             return session, None
         if session.status == "idle":
@@ -393,6 +563,10 @@ def wait_for_session(
                     and latest_outcome.result not in TERMINAL_OUTCOME_RESULTS
                 )
                 if not is_grading:
+                    if idle_event.stop_reason.type == "end_turn":
+                        session = _record_completion_artifacts(
+                            client=client, session=session, completed_at=idle_event.processed_at
+                        )
                     return session, idle_event
         time.sleep(POLL_INTERVAL_SECONDS)
     return None, None
@@ -533,6 +707,13 @@ def format_review_feedback(*, pr: dict[str, Any], review_findings: list[dict[str
     )
 
 
+def enable_auto_merge(*, pr_number: int, token: str) -> None:
+    try:
+        run_gh("pr", "merge", str(pr_number), "--auto", "--squash", token=token)
+    except subprocess.CalledProcessError as error:
+        print(f"::warning::Could not enable auto-merge on #{pr_number}: {error.stderr.strip()}")
+
+
 def watch_session(
     *,
     client: anthropic.Anthropic,
@@ -541,12 +722,14 @@ def watch_session(
     find_pr: Callable[[], Optional[dict[str, Any]]],
     app_token: GitHubAppToken,
     watch_minutes: int,
+    auto_merge: bool = False,
 ) -> str:
     """Drive the session's PR through CI and automated review; return the report comment.
 
     `find_pr` returns the session's open PR, or None once it is closed or was never opened.
     CI failures and review findings go back to the session, up to MAX_FEEDBACK_ROUNDS
-    rounds, so a human is asked to review only once both are clean.
+    rounds, so a human is asked to review only once both are clean. With `auto_merge`, the
+    PR is set to squash-merge once a reviewer approves and checks pass.
     """
     deadline = time.monotonic() + watch_minutes * 60
     session, idle_event = wait_for_session(
@@ -584,7 +767,16 @@ def watch_session(
     else:
         status_line = f"left {pr['url']} before CI finished"
         ready_at = datetime.min.replace(tzinfo=timezone.utc)
+        preview_labeled = False
         for feedback_round in range(MAX_FEEDBACK_ROUNDS + 1):
+            target_branch = session.metadata.get("target_branch")
+            if target_branch and pr["baseRefName"] != target_branch:
+                status_line = (
+                    f"left {pr['url']}: its base is {pr['baseRefName']}, "
+                    f"but the admitted target branch is {target_branch}"
+                )
+                run_outcome = "flawed"
+                break
             failing_checks = wait_for_required_checks(pr_number=pr["number"], deadline=deadline)
             if failing_checks is None:
                 break
@@ -603,6 +795,13 @@ def watch_session(
                     # Leaving draft is what starts the automated code review.
                     ready_at = datetime.now(timezone.utc) - timedelta(minutes=1)
                     run_gh("pr", "ready", str(pr["number"]), token=app_token.refresh())
+                if lane in PREVIEW_LANES and not preview_labeled:
+                    preview_labeled = add_preview_label(
+                        pr_number=pr["number"], token=app_token.refresh()
+                    )
+                if auto_merge:
+                    enable_auto_merge(pr_number=pr["number"], token=app_token.refresh())
+                    auto_merge = False
                 if not wait_for_review_run(
                     head_sha=pr["headRefOid"], created_after=ready_at, deadline=deadline
                 ):
@@ -701,7 +900,7 @@ def run_start(*, args: argparse.Namespace) -> None:
             "view",
             str(args.issue),
             "--json",
-            "number,state,author,labels,assignees,closedByPullRequestsReferences",
+            "number,state,author,labels,assignees,closedByPullRequestsReferences,body",
         )
     )
     label_names = [label["name"] for label in issue["labels"]]
@@ -728,7 +927,21 @@ def run_start(*, args: argparse.Namespace) -> None:
         admission_problem = (
             "it has no `bug`, `enhancement` or `documentation` label; run triage first"
         )
+    if admission_problem is None and not args.dry_run:
+        admission_problem = scan_admission(number=issue["number"], kind="issue", subject=issue)
+    target_branch = None
+    if admission_problem is None:
+        try:
+            target_branch = resolve_target_branch(
+                repo=args.repo,
+                issue_number=args.issue,
+                body=issue.get("_factory_snapshot", issue)["body"],
+            )
+        except (ValueError, subprocess.CalledProcessError) as error:
+            raise SystemExit(f"Cannot resolve factory target branch: {error}") from error
     print(f"lane={lane} admission_problem={admission_problem}")
+    if target_branch is not None:
+        print(f"target_branch={target_branch}")
     if args.dry_run:
         return
     client = anthropic.Anthropic()
@@ -736,10 +949,7 @@ def run_start(*, args: argparse.Namespace) -> None:
     if admission_problem is not None:
         comment_on_issue(
             issue_number=args.issue,
-            body=(
-                f"The factory skipped this issue: {admission_problem}."
-                f"{format_mention(login=requester_login)}"
-            ),
+            body=f"The factory skipped this issue: {admission_problem}.",
             token=app_token.refresh(),
         )
         remove_factory_label(issue_number=args.issue, token=app_token.refresh())
@@ -751,12 +961,15 @@ def run_start(*, args: argparse.Namespace) -> None:
             "Set the FACTORY_GITHUB_LOGIN repository variable, not a secret, to the factory "
             "app's bot login, such as arize-phoenix-factory[bot]."
         )
+    assert target_branch is not None
     session_id = start_session(
         client=client,
         lane=lane,
         repo=args.repo,
         issue_number=args.issue,
         label_names=label_names,
+        target_branch=target_branch,
+        snapshot=issue["_factory_snapshot"],
         github_token=app_token.refresh(),
         git_author_name=factory_login,
         git_author_email=read_noreply_email(login=factory_login),
@@ -769,14 +982,12 @@ def run_start(*, args: argparse.Namespace) -> None:
             f"The factory is running the **{lane}** lane for this issue "
             f"(session {format_session_link(session_id=session_id)}). "
             f"It reports back here when the session ends."
-            f"{format_mention(login=requester_login)}"
         ),
         token=app_token.refresh(),
     )
     write_github_outputs(
         started="true",
         lane=lane,
-        requested_by=requester_login,
         session_id=session_id,
         status_comment_id=str(status_comment_id),
     )
@@ -813,7 +1024,7 @@ def run_watch(*, args: argparse.Namespace) -> None:
         report_on_status_comment(
             number=args.issue,
             comment_id=args.status_comment_id,
-            body=report + format_mention(login=args.requested_by),
+            body=report,
             token=report_token,
             notify=True,
         )
@@ -841,9 +1052,6 @@ def main() -> None:
     watch_parser = subparsers.add_parser("watch", help="Follow a session to a reviewable PR")
     watch_parser.add_argument("--session-id", required=True)
     watch_parser.add_argument("--lane", required=True)
-    watch_parser.add_argument(
-        "--requested-by", default="", help="Login the run answers to, named in the report"
-    )
     watch_parser.add_argument(
         "--status-comment-id", type=int, help="The start step's comment, edited into the report"
     )

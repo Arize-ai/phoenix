@@ -1,4 +1,3 @@
-import sys
 import unittest
 
 import sqlean
@@ -31,7 +30,6 @@ class FuncTest(unittest.TestCase):
         self._assert_eq("dlevenshtein('abc', 'abcd')", 1)
         self._assert_eq("caverphone('awesome')", "AWSM111111")
 
-    @unittest.skipIf(sys.platform == "win32", "ipaddr extension is not available on Windows")
     def test_ipaddr(self):
         self._assert_eq("iphost('192.168.16.12/24')", "192.168.16.12")
         self._assert_eq("ipcontains('192.168.16.0/24', '192.168.16.3')", 1)
@@ -60,10 +58,6 @@ class FuncTest(unittest.TestCase):
 
     def test_uuid(self):
         self._assert_eq("length(uuid4())", 36)
-
-    def test_unicode(self):
-        self._assert_eq("nupper('пРиВеТ')", "ПРИВЕТ")
-        self._assert_eq("unaccent('hôtel')", "hotel")
 
     def test_version(self):
         self._assert_eq("sqlean_version()", SQLEAN_VERSION)

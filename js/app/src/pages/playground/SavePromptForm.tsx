@@ -16,17 +16,23 @@ import {
   Text,
   TextArea,
   TextField,
-  transformInputValue,
   View,
 } from "@phoenix/components";
 import { CodeEditorFieldWrapper, JSONEditor } from "@phoenix/components/code";
-import { DEFAULT_PROMPT_VERSION_TAGS } from "@phoenix/constants";
+import {
+  DEFAULT_PROMPT_VERSION_TAGS,
+  IDENTIFIER_DESCRIPTION,
+} from "@phoenix/constants";
+import {
+  TransformingInputController,
+  useTransformingInput,
+} from "@phoenix/hooks/useTransformingInput";
 import type { SavePromptFormQuery } from "@phoenix/pages/playground/__generated__/SavePromptFormQuery.graphql";
 import { formatPromptVersionMetadataForEditor } from "@phoenix/pages/playground/playgroundPromptUtils";
 import { PromptComboBox } from "@phoenix/pages/playground/PromptComboBox";
 import {
-  IDENTIFIER_ERROR_MESSAGES,
-  replaceWhitespaceWithDashes,
+  transformIdentifierInput,
+  trimIdentifierSeparators,
   validateIdentifier,
 } from "@phoenix/utils/identifierUtils";
 import { isJSONObjectString } from "@phoenix/utils/jsonUtils";
@@ -92,6 +98,7 @@ export function SavePromptForm({
   const [promptInputValue, setPromptInputValue] = useState<string>(
     selectedPrompt?.prompt?.name ?? ""
   );
+  const [isPromptInputFocused, setIsPromptInputFocused] = useState(false);
 
   const mode: "create" | "update" = selectedPrompt ? "update" : "create";
   const submitButtonText =
@@ -115,7 +122,7 @@ export function SavePromptForm({
     handleSubmit,
     setValue,
     getValues,
-    formState: { isDirty, isValid },
+    formState: { isDirty, isSubmitted },
   } = useForm<SavePromptFormValues>({
     values: {
       promptId: selectedPromptId ?? undefined,
@@ -162,38 +169,56 @@ export function SavePromptForm({
           rules={{
             validate: validateIdentifier,
           }}
-          render={({ field: { onBlur, onChange }, fieldState }) => (
-            <PromptComboBox
-              label="Prompt"
-              description="The prompt to update, or prompt name to create"
-              placeholder="Select or enter new prompt name"
-              isRequired
-              onBlur={onBlur}
-              inputValue={promptInputValue}
-              onInputChange={(value) => {
-                const transformed = transformInputValue({
-                  value,
-                  transform: replaceWhitespaceWithDashes,
-                });
-                setPromptInputValue(transformed);
-                onChange(transformed);
-              }}
-              errorMessage={fieldState.error?.message}
-              allowsCustomValue
-              onChange={(promptId) => {
-                onChange(promptId);
-                const id = typeof promptId === "string" ? promptId : null;
-                setSelectedPromptId(id);
-                // inputValue is controlled, so show the selected prompt's name
-                // by hand. A deselect comes from typing a new name, which stays
-                const selectedName = findPrompt(id)?.prompt?.name;
-                if (selectedName) {
-                  setPromptInputValue(selectedName);
-                }
-              }}
-              promptId={selectedPromptId}
-            />
-          )}
+          render={({ field: { onBlur, onChange }, fieldState }) => {
+            const shouldShowError =
+              (fieldState.isTouched && !isPromptInputFocused) || isSubmitted;
+            return (
+              <TransformingInputController
+                value={promptInputValue}
+                onValueChange={(value) => {
+                  setPromptInputValue(value);
+                  onChange(value);
+                }}
+                transformValue={transformIdentifierInput}
+                finalizeValue={trimIdentifierSeparators}
+              >
+                {(transformingInput) => (
+                  <PromptComboBox
+                    label="Prompt"
+                    description={`Select a prompt, or enter a new name. ${IDENTIFIER_DESCRIPTION}`}
+                    placeholder="Select or enter new prompt name"
+                    isRequired
+                    onFocus={() => setIsPromptInputFocused(true)}
+                    onBlur={() => {
+                      setIsPromptInputFocused(false);
+                      transformingInput.handleBlur();
+                      onBlur();
+                    }}
+                    inputValue={transformingInput.displayValue}
+                    onInputChange={transformingInput.handleValueChange}
+                    inputProps={transformingInput.inputProps}
+                    errorMessage={
+                      shouldShowError ? fieldState.error?.message : undefined
+                    }
+                    allowsCustomValue
+                    onChange={(promptId) => {
+                      onChange(promptId);
+                      const id = typeof promptId === "string" ? promptId : null;
+                      setSelectedPromptId(id);
+                      // inputValue is controlled, so show the selected prompt's
+                      // name by hand. A deselect comes from typing a new name,
+                      // which stays
+                      const selectedName = findPrompt(id)?.prompt?.name;
+                      if (selectedName) {
+                        setPromptInputValue(selectedName);
+                      }
+                    }}
+                    promptId={selectedPromptId}
+                  />
+                )}
+              </TransformingInputController>
+            );
+          }}
         />
       </View>
       <Form onSubmit={handleSubmit(onSubmit)}>
@@ -327,7 +352,7 @@ export function SavePromptForm({
             <Button
               variant={isDirty ? "primary" : "default"}
               size="S"
-              isDisabled={isSubmitting || !isValid}
+              isDisabled={isSubmitting}
               type="submit"
             >
               {submitButtonText}
@@ -359,10 +384,13 @@ function NewTagInlineForm({
   onAdd: (tagName: string) => void;
 }) {
   const [inputValue, setInputValue] = useState("");
-  // Typing a space leaves a trailing dash until the next word, so that error
-  // waits until the user leaves the field or tries to add the tag
-  const [showLeadingTrailingError, setShowLeadingTrailingError] =
-    useState(false);
+  const [hasStoppedEditing, setHasStoppedEditing] = useState(false);
+  const transformingInput = useTransformingInput({
+    value: inputValue,
+    onValueChange: setInputValue,
+    transformValue: transformIdentifierInput,
+    finalizeValue: trimIdentifierSeparators,
+  });
 
   // Whitespace is converted to dashes on input, so no trimming is needed here
   const error = useMemo(() => {
@@ -372,38 +400,31 @@ function NewTagInlineForm({
     if (existingTags.includes(inputValue)) return "Tag already exists";
     return null;
   }, [inputValue, existingTags]);
-  const displayedError =
-    error === IDENTIFIER_ERROR_MESSAGES.leadingTrailing &&
-    !showLeadingTrailingError
-      ? null
-      : error;
 
   const handleAdd = useCallback(() => {
-    if (!inputValue) return;
-    if (error) {
-      setShowLeadingTrailingError(true);
+    if (!inputValue || error) {
+      setHasStoppedEditing(true);
       return;
     }
     onAdd(inputValue);
     setInputValue("");
+    setHasStoppedEditing(false);
   }, [inputValue, error, onAdd]);
+
+  const displayedError = hasStoppedEditing ? error : null;
 
   return (
     <Flex direction="row" gap="size-100" alignItems="start">
       <TextField
         size="S"
         aria-label="New tag name"
-        value={inputValue}
-        onChange={(value) => {
-          setInputValue(
-            transformInputValue({
-              value,
-              transform: replaceWhitespaceWithDashes,
-            })
-          );
-          setShowLeadingTrailingError(false);
+        value={transformingInput.displayValue}
+        onChange={transformingInput.handleValueChange}
+        onFocus={() => setHasStoppedEditing(false)}
+        onBlur={() => {
+          transformingInput.handleBlur();
+          setHasStoppedEditing(true);
         }}
-        onBlur={() => setShowLeadingTrailingError(true)}
         isInvalid={!!displayedError}
         css={css`
           flex: 1 1 auto;
@@ -415,14 +436,18 @@ function NewTagInlineForm({
           }
         }}
       >
-        <Input placeholder="New tag name" />
-        {displayedError ? <FieldError>{displayedError}</FieldError> : null}
+        <Input {...transformingInput.inputProps} placeholder="New tag name" />
+        {displayedError ? (
+          <FieldError>{displayedError}</FieldError>
+        ) : (
+          <Text slot="description">{IDENTIFIER_DESCRIPTION}</Text>
+        )}
       </TextField>
       <Button
         size="S"
         leadingVisual={<Icon svg={<Icons.Plus />} />}
         onPress={handleAdd}
-        isDisabled={!inputValue || !!error}
+        isDisabled={!inputValue}
       >
         Add
       </Button>

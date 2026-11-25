@@ -95,18 +95,12 @@ export type PxiModelPreflightData = {
 };
 
 const RECOMMENDED_PXI_MODELS = [
-  { provider: "ANTHROPIC", modelName: "claude-fable-5-1" },
-  { provider: "ANTHROPIC", modelName: "claude-fable-5" },
-  { provider: "ANTHROPIC", modelName: "claude-opus-5" },
-  { provider: "ANTHROPIC", modelName: "claude-opus-4-8" },
-  { provider: "ANTHROPIC", modelName: "claude-opus-4-6" },
-  { provider: "ANTHROPIC", modelName: "claude-sonnet-4-6" },
-  { provider: "OPENAI", modelName: "gpt-5.6-sol" },
-  { provider: "OPENAI", modelName: "gpt-5.4" },
-  { provider: "OPENAI", modelName: "gpt-5.4-mini" },
-  { provider: "OPENAI", modelName: "gpt-5.5" },
-  { provider: "GOOGLE", modelName: "gemini-3.7-flash" },
-  { provider: "GOOGLE", modelName: "gemini-3.1-pro-preview" },
+  { provider: "ANTHROPIC", modelName: "claude-fable-5-2" },
+  { provider: "ANTHROPIC", modelName: "claude-opus-5-5" },
+  { provider: "OPENAI", modelName: "gpt-6.2-sol" },
+  { provider: "OPENAI", modelName: "gpt-6.1-terra" },
+  { provider: "GOOGLE", modelName: "gemini-4-carbon" },
+  { provider: "GOOGLE", modelName: "gemini-4-neon" },
 ] as const satisfies readonly {
   provider: BuiltInProvider;
   modelName: string;
@@ -324,7 +318,7 @@ export async function fetchPxiModelPreflight({
   return assertPreflightData({ payload });
 }
 
-/** Return the main app's recommended models that exist in this server's catalog. */
+/** Return the curated PXI models that exist in this server's catalog. */
 export function getRecommendedPxiModels({
   data,
 }: {

@@ -15,6 +15,30 @@ OUT_OF_GRAMMAR_CONDITIONS = (
         "any(d.is_prompt is True for d in span_cost_details)",
         id="identity-with-non-none",
     ),
+    pytest.param(
+        "any(s.cumulative_error_count > 0 for s in spans)",
+        id="span-cumulative-error-count",
+    ),
+    pytest.param(
+        "any(s.cumulative_llm_token_count_prompt > 0 for s in spans)",
+        id="span-cumulative-llm-token-count-prompt",
+    ),
+    pytest.param(
+        "any(s.cumulative_llm_token_count_completion > 0 for s in spans)",
+        id="span-cumulative-llm-token-count-completion",
+    ),
+    pytest.param(
+        "any(s.cumulative_llm_token_count_total > 0 for s in spans)",
+        id="span-cumulative-llm-token-count-total",
+    ),
+    pytest.param(
+        "any(s.parent_span.cumulative_error_count > 0 for s in spans)",
+        id="parent-span-cumulative-error-count",
+    ),
+    pytest.param(
+        "any(s.parent_span.cumulative_llm_token_count_total > 0 for s in spans)",
+        id="parent-span-cumulative-llm-token-count-total",
+    ),
 )
 
 

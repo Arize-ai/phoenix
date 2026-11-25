@@ -67,7 +67,7 @@ import { TraceTokenCosts } from "@phoenix/components/trace";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
-import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
+import { SpanStatusIndicator } from "@phoenix/components/trace/SpanStatusIndicator";
 import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { SPAN_FILTER_CONDITION_PARAM } from "@phoenix/constants/searchParams";
@@ -597,11 +597,11 @@ export function SpansTable(props: SpansTableProps) {
       header: "status",
       accessorKey: "statusCode",
       enableSorting: false,
-      minSize: 50,
-      maxSize: 50,
+      minSize: 80,
+      maxSize: 80,
       cell: ({ getValue }) => {
         const statusCode = getValue() as SpanStatusCode;
-        return <SpanStatusCodeIcon statusCode={statusCode} />;
+        return <SpanStatusIndicator statusCode={statusCode} isLabelHidden />;
       },
     },
     {

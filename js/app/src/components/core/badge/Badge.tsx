@@ -3,21 +3,16 @@ import { css } from "@emotion/react";
 import { useTheme } from "@phoenix/contexts/ThemeContext";
 import { classNames } from "@phoenix/utils/classNames";
 
+import { derivedColorCSS, inheritedStateCSS } from "../styles";
 import type { BadgeProps } from "./types";
 
 const badgeCSS = css`
-  --badge-base-color: var(--global-color-gray-600);
-  --badge-bg-color: lch(from var(--badge-base-color) 96 calc(c * 0.3) h);
-  --badge-border-color: lch(from var(--badge-base-color) 88 calc(c * 0.4) h);
-  --badge-text-color: lch(from var(--badge-base-color) 45 c h);
-
+  ${derivedColorCSS};
+  ${inheritedStateCSS};
   display: inline-flex;
   align-items: center;
   gap: var(--global-badge-gap);
-  border: 1px solid var(--badge-border-color);
   border-radius: var(--global-badge-border-radius);
-  background-color: var(--badge-bg-color);
-  color: var(--badge-text-color);
   white-space: normal;
   box-sizing: border-box;
 
@@ -48,28 +43,16 @@ const badgeCSS = css`
 
   /* Variants */
   &[data-variant="info"] {
-    --badge-base-color: var(--global-color-info);
+    --family-base-color: var(--global-color-info);
   }
   &[data-variant="success"] {
-    --badge-base-color: var(--global-color-success);
+    --family-base-color: var(--global-color-success);
   }
   &[data-variant="warning"] {
-    --badge-base-color: var(--global-color-warning);
+    --family-base-color: var(--global-color-warning);
   }
   &[data-variant="danger"] {
-    --badge-base-color: var(--global-color-danger);
-  }
-
-  /* Theme-aware color derivation */
-  &[data-theme="light"] {
-    --badge-bg-color: lch(from var(--badge-base-color) 96 calc(c * 0.3) h);
-    --badge-border-color: lch(from var(--badge-base-color) 88 calc(c * 0.4) h);
-    --badge-text-color: lch(from var(--badge-base-color) 45 c h);
-  }
-  &[data-theme="dark"] {
-    --badge-bg-color: lch(from var(--badge-base-color) 18 calc(c * 0.2) h);
-    --badge-border-color: lch(from var(--badge-base-color) 28 calc(c * 0.3) h);
-    --badge-text-color: lch(from var(--badge-base-color) 90 calc(c * 0.8) h);
+    --family-base-color: var(--global-color-danger);
   }
 `;
 

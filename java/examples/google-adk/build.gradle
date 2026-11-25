@@ -8,10 +8,29 @@ repositories {
 
 dependencies {
     implementation 'com.google.adk:google-adk:0.4.0'
-    implementation platform('io.opentelemetry:opentelemetry-bom:1.49.0')
+    implementation platform('io.opentelemetry:opentelemetry-bom:1.68.0')
     implementation 'io.opentelemetry:opentelemetry-sdk'
     implementation 'io.opentelemetry:opentelemetry-exporter-otlp'
     runtimeOnly 'org.slf4j:slf4j-simple:2.0.17'
+
+    // google-adk 0.4.0 resolves transitive releases with published advisories;
+    // raise them to patched versions in the same major line.
+    implementation platform('com.fasterxml.jackson:jackson-bom:2.22.4')
+    implementation platform('io.netty:netty-bom:4.1.141.Final')
+    implementation platform('io.grpc:grpc-bom:1.86.0')
+    constraints {
+        implementation 'com.google.guava:guava:33.8.0-jre'
+        implementation 'commons-io:commons-io:2.22.0'
+        implementation 'io.modelcontextprotocol.sdk:mcp-core:0.18.5'
+        implementation 'org.apache.commons:commons-compress:1.28.0'
+        implementation 'org.apache.commons:commons-lang3:3.22.0'
+        implementation 'org.apache.httpcomponents.client5:httpclient5:5.6.5'
+        implementation 'org.apache.httpcomponents.core5:httpcore5:5.4.4'
+        implementation 'org.apache.httpcomponents.core5:httpcore5-h2:5.4.4'
+        implementation 'org.bouncycastle:bcprov-jdk18on:1.87'
+        implementation 'org.bouncycastle:bcpkix-jdk18on:1.87'
+        implementation 'org.glassfish.jersey.core:jersey-common:2.48'
+    }
 }
 
 java {

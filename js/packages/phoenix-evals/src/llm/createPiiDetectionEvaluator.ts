@@ -44,7 +44,7 @@ export type PiiDetectionEvaluationRecord = {
  *
  * @example
  * ```ts
- * const evaluator = createPiiDetectionEvaluator({ model: openai("gpt-4o-mini") });
+ * const evaluator = createPiiDetectionEvaluator({ model: openai.decisionModel("gpt-6-luna") });
  * const result = await evaluator.evaluate({
  *   conversation:
  *     "User: Reset my account.\nAssistant: What email is on the account?\nUser: jane.doe@acme.com",

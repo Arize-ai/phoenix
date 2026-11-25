@@ -209,6 +209,10 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/evaluation/concepts-evals/decision-models-as-a-judge</loc>
+    <lastmod>2026-11-11T14:57:09+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/evaluation/how-to-evals</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -219,6 +223,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/evaluation/how-to-evals/configuring-the-llm</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/evaluation/how-to-evals/configuring-the-decision-model</loc>
+    <lastmod>2026-11-11T14:57:09+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/evaluation/how-to-evals/prompt-formats</loc>
@@ -1925,6 +1933,10 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/permanently-delete-dataset-examples</loc>
+    <lastmod>2026-11-24T06:57:02+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-csv-file</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -2079,6 +2091,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/annotate-span-documents</loc>
     <lastmod>2026-04-06T06:15:15+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/get-a-single-span-by-span_identifier</loc>
+    <lastmod>2026-11-25T05:42:47+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/delete-a-span-by-span_identifier</loc>
@@ -2487,6 +2503,14 @@
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/11-2026/11-23-2026-decision-and-embedding-model-costs</loc>
+    <lastmod>2026-11-25T14:13:20+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/11-2026/11-18-2026-python-decision-model-evaluators-and-opentelemetry-js-3</loc>
+    <lastmod>2026-11-18T14:13:14+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes/11-2026/11-02-2026-authentication-by-default-and-decision-annotations</loc>

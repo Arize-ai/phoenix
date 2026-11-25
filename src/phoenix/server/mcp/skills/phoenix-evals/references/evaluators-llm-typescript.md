@@ -24,7 +24,7 @@ Answer (helpful/not_helpful):`,
 
 ## Decision Models
 
-Any classification evaluator, including every built-in, also accepts an AI SDK decision model such as OpenAI's `gpt-6-luna` or TypeSafe's Jev. A decision model picks one of the labels directly instead of generating text, so it is a cheaper, faster judge for high-volume labeling. With OpenAI, use `@ai-sdk/openai` 4.0.89 or later.
+Any classification evaluator, including every built-in, also accepts an AI SDK decision model such as OpenAI's `gpt-6-luna`, Google's `gemini-decision-1` (`google.decisionModel("gemini-decision-1")`), or TypeSafe's Jev. A decision model picks one of the labels directly instead of generating text, so it is a cheaper, faster judge for high-volume labeling. With OpenAI, use `@ai-sdk/openai` 4.0.89 or later; with Google, use `@ai-sdk/google` 4.0.118 or later.
 
 ```typescript
 import { openai } from "@ai-sdk/openai";

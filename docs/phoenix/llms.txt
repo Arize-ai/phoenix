@@ -123,6 +123,7 @@
 - [How to Evals](https://arize.com/docs/phoenix/evaluation/how-to-evals): Set up and run evaluations end-to-end
 - [Custom LLM Evaluators](https://arize.com/docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators): Build evaluators with custom prompts and scoring logic
 - [Configuring the LLM](https://arize.com/docs/phoenix/evaluation/how-to-evals/configuring-the-llm): Set up LLM providers for evaluations
+- [Configuring the Decision Model](https://arize.com/docs/phoenix/evaluation/how-to-evals/configuring-the-decision-model): Set up decision-model judges (OpenAI, TypeSafe) for classification evaluations
 - [Prompt Formats](https://arize.com/docs/phoenix/evaluation/how-to-evals/prompt-formats): Customize evaluator prompt structures
 - [Code Evaluators (SDK)](https://arize.com/docs/phoenix/evaluation/how-to-evals/code-evaluators): Deterministic evaluation with Python or TypeScript
 - [Code Evaluator Output Shapes](https://arize.com/docs/phoenix/evaluation/how-to-evals/code-evaluator-output-shapes): Return scores, labels, multiple outputs, or explanations from a code evaluator
@@ -569,6 +570,7 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 ### Evaluation
 
 - [LLM as a Judge](https://arize.com/docs/phoenix/evaluation/concepts-evals/llm-as-a-judge): LLM-based evaluation best practices
+- [Decision Models as a Judge](https://arize.com/docs/phoenix/evaluation/concepts-evals/decision-models-as-a-judge): Use decision models as classification judges that return labels and probabilities, not explanations
 
 ## Resources
 
@@ -694,6 +696,7 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [List Dataset Versions](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/list-dataset-versions): GET /v1/datasets/{id}/versions — paginate version history for a dataset
 - [Upload Dataset From JSON, JSONL, CSV, Or PyArrow](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/upload-dataset-from-json-csv-or-pyarrow): POST /v1/datasets/upload — create or append examples from JSON, JSONL, CSV, or PyArrow
 - [Get Examples From A Dataset](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/get-examples-from-a-dataset): GET /v1/datasets/{id}/examples — retrieve examples at a specific dataset version
+- [Permanently Delete Dataset Examples](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/permanently-delete-dataset-examples): DELETE /v1/datasets/{id}/examples — erase examples from every dataset version, with their experiment runs, evaluations and traces
 - [Download Dataset Examples As CSV](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-csv-file): GET /v1/datasets/{id}/csv — stream dataset examples as a CSV file
 - [Download Dataset Examples As JSONL](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-jsonl-file): GET /v1/datasets/{id}/jsonl — stream dataset examples as a JSONL file
 - [Download Dataset Examples As OpenAI Fine-Tuning JSONL](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-openai-fine-tuning-jsonl-file): GET /v1/datasets/{id}/jsonl/openai_ft — export examples in OpenAI fine-tuning format
@@ -773,6 +776,7 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [Create Span Annotations](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/create-span-annotations): POST /v1/span_annotations — write one or more annotations on spans
 - [Create A Span Note](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/create-a-span-note): POST /v1/span_notes — attach a free-text note to a span
 - [Annotate Span Documents](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/annotate-span-documents): POST /v1/document_annotations — write annotations on retrieved documents within a span
+- [Get A Span By Identifier](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/get-a-single-span-by-span_identifier): GET /v1/spans/{span_identifier} — fetch a single span by ID or span_id
 - [Delete A Span By Identifier](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/delete-a-span-by-span_identifier): DELETE /v1/spans/{span_identifier} — delete a single span by ID or span_id
 
 ### REST API — Traces
@@ -956,6 +960,8 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [10.16.2026: Claude Managed Agents Tracing and Gemini 4 Argon](https://arize.com/docs/phoenix/release-notes/10-2026/10-16-2026-claude-managed-agents-tracing-and-gemini-4-argon): Trace Claude Managed Agents and Atomic Agents, try Gemini 4 Argon in the Playground, and export server logs over OTLP
 - [10.27.2026: Decision-Model Evaluators and Project Onboarding](https://arize.com/docs/phoenix/release-notes/10-2026/10-27-2026-decision-model-evaluators-and-project-onboarding): Run TypeScript classification evaluators on AI SDK decision models and get setup guides in empty projects
 - [11.02.2026: Breaking Change: Authentication by Default](https://arize.com/docs/phoenix/release-notes/11-2026/11-02-2026-authentication-by-default-and-decision-annotations): Upgrade to Phoenix 21 loopback binding and default auth; record DECISION and AGENT annotator kinds
+- [11.18.2026: Python Decision-Model Evaluators and OpenTelemetry JS 3](https://arize.com/docs/phoenix/release-notes/11-2026/11-18-2026-python-decision-model-evaluators-and-opentelemetry-js-3): Run Python classification evaluators on decision models, upgrade @arizeai/phoenix-otel to OpenTelemetry JS 3, and tag prompts with px
+- [11.23.2026: Breaking Change: Decision and Embedding Model Costs](https://arize.com/docs/phoenix/release-notes/11-2026/11-23-2026-decision-and-embedding-model-costs): Upgrade to Phoenix 22 cost tracking for decision and embedding spans; judge TypeScript evals with Gemini Decisions API
 
 ### 2025
 

@@ -42,13 +42,20 @@ CREATE TABLE public.generative_models (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     deleted_at TIMESTAMP WITH TIME ZONE,
-    CONSTRAINT pk_generative_models PRIMARY KEY (id)
+    type VARCHAR NOT NULL DEFAULT 'LLM'::character varying,
+    CONSTRAINT pk_generative_models PRIMARY KEY (id),
+    CONSTRAINT "ck_generative_models_`valid_type`"
+        CHECK (((type)::text = ANY ((ARRAY[
+            'LLM'::character varying,
+            'DECISION'::character varying,
+            'EMBEDDING'::character varying
+        ])::text[])))
 );
 
 CREATE UNIQUE INDEX ix_generative_models_match_criteria ON public.generative_models
-    USING btree (name_pattern, provider, is_built_in) WHERE (deleted_at IS NULL);
+    USING btree (type, name_pattern, provider, is_built_in) WHERE (deleted_at IS NULL);
 CREATE UNIQUE INDEX ix_generative_models_name_is_built_in ON public.generative_models
-    USING btree (name, is_built_in) WHERE (deleted_at IS NULL);
+    USING btree (name, is_built_in, type) WHERE (deleted_at IS NULL);
 CREATE INDEX ix_generative_models_updated_at ON public.generative_models
     USING btree (updated_at);
 
@@ -317,8 +324,6 @@ CREATE TABLE public.spans (
         ON DELETE CASCADE
 );
 
-CREATE INDEX ix_cumulative_llm_token_count_total ON public.spans
-    USING btree (((cumulative_llm_token_count_prompt + cumulative_llm_token_count_completion)));
 CREATE INDEX ix_spans_parent_id ON public.spans
     USING btree (parent_id);
 CREATE INDEX ix_spans_session_id ON public.spans

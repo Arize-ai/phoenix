@@ -1100,7 +1100,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Models",
                 description:
-                  "Configure saved model settings including provider, model name patterns, start dates, and token pricing.",
+                  "Configure saved model settings including provider, model name patterns, start dates, and token pricing for LLM, decision, and embedding models.",
               },
             }}
           />

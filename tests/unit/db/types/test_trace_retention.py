@@ -3,13 +3,15 @@ from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 from itertools import chain
 from secrets import token_hex
-from typing import Any, Dict, Type, Union
+from typing import Any, Dict, Iterable, Type, Union
 
 import pytest
 import sqlalchemy as sa
 from faker import Faker
 from freezegun import freeze_time
 from pydantic import ValidationError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.roles import InElementRole
 
 from phoenix.db import models
 from phoenix.db.types.trace_retention import (
@@ -24,6 +26,14 @@ from phoenix.db.types.trace_retention import (
 from phoenix.server.types import DbSessionFactory
 
 fake = Faker()
+
+
+async def _delete_traces(
+    session: AsyncSession,
+    rule: Union[MaxDaysRule, MaxCountRule, MaxDaysOrCountRule],
+    project_rowids: Union[Iterable[int], InElementRole],
+) -> None:
+    await session.execute(sa.delete(models.Trace).where(rule.deletion_filter(project_rowids)))
 
 
 class TestMaxDaysMixin:
@@ -133,14 +143,15 @@ class TestTraceRetentionRuleMaxDays:
         rule = MaxDaysRule(max_days=1)
         async with db() as session:
             if scalar_subquery:
-                await rule.delete_traces(
+                await _delete_traces(
                     session,
+                    rule,
                     sa.select(models.Project.id)
                     .where(models.Project.id.in_(affected_projects.keys()))
                     .scalar_subquery(),
                 )
             else:
-                await rule.delete_traces(session, affected_projects.keys())
+                await _delete_traces(session, rule, affected_projects.keys())
 
         # Verify affected projects have only one trace
         async with db() as session:
@@ -214,14 +225,15 @@ class TestTraceRetentionRuleMaxCount:
         rule = MaxCountRule(max_count=1)
         async with db() as session:
             if scalar_subquery:
-                await rule.delete_traces(
+                await _delete_traces(
                     session,
+                    rule,
                     sa.select(models.Project.id)
                     .where(models.Project.id.in_(affected_projects.keys()))
                     .scalar_subquery(),
                 )
             else:
-                await rule.delete_traces(session, affected_projects.keys())
+                await _delete_traces(session, rule, affected_projects.keys())
 
         # Verify affected projects have only one trace
         async with db() as session:
@@ -327,14 +339,15 @@ class TestTraceRetentionRuleMaxDaysOrCountRule:
         rule = MaxDaysOrCountRule(max_days=2, max_count=1)
         async with db() as session:
             if scalar_subquery:
-                await rule.delete_traces(
+                await _delete_traces(
                     session,
+                    rule,
                     sa.select(models.Project.id)
                     .where(models.Project.id.in_(affected_projects.keys()))
                     .scalar_subquery(),
                 )
             else:
-                await rule.delete_traces(session, affected_projects.keys())
+                await _delete_traces(session, rule, affected_projects.keys())
 
         # Verify affected projects have only one trace
         async with db() as session:

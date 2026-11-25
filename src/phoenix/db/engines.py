@@ -357,6 +357,9 @@ def sqlite_migration_engine(url: URL, echo: bool = False) -> AsyncEngine:
         echo=echo,
     )
     event.listen(engine.sync_engine, "connect", set_sqlite_migration_pragma)
+    # Without an explicit BEGIN, pysqlite commits each DDL statement that precedes
+    # the first DML one, so a failed migration would leave its schema changes behind.
+    configure_sqlite_transactions(engine)
     return engine
 
 

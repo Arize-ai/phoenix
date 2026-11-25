@@ -22,6 +22,7 @@ from phoenix.trace.dsl.filter import (
     SpanFilterError,
     _apply_eval_aliasing,
     _get_attribute_keys_list,
+    is_root_span_predicate,
     root_span_scope,
 )
 from phoenix.trace.dsl.session_filter import SessionFilter
@@ -96,8 +97,8 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[list[str]])
             "and_(or_(parent_id == None, not_(CaseInsensitiveContains(name, 'abc'))), not_(or_(span_kind != 'LLM', span_id.not_in(('123',)))))",
         ),
         (
-            "1000 < latency_ms < 2000 or status_code == 'ERROR' or 2000 <= cumulative_llm_token_count_total",
-            "or_(and_(1000 < latency_ms, latency_ms < 2000), status_code == 'ERROR', 2000 <= cumulative_llm_token_count_total)",
+            "1000 < latency_ms < 2000 or status_code == 'ERROR'",
+            "or_(and_(1000 < latency_ms, latency_ms < 2000), status_code == 'ERROR')",
         ),
         (
             "llm.token_count.total - llm.token_count.prompt > 1000",
@@ -313,7 +314,6 @@ def test_filter_still_accepts_every_condition_form(condition: str) -> None:
         "context.span_id == 1",
         "latency_ms == 'slow'",
         "llm.token_count.total == 'many'",
-        "cumulative_token_count.total == 'many'",
         "annotations['quality'].label < 1",
         "annotations['quality'].score == 'high'",
     ],
@@ -1529,6 +1529,32 @@ def test_parent_predicate_sentinels_unreachable_from_user_input(sentinel: str) -
     translated = unparse(SpanFilter(f"{sentinel} == 'x'").translated).strip()
     # resolves to an attribute path, not the bare injected name
     assert translated.startswith(f"attributes[['{sentinel}']]")
+
+
+@pytest.mark.parametrize(
+    "condition, expected",
+    [
+        ("parent_id is None", True),
+        ("parent_span is None", True),
+        ("  parent_span is None  ", True),
+        ("None is parent_id", True),
+        ("parent_id == None", True),
+        ("(parent_id is None)", True),
+        ("parent_id is None and span_kind == 'LLM'", False),
+        ("parent_id is None and latency_ms >= 5000", False),
+        ("parent_id is None or parent_span is None", False),
+        ("not (parent_id is not None)", False),
+        ("parent_id is not None", False),
+        ("parent_id is None is None", False),
+        ("span_kind == 'LLM'", False),
+        ("", False),
+        ("parent_id is", False),
+    ],
+)
+def test_is_root_span_predicate_accepts_one_root_predicate_and_nothing_else(
+    condition: str, expected: bool
+) -> None:
+    assert is_root_span_predicate(condition) is expected
 
 
 @pytest.mark.parametrize(
