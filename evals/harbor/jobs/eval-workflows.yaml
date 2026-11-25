@@ -2,7 +2,7 @@
 # the judges the tasks ask for. Harbor masks these values in the trial directory after
 # each trial.
 datasets:
-  - path: evals/harbor/tasks/eval-workflows
+  - path: evals/harbor/datasets/eval-workflows/tasks
 agents:
   - name: claude-code-opus-no-skills
     import_path: evals.harbor.agents.coding_agents:ClaudeCodeCliAgent

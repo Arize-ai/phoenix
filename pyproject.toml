@@ -345,9 +345,9 @@ exclude = [
   "api_reference",
   "dist/",
   "evals/harbor/verifiers/harbor_verifiers/graphql/__generated__/",
-  "evals/harbor/tasks/trail-benchmark-dev/",
+  "evals/harbor/datasets/trail-benchmark-dev/tasks/",
   # Every task has its own tests/test.py and fixture/build.py; the names would collide.
-  "evals/harbor/tasks/eval-workflows/",
+  "evals/harbor/datasets/eval-workflows/tasks/",
   "examples/",
   "packages/",
   "scripts/",

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+from importlib import import_module
 
 import pytest
 
-from evals.harbor.environments.fixtures.support_traces import BASE, Trace
+_support_traces = import_module("evals.harbor.datasets.eval-workflows.fixtures.support_traces")
+BASE, Trace = _support_traces.BASE, _support_traces.Trace
 
 
 @pytest.mark.parametrize(

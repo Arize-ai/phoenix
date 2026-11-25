@@ -10,7 +10,7 @@ from tests.unit.vcr import CustomVCR
 
 MOST_FAILING_TOOL_EXPECTED = (
     Path(__file__).parents[3]
-    / "evals/harbor/tasks/trail-benchmark-dev/most-failing-tool/tests/expected.json"
+    / "evals/harbor/datasets/trail-benchmark-dev/tasks/most-failing-tool/tests/expected.json"
 )
 
 TRAJECTORY = {
