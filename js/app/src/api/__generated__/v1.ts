@@ -12676,13 +12676,13 @@ export interface operations {
                     "text/plain": string;
                 };
             };
-            /** @description Validation Error */
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "text/plain": string;
                 };
             };
         };
@@ -16163,7 +16163,7 @@ export interface operations {
                     "text/plain": string;
                 };
             };
-            /** @description Conflict */
+            /** @description The project is in use by another operation; retry the delete */
             409: {
                 headers: {
                     [name: string]: unknown;

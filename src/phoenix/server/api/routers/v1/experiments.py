@@ -568,6 +568,7 @@ async def update_experiment(
                 "status_code": 409,
                 "description": "The experiment is in use by another operation; retry the delete",
             },
+            422,
         ]
     ),
     response_description="Experiment deleted successfully",

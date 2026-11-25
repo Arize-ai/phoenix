@@ -5610,14 +5610,14 @@
             "description": "The experiment is in use by another operation; retry the delete"
           },
           "422": {
-            "description": "Validation Error",
             "content": {
-              "application/json": {
+              "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "type": "string"
                 }
               }
-            }
+            },
+            "description": "Unprocessable Entity"
           }
         }
       }
@@ -10957,7 +10957,7 @@
                 }
               }
             },
-            "description": "Conflict"
+            "description": "The project is in use by another operation; retry the delete"
           },
           "422": {
             "content": {

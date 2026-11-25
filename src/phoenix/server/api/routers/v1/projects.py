@@ -305,7 +305,10 @@ async def update_project(
         [
             403,
             404,
-            409,
+            {
+                "status_code": 409,
+                "description": "The project is in use by another operation; retry the delete",
+            },
             422,
         ]
     ),
@@ -336,7 +339,9 @@ async def delete_project(
             project_id = project.id
             tombstoned_project = await tombstone_project(session, project_id=project_id)
     except NotFound as error:
-        raise HTTPException(status_code=404, detail=str(error)) from error
+        raise HTTPException(
+            status_code=404, detail=f"Project {project_identifier} not found"
+        ) from error
     except BadRequest as error:
         raise HTTPException(
             status_code=403, detail="The default project cannot be deleted"

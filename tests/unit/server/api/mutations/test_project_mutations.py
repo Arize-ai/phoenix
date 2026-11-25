@@ -183,7 +183,9 @@ class TestProjectMutations:
             variables={"input": {"id": str(GlobalID("Project", "999999"))}},
         )
         assert result.errors
-        assert [error.message for error in result.errors] == ["Project with ID 999999 not found"]
+        assert [error.message for error in result.errors] == [
+            f"Unknown project: {GlobalID('Project', '999999')}"
+        ]
 
     async def test_clear_project_preserves_straddling_session_and_its_newer_trace(
         self,
@@ -669,3 +671,20 @@ async def test_delete_project_refuses_an_evaluator_trace_project(
 
     async with db() as session:
         assert await session.get(models.Project, trace_project_id) is not None
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "mutation ($id: ID!) { deleteProject(id: $id) { __typename } }",
+        "mutation ($id: ID!) { clearProject(input: {id: $id}) { __typename } }",
+    ],
+)
+async def test_unknown_project_error_names_the_global_id(
+    gql_client: AsyncGraphQLClient,
+    mutation: str,
+) -> None:
+    project_global_id = str(GlobalID("Project", "999999"))
+    response = await gql_client.execute(mutation, variables={"id": project_global_id})
+    assert response.errors
+    assert response.errors[0].message == f"Unknown project: {project_global_id}"

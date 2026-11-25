@@ -434,6 +434,27 @@ class TestProjects:
             ProjectDeleteEvent((project_id,)),
         ]
 
+    async def test_delete_project_tombstoned_before_the_lifecycle_call_returns_404_with_identifier(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from phoenix.server.api.exceptions import NotFound
+        from phoenix.server.api.routers.v1 import projects as projects_router
+
+        project_name = f"raced-{token_hex(4)}"
+        async with db() as session:
+            session.add(models.Project(name=project_name))
+
+        async def _raise_not_found(*args: Any, **kwargs: Any) -> None:
+            raise NotFound("Project with ID 1 not found")
+
+        monkeypatch.setattr(projects_router, "tombstone_project", _raise_not_found)
+        response = await httpx_client.delete(f"v1/projects/{project_name}")
+        assert response.status_code == 404
+        assert project_name in response.text
+
     async def test_delete_nonexistent_project(
         self,
         httpx_client: httpx2.AsyncClient,

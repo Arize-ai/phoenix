@@ -66,10 +66,10 @@ class ProjectMutationMixin:
         try:
             async with info.context.db() as session:
                 tombstoned_project = await tombstone_project(session, project_id=project_id)
-        except NotFound as error:
-            raise ValueError(f"Unknown project: {id}") from error
+        except NotFound:
+            raise NotFound(f"Unknown project: {id}") from None
         except BadRequest as error:
-            raise ValueError(str(error)) from error
+            raise ValueError(str(error)) from None
         tombstoned_ids = tuple(tombstoned_project.tombstoned_project_ids)
         info.context.event_queue.put(SpanDeleteEvent(tombstoned_ids))
         info.context.event_queue.put(ProjectDeleteEvent(tombstoned_ids))
@@ -93,8 +93,8 @@ class ProjectMutationMixin:
                 event_queue=info.context.event_queue,
             ):
                 pass
-        except NotFound as error:
-            raise ValueError(f"Unknown project: {input.id}") from error
+        except NotFound:
+            raise NotFound(f"Unknown project: {input.id}") from None
         return Query()
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore

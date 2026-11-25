@@ -436,7 +436,9 @@ async def delete_project_traces(
         ):
             pass
     except NotFound as error:
-        raise HTTPException(status_code=404, detail=str(error)) from error
+        raise HTTPException(
+            status_code=404, detail=f"Project {project_identifier} not found"
+        ) from error
     except Conflict as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
     return None
