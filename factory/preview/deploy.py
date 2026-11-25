@@ -4,20 +4,33 @@
 """Deploy PR previews to Railway."""
 
 import argparse
+import base64
 import json
 import os
+import secrets
 import subprocess
 import sys
 import time
 import urllib.error
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any, Optional
 
 import seed_log
-from gh import run_gh
+from preview_project import (
+    PreviewProject,
+    RailwayError,
+    create_project,
+    find_project,
+    preview_wanted,
+    railway,
+    upsert_comment,
+)
+from settings import BASELINE_OPTIONS, DATABASE_OPTIONS, PreviewSettings
 
-RAILWAY_API_URL = "https://backboard.railway.com/graphql/v2"
-PREVIEW_LABEL = "factory-preview"
 PHOENIX_PORT = 6006
 DEPLOY_TIMEOUT_SECONDS = 15 * 60
 SKIPPED_GRACE_SECONDS = 120
@@ -36,101 +49,46 @@ DEPLOYMENT_FINAL_STATUSES = {
 }
 MAX_OUTPUT_LINES = 60
 MAX_OUTPUT_CHARS = 8000
-COMMENT_MARKER = "<!-- factory-preview -->"
 SEED_NOT_FINISHED_LINE = "preview: the seed had not finished when the run stopped waiting"
 
 
-class RailwayError(Exception):
-    pass
-
-
-def railway(query: str, **variables: Any) -> dict[str, Any]:
-    body = json.dumps({"query": query, "variables": variables}).encode()
-    request = urllib.request.Request(
-        RAILWAY_API_URL,
-        data=body,
-        headers={
-            "Content-Type": "application/json",
-            "Project-Access-Token": os.environ["RAILWAY_TOKEN"],
-            "User-Agent": "phoenix-factory-preview",
-        },
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=60) as response:
-            payload = json.load(response)
-    except urllib.error.HTTPError as error:
-        raise RailwayError(f"HTTP {error.code}: {error.read().decode(errors='replace')}") from error
-    except (urllib.error.URLError, TimeoutError) as error:
-        raise RailwayError(f"request failed: {error}") from error
-    except ValueError as error:
-        raise RailwayError(f"response was not JSON: {error}") from error
-    if payload.get("errors"):
-        raise RailwayError(json.dumps(payload["errors"]))
-    if "data" not in payload:
-        raise RailwayError(f"response had no data: {json.dumps(payload)[:500]}")
-    return dict(payload["data"])
-
-
-def read_token_scope() -> tuple[str, str]:
-    scope = railway("query { projectToken { projectId environmentId } }")["projectToken"]
-    return scope["projectId"], scope["environmentId"]
-
-
-def list_services(*, project_id: str) -> dict[str, str]:
+def list_services(project: PreviewProject) -> dict[str, str]:
     data = railway(
         "query($id: String!) { project(id: $id) { services { edges { node { id name } } } } }",
-        id=project_id,
+        id=project.id,
     )
     return {
-        str(edge["node"]["name"]): str(edge["node"]["id"])
-        for edge in data["project"]["services"]["edges"]
+        edge["node"]["name"]: edge["node"]["id"] for edge in data["project"]["services"]["edges"]
     }
 
 
-def find_service(*, project_id: str, name: str) -> Optional[str]:
-    return list_services(project_id=project_id).get(name)
+def service_variables(*, project: PreviewProject, service_id: str) -> dict[str, str]:
+    return railway(
+        """
+        query($project: String!, $environment: String!, $service: String!) {
+          variables(projectId: $project, environmentId: $environment, serviceId: $service)
+        }
+        """,
+        project=project.id,
+        environment=project.environment_id,
+        service=service_id,
+    )["variables"]
 
 
-def create_service(*, project_id: str, environment_id: str, name: str) -> str:
-    data = railway(
-        "mutation($input: ServiceCreateInput!) { serviceCreate(input: $input) { id } }",
-        input={"projectId": project_id, "environmentId": environment_id, "name": name},
-    )
-    return str(data["serviceCreate"]["id"])
-
-
-def set_variables(*, project_id: str, environment_id: str, service_id: str) -> None:
+def set_mcp_token(*, project: PreviewProject, service_id: str, token: str) -> None:
     railway(
         "mutation($input: VariableCollectionUpsertInput!) {"
         " variableCollectionUpsert(input: $input) }",
         input={
-            "projectId": project_id,
-            "environmentId": environment_id,
+            "projectId": project.id,
+            "environmentId": project.environment_id,
             "serviceId": service_id,
-            "variables": {"PORT": str(PHOENIX_PORT), "PHOENIX_PORT": str(PHOENIX_PORT)},
-            "skipDeploys": True,
+            "variables": {"GRAFANA_SERVICE_ACCOUNT_TOKEN": token},
         },
     )
 
 
-def set_image(*, environment_id: str, service_id: str, image: str) -> None:
-    railway(
-        "mutation($serviceId: String!, $environmentId: String!,"
-        " $input: ServiceInstanceUpdateInput!) {"
-        " serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId,"
-        " input: $input) }",
-        serviceId=service_id,
-        environmentId=environment_id,
-        input={
-            "source": {"image": image},
-            "healthcheckPath": "/healthz",
-            "restartPolicyType": "ON_FAILURE",
-            "restartPolicyMaxRetries": 3,
-        },
-    )
-
-
-def ensure_domain(*, project_id: str, environment_id: str, service_id: str) -> str:
+def ensure_domain(*, project_id: str, environment_id: str, service_id: str, port: int) -> str:
     data = railway(
         "query($projectId: String!, $environmentId: String!, $serviceId: String!)"
         " { domains(projectId: $projectId, environmentId: $environmentId, serviceId: $serviceId)"
@@ -147,34 +105,23 @@ def ensure_domain(*, project_id: str, environment_id: str, service_id: str) -> s
         input={
             "serviceId": service_id,
             "environmentId": environment_id,
-            "targetPort": PHOENIX_PORT,
+            "targetPort": port,
         },
     )
     return str(data["serviceDomainCreate"]["domain"])
-
-
-def deploy_service(*, environment_id: str, service_id: str) -> None:
-    railway(
-        "mutation($serviceId: String!, $environmentId: String!)"
-        " { serviceInstanceDeployV2(serviceId: $serviceId, environmentId: $environmentId) }",
-        serviceId=service_id,
-        environmentId=environment_id,
-    )
 
 
 def list_deployments(*, environment_id: str, service_id: str) -> list[dict[str, Any]]:
     """Newest deployments first."""
     data = railway(
         "query($input: DeploymentListInput!) {"
-        " deployments(input: $input, first: 10) { edges { node { id status } } } }",
+        " deployments(input: $input, first: 10) { edges { node { id status meta } } } }",
         input={"environmentId": environment_id, "serviceId": service_id},
     )
     return [dict(edge["node"]) for edge in data["deployments"]["edges"]]
 
 
-def wait_for_deployment(
-    *, environment_id: str, service_id: str, before: set[str]
-) -> tuple[str, str]:
+def wait_for_deployment(*, environment_id: str, service_id: str, image: str) -> tuple[str, str]:
     """Railway may replace a skipped deployment with one it queues itself."""
     deadline = time.monotonic() + DEPLOY_TIMEOUT_SECONDS
     deployment_id = ""
@@ -185,7 +132,7 @@ def wait_for_deployment(
             ours = [
                 d
                 for d in list_deployments(environment_id=environment_id, service_id=service_id)
-                if d["id"] not in before
+                if (d.get("meta") or {}).get("image") == image
             ]
             live = [d for d in ours if d["status"] != "SKIPPED"]
             if live:
@@ -269,47 +216,6 @@ def wait_for_seed(deployment_id: str) -> tuple[str, str]:
     return SEED_NOT_FINISHED_LINE, ""
 
 
-def preview_wanted(pr_number: int) -> bool:
-    pr = json.loads(run_gh("pr", "view", str(pr_number), "--json", "state,labels"))
-    return pr["state"] == "OPEN" and any(label["name"] == PREVIEW_LABEL for label in pr["labels"])
-
-
-def find_comment(*, pr_number: int) -> Optional[str]:
-    comment_ids = run_gh(
-        "api",
-        "--paginate",
-        f"repos/{{owner}}/{{repo}}/issues/{pr_number}/comments",
-        "--jq",
-        f".[] | select(.body | startswith({json.dumps(COMMENT_MARKER)})) | .id",
-    ).split()
-    return comment_ids[0] if comment_ids else None
-
-
-def upsert_comment(*, pr_number: int, body: str) -> None:
-    body = f"{COMMENT_MARKER}\n{body}"
-    comment_id = find_comment(pr_number=pr_number)
-    if comment_id is not None:
-        run_gh(
-            "api",
-            "--method",
-            "PATCH",
-            f"repos/{{owner}}/{{repo}}/issues/comments/{comment_id}",
-            "--input",
-            "-",
-            "--silent",
-            input_text=json.dumps({"body": body}),
-        )
-    else:
-        run_gh(
-            "api",
-            f"repos/{{owner}}/{{repo}}/issues/{pr_number}/comments",
-            "--input",
-            "-",
-            "--silent",
-            input_text=json.dumps({"body": body}),
-        )
-
-
 def clip_for_comment(text: str) -> str:
     lines = [line.replace("~~~", "~ ~ ~") for line in text.splitlines()]
     if len(lines) > MAX_OUTPUT_LINES:
@@ -322,135 +228,324 @@ def clip_for_comment(text: str) -> str:
     return clipped
 
 
-def format_deploy_comment(
+DASHBOARD_UID = "phoenix-preview-compare"
+
+
+def allow_preview_removals(*, changes: list[dict[str, Any]], settings: PreviewSettings) -> bool:
+    allowed = set()
+    for revision in ("base", "head"):
+        for engine in ("sqlite", "postgres"):
+            if revision not in settings.revisions or engine not in settings.engines:
+                name = f"phoenix-{revision}-{engine}"
+                allowed.add(f"Delete service {name}")
+                if engine == "postgres":
+                    allowed.add(f"Delete database {name}-db")
+    destructive = [change for change in changes if change["severity"] == "destructive"]
+    if any(
+        change["kind"] != "resource.delete" or change["summary"] not in allowed
+        for change in destructive
+    ):
+        raise RailwayError("Railway plan would remove resources outside the disabled previews")
+    return bool(destructive)
+
+
+def apply_config(
     *,
-    image: str,
-    url: str,
-    status: str,
-    seed: str,
-    seed_outcome: str,
-    seed_output: str,
-    head_sha: str,
-    run_url: str,
-    logs: str,
-) -> str:
-    lines = [f"### Preview of {head_sha[:7]}", ""]
-    server_up = status == "SUCCESS" and seed_outcome not in (
-        seed_log.UNHEALTHY_LINE,
-        SEED_NOT_FINISHED_LINE,
+    project: PreviewProject,
+    args: argparse.Namespace,
+    settings: PreviewSettings,
+    grafana_password: str,
+    mcp_caller_token: str,
+) -> bool:
+    railway_cli = str(Path.cwd() / "node_modules" / ".bin" / "railway")
+    env = {
+        **os.environ,
+        "_": railway_cli,
+        "PREVIEW_BASELINE": args.baseline,
+        "PREVIEW_DATABASE": settings.database,
+        "PREVIEW_DATABASE_SCHEMA": f"preview_{int(os.environ['GITHUB_RUN_ID'])}",
+        "PREVIEW_GRAFANA_PASSWORD": grafana_password,
+        "PREVIEW_MCP_CALLER_TOKEN": mcp_caller_token,
+    }
+    subprocess.run(
+        [railway_cli, "link", "--project", project.id, "--environment", project.environment_id],
+        check=True,
+        env=env,
     )
-    if server_up:
-        lines += [f"Running at **{url}** on a fresh database."]
-    elif status == "SUCCESS":
-        lines += [
-            f"Railway deployed it, but the launcher's log says otherwise (below), so {url} may"
-            f" not answer; see the [run]({run_url})."
-        ]
-    elif status.startswith("TIMEOUT"):
-        lines += [
-            f"The deployment was still going when the run stopped waiting ({status.lower()});"
-            f" see the [run]({run_url}). It may yet come up at {url}, seeded on its own."
-        ]
-    else:
-        lines += [
-            f"The deployment ended with status `{status}`; see the [run]({run_url})."
-            f" Whatever answers at {url} is the previous deployment, if there was one."
-        ]
-    seed_line = f"Seed: {seed}."
-    if seed_outcome != seed_log.NO_SEED_LINE:
-        seed_line += f" {seed_outcome.removeprefix('preview: ').capitalize()}."
-    lines += ["", seed_line]
-    if seed_output:
-        lines += ["", "~~~", clip_for_comment(seed_output), "~~~"]
-    lines += [
-        "",
-        "Run the same image locally:",
-        "",
-        "```",
-        f"docker run --rm -p {PHOENIX_PORT}:{PHOENIX_PORT} {image}",
-        "```",
+    with TemporaryDirectory() as directory:
+        plan_path = str(Path(directory) / "railway-plan.json")
+        plan = subprocess.run(
+            [railway_cli, "config", "plan", "--json", "--out", plan_path],
+            check=True,
+            env=env,
+            stdout=subprocess.PIPE,
+        )
+        changes = json.loads(plan.stdout)["changeSet"]["changes"]
+        can_remove = allow_preview_removals(changes=changes, settings=settings)
+        if not preview_wanted(args.pr, head_sha=args.head_sha, settings=settings):
+            return False
+        command = [railway_cli, "config", "apply", "--plan", plan_path, "--yes"]
+        if can_remove:
+            command.append("--confirm-destructive")
+        subprocess.run(command, check=True, env=env)
+    return True
+
+
+def grafana_request(
+    *, domain: str, password: str, path: str, payload: Optional[dict[str, Any]] = None
+) -> dict[str, Any]:
+    credentials = base64.b64encode(f"admin:{password}".encode()).decode()
+    request = urllib.request.Request(
+        f"https://{domain}{path}",
+        data=json.dumps(payload).encode() if payload is not None else None,
+        headers={"Authorization": f"Basic {credentials}", "Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(request, timeout=15) as response:
+        return dict(json.load(response))
+
+
+def configure_grafana(
+    *, domain: str, password: str, needs_mcp_token: bool, settings: PreviewSettings
+) -> Optional[str]:
+    for attempt in range(60):
+        try:
+            grafana_request(domain=domain, password=password, path="/api/user")
+            break
+        except (urllib.error.URLError, TimeoutError):
+            if attempt == 59:
+                raise RailwayError("Grafana did not become reachable with preview credentials")
+            time.sleep(5)
+
+    panels = [
+        {
+            "id": revision_index * len(settings.engines) + engine_index + 1,
+            "title": name,
+            "type": "logs",
+            "gridPos": {
+                "h": 14,
+                "w": 24 // len(settings.revisions),
+                "x": revision_index * (24 // len(settings.revisions)),
+                "y": engine_index * 14,
+            },
+            "datasource": {"type": "loki", "uid": "loki"},
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {"type": "loki", "uid": "loki"},
+                    "expr": f'{{service_name="{name}"}}',
+                    "queryType": "range",
+                }
+            ],
+        }
+        for revision_index, revision in enumerate(settings.revisions)
+        for engine_index, engine in enumerate(settings.engines)
+        for name in (f"phoenix-{revision}-{engine}",)
     ]
-    if status != "SUCCESS" and logs:
-        lines += [
-            "",
-            "<details><summary>Deployment logs</summary>",
-            "",
-            "~~~",
-            clip_for_comment(logs),
-            "~~~",
-            "",
-            "</details>",
-        ]
+    grafana_request(
+        domain=domain,
+        password=password,
+        path="/api/dashboards/db",
+        payload={
+            "dashboard": {
+                "uid": DASHBOARD_UID,
+                "title": "Phoenix Preview Logs",
+                "schemaVersion": 39,
+                "time": {"from": "now-1h", "to": "now"},
+                "panels": panels,
+            },
+            "overwrite": True,
+        },
+    )
+    if not needs_mcp_token:
+        return None
+
+    accounts = grafana_request(
+        domain=domain, password=password, path="/api/serviceaccounts/search?query=factory-preview"
+    )
+    account = next(
+        (
+            account
+            for account in accounts["serviceAccounts"]
+            if account["name"] == "factory-preview"
+        ),
+        None,
+    )
+    if account is None:
+        account = grafana_request(
+            domain=domain,
+            password=password,
+            path="/api/serviceaccounts",
+            payload={"name": "factory-preview", "role": "Viewer"},
+        )
+    token = grafana_request(
+        domain=domain,
+        password=password,
+        path=f"/api/serviceaccounts/{int(account['id'])}/tokens",
+        payload={"name": f"factory-preview-{secrets.token_hex(8)}"},
+    )
+    return str(token["key"])
+
+
+@dataclass(frozen=True)
+class PreviewResult:
+    name: str
+    url: str
+    status: str
+    seed_outcome: str
+    seed_output: str
+
+    @property
+    def succeeded(self) -> bool:
+        return self.status == "SUCCESS" and self.seed_outcome.startswith(seed_log.SUCCESS_LINES)
+
+
+def read_result(
+    *, project: PreviewProject, service_id: str, name: str, image: str
+) -> PreviewResult:
+    domain = ensure_domain(
+        project_id=project.id,
+        environment_id=project.environment_id,
+        service_id=service_id,
+        port=PHOENIX_PORT,
+    )
+    deployment_id, status = wait_for_deployment(
+        environment_id=project.environment_id, service_id=service_id, image=image
+    )
+    outcome, output = (
+        wait_for_seed(deployment_id)
+        if status == "SUCCESS"
+        else ("preview: the seed did not run", "")
+    )
+    return PreviewResult(name, f"https://{domain}", status, outcome, output)
+
+
+def format_comment(
+    *,
+    args: argparse.Namespace,
+    results: list[PreviewResult],
+    settings: PreviewSettings,
+    project: PreviewProject,
+    grafana: str,
+    mcp: str,
+) -> str:
+    title = f"### Preview of {args.head_sha[:7]}"
+    if settings.include_baseline:
+        title += f" against {args.base_sha[:7]}"
+    columns = (
+        ["Database", "Target commit", "PR commit"]
+        if settings.include_baseline
+        else ["Database", "PR commit"]
+    )
+    baseline = "on" if settings.include_baseline else "off"
+    lines = [
+        title,
+        "",
+        f"[Railway project](https://railway.com/project/{project.id}) · "
+        f"[Compare logs](https://{grafana}/d/{DASHBOARD_UID}/phoenix-preview-logs) · "
+        f"[Grafana MCP](https://{mcp}/mcp) · [Workflow run]({args.run_url})",
+        "",
+        f"Baseline: {baseline}. Database: {settings.database}. Seed: {args.seed}.",
+        "",
+        f"| {' | '.join(columns)} |",
+        "| " + " | ".join("---" for _ in columns) + " |",
+    ]
+    by_name = {result.name: result for result in results}
+    for engine in settings.engines:
+        cells = []
+        for revision in settings.revisions:
+            result = by_name[f"phoenix-{revision}-{engine}"]
+            outcome = result.seed_outcome.removeprefix("preview: ")
+            cells.append(f"[Open]({result.url}) · {result.status.lower()}, {outcome}")
+        lines.append(f"| {engine} | {' | '.join(cells)} |")
+    for result in results:
+        if result.seed_output:
+            lines.extend(
+                [
+                    "",
+                    f"<details><summary>{result.name} seed output</summary>",
+                    "",
+                    "~~~",
+                    clip_for_comment(result.seed_output),
+                    "~~~",
+                    "",
+                    "</details>",
+                ]
+            )
     return "\n".join(lines)
 
 
 def run_deploy(args: argparse.Namespace) -> int:
-    try:
-        project_id, environment_id = read_token_scope()
-        name = f"pr-{args.pr}"
-        service_id = find_service(project_id=project_id, name=name)
-        before: set[str] = set()
-        if service_id is None:
-            service_id = create_service(
-                project_id=project_id, environment_id=environment_id, name=name
-            )
-            print(f"created service {name} ({service_id})")
-        else:
-            before = {
-                str(d["id"])
-                for d in list_deployments(environment_id=environment_id, service_id=service_id)
-            }
-        set_variables(project_id=project_id, environment_id=environment_id, service_id=service_id)
-        set_image(environment_id=environment_id, service_id=service_id, image=args.image)
-        domain = ensure_domain(
-            project_id=project_id, environment_id=environment_id, service_id=service_id
-        )
-        if not preview_wanted(args.pr):
-            print(f"PR #{args.pr} is closed or unlabeled, so nothing is deployed")
-            return 0
-        deploy_service(environment_id=environment_id, service_id=service_id)
-        deployment_id, status = wait_for_deployment(
-            environment_id=environment_id, service_id=service_id, before=before
-        )
-    except RailwayError as error:
-        try:
-            upsert_comment(
-                pr_number=args.pr,
-                body=(
-                    f"### Preview of {args.head_sha[:7]}\n\nDeploying failed before Railway"
-                    f" took the image; see the [run]({args.run_url}).\n\n~~~\n"
-                    f"{clip_for_comment(str(error))}\n~~~"
-                ),
-            )
-        except subprocess.CalledProcessError as comment_error:
-            print(f"::warning::Could not update the PR comment: {comment_error.stderr}")
-        raise
-    logs = ""
-    if status == "SUCCESS":
-        seed_outcome, seed_output = wait_for_seed(deployment_id)
-    else:
-        seed_outcome, seed_output = "preview: the seed did not run", ""
-        if deployment_id:
-            log = LogTail(deployment_id)
-            log.refresh()
-            logs = log.tail(MAX_OUTPUT_LINES)
-    url = f"https://{domain}"
-    upsert_comment(
-        pr_number=args.pr,
-        body=format_deploy_comment(
-            image=args.image,
-            url=url,
-            status=status,
-            seed=args.seed,
-            seed_outcome=seed_outcome,
-            seed_output=seed_output,
-            head_sha=args.head_sha,
-            run_url=args.run_url,
-            logs=logs,
-        ),
+    settings = PreviewSettings(include_baseline=args.baseline == "on", database=args.database)
+    if not preview_wanted(args.pr, head_sha=args.head_sha, settings=settings):
+        return 0
+    project = find_project(args.pr) or create_project(args.pr)
+    services = list_services(project)
+    grafana_vars = (
+        service_variables(project=project, service_id=services["lgtm"])
+        if "lgtm" in services
+        else {}
     )
-    print(f"url={url}\nstatus={status}\n{seed_outcome}")
-    return 0 if status == "SUCCESS" and seed_outcome.startswith(seed_log.SUCCESS_LINES) else 1
+    mcp_vars = (
+        service_variables(project=project, service_id=services["grafana-mcp"])
+        if "grafana-mcp" in services
+        else {}
+    )
+    password = grafana_vars.get("GF_SECURITY_ADMIN_PASSWORD") or secrets.token_urlsafe(32)
+    mcp_caller_token = mcp_vars.get("MCP_GRAFANA_SERVER_TOKEN") or secrets.token_urlsafe(32)
+    if not apply_config(
+        project=project,
+        args=args,
+        settings=settings,
+        grafana_password=password,
+        mcp_caller_token=mcp_caller_token,
+    ):
+        return 0
+    services = list_services(project)
+    selected = {
+        f"phoenix-{revision}-{engine}": os.environ[f"PREVIEW_{revision.upper()}_IMAGE"]
+        for revision in settings.revisions
+        for engine in settings.engines
+    }
+    with ThreadPoolExecutor(max_workers=len(selected)) as executor:
+        futures = [
+            executor.submit(
+                read_result, project=project, service_id=services[name], name=name, image=image
+            )
+            for name, image in selected.items()
+        ]
+        grafana = ensure_domain(
+            project_id=project.id,
+            environment_id=project.environment_id,
+            service_id=services["lgtm"],
+            port=3000,
+        )
+        mcp = ensure_domain(
+            project_id=project.id,
+            environment_id=project.environment_id,
+            service_id=services["grafana-mcp"],
+            port=8000,
+        )
+        if token := configure_grafana(
+            domain=grafana,
+            password=password,
+            needs_mcp_token=not mcp_vars.get("GRAFANA_SERVICE_ACCOUNT_TOKEN"),
+            settings=settings,
+        ):
+            set_mcp_token(project=project, service_id=services["grafana-mcp"], token=token)
+        results = [future.result() for future in futures]
+    if preview_wanted(args.pr, head_sha=args.head_sha, settings=settings):
+        upsert_comment(
+            pr_number=args.pr,
+            body=format_comment(
+                args=args,
+                results=results,
+                settings=settings,
+                project=project,
+                grafana=grafana,
+                mcp=mcp,
+            ),
+        )
+    return 0 if all(result.succeeded for result in results) else 1
 
 
 def main() -> int:
@@ -458,18 +553,23 @@ def main() -> int:
     subparsers = parser.add_subparsers(dest="command", required=True)
     deploy_parser = subparsers.add_parser("deploy")
     deploy_parser.add_argument("--pr", type=int, required=True)
-    deploy_parser.add_argument("--image", required=True, help="fully qualified image reference")
+    deploy_parser.add_argument("--base-sha", required=True)
     deploy_parser.add_argument("--head-sha", required=True)
-    deploy_parser.add_argument(
-        "--seed", required=True, help="one line on the seed, for the comment"
-    )
+    deploy_parser.add_argument("--seed", required=True)
     deploy_parser.add_argument("--run-url", required=True)
+    deploy_parser.add_argument("--baseline", choices=BASELINE_OPTIONS, default="on")
+    deploy_parser.add_argument("--database", choices=DATABASE_OPTIONS, default="both")
     deploy_parser.set_defaults(run=run_deploy)
     args = parser.parse_args()
     try:
         return int(args.run(args))
-    except RailwayError as error:
-        print(f"::error::Railway API: {error}", file=sys.stderr)
+    except (RailwayError, urllib.error.URLError, subprocess.CalledProcessError) as error:
+        print(f"::error::Preview {args.command} failed: {error}", file=sys.stderr)
+        if preview_wanted(args.pr, head_sha=args.head_sha):
+            upsert_comment(
+                pr_number=args.pr,
+                body=f"Factory Preview setup failed. See the [workflow run]({args.run_url}).",
+            )
         return 1
 
 

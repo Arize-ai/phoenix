@@ -5,6 +5,9 @@ description: >-
   outage cannot block another registry's uploads.
 
 inputs:
+  artifact-prefix:
+    description: Prefix shared by the build and publish jobs for one image.
+    default: image-
   variants:
     description: Space-separated variants to build — any of root, nonroot, debug.
     required: true
@@ -102,6 +105,7 @@ runs:
         PLATFORM: ${{ inputs.platform }}
         SOURCE_DIR: ${{ inputs.source-dir }}
         STARTUP_AND_DATA_DIR: ${{ inputs.startup-and-data-dir }}
+        ARTIFACT_PREFIX: ${{ inputs.artifact-prefix }}
         BAKE_FILE: ${{ github.action_path }}/docker-bake.hcl
         LABELS: ${{ steps.meta.outputs.labels }}
       run: |
@@ -116,7 +120,7 @@ runs:
           [ -n "$label" ] && label_args+=(--set "${build_target}.labels.${label}")
         done <<< "$LABELS"
 
-        out="${RUNNER_TEMP}/images"
+        out="${RUNNER_TEMP}/${ARTIFACT_PREFIX}images"
         platform_slug="${PLATFORM//\//-}"
         failed=""
         for variant in $VARIANTS; do
@@ -167,8 +171,8 @@ runs:
       if: contains(format(' {0} ', inputs.variants), ' root ')
       uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
       with:
-        name: image-root-${{ steps.resolve.outputs.platform-slug }}
-        path: ${{ runner.temp }}/images/root/
+        name: ${{ inputs.artifact-prefix }}root-${{ steps.resolve.outputs.platform-slug }}
+        path: ${{ runner.temp }}/${{ inputs.artifact-prefix }}images/root/
         if-no-files-found: warn
         compression-level: 0
         retention-days: 1
@@ -177,8 +181,8 @@ runs:
       if: contains(format(' {0} ', inputs.variants), ' nonroot ')
       uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
       with:
-        name: image-nonroot-${{ steps.resolve.outputs.platform-slug }}
-        path: ${{ runner.temp }}/images/nonroot/
+        name: ${{ inputs.artifact-prefix }}nonroot-${{ steps.resolve.outputs.platform-slug }}
+        path: ${{ runner.temp }}/${{ inputs.artifact-prefix }}images/nonroot/
         if-no-files-found: warn
         compression-level: 0
         retention-days: 1
@@ -187,8 +191,8 @@ runs:
       if: contains(format(' {0} ', inputs.variants), ' debug ')
       uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
       with:
-        name: image-debug-${{ steps.resolve.outputs.platform-slug }}
-        path: ${{ runner.temp }}/images/debug/
+        name: ${{ inputs.artifact-prefix }}debug-${{ steps.resolve.outputs.platform-slug }}
+        path: ${{ runner.temp }}/${{ inputs.artifact-prefix }}images/debug/
         if-no-files-found: warn
         compression-level: 0
         retention-days: 1
