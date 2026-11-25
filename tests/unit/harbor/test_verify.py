@@ -10,7 +10,7 @@ from tests.unit.vcr import CustomVCR
 
 MOST_FAILING_TOOL_EXPECTED = (
     Path(__file__).parents[3]
-    / "evals/harbor/tasks/trail-benchmark-dev/most-failing-tool/tests/expected.json"
+    / "evals/harbor/datasets/trail-benchmark-dev/tasks/most-failing-tool/tests/expected.json"
 )
 
 TRAJECTORY = {
@@ -46,6 +46,17 @@ def test_final_reply_is_the_last_agent_message() -> None:
     parts = {"steps": [{"source": "agent", "message": [{"type": "text", "text": "ok"}]}]}
     assert verify.final_reply(parts) == "ok"
     assert verify.final_reply({"steps": [{"source": "agent", "message": "  "}]}) == ""
+
+
+def test_final_reply_keeps_follow_ups_after_the_answer() -> None:
+    steps = [
+        {"source": "agent", "message": "Checking.", "tool_calls": [{"tool_call_id": "a"}]},
+        {"source": "agent", "message": "Don't ship v8: safety is 9/12."},
+        {"source": "agent", "message": "That background task was an old attempt."},
+    ]
+    assert verify.final_reply({"steps": steps}) == (
+        "Don't ship v8: safety is 9/12.\n\nThat background task was an old attempt."
+    )
 
 
 def test_reply_comes_from_the_trajectory_then_the_answer_file(tmp_path: Path) -> None:

@@ -100,8 +100,9 @@ helm/charts/*.tgz
 
 # Build-context artifacts copied into each task's environment
 /evals/harbor/**/*.whl
-/evals/harbor/tasks/**/environment/container_assets/
-/evals/harbor/tasks/**/environment/data/
+/evals/harbor/tasks/**/environment/
+/evals/harbor/datasets/**/environment/container_assets/
+/evals/harbor/datasets/**/environment/data/
 
 # WebAssembly binaries
 **/wasm/*.wasm

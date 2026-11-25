@@ -1,0 +1,4 @@
+tasks/*/fixture/phoenix_seed.json linguist-generated=true
+tasks/*/tests/expected.json linguist-generated=true
+tasks/*/tests/grading_data.json linguist-generated=true
+tasks/improve-app/fixture/baseline.json linguist-generated=true

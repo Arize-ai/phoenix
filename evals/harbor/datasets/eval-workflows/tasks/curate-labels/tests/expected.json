@@ -1,0 +1,14 @@
+{
+ "reference": "`grounding-golden` holds 56 examples, one for each trace whose reviewers' latest verdict is `supported` (29) or `unsupported` (27). Each example has the question and the reply as input, the verdict as expected output, and a link to its trace. The other 38 traces are left out: 17 still open for review, 10 only pre-labeled by the auto-labeler, and 11 never reviewed.",
+ "dataset": "grounding-golden",
+ "examples": 56,
+ "verdicts": {
+  "supported": 29,
+  "unsupported": 27
+ },
+ "left_out": {
+  "still open for review": 17,
+  "only pre-labeled by the auto-labeler": 10,
+  "never reviewed": 11
+ }
+}
