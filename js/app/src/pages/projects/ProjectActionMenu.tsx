@@ -39,8 +39,6 @@ enum ProjectAction {
   REMOVE_DATA = "removeProjectData",
 }
 
-export type ProjectDataChangeOptions = { didFail?: boolean };
-
 export function ProjectActionMenu({
   projectId,
   projectName,
@@ -50,8 +48,8 @@ export function ProjectActionMenu({
 }: {
   projectId: string;
   projectName: string;
-  onProjectClear: (options?: ProjectDataChangeOptions) => void;
-  onProjectRemoveData: (options?: ProjectDataChangeOptions) => void;
+  onProjectClear: () => void;
+  onProjectRemoveData: () => void;
   onProjectDelete: () => void;
 }) {
   const notifySuccess = useNotifySuccess();
@@ -110,7 +108,6 @@ export function ProjectActionMenu({
         },
         onError: (error) => {
           setClearError(getMutationErrorMessage(error));
-          onProjectClear({ didFail: true });
         },
       });
     });
@@ -321,7 +318,6 @@ export function ProjectActionMenu({
               </DialogHeader>
               <RemoveProjectDataForm
                 projectId={projectId}
-                onFailure={() => onProjectRemoveData({ didFail: true })}
                 onComplete={() => {
                   onProjectRemoveData();
                   setShowRemoveDataDialog(false);

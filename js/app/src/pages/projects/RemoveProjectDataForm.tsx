@@ -32,7 +32,6 @@ import type { RemoveProjectDataFormMutation } from "./__generated__/RemoveProjec
 type RemoveProjectDataFormProps = {
   projectId: string;
   onComplete: () => void;
-  onFailure: () => void;
 };
 
 type RemoveProjectDataFormParams = {
@@ -92,7 +91,6 @@ export function RemoveProjectDataForm(props: RemoveProjectDataFormProps) {
         },
         onError: (error) => {
           setMutationError(getMutationErrorMessage(error));
-          props.onFailure();
         },
       });
     },
