@@ -26,7 +26,6 @@ from sqlalchemy import (
     literal,
     or_,
     select,
-    text,
     union_all,
     update,
 )
@@ -46,6 +45,7 @@ from phoenix.server.cleanup.primitives import (
     drain_eval_work_units_step,
     drain_project_annotation_config_links_step,
     drain_trace_scope_step,
+    set_local_timeouts,
 )
 from phoenix.server.online_eval.clock import current_database_time
 from phoenix.server.types import DbSessionFactory
@@ -58,8 +58,6 @@ _CLEANUP_STEP_ADVISORY_LOCK_ID = 0x636C6E705F717565  # "clnp_que"
 YIELD_DELAY_SECONDS = 0.25
 ERROR_RETRY_DELAY_SECONDS = 15.0
 MAX_ERROR_RETRY_DELAY_SECONDS = 3600.0
-STATEMENT_TIMEOUT_MS = 60_000
-LOCK_TIMEOUT_MS = 5_000
 
 
 @dataclass(frozen=True)
@@ -144,8 +142,7 @@ class CleanupCoordinator:
         """Make this transaction the only stepping one; ``False`` means another replica is."""
         dialect = SupportedSQLDialect(session.get_bind().dialect.name)
         if dialect is SupportedSQLDialect.POSTGRESQL:
-            await session.execute(text(f"SET LOCAL statement_timeout = {STATEMENT_TIMEOUT_MS}"))
-            await session.execute(text(f"SET LOCAL lock_timeout = {LOCK_TIMEOUT_MS}"))
+            await set_local_timeouts(session)
             return bool(
                 await session.scalar(
                     select(func.pg_try_advisory_xact_lock(_CLEANUP_STEP_ADVISORY_LOCK_ID))

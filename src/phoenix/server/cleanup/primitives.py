@@ -38,6 +38,8 @@ from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.online_eval.work_tables import WORK_TABLES, WorkUnitModel
 
 CLEANUP_BATCH_ROWS = 1_000
+STATEMENT_TIMEOUT_MS = 60_000
+LOCK_TIMEOUT_MS = 5_000
 
 _WORK_UNIT_MODELS: tuple[WorkUnitModel, ...] = tuple(
     table.work_unit_model for table in WORK_TABLES.values()
@@ -59,6 +61,12 @@ class PrimitiveStatus(str, Enum):
 class PrimitiveResult:
     status: PrimitiveStatus
     affected_rows: int = 0
+
+
+async def set_local_timeouts(session: AsyncSession) -> None:
+    """Bound this PostgreSQL transaction's statements and lock waits."""
+    await session.execute(text(f"SET LOCAL statement_timeout = {STATEMENT_TIMEOUT_MS}"))
+    await session.execute(text(f"SET LOCAL lock_timeout = {LOCK_TIMEOUT_MS}"))
 
 
 def _rowcount(result: object) -> int:

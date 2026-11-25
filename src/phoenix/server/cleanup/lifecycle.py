@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal, Optional, TypeAlias
 
-from sqlalchemy import and_, delete, exists, literal, or_, select, text, update
+from sqlalchemy import and_, delete, exists, literal, or_, select, update
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,6 +29,7 @@ from phoenix.server.cleanup.primitives import (
     PrimitiveStatus,
     drain_trace_scope_step,
     drain_traces_step,
+    set_local_timeouts,
 )
 from phoenix.server.dml_event import (
     DatasetDeleteEvent,
@@ -43,8 +44,6 @@ from phoenix.server.evaluators.services.management import (
 from phoenix.server.online_eval.clock import current_database_time
 from phoenix.server.types import CanPutItem, DbSessionFactory
 
-_TRACE_DRAIN_STATEMENT_TIMEOUT_MS = 60_000
-_TRACE_DRAIN_LOCK_TIMEOUT_MS = 5_000
 _MAX_YIELD_RETRIES_PER_CHUNK = 5
 _YIELD_RETRY_DELAY_SECONDS = 0.05
 
@@ -595,12 +594,7 @@ async def clear_project_traces_in_batches(
         try:
             async with db() as session:
                 if dialect is SupportedSQLDialect.POSTGRESQL:
-                    await session.execute(
-                        text(f"SET LOCAL statement_timeout = {_TRACE_DRAIN_STATEMENT_TIMEOUT_MS}")
-                    )
-                    await session.execute(
-                        text(f"SET LOCAL lock_timeout = {_TRACE_DRAIN_LOCK_TIMEOUT_MS}")
-                    )
+                    await set_local_timeouts(session)
                 project = await session.get(models.Project, project_id)
                 if project is None or project.deleted_at is not None:
                     if is_first_batch:
@@ -776,12 +770,7 @@ async def delete_standalone_traces_by_trace_id(
         chunk_affected_project_ids: set[int] = set()
         async with db() as session:
             if dialect is SupportedSQLDialect.POSTGRESQL:
-                await session.execute(
-                    text(f"SET LOCAL statement_timeout = {_TRACE_DRAIN_STATEMENT_TIMEOUT_MS}")
-                )
-                await session.execute(
-                    text(f"SET LOCAL lock_timeout = {_TRACE_DRAIN_LOCK_TIMEOUT_MS}")
-                )
+                await set_local_timeouts(session)
             eligible_rows = (
                 await session.execute(
                     select(models.Trace.id, models.Trace.project_rowid)
@@ -819,15 +808,7 @@ async def delete_standalone_traces_by_trace_id(
                 try:
                     async with db() as session:
                         if dialect is SupportedSQLDialect.POSTGRESQL:
-                            await session.execute(
-                                text(
-                                    f"SET LOCAL statement_timeout = "
-                                    f"{_TRACE_DRAIN_STATEMENT_TIMEOUT_MS}"
-                                )
-                            )
-                            await session.execute(
-                                text(f"SET LOCAL lock_timeout = {_TRACE_DRAIN_LOCK_TIMEOUT_MS}")
-                            )
+                            await set_local_timeouts(session)
                         step_result = await drain_traces_step(
                             session,
                             trace_cond=trace_condition,
