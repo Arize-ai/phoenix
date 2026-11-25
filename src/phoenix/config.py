@@ -2220,8 +2220,6 @@ class LDAPConfig:
     - Used for Phoenix's user email field (UI, notifications, audit logs)
     - Provides human-readable identifier for operators
 
-    See: internal_docs/specs/ldap-authentication.md for full design rationale.
-
     Configuration Pattern
     ---------------------
     This class follows the same pattern as OAuth2ClientConfig:
