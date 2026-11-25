@@ -843,3 +843,26 @@ async def test_creation_retries_are_bounded_when_lookup_loses_winner(
             async with db() as session:
                 await insert_span(session, _span("span", "trace", "span"), "vanishing")
     assert deleted == disappearances
+
+
+@pytest.mark.postgres_only
+async def test_trace_does_not_join_a_session_owner_locked_by_an_in_flight_tombstone(
+    db: DbSessionFactory,
+) -> None:
+    session_attributes = {"session": {"id": "locked-owner-session"}}
+    async with db() as session:
+        owner_span = replace(_span("owner", "owner-trace", "owner"), attributes=session_attributes)
+        assert await insert_span(session, owner_span, "locked-owner") is not None
+        owner_project_id = await session.scalar(
+            select(models.Project.id).where(models.Project.name == "locked-owner")
+        )
+
+    async with db() as tombstone_session:
+        await tombstone_session.execute(
+            select(models.Project.id).where(models.Project.id == owner_project_id).with_for_update()
+        )
+        async with db() as session:
+            live_span = replace(_span("live", "live-trace", "live"), attributes=session_attributes)
+            inserted = await asyncio.wait_for(insert_span(session, live_span, "live"), 5)
+            assert inserted is not None
+            assert inserted.project_session_rowid is None

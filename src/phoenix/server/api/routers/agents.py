@@ -86,7 +86,7 @@ from phoenix.config import (
     get_env_phoenix_agents_web_access_enabled,
 )
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.helpers import SupportedSQLDialect, is_session_owner_tombstoned
 from phoenix.db.insertion.helpers import OnConflict, advance_liveness, insert_on_conflict
 from phoenix.db.types.data_stream_protocol import (
     AssistantMessageMetadataUsage,
@@ -1384,11 +1384,18 @@ async def _persist_db_traces(
     for db_trace in db_traces:
         # Only inserted traces should point at the persistent ProjectSession;
         # associating skipped transient traces causes autoflush warnings.
-        persistent_project_session = (
+        persistent_project_session: models.ProjectSession | None = (
             persistent_by_session_id[db_trace.project_session.session_id]
             if db_trace.project_session is not None
             else None
         )
+        if (
+            persistent_project_session is not None
+            and persistent_project_session.project_id != db_trace.project_rowid
+            and await is_session_owner_tombstoned(session, persistent_project_session.project_id)
+        ):
+            persistent_project_session = None
+            db_trace.project_session = None  # type: ignore[assignment]
         db_trace.spans = [
             db_span for db_span in db_trace.spans if db_span.span_id not in existing_span_ids
         ]

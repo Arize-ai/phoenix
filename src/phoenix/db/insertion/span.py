@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from phoenix.db import models
 from phoenix.db.helpers import (
     SupportedSQLDialect,
+    is_session_owner_tombstoned,
     random_project_gradient,
 )
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
@@ -315,16 +316,9 @@ async def insert_span(
                 end_time=trace.end_time,
             ),
         )
-        if project_session.project_id != trace.project_rowid and (
-            await session.scalar(
-                select(models.Project.deleted_at).where(
-                    models.Project.id == project_session.project_id
-                )
-            )
-            is not None
+        if project_session.project_id != trace.project_rowid and await is_session_owner_tombstoned(
+            session, project_session.project_id
         ):
-            # A session owned by a tombstoned project is deleted with it, so a live trace must
-            # not join it.
             project_session = None
         else:
             # Coalesce is evaluated against the locked row, so a concurrent attachment

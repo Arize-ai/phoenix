@@ -1490,6 +1490,29 @@ def is_lock_not_available(error: BaseException) -> bool:
     )
 
 
+async def is_session_owner_tombstoned(session: AsyncSession, project_id: int) -> bool:
+    """Whether the project that owns a session is tombstoned or being tombstoned.
+
+    A session owned by a tombstoned project is deleted with it, so a live trace must not join it.
+    On PostgreSQL the owner is read under ``FOR KEY SHARE NOWAIT``: an in-flight tombstone holds
+    ``FOR UPDATE`` on it, and a plain read would still see it as live. Failing to get the lock
+    counts as tombstoned so ingest never waits on another project's lock.
+    """
+    stmt = select(models.Project.deleted_at).where(models.Project.id == project_id)
+    if session.get_bind().dialect.name != SupportedSQLDialect.POSTGRESQL.value:
+        return await session.scalar(stmt) is not None
+    try:
+        async with session.begin_nested():
+            deleted_at = await session.scalar(
+                stmt.with_for_update(read=True, key_share=True, nowait=True)
+            )
+    except DBAPIError as error:
+        if is_lock_not_available(error):
+            return True
+        raise
+    return deleted_at is not None
+
+
 def is_lock_contention(error: BaseException) -> bool:
     """Whether another transaction held or deadlocked on the rows, so retrying later can succeed."""
     return isinstance(error, DBAPIError) and get_sqlstate(error) in (

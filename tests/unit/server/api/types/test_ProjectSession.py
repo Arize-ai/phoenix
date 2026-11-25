@@ -220,6 +220,26 @@ class TestProjectSession:
             (str(GlobalID(Trace.__name__, str(trace.id))), trace.trace_id) for trace in _data.traces
         }
 
+    async def test_traces_exclude_traces_of_a_tombstoned_project(
+        self,
+        db: DbSessionFactory,
+        httpx_client: httpx2.AsyncClient,
+    ) -> None:
+        async with db() as session:
+            live_project = await _add_project(session)
+            tombstoned_project = await _add_project(session)
+            project_session = await _add_project_session(session, live_project)
+            live_trace = await _add_trace(session, live_project, project_session)
+            await _add_trace(session, tombstoned_project, project_session)
+            tombstoned_project.deleted_at = datetime.now(timezone.utc)
+            await session.flush()
+
+        field = "traces(first: 50){edges{node{id project{name}}}}"
+        traces = await self._node(field, project_session, httpx_client)
+        assert [edge["node"]["id"] for edge in traces["edges"]] == [
+            str(GlobalID(Trace.__name__, str(live_trace.id)))
+        ]
+
     async def test_user_id(
         self,
         db: DbSessionFactory,
