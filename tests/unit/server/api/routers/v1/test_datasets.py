@@ -5476,15 +5476,18 @@ async def test_delete_dataset_removes_experiment_projects_and_eval_traces(
     simple_dataset: Any,
     db: DbSessionFactory,
 ) -> None:
-    """Deleting a dataset must also delete its experiment project and evaluator trace."""
     project_name = "dataset-delete-experiment-project"
+    # The evaluator trace lives outside the experiment project so that only the
+    # trace cleanup, not the project delete's cascade, can remove it.
+    eval_project_name = "dataset-delete-eval-project"
     eval_trace_id = "dataset-delete-eval-trace"
     async with db() as session:
-        project = models.Project(name=project_name)
-        session.add(project)
+        session.add(models.Project(name=project_name))
+        eval_project = models.Project(name=eval_project_name)
+        session.add(eval_project)
         await session.flush()
         trace = models.Trace(
-            project_rowid=project.id,
+            project_rowid=eval_project.id,
             trace_id=eval_trace_id,
             start_time=datetime.now(),
             end_time=datetime.now(),
@@ -5534,5 +5537,11 @@ async def test_delete_dataset_removes_experiment_projects_and_eval_traces(
         surviving_eval_trace_id = await session.scalar(
             select(models.Trace.trace_id).where(models.Trace.trace_id == eval_trace_id)
         )
+        surviving_eval_project_name = await session.scalar(
+            select(models.Project.name).where(models.Project.name == eval_project_name)
+        )
     assert surviving_project_name is None, "experiment project survived dataset deletion"
     assert surviving_eval_trace_id is None, "evaluator trace survived dataset deletion"
+    assert surviving_eval_project_name == eval_project_name, (
+        "project not owned by the dataset's experiments was deleted"
+    )
