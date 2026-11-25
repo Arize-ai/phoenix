@@ -30,6 +30,7 @@ export type DeleteDatasetEvaluatorDialogProps = {
   datasetEvaluatorId: string;
   evaluatorName: string;
   evaluatorKind: "LLM" | "CODE" | "BUILTIN";
+  associatedPromptId?: string;
   isOpen?: boolean;
   onOpenChange?: (isOpen: boolean) => void;
   onDeleted?: () => void;
@@ -44,6 +45,7 @@ export function DeleteDatasetEvaluatorDialog({
   datasetEvaluatorId,
   evaluatorName,
   evaluatorKind,
+  associatedPromptId,
   isOpen,
   onOpenChange,
   onDeleted,
@@ -67,15 +69,26 @@ export function DeleteDatasetEvaluatorDialog({
 
   const handleDelete = useCallback(() => {
     setError(null);
+    const shouldDeleteAssociatedPrompt =
+      evaluatorKind === "LLM" && deleteAssociatedPrompt;
     startTransition(() => {
       commitDelete({
         variables: {
           input: {
             datasetEvaluatorIds: [datasetEvaluatorId],
-            deleteAssociatedPrompt:
-              evaluatorKind === "LLM" && deleteAssociatedPrompt,
+            deleteAssociatedPrompt: shouldDeleteAssociatedPrompt,
           },
           connectionIds: updateConnectionIds,
+        },
+        updater: (store, data) => {
+          if (
+            shouldDeleteAssociatedPrompt &&
+            associatedPromptId &&
+            data?.deleteDatasetEvaluators.datasetEvaluatorIds.length
+          ) {
+            // The server can keep the prompt if another evaluator still uses it.
+            store.get(associatedPromptId)?.invalidateRecord();
+          }
         },
         onCompleted: () => {
           notifySuccess({
@@ -92,6 +105,7 @@ export function DeleteDatasetEvaluatorDialog({
       });
     });
   }, [
+    associatedPromptId,
     commitDelete,
     datasetEvaluatorId,
     deleteAssociatedPrompt,

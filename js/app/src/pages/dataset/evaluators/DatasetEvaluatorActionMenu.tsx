@@ -28,12 +28,14 @@ export function DatasetEvaluatorActionMenu({
   datasetEvaluatorId,
   evaluatorKind,
   evaluatorName,
+  associatedPromptId,
   updateConnectionIds,
 }: {
   datasetId: string;
   datasetEvaluatorId: string;
   evaluatorKind: "LLM" | "CODE" | "BUILTIN";
   evaluatorName: string;
+  associatedPromptId?: string;
   updateConnectionIds?: string[];
 }) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -114,6 +116,7 @@ export function DatasetEvaluatorActionMenu({
         datasetEvaluatorId={datasetEvaluatorId}
         evaluatorName={evaluatorName}
         evaluatorKind={evaluatorKind}
+        associatedPromptId={associatedPromptId}
         isOpen={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
         updateConnectionIds={updateConnectionIds}
