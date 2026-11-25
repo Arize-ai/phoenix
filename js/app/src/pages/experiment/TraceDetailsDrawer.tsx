@@ -74,6 +74,8 @@ export function TraceDetailsDrawer({
                 <LinkButton
                   size="S"
                   to={`/projects/${projectId}/traces/${encodeURIComponent(traceId)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
                 >
                   View Trace in Project
                 </LinkButton>

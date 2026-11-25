@@ -342,6 +342,8 @@ function OpenExperimentCompareSlideover({
               <LinkButton
                 size="S"
                 to={`/datasets/${datasetId}/examples/${selectedExampleId}`}
+                target="_blank"
+                rel="noopener noreferrer"
               >
                 View Example
               </LinkButton>

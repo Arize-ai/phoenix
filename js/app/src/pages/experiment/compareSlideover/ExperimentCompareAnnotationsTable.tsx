@@ -431,6 +431,7 @@ export function ExperimentCompareAnnotationsTable({
                       config,
                       score: annotation.score,
                     })}
+                    isValueEndAligned
                   />
                   <Popover placement="top">
                     <PopoverArrow />
