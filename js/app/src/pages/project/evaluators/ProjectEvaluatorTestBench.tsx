@@ -1,14 +1,17 @@
 import { css } from "@emotion/react";
-import type { Dispatch, ReactNode, SetStateAction } from "react";
+import type { ReactNode, TransitionStartFunction } from "react";
 import {
+  Activity,
   createContext,
   Fragment,
   Suspense,
   useContext,
   useEffect,
+  useOptimistic,
   useRef,
   useState,
   useSyncExternalStore,
+  useTransition,
 } from "react";
 import { Group, Panel } from "react-resizable-panels";
 import type { Disposable } from "relay-runtime";
@@ -137,38 +140,75 @@ export function makeTimeWindow(presetId: TimeWindowPresetId): TimeWindow {
   };
 }
 
-const TimeWindowContext = createContext<
-  [TimeWindow, Dispatch<SetStateAction<TimeWindow>>] | null
->(null);
+type ProjectEvaluatorPreviewContextValue = {
+  /** The window the preview queries read. */
+  timeWindow: TimeWindow;
+  /** The window the picker shows: the new one while its records load. */
+  optimisticTimeWindow: TimeWindow;
+  setTimeWindow: (timeWindow: TimeWindow) => void;
+  /**
+   * True while a change to what the preview lists, a new window or filter,
+   * is loading. The bench keeps its header in place and shows its loading
+   * state below it.
+   */
+  isPending: boolean;
+  /** Marks a change to what the preview lists, so `isPending` follows it. */
+  startTransition: TransitionStartFunction;
+};
 
-/** Lives above the form's Suspense boundary so its retries keep the window. */
-export function ProjectEvaluatorTimeWindowProvider({
+const ProjectEvaluatorPreviewContext =
+  createContext<ProjectEvaluatorPreviewContextValue | null>(null);
+
+/**
+ * Lives above the form's Suspense boundary so its retries keep the window.
+ * Every change to what the preview lists goes through its one transition,
+ * so the form and the bench beside it agree on whether the records are
+ * loading.
+ */
+export function ProjectEvaluatorPreviewProvider({
   children,
 }: {
   children: ReactNode;
 }) {
-  const timeWindowState = useState(() => makeTimeWindow("7d"));
+  const [timeWindow, setCommittedTimeWindow] = useState(() =>
+    makeTimeWindow("7d")
+  );
+  const [optimisticTimeWindow, setOptimisticTimeWindow] =
+    useOptimistic(timeWindow);
+  const [isPending, startTransition] = useTransition();
+  const setTimeWindow = (next: TimeWindow) => {
+    startTransition(() => {
+      setOptimisticTimeWindow(next);
+      setCommittedTimeWindow(next);
+    });
+  };
   return (
-    <TimeWindowContext.Provider value={timeWindowState}>
+    <ProjectEvaluatorPreviewContext
+      value={{
+        timeWindow,
+        optimisticTimeWindow,
+        setTimeWindow,
+        isPending,
+        startTransition,
+      }}
+    >
       {children}
-    </TimeWindowContext.Provider>
+    </ProjectEvaluatorPreviewContext>
   );
 }
 
-export function useProjectEvaluatorTimeWindow() {
-  const timeWindowState = useContext(TimeWindowContext);
+export function useProjectEvaluatorPreview() {
+  const value = useContext(ProjectEvaluatorPreviewContext);
   invariant(
-    timeWindowState,
-    "useProjectEvaluatorTimeWindow must be used within ProjectEvaluatorTimeWindowProvider"
+    value,
+    "useProjectEvaluatorPreview must be used within ProjectEvaluatorPreviewProvider"
   );
-  return timeWindowState;
+  return value;
 }
 
 /** What the bench's header needs before and after the records load. */
 export type TestBenchHeaderProps = {
   targetType: ProjectEvaluatorTarget;
-  timeWindow: TimeWindow;
-  onTimeWindowChange: (timeWindow: TimeWindow) => void;
   /**
    * The matched-count phrase, ending where the time window picker takes
    * over: "12 spans matched in the". It loads and suspends on its own.
@@ -212,6 +252,7 @@ export function ProjectEvaluatorTestBench({
   // `undefined` is no explicit choice yet (the newest row is focused); a key
   // that has since left the list falls back the same way.
   const [focusedKey, setFocusedKey] = useState<string | undefined>(undefined);
+  const { isPending } = useProjectEvaluatorPreview();
   const focusedRow =
     rows.find(({ key }) => key === focusedKey) ?? rows[0] ?? null;
   const inputMapping = useEvaluatorStore(
@@ -289,7 +330,7 @@ export function ProjectEvaluatorTestBench({
           leadingVisual={
             <Icon svg={isRetest ? <Icons.Refresh /> : <Icons.Play />} />
           }
-          isDisabled={!isRunnable || runnableEntries.length === 0}
+          isDisabled={isPending || !isRunnable || runnableEntries.length === 0}
           onPress={() => runOnRows(runnableEntries.map(({ row }) => row))}
         >
           {formatBulkTestLabel({
@@ -299,49 +340,56 @@ export function ProjectEvaluatorTestBench({
           })}
         </Button>
       </TestBenchHeader>
-      <Group
-        orientation="vertical"
-        className="test-bench__split"
-        resizeTargetMinimumSize={GRIP_RESIZE_TARGET_MINIMUM_SIZE}
-      >
-        <Panel
-          id="project-evaluator-records"
-          defaultSize="55%"
-          minSize={RECORDS_PANEL_MIN_SIZE}
-          className="test-bench__panel"
+      {isPending ? (
+        <TestBenchLoadingBody targetType={headerProps.targetType} />
+      ) : null}
+      {/* Hidden rather than unmounted, so the split keeps its sizes and the
+          table its scroll position while the next records load. */}
+      <Activity mode={isPending ? "hidden" : "visible"}>
+        <Group
+          orientation="vertical"
+          className="test-bench__split"
+          resizeTargetMinimumSize={GRIP_RESIZE_TARGET_MINIMUM_SIZE}
         >
-          <ProjectEvaluatorRecordTable
-            entries={entries}
-            recordKind={recordKind}
-            focusedRowKey={focusedRow?.key ?? null}
-            onFocusRow={setFocusedKey}
-            isRunnable={isRunnable}
-            runBlocker={runBlocker}
-            onRunRow={(row) => runOnRows([row])}
-            hasMore={hasMore}
-            isLoadingMore={isLoadingMore}
-            onLoadMore={onLoadMore}
-          />
-        </Panel>
-        <GripResizeHandle />
-        <Panel
-          id="project-evaluator-inspector"
-          minSize={INSPECTOR_PANEL_MIN_SIZE}
-          className="test-bench__panel"
-        >
-          {focusedEntry ? (
-            <ProjectEvaluatorRecordInspector
-              entry={focusedEntry}
+          <Panel
+            id="project-evaluator-records"
+            defaultSize="55%"
+            minSize={RECORDS_PANEL_MIN_SIZE}
+            className="test-bench__panel"
+          >
+            <ProjectEvaluatorRecordTable
+              entries={entries}
               recordKind={recordKind}
-              inputMapping={inputMapping}
-              requiredVariables={requiredVariables}
+              focusedRowKey={focusedRow?.key ?? null}
+              onFocusRow={setFocusedKey}
               isRunnable={isRunnable}
               runBlocker={runBlocker}
-              onRun={() => runOnRows([focusedEntry.row])}
+              onRunRow={(row) => runOnRows([row])}
+              hasMore={hasMore}
+              isLoadingMore={isLoadingMore}
+              onLoadMore={onLoadMore}
             />
-          ) : null}
-        </Panel>
-      </Group>
+          </Panel>
+          <GripResizeHandle />
+          <Panel
+            id="project-evaluator-inspector"
+            minSize={INSPECTOR_PANEL_MIN_SIZE}
+            className="test-bench__panel"
+          >
+            {focusedEntry ? (
+              <ProjectEvaluatorRecordInspector
+                entry={focusedEntry}
+                recordKind={recordKind}
+                inputMapping={inputMapping}
+                requiredVariables={requiredVariables}
+                isRunnable={isRunnable}
+                runBlocker={runBlocker}
+                onRun={() => runOnRows([focusedEntry.row])}
+              />
+            ) : null}
+          </Panel>
+        </Group>
+      </Activity>
     </div>
   );
   return (
@@ -358,7 +406,6 @@ export function ProjectEvaluatorTestBenchFallback({
   targetType,
   ...headerProps
 }: TestBenchHeaderProps) {
-  const records = formatEvaluationTargetPlural(targetType);
   return (
     <div css={benchCSS}>
       <TestBenchHeader
@@ -376,18 +423,29 @@ export function ProjectEvaluatorTestBenchFallback({
           Test all
         </Button>
       </TestBenchHeader>
-      <div
-        className="test-bench__loading"
-        role="status"
-        aria-label={`Loading ${records}`}
-      >
-        <div className="test-bench__loading-records">
-          <TableSkeleton rowCount="fill" aria-hidden />
-        </div>
-        <EdgeFade edge="bottom" className="test-bench__loading-inspector">
-          <Skeleton height="100%" borderRadius="medium" aria-hidden />
-        </EdgeFade>
+      <TestBenchLoadingBody targetType={targetType} />
+    </div>
+  );
+}
+
+/** Stands in for the records and the inspector while they load. */
+function TestBenchLoadingBody({
+  targetType,
+}: {
+  targetType: ProjectEvaluatorTarget;
+}) {
+  return (
+    <div
+      className="test-bench__loading"
+      role="status"
+      aria-label={`Loading ${formatEvaluationTargetPlural(targetType)}`}
+    >
+      <div className="test-bench__loading-records">
+        <TableSkeleton rowCount="fill" aria-hidden />
       </div>
+      <EdgeFade edge="bottom" className="test-bench__loading-inspector">
+        <Skeleton height="100%" borderRadius="medium" aria-hidden />
+      </EdgeFade>
     </div>
   );
 }
@@ -401,8 +459,6 @@ export function ProjectEvaluatorTestBenchFallback({
  */
 function TestBenchHeader({
   targetType,
-  timeWindow,
-  onTimeWindowChange,
   countLine,
   summaryParts,
   blocker,
@@ -416,6 +472,9 @@ function TestBenchHeader({
   children: ReactNode;
 }) {
   const records = formatEvaluationTargetPlural(targetType);
+  const { optimisticTimeWindow, setTimeWindow, isPending } =
+    useProjectEvaluatorPreview();
+  const countingLine = <>Counting matching {records} in the</>;
   return (
     <div className="test-bench__header">
       <Flex
@@ -432,14 +491,16 @@ function TestBenchHeader({
       </Flex>
       <Text size="S" color="text-500">
         <span className="test-bench__summary">
-          <Suspense fallback={<>Counting matching {records} in the</>}>
-            {countLine}
-          </Suspense>{" "}
+          {isPending ? (
+            countingLine
+          ) : (
+            <Suspense fallback={countingLine}>{countLine}</Suspense>
+          )}{" "}
           <TimeWindowSelect
-            value={timeWindow.presetId}
-            onChange={onTimeWindowChange}
+            value={optimisticTimeWindow.presetId}
+            onChange={setTimeWindow}
           />
-          {summaryParts
+          {(isPending ? [] : summaryParts)
             .filter((part) => part != null)
             .map((part) => (
               <Fragment key={part}> · {part}</Fragment>

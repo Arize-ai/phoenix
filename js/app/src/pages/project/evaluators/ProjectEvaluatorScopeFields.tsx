@@ -13,6 +13,7 @@ import {
 } from "@phoenix/components";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 import { formatEvaluationTarget } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
+import { useProjectEvaluatorPreview } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTestBench";
 import {
   dropOtherRecordKindPathMappings,
   getDefaultProjectEvaluatorFilterCondition,
@@ -61,6 +62,8 @@ export const ProjectEvaluatorScopeFieldGroup = ({
 }) => {
   const isDelayedTarget = hasEvaluationDelay(scope.targetType);
   const evaluatorStore = useEvaluatorStoreInstance();
+  const { startTransition: startPreviewTransition } =
+    useProjectEvaluatorPreview();
   // Each target speaks its own filter language, so a switch cannot carry the
   // condition across. It is kept here instead and restored on the way back,
   // so a span filter the author wrote survives a look at the session level.
@@ -136,7 +139,9 @@ export const ProjectEvaluatorScopeFieldGroup = ({
         targetType={scope.targetType}
         value={scope.filterCondition}
         onChange={(filterCondition) =>
-          onScopeChange({ ...scope, filterCondition })
+          startPreviewTransition(() =>
+            onScopeChange({ ...scope, filterCondition })
+          )
         }
         onValidityChange={onFilterValidityChange}
       />

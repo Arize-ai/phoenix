@@ -12,7 +12,7 @@ import {
   DiscardEvaluatorChangesDialog,
   isModalUnderlay,
 } from "@phoenix/pages/project/evaluators/DiscardEvaluatorChangesDialog";
-import { ProjectEvaluatorTimeWindowProvider } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTestBench";
+import { ProjectEvaluatorPreviewProvider } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTestBench";
 import type { EvaluatorFormDirtyCheck } from "@phoenix/pages/project/evaluators/useEvaluatorFormDirtyCheck";
 
 /**
@@ -61,11 +61,11 @@ export function ProjectEvaluatorSlideover({
         <ViewportModal size="fullscreen">
           <Dialog aria-label={title}>
             {({ close }) => (
-              <ProjectEvaluatorTimeWindowProvider>
+              <ProjectEvaluatorPreviewProvider>
                 <Suspense fallback={<Loading />}>
                   {children(close, registerDirtyCheck)}
                 </Suspense>
-              </ProjectEvaluatorTimeWindowProvider>
+              </ProjectEvaluatorPreviewProvider>
             )}
           </Dialog>
         </ViewportModal>

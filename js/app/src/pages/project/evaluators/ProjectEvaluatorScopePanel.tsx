@@ -17,7 +17,7 @@ import {
   ProjectEvaluatorTestBenchFallback,
   type TestBenchHeaderProps,
   type TimeWindow,
-  useProjectEvaluatorTimeWindow,
+  useProjectEvaluatorPreview,
 } from "@phoenix/pages/project/evaluators/ProjectEvaluatorTestBench";
 import {
   getContextSnippet,
@@ -52,6 +52,7 @@ type MatchedCountLineProps = {
 type RecordSourceProps = TestBenchHeaderProps & {
   projectId: string;
   filterCondition: string;
+  timeWindow: TimeWindow;
   codeEvaluatorId?: string;
   inlineCode?: ProjectEvaluatorInlineCode;
   decision?: ProjectEvaluatorDecisionPreview;
@@ -94,16 +95,12 @@ export const ProjectEvaluatorScopePanel = ({
   decision?: ProjectEvaluatorDecisionPreview;
   requiredVariables?: string[];
 }) => {
-  const [timeWindow, setTimeWindow] = useProjectEvaluatorTimeWindow();
-  // Not a transition: a new window should show the loading state, not the
-  // previous window's records.
+  const { timeWindow } = useProjectEvaluatorPreview();
   const { filterCondition } = scope;
   const recordKind = toEvaluatorRecordKind(scope.targetType);
   const { CountLine, RecordSource } = RECORD_SOURCE_BY_RECORD_KIND[recordKind];
   const headerProps: TestBenchHeaderProps = {
     targetType: scope.targetType,
-    timeWindow,
-    onTimeWindowChange: setTimeWindow,
     countLine: (
       <CountLine
         projectId={projectId}
@@ -116,6 +113,7 @@ export const ProjectEvaluatorScopePanel = ({
     ...headerProps,
     projectId,
     filterCondition,
+    timeWindow,
     codeEvaluatorId,
     inlineCode,
     decision,
@@ -123,11 +121,7 @@ export const ProjectEvaluatorScopePanel = ({
   };
   return (
     <div css={panelCSS}>
-      {/* The filter field applies changes in a transition, which would keep
-          the old records on screen. Remounting on each filter shows the
-          loading state instead. */}
       <Suspense
-        key={filterCondition.trim()}
         fallback={<ProjectEvaluatorTestBenchFallback {...headerProps} />}
       >
         {codeEvaluatorId || inlineCode || decision ? (
@@ -333,12 +327,13 @@ function formatTraceMetric(numSpans: number, totalTokens: number): string {
 function TraceRecordSource({
   projectId,
   filterCondition,
+  timeWindow,
   ...benchProps
 }: RecordSourceProps) {
   const { numRecordsToLoad, isLoadingMore, keepListedRowsFirst, loadMore } =
     useLoadMoreRecords({
       filterCondition,
-      timeWindowStartISOTimestamp: benchProps.timeWindow.startIso,
+      timeWindowStartISOTimestamp: timeWindow.startIso,
     });
   const data = useLazyLoadQuery<ProjectEvaluatorScopePanelTracesQuery>(
     graphql`
@@ -387,7 +382,7 @@ function TraceRecordSource({
     {
       projectId,
       traceFilterCondition: filterCondition.trim() || null,
-      timeRange: { start: benchProps.timeWindow.startIso },
+      timeRange: { start: timeWindow.startIso },
       first: numRecordsToLoad,
     },
     { fetchPolicy: "store-and-network" }
@@ -461,12 +456,13 @@ function formatSessionMetric(numTraces: number, totalTokens: number): string {
 function SessionRecordSource({
   projectId,
   filterCondition,
+  timeWindow,
   ...benchProps
 }: RecordSourceProps) {
   const { numRecordsToLoad, isLoadingMore, keepListedRowsFirst, loadMore } =
     useLoadMoreRecords({
       filterCondition,
-      timeWindowStartISOTimestamp: benchProps.timeWindow.startIso,
+      timeWindowStartISOTimestamp: timeWindow.startIso,
     });
   const data = useLazyLoadQuery<ProjectEvaluatorScopePanelSessionsQuery>(
     graphql`
@@ -507,7 +503,7 @@ function SessionRecordSource({
     {
       projectId,
       sessionFilterCondition: filterCondition.trim() || null,
-      timeRange: { start: benchProps.timeWindow.startIso },
+      timeRange: { start: timeWindow.startIso },
       first: numRecordsToLoad,
     },
     { fetchPolicy: "store-and-network" }
@@ -569,12 +565,13 @@ function SessionRecordSource({
 function SpanRecordSource({
   projectId,
   filterCondition,
+  timeWindow,
   ...benchProps
 }: RecordSourceProps) {
   const { numRecordsToLoad, isLoadingMore, keepListedRowsFirst, loadMore } =
     useLoadMoreRecords({
       filterCondition,
-      timeWindowStartISOTimestamp: benchProps.timeWindow.startIso,
+      timeWindowStartISOTimestamp: timeWindow.startIso,
     });
   const data = useLazyLoadQuery<ProjectEvaluatorScopePanelSpansQuery>(
     graphql`
@@ -617,7 +614,7 @@ function SpanRecordSource({
     {
       projectId,
       filterCondition: filterCondition.trim() || null,
-      timeRange: { start: benchProps.timeWindow.startIso },
+      timeRange: { start: timeWindow.startIso },
       first: numRecordsToLoad,
     },
     { fetchPolicy: "store-and-network" }
