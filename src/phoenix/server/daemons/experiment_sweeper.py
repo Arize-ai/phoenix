@@ -141,6 +141,8 @@ class ExperimentSweeper(DaemonTask):
                 tombstoned_ids = tuple(enqueued_projects)
                 self._event_queue.put(SpanDeleteEvent(tombstoned_ids))
                 self._event_queue.put(ProjectDeleteEvent(tombstoned_ids))
+        if deleted_experiment_ids and self._event_queue is not None:
+            self._event_queue.put(ExperimentDeleteEvent(tuple(deleted_experiment_ids)))
         if eval_trace_ids:
             await delete_standalone_traces_by_trace_id(
                 self._db,
@@ -148,6 +150,4 @@ class ExperimentSweeper(DaemonTask):
                 event_queue=self._event_queue,
             )
         if deleted_experiment_ids:
-            if self._event_queue is not None:
-                self._event_queue.put(ExperimentDeleteEvent(tuple(deleted_experiment_ids)))
             logger.info(f"Deleted {len(deleted_experiment_ids)} ephemeral experiment(s).")

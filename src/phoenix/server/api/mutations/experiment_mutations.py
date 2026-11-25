@@ -405,13 +405,13 @@ class ExperimentMutationMixin:
             tombstoned_ids = tuple(enqueued_projects)
             info.context.event_queue.put(SpanDeleteEvent(tombstoned_ids))
             info.context.event_queue.put(ProjectDeleteEvent(tombstoned_ids))
+        info.context.event_queue.put(ExperimentDeleteEvent(tuple(experiments.keys())))
         if eval_trace_ids:
             await delete_traces(
                 info.context.db,
                 *eval_trace_ids,
                 event_queue=info.context.event_queue,
             )
-        info.context.event_queue.put(ExperimentDeleteEvent(tuple(experiments.keys())))
         return ExperimentMutationPayload(
             experiments=[
                 to_gql_experiment(experiments[experiment_id]) for experiment_id in experiment_ids

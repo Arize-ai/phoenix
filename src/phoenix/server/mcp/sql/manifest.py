@@ -200,7 +200,9 @@ MANIFEST = AnalyticsSqlManifest(
                             )
                         ),
                         "project_annotation_configs": TableCuration(
-                            grain="One project-to-annotation-config attachment"
+                            grain=(
+                                f"One project-to-annotation-config attachment; {_LIVE_PROJECT_NOTE}"
+                            )
                         ),
                         "project_trace_retention_policies": TableCuration(
                             column_notes=MappingProxyType(
