@@ -1184,13 +1184,13 @@ is rejected. The policy's GraphQL shape is under [GraphQL](#15-graphql).
 
 ### 14.4 Compatible Updates
 
-A change to the version an evaluator runs is not checked against its bindings.
-Moving or deleting the evaluator's tag from the decision isn't checked, and
-neither is choosing another version in the evaluator editor. The evaluator's
-stored scoring policy is adapted to the version it runs wherever its outputs or
-policy are read: scores for removed questions or choices are dropped, and new
-questions get defaults. A binding's input mapping is checked against the version
-only when a write sets the mapping. An evaluator can never run a version of
+Changing the version the shared evaluator runs is not checked against its
+bindings, whether through REST `PATCH /v1/evaluators/{id}` or by moving or deleting
+its tag. A save that edits one binding together with its evaluator checks that
+binding's input mapping against the version the evaluator will run; the evaluator's
+other bindings are still not checked. The evaluator's stored scoring policy is
+adapted to the version it runs wherever its outputs or policy are read: scores for
+removed questions or choices are dropped, and new questions get defaults. An evaluator can never run a version of
 another decision. Every change affects future executions only, and each recorded
 annotation names the version that produced it.
 
