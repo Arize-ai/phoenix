@@ -54,17 +54,22 @@ function getFailureRateColor(failureRate: number): TextColorValue {
 export function ProjectEvaluatorFailuresCell({
   failureSummary,
 }: {
-  failureSummary: ProjectEvaluatorFailureSummary;
+  /**
+   * Undefined while the row's summary for the table's time range isn't in the
+   * store yet, e.g. a new evaluator fetched under another range. Null when
+   * nothing was evaluated in the range.
+   */
+  failureSummary: ProjectEvaluatorFailureSummary | null | undefined;
 }) {
-  const { failedCount, evaluatedCount, failureRate, lastFailedAt, lastError } =
-    failureSummary;
-  if (failureRate == null) {
+  if (failureSummary == null || failureSummary.failureRate == null) {
     return (
       <Text fontFamily="mono" color="text-700">
         --
       </Text>
     );
   }
+  const { failedCount, evaluatedCount, failureRate, lastFailedAt, lastError } =
+    failureSummary;
   const counts = `${countFormatter.format(failedCount)} failed · ${countFormatter.format(evaluatedCount)} evaluated`;
   return (
     <TooltipTrigger delay={0}>
