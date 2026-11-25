@@ -113,12 +113,34 @@ await context.with(suppressTracing(context.active()), async () => {
 });
 ```
 
-**Sampling:**
+**Sampling and span limits:**
 
-```bash
-export OTEL_TRACES_SAMPLER="parentbased_traceidratio"
-export OTEL_TRACES_SAMPLER_ARG="0.1"  # Sample 10%
+Pass `sampler` and `spanLimits` to `register()`. The default sampler is
+`ParentBasedSampler({ root: AlwaysOnSampler })`; the samplers are re-exported
+from `@arizeai/phoenix-otel`.
+
+```typescript
+import {
+  ParentBasedSampler,
+  register,
+  TraceIdRatioBasedSampler,
+} from "@arizeai/phoenix-otel";
+
+const provider = register({
+  projectName: "my-app",
+  sampler: new ParentBasedSampler({ root: new TraceIdRatioBasedSampler(0.1) }), // Sample 10%
+  spanLimits: { attributeValueLengthLimit: 4096, attributeCountLimit: 256 },
+});
 ```
+
+OpenTelemetry JS 3 does not read `OTEL_TRACES_SAMPLER`, `OTEL_TRACES_SAMPLER_ARG`,
+`OTEL_SPAN_*`, `OTEL_ATTRIBUTE_*`, or `OTEL_BSP_*`. When one of these is set and
+the matching setting is not configured in code, `register()` logs a one-time
+warning and the variable has no effect — e.g. `OTEL_TRACES_SAMPLER=always_off`
+does not disable tracing. To tune batching (`scheduledDelayMillis`,
+`maxQueueSize`, `maxExportBatchSize`, `exportTimeoutMillis`), pass a
+`BatchSpanProcessor` with those options in `spanProcessors` (see
+`setup-typescript.md`).
 
 ---
 

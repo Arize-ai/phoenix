@@ -7,6 +7,9 @@
 //    stalest first, each with the person the PR is waiting on.
 // 3. Community PRs that have no reviewer or assignee yet.
 
+const fs = require("fs");
+const path = require("path");
+
 const PULL_REQUESTS_QUERY = `
   query($owner: String!, $repo: String!, $cursor: String) {
     repository(owner: $owner, name: $repo) {
@@ -289,6 +292,23 @@ function createGithubLink(login) {
   return `<https://github.com/${login}|${login}>`;
 }
 
+// Maps GitHub logins to Slack user IDs (.github/slack-user-ids.json), so that
+// review requests can notify the reviewer. Logins without an entry fall back to
+// a plain GitHub link.
+function loadSlackUserIds() {
+  const filePath = path.join(__dirname, "..", "slack-user-ids.json");
+  try {
+    return JSON.parse(fs.readFileSync(filePath, "utf8"));
+  } catch {
+    return {};
+  }
+}
+
+function createMention(login, slackUserIds) {
+  const slackUserId = slackUserIds[login];
+  return slackUserId ? `<@${slackUserId}>` : createGithubLink(login);
+}
+
 function formatPersonLine(person, { owner, repo }) {
   const roleCounts = [
     ["authored", person.authored.length, `author:${person.login}`],
@@ -331,6 +351,46 @@ function formatPullRequestLine(summary, index) {
   }>* ${escapeSlackText(summary.title)} — ${details.join(" · ")}`;
 }
 
+// PRs where a person has an outstanding review request, oldest first. Each
+// reviewer is mentioned so they get notified.
+function formatAwaitingReview(summaries, { slackUserIds, maxReviewListings }) {
+  const byReviewer = new Map();
+  for (const summary of summaries) {
+    if (summary.waitingOn?.reason !== "review") continue;
+    for (const login of summary.waitingOn.logins) {
+      if (!byReviewer.has(login)) byReviewer.set(login, []);
+      byReviewer.get(login).push(summary);
+    }
+  }
+  const reviewers = [...byReviewer.entries()]
+    .map(([login, pullRequests]) => [
+      login,
+      pullRequests.sort(byIdleDaysDescending),
+    ])
+    .sort(
+      ([loginA, a], [loginB, b]) =>
+        b.length - a.length || loginA.localeCompare(loginB, "en"),
+    );
+  if (reviewers.length === 0) return [];
+
+  const lines = ["*👀 Awaiting your review*"];
+  for (const [login, pullRequests] of reviewers) {
+    lines.push(
+      `${createMention(login, slackUserIds)} (${pullRequests.length}):`,
+    );
+    for (const summary of pullRequests.slice(0, maxReviewListings)) {
+      lines.push(
+        `    ${summary.freshness.emoji} *<${summary.url}|#${summary.number}>* ${escapeSlackText(
+          summary.title,
+        )} — idle ${summary.idleDays}d`,
+      );
+    }
+    const hidden = pullRequests.length - maxReviewListings;
+    if (hidden > 0) lines.push(`    _…and ${hidden} more_`);
+  }
+  return lines;
+}
+
 function formatList(header, summaries, limit) {
   const lines = [header];
   summaries
@@ -364,6 +424,11 @@ function buildSlackMessage(summaries, options) {
   if (people.length > 0) {
     lines.push("", `*👥 By person*`);
     lines.push(...people.map((person) => formatPersonLine(person, options)));
+  }
+
+  const awaitingReview = formatAwaitingReview(summaries, options);
+  if (awaitingReview.length > 0) {
+    lines.push("", ...awaitingReview);
   }
 
   if (stale.length > 0) {
@@ -432,6 +497,8 @@ module.exports = async ({ github, context, core }) => {
     stalenessThreshold: parseIntegerEnv("STALENESS_THRESHOLD_IN_DAYS", 14),
     maxStale: parseIntegerEnv("MAX_STALE_PRS", 15),
     maxUnowned: parseIntegerEnv("MAX_UNOWNED_PRS", 10),
+    maxReviewListings: parseIntegerEnv("MAX_REVIEW_LISTINGS_PER_PERSON", 5),
+    slackUserIds: loadSlackUserIds(),
   };
 
   const pullRequests = await fetchOpenPullRequests(github, owner, repo);

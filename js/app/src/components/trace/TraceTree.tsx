@@ -24,7 +24,7 @@ import { SpanAnnotationBadges } from "./SpanAnnotationBadges";
 import { SpanKindIcon } from "./SpanKindIcon";
 import { SpanMetricsRow } from "./SpanMetricsRow";
 import { SpanPreviewTooltip } from "./SpanPreviewTooltip";
-import { SpanStatusCodeIcon } from "./SpanStatusCodeIcon";
+import { SpanStatusIndicator } from "./SpanStatusIndicator";
 import { useTraceTree } from "./TraceTreeContext";
 import {
   SpanTreeDrop,
@@ -169,6 +169,11 @@ const spanNameCSS = css`
   text-overflow: ellipsis;
 `;
 
+const spanStatusCSS = css`
+  display: flex;
+  flex: none;
+`;
+
 interface SpanTreeItemProps<TSpan extends ISpanItem> {
   node: SpanTreeNode<TSpan>;
   selectedSpanNodeId: string;
@@ -274,13 +279,9 @@ function SpanTreeItem<TSpan extends ISpanItem>(
                 >
                   <span css={spanNameCSS}>{name}</span>
                   {statusCode === "ERROR" ? (
-                    <SpanStatusCodeIcon
-                      statusCode="ERROR"
-                      css={css`
-                        font-size: var(--global-font-size-m);
-                        flex: none;
-                      `}
-                    />
+                    <span css={spanStatusCSS}>
+                      <SpanStatusIndicator statusCode="ERROR" isLabelHidden />
+                    </span>
                   ) : null}
                 </Flex>
                 {showMetricsInTraceTree ? (

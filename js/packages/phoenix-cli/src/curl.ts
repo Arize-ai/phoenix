@@ -1,4 +1,4 @@
-import { obscureApiKey } from "./commands/auth";
+import { obscureApiKey } from "./auth/apiKey";
 
 export interface RenderCurlCommandOptions {
   /** HTTP method for the request; upper-cased in the rendered `-X` flag. */

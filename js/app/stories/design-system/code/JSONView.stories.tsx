@@ -152,7 +152,7 @@ function AttributesCard({ defaultOpen = true }: { defaultOpen?: boolean }) {
   return (
     <Card
       title="Attributes"
-      titleExtra={<Counter variant="quiet">{entries.length}</Counter>}
+      titleExtra={<Counter variant="quiet" count={entries.length} />}
       interactiveTitle
       collapseButtonLabel="Attributes"
       collapsible

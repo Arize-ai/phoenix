@@ -1,7 +1,7 @@
-/js @arize-ai/oss-javascript
-/app @arize-ai/oss-javascript @arize-ai/oss-design
-/src @arize-ai/oss-python
-/packages @arize-ai/oss-python
-/examples @arize-ai/dev-rel @arize-ai/oss-eng
-/tutorials @arize-ai/dev-rel @arize-ai/oss-eng
-/.github @arize-ai/oss-eng
+/js @arize-ai/phoenix-javascript
+/js/app @arize-ai/phoenix-javascript @arize-ai/oss-design
+/src @arize-ai/phoenix-python
+/packages @arize-ai/phoenix-python
+/examples @arize-ai/dev-rel @arize-ai/phoenix-python @arize-ai/phoenix-javascript
+/tutorials @arize-ai/dev-rel @arize-ai/phoenix-python @arize-ai/phoenix-javascript
+/.github @arize-ai/phoenix-python @arize-ai/phoenix-javascript

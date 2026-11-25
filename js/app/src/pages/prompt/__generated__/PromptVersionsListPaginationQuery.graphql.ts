@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6b5b2611690dcb7af24f2a4491560f0c>>
+ * @generated SignedSource<<c68d81548402edfdd15bac082f0f88e3>>
  * @lightSyntaxTransform
  */
 
@@ -285,12 +285,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "a663c557ca430beeec2031f78fc4b5df",
+    "cacheID": "c0eaf6d6f7143f3e3a45f28026fb7ae1",
     "id": null,
     "metadata": {},
     "name": "PromptVersionsListPaginationQuery",
     "operationKind": "query",
-    "text": "query PromptVersionsListPaginationQuery(\n  $after: String = null\n  $first: Int = 50\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...PromptVersionsList__main_2HEEH6\n    id\n  }\n}\n\nfragment PromptVersionSummaryFragment on PromptVersion {\n  id\n  description\n  sequenceNumber\n  createdAt\n  user {\n    id\n    username\n    profilePictureUrl\n  }\n  ...PromptVersionTagsList_data\n}\n\nfragment PromptVersionTagsList_data on PromptVersion {\n  tags {\n    id\n    name\n  }\n}\n\nfragment PromptVersionsList__main_2HEEH6 on Prompt {\n  pagedVersions: promptVersions(first: $first, after: $after) {\n    edges {\n      version: node {\n        id\n        ...PromptVersionSummaryFragment\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query PromptVersionsListPaginationQuery(\n  $after: String = null\n  $first: Int = 50\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...PromptVersionsList__main_2HEEH6\n    id\n  }\n}\n\nfragment PromptVersionSummaryFragment on PromptVersion {\n  id\n  description\n  sequenceNumber\n  createdAt\n  user {\n    id\n    username\n    profilePictureUrl\n  }\n  tags {\n    id\n  }\n  ...PromptVersionTagsList_data\n}\n\nfragment PromptVersionTagsList_data on PromptVersion {\n  tags {\n    id\n    name\n  }\n}\n\nfragment PromptVersionsList__main_2HEEH6 on Prompt {\n  pagedVersions: promptVersions(first: $first, after: $after) {\n    edges {\n      version: node {\n        id\n        ...PromptVersionSummaryFragment\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
   }
 };
 })();

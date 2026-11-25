@@ -1,5 +1,52 @@
 # @arizeai/phoenix-cli
 
+## 1.25.0
+
+### Minor Changes
+
+- d3eafcb: Add `px project create --name <name>` to create a Phoenix project. It prints the new project's ID on success.
+- 697aaca: Add `px setup doctor`, which checks config, server connectivity, server version, and authentication, and prints pass/fail/skip for each with a fix hint.
+
+### Patch Changes
+
+- 697aaca: `px auth status` now sends the profile's custom headers when it retries expired OAuth credentials as anonymous access, so the retry works behind a header-gated proxy.
+- Updated dependencies [264ff3c]
+- Updated dependencies [c822820]
+  - @arizeai/phoenix-client@8.0.4
+
+## 1.24.1
+
+### Patch Changes
+
+- Updated dependencies [ea5a688]
+  - @arizeai/phoenix-client@8.0.3
+
+## 1.24.0
+
+### Minor Changes
+
+- 0b821b2: Add `px dataset-labels list`, `add`, `remove`, and `replace` commands to manage existing label assignments by dataset name or GlobalID, including explicitly clearing all assignments.
+
+### Patch Changes
+
+- 4270bce: Limit PXI to two recommended models per provider: Claude Fable 5.2 and Opus 5.5, GPT-6.2 Sol and GPT-6.1 Terra, and Gemini 4 Carbon and Neon.
+- 02ed180: Remove Slack community links from the package README
+- Updated dependencies [02ed180]
+  - @arizeai/phoenix-client@8.0.2
+  - @arizeai/phoenix-config@0.5.2
+
+## 1.23.0
+
+### Minor Changes
+
+- 5160fd5: Add `px prompt tag <prompt-version-id> --tag <name> [--description <text>]` to create a prompt version tag or move an existing one. Omitting `--description` clears the tag's existing description.
+
+## 1.22.1
+
+### Patch Changes
+
+- @arizeai/phoenix-client@8.0.1
+
 ## 1.22.0
 
 ### Minor Changes

@@ -70,7 +70,7 @@ const SLOTS: { label: string; props: Partial<CardProps> }[] = [
   { label: "Subtitle", props: { subTitle: "Scored by an LLM judge" } },
   {
     label: "Title extra",
-    props: { titleExtra: <Counter variant="quiet">4</Counter> },
+    props: { titleExtra: <Counter variant="quiet" count={4} /> },
   },
   { label: "Header content", props: { headerContent: ANNOTATION_TOKENS } },
   { label: "Extra", props: { extra: <Button size="S">Edit</Button> } },
@@ -78,7 +78,7 @@ const SLOTS: { label: string; props: Partial<CardProps> }[] = [
     label: "Every slot",
     props: {
       subTitle: "LLM judge",
-      titleExtra: <Counter variant="quiet">4</Counter>,
+      titleExtra: <Counter variant="quiet" count={4} />,
       headerContent: ANNOTATION_TOKENS,
       extra: <Button size="S">Edit</Button>,
     },

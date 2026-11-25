@@ -1,5 +1,34 @@
 # @arizeai/phoenix-client
 
+## 8.0.4
+
+### Patch Changes
+
+- 264ff3c: fix(phoenix-client): send prompt extra_body fields as top-level SDK parameters
+- c822820: Add generated types for the `DELETE /v1/datasets/{id}/examples` REST route, which permanently deletes dataset examples.
+
+## 8.0.3
+
+### Patch Changes
+
+- ea5a688: Acceptance criteria results now report `eligibleRunCount` (non-skipped runs in the suite) next to `sampleCount` (runs that logged the criterion's annotation), and the reporter shows coverage as `70 of 100 runs`. Pass/fail semantics are unchanged: a criterion is computed over the runs that logged its annotation.
+
+## 8.0.2
+
+### Patch Changes
+
+- 02ed180: Remove Slack community links from the package README
+- Updated dependencies [02ed180]
+  - @arizeai/phoenix-config@0.5.2
+  - @arizeai/phoenix-otel@3.1.1
+
+## 8.0.1
+
+### Patch Changes
+
+- Updated dependencies [f35755b]
+  - @arizeai/phoenix-otel@3.1.0
+
 ## 8.0.0
 
 ### Major Changes

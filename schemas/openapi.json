@@ -2927,6 +2927,77 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Permanently delete examples from a dataset",
+        "description": "Permanently delete examples and all of their revisions from every version of the dataset. The experiment runs on these examples, their evaluations, their task and evaluator traces, and their experiment logs are deleted too. The dataset, its versions, its experiments, and its other examples are kept. This cannot be undone. Example IDs that are not in the dataset are skipped, so a repeated request succeeds. Wait for experiments on the dataset to finish first, because runs and traces that arrive after the request are kept.",
+        "operationId": "deleteDatasetExamples",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the dataset",
+              "title": "Id"
+            },
+            "description": "The ID of the dataset"
+          },
+          {
+            "name": "example_ids",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 100,
+              "description": "Identifiers of the examples to delete: dataset example IDs (GlobalIDs) or user-provided IDs. To delete more examples, send more requests.",
+              "title": "Example Ids"
+            },
+            "description": "Identifiers of the examples to delete: dataset example IDs (GlobalIDs) or user-provided IDs. To delete more examples, send more requests."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid dataset ID, no example IDs, or too many example IDs"
+          }
+        }
       }
     },
     "/v1/datasets/{dataset_identifier}/splits": {
@@ -6114,6 +6185,69 @@
       }
     },
     "/v1/spans/{span_identifier}": {
+      "get": {
+        "tags": [
+          "spans"
+        ],
+        "summary": "Get a single span by span_identifier",
+        "description": "Fetch a single span by identifier. The identifier may be either a Global ID or an OpenTelemetry span_id. Returns the span in the same shape as the elements of the list-spans endpoint.",
+        "operationId": "getSpan",
+        "parameters": [
+          {
+            "name": "span_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The span identifier: either a Global ID or OpenTelemetry span_id",
+              "title": "Span Identifier"
+            },
+            "description": "The span identifier: either a Global ID or OpenTelemetry span_id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetSpanResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "delete": {
         "tags": [
           "spans"
@@ -6128,10 +6262,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "The span identifier: either a relay GlobalID or OpenTelemetry span_id",
+              "description": "The span identifier: either a Global ID or OpenTelemetry span_id",
               "title": "Span Identifier"
             },
-            "description": "The span identifier: either a relay GlobalID or OpenTelemetry span_id"
+            "description": "The span identifier: either a Global ID or OpenTelemetry span_id"
           }
         ],
         "responses": {
@@ -6981,7 +7115,7 @@
           "prompts"
         ],
         "summary": "Delete a prompt",
-        "description": "Delete a prompt and all its versions, tags, and labels by identifier.",
+        "description": "Delete a prompt and all its versions, tags, and labels by identifier. Returns 409 if one or more LLM evaluators use the prompt.",
         "operationId": "deletePrompt",
         "parameters": [
           {
@@ -7019,6 +7153,16 @@
               }
             },
             "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Prompt is in use by one or more LLM evaluators"
           },
           "422": {
             "content": {
@@ -7186,6 +7330,16 @@
               }
             },
             "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Conflict"
           },
           "422": {
             "content": {
@@ -14497,6 +14651,18 @@
           "next_cursor"
         ],
         "title": "GetSessionsResponseBody"
+      },
+      "GetSpanResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Span"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "GetSpanResponseBody"
       },
       "GetTracesResponseBody": {
         "properties": {

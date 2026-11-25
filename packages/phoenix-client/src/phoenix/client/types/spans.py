@@ -5,9 +5,6 @@ from typing import Any, Optional
 _BACKWARD_COMPATIBILITY_REPLACEMENTS: dict[str, str] = {
     "context.span_id": "span_id",
     "context.trace_id": "trace_id",
-    "cumulative_token_count.completion": "cumulative_llm_token_count_completion",
-    "cumulative_token_count.prompt": "cumulative_llm_token_count_prompt",
-    "cumulative_token_count.total": "cumulative_llm_token_count_total",
 }
 
 _ALIASES: dict[str, str] = {

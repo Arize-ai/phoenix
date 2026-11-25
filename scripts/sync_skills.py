@@ -13,6 +13,9 @@ Run with no arguments to write every copy (``make skills``):
 - ``src/phoenix/server/mcp/skills/<name>/``: a copy of each ``mcp`` skill.
 - ``src/phoenix/server/agents/prompts/public_skills/<name>/``: a copy of each
   ``pxi`` skill.
+- ``src/phoenix/server/agents/prompts/skills/phoenix-graphql/references/filter-expressions.md``:
+  a copy of ``skills/phoenix-cli/references/filter-expressions.md``, so PXI's
+  own ``phoenix-graphql`` skill teaches the same filter syntax.
 - ``plugins/claude/arize-phoenix/skills/<name>``: a symlink for each ``agents``
   skill. Claude Code follows the symlinks when it installs the plugin.
 - ``plugins/codex/arize-phoenix/skills/<name>/``: a copy of each ``agents``
@@ -56,7 +59,7 @@ import re
 import shutil
 import subprocess
 import sys
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
@@ -71,6 +74,12 @@ PXI_ROOT = REPO_ROOT / "src" / "phoenix" / "server" / "agents" / "prompts" / "sk
 CLAUDE_PLUGIN_ROOT = REPO_ROOT / "plugins" / "claude" / "arize-phoenix" / "skills"
 CODEX_PLUGIN_ROOT = REPO_ROOT / "plugins" / "codex" / "arize-phoenix" / "skills"
 CURSOR_MANIFEST = REPO_ROOT / ".cursor-plugin" / "plugin.json"
+FILE_COPIES = (
+    (
+        PUBLIC_ROOT / "phoenix-cli" / "references" / "filter-expressions.md",
+        PXI_ROOT / "phoenix-graphql" / "references" / "filter-expressions.md",
+    ),
+)
 
 TARGETS = frozenset({"agents", "mcp", "pxi"})
 SKILL_FILE = "SKILL.md"
@@ -195,6 +204,27 @@ def copies(root: Path, skills: list[Skill]) -> Iterator[Change]:
             )
 
 
+def _replace_with_file_copy(source: Path, dest: Path) -> Callable[[], None]:
+    def apply() -> None:
+        _remove(dest)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, dest)
+
+    return apply
+
+
+def file_copies(pairs: Iterable[tuple[Path, Path]], errors: list[str]) -> Iterator[Change]:
+    """Each destination file is an exact copy of its source file."""
+    for source, dest in pairs:
+        if not source.is_file():
+            errors.append(f"{_rel(source)}: missing, but {_rel(dest)} is copied from it")
+            continue
+        if dest.is_symlink() or not dest.is_file() or not filecmp.cmp(source, dest, shallow=False):
+            yield Change(
+                f"{_rel(dest)}: copy from {_rel(source)}", _replace_with_file_copy(source, dest)
+            )
+
+
 def _link_target(link: Path, skill: Skill) -> str:
     return os.path.relpath(skill.path, link.parent)
 
@@ -308,6 +338,7 @@ def build(errors: list[str]) -> list[Change]:
     changes = [
         *copies(MCP_ROOT, targeted("mcp")),
         *copies(PXI_PUBLIC_ROOT, targeted("pxi")),
+        *file_copies(FILE_COPIES, errors),
         *links(CLAUDE_PLUGIN_ROOT, targeted("agents"), prune=lambda entry: True),
         *copies(CODEX_PLUGIN_ROOT, targeted("agents")),
         *cursor_manifest(targeted("agents")),

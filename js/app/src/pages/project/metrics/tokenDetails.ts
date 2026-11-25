@@ -4,6 +4,8 @@
  */
 
 import type { useCategoryChartColors } from "@phoenix/components/chart";
+import type { GenerativeModelType } from "@phoenix/constants/generativeConstants";
+import { GENERATIVE_MODEL_TYPE_LABELS } from "@phoenix/constants/generativeConstants";
 import {
   compareTokenTypes,
   getTokenDetailLabelForKind,
@@ -32,6 +34,8 @@ interface TokenDetailValue {
 /** Minimal GraphQL model shape consumed by the chart transformer. */
 interface ModelWithTokenDetails {
   readonly name: string;
+  /** Tells apart models that share a name but price different span kinds. */
+  readonly modelType?: GenerativeModelType;
   readonly costSummary: {
     readonly prompt: {
       readonly tokens?: number | null;
@@ -276,6 +280,27 @@ function recordTokenDetailValue({
 }
 
 /**
+ * Labels each model by name, adding its type when another model in the chart
+ * has the same name and a different type (names are only unique per type).
+ *
+ * @param models - Models in chart order.
+ * @returns One label per model, in the same order.
+ */
+function getModelLabels(models: ReadonlyArray<ModelWithTokenDetails>) {
+  const typesByName = new Map<string, Set<GenerativeModelType | undefined>>();
+  models.forEach((model) => {
+    const types = typesByName.get(model.name) ?? new Set();
+    types.add(model.modelType);
+    typesByName.set(model.name, types);
+  });
+  return models.map((model) =>
+    model.modelType && (typesByName.get(model.name)?.size ?? 0) > 1
+      ? `${model.name} (${GENERATIVE_MODEL_TYPE_LABELS[model.modelType]})`
+      : model.name
+  );
+}
+
+/**
  * Builds stacked model chart data for either token counts or costs.
  *
  * Detail rows refine the authoritative prompt and completion summaries but
@@ -295,9 +320,10 @@ export function buildModelTokenDetailChartData({
   models: ReadonlyArray<ModelWithTokenDetails>;
 }) {
   const seriesByDataKey = new Map<string, ModelTokenDetailSeries>();
-  const chartData = models.map((model) => {
+  const modelLabels = getModelLabels(models);
+  const chartData = models.map((model, index) => {
     const chartDatum: ModelTokenDetailChartDatum = {
-      model: model.name,
+      model: modelLabels[index],
       total: model.costSummary.total[metric] ?? 0,
     };
     ([true, false] as const).forEach((isPrompt) => {

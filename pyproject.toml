@@ -32,7 +32,7 @@ dependencies = [
   "starlette>=0.37.0",
   "uvicorn",
   "psutil",
-  "strawberry-graphql==0.340.1",
+  "strawberry-graphql==0.341.2",
   "graphql-core>=3.3.1,<3.4",
   "pyarrow",
   "typing-extensions>=4.6",
@@ -42,10 +42,10 @@ dependencies = [
   "tqdm",
   "httpx2[http2]",
   "certifi>=2026.10.19",
-  "opentelemetry-sdk",
-  "opentelemetry-proto>=1.12.0",  # needed to avoid this issue: https://github.com/Arize-ai/phoenix/issues/2695
-  "opentelemetry-exporter-otlp",
-  "openinference-semantic-conventions>=0.1.40",
+  "opentelemetry-sdk>=1.45.0",
+  "opentelemetry-proto>=1.45.0",
+  "opentelemetry-exporter-otlp>=1.45.0",
+  "openinference-semantic-conventions>=0.1.46",
   "openinference-instrumentation>=0.1.60",
   "openinference-instrumentation-openai>=0.1.41",
   "sqlglot==30.21.0",
@@ -63,14 +63,14 @@ dependencies = [
   # Code-mode sandbox. Direct, not via fastmcp's `code-mode` extra, whose exact `pydantic-monty` pin conflicts and would ship in wheel metadata.
   "pydantic-monty==1.5.0",
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
-  "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.53.0,<3",
+  "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.71.0,<3",
   # Arrives via pydantic-ai-slim[anthropic], which sets no upper bound. Pinned
   # here so the major version is chosen deliberately rather than by resolution.
   "anthropic>=1,<2",
   "bashkit>=0.10.0,!=0.14.2",  # 0.14.2 shipped no sdist and only cp310/cp311 wheels, breaking installs on 3.14; see https://pypi.org/project/bashkit/0.14.2/
   "authlib>=1.8.0",
   "joserfc",
-  "arize-phoenix-client>=3.7.0",
+  "arize-phoenix-client>=3.8.0",
   "email-validator",
   "python-dateutil",
   "prometheus_client",
@@ -120,11 +120,9 @@ dev = [
   "numpy",
   "scikit-learn",  # reference implementation for retrieval metric tests
   "openai>=3.1.0,<4",
-  "openinference-semantic-conventions>=0.1.40",
+  "openinference-semantic-conventions>=0.1.46",
   "openinference-instrumentation>=0.1.60",
   "opentelemetry-exporter-otlp",
-  "opentelemetry-instrumentation-grpc",
-  "opentelemetry-instrumentation-sqlalchemy",
   "opentelemetry-instrumentation-aiohttp-client",
   "opentelemetry-proto>=1.12.0",
   "opentelemetry-sdk>=1.35.0",
@@ -151,7 +149,7 @@ dev = [
   "pytest-xdist",
   "requests",  # this is needed to type-check third-party packages
   "responses",
-  "strawberry-graphql[opentelemetry,cli]==0.340.1",  # cli extra provides typer for `strawberry export-schema` (schema-graphql); previously satisfied transitively via huggingface-hub, which dropped typer in 1.22.0
+  "strawberry-graphql[opentelemetry,cli]==0.341.2",  # cli extra provides typer for `strawberry export-schema` (schema-graphql); previously satisfied transitively via huggingface-hub, which dropped typer in 1.22.0
   "syrupy",
   "tenacity",
   "tiktoken",
@@ -177,7 +175,7 @@ dev = [
   "jupyter>=1.1.1",
   "ruff>=0.15.2",
   "libcst>=1.8.6",
-  "datamodel-code-generator==0.72.2",
+  "datamodel-code-generator==0.81.0",
   "grpcio-tools>=1.78.0",
   "mypy-protobuf>=5.0.0",
   "jinja2>=3.1.6",
@@ -221,16 +219,8 @@ container = [
   "openai>=3.1.0,<4",
   "azure-identity>=1.18.0",  # MSAL-backed in-memory token cache for ManagedIdentityCredential
   "aiohttp",  # used by azure-identity via azure.core.pipeline.transport
-  # Note: when updating opentelemetry dependencies, all packages must use versions
-  # released on the same date (e.g., 1.45.0/0.66b0) to ensure compatibility.
-  "opentelemetry-sdk==1.45.0",
-  "opentelemetry-proto==1.45.0",
-  "opentelemetry-exporter-otlp==1.45.0",
-  "opentelemetry-semantic-conventions==0.66b0",
-  "opentelemetry-instrumentation-sqlalchemy==0.66b0",
-  "opentelemetry-instrumentation-grpc==0.66b0",
   "py-grpc-prometheus",
-  "strawberry-graphql[opentelemetry]==0.340.1",
+  "strawberry-graphql[opentelemetry]==0.341.2",
   "uvloop; platform_system != 'Windows'",
   "aioboto3",
   "aiobotocore>=3.2.0",  # first release whose botocore floor includes Converse ToolSpecification "strict"; older botocore rejects it client-side
@@ -300,6 +290,17 @@ artifacts = [
   "src/phoenix/server/cost_tracking/manifests",
   "src/phoenix/server/api/helpers/substitutions/server.yaml",
 ]
+
+# check-wheel-contents runs every check except W002 (duplicate files). Each skill
+# directory in the wheel is self-contained, so a skill that ships to both the MCP
+# server and PXI, or two skills that share a reference file, carry identical copies.
+# W002 is left out of `select` instead of listed under `ignore` because a CLI
+# `--ignore`, like the one in publish.yaml, replaces a configured `ignore`.
+# publish.yaml runs check-wheel-contents from the repo root, where it reads this file,
+# so the client, evals, and otel wheels skip W002 too. A check that a later release
+# adds stays off until it's added here.
+[tool.check-wheel-contents]
+select = ["W001", "W003", "W004", "W005", "W006", "W007", "W008", "W009", "W010", "W1", "W2"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -378,6 +379,7 @@ module = [
   "jsonpath_ng",
   "wasmtime",
   "snowballstemmer",
+  "check_wheel_contents.*",
 ]
 ignore_missing_imports = true
 
@@ -429,6 +431,7 @@ exclude = [
   "skills/**/*.md",
   "src/phoenix/server/mcp/skills/**/*.md",
   "src/phoenix/server/agents/prompts/public_skills/**/*.md",
+  "src/phoenix/server/agents/prompts/skills/phoenix-graphql/references/filter-expressions.md",
   "plugins/codex/arize-phoenix/skills/**/*.md",
   ".claude/**/*.md",
   ".cursor/**/*.md",
