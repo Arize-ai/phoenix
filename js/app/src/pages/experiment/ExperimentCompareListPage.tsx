@@ -72,7 +72,12 @@ import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import type { ExperimentCompareListPageQuery } from "@phoenix/pages/experiment/__generated__/ExperimentCompareListPageQuery.graphql";
 import type { ExperimentComparePageQueriesCompareListQuery as ExperimentComparePageQueriesCompareListQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesCompareListQuery.graphql";
-import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
+import {
+  ExperimentCompareSlideover,
+  findNavigationItemIndex,
+  isInteractiveClickTarget,
+  useExperimentCompareSlideoverState,
+} from "@phoenix/pages/experiment/compareSlideover";
 import { ExperimentComparePageQueriesCompareListQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
 import { TraceDetailsDialog } from "@phoenix/pages/experiment/TraceDetailsDialog";
 import { isObject } from "@phoenix/typeUtils";
@@ -158,9 +163,8 @@ export function ExperimentCompareListPage({
     [searchParams]
   );
 
-  const [selectedExampleIndex, setSelectedExampleIndex] = useState<
-    number | null
-  >(null);
+  const { state: slideoverState, openExample } =
+    useExperimentCompareSlideoverState();
   const [selectedTraceDetails, setSelectedTraceDetails] = useState<{
     traceId: string;
     projectId: string;
@@ -522,6 +526,16 @@ export function ExperimentCompareListPage({
     []
   );
 
+  const hasRepetitions = baseExperiment.repetitions > 1;
+  const getRowNavigationItem = useCallback(
+    (row: Pick<TableRow, "example" | "externalId" | "repetitionNumber">) => ({
+      exampleId: row.example,
+      exampleExternalId: row.externalId,
+      baseRepetitionNumber: hasRepetitions ? row.repetitionNumber : undefined,
+    }),
+    [hasRepetitions]
+  );
+
   const fetchMoreOnBottomReached = useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
@@ -561,9 +575,7 @@ export function ExperimentCompareListPage({
               <IconButton
                 size="S"
                 aria-label="View experiment run details"
-                onPress={() => {
-                  setSelectedExampleIndex(row.index);
-                }}
+                onPress={() => openExample(getRowNavigationItem(row.original))}
                 css={css`
                   flex: none;
                 `}
@@ -1164,6 +1176,8 @@ export function ExperimentCompareListPage({
     columnHelper,
     experiments,
     getExperimentColor,
+    getRowNavigationItem,
+    openExample,
   ]);
 
   // This component isn't compiled (it calls `useVirtualizer`), so memoize by
@@ -1246,9 +1260,27 @@ export function ExperimentCompareListPage({
       header.column.getSize();
   }
 
-  const exampleIds = useMemo(() => {
-    return rows.map((row) => row.original.example);
-  }, [rows]);
+  const navigationItems = useMemo(
+    () => rows.map((row) => getRowNavigationItem(row.original)),
+    [rows, getRowNavigationItem]
+  );
+  const selectedRowId =
+    rows[
+      findNavigationItemIndex({
+        items: navigationItems,
+        selectedExampleId: slideoverState.selectedExampleId,
+        baseRepetitionNumber: slideoverState.baseRepetitionNumber,
+      })
+    ]?.id ?? null;
+  const handleRowClick =
+    slideoverState.selectedExampleId != null
+      ? (rowId: string) => {
+          const row = rows.find((candidate) => candidate.id === rowId);
+          if (row != null) {
+            openExample(getRowNavigationItem(row.original));
+          }
+        }
+      : undefined;
 
   return (
     <View overflow="auto">
@@ -1311,72 +1343,44 @@ export function ExperimentCompareListPage({
                 table={table}
                 virtualRows={virtualizer.getVirtualItems()}
                 totalHeight={virtualizer.getTotalSize()}
+                selectedRowId={selectedRowId}
+                onRowClick={handleRowClick}
               />
             ) : (
               <TableBody
                 table={table}
                 virtualRows={virtualizer.getVirtualItems()}
                 totalHeight={virtualizer.getTotalSize()}
+                selectedRowId={selectedRowId}
+                onRowClick={handleRowClick}
               />
             )}
           </table>
         </div>
       </Flex>
-      <ViewportModalOverlay
-        isOpen={selectedExampleIndex !== null}
-        onOpenChange={(isOpen) => {
-          if (!isOpen) {
-            setSelectedExampleIndex(null);
-          }
-        }}
-      >
-        <ViewportModal size="fullscreen">
-          {selectedExampleIndex !== null &&
-            datasetId &&
-            rows[selectedExampleIndex] && (
-              <ExperimentCompareDetailsDialog
-                repetitionNumber={
-                  baseExperiment?.repetitions > 1
-                    ? rows[selectedExampleIndex].original.repetitionNumber
-                    : undefined
-                }
-                datasetId={datasetId}
-                datasetVersionId={baseExperiment?.datasetVersion?.id}
-                selectedExampleIndex={selectedExampleIndex}
-                selectedExampleId={rows[selectedExampleIndex].original.example}
-                selectedExampleExternalId={
-                  rows[selectedExampleIndex].original.externalId
-                }
-                baseExperimentId={baseExperiment?.id}
-                compareExperimentIds={compareExperimentIds}
-                exampleIds={exampleIds}
-                onExampleChange={(exampleIndex) => {
-                  if (
-                    exampleIndex === exampleIds.length - 1 &&
-                    !isLoadingNext &&
-                    hasNext
-                  ) {
-                    loadNext(PAGE_SIZE);
-                  }
-                  if (exampleIndex >= 0 && exampleIndex < exampleIds.length) {
-                    setSelectedExampleIndex(exampleIndex);
-                  }
-                }}
-                openTraceDialog={(traceId, projectId, title) => {
-                  // A span selection left in the URL by another view (e.g.
-                  // the grid view's trace drawer) belongs to a different
-                  // trace, so drop it before this trace renders.
-                  clearSelectedSpanSearchParam();
-                  setSelectedTraceDetails({
-                    traceId,
-                    projectId,
-                    dialogTitle: title,
-                  });
-                }}
-              />
-            )}
-        </ViewportModal>
-      </ViewportModalOverlay>
+      {datasetId && baseExperiment != null ? (
+        <ExperimentCompareSlideover
+          datasetId={datasetId}
+          baseExperimentId={baseExperiment.id}
+          compareExperimentIds={compareExperimentIds}
+          navigationItems={navigationItems}
+          totalItemCount={baseExperiment.runCount}
+          hasMoreItems={hasNext}
+          isLoadingMoreItems={isLoadingNext}
+          onLoadMoreItems={() => loadNext(PAGE_SIZE)}
+          onOpenTrace={({ traceId, projectId, title }) => {
+            // A span selection left in the URL by another view (e.g. the
+            // grid view's trace drawer) belongs to a different trace, so
+            // drop it before this trace renders.
+            clearSelectedSpanSearchParam();
+            setSelectedTraceDetails({
+              traceId,
+              projectId,
+              dialogTitle: title,
+            });
+          }}
+        />
+      ) : null}
       <ViewportModalOverlay
         isOpen={selectedTraceDetails !== null}
         onOpenChange={(isOpen) => {
@@ -1484,8 +1488,14 @@ function TableBody<T extends RowData>({
   table,
   virtualRows,
   totalHeight,
+  selectedRowId,
+  onRowClick,
 }: {
   table: Table<T>;
+  /** The row whose run is open in the compare slideover */
+  selectedRowId?: string | null;
+  /** Called with a row's ID when the row itself, not a control in it, is clicked */
+  onRowClick?: (rowId: string) => void;
   /**
    * Read from the virtualizer by the caller: the virtualizer is a stable
    * object, so a compiled body reading it directly would never see new rows.
@@ -1505,7 +1515,18 @@ function TableBody<T extends RowData>({
         return (
           <tr
             key={row.id}
+            data-selected={row.id === selectedRowId}
+            onClick={
+              onRowClick != null
+                ? (event) => {
+                    if (!isInteractiveClickTarget(event.target)) {
+                      onRowClick(row.id);
+                    }
+                  }
+                : undefined
+            }
             style={{
+              cursor: onRowClick != null ? "pointer" : undefined,
               height: `${virtualRow.size}px`,
               transform: `translateY(${
                 virtualRow.start - index * virtualRow.size
@@ -1547,7 +1568,9 @@ function TableBody<T extends RowData>({
 //special memoized wrapper for our table body that we will use during column resizing
 export const MemoizedTableBody = memo(
   TableBody,
-  (prev, next) => prev.table.options.data === next.table.options.data
+  (prev, next) =>
+    prev.table.options.data === next.table.options.data &&
+    prev.selectedRowId === next.selectedRowId
 ) as typeof TableBody;
 
 const getAnnotationValue = (annotation: Annotation | undefined) => {

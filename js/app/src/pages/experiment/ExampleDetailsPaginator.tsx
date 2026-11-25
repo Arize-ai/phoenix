@@ -7,6 +7,7 @@ import {
   Icon,
   Icons,
   KeyboardToken,
+  ProgressCircle,
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
@@ -19,13 +20,25 @@ export const ExampleDetailsPaginator = ({
   currentExampleIndex,
   exampleIds,
   onExampleChange,
+  hasMoreExamples = false,
+  isLoadingMoreExamples = false,
 }: {
   currentExampleIndex: number;
-  exampleIds: string[];
+  exampleIds: readonly string[];
+  /**
+   * Called with the index to move to. With `hasMoreExamples`, that index is
+   * one past the loaded examples when next is pressed on the last of them.
+   */
   onExampleChange: (exampleIndex: number) => void;
+  /** Whether the server has examples past the loaded ones */
+  hasMoreExamples?: boolean;
+  /** Whether the next page of examples is being fetched */
+  isLoadingMoreExamples?: boolean;
 }) => {
   const hasPrevious = currentExampleIndex > 0;
-  const hasNext = currentExampleIndex < exampleIds.length - 1;
+  const isOnLastLoadedExample = currentExampleIndex >= exampleIds.length - 1;
+  const isNextPending = isOnLastLoadedExample && isLoadingMoreExamples;
+  const hasNext = !isNextPending && (!isOnLastLoadedExample || hasMoreExamples);
 
   const handleNext = () => {
     if (hasNext) {
@@ -56,9 +69,20 @@ export const ExampleDetailsPaginator = ({
         <Button
           size="S"
           aria-label="Next"
-          isDisabled={!hasNext}
+          isDisabled={!hasNext && !isNextPending}
+          isPending={isNextPending}
           onPress={handleNext}
-          leadingVisual={<Icon svg={<Icons.ArrowDown />} />}
+          leadingVisual={
+            isNextPending ? (
+              <ProgressCircle
+                isIndeterminate
+                size="S"
+                aria-label="Loading more examples"
+              />
+            ) : (
+              <Icon svg={<Icons.ArrowDown />} />
+            )
+          }
         ></Button>
         <Tooltip offset={4}>
           <TooltipArrow />
