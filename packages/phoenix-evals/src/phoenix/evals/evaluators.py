@@ -40,7 +40,6 @@ from ._criteria import (
 from .decision import DecisionModel
 from .llm import LLM, PromptLike
 from .llm.prompts import PromptTemplate, Template
-from .llm.types import ObjectGenerationMethod
 from .tracing import trace
 from .utils import (
     _deprecate_positional_args,
@@ -329,11 +328,6 @@ def _criterion_labels(criterion: Criterion) -> List[str]:
 def _criterion_label_score_map(criterion: Criterion) -> Optional[Dict[str, Union[float, int]]]:
     """Mapping of label to score, or ``None`` when the criterion has no scores."""
     return criterion.get("score_map")
-
-
-def _criterion_has_descriptions(criterion: Criterion) -> bool:
-    """True when any of the criterion's labels carries a (non-``None``) description."""
-    return any(description is not None for description in criterion["labels"].values())
 
 
 def _criterion_describe(criterion: Criterion) -> Dict[str, Any]:
@@ -927,13 +921,6 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
             payload[criterion["name"]] = item
         return payload
 
-    def _resolve_method(self) -> ObjectGenerationMethod:
-        # Labels with descriptions produce a oneOf/const schema, which needs TOOL_CALLING.
-        any_descriptions = any(_criterion_has_descriptions(c) for c in self._criteria)
-        return (
-            ObjectGenerationMethod.TOOL_CALLING if any_descriptions else ObjectGenerationMethod.AUTO
-        )
-
     def _failure_score(self, criterion: Criterion, failure: ClassificationFailure) -> Score:
         """A Score for a criterion that could not be classified: no score and no label, with the
         failure recorded in the explanation and metadata. The score stays ``None`` so that a
@@ -993,7 +980,6 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
             prompt=prompt_filled,
             criteria=self._criteria_payload(),
             include_explanation=self.include_explanation,
-            method=self._resolve_method(),
             **self.invocation_parameters,
         )
         return self._scores_from_results(results)
@@ -1004,7 +990,6 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
             prompt=prompt_filled,
             criteria=self._criteria_payload(),
             include_explanation=self.include_explanation,
-            method=self._resolve_method(),
             **self.invocation_parameters,
         )
         return self._scores_from_results(results)

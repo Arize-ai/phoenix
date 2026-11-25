@@ -228,7 +228,6 @@ class DecisionModel:
         prompt: PromptLike,
         criteria: Dict[Name, ClassificationCriterion],
         include_explanation: bool = True,
-        method: Any = None,
         tracer: Optional[Tracer] = None,
         **kwargs: Any,
     ) -> ClassificationResponse:
@@ -241,8 +240,6 @@ class DecisionModel:
                 ``instruction``.
             include_explanation (bool): Sent by ``ClassificationEvaluator`` but not used by
                 decision models, which are decision-only and return no explanation.
-            method (Any): Sent by ``ClassificationEvaluator`` (the object-generation method) but
-                not used by decision models.
             tracer (Optional[Tracer]): Optional tracer for the DECISION span.
             **kwargs: Additional keyword arguments forwarded to the decision SDK call.
 
@@ -274,7 +271,6 @@ class DecisionModel:
         prompt: PromptLike,
         criteria: Dict[Name, ClassificationCriterion],
         include_explanation: bool = True,
-        method: Any = None,
         tracer: Optional[Tracer] = None,
         **kwargs: Any,
     ) -> ClassificationResponse:

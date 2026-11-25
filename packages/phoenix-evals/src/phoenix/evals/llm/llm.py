@@ -19,6 +19,7 @@ from .._criteria import (
 from .adapters import register_adapters
 from .prompts import PromptLike
 from .registries import PROVIDER_REGISTRY, adapter_availability_table
+from .types import ObjectGenerationMethod
 
 register_adapters()
 
@@ -399,7 +400,8 @@ class LLM:
             recorded on the ``generate_object`` span, not returned here.
         """
         schema = generate_classifications_schema(criteria, include_explanation)
-        raw: Dict[str, Any] = self.generate_object(prompt, schema, **kwargs)
+        method = _resolve_classification_method(criteria)
+        raw: Dict[str, Any] = self.generate_object(prompt, schema, method=method, **kwargs)
         return ClassificationResponse(results=_parse_classifications(raw, criteria))
 
     async def async_generate_classifications(
@@ -414,7 +416,10 @@ class LLM:
         See :meth:`generate_classifications`.
         """
         schema = generate_classifications_schema(criteria, include_explanation)
-        raw: Dict[str, Any] = await self.async_generate_object(prompt, schema, **kwargs)
+        method = _resolve_classification_method(criteria)
+        raw: Dict[str, Any] = await self.async_generate_object(
+            prompt, schema, method=method, **kwargs
+        )
         return ClassificationResponse(results=_parse_classifications(raw, criteria))
 
 
@@ -501,6 +506,17 @@ def generate_classification_schema(
     required.append("label")
 
     return {"type": "object", "properties": properties, "required": required}
+
+
+def _resolve_classification_method(
+    criteria: Dict[Name, ClassificationCriterion],
+) -> ObjectGenerationMethod:
+    """Labels with descriptions produce a ``oneOf``/``const`` schema, which needs TOOL_CALLING;
+    otherwise a plain enum works with AUTO."""
+    any_descriptions = any(
+        description is not None for c in criteria.values() for description in c["labels"].values()
+    )
+    return ObjectGenerationMethod.TOOL_CALLING if any_descriptions else ObjectGenerationMethod.AUTO
 
 
 def generate_classifications_schema(
