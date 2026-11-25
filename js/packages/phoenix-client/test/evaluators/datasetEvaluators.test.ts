@@ -111,6 +111,81 @@ describe("createDatasetEvaluator", () => {
     ]);
   });
 
+  it("sends an LLM binding with categorical output configs under its own kind", async () => {
+    let receivedBody: unknown;
+    server.use(
+      http.post(
+        "/v1/datasets/{dataset_identifier}/evaluators",
+        async ({ request, response }) => {
+          receivedBody = await request.json();
+          return response(201).json({
+            data: { ...binding, evaluator_type: "llm" },
+          });
+        }
+      )
+    );
+    const outputConfigs = [
+      {
+        type: "CATEGORICAL" as const,
+        name: "correctness",
+        optimization_direction: "MAXIMIZE" as const,
+        values: [
+          { label: "correct", score: 1 },
+          { label: "incorrect", score: 0 },
+        ],
+      },
+    ];
+
+    await createDatasetEvaluator({
+      client: createTestClient(),
+      dataset: { datasetId: "RGF0YXNldDox" },
+      name: "correctness",
+      evaluatorId: "TExNRXZhbHVhdG9yOjE=",
+      evaluatorType: "llm",
+      inputMapping: INPUT_MAPPING,
+      outputConfigs,
+    });
+
+    expect(receivedBody).toEqual({
+      evaluator_type: "llm",
+      name: "correctness",
+      evaluator_id: "TExNRXZhbHVhdG9yOjE=",
+      input_mapping: INPUT_MAPPING,
+      output_configs: outputConfigs,
+    });
+  });
+
+  it("sends a built-in binding under its own kind", async () => {
+    let receivedBody: unknown;
+    server.use(
+      http.post(
+        "/v1/datasets/{dataset_identifier}/evaluators",
+        async ({ request, response }) => {
+          receivedBody = await request.json();
+          return response(201).json({
+            data: { ...binding, evaluator_type: "builtin" },
+          });
+        }
+      )
+    );
+
+    await createDatasetEvaluator({
+      client: createTestClient(),
+      dataset: { datasetId: "RGF0YXNldDox" },
+      name: "contains",
+      evaluatorId: "QnVpbHRJbkV2YWx1YXRvcjox",
+      evaluatorType: "builtin",
+      inputMapping: INPUT_MAPPING,
+    });
+
+    expect(receivedBody).toEqual({
+      evaluator_type: "builtin",
+      name: "contains",
+      evaluator_id: "QnVpbHRJbkV2YWx1YXRvcjox",
+      input_mapping: INPUT_MAPPING,
+    });
+  });
+
   it("sends a decision binding without output configs", async () => {
     let receivedBody: unknown;
     server.use(

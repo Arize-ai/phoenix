@@ -494,3 +494,18 @@ async def test_create_refuses_a_non_evaluator_id_before_the_dataset_is_looked_up
     )
     assert response.status_code == 422, response.text
     assert f"Not an evaluator id: {wrong_type}" in response.text
+
+
+async def test_create_requires_evaluator_type(httpx_client: httpx.AsyncClient) -> None:
+    response = await httpx_client.post(
+        f"v1/datasets/{GlobalID('Dataset', '1')}/evaluators",
+        json={
+            "name": "binding",
+            "input_mapping": {"literal_mapping": {}, "path_mapping": {}},
+            "evaluator_id": str(GlobalID("CodeEvaluator", "1")),
+        },
+    )
+    assert response.status_code == 422, response.text
+    problem = response.json()
+    assert problem["code"] == "validation_error"
+    assert [error["field"] for error in problem["errors"]] == ["body"], problem
