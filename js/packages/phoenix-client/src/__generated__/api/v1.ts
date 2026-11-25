@@ -417,7 +417,11 @@ export interface paths {
         get: operations["getDatasetExamples"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Permanently delete examples from a dataset
+         * @description Permanently delete examples and all of their revisions from every version of the dataset. The experiment runs on these examples, their evaluations, their task and evaluator traces, and their experiment logs are deleted too. The dataset, its versions, its experiments, and its other examples are kept. This cannot be undone. Example IDs that are not in the dataset are skipped, so a repeated request succeeds. Wait for experiments on the dataset to finish first, because runs and traces that arrive after the request are kept.
+         */
+        delete: operations["deleteDatasetExamples"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1393,7 +1397,7 @@ export interface paths {
         post?: never;
         /**
          * Delete a prompt
-         * @description Delete a prompt and all its versions, tags, and labels by identifier.
+         * @description Delete a prompt and all its versions, tags, and labels by identifier. Returns 409 if one or more LLM evaluators use the prompt.
          */
         delete: operations["deletePrompt"];
         options?: never;
@@ -10899,6 +10903,57 @@ export interface operations {
             };
         };
     };
+    deleteDatasetExamples: {
+        parameters: {
+            query: {
+                /** @description Identifiers of the examples to delete: dataset example IDs (GlobalIDs) or user-provided IDs. To delete more examples, send more requests. */
+                example_ids: string[];
+            };
+            header?: never;
+            path: {
+                /** @description The ID of the dataset */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid dataset ID, no example IDs, or too many example IDs */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
     listDatasetSplits: {
         parameters: {
             query?: {
@@ -14500,6 +14555,15 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
