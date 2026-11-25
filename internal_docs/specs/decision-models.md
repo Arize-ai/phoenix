@@ -137,8 +137,8 @@ are in [Open Questions](#16-open-questions).
 | [Reference answers in datasets](#54-reference-answers-in-datasets) | No convention; evaluators map paths | The built-in metrics ship (decided with them) |
 | [Translating for apps](#55-translating-for-apps) | Phoenix translates in `format()` | `phoenix-client` ships `format()` |
 | [Evaluator annotation metadata](#56-evaluator-annotation-metadata) | Unversioned `metadata.decision` | A release stores judge results |
-| [Output configs and scoring policies](#57-output-configs-and-scoring-policies) | Decided: dataset binding bodies are a union keyed by `evaluator_type`, and the decision variant has no `output_configs` | The evaluator REST routes ship decision judges |
-| [Evaluator version pinning](#58-evaluator-version-pinning) | Each evaluator runs through its own generated tag (`decision_version_tag_id`, nullable, `ON DELETE SET NULL`), or its decision's newest version once the tag is gone; tag moves and deletes aren't checked, and drifted scoring adapts | A release ships `decision_evaluators` and `/v1/evaluators` for decision judges |
+| [Output configs and scoring policies](#57-output-configs-and-scoring-policies) | Dataset binding bodies are a union keyed by `evaluator_type`, and the decision variant has no `output_configs` | Settled |
+| [Evaluator version pinning](#58-evaluator-version-pinning) | Each evaluator runs through its own generated tag (`decision_version_tag_id`, nullable, `ON DELETE SET NULL`), or its decision's newest version once the tag is gone; tag moves and deletes aren't checked, and drifted scoring adapts | Settled |
 
 The first six choose a format at a boundary: the stored version, the run
 output, the span, a dataset's reference answers, the SDK arguments handed to
@@ -418,16 +418,14 @@ policy, which says the same thing in more detail (thresholds, choice scores, sca
 labels), and its output configs are derived from the policy and its questions. So
 for decisions, `output_configs` is read-only in effect.
 
-**Decided:** type the binding bodies. `POST /v1/datasets/{id}/evaluators` and
-`PATCH /v1/dataset_evaluators/{id}` take a union keyed by a required
-`evaluator_type` (`llm`, `code`, `builtin`, `decision`), named like the field
-binding reads already return. The server refuses an `evaluator_type` that
-disagrees with the evaluator's kind with 422. The LLM variant's `output_configs`
-are categorical, the code and built-in variants take any output config, and the
-decision variant has no `output_configs`, so sending them, even the derived
-ones, fails validation. A patch needs a field besides `evaluator_type`. No
-untyped variant is kept: these routes had not shipped in a release, so no
-existing caller sends bodies without `evaluator_type`.
+Dataset binding bodies are typed by evaluator kind. `POST
+/v1/datasets/{id}/evaluators` and `PATCH /v1/dataset_evaluators/{id}` take a union
+keyed by a required `evaluator_type` (`llm`, `code`, `builtin`, `decision`), named
+like the field binding reads return. The LLM variant's `output_configs` are
+categorical, the code and built-in variants take any output config, and the
+decision variant has no `output_configs`, so sending them, even the derived ones,
+fails validation. The server refuses an `evaluator_type` that disagrees with the
+evaluator's kind with 422, and a patch needs a field besides `evaluator_type`.
 
 | Binding field | REST create and patch | GraphQL |
 |---|---|---|
@@ -438,214 +436,49 @@ Bindings have no `scoring_policy`: scoring is the judge's own (see
 [Bindings](#143-bindings)). If bindings later override a judge's scoring, the
 override becomes a field of the decision variant in its own shape.
 
-The deliberation below is kept as the record of the alternatives.
+Typing the bodies puts each field only where it can be written, so the generated
+schema and SDK types state the rule. The cost is that `evaluator_type` repeats
+what `evaluator_id` implies, which is why a mismatch is refused.
 
-**Alternatives and tradeoffs:**
-
-- **Accept and check** (the previous default): one request shape for every kind, and a client
-  can send back derived configs it read from `/v1/evaluators` or GraphQL. (A
-  binding read returns null, which needs no check.) But the field looks writable
-  and isn't.
-- **Type the binding bodies** (decided): make the REST create and patch bodies a union
-  keyed by `type`, as `/v1/evaluators` already is (`CreateDecisionEvaluatorRequest`,
-  `PatchDecisionEvaluatorRequest`). The decision variant has no
-  `output_configs`; the others keep it. The field then exists only where it can
-  be written, the generated schema and SDK types state the rule, and the echo
-  check goes away. It costs three things:
-  - `type` repeats what `evaluator_id` implies, so the server must refuse a
-    mismatch.
-  - Patch bodies need `type` too (`minProperties: 2`, as for decision
-    evaluators).
-  - Existing clients binding LLM evaluators must start sending `type`, unless it
-    stays optional for them, at the price of a looser schema.
-
-  Plain rejection, without the union, gets the clarity but not the types.
-- **Unify:** split every output config into its shape (annotation names, labels,
-  score types), which is derived, and its scoring (label scores, direction,
-  thresholds), which is authored. A decision already works this way: questions
-  give the shape and the policy holds only scoring. An LLM judge's configs repeat a
-  shape the prompt's tool schema already fixes, which is why the server checks
-  them against it. Built-in evaluators take their shape from the class. Only code
-  evaluators, with nothing to derive from, author a shape. Reads return derived
-  configs for every kind; writes take only scoring, except for code. The cleanest
-  end state, and the largest change, since it reaches existing evaluators and
-  their stored configs.
-
-Typing the bodies doesn't block unifying them later: its decision variant is
-already Unify's end state, and only the other variant would shrink to scoring. So
-the bodies are typed now, and Unify is left for when LLM evaluators are next
-reworked. Reads keep `output_configs` under every option, because annotation
-names and score types come from it.
+A further step would split every output config into its shape (annotation names,
+labels, score types), derived from the evaluator, and its scoring (label scores,
+direction, thresholds), authored by the user. A decision already works this way:
+its questions give the shape and its policy holds only the scoring. An LLM
+evaluator's shape comes from its prompt's tools, a built-in evaluator's from its
+class, and only a code evaluator authors its own. Under that split, reads would
+return derived configs for every kind, and writes would take only scoring,
+except for code. The decision variant above is already that end state, so typing
+the bodies does not block it. Reads keep `output_configs` either way, because
+annotation names and score types come from it.
 
 ### 5.8 Evaluator Version Pinning
 
-How `decision_evaluators` records the `DecisionVersion` a saved judge runs, and
-how that choice relates to `LLMEvaluator`'s tag history.
-
-**Current default (decided 2026-10-27, Option 2 below):** a `DecisionEvaluator`
-runs through a `{name}-evaluator-{hex}` tag of its own, as an `LLMEvaluator`
-does. `decision_evaluators` stores `decision_id` (`NOT NULL`,
+A `DecisionEvaluator` runs through a `{name}-evaluator-{hex}` tag of its own, as an
+`LLMEvaluator` does. `decision_evaluators` stores `decision_id` (`NOT NULL`,
 `ON DELETE RESTRICT`) and `decision_version_tag_id` (nullable,
-`ON DELETE SET NULL`) in place of `decision_version_id`. Creating an evaluator
-puts its tag on the chosen version, choosing a version in the evaluator editor
-moves the tag, and deleting the evaluator deletes the tag. Without a tag, the
-evaluator runs its decision's newest version, as an `LLMEvaluator` without a tag
-runs its prompt's newest. REST writes take
-`decision: {selector: {type: "version", decision_version_id}}`; reads return
+`ON DELETE SET NULL`). Creating an evaluator puts its tag on the chosen version,
+choosing a version in the evaluator editor moves the tag, and deleting the
+evaluator deletes the tag. Without a tag, the evaluator runs its decision's newest
+version, as an `LLMEvaluator` without a tag runs its prompt's newest. REST writes
+take `decision: {selector: {type: "version", decision_version_id}}`; reads return
 `decision: {decision_id, selector, resolved_decision_version_id}`, where the
 selector is `version` or `latest`.
 
-Tag moves and deletes aren't checked against the evaluators that run through
-the tag, for either kind. A move or delete may leave an evaluator on a version
-that no longer fits it, as with any tag a dependent relies on. A decision
-judge's stored scoring policy is adapted to the version it runs whenever it is
-used: scores for removed questions or choices are dropped and new questions get
-defaults. `LLMEvaluator` keeps its original design: `prompt_version_tag_id`
-stays `ON DELETE SET NULL`, and neither the `#16680` tag guards nor an API-level
-check that an evaluator's outputs fit its prompt version apply.
+Tag moves and deletes aren't checked against the evaluators that run through the
+tag, for either kind. A move or delete may leave an evaluator on a version that no
+longer fits it, as with any tag a dependent relies on. A decision judge's stored
+scoring policy is adapted to the version it runs whenever it is used: scores for
+removed questions or choices are dropped, and new questions get defaults.
+`LLMEvaluator`'s `prompt_version_tag_id` is also `ON DELETE SET NULL`, with no
+guard on tag moves or deletes and no API check that an evaluator's outputs fit its
+prompt version.
 
-**Why:** promoting a version by checking the evaluator's tag on save, and
-deleting the tag to follow the newest version, is the documented
-`LLMEvaluator` workflow, and decision judges now share it. It avoids Option 3's
-costs: generated tags can be deleted, and a checked save never fails because an
-evaluator runs through the tag.
-
-The deliberation below is kept as the record of the alternatives.
-
-**How `LLMEvaluator` got here (and the hardening that flew under the radar):**
-
-1. **Original lightweight tag design (`02463bd83119`, PRs #9960 / #10694):**
-   `llm_evaluators` stored `prompt_id` (`NOT NULL`) and a nullable
-   `prompt_version_tag_id` (`ON DELETE SET NULL`). Creating an `LLMEvaluator`
-   minted a `{name}-evaluator-{hex}` tag on the prompt for two product reasons
-   (documented in `docs/phoenix/evaluation/server-evals/llm-evaluators.mdx`):
-   - *Playground promotion without new UI:* when saving a new prompt version in
-     the Playground, the existing **Save Prompt** modal listed `{name}-evaluator-{hex}`
-     as a tag checkbox; checking it advanced the evaluator to the new version.
-   - *Pin vs. `latest` visibility:* `PromptCell` (`js/app/src/pages/evaluators/PromptCell.tsx`)
-     rendered `prompt @ <tag>` when pinned (or `prompt @ latest` when unpinned)
-     and linked to `/redirects/prompts/{promptId}/tags/{tag}`, while the
-     Prompt's **Versions** tab showed the tag badge on the active version.
-   - Deleting the tag on the Prompt page set `prompt_version_tag_id = NULL`
-     (`ON DELETE SET NULL`), and the evaluator fell back to the prompt's latest
-     version.
-2. **Later hardening (`ef09e3bc213f`, PR #16680):**
-   In `LLMEvaluator`, the evaluator's contract is split across three places:
-   `prompt_versions.tools` (tool function names, descriptions, and label enums),
-   `llm_evaluators.output_configs` + `evaluators.description` (a duplicate copy
-   of those tool names, label-to-score maps, and description), and
-   `dataset_evaluators.output_configs` (optional per-dataset overrides), while
-   runtime loading (`api/evaluators.py:820–822`) bare-asserts that
-   `prompt_version.tools is not None`. Moving or deleting the tag from the
-   prompt side could therefore desynchronize `prompt_versions.tools` from
-   `llm_evaluators.output_configs` or `dataset_evaluators.output_configs`.
-   To prevent that drift without removing the duplicated columns, #16680 changed
-   `llm_evaluators.prompt_version_tag_id` from `ON DELETE SET NULL` to
-   `ON DELETE RESTRICT`, refused tag deletes with `409 Conflict`
-   (`validate_prompt_version_tag_delete`), wired evaluator locking and
-   `output_configs` / `description` validation into every prompt tag
-   create/upsert/move (`helpers/prompt_version_tags.py`), and hid the tag from
-   `/v1/evaluators` behind a `prompt_version_id` selector.
-   Because `create_llm_evaluator` unconditionally creates a tag, no API can
-   clear `prompt_version_tag_id` to `NULL`, and deleting the tag is refused,
-   **#16680 made `prompt_version_tag_id` effectively non-nullable for every
-   newly created evaluator** (only pre-existing rows whose tag had already been
-   deleted before `ef09e3bc213f` can ever have `prompt_version_tag_id IS NULL`,
-   and editing such a row's prompt version immediately mints a new undeletable
-   tag). That hardening flew under the radar: it contradicted the original
-   design and the public docs (`llm-evaluators.mdx:102`: *"If the evaluator has
-   no tag (or the tag is removed), Phoenix falls back to the latest prompt
-   version"*), rejected Playground tag promotions whenever the user edited the
-   tool description or label enum, left user-visible prompt tables with
-   undeletable machine-generated tags, and turned `prompt_version_tag_id` into
-   an over-constrained proxy for a direct `prompt_version_id` foreign key.    When `DecisionEvaluator` initially copied `LLMEvaluator`, it took that
-   hardened model to its literal conclusion (`decision_id` +
-   `decision_version_tag_id NOT NULL UNIQUE ON DELETE RESTRICT` +
-   `guard_owned_decision_tag_move`), and the UI commits built on top of it
-   (`9ea3949c05`, `640c5dc7bc`) treated the tag as an internal pin—rendering
-   `decision @ v{sequenceNumber}` in `DecisionCell` instead of `PromptCell`'s
-   `prompt @ {tag | latest}`—even though `DecisionEvaluator` does not store a
-   duplicate `output_configs` column or per-dataset overrides (it derives
-   `output_configs` from `DecisionVersion.questions` + `scoring_policy` and has
-   `adapt_scoring_policy` to reconcile question changes).
-
-**Options on the table:**
-
-- **Option 1: Direct `decision_version_id` (`NOT NULL`, `ON DELETE RESTRICT`),
-  no `decision_id`, no `decision_version_tag_id`** (the default before 2026-10-27):
-  - *Engineering:* matches what every GraphQL and REST create/update input
-    already takes (`decision_version_id`). Eliminates the redundant
-    `decision_id` column (`selected_version.decision_id` is the single source
-    of truth), the secondary join hop, the PostgreSQL outer-join `FOR UPDATE`
-    workaround, synthetic tag cleanup, and cross-module tag-move/delete guards
-    in `saved_decision_mutations`. Still blocks deleting a referenced `Decision`
-    (`decisions.id → decision_versions.decision_id ON DELETE CASCADE` +
-    `decision_evaluators.decision_version_id → decision_versions.id ON DELETE
-    RESTRICT`).
-  - *Product experience (gains):* keeps `decision.versionTags`,
-    `DecisionVersionSelector`, and the Playground's **Save decision** modal free
-    of machine-generated `{name}-evaluator-{4-hex}` checkboxes, and keeps
-    `/decisions/:id/config` free of undeletable tags or stale names after an
-    evaluator rename. Matches `DecisionCell` (`decision @ <versionId>`).
-  - *Product experience (what it gives up):* saving a new version in the
-    Playground does not offer a tag checkbox to repin the evaluator in the same
-    modal (retargeting happens from the Evaluator editor via
-    `DecisionVersionSelector` or inline editing), and `/decisions/:id/versions`
-    does not show a tag badge indicating which evaluator is pinned to a version
-    (if reverse visibility on `/decisions/:id` is desired, a read-only
-    `evaluators` field on `DecisionVersion` shows live evaluator names and links
-    without minting fake release tags). Because a `DecisionVersion` only defines
-    `questions` while `DecisionEvaluator` owns `scoring_policy` (thresholds,
-    choice scores, direction), repinning from the Evaluator editor also ensures
-    the user sees `DecisionScoringPolicyEditor` and `Test with an Example`
-    rather than silently applying default scoring from the Playground save modal.
-- **Option 2: Original lightweight tag (`decision_id NOT NULL` + nullable
-  `decision_version_tag_id ON DELETE SET NULL`, no 409 tag-move/delete guards):**
-  - *Product experience:* preserves the original `LLMEvaluator` workflow from
-    `llm-evaluators.mdx`—users can promote a Decision version to an evaluator by
-    checking `{name}-evaluator-{4-hex}` in the Playground's **Save decision**
-    modal, see the tag badge on `/decisions/:id/versions`, and delete the tag on
-    `/decisions/:id/config` to fall back to the latest version (which also
-    raises whether `LLMEvaluator`'s #16680 hardening should be relaxed to match).
-  - *Why `DecisionEvaluator` can support this cleanly without `LLMEvaluator`'s
-    failure modes:*
-    1. Every `DecisionVersion` is guaranteed by schema to have valid typed
-       `questions` (`predicate`, `choice`, `scale`)—unlike `PromptVersion`,
-       where `tools` can be `None` and crash `assert tools is not None`.
-    2. `DecisionEvaluator` stores no duplicate `output_configs` column and has
-       no per-dataset `output_configs` overrides; `output_configs` are derived
-       on read from `DecisionVersion.questions` + `scoring_policy`, and calling
-       `adapt_scoring_policy(version.questions, evaluator.scoring_policy)` at
-       read/capture time automatically preserves matching question/choice
-       settings and fills defaults for new questions.
-    3. Experiments load attached decision evaluators at each start and resume,
-       as they load other evaluators, so moving or deleting a tag changes only
-       evaluations that have not run yet; each recorded annotation names the
-       decision version that produced it. Online evaluation resolves the tagged
-       (or latest) `decision_version_id` + adapted `scoring_policy` into its
-       configuration fingerprint.
-    4. If a new version adds an unmapped `input`, `DecisionEvaluator.evaluate()`
-       catches it and records a normal evaluation error on the span/annotation
-       (just as `LLMEvaluator` does for an unmapped template variable).
-  - *Remaining subtleties:* a newly added `choice` question produces labels with
-    `score = None` until choice scores are configured in the Evaluator editor;
-    switching between 1 and $K > 1$ questions changes future annotation names
-    between `{binding}` and `{binding}.{question}`; and every evaluator still
-    adds a `{name}-evaluator-{4-hex}` entry to `decision.versionTags`.
-- **Option 3: Hardened owned tag (`decision_id NOT NULL` +
-  `decision_version_tag_id NOT NULL UNIQUE ON DELETE RESTRICT` + tag-move/delete
-  `409` guards):**
-  - Combines the costs of both without the full benefits of either: injects
-    machine-generated `{name}-evaluator-{4-hex}` tags into user tag lists and
-    the Playground **Save decision** dialog, but forbids deleting them on
-    `/decisions/:id/config` (`409 Conflict`), fails Playground saves with `409`
-    if checked on a version whose inputs or questions break a binding, and adds
-    1:1 table indirection, 3NF redundancy (`decision_id`), cross-module mutation
-    guards, and outer-join locking workarounds—while `DecisionCell` and
-    `/v1/evaluators` hide the tag anyway.
-
-**Decided** before a release ships `decision_evaluators` and `/v1/evaluators` for
-decision judges; see the current default above.
+Tags give both kinds one promotion workflow: checking the evaluator's tag when
+saving a new version moves the evaluator to it, and deleting the tag makes the
+evaluator follow the newest version. The tags can be deleted, and a save never
+fails because an evaluator runs through the tag. The cost is that every evaluator
+adds a generated tag to its decision's tag list, and a version change can break a
+binding at run time (see [Compatible Updates](#144-compatible-updates)).
 
 ## 6. Goals
 
