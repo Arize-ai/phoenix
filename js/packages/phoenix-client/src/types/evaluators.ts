@@ -113,7 +113,8 @@ export type DatasetEvaluator = components["schemas"]["DatasetEvaluator"];
 
 /**
  * Fields that can change on a dataset binding. Omitted fields keep their
- * current values.
+ * current values. An `output_configs` override holds at least one config, and
+ * the server refuses a non-null override for a decision binding.
  */
 export type DatasetEvaluatorPatch =
   components["schemas"]["PatchDatasetEvaluatorRequest"];

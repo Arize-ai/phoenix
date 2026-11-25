@@ -15,7 +15,7 @@ from phoenix.client.constants.server_requirements import (
     LIST_DATASET_EVALUATORS,
     PATCH_DATASET_EVALUATOR,
 )
-from phoenix.client.types.evaluators import EvaluatorOutputConfig
+from phoenix.client.types.evaluators import EvaluatorOutputConfig, EvaluatorType
 from phoenix.client.types.sentinels import NOT_GIVEN, NotGiven
 from phoenix.client.utils.encode_path_param import encode_path_param
 from phoenix.client.utils.problem_details import raise_for_problem
@@ -31,17 +31,19 @@ _PAGE_SIZE = 100
 
 def _build_create_body(
     *,
+    evaluator_type: EvaluatorType,
     name: str,
     evaluator_id: str,
     input_mapping: v1.InputMapping,
     description: Union[str, NotGiven],
     output_configs: Union[Sequence[EvaluatorOutputConfig], NotGiven],
-) -> v1.CreateDatasetEvaluatorRequest:
-    body = v1.CreateDatasetEvaluatorRequest(
-        name=name,
-        evaluator_id=evaluator_id,
-        input_mapping=input_mapping,
-    )
+) -> dict[str, object]:
+    body: dict[str, object] = {
+        "evaluator_type": evaluator_type,
+        "name": name,
+        "evaluator_id": evaluator_id,
+        "input_mapping": input_mapping,
+    }
     if not isinstance(description, NotGiven):
         body["description"] = description
     if not isinstance(output_configs, NotGiven):
@@ -95,6 +97,7 @@ class DatasetEvaluators:
                 dataset="golden-questions",
                 name="exact-match",
                 evaluator_id="Q29kZUV2YWx1YXRvcjoy",
+                evaluator_type="code",
                 input_mapping={"literal_mapping": {}, "path_mapping": {"output": "output"}},
             )
 
@@ -124,6 +127,7 @@ class DatasetEvaluators:
         dataset: str,
         name: str,
         evaluator_id: str,
+        evaluator_type: EvaluatorType,
         input_mapping: v1.InputMapping,
         description: Union[str, NotGiven] = NOT_GIVEN,
         output_configs: Union[Sequence[EvaluatorOutputConfig], NotGiven] = NOT_GIVEN,
@@ -131,14 +135,17 @@ class DatasetEvaluators:
         """Bind an existing evaluator definition to a dataset.
 
         Create the definition first with :meth:`Evaluators.create_llm` or
-        :meth:`Evaluators.create_code`, or bind a built-in evaluator by ID. This
-        registers the evaluator and does not run an experiment.
+        :meth:`Evaluators.create_code`, or bind a built-in or decision evaluator by
+        ID. This registers the evaluator and does not run an experiment.
 
         Args:
             dataset (str): The dataset name or ID. An ID takes precedence when a
                 dataset is also named by the same string.
             name (str): The binding's name, unique within the dataset.
-            evaluator_id (str): The ID of the LLM, code, or built-in evaluator.
+            evaluator_id (str): The ID of the LLM, code, built-in, or decision
+                evaluator.
+            evaluator_type (EvaluatorType): The evaluator's kind, as its
+                definition's ``type`` reports it. A mismatch is refused.
             input_mapping (v1.InputMapping): How example and run fields map onto
                 evaluator arguments.
             description (str): Overrides the shared definition's description on
@@ -147,7 +154,8 @@ class DatasetEvaluators:
                 definition's output configurations on this binding with at least
                 one config, each with its own name; omit it to inherit them. For
                 LLM evaluators the override must be categorical. It is not checked
-                against the prompt.
+                against the prompt. Decision bindings take no override: their
+                outputs follow the evaluator's questions and scoring policy.
 
         Returns:
             The created binding.
@@ -166,10 +174,12 @@ class DatasetEvaluators:
                 dataset="golden-questions",
                 name="exact-match",
                 evaluator_id="Q29kZUV2YWx1YXRvcjoy",
+                evaluator_type="code",
                 input_mapping={"literal_mapping": {}, "path_mapping": {"output": "output"}},
             )
         """  # noqa: E501
         json_ = _build_create_body(
+            evaluator_type=evaluator_type,
             name=name,
             evaluator_id=evaluator_id,
             input_mapping=input_mapping,
@@ -263,7 +273,9 @@ class DatasetEvaluators:
                 to inherit the shared definition's description again.
             output_configs (Optional[Sequence[EvaluatorOutputConfig]]): New
                 output configuration overrides, at least one, or ``None`` to
-                inherit the shared definition's outputs again.
+                inherit the shared definition's outputs again. An LLM binding's
+                must be categorical, and the server refuses a non-null override
+                for a decision binding.
 
         Returns:
             The updated binding.
@@ -351,6 +363,7 @@ class AsyncDatasetEvaluators:
                 dataset="golden-questions",
                 name="exact-match",
                 evaluator_id="Q29kZUV2YWx1YXRvcjoy",
+                evaluator_type="code",
                 input_mapping={"literal_mapping": {}, "path_mapping": {"output": "output"}},
             )
 
@@ -378,6 +391,7 @@ class AsyncDatasetEvaluators:
         dataset: str,
         name: str,
         evaluator_id: str,
+        evaluator_type: EvaluatorType,
         input_mapping: v1.InputMapping,
         description: Union[str, NotGiven] = NOT_GIVEN,
         output_configs: Union[Sequence[EvaluatorOutputConfig], NotGiven] = NOT_GIVEN,
@@ -385,14 +399,17 @@ class AsyncDatasetEvaluators:
         """Bind an existing evaluator definition to a dataset.
 
         Create the definition first with :meth:`Evaluators.create_llm` or
-        :meth:`Evaluators.create_code`, or bind a built-in evaluator by ID. This
-        registers the evaluator and does not run an experiment.
+        :meth:`Evaluators.create_code`, or bind a built-in or decision evaluator by
+        ID. This registers the evaluator and does not run an experiment.
 
         Args:
             dataset (str): The dataset name or ID. An ID takes precedence when a
                 dataset is also named by the same string.
             name (str): The binding's name, unique within the dataset.
-            evaluator_id (str): The ID of the LLM, code, or built-in evaluator.
+            evaluator_id (str): The ID of the LLM, code, built-in, or decision
+                evaluator.
+            evaluator_type (EvaluatorType): The evaluator's kind, as its
+                definition's ``type`` reports it. A mismatch is refused.
             input_mapping (v1.InputMapping): How example and run fields map onto
                 evaluator arguments.
             description (str): Overrides the shared definition's description on
@@ -401,7 +418,8 @@ class AsyncDatasetEvaluators:
                 definition's output configurations on this binding with at least
                 one config, each with its own name; omit it to inherit them. For
                 LLM evaluators the override must be categorical. It is not checked
-                against the prompt.
+                against the prompt. Decision bindings take no override: their
+                outputs follow the evaluator's questions and scoring policy.
 
         Returns:
             The created binding.
@@ -418,10 +436,12 @@ class AsyncDatasetEvaluators:
                 dataset="golden-questions",
                 name="exact-match",
                 evaluator_id="Q29kZUV2YWx1YXRvcjoy",
+                evaluator_type="code",
                 input_mapping={"literal_mapping": {}, "path_mapping": {"output": "output"}},
             )
         """  # noqa: E501
         json_ = _build_create_body(
+            evaluator_type=evaluator_type,
             name=name,
             evaluator_id=evaluator_id,
             input_mapping=input_mapping,
@@ -517,7 +537,9 @@ class AsyncDatasetEvaluators:
                 to inherit the shared definition's description again.
             output_configs (Optional[Sequence[EvaluatorOutputConfig]]): New
                 output configuration overrides, at least one, or ``None`` to
-                inherit the shared definition's outputs again.
+                inherit the shared definition's outputs again. An LLM binding's
+                must be categorical, and the server refuses a non-null override
+                for a decision binding.
 
         Returns:
             The updated binding.

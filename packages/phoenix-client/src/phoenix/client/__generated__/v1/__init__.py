@@ -1765,12 +1765,29 @@ class CreateDatasetSplitResponseBody(TypedDict):
     data: DatasetSplit
 
 
+class CreateDecisionDatasetEvaluatorRequest(TypedDict):
+    name: str
+    evaluator_id: str
+    input_mapping: InputMapping
+    evaluator_type: Literal["decision"]
+    description: NotRequired[str]
+
+
 class CreateExperimentResponseBody(TypedDict):
     data: Experiment
 
 
 class CreateExperimentRunResponseBody(TypedDict):
     data: CreateExperimentRunResponseBodyData
+
+
+class CreateLLMDatasetEvaluatorRequest(TypedDict):
+    name: str
+    evaluator_id: str
+    input_mapping: InputMapping
+    evaluator_type: Literal["llm"]
+    description: NotRequired[str]
+    output_configs: NotRequired[Sequence[CategoricalAnnotationConfigData]]
 
 
 class CreateProjectEvaluatorRequest(TypedDict):
@@ -2571,6 +2588,40 @@ class CreateAnnotationConfigResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
 
 
+class CreateBuiltInDatasetEvaluatorRequest(TypedDict):
+    name: str
+    evaluator_id: str
+    input_mapping: InputMapping
+    evaluator_type: Literal["builtin"]
+    description: NotRequired[str]
+    output_configs: NotRequired[
+        Sequence[
+            Union[
+                CategoricalAnnotationConfigData,
+                ContinuousAnnotationConfigData,
+                FreeformAnnotationConfigData,
+            ]
+        ]
+    ]
+
+
+class CreateCodeDatasetEvaluatorRequest(TypedDict):
+    name: str
+    evaluator_id: str
+    input_mapping: InputMapping
+    evaluator_type: Literal["code"]
+    description: NotRequired[str]
+    output_configs: NotRequired[
+        Sequence[
+            Union[
+                CategoricalAnnotationConfigData,
+                ContinuousAnnotationConfigData,
+                FreeformAnnotationConfigData,
+            ]
+        ]
+    ]
+
+
 class CreateCodeEvaluatorRequest(TypedDict):
     type: Literal["code"]
     name: str
@@ -2587,22 +2638,6 @@ class CreateCodeEvaluatorRequest(TypedDict):
     ]
     description: NotRequired[str]
     input_schema: NotRequired[Mapping[str, Any]]
-
-
-class CreateDatasetEvaluatorRequest(TypedDict):
-    name: str
-    evaluator_id: str
-    input_mapping: InputMapping
-    description: NotRequired[str]
-    output_configs: NotRequired[
-        Sequence[
-            Union[
-                CategoricalAnnotationConfigData,
-                ContinuousAnnotationConfigData,
-                FreeformAnnotationConfigData,
-            ]
-        ]
-    ]
 
 
 class CreateDecisionEvaluatorRequest(TypedDict):

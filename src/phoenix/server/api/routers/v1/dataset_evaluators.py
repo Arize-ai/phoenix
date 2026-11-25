@@ -1,6 +1,6 @@
-"""Manage dataset-specific bindings to shared LLM, code, and built-in evaluators."""
+"""Manage dataset-specific bindings to shared LLM, code, built-in, and decision evaluators."""
 
-from typing import Literal, Optional
+from typing import Annotated, Literal, Optional, Union
 
 from fastapi import APIRouter, Depends, Query, Response
 from pydantic import ConfigDict, Field, model_validator
@@ -8,17 +8,20 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from strawberry.relay import GlobalID
-from typing_extensions import Self
+from typing_extensions import Self, assert_never
 
 from phoenix.db import models
 from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.routers.v1.annotation_config_models import CategoricalAnnotationConfigData
 from phoenix.server.api.routers.v1.evaluator_common import (
+    EVALUATOR_KIND_BY_TYPE,
     EVALUATOR_TYPE_BY_KIND,
     EvaluatorOutputConfig,
     EvaluatorRequest,
+    EvaluatorType,
     decode_global_id,
     encode_global_id,
     evaluator_api_errors,
@@ -37,32 +40,76 @@ from phoenix.server.api.routers.v1.utils import (
 )
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.evaluators.services import dataset_bindings, decisions
-from phoenix.server.evaluators.services.management import EVALUATOR_TYPENAME_BY_KIND
+from phoenix.server.evaluators.services.management import (
+    EVALUATOR_KIND_BY_TYPENAME,
+    EVALUATOR_TYPENAME_BY_KIND,
+)
+
+_EVALUATOR_TYPE_DESCRIPTION = (
+    "The kind of the evaluator the binding runs. It must match the evaluator's own kind and "
+    "selects the fields the binding takes: a decision binding takes no output configs."
+)
+_CREATE_OUTPUT_CONFIGS_DESCRIPTION = (
+    "Null inherits the shared output configs. An override needs at least one config, each "
+    "with its own name. Nothing checks them against the evaluator."
+)
+_PATCH_OUTPUT_CONFIGS_DESCRIPTION = (
+    "Omit to preserve; null restores inheritance. An override needs at least one config, "
+    "each with its own name. An LLM binding's must be categorical. A decision binding takes "
+    "none and is refused. Nothing checks them against the prompt."
+)
 
 
-class CreateDatasetEvaluatorRequest(EvaluatorRequest):
+class _CreateDatasetEvaluatorFields(EvaluatorRequest):
     name: Identifier = Field(description="Unique among this dataset's evaluators.")
     evaluator_id: str = Field(
         description=(
-            "GlobalID of the LLM, code, built-in, or decision evaluator definition to run. "
-            "Create a definition through POST /v1/evaluators first."
+            "GlobalID of the evaluator definition to run. Create a definition through "
+            "POST /v1/evaluators first."
         )
     )
     input_mapping: InputMapping
     description: Optional[str] = Field(
         default=None, description="Binding override. Null inherits the shared description."
     )
-    output_configs: Optional[list[EvaluatorOutputConfig]] = Field(
-        default=None,
-        min_length=1,
-        description=(
-            "Null inherits the shared output configs. An override needs at least one config, "
-            "each with its own name; an LLM binding's configs must be categorical. Nothing "
-            "checks them against the prompt. A decision binding's configs are derived from its "
-            "scoring policy, so they are accepted only if they equal the derived ones, and are "
-            "not stored."
-        ),
+
+
+class CreateLLMDatasetEvaluatorRequest(_CreateDatasetEvaluatorFields):
+    evaluator_type: Literal["llm"] = Field(description=_EVALUATOR_TYPE_DESCRIPTION)
+    output_configs: Optional[list[CategoricalAnnotationConfigData]] = Field(
+        default=None, min_length=1, description=_CREATE_OUTPUT_CONFIGS_DESCRIPTION
     )
+
+
+class CreateCodeDatasetEvaluatorRequest(_CreateDatasetEvaluatorFields):
+    evaluator_type: Literal["code"] = Field(description=_EVALUATOR_TYPE_DESCRIPTION)
+    output_configs: Optional[list[EvaluatorOutputConfig]] = Field(
+        default=None, min_length=1, description=_CREATE_OUTPUT_CONFIGS_DESCRIPTION
+    )
+
+
+class CreateBuiltInDatasetEvaluatorRequest(_CreateDatasetEvaluatorFields):
+    evaluator_type: Literal["builtin"] = Field(description=_EVALUATOR_TYPE_DESCRIPTION)
+    output_configs: Optional[list[EvaluatorOutputConfig]] = Field(
+        default=None, min_length=1, description=_CREATE_OUTPUT_CONFIGS_DESCRIPTION
+    )
+
+
+class CreateDecisionDatasetEvaluatorRequest(_CreateDatasetEvaluatorFields):
+    """A decision binding's outputs follow the evaluator's questions and scoring policy."""
+
+    evaluator_type: Literal["decision"] = Field(description=_EVALUATOR_TYPE_DESCRIPTION)
+
+
+CreateDatasetEvaluatorRequest = Annotated[
+    Union[
+        CreateLLMDatasetEvaluatorRequest,
+        CreateCodeDatasetEvaluatorRequest,
+        CreateBuiltInDatasetEvaluatorRequest,
+        CreateDecisionDatasetEvaluatorRequest,
+    ],
+    Field(discriminator="evaluator_type"),
+]
 
 
 class PatchDatasetEvaluatorRequest(EvaluatorRequest):
@@ -74,15 +121,7 @@ class PatchDatasetEvaluatorRequest(EvaluatorRequest):
         default=UNDEFINED, description="Omit to preserve; null restores inheritance."
     )
     output_configs: Optional[list[EvaluatorOutputConfig]] = Field(
-        default=UNDEFINED,
-        min_length=1,
-        description=(
-            "Omit to preserve; null restores inheritance. An override needs at least one "
-            "config, each with its own name; an LLM binding's configs must be categorical. "
-            "Nothing checks them against the prompt. A decision binding's configs are derived "
-            "from its scoring policy, so they are accepted only if they equal the derived ones, "
-            "and are not stored."
-        ),
+        default=UNDEFINED, min_length=1, description=_PATCH_OUTPUT_CONFIGS_DESCRIPTION
     )
 
     @model_validator(mode="after")
@@ -96,7 +135,7 @@ class DatasetEvaluator(V1RoutesBaseModel):
     id: str
     dataset_id: str
     evaluator_id: str
-    evaluator_type: Literal["llm", "code", "builtin", "decision"]
+    evaluator_type: EvaluatorType
     trace_project_id: str
     name: Identifier
     input_mapping: InputMapping
@@ -124,6 +163,17 @@ class DatasetEvaluatorsResponseBody(PaginatedResponseBody[DatasetEvaluator]):
 
 
 router = APIRouter(tags=["evaluators"], route_class=ProblemDetailsRoute)
+
+
+def _refuse_mismatched_evaluator_type(
+    *, evaluator_type: EvaluatorType, evaluator_kind: models.EvaluatorKind
+) -> None:
+    """Refuse a body whose evaluator_type disagrees with the evaluator it names."""
+    if EVALUATOR_KIND_BY_TYPE[evaluator_type] != evaluator_kind:
+        raise BadRequest(
+            f"evaluator_type is {evaluator_type!r}, but the evaluator is "
+            f"{EVALUATOR_TYPE_BY_KIND[evaluator_kind]!r}"
+        )
 
 
 def _binding_response(
@@ -183,23 +233,34 @@ async def create_dataset_evaluator(
     """Bind an existing evaluator definition to a dataset.
 
     The dataset identifier is decoded as a GlobalID first and otherwise treated as a name.
+    `evaluator_type` must match the evaluator's kind, or the request is refused with 422.
     Binding descriptions and output configurations override the shared definition; null
-    inherits it. Input mappings are always dataset-specific. A name the dataset already uses
-    is refused with 409 `already_exists` and that binding's `existing_id`. This registers an
-    evaluator and does not run an experiment.
+    inherits it. Decision bindings take no output configurations. Input mappings are always
+    dataset-specific. A name the dataset already uses is refused with 409 `already_exists`
+    and that binding's `existing_id`. This registers an evaluator and does not run an
+    experiment.
     """
     with evaluator_api_errors():
+        evaluator_id = parse_global_id(body.evaluator_id)
+        evaluator_kind = EVALUATOR_KIND_BY_TYPENAME.get(evaluator_id.type_name)
+        if evaluator_kind is None:
+            raise BadRequest(f"Not an evaluator id: {body.evaluator_id}")
+        _refuse_mismatched_evaluator_type(
+            evaluator_type=body.evaluator_type, evaluator_kind=evaluator_kind
+        )
+        configs = (
+            output_configs_to_db(body.output_configs)
+            if not isinstance(body, CreateDecisionDatasetEvaluatorRequest)
+            and body.output_configs is not None
+            else None
+        )
         # The writer sees a dataset created just before this request; a replica may not.
         async with request.app.state.db() as session:
             dataset = await get_dataset_by_identifier(session, dataset_identifier)
             dataset_id = GlobalID("Dataset", str(dataset.id))
         context = evaluator_service_context(request)
-        configs = (
-            output_configs_to_db(body.output_configs) if body.output_configs is not None else None
-        )
-        evaluator_id = parse_global_id(body.evaluator_id)
         row: models.DatasetEvaluators
-        if evaluator_id.type_name == "DecisionEvaluator":
+        if isinstance(body, CreateDecisionDatasetEvaluatorRequest):
             row = await decisions.create_dataset_decision_binding(
                 context,
                 decisions.CreateDatasetDecisionBindingInput(
@@ -208,10 +269,9 @@ async def create_dataset_evaluator(
                     name=body.name,
                     input_mapping=body.input_mapping,
                     description=body.description,
-                    output_configs=configs,
                 ),
             )
-        elif evaluator_id.type_name == "LLMEvaluator":
+        elif isinstance(body, CreateLLMDatasetEvaluatorRequest):
             row = await dataset_bindings.create_dataset_llm_binding(
                 context,
                 dataset_bindings.CreateDatasetLLMBindingInput(
@@ -223,7 +283,7 @@ async def create_dataset_evaluator(
                     output_configs=configs,
                 ),
             )
-        elif evaluator_id.type_name == "CodeEvaluator":
+        elif isinstance(body, CreateCodeDatasetEvaluatorRequest):
             row = await dataset_bindings.create_dataset_code_evaluator(
                 context,
                 dataset_bindings.CreateDatasetCodeEvaluatorInput(
@@ -235,7 +295,7 @@ async def create_dataset_evaluator(
                     output_configs=configs,
                 ),
             )
-        elif evaluator_id.type_name == "BuiltInEvaluator":
+        elif isinstance(body, CreateBuiltInDatasetEvaluatorRequest):
             row = await dataset_bindings.create_dataset_builtin_evaluator(
                 context,
                 dataset_bindings.CreateDatasetBuiltinEvaluatorInput(
@@ -248,7 +308,7 @@ async def create_dataset_evaluator(
                 ),
             )
         else:
-            raise BadRequest(f"Not an evaluator id: {body.evaluator_id}")
+            assert_never(body)
         return DatasetEvaluatorResponseBody(
             data=await _written_dataset_evaluator(
                 request, encode_global_id("DatasetEvaluator", row.id)
@@ -328,17 +388,18 @@ async def patch_dataset_evaluator(
 ) -> DatasetEvaluatorResponseBody:
     """Update only the binding. Dataset and evaluator references are immutable.
 
-    LLM output overrides must remain consistent with the prompt the evaluator runs, and a
-    later change to that prompt is refused while it would invalidate them. Use
-    /evaluators/{evaluator_id} to modify a shared definition instead.
+    LLM output overrides must be categorical; nothing checks them against the prompt.
+    Decision bindings take no output configurations, and a non-null override is refused.
+    Use /evaluators/{evaluator_id} to modify a shared definition instead.
     """
     with evaluator_api_errors():
+        binding_id = parse_global_id(dataset_evaluator_id)
         values = {name: getattr(body, name) for name in body.model_fields_set}
         if "output_configs" in values and body.output_configs is not None:
             values["output_configs"] = output_configs_to_db(body.output_configs)
         await dataset_bindings.patch_dataset_evaluator(
             evaluator_service_context(request),
-            parse_global_id(dataset_evaluator_id),
+            binding_id,
             dataset_bindings.DatasetEvaluatorPatch(**values),
         )
         return DatasetEvaluatorResponseBody(

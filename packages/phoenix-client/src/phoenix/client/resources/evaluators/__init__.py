@@ -212,6 +212,7 @@ class Evaluators:
                 dataset="golden-questions",
                 name="exact-match",
                 evaluator_id="Q29kZUV2YWx1YXRvcjoy",
+                evaluator_type="code",
                 input_mapping={"literal_mapping": {}, "path_mapping": {"output": "output"}},
             )
 
@@ -273,7 +274,7 @@ class Evaluators:
         ``limit`` over listing everything when looking for one evaluator.
 
         Args:
-            type (Optional[Literal["llm", "code", "builtin"]]): Return only one kind of
+            type (Optional[Literal["llm", "code", "builtin", "decision"]]): Return only one kind of
                 definition. All kinds are returned by default.
             name (Optional[str]): Return only the evaluator with this exact name.
             limit (Optional[int]): Stop after this many definitions. By default
@@ -784,6 +785,7 @@ class AsyncEvaluators:
                 dataset="golden-questions",
                 name="exact-match",
                 evaluator_id="Q29kZUV2YWx1YXRvcjoy",
+                evaluator_type="code",
                 input_mapping={"literal_mapping": {}, "path_mapping": {"output": "output"}},
             )
 
@@ -845,7 +847,7 @@ class AsyncEvaluators:
         ``limit`` over listing everything when looking for one evaluator.
 
         Args:
-            type (Optional[Literal["llm", "code", "builtin"]]): Return only one kind of
+            type (Optional[Literal["llm", "code", "builtin", "decision"]]): Return only one kind of
                 definition. All kinds are returned by default.
             name (Optional[str]): Return only the evaluator with this exact name.
             limit (Optional[int]): Stop after this many definitions. By default

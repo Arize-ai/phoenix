@@ -1,5 +1,6 @@
 import invariant from "tiny-invariant";
 
+import type { operations } from "../__generated__/api/v1";
 import { createClient } from "../client";
 import { CREATE_DATASET_EVALUATOR } from "../constants/serverRequirements";
 import type { ClientFn } from "../types/core";
@@ -8,14 +9,21 @@ import type {
   DatasetIdentifier,
   EvaluatorInputMapping,
   EvaluatorOutputConfig,
+  LLMEvaluatorDefinition,
 } from "../types/evaluators";
 import { resolveDatasetIdentifier } from "../types/evaluators";
+import { assertUnreachable } from "../utils/assertUnreachable";
 import { ensureServerCapability } from "../utils/serverVersionUtils";
 
+type DatasetEvaluatorCreateBody =
+  operations["createDatasetEvaluator"]["requestBody"]["content"]["application/json"];
+
+type CategoricalOutputConfig = LLMEvaluatorDefinition["output_configs"][number];
+
 /**
- * Parameters for binding an evaluator to a dataset.
+ * Fields every dataset binding takes, whatever the evaluator's kind.
  */
-export interface CreateDatasetEvaluatorParams extends ClientFn {
+interface CreateDatasetEvaluatorBaseParams extends ClientFn {
   /**
    * The dataset to bind to, by ID or name.
    */
@@ -37,13 +45,74 @@ export interface CreateDatasetEvaluatorParams extends ClientFn {
    * Overrides the shared definition's description for this binding.
    */
   description?: string;
-  /**
-   * Overrides the shared definition's output configurations for this binding
-   * with at least one config, each with its own name; omit it to inherit them.
-   * For LLM evaluators the override must be categorical. It is not checked
-   * against the prompt.
-   */
-  outputConfigs?: EvaluatorOutputConfig[];
+}
+
+/**
+ * Parameters for binding an evaluator to a dataset. `evaluatorType` is the
+ * evaluator's kind, as its definition's `type` reports it; the server refuses a
+ * mismatch. `outputConfigs` overrides the shared definition's output
+ * configurations for this binding with at least one config, each with its own
+ * name; omit it to inherit them. An LLM evaluator's override must be
+ * categorical and is not checked against the prompt. A decision binding takes
+ * no output config override: its outputs follow the evaluator's questions and
+ * scoring policy, and passing `outputConfigs` throws.
+ */
+export type CreateDatasetEvaluatorParams = CreateDatasetEvaluatorBaseParams &
+  (
+    | { evaluatorType: "llm"; outputConfigs?: CategoricalOutputConfig[] }
+    | {
+        evaluatorType: "code" | "builtin";
+        outputConfigs?: EvaluatorOutputConfig[];
+      }
+    | { evaluatorType: "decision"; outputConfigs?: never }
+  );
+
+function buildCreateBody(
+  params: CreateDatasetEvaluatorParams
+): DatasetEvaluatorCreateBody {
+  const fields = {
+    name: params.name,
+    evaluator_id: params.evaluatorId,
+    input_mapping: params.inputMapping,
+    ...(params.description !== undefined && {
+      description: params.description,
+    }),
+  };
+  switch (params.evaluatorType) {
+    case "decision":
+      if (params.outputConfigs !== undefined) {
+        throw new Error(
+          "A decision binding takes no outputConfigs: its outputs follow the evaluator's questions and scoring."
+        );
+      }
+      return { ...fields, evaluator_type: "decision" };
+    case "llm":
+      return {
+        ...fields,
+        evaluator_type: "llm",
+        ...(params.outputConfigs !== undefined && {
+          output_configs: params.outputConfigs,
+        }),
+      };
+    case "code":
+      return {
+        ...fields,
+        evaluator_type: "code",
+        ...(params.outputConfigs !== undefined && {
+          output_configs: params.outputConfigs,
+        }),
+      };
+    case "builtin":
+      return {
+        ...fields,
+        evaluator_type: "builtin",
+        ...(params.outputConfigs !== undefined && {
+          output_configs: params.outputConfigs,
+        }),
+      };
+    default:
+      return assertUnreachable(params);
+  }
 }
 
 /**
@@ -57,8 +126,9 @@ export interface CreateDatasetEvaluatorParams extends ClientFn {
  * @param params.name - The binding's name.
  * @param params.inputMapping - How record fields map onto evaluator arguments.
  * @param params.evaluatorId - The evaluator definition GlobalID.
+ * @param params.evaluatorType - The evaluator's kind; it must match the definition.
  * @param params.description - Optional description override.
- * @param params.outputConfigs - Optional output configuration overrides, at least one when given.
+ * @param params.outputConfigs - Optional output configuration overrides, at least one when given. Not taken by decision bindings.
  * @param params.client - An optional Phoenix client instance.
  * @returns The created binding. A name the dataset already uses is refused with
  * 409; the thrown `HttpError` has `problem.code` `already_exists` and
@@ -74,20 +144,15 @@ export interface CreateDatasetEvaluatorParams extends ClientFn {
  *   dataset: { datasetName: "golden-questions" },
  *   name: "exact-match",
  *   evaluatorId: "Q29kZUV2YWx1YXRvcjoy",
+ *   evaluatorType: "code",
  *   inputMapping: { literal_mapping: {}, path_mapping: { output: "output" } },
  * });
  * ```
  */
-export async function createDatasetEvaluator({
-  client: _client,
-  dataset,
-  name,
-  evaluatorId,
-  inputMapping,
-  description,
-  outputConfigs,
-}: CreateDatasetEvaluatorParams): Promise<DatasetEvaluator> {
-  const client = _client ?? createClient();
+export async function createDatasetEvaluator(
+  params: CreateDatasetEvaluatorParams
+): Promise<DatasetEvaluator> {
+  const client = params.client ?? createClient();
   await ensureServerCapability({
     client,
     requirement: CREATE_DATASET_EVALUATOR,
@@ -97,15 +162,9 @@ export async function createDatasetEvaluator({
     "/v1/datasets/{dataset_identifier}/evaluators",
     {
       params: {
-        path: { dataset_identifier: resolveDatasetIdentifier(dataset) },
+        path: { dataset_identifier: resolveDatasetIdentifier(params.dataset) },
       },
-      body: {
-        name,
-        evaluator_id: evaluatorId,
-        input_mapping: inputMapping,
-        ...(description !== undefined && { description }),
-        ...(outputConfigs !== undefined && { output_configs: outputConfigs }),
-      },
+      body: buildCreateBody(params),
     }
   );
 

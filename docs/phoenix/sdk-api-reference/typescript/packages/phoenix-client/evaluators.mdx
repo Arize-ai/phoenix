@@ -23,6 +23,7 @@ Every helper requires a Phoenix server on 21.0.0 or later. Each one checks the s
 | `llm` | `createEvaluator`, pinned to an existing prompt version | By reference | By reference | `updateEvaluator`, `deleteEvaluator` |
 | `code` | `createEvaluator`, with its first version | By reference | By reference | `updateEvaluator`, `createCodeEvaluatorVersion`, `deleteEvaluator` |
 | `builtin` | Ships with Phoenix | By reference | Not accepted | Never edited or deleted |
+| `decision` | REST `POST /v1/evaluators` with `type: "decision"`, or the UI; no SDK helper creates one | By reference | By reference | REST `PATCH /v1/evaluators/{id}`, `deleteEvaluator` when nothing binds it |
 
 Create a definition first, then bind it by its `id`. One definition can back any number of bindings, and deleting a binding never deletes the definition.
 
@@ -233,12 +234,14 @@ const binding = await createDatasetEvaluator({
   dataset: { datasetName: "golden-questions" },
   name: "exact-match",
   evaluatorId: "Q29kZUV2YWx1YXRvcjoy",
+  evaluatorType: "code",
   inputMapping: { literal_mapping: {}, path_mapping: { output: "output" } },
 });
 ```
 
 - Select the dataset with `datasetName`, `datasetId`, or the shorthand `dataset`, which accepts either.
-- `evaluatorId` names an LLM, code, or built-in definition.
+- `evaluatorId` names an LLM, code, built-in, or decision definition.
+- `evaluatorType` is that definition's `type`. The server refuses a mismatch, and a decision binding takes no `outputConfigs`.
 - The input mapping lives on the binding and is required.
 - A name the dataset already uses is refused with `409` and `already_exists`.
 
@@ -265,7 +268,9 @@ await updateDatasetEvaluator({
 });
 ```
 
+- A patch takes no `evaluator_type`, because a binding's evaluator cannot change.
 - An `output_configs` override needs at least one config; `[]` is rejected.
+- A decision binding takes no `output_configs`, and the server refuses a non-null override: its outputs follow the evaluator's questions and scoring policy.
 - On an LLM evaluator, output overrides must be categorical. Nothing checks them, or a description override, against the prompt.
 - `getDatasetEvaluator` and `getDatasetEvaluators` return the stored overrides; `null` means the binding uses the evaluator's value.
 

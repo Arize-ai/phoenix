@@ -560,20 +560,20 @@ px dataset evaluator get RGF0YXNldEV2YWx1YXRvcjox --format json
 
 ### `px dataset evaluator create <dataset-identifier>`
 
-Bind an existing evaluator definition to a dataset. A binding registers the evaluator to run against the dataset's experiments; it does not run an experiment. Create LLM and code definitions with `px evaluator create` first, or bind a built-in evaluator by ID; one definition can back many bindings. A name the dataset already uses is refused with a conflict whose envelope carries `existing_id`.
+Bind an existing evaluator definition to a dataset. A binding registers the evaluator to run against the dataset's experiments; it does not run an experiment. Create LLM and code definitions with `px evaluator create` first, or bind a built-in or decision evaluator by ID; one definition can back many bindings. The CLI reads the definition first to learn its kind, which the binding request names. A name the dataset already uses is refused with a conflict whose envelope carries `existing_id`.
 
 ```bash
 px dataset evaluator create golden-questions --name exact-match --evaluator-id Q29kZUV2YWx1YXRvcjoy --input-mapping '{"literal_mapping":{},"path_mapping":{"output":"output"}}'
 ```
 
-| Option                    | Description                                                                                                        | Default  |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------ | -------- |
-| `--name <name>`           | Binding name, unique within the dataset (required)                                                                 | —        |
-| `--input-mapping <json>`  | JSON object with `literal_mapping` and `path_mapping` (required)                                                   | —        |
-| `--evaluator-id <id>`     | The LLM, code, or built-in evaluator to bind (required)                                                            | —        |
-| `--description <text>`    | Description override for this binding                                                                              | —        |
-| `--output-configs <json>` | JSON array of at least one output configuration that overrides the definition's (LLM evaluators: categorical only) | —        |
-| `--format <format>`       | `pretty`, `json`, or `raw`                                                                                         | `pretty` |
+| Option                    | Description                                                                                                                                           | Default  |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `--name <name>`           | Binding name, unique within the dataset (required)                                                                                                    | —        |
+| `--input-mapping <json>`  | JSON object with `literal_mapping` and `path_mapping` (required)                                                                                      | —        |
+| `--evaluator-id <id>`     | The LLM, code, built-in, or decision evaluator to bind (required)                                                                                     | —        |
+| `--description <text>`    | Description override for this binding                                                                                                                 | —        |
+| `--output-configs <json>` | JSON array of at least one output configuration that overrides the definition's (LLM evaluators: categorical only; decision evaluators: not accepted) | —        |
+| `--format <format>`       | `pretty`, `json`, or `raw`                                                                                                                            | `pretty` |
 
 ---
 
@@ -586,7 +586,7 @@ px dataset evaluator update RGF0YXNldEV2YWx1YXRvcjox --description "Runs against
 px dataset evaluator update RGF0YXNldEV2YWx1YXRvcjox --input-mapping '{"literal_mapping":{},"path_mapping":{"output":"output.text"}}'
 ```
 
-Accepts `--name`, `--description`, `--input-mapping`, and `--output-configs` as in `create`. `--inherit-description` and `--inherit-output-configs` drop the binding's overrides so it inherits the shared definition's values again.
+Accepts `--name`, `--description`, `--input-mapping`, and `--output-configs` as in `create`. `--inherit-description` and `--inherit-output-configs` drop the binding's overrides so it inherits the shared definition's values again. A decision binding takes no `--output-configs`: the server refuses it, because the outputs follow the evaluator's questions and scoring policy.
 
 ---
 

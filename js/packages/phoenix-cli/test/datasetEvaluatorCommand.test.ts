@@ -42,13 +42,94 @@ const BINDING: componentsV1["schemas"]["DatasetEvaluator"] = {
   output_configs: null,
 };
 
+const DECISION_EVALUATOR_ID = "RGVjaXNpb25FdmFsdWF0b3I6MQ==";
+
+const LLM_EVALUATOR_ID = "TExNRXZhbHVhdG9yOjE=";
+const UNKNOWN_EVALUATOR_ID = "bm90LWFuLWV2YWx1YXRvcg==";
+
+type EvaluatorDefinition =
+  componentsV1["schemas"]["EvaluatorDefinitionResponseBody"]["data"];
+
+const EVALUATOR_DEFINITIONS: Record<string, EvaluatorDefinition> = {
+  [BINDING.evaluator_id]: {
+    type: "code",
+    id: BINDING.evaluator_id,
+    name: "exact-match",
+    description: null,
+    language: "PYTHON",
+    sandbox_config_id: "U2FuZGJveENvbmZpZzox",
+    input_mapping: INPUT_MAPPING,
+    output_configs: [
+      { type: "CONTINUOUS", name: "score", optimization_direction: "MAXIMIZE" },
+    ],
+    current_version_id: "Q29kZUV2YWx1YXRvclZlcnNpb246MQ==",
+    source_code: "def evaluate(output):\n    return 1.0\n",
+  },
+  [LLM_EVALUATOR_ID]: {
+    type: "llm",
+    id: LLM_EVALUATOR_ID,
+    name: "toxicity",
+    description: null,
+    prompt: {
+      prompt_id: "UHJvbXB0OjE=",
+      selector: { type: "version", prompt_version_id: "UHJvbXB0VmVyc2lvbjo3" },
+      resolved_prompt_version_id: "UHJvbXB0VmVyc2lvbjo3",
+    },
+    output_configs: [
+      {
+        type: "CATEGORICAL",
+        name: "toxicity",
+        optimization_direction: "MINIMIZE",
+        values: [
+          { label: "toxic", score: 1 },
+          { label: "clean", score: 0 },
+        ],
+      },
+    ],
+  },
+  [DECISION_EVALUATOR_ID]: {
+    type: "decision",
+    id: DECISION_EVALUATOR_ID,
+    name: "judge",
+    description: null,
+    decision: {
+      decision_id: "RGVjaXNpb246MQ==",
+      selector: { type: "latest" },
+      resolved_decision_version_id: "RGVjaXNpb25WZXJzaW9uOjE=",
+    },
+    scoring_policy: {},
+    output_configs: [],
+  },
+};
+
 beforeEach(() => {
   mock.server.use(
     http.get("/arize_phoenix_version", ({ response }) =>
       response.untyped(new Response("21.0.0", { status: 200 }))
-    )
+    ),
+    http.get("/v1/evaluators/{evaluator_id}", ({ params, response }) => {
+      const definition = EVALUATOR_DEFINITIONS[params.evaluator_id];
+      if (definition === undefined) {
+        return response(404).json({
+          type: "about:blank",
+          title: "Not Found",
+          status: 404,
+          detail: "Evaluator not found",
+          code: "not_found",
+        });
+      }
+      return response(200).json({ data: definition });
+    })
   );
 });
+
+function serveBinding(binding: componentsV1["schemas"]["DatasetEvaluator"]) {
+  mock.server.use(
+    http.get("/v1/dataset_evaluators/{dataset_evaluator_id}", ({ response }) =>
+      response(200).json({ data: binding })
+    )
+  );
+}
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -165,6 +246,7 @@ describe("dataset evaluator create", () => {
     expect(captured.count).toBe(1);
     expect(captured.identifier).toBe("golden-questions");
     expect(captured.body).toEqual({
+      evaluator_type: "code",
       name: "exact-match",
       evaluator_id: "Q29kZUV2YWx1YXRvcjoy",
       input_mapping: INPUT_MAPPING,
@@ -197,6 +279,7 @@ describe("dataset evaluator create", () => {
     );
 
     expect(captured.body).toEqual({
+      evaluator_type: "code",
       name: "exact-match",
       evaluator_id: "Q29kZUV2YWx1YXRvcjoy",
       input_mapping: INPUT_MAPPING,
@@ -227,6 +310,70 @@ describe("dataset evaluator create", () => {
 
     expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
     expect(captured.count).toBe(0);
+  });
+
+  it("rejects an --evaluator-id that cannot be an ID before any request", async () => {
+    const requests = recordRequests(mock.server);
+    captureCliOutput();
+    const exitSpy = mockProcessExit();
+
+    await expect(
+      createDatasetEvaluatorCommand().parseAsync(
+        [
+          "create",
+          "golden-questions",
+          "--name",
+          "exact-match",
+          "--evaluator-id",
+          ".",
+          "--input-mapping",
+          JSON.stringify(INPUT_MAPPING),
+          ...BASE_ARGS,
+        ],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
+    expect(requests).toEqual([]);
+  });
+
+  it("refuses an evaluator of an unknown kind without creating a binding", async () => {
+    mock.server.use(
+      http.get("/v1/evaluators/{evaluator_id}", ({ params, response }) =>
+        response.untyped(
+          Response.json({ data: { id: params.evaluator_id, type: "other" } })
+        )
+      )
+    );
+    const io = captureCliOutput();
+    const exitSpy = mockProcessExit();
+    const captured = captureCreate();
+
+    await expect(
+      createDatasetEvaluatorCommand().parseAsync(
+        [
+          "create",
+          "golden-questions",
+          "--name",
+          "exact-match",
+          "--evaluator-id",
+          UNKNOWN_EVALUATOR_ID,
+          "--input-mapping",
+          JSON.stringify(INPUT_MAPPING),
+          "--format",
+          "raw",
+          ...BASE_ARGS,
+        ],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
+    expect(captured.count).toBe(0);
+    expect(String(io.stderr.mock.calls[0]?.[0])).toContain(
+      "is not an evaluator"
+    );
   });
 
   it("rejects an empty --output-configs override before any request", async () => {
@@ -265,10 +412,153 @@ describe("dataset evaluator create", () => {
       hint: "px dataset evaluator create golden-questions --name exact-match --input-mapping <json> --evaluator-id <id>",
     });
   });
+
+  it("binds an LLM evaluator under its own kind", async () => {
+    const captured = captureCreate();
+    captureCliOutput();
+
+    await createDatasetEvaluatorCommand().parseAsync(
+      [
+        "create",
+        "golden-questions",
+        "--name",
+        "toxicity",
+        "--evaluator-id",
+        LLM_EVALUATOR_ID,
+        "--input-mapping",
+        JSON.stringify(INPUT_MAPPING),
+        ...BASE_ARGS,
+      ],
+      { from: "user" }
+    );
+
+    expect(captured.body).toEqual({
+      evaluator_type: "llm",
+      name: "toxicity",
+      evaluator_id: LLM_EVALUATOR_ID,
+      input_mapping: INPUT_MAPPING,
+    });
+  });
+
+  it("creates nothing when the evaluator lookup finds no evaluator", async () => {
+    const captured = captureCreate();
+    captureCliOutput();
+    const exitSpy = mockProcessExit();
+
+    await expect(
+      createDatasetEvaluatorCommand().parseAsync(
+        [
+          "create",
+          "golden-questions",
+          "--name",
+          "exact-match",
+          "--evaluator-id",
+          UNKNOWN_EVALUATOR_ID,
+          "--input-mapping",
+          JSON.stringify(INPUT_MAPPING),
+          ...BASE_ARGS,
+        ],
+        { from: "user" }
+      )
+    ).rejects.toThrow("process.exit:");
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
+    expect(captured.count).toBe(0);
+  });
+
+  it("binds a decision evaluator under its own kind", async () => {
+    const captured = captureCreate();
+    captureCliOutput();
+
+    await createDatasetEvaluatorCommand().parseAsync(
+      [
+        "create",
+        "golden-questions",
+        "--name",
+        "judge",
+        "--evaluator-id",
+        DECISION_EVALUATOR_ID,
+        "--input-mapping",
+        JSON.stringify(INPUT_MAPPING),
+        ...BASE_ARGS,
+      ],
+      { from: "user" }
+    );
+
+    expect(captured.body).toEqual({
+      evaluator_type: "decision",
+      name: "judge",
+      evaluator_id: DECISION_EVALUATOR_ID,
+      input_mapping: INPUT_MAPPING,
+    });
+  });
+
+  it("refuses --output-configs on a decision binding without binding it", async () => {
+    const captured = captureCreate();
+    const io = captureCliOutput();
+    const exitSpy = mockProcessExit();
+
+    await expect(
+      createDatasetEvaluatorCommand().parseAsync(
+        [
+          "create",
+          "golden-questions",
+          "--name",
+          "judge",
+          "--evaluator-id",
+          DECISION_EVALUATOR_ID,
+          "--input-mapping",
+          JSON.stringify(INPUT_MAPPING),
+          "--output-configs",
+          '[{"type":"FREEFORM","name":"notes"}]',
+          "--format",
+          "raw",
+          ...BASE_ARGS,
+        ],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
+    expect(captured.count).toBe(0);
+    expect(String(io.stderr.mock.calls[0]?.[0])).toContain(
+      "A decision binding takes no output configs"
+    );
+  });
 });
 
 describe("dataset evaluator update", () => {
+  beforeEach(() => {
+    serveBinding(BINDING);
+  });
+
   it("PATCHes only the flags given", async () => {
+    let receivedBody: unknown;
+    mock.server.use(
+      http.patch(
+        "/v1/dataset_evaluators/{dataset_evaluator_id}",
+        async ({ request, response }) => {
+          receivedBody = await request.clone().json();
+          return response(200).json({ data: { ...BINDING, name: "renamed" } });
+        }
+      )
+    );
+    captureCliOutput();
+
+    await createDatasetEvaluatorCommand().parseAsync(
+      ["update", BINDING_ID, "--name", "renamed", ...BASE_ARGS],
+      { from: "user" }
+    );
+
+    expect(receivedBody).toEqual({ name: "renamed" });
+  });
+
+  it("sends the same flat patch for a decision binding", async () => {
+    serveBinding({
+      ...BINDING,
+      evaluator_id: DECISION_EVALUATOR_ID,
+      evaluator_type: "decision",
+    });
     let receivedBody: unknown;
     mock.server.use(
       http.patch(
@@ -313,7 +603,62 @@ describe("dataset evaluator update", () => {
       { from: "user" }
     );
 
-    expect(receivedBody).toEqual({ description: null, output_configs: null });
+    expect(receivedBody).toEqual({
+      description: null,
+      output_configs: null,
+    });
+  });
+
+  it("surfaces the server's refusal of --output-configs on a decision binding", async () => {
+    let numBindingReads = 0;
+    mock.server.use(
+      http.get(
+        "/v1/dataset_evaluators/{dataset_evaluator_id}",
+        ({ response }) => {
+          numBindingReads += 1;
+          return response(200).json({ data: BINDING });
+        }
+      ),
+      http.patch("/v1/dataset_evaluators/{dataset_evaluator_id}", () =>
+        Response.json(
+          {
+            type: "about:blank",
+            title: "Unprocessable Entity",
+            status: 422,
+            code: "invalid_argument",
+            detail:
+              "Decision outputs are derived from the questions and scoring policy",
+          },
+          {
+            status: 422,
+            headers: { "content-type": "application/problem+json" },
+          }
+        )
+      )
+    );
+    const io = captureCliOutput();
+    const exitSpy = mockProcessExit();
+
+    await expect(
+      createDatasetEvaluatorCommand().parseAsync(
+        [
+          "update",
+          BINDING_ID,
+          "--output-configs",
+          JSON.stringify([{ type: "FREEFORM", name: "notes" }]),
+          "--format",
+          "raw",
+          ...BASE_ARGS,
+        ],
+        { from: "user" }
+      )
+    ).rejects.toThrow("process.exit:");
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
+    expect(numBindingReads).toBe(0);
+    expect(String(io.stderr.mock.calls[0]?.[0])).toContain(
+      "Decision outputs are derived"
+    );
   });
 
   it("rejects --description together with --inherit-description", async () => {
@@ -375,7 +720,7 @@ describe("dataset evaluator update", () => {
       error:
         "Error updating dataset evaluator: --output-configs must be a non-empty JSON array",
       code: "INVALID_ARGUMENT",
-      hint: `px dataset evaluator update ${BINDING_ID} --inherit-output-configs`,
+      hint: `px dataset evaluator update ${BINDING_ID} (omit --output-configs, or pass --inherit-output-configs to follow the evaluator's outputs)`,
     });
   });
 

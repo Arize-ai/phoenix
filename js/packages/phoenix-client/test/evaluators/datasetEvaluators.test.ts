@@ -68,11 +68,13 @@ describe("createDatasetEvaluator", () => {
       dataset: { datasetName: "golden-questions" },
       name: "exact-match",
       evaluatorId: "RXZhbHVhdG9yOjI=",
+      evaluatorType: "code",
       inputMapping: INPUT_MAPPING,
     });
 
     expect(receivedIdentifier).toBe("golden-questions");
     expect(receivedBody).toEqual({
+      evaluator_type: "code",
       name: "exact-match",
       evaluator_id: "RXZhbHVhdG9yOjI=",
       input_mapping: INPUT_MAPPING,
@@ -98,6 +100,7 @@ describe("createDatasetEvaluator", () => {
       name: "notes",
       inputMapping: INPUT_MAPPING,
       evaluatorId: "RXZhbHVhdG9yOjI=",
+      evaluatorType: "code",
       description: "override",
       outputConfigs: [{ type: "FREEFORM", name: "notes" }],
     });
@@ -106,6 +109,141 @@ describe("createDatasetEvaluator", () => {
     expect(receivedBody?.output_configs).toEqual([
       { type: "FREEFORM", name: "notes" },
     ]);
+  });
+
+  it("sends an LLM binding with categorical output configs under its own kind", async () => {
+    let receivedBody: unknown;
+    server.use(
+      http.post(
+        "/v1/datasets/{dataset_identifier}/evaluators",
+        async ({ request, response }) => {
+          receivedBody = await request.json();
+          return response(201).json({
+            data: { ...binding, evaluator_type: "llm" },
+          });
+        }
+      )
+    );
+    const outputConfigs = [
+      {
+        type: "CATEGORICAL" as const,
+        name: "correctness",
+        optimization_direction: "MAXIMIZE" as const,
+        values: [
+          { label: "correct", score: 1 },
+          { label: "incorrect", score: 0 },
+        ],
+      },
+    ];
+
+    await createDatasetEvaluator({
+      client: createTestClient(),
+      dataset: { datasetId: "RGF0YXNldDox" },
+      name: "correctness",
+      evaluatorId: "TExNRXZhbHVhdG9yOjE=",
+      evaluatorType: "llm",
+      inputMapping: INPUT_MAPPING,
+      outputConfigs,
+    });
+
+    expect(receivedBody).toEqual({
+      evaluator_type: "llm",
+      name: "correctness",
+      evaluator_id: "TExNRXZhbHVhdG9yOjE=",
+      input_mapping: INPUT_MAPPING,
+      output_configs: outputConfigs,
+    });
+  });
+
+  it("sends a built-in binding under its own kind", async () => {
+    let receivedBody: unknown;
+    server.use(
+      http.post(
+        "/v1/datasets/{dataset_identifier}/evaluators",
+        async ({ request, response }) => {
+          receivedBody = await request.json();
+          return response(201).json({
+            data: { ...binding, evaluator_type: "builtin" },
+          });
+        }
+      )
+    );
+
+    await createDatasetEvaluator({
+      client: createTestClient(),
+      dataset: { datasetId: "RGF0YXNldDox" },
+      name: "contains",
+      evaluatorId: "QnVpbHRJbkV2YWx1YXRvcjox",
+      evaluatorType: "builtin",
+      inputMapping: INPUT_MAPPING,
+    });
+
+    expect(receivedBody).toEqual({
+      evaluator_type: "builtin",
+      name: "contains",
+      evaluator_id: "QnVpbHRJbkV2YWx1YXRvcjox",
+      input_mapping: INPUT_MAPPING,
+    });
+  });
+
+  it("sends a decision binding without output configs", async () => {
+    let receivedBody: unknown;
+    server.use(
+      http.post(
+        "/v1/datasets/{dataset_identifier}/evaluators",
+        async ({ request, response }) => {
+          receivedBody = await request.json();
+          return response(201).json({
+            data: { ...binding, evaluator_type: "decision" },
+          });
+        }
+      )
+    );
+
+    await createDatasetEvaluator({
+      client: createTestClient(),
+      dataset: { datasetId: "RGF0YXNldDox" },
+      name: "judge",
+      evaluatorId: "RGVjaXNpb25FdmFsdWF0b3I6MQ==",
+      evaluatorType: "decision",
+      inputMapping: INPUT_MAPPING,
+    });
+
+    expect(receivedBody).toEqual({
+      evaluator_type: "decision",
+      name: "judge",
+      evaluator_id: "RGVjaXNpb25FdmFsdWF0b3I6MQ==",
+      input_mapping: INPUT_MAPPING,
+    });
+  });
+
+  it("refuses output configs on a decision binding before any request", async () => {
+    let numRequests = 0;
+    server.use(
+      http.post(
+        "/v1/datasets/{dataset_identifier}/evaluators",
+        ({ response }) => {
+          numRequests += 1;
+          return response(201).json({ data: binding });
+        }
+      )
+    );
+
+    await expect(
+      createDatasetEvaluator({
+        client: createTestClient(),
+        dataset: { datasetId: "RGF0YXNldDox" },
+        name: "judge",
+        evaluatorId: "RGVjaXNpb25FdmFsdWF0b3I6MQ==",
+        evaluatorType: "decision",
+        inputMapping: INPUT_MAPPING,
+        // @ts-expect-error a decision binding takes no outputConfigs
+        outputConfigs: [{ type: "FREEFORM", name: "notes" }],
+      })
+    ).rejects.toThrow(
+      "A decision binding takes no outputConfigs: its outputs follow the evaluator's questions and scoring."
+    );
+    expect(numRequests).toBe(0);
   });
 });
 
@@ -207,7 +345,10 @@ describe("getDatasetEvaluator and updateDatasetEvaluator", () => {
       patch: { name: "renamed", output_configs: null },
     });
 
-    expect(receivedBody).toEqual({ name: "renamed", output_configs: null });
+    expect(receivedBody).toEqual({
+      name: "renamed",
+      output_configs: null,
+    });
     expect(result.name).toBe("renamed");
   });
 

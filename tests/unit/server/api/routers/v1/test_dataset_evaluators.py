@@ -33,7 +33,12 @@ async def test_detach_removes_trace_projects_atomically_and_keeps_definition_and
     async def create_binding(route: str, name: str) -> dict[str, Any]:
         response = await httpx_client.post(
             route,
-            json={"name": name, "evaluator_id": evaluator_id, "input_mapping": input_mapping},
+            json={
+                "evaluator_type": "llm",
+                "name": name,
+                "evaluator_id": evaluator_id,
+                "input_mapping": input_mapping,
+            },
         )
         assert response.status_code == 201, response.text
         binding: dict[str, Any] = response.json()["data"]
@@ -117,6 +122,7 @@ async def test_output_config_overrides_hold_at_least_one_config(
         await session.flush()
     route = f"v1/datasets/{GlobalID('Dataset', str(dataset.id))}/evaluators"
     body = {
+        "evaluator_type": "code",
         "name": "code-binding",
         "input_mapping": {"literal_mapping": {}, "path_mapping": {}},
         "evaluator_id": str(GlobalID("CodeEvaluator", str(evaluator.id))),
@@ -149,6 +155,7 @@ async def test_llm_binding_defaults_to_inherited_settings(
     created = await httpx_client.post(
         route,
         json={
+            "evaluator_type": "llm",
             "name": "llm-binding",
             "input_mapping": {"literal_mapping": {}, "path_mapping": {}},
             "evaluator_id": str(GlobalID("LLMEvaluator", str(correctness_llm_evaluator.id))),
@@ -198,6 +205,7 @@ async def test_patch_llm_binding_overrides_with_tagged_and_untagged_prompt(
     created = await httpx_client.post(
         route,
         json={
+            "evaluator_type": "llm",
             "name": f"llm-binding-{token_hex(4)}",
             "input_mapping": {"literal_mapping": {}, "path_mapping": {}},
             "evaluator_id": str(GlobalID("LLMEvaluator", str(correctness_llm_evaluator.id))),
@@ -222,7 +230,8 @@ async def test_patch_llm_binding_overrides_with_tagged_and_untagged_prompt(
     assert updated.json()["data"]["output_configs"] is not None
 
     inherited = await httpx_client.patch(
-        binding_route, json={"description": None, "output_configs": None}
+        binding_route,
+        json={"description": None, "output_configs": None},
     )
     assert inherited.status_code == 200, inherited.text
     assert inherited.json()["data"]["description"] is None
@@ -269,6 +278,7 @@ async def test_patch_rename_to_taken_name_is_already_exists(
         await httpx_client.post(
             route,
             json={
+                "evaluator_type": "code",
                 "name": "holder",
                 "input_mapping": input_mapping,
                 "evaluator_id": evaluator_id,
@@ -279,6 +289,7 @@ async def test_patch_rename_to_taken_name_is_already_exists(
         await httpx_client.post(
             route,
             json={
+                "evaluator_type": "code",
                 "name": "renamer",
                 "input_mapping": input_mapping,
                 "evaluator_id": evaluator_id,
@@ -323,6 +334,7 @@ async def test_wrong_typed_ids_are_invalid_argument_not_a_crash(
         await session.flush()
     dataset_route = f"v1/datasets/{GlobalID('Dataset', str(dataset.id))}/evaluators"
     body = {
+        "evaluator_type": "code",
         "name": f"wrong-type-binding-{token_hex(4)}",
         "input_mapping": {"literal_mapping": {}, "path_mapping": {}},
         "evaluator_id": str(GlobalID("CodeEvaluator", str(evaluator.id))),
@@ -345,6 +357,155 @@ async def test_wrong_typed_ids_are_invalid_argument_not_a_crash(
     for response in responses:
         assert response.status_code == 422, response.text
         assert response.json()["code"] == "invalid_argument", response.text
+    assert f"Not an evaluator id: {wrong_type}" in responses[-1].text
 
     # none of the refused calls above touched the binding created before them
     assert (await httpx_client.get(binding_route)).status_code == 200
+
+
+async def test_evaluator_type_must_match_the_evaluator(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    correctness_llm_evaluator: models.LLMEvaluator,
+) -> None:
+    """The evaluator_type a body names selects its fields, so it must be the evaluator's kind."""
+    async with db() as session:
+        dataset = models.Dataset(name=f"type-match-{token_hex(4)}", metadata_={})
+        session.add(dataset)
+        await session.flush()
+    route = f"v1/datasets/{GlobalID('Dataset', str(dataset.id))}/evaluators"
+    body = {
+        "name": "llm-binding",
+        "input_mapping": {"literal_mapping": {}, "path_mapping": {}},
+        "evaluator_id": str(GlobalID("LLMEvaluator", str(correctness_llm_evaluator.id))),
+    }
+
+    mismatched = await httpx_client.post(route, json={**body, "evaluator_type": "code"})
+    assert mismatched.status_code == 422, mismatched.text
+    assert mismatched.json()["code"] == "invalid_argument", mismatched.text
+    assert "evaluator_type is 'code', but the evaluator is 'llm'" in mismatched.text
+    assert (await httpx_client.get(route)).json()["data"] == []
+
+    created = await httpx_client.post(route, json={**body, "evaluator_type": "llm"})
+    assert created.status_code == 201, created.text
+    binding = created.json()["data"]
+    binding_route = f"v1/dataset_evaluators/{binding['id']}"
+
+    tagged = await httpx_client.patch(
+        binding_route, json={"evaluator_type": "llm", "name": "renamed"}
+    )
+    assert tagged.status_code == 422, tagged.text
+    problem = tagged.json()
+    assert problem["code"] == "validation_error"
+    assert any(error["code"] == "unknown_field" for error in problem["errors"]), problem
+    assert (await httpx_client.get(binding_route)).json()["data"] == binding
+
+
+async def test_empty_patch_is_a_validation_error(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    correctness_llm_evaluator: models.LLMEvaluator,
+) -> None:
+    async with db() as session:
+        dataset = models.Dataset(name=f"empty-patch-{token_hex(4)}", metadata_={})
+        session.add(dataset)
+        await session.flush()
+    created = await httpx_client.post(
+        f"v1/datasets/{GlobalID('Dataset', str(dataset.id))}/evaluators",
+        json={
+            "evaluator_type": "llm",
+            "name": "llm-binding",
+            "input_mapping": {"literal_mapping": {}, "path_mapping": {}},
+            "evaluator_id": str(GlobalID("LLMEvaluator", str(correctness_llm_evaluator.id))),
+        },
+    )
+    assert created.status_code == 201, created.text
+    response = await httpx_client.patch(
+        f"v1/dataset_evaluators/{created.json()['data']['id']}", json={}
+    )
+    assert response.status_code == 422, response.text
+    problem = response.json()
+    assert problem["code"] == "validation_error"
+    assert any(
+        error["field"] == "body" and "At least one field must be provided" in error["message"]
+        for error in problem["errors"]
+    ), problem
+
+
+async def test_llm_binding_refuses_a_non_categorical_override(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    correctness_llm_evaluator: models.LLMEvaluator,
+) -> None:
+    async with db() as session:
+        dataset = models.Dataset(name=f"llm-override-{token_hex(4)}", metadata_={})
+        session.add(dataset)
+        await session.flush()
+    route = f"v1/datasets/{GlobalID('Dataset', str(dataset.id))}/evaluators"
+    body = {
+        "evaluator_type": "llm",
+        "name": "llm-binding",
+        "input_mapping": {"literal_mapping": {}, "path_mapping": {}},
+        "evaluator_id": str(GlobalID("LLMEvaluator", str(correctness_llm_evaluator.id))),
+    }
+    continuous = [{"type": "CONTINUOUS", "name": "score", "optimization_direction": "MAXIMIZE"}]
+
+    refused = await httpx_client.post(route, json={**body, "output_configs": continuous})
+    assert refused.status_code == 422, refused.text
+
+    created = await httpx_client.post(route, json=body)
+    assert created.status_code == 201, created.text
+    binding = created.json()["data"]
+    binding_route = f"v1/dataset_evaluators/{binding['id']}"
+    refused = await httpx_client.patch(binding_route, json={"output_configs": continuous})
+    assert refused.status_code == 422, refused.text
+    assert (await httpx_client.get(binding_route)).json()["data"] == binding
+
+
+async def test_invalid_patch_body_is_refused_before_the_binding_is_looked_up(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    missing = f"v1/dataset_evaluators/{GlobalID('DatasetEvaluator', '999999')}"
+    continuous = {
+        "type": "CONTINUOUS",
+        "name": "score",
+        "optimization_direction": "MAXIMIZE",
+        "lower_bound": 1.0,
+        "upper_bound": 0.0,
+    }
+    invalid = await httpx_client.patch(missing, json={"output_configs": [continuous]})
+    assert invalid.status_code == 422, invalid.text
+    absent = await httpx_client.patch(missing, json={"name": "renamed"})
+    assert absent.status_code == 404, absent.text
+
+
+async def test_create_refuses_a_non_evaluator_id_before_the_dataset_is_looked_up(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    wrong_type = str(GlobalID("Project", "1"))
+    response = await httpx_client.post(
+        "v1/datasets/no-such-dataset/evaluators",
+        json={
+            "evaluator_type": "code",
+            "name": "binding",
+            "input_mapping": {"literal_mapping": {}, "path_mapping": {}},
+            "evaluator_id": wrong_type,
+        },
+    )
+    assert response.status_code == 422, response.text
+    assert f"Not an evaluator id: {wrong_type}" in response.text
+
+
+async def test_create_requires_evaluator_type(httpx_client: httpx.AsyncClient) -> None:
+    response = await httpx_client.post(
+        f"v1/datasets/{GlobalID('Dataset', '1')}/evaluators",
+        json={
+            "name": "binding",
+            "input_mapping": {"literal_mapping": {}, "path_mapping": {}},
+            "evaluator_id": str(GlobalID("CodeEvaluator", "1")),
+        },
+    )
+    assert response.status_code == 422, response.text
+    problem = response.json()
+    assert problem["code"] == "validation_error"
+    assert [error["field"] for error in problem["errors"]] == ["body"], problem

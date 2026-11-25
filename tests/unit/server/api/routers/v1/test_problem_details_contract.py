@@ -24,6 +24,7 @@ from phoenix.db import models
 from phoenix.db.types.annotation_configs import ContinuousOutputConfig, OptimizationDirection
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier as IdentifierModel
+from phoenix.server.api.routers.v1.problem_details import _normalize_field_path
 from phoenix.server.types import DbSessionFactory
 
 _SCORE_JSON = {"type": "CONTINUOUS", "name": "score", "optimization_direction": "MAXIMIZE"}
@@ -200,6 +201,20 @@ async def test_validation_error_lists_normalized_field_errors(
     ]
 
 
+async def test_validation_error_drops_a_binding_bodys_evaluator_type_tag(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    response = await httpx_client.post(
+        f"v1/datasets/{GlobalID('Dataset', '1')}/evaluators",
+        json={"evaluator_type": "decision", "name": f"bad-{token_hex(4)}"},
+    )
+    problem = _assert_problem(response, status=422, code="validation_error")
+    assert {error["field"] for error in problem["errors"]} == {
+        "body.evaluator_id",
+        "body.input_mapping",
+    }
+
+
 async def test_invalid_argument_for_a_malformed_id(httpx_client: httpx.AsyncClient) -> None:
     response = await httpx_client.get("v1/evaluators/not-a-real-id")
     _assert_problem(response, status=422, code="invalid_argument")
@@ -231,3 +246,9 @@ async def test_insufficient_storage_when_writes_are_locked(
         },
     )
     _assert_problem(response, status=507, code="insufficient_storage")
+
+
+def test_normalize_field_path_without_a_body_drops_known_tags_but_keeps_decision() -> None:
+    assert _normalize_field_path(("body", "builtin", "name"), None) == "body.name"
+    assert _normalize_field_path(("body", "CATEGORICAL", "values"), None) == "body.values"
+    assert _normalize_field_path(("body", "decision"), None) == "body.decision"

@@ -14,7 +14,6 @@ from strawberry import UNSET
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.types.annotation_configs import OutputConfigType
 from phoenix.db.types.decision_evaluators import DecisionScoringPolicy, adapt_scoring_policy
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.identifier import Identifier
@@ -241,7 +240,6 @@ class CreateDatasetDecisionBindingInput:
     name: Identifier
     input_mapping: InputMapping
     description: Optional[str] = None
-    output_configs: Optional[list[OutputConfigType]] = None
 
 
 async def create_dataset_decision_binding(
@@ -253,7 +251,6 @@ async def create_dataset_decision_binding(
         name=input.name,
         input_mapping=input.input_mapping,
         description=input.description,
-        output_configs=input.output_configs,
         user_id=context.user_id,
     )
     try:

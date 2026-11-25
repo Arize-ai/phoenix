@@ -272,6 +272,7 @@ def seed_dataset_decision_evaluators(
             response = http.post(
                 path,
                 json={
+                    "evaluator_type": "decision",
                     "name": "accuracy",
                     "evaluator_id": evaluator_id,
                     "input_mapping": _INPUT_MAPPING,

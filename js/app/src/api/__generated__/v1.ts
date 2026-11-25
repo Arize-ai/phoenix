@@ -718,10 +718,12 @@ export interface paths {
          * @description Bind an existing evaluator definition to a dataset.
          *
          *     The dataset identifier is decoded as a GlobalID first and otherwise treated as a name.
+         *     `evaluator_type` must match the evaluator's kind, or the request is refused with 422.
          *     Binding descriptions and output configurations override the shared definition; null
-         *     inherits it. Input mappings are always dataset-specific. A name the dataset already uses
-         *     is refused with 409 `already_exists` and that binding's `existing_id`. This registers an
-         *     evaluator and does not run an experiment.
+         *     inherits it. Decision bindings take no output configurations. Input mappings are always
+         *     dataset-specific. A name the dataset already uses is refused with 409 `already_exists`
+         *     and that binding's `existing_id`. This registers an evaluator and does not run an
+         *     experiment.
          */
         post: operations["createDatasetEvaluator"];
         /**
@@ -767,9 +769,9 @@ export interface paths {
          * Patch Dataset Evaluator
          * @description Update only the binding. Dataset and evaluator references are immutable.
          *
-         *     LLM output overrides must remain consistent with the prompt the evaluator runs, and a
-         *     later change to that prompt is refused while it would invalidate them. Use
-         *     /evaluators/{evaluator_id} to modify a shared definition instead.
+         *     LLM output overrides must be categorical; nothing checks them against the prompt.
+         *     Decision bindings take no output configurations, and a non-null override is refused.
+         *     Use /evaluators/{evaluator_id} to modify a shared definition instead.
          */
         patch: operations["patchDatasetEvaluator"];
         trace?: never;
@@ -3285,6 +3287,32 @@ export interface components {
         CreateApiKeyResponseBody: {
             data: components["schemas"]["CreatedApiKey"];
         };
+        /** CreateBuiltInDatasetEvaluatorRequest */
+        CreateBuiltInDatasetEvaluatorRequest: {
+            /** @description Unique among this dataset's evaluators. */
+            name: components["schemas"]["Identifier"];
+            /**
+             * Evaluator Id
+             * @description GlobalID of the evaluator definition to run. Create a definition through POST /v1/evaluators first.
+             */
+            evaluator_id: string;
+            input_mapping: components["schemas"]["InputMapping"];
+            /**
+             * Description
+             * @description Binding override. Null inherits the shared description.
+             */
+            description?: string | null;
+            /**
+             * @description The kind of the evaluator the binding runs. It must match the evaluator's own kind and selects the fields the binding takes: a decision binding takes no output configs. (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+            evaluator_type: "builtin";
+            /**
+             * Output Configs
+             * @description Null inherits the shared output configs. An override needs at least one config, each with its own name. Nothing checks them against the evaluator.
+             */
+            output_configs?: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[] | null;
+        };
         /**
          * CreateChatCompletionRequestBody
          * @example {
@@ -3342,6 +3370,32 @@ export interface components {
                 [key: string]: unknown;
             } | null;
         };
+        /** CreateCodeDatasetEvaluatorRequest */
+        CreateCodeDatasetEvaluatorRequest: {
+            /** @description Unique among this dataset's evaluators. */
+            name: components["schemas"]["Identifier"];
+            /**
+             * Evaluator Id
+             * @description GlobalID of the evaluator definition to run. Create a definition through POST /v1/evaluators first.
+             */
+            evaluator_id: string;
+            input_mapping: components["schemas"]["InputMapping"];
+            /**
+             * Description
+             * @description Binding override. Null inherits the shared description.
+             */
+            description?: string | null;
+            /**
+             * @description The kind of the evaluator the binding runs. It must match the evaluator's own kind and selects the fields the binding takes: a decision binding takes no output configs. (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+            evaluator_type: "code";
+            /**
+             * Output Configs
+             * @description Null inherits the shared output configs. An override needs at least one config, each with its own name. Nothing checks them against the evaluator.
+             */
+            output_configs?: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[] | null;
+        };
         /** CreateCodeEvaluatorRequest */
         CreateCodeEvaluatorRequest: {
             /**
@@ -3372,27 +3426,6 @@ export interface components {
             input_schema?: {
                 [key: string]: unknown;
             } | null;
-        };
-        /** CreateDatasetEvaluatorRequest */
-        CreateDatasetEvaluatorRequest: {
-            /** @description Unique among this dataset's evaluators. */
-            name: components["schemas"]["Identifier"];
-            /**
-             * Evaluator Id
-             * @description GlobalID of the LLM, code, built-in, or decision evaluator definition to run. Create a definition through POST /v1/evaluators first.
-             */
-            evaluator_id: string;
-            input_mapping: components["schemas"]["InputMapping"];
-            /**
-             * Description
-             * @description Binding override. Null inherits the shared description.
-             */
-            description?: string | null;
-            /**
-             * Output Configs
-             * @description Null inherits the shared output configs. An override needs at least one config, each with its own name; an LLM binding's configs must be categorical. Nothing checks them against the prompt. A decision binding's configs are derived from its scoring policy, so they are accepted only if they equal the derived ones, and are not stored.
-             */
-            output_configs?: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[] | null;
         };
         /** CreateDatasetLabelRequestBody */
         CreateDatasetLabelRequestBody: {
@@ -3449,6 +3482,30 @@ export interface components {
         /** CreateDatasetSplitResponseBody */
         CreateDatasetSplitResponseBody: {
             data: components["schemas"]["DatasetSplit"];
+        };
+        /**
+         * CreateDecisionDatasetEvaluatorRequest
+         * @description A decision binding's outputs follow the evaluator's questions and scoring policy.
+         */
+        CreateDecisionDatasetEvaluatorRequest: {
+            /** @description Unique among this dataset's evaluators. */
+            name: components["schemas"]["Identifier"];
+            /**
+             * Evaluator Id
+             * @description GlobalID of the evaluator definition to run. Create a definition through POST /v1/evaluators first.
+             */
+            evaluator_id: string;
+            input_mapping: components["schemas"]["InputMapping"];
+            /**
+             * Description
+             * @description Binding override. Null inherits the shared description.
+             */
+            description?: string | null;
+            /**
+             * @description The kind of the evaluator the binding runs. It must match the evaluator's own kind and selects the fields the binding takes: a decision binding takes no output configs. (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+            evaluator_type: "decision";
         };
         /** CreateDecisionEvaluatorRequest */
         CreateDecisionEvaluatorRequest: {
@@ -3583,6 +3640,32 @@ export interface components {
              * @description The ID of the newly created experiment run
              */
             id: string;
+        };
+        /** CreateLLMDatasetEvaluatorRequest */
+        CreateLLMDatasetEvaluatorRequest: {
+            /** @description Unique among this dataset's evaluators. */
+            name: components["schemas"]["Identifier"];
+            /**
+             * Evaluator Id
+             * @description GlobalID of the evaluator definition to run. Create a definition through POST /v1/evaluators first.
+             */
+            evaluator_id: string;
+            input_mapping: components["schemas"]["InputMapping"];
+            /**
+             * Description
+             * @description Binding override. Null inherits the shared description.
+             */
+            description?: string | null;
+            /**
+             * @description The kind of the evaluator the binding runs. It must match the evaluator's own kind and selects the fields the binding takes: a decision binding takes no output configs. (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+            evaluator_type: "llm";
+            /**
+             * Output Configs
+             * @description Null inherits the shared output configs. An override needs at least one config, each with its own name. Nothing checks them against the evaluator.
+             */
+            output_configs?: components["schemas"]["CategoricalAnnotationConfigData"][] | null;
         };
         /** CreateLLMEvaluatorRequest */
         CreateLLMEvaluatorRequest: {
@@ -5817,7 +5900,7 @@ export interface components {
             description?: string | null;
             /**
              * Output Configs
-             * @description Omit to preserve; null restores inheritance. An override needs at least one config, each with its own name; an LLM binding's configs must be categorical. Nothing checks them against the prompt. A decision binding's configs are derived from its scoring policy, so they are accepted only if they equal the derived ones, and are not stored.
+             * @description Omit to preserve; null restores inheritance. An override needs at least one config, each with its own name. An LLM binding's must be categorical. A decision binding takes none and is refused. Nothing checks them against the prompt.
              */
             output_configs?: (components["schemas"]["CategoricalAnnotationConfigData"] | components["schemas"]["ContinuousAnnotationConfigData"] | components["schemas"]["FreeformAnnotationConfigData"])[] | null;
         };
@@ -12161,7 +12244,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CreateDatasetEvaluatorRequest"];
+                "application/json": components["schemas"]["CreateLLMDatasetEvaluatorRequest"] | components["schemas"]["CreateCodeDatasetEvaluatorRequest"] | components["schemas"]["CreateBuiltInDatasetEvaluatorRequest"] | components["schemas"]["CreateDecisionDatasetEvaluatorRequest"];
             };
         };
         responses: {

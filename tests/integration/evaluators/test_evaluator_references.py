@@ -12,8 +12,8 @@ def test_definition_survives_dataset_and_project_references(
 ) -> None:
     definition = _code_definition(client, sandbox_id)
     definition_route = f"v1/evaluators/{definition['id']}"
-    first = _create_dataset_evaluator(client, dataset_id, _binding_body(definition["id"]))
-    second = _create_dataset_evaluator(client, dataset_id, _binding_body(definition["id"]))
+    first = _create_dataset_evaluator(client, dataset_id, _binding_body(definition))
+    second = _create_dataset_evaluator(client, dataset_id, _binding_body(definition))
     assert second["output_configs"] is None
     response = client.post(
         f"v1/projects/{project['id']}/evaluators",
