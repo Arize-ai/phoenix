@@ -23,6 +23,19 @@ This means you have complete control over:
 
 By default, Phoenix collects basic web analytics (e.g., page views, UI interactions) to help us understand how the product is used. **None of your trace data, evaluation results, or any sensitive information is ever collected.** The telemetry is limited to understanding how users interact with the Phoenix web interface.
 
+### What does product analytics send?
+
+When `PHOENIX_POSTHOG_API_KEY` is set, the web interface sends anonymous page views to [PostHog](https://posthog.com). Each page view contains only:
+
+- The route pattern of the page, such as `/projects/:projectId/traces/:traceId`. IDs, names, query strings, and the URL path prefix are never sent.
+- The Phoenix version.
+- Browser, operating system, device type, and screen size.
+- A random ID that changes on every page load.
+
+Phoenix does not send the hostname, the full URL, the page title, referrers, user names, or email addresses. It does not set cookies or write to browser storage for analytics, and it does not record sessions, clicks, or errors.
+
+The browser connects to PostHog directly, so PostHog receives the browser's IP address. Turn on **Discard client IP data** in the PostHog project settings to drop it.
+
 ### Why does Phoenix collect telemetry?
 
 Telemetry helps us to:
@@ -38,7 +51,7 @@ To disable telemetry, set the following environment variable:
 PHOENIX_TELEMETRY_ENABLED=false
 ```
 
-This will disable all analytics tracking in the Phoenix web interface, regardless of any other telemetry-related environment variable settings.
+This will disable all analytics tracking in the Phoenix web interface, including PostHog product analytics, regardless of any other telemetry-related environment variable settings. With telemetry disabled, the web interface does not download the PostHog library.
 
 ### Air-gapped deployments
 

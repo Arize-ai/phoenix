@@ -100,6 +100,7 @@
     "normalize.css": "^8.0.1",
     "openapi-fetch": "^0.17.0",
     "polished": "^4.3.1",
+    "posthog-js": "^1.450.0",
     "react": "19.3.0",
     "react-aria": "^3.53.1",
     "react-aria-components": "^1.22.1",

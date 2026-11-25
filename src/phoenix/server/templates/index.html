@@ -143,6 +143,7 @@
               supportEmail: {{support_email | tojson}},
               hasDbThreshold: Boolean("{{has_db_threshold}}" == "True"),
               allowExternalResources: Boolean("{{allow_external_resources}}" == "True"),
+              posthog: {{ posthog | tojson }},
               agentAssistantDisabled: Boolean("{{agent_assistant_disabled}}" == "True"),
               agentBashDisabled: Boolean("{{agent_bash_disabled}}" == "True"),
               mcpServerEnabled: Boolean("{{mcp_server_enabled}}" == "True"),

@@ -61,6 +61,8 @@ allowBuilds:
   "@parcel/watcher": false
   # Only has a "use pnpm" preinstall guard; no build output needed.
   autoevals: false
+  # Its postinstall only prints a funding banner.
+  core-js: false
   esbuild: true
   msw: false
   node-liblzma: false
