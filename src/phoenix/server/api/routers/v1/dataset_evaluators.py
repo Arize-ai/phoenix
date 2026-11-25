@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from strawberry.relay import GlobalID
-from typing_extensions import Self
+from typing_extensions import Self, assert_never
 
 from phoenix.db import models
 from phoenix.db.types.db_helper_types import UNDEFINED
@@ -169,7 +169,7 @@ class DatasetEvaluator(V1RoutesBaseModel):
     id: str
     dataset_id: str
     evaluator_id: str
-    evaluator_type: Literal["llm", "code", "builtin", "decision"]
+    evaluator_type: EvaluatorType
     trace_project_id: str
     name: Identifier
     input_mapping: InputMapping
@@ -200,11 +200,9 @@ router = APIRouter(tags=["evaluators"], route_class=ProblemDetailsRoute)
 
 
 def _refuse_mismatched_evaluator_type(
-    *, evaluator_type: EvaluatorType, evaluator_kind: Optional[models.EvaluatorKind]
+    *, evaluator_type: EvaluatorType, evaluator_kind: models.EvaluatorKind
 ) -> None:
     """Refuse a body whose evaluator_type disagrees with the evaluator it names."""
-    if evaluator_kind is None:
-        raise BadRequest("Not an evaluator id")
     if EVALUATOR_KIND_BY_TYPE[evaluator_type] != evaluator_kind:
         raise BadRequest(
             f"evaluator_type is {evaluator_type!r}, but the evaluator is "
@@ -283,9 +281,11 @@ async def create_dataset_evaluator(
             dataset_id = GlobalID("Dataset", str(dataset.id))
         context = evaluator_service_context(request)
         evaluator_id = parse_global_id(body.evaluator_id)
+        evaluator_kind = EVALUATOR_KIND_BY_TYPENAME.get(evaluator_id.type_name)
+        if evaluator_kind is None:
+            raise BadRequest(f"Not an evaluator id: {body.evaluator_id}")
         _refuse_mismatched_evaluator_type(
-            evaluator_type=body.evaluator_type,
-            evaluator_kind=EVALUATOR_KIND_BY_TYPENAME.get(evaluator_id.type_name),
+            evaluator_type=body.evaluator_type, evaluator_kind=evaluator_kind
         )
         row: models.DatasetEvaluators
         if isinstance(body, CreateDecisionDatasetEvaluatorRequest):
@@ -329,7 +329,7 @@ async def create_dataset_evaluator(
                         output_configs=configs,
                     ),
                 )
-            else:
+            elif isinstance(body, CreateBuiltInDatasetEvaluatorRequest):
                 row = await dataset_bindings.create_dataset_builtin_evaluator(
                     context,
                     dataset_bindings.CreateDatasetBuiltinEvaluatorInput(
@@ -341,6 +341,8 @@ async def create_dataset_evaluator(
                         output_configs=configs,
                     ),
                 )
+            else:
+                assert_never(body)
         return DatasetEvaluatorResponseBody(
             data=await _written_dataset_evaluator(
                 request, encode_global_id("DatasetEvaluator", row.id)

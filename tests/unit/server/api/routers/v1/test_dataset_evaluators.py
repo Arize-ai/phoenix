@@ -362,6 +362,7 @@ async def test_wrong_typed_ids_are_invalid_argument_not_a_crash(
     for response in responses:
         assert response.status_code == 422, response.text
         assert response.json()["code"] == "invalid_argument", response.text
+    assert f"Not an evaluator id: {wrong_type}" in responses[-1].text
 
     # none of the refused calls above touched the binding created before them
     assert (await httpx_client.get(binding_route)).status_code == 200
