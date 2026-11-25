@@ -198,7 +198,9 @@ export function ProjectEvaluatorCompareStats({
         titleSeparator={false}
         extra={
           <Text size="S" color="text-700">
-            {`${formatInt(comparison.populationSize)} ${evaluationTargetsPlural} evaluated by both`}
+            {`${formatInt(
+              comparison.populationSize
+            )} ${evaluationTargetsPlural} evaluated by both`}
           </Text>
         }
       >

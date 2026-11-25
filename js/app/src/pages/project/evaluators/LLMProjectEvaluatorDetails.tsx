@@ -76,7 +76,9 @@ export function LLMProjectEvaluatorDetails({
   const playgroundUrl = evaluator.prompt?.id
     ? `/playground?promptId=${encodeURIComponent(evaluator.prompt.id)}${
         evaluator.promptVersionTag?.name
-          ? `&promptTagName=${encodeURIComponent(evaluator.promptVersionTag.name)}`
+          ? `&promptTagName=${encodeURIComponent(
+              evaluator.promptVersionTag.name
+            )}`
           : ""
       }`
     : null;

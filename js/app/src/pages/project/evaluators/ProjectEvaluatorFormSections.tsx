@@ -62,7 +62,9 @@ const ProjectEvaluatorScopeSection = ({
       <Flex direction="column" gap="size-200">
         <EvaluatorSectionHeader
           title="Evaluator Scope"
-          description={`Select which ${formatEvaluationTargetPlural(scope.targetType)} this evaluator runs on and how often.`}
+          description={`Select which ${formatEvaluationTargetPlural(
+            scope.targetType
+          )} this evaluator runs on and how often.`}
         />
         <ProjectEvaluatorScopeFieldGroup
           projectId={projectId}

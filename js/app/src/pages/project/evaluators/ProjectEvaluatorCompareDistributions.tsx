@@ -610,7 +610,9 @@ function DistributionChart({
                     stroke="var(--global-color-gray-700)"
                     strokeDasharray="4 4"
                     label={{
-                      value: `flag ${direction === "MAXIMIZE" ? "≤" : "≥"} ${formatScoreValue(threshold)}`,
+                      value: `flag ${
+                        direction === "MAXIMIZE" ? "≤" : "≥"
+                      } ${formatScoreValue(threshold)}`,
                       position: "insideTopRight",
                       fontSize: 11,
                       fill: "var(--chart-axis-text-color)",

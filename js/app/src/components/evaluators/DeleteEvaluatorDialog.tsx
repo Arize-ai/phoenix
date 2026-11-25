@@ -20,24 +20,30 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
+import {
+  type EvaluatorToDelete,
+  getDeleteAssociatedLabel,
+  getDeleteEvaluatorsCopy,
+} from "@phoenix/components/evaluators/deleteEvaluatorsCopy";
 import { useNotifySuccess } from "@phoenix/contexts";
-import type { EvaluatorKind } from "@phoenix/types";
 
 export type DeleteEvaluatorDialogProps = {
-  evaluatorName: string;
-  evaluatorKind: EvaluatorKind;
-  target: "project" | "dataset";
+  /** The evaluators to remove; at least one. */
+  evaluators: ReadonlyArray<EvaluatorToDelete>;
   isOpen?: boolean;
   onOpenChange?: (isOpen: boolean) => void;
   onDeleted?: () => void;
   isDeleting: boolean;
-  onDelete: (options: { deleteAssociatedPromptOrDecision: boolean }) => Promise<void>;
+  onDelete: (options: {
+    deleteAssociatedPromptOrDecision: boolean;
+  }) => Promise<void>;
 };
 
+/**
+ * Confirms deleting one or more evaluators.
+ */
 export function DeleteEvaluatorDialog({
-  evaluatorName,
-  evaluatorKind,
-  target,
+  evaluators,
   isOpen,
   onOpenChange,
   onDeleted,
@@ -45,8 +51,10 @@ export function DeleteEvaluatorDialog({
   onDelete,
 }: DeleteEvaluatorDialogProps) {
   const notifySuccess = useNotifySuccess();
-  const [deleteAssociatedPromptOrDecision, setDeleteAssociatedPromptOrDecision] = useState(true);
+  const [deleteAssociated, setDeleteAssociated] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const copy = getDeleteEvaluatorsCopy(evaluators);
+  const deleteAssociatedLabel = getDeleteAssociatedLabel(evaluators);
   const handleOpenChange = (nextIsOpen: boolean) => {
     if (nextIsOpen) {
       setError(null);
@@ -58,13 +66,12 @@ export function DeleteEvaluatorDialog({
     startTransition(() => {
       void onDelete({
         deleteAssociatedPromptOrDecision:
-          (evaluatorKind === "LLM" || evaluatorKind === "DECISION") &&
-          deleteAssociatedPromptOrDecision,
+          deleteAssociatedLabel != null && deleteAssociated,
       })
         .then(() => {
           notifySuccess({
-            title: "Evaluator removed",
-            message: `Evaluator “${evaluatorName}” was removed from this ${target}.`,
+            title: copy.successTitle,
+            message: copy.successMessage,
           });
           onDeleted?.();
           onOpenChange?.(false);
@@ -73,7 +80,7 @@ export function DeleteEvaluatorDialog({
           setError(
             deleteError instanceof Error
               ? deleteError.message
-              : "Unable to remove evaluator"
+              : "Unable to delete evaluators"
           );
         });
     });
@@ -84,7 +91,7 @@ export function DeleteEvaluatorDialog({
         <Dialog>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Delete evaluator</DialogTitle>
+              <DialogTitle>{copy.title}</DialogTitle>
               <DialogTitleExtra>
                 <DialogCloseButton />
               </DialogTitleExtra>
@@ -98,19 +105,13 @@ export function DeleteEvaluatorDialog({
             ) : null}
             <View padding="size-200">
               <Flex direction="column" gap="size-100">
-                <Text>
-                  Remove “{evaluatorName}” from this {target}. Its evaluation
-                  traces are deleted with it.
-                  {evaluatorKind === "BUILTIN"
-                    ? " The built-in evaluator remains available elsewhere."
-                    : " The evaluator is deleted only if it isn't used anywhere else."}
-                </Text>
-                {evaluatorKind === "LLM" || evaluatorKind === "DECISION" ? (
+                <Text color="danger">{copy.description}</Text>
+                {deleteAssociatedLabel ? (
                   <Checkbox
-                    isSelected={deleteAssociatedPromptOrDecision}
-                    onChange={setDeleteAssociatedPromptOrDecision}
+                    isSelected={deleteAssociated}
+                    onChange={setDeleteAssociated}
                   >
-                    Delete associated {evaluatorKind === "LLM" ? "prompt" : "decision"}
+                    {deleteAssociatedLabel}
                   </Checkbox>
                 ) : null}
               </Flex>
@@ -141,7 +142,7 @@ export function DeleteEvaluatorDialog({
                     />
                   }
                 >
-                  Delete evaluator
+                  {copy.confirmLabel}
                 </Button>
               </Flex>
             </View>

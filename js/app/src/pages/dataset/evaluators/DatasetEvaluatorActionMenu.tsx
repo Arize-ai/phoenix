@@ -121,9 +121,10 @@ export function DatasetEvaluatorActionMenu({
         />
       ) : null}
       <DeleteDatasetEvaluatorDialog
-        datasetEvaluatorId={datasetEvaluatorId}
-        evaluatorName={evaluatorName}
-        evaluatorKind={evaluatorKind}
+        datasetEvaluators={[
+          { id: datasetEvaluatorId, name: evaluatorName, kind: evaluatorKind },
+        ]}
+        datasetId={datasetId}
         isOpen={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
         updateConnectionIds={updateConnectionIds}

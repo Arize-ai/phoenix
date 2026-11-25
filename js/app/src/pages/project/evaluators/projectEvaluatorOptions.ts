@@ -415,7 +415,9 @@ export function convertProjectEvaluatorOutputConfigs(
       };
     }
     throw new Error(
-      `Unsupported evaluator output config variant: ${String(config.__typename)}`
+      `Unsupported evaluator output config variant: ${String(
+        config.__typename
+      )}`
     );
   });
 }

@@ -141,7 +141,9 @@ export function ProjectEvaluatorRecordInspector({
                     id={row.recordId}
                     label={shortenRecordId(row.recordId)}
                     variant="quiet"
-                    tooltipText={`Copy ${formatEvaluationRecordKind(recordKind)} ID`}
+                    tooltipText={`Copy ${formatEvaluationRecordKind(
+                      recordKind
+                    )} ID`}
                   />
                 ) : null}
                 {row.startTime ? (

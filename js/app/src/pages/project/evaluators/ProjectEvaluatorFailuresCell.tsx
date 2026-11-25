@@ -65,7 +65,9 @@ export function ProjectEvaluatorFailuresCell({
       </Text>
     );
   }
-  const counts = `${countFormatter.format(failedCount)} failed · ${countFormatter.format(evaluatedCount)} evaluated`;
+  const counts = `${countFormatter.format(
+    failedCount
+  )} failed · ${countFormatter.format(evaluatedCount)} evaluated`;
   return (
     <TooltipTrigger delay={0}>
       <TriggerWrap>
@@ -80,7 +82,9 @@ export function ProjectEvaluatorFailuresCell({
           </Text>
           {lastFailedAt != null ? (
             <Flex direction="column" gap="size-50">
-              <Text size="S">{`Last failed ${formatRelativeOrNever(lastFailedAt)}`}</Text>
+              <Text size="S">{`Last failed ${formatRelativeOrNever(
+                lastFailedAt
+              )}`}</Text>
               {lastError ? (
                 <div css={errorCSS}>
                   <Text size="XS" fontFamily="mono" color="danger">

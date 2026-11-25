@@ -61,7 +61,9 @@ export function ProjectEvaluatorScopeDetails({
             </div>
           ) : (
             <Text size="S">
-              {`All ${formatEvaluationTargetPlural(projectEvaluator.evaluationTarget)}`}
+              {`All ${formatEvaluationTargetPlural(
+                projectEvaluator.evaluationTarget
+              )}`}
             </Text>
           )}
         </EvaluatorDetailRow>

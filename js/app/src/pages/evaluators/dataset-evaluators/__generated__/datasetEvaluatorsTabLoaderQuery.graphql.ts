@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<231619d6fad5c99456ed7178760794ca>>
+ * @generated SignedSource<<83cc11b1a3849c44d6e08a851ade5e82>>
  * @lightSyntaxTransform
  */
 
@@ -370,6 +370,18 @@ return {
               }
             ],
             "storageKey": null
+          },
+          {
+            "kind": "ClientExtension",
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "__id",
+                "storageKey": null
+              }
+            ]
           }
         ],
         "storageKey": "datasetEvaluators(first:100)"

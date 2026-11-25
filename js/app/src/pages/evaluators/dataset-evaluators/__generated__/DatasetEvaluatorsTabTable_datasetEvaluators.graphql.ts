@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e57b506ab25bbd5ba1b779c0f6891cae>>
+ * @generated SignedSource<<dd7a00e86f9c82fbcf7393654d0921fe>>
  * @lightSyntaxTransform
  */
 
@@ -11,6 +11,7 @@ import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type DatasetEvaluatorsTabTable_datasetEvaluators$data = {
   readonly datasetEvaluators: {
+    readonly __id: string;
     readonly edges: ReadonlyArray<{
       readonly node: {
         readonly " $fragmentSpreads": FragmentRefs<"DatasetEvaluatorsTable_row">;
@@ -413,6 +414,18 @@ return {
             }
           ],
           "storageKey": null
+        },
+        {
+          "kind": "ClientExtension",
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "__id",
+              "storageKey": null
+            }
+          ]
         }
       ],
       "storageKey": null
@@ -423,6 +436,6 @@ return {
 };
 })();
 
-(node as any).hash = "d8a4a516e40f8786f49cf73cc8883633";
+(node as any).hash = "d3c3b799b93798584f349a664590120b";
 
 export default node;

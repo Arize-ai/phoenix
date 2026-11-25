@@ -71,11 +71,19 @@ export function ProjectEvaluatorLoad({
       </TriggerWrap>
       <RichTooltip placement="bottom">
         <Flex direction="column" gap="size-50">
-          <Text size="S">{`${formatPercentShort(shareOfEvaluationTime * 100)} of all evaluation time in the last hour`}</Text>
+          <Text size="S">{`${formatPercentShort(
+            shareOfEvaluationTime * 100
+          )} of all evaluation time in the last hour`}</Text>
           <Text size="S">
             {evaluationCount === 1
-              ? `1 evaluation, ${secondsFormatter.format(meanEvaluationSeconds)}s`
-              : `${intFormatter(evaluationCount)} evaluations, ${secondsFormatter.format(meanEvaluationSeconds)}s each`}
+              ? `1 evaluation, ${secondsFormatter.format(
+                  meanEvaluationSeconds
+                )}s`
+              : `${intFormatter(
+                  evaluationCount
+                )} evaluations, ${secondsFormatter.format(
+                  meanEvaluationSeconds
+                )}s each`}
           </Text>
           {excludesUntracedEvaluators ? (
             <Text size="S" color="text-700">

@@ -49,7 +49,9 @@ export function ProjectEvaluatorLagCell({
         </Text>
       </TriggerWrap>
       <RichTooltip placement="end">
-        <Text size="S">{`p50 ${formatLag(lag.p50Seconds)} · p99 ${formatLag(lag.p99Seconds)}`}</Text>
+        <Text size="S">{`p50 ${formatLag(lag.p50Seconds)} · p99 ${formatLag(
+          lag.p99Seconds
+        )}`}</Text>
       </RichTooltip>
     </TooltipTrigger>
   );

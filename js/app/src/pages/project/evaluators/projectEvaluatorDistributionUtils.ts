@@ -95,8 +95,12 @@ export function getDistributionRows({
       count,
       lowerBound: edges[index],
       upperBound: edges[index + 1],
-      description: `${formatScoreValue(edges[index])} ≤ score ${index === counts.length - 1 ? "≤" : "<"} ${formatScoreValue(edges[index + 1])}`,
-      label: `${formatScoreValue(edges[index])}–${formatScoreValue(edges[index + 1])}`,
+      description: `${formatScoreValue(edges[index])} ≤ score ${
+        index === counts.length - 1 ? "≤" : "<"
+      } ${formatScoreValue(edges[index + 1])}`,
+      label: `${formatScoreValue(edges[index])}–${formatScoreValue(
+        edges[index + 1]
+      )}`,
     }));
   }
   return [];

@@ -125,13 +125,17 @@ export function useProjectEvaluatorPaths() {
         projectEvaluatorId: string,
         tab: ProjectEvaluatorTab = "overview"
       ) =>
-        `${list}/${encodeURIComponent(projectEvaluatorId)}${tabSegment(tab)}${evaluatorSearch(projectEvaluatorId)}`,
+        `${list}/${encodeURIComponent(projectEvaluatorId)}${tabSegment(
+          tab
+        )}${evaluatorSearch(projectEvaluatorId)}`,
       /** The edit slideover, over the overview unless a tab is given. */
       edit: (
         projectEvaluatorId: string,
         tab: ProjectEvaluatorTab = "overview"
       ) =>
-        `${list}/${encodeURIComponent(projectEvaluatorId)}${tabSegment(tab)}/edit${evaluatorSearch(projectEvaluatorId)}`,
+        `${list}/${encodeURIComponent(projectEvaluatorId)}${tabSegment(
+          tab
+        )}/edit${evaluatorSearch(projectEvaluatorId)}`,
     };
   }, [rootPath, search, currentProjectEvaluatorId]);
 }

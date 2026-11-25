@@ -48,7 +48,10 @@ export function ProjectEvaluatorQueueCell({
         </Text>
       </TriggerWrap>
       <RichTooltip placement="bottom">
-        <Text size="S">{`Oldest has waited ${formatDistanceToNowStrict(new Date(oldestWaitingOrRetryingAt), { roundingMethod: "floor" })}, including retries`}</Text>
+        <Text size="S">{`Oldest has waited ${formatDistanceToNowStrict(
+          new Date(oldestWaitingOrRetryingAt),
+          { roundingMethod: "floor" }
+        )}, including retries`}</Text>
       </RichTooltip>
     </TooltipTrigger>
   );

@@ -116,7 +116,9 @@ export function formatFlagCondition({
   threshold: number;
   optimizationDirection: EvaluatorOptimizationDirection | null;
 }): string {
-  return `${getFlaggedThresholdOperator(optimizationDirection)} ${formatThreshold(threshold)}`;
+  return `${getFlaggedThresholdOperator(
+    optimizationDirection
+  )} ${formatThreshold(threshold)}`;
 }
 
 export function formatMatrixSubtitle({
@@ -147,7 +149,9 @@ export function formatMatrixSubtitle({
     thresholdA === thresholdB &&
     operatorA === operatorB
   ) {
-    return `${scope} · flagged at score ${operatorA} ${formatThreshold(thresholdA)}`;
+    return `${scope} · flagged at score ${operatorA} ${formatThreshold(
+      thresholdA
+    )}`;
   }
   const thresholds = [
     thresholdA == null

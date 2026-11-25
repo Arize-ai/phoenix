@@ -219,7 +219,9 @@ export function ProjectEvaluatorEnabledSwitch({
         <Text>
           {clearableCount === 1
             ? `Disabling “${name}” clears its 1 queued evaluation.`
-            : `Disabling “${name}” clears its ${formatQueueCount(clearableCount)} queued evaluations.`}
+            : `Disabling “${name}” clears its ${formatQueueCount(
+                clearableCount
+              )} queued evaluations.`}
         </Text>
       </ClearQueueConfirmDialog>
     </>
