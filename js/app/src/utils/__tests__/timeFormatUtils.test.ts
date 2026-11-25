@@ -214,6 +214,10 @@ describe("timeFormatUtils", () => {
 
   describe("formatRelativeShort", () => {
     const NOW = new Date("2026-03-24T14:30:00").getTime();
+    const localTimeFormatter = new Intl.DateTimeFormat(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+    });
 
     it("returns empty string for timestamp 0", () => {
       expect(formatRelativeShort(0, NOW)).toBe("");
@@ -221,15 +225,16 @@ describe("timeFormatUtils", () => {
 
     it("returns locale time for ages under 6 hours", () => {
       const fiveMinutesAgo = NOW - 5 * ONE_MINUTE_MS;
-      const result = formatRelativeShort(fiveMinutesAgo, NOW);
-      // locale time format, e.g. "2:25 PM"
-      expect(result).toMatch(/\d{1,2}:\d{2}\s?(AM|PM)/i);
+      expect(formatRelativeShort(fiveMinutesAgo, NOW)).toBe(
+        localTimeFormatter.format(fiveMinutesAgo)
+      );
     });
 
     it("returns locale time just before the 6-hour boundary", () => {
       const justUnder6h = NOW - (6 * ONE_HOUR_MS - ONE_MINUTE_MS);
-      const result = formatRelativeShort(justUnder6h, NOW);
-      expect(result).toMatch(/\d{1,2}:\d{2}\s?(AM|PM)/i);
+      expect(formatRelativeShort(justUnder6h, NOW)).toBe(
+        localTimeFormatter.format(justUnder6h)
+      );
     });
 
     it("returns hours at exactly the 6-hour boundary", () => {

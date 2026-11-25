@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative, sep } from "node:path";
 
 import { approvalOutcome } from "../approvalOutcome";
 
@@ -49,8 +49,10 @@ describe("approval marker coverage", () => {
     );
 
   it("finds every module that emits an approval payload", () => {
-    expect(emitters.map((e) => e.path.slice(agentDir.length + 1)).sort())
-      .toMatchInlineSnapshot(`
+    const emitterPaths = emitters
+      .map(({ path }) => relative(agentDir, path).split(sep).join("/"))
+      .sort();
+    expect(emitterPaths).toMatchInlineSnapshot(`
         [
           "shared/pendingApproval/stageApprovalOperation.ts",
           "tools/approval.ts",
