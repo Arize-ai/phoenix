@@ -1,12 +1,19 @@
+import asyncio
+import logging
+from collections.abc import Coroutine, Sequence
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy import delete, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Mapped
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.types import DbSessionFactory
+
+# Stay well below SQLite's bind-parameter limit (32,766) and asyncpg's (32,767).
+_DELETE_BATCH_SIZE = 1000
 
 
 async def delete_traces_and_orphan_sessions(
@@ -64,31 +71,64 @@ async def delete_traces_and_orphan_sessions(
     return deleted_trace_count
 
 
+async def _delete_by_column_in_batches(
+    db: DbSessionFactory,
+    table: type[models.HasId],
+    match_column: Mapped[str],
+    values: Sequence[str],
+) -> list[int]:
+    """Delete rows matching ``values`` in bounded batches and return deleted IDs."""
+    if not values:
+        return []
+    unique_values = list(dict.fromkeys(values))
+    deleted_ids: list[int] = []
+    for start in range(0, len(unique_values), _DELETE_BATCH_SIZE):
+        batch = unique_values[start : start + _DELETE_BATCH_SIZE]
+        stmt = delete(table).where(match_column.in_(batch)).returning(table.id)
+        async with db() as session:
+            deleted_ids.extend(await session.scalars(stmt))
+    return deleted_ids
+
+
 async def delete_projects(
     db: DbSessionFactory,
     *project_names: str,
 ) -> list[int]:
-    if not project_names:
-        return []
-    stmt = (
-        delete(models.Project)
-        .where(models.Project.name.in_(set(project_names)))
-        .returning(models.Project.id)
+    return await _delete_by_column_in_batches(
+        db=db,
+        table=models.Project,
+        match_column=models.Project.name,
+        values=project_names,
     )
-    async with db() as session:
-        return list(await session.scalars(stmt))
 
 
 async def delete_traces(
     db: DbSessionFactory,
     *trace_ids: str,
 ) -> list[int]:
-    if not trace_ids:
-        return []
-    stmt = (
-        delete(models.Trace)
-        .where(models.Trace.trace_id.in_(set(trace_ids)))
-        .returning(models.Trace.id)
+    return await _delete_by_column_in_batches(
+        db=db,
+        table=models.Trace,
+        match_column=models.Trace.trace_id,
+        values=trace_ids,
     )
-    async with db() as session:
-        return list(await session.scalars(stmt))
+
+
+async def gather_cleanup_tasks(
+    *named_tasks: tuple[str, Coroutine[Any, Any, Any]],
+    logger: logging.Logger,
+    context: str,
+) -> None:
+    """Run post-delete cleanup tasks concurrently and log any exceptions."""
+    results = await asyncio.gather(
+        *(coro for _, coro in named_tasks),
+        return_exceptions=True,
+    )
+    first_base_exc: Optional[BaseException] = None
+    for (label, _), result in zip(named_tasks, results):
+        if isinstance(result, Exception):
+            logger.error("Failed to clean up %s for %s", label, context, exc_info=result)
+        elif isinstance(result, BaseException) and first_base_exc is None:
+            first_base_exc = result
+    if first_base_exc is not None:
+        raise first_base_exc

@@ -1,3 +1,5 @@
+import logging
+from datetime import datetime, timezone
 from typing import Any
 
 import pytest
@@ -5,6 +7,8 @@ from sqlalchemy import func, insert, select, update
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.server.api import utils as api_utils
+from phoenix.server.api.mutations import experiment_mutations
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -86,6 +90,123 @@ class TestDeleteExperiment:
             "Failed to delete experiment(s), probably due to invalid input experiment ID(s): "
             f"['{str(GlobalID('Experiment', str(3)))}']"
         )
+
+    async def test_deletes_eval_traces_in_batches(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        simple_experiments: Any,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(api_utils, "_DELETE_BATCH_SIZE", 2)
+        now = datetime.now(timezone.utc)
+        eval_trace_ids = [f"exp-eval-trace-{idx}" for idx in range(5)]
+
+        async with db() as session:
+            await session.execute(insert(models.Project).values(name="exp-project-1"))
+            eval_project_id = await session.scalar(
+                insert(models.Project)
+                .values(name="exp-eval-traces-project")
+                .returning(models.Project.id)
+            )
+            assert eval_project_id is not None
+            await session.execute(
+                update(models.Experiment)
+                .where(models.Experiment.id == 1)
+                .values(project_name="exp-project-1")
+            )
+            for idx, trace_id in enumerate(eval_trace_ids, start=1):
+                await session.execute(
+                    insert(models.Trace).values(
+                        project_rowid=eval_project_id,
+                        trace_id=trace_id,
+                        start_time=now,
+                        end_time=now,
+                    )
+                )
+                run_id = await session.scalar(
+                    insert(models.ExperimentRun)
+                    .values(
+                        experiment_id=1,
+                        dataset_example_id=1,
+                        repetition_number=idx,
+                        output={"result": "ok"},
+                        start_time=now,
+                        end_time=now,
+                    )
+                    .returning(models.ExperimentRun.id)
+                )
+                assert run_id is not None
+                await session.execute(
+                    insert(models.ExperimentRunAnnotation).values(
+                        experiment_run_id=run_id,
+                        name="correctness",
+                        annotator_kind="LLM",
+                        trace_id=trace_id,
+                        metadata_={},
+                        start_time=now,
+                        end_time=now,
+                    )
+                )
+            await session.execute(
+                insert(models.Trace).values(
+                    project_rowid=eval_project_id,
+                    trace_id="exp-unrelated-trace",
+                    start_time=now,
+                    end_time=now,
+                )
+            )
+
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={"experimentIds": [str(GlobalID(type_name="Experiment", node_id="1"))]},
+        )
+        assert not response.errors
+
+        async with db() as session:
+            remaining_traces = list(await session.scalars(select(models.Trace.trace_id)))
+            remaining_projects = list(await session.scalars(select(models.Project.name)))
+        assert remaining_traces == ["exp-unrelated-trace"]
+        assert "exp-project-1" not in remaining_projects
+
+    async def test_logs_cleanup_error_when_eval_trace_deletion_fails(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        simple_experiments: Any,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        async with db() as session:
+            await session.execute(insert(models.Project).values(name="exp-cleanup-project"))
+            await session.execute(
+                update(models.Experiment)
+                .where(models.Experiment.id == 1)
+                .values(project_name="exp-cleanup-project")
+            )
+
+        async def _failing_delete_traces(*args: Any, **kwargs: Any) -> list[int]:
+            raise RuntimeError("exp trace cleanup failure")
+
+        monkeypatch.setattr(experiment_mutations, "delete_traces", _failing_delete_traces)
+
+        with caplog.at_level(
+            logging.ERROR, logger="phoenix.server.api.mutations.experiment_mutations"
+        ):
+            response = await gql_client.execute(
+                query=self.MUTATION,
+                variables={"experimentIds": [str(GlobalID(type_name="Experiment", node_id="1"))]},
+            )
+
+        assert not response.errors
+        assert len(caplog.records) == 1
+        assert "Failed to clean up eval traces for experiments [1]" in caplog.records[0].message
+        assert caplog.records[0].exc_info is not None
+        assert "exp trace cleanup failure" in str(caplog.records[0].exc_info[1])
+
+        async with db() as session:
+            remaining_projects = list(await session.scalars(select(models.Project.name)))
+        assert "exp-cleanup-project" not in remaining_projects
 
 
 class TestPatchExperimentMutation:

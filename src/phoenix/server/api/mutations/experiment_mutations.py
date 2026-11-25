@@ -1,4 +1,4 @@
-import asyncio
+import logging
 from datetime import datetime, timezone
 
 import strawberry
@@ -28,8 +28,10 @@ from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.Experiment import Experiment, to_gql_experiment
 from phoenix.server.api.types.ExperimentJob import ExperimentJob
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.utils import delete_projects, delete_traces
+from phoenix.server.api.utils import delete_projects, delete_traces, gather_cleanup_tasks
 from phoenix.server.dml_event import ExperimentDeleteEvent
+
+logger = logging.getLogger(__name__)
 
 
 @strawberry.type
@@ -377,10 +379,11 @@ class ExperimentMutationMixin:
                         ]
                     )
                 )
-        await asyncio.gather(
-            delete_projects(info.context.db, *project_names),
-            delete_traces(info.context.db, *eval_trace_ids),
-            return_exceptions=True,
+        await gather_cleanup_tasks(
+            ("projects", delete_projects(info.context.db, *project_names)),
+            ("eval traces", delete_traces(info.context.db, *eval_trace_ids)),
+            logger=logger,
+            context=f"experiments {experiment_ids}",
         )
         info.context.event_queue.put(ExperimentDeleteEvent(tuple(experiments.keys())))
         return ExperimentMutationPayload(

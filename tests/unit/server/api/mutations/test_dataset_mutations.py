@@ -1,3 +1,4 @@
+import logging
 import textwrap
 from datetime import datetime, timezone
 from typing import Any
@@ -8,6 +9,8 @@ from strawberry.relay import GlobalID
 
 from phoenix.config import DEFAULT_PROJECT_NAME
 from phoenix.db import models
+from phoenix.server.api import utils as api_utils
+from phoenix.server.api.mutations import dataset_mutations
 from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
@@ -947,6 +950,187 @@ async def test_delete_a_dataset(
             await session.execute(select(models.Dataset).where(models.Dataset.id == 1))
         ).first()
     assert not dataset
+
+
+async def test_delete_dataset_deletes_eval_traces_in_batches(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(api_utils, "_DELETE_BATCH_SIZE", 2)
+    now = datetime.now(timezone.utc)
+    eval_trace_ids = [f"dataset-eval-trace-{idx}" for idx in range(5)]
+
+    async with db() as session:
+        dataset_rowid = await session.scalar(
+            insert(models.Dataset)
+            .values(name="dataset-with-eval-traces", metadata_={})
+            .returning(models.Dataset.id)
+        )
+        assert dataset_rowid is not None
+        version_id = await session.scalar(
+            insert(models.DatasetVersion)
+            .values(dataset_id=dataset_rowid, metadata_={})
+            .returning(models.DatasetVersion.id)
+        )
+        example_id = await session.scalar(
+            insert(models.DatasetExample)
+            .values(dataset_id=dataset_rowid)
+            .returning(models.DatasetExample.id)
+        )
+        exp_project_id = await session.scalar(
+            insert(models.Project)
+            .values(name="dataset-experiment-project")
+            .returning(models.Project.id)
+        )
+        eval_project_id = await session.scalar(
+            insert(models.Project)
+            .values(name="dataset-eval-traces-project")
+            .returning(models.Project.id)
+        )
+        assert (
+            version_id is not None
+            and example_id is not None
+            and exp_project_id is not None
+            and eval_project_id is not None
+        )
+        experiment_id = await session.scalar(
+            insert(models.Experiment)
+            .values(
+                dataset_id=dataset_rowid,
+                dataset_version_id=version_id,
+                name="dataset-experiment",
+                repetitions=5,
+                metadata_={},
+                project_name="dataset-experiment-project",
+            )
+            .returning(models.Experiment.id)
+        )
+        assert experiment_id is not None
+        for idx, trace_id in enumerate(eval_trace_ids, start=1):
+            await session.execute(
+                insert(models.Trace).values(
+                    project_rowid=eval_project_id,
+                    trace_id=trace_id,
+                    start_time=now,
+                    end_time=now,
+                )
+            )
+            run_id = await session.scalar(
+                insert(models.ExperimentRun)
+                .values(
+                    experiment_id=experiment_id,
+                    dataset_example_id=example_id,
+                    repetition_number=idx,
+                    output={"result": "ok"},
+                    start_time=now,
+                    end_time=now,
+                )
+                .returning(models.ExperimentRun.id)
+            )
+            assert run_id is not None
+            await session.execute(
+                insert(models.ExperimentRunAnnotation).values(
+                    experiment_run_id=run_id,
+                    name="correctness",
+                    annotator_kind="LLM",
+                    trace_id=trace_id,
+                    metadata_={},
+                    start_time=now,
+                    end_time=now,
+                )
+            )
+        await session.execute(
+            insert(models.Trace).values(
+                project_rowid=eval_project_id,
+                trace_id="dataset-unrelated-trace",
+                start_time=now,
+                end_time=now,
+            )
+        )
+
+    dataset_id = GlobalID(type_name="Dataset", node_id=str(dataset_rowid))
+    mutation = """
+      mutation ($datasetId: ID!) {
+        deleteDataset(input: { datasetId: $datasetId }) {
+          dataset {
+            id
+          }
+        }
+      }
+    """
+    response = await gql_client.execute(query=mutation, variables={"datasetId": str(dataset_id)})
+    assert not response.errors
+
+    async with db() as session:
+        remaining_traces = list(await session.scalars(select(models.Trace.trace_id)))
+        remaining_projects = list(await session.scalars(select(models.Project.name)))
+    assert remaining_traces == ["dataset-unrelated-trace"]
+    assert "dataset-experiment-project" not in remaining_projects
+
+
+async def test_delete_dataset_logs_cleanup_error(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    async with db() as session:
+        dataset_rowid = await session.scalar(
+            insert(models.Dataset)
+            .values(name="dataset-cleanup-error", metadata_={})
+            .returning(models.Dataset.id)
+        )
+        assert dataset_rowid is not None
+        version_id = await session.scalar(
+            insert(models.DatasetVersion)
+            .values(dataset_id=dataset_rowid, metadata_={})
+            .returning(models.DatasetVersion.id)
+        )
+        assert version_id is not None
+        await session.execute(insert(models.Project).values(name="dataset-cleanup-project"))
+        await session.execute(
+            insert(models.Experiment).values(
+                dataset_id=dataset_rowid,
+                dataset_version_id=version_id,
+                name="dataset-cleanup-experiment",
+                repetitions=1,
+                metadata_={},
+                project_name="dataset-cleanup-project",
+            )
+        )
+
+    async def _failing_delete_traces(*args: Any, **kwargs: Any) -> list[int]:
+        raise RuntimeError("trace cleanup failure")
+
+    monkeypatch.setattr(dataset_mutations, "delete_traces", _failing_delete_traces)
+
+    dataset_id = GlobalID(type_name="Dataset", node_id=str(dataset_rowid))
+    mutation = """
+      mutation ($datasetId: ID!) {
+        deleteDataset(input: { datasetId: $datasetId }) {
+          dataset {
+            id
+          }
+        }
+      }
+    """
+    with caplog.at_level(logging.ERROR, logger="phoenix.server.api.mutations.dataset_mutations"):
+        response = await gql_client.execute(
+            query=mutation, variables={"datasetId": str(dataset_id)}
+        )
+
+    assert not response.errors
+    assert len(caplog.records) == 1
+    assert (
+        f"Failed to clean up eval traces for dataset {dataset_rowid}" in caplog.records[0].message
+    )
+    assert caplog.records[0].exc_info is not None
+    assert "trace cleanup failure" in str(caplog.records[0].exc_info[1])
+
+    async with db() as session:
+        remaining_projects = list(await session.scalars(select(models.Project.name)))
+    assert "dataset-cleanup-project" not in remaining_projects
 
 
 async def test_deleting_a_nonexistent_dataset_fails(gql_client: AsyncGraphQLClient) -> None:
