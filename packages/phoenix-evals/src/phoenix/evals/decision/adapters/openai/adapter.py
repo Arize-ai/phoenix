@@ -64,13 +64,10 @@ class OpenAIDecisionAdapter(BaseDecisionAdapter):
 
     @staticmethod
     def _build_choice_question(
-        name: str, labels: Union[List[str], Dict[str, str]], instructions: Optional[str]
+        name: str, labels: Dict[str, Optional[str]], instructions: Optional[str]
     ) -> Dict[str, Any]:
-        criteria: Dict[str, Any] = (
-            dict(labels) if isinstance(labels, dict) else {label: None for label in labels}
-        )
         choices: List[Dict[str, Any]] = []
-        for value, description in criteria.items():
+        for value, description in labels.items():
             choice: Dict[str, Any] = {"value": value}
             if description is not None:
                 choice["description"] = description

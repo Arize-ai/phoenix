@@ -49,7 +49,7 @@ def test_routes_a_text_prompt_through_a_single_choice_question(monkeypatch):
 
     decision = DecisionModel(provider="typesafe", model="jev-latest")
     results = decision.generate_classifications(
-        "Is 2 + 2 = 5 correct?", {"correctness": {"labels": ["correct", "incorrect"]}}
+        "Is 2 + 2 = 5 correct?", {"correctness": {"labels": {"correct": None, "incorrect": None}}}
     ).results
 
     assert results == {
@@ -83,7 +83,7 @@ async def test_async_routes_a_text_prompt_through_a_single_choice_question(monke
     decision = DecisionModel(provider="typesafe", model="jev-latest")
     results = (
         await decision.async_generate_classifications(
-            "Is the sky blue?", {"correctness": {"labels": ["correct", "incorrect"]}}
+            "Is the sky blue?", {"correctness": {"labels": {"correct": None, "incorrect": None}}}
         )
     ).results
 
@@ -200,7 +200,11 @@ def test_generate_classifications_sends_one_request_with_n_questions(monkeypatch
         "some text",
         _by_name(
             [
-                {"name": "helpfulness", "labels": ["good", "bad"], "instruction": "how helpful"},
+                {
+                    "name": "helpfulness",
+                    "labels": {"good": None, "bad": None},
+                    "instruction": "how helpful",
+                },
                 {"name": "accuracy", "labels": {"right": "ok", "wrong": "nope"}},
             ]
         ),
@@ -249,7 +253,12 @@ async def test_async_generate_classifications(monkeypatch):
     results = (
         await decision.async_generate_classifications(
             "text",
-            _by_name([{"name": "a", "labels": ["x", "y"]}, {"name": "b", "labels": ["x", "y"]}]),
+            _by_name(
+                [
+                    {"name": "a", "labels": {"x": None, "y": None}},
+                    {"name": "b", "labels": {"x": None, "y": None}},
+                ]
+            ),
         )
     ).results
 
@@ -276,12 +285,16 @@ def test_evaluator_multiple_criteria_one_request_one_score_each(monkeypatch):
         prompt_template="review: {text}",
         choices=[
             Criterion(
-                name="helpfulness", instruction="How helpful?", choices={"good": 1, "bad": 0}
+                name="helpfulness",
+                instruction="How helpful?",
+                labels={"good": None, "bad": None},
+                score_map={"good": 1, "bad": 0},
             ),
             Criterion(
                 name="accuracy",
                 instruction="How accurate?",
-                choices={"right": 1, "wrong": 0},
+                labels={"right": None, "wrong": None},
+                score_map={"right": 1, "wrong": 0},
                 direction="minimize",
             ),
         ],
@@ -340,7 +353,7 @@ def test_confidence_is_omitted_when_the_provider_does_not_report_one(monkeypatch
 
     decision = DecisionModel(provider="typesafe", model="jev-latest")
     results = decision.generate_classifications(
-        "is this ok?", {"correctness": {"labels": ["correct", "incorrect"]}}
+        "is this ok?", {"correctness": {"labels": {"correct": None, "incorrect": None}}}
     ).results
 
     assert "confidence" not in results["correctness"].metadata
@@ -366,7 +379,7 @@ def test_decision_span_records_attributes_and_usage(monkeypatch):
 
     decision = DecisionModel(provider="typesafe", model="jev-latest")
     results = decision.generate_classifications(
-        "is this valid?", {"validity": {"labels": ["valid", "invalid"]}}, tracer=tracer
+        "is this valid?", {"validity": {"labels": {"valid": None, "invalid": None}}}, tracer=tracer
     ).results
 
     assert "usage" not in results

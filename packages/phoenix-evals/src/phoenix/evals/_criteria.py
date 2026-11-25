@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, Literal, Optional, Union
 
 from typing_extensions import NotRequired, TypeAlias, TypedDict
 
@@ -9,12 +9,24 @@ __all__ = [
     "ClassificationFailureKind",
     "ClassificationResponse",
     "ClassificationResult",
+    "Description",
+    "Label",
     "Name",
+    "Score",
     "TokenUsage",
 ]
 
 Name: TypeAlias = str
 """A criterion name; the key under which that criterion's answer is returned."""
+
+Label: TypeAlias = str
+"""One of the labels a criterion classifies into."""
+
+Description: TypeAlias = Optional[str]
+"""A label's description, or ``None`` when the label has none."""
+
+Score: TypeAlias = Union[float, int]
+"""The numeric score a label maps to."""
 
 ClassificationFailureKind = Literal["refusal", "invalid_label", "error"]
 
@@ -33,11 +45,11 @@ class ClassificationCriterion(TypedDict):
     repeated here.
 
     Keys:
-        labels: Either a list of label strings, or a dict mapping each label to a description.
+        labels: Each label mapped to its description, or ``None`` when the label has none.
         instruction: Optional instruction for this one question (the criterion's instruction).
     """
 
-    labels: Union[List[str], Dict[str, str]]
+    labels: Dict[Label, Description]
     instruction: NotRequired[Optional[str]]
 
 

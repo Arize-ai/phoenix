@@ -6,7 +6,7 @@ import json
 import warnings
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from typing import (
     Any,
     Callable,
@@ -25,7 +25,7 @@ from typing import (
 import pandas as pd
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from pydantic import BaseModel, BeforeValidator, ValidationError, create_model
-from typing_extensions import Annotated, Mapping, TypeVar
+from typing_extensions import Annotated, Mapping, NotRequired, TypedDict, TypeVar
 
 from phoenix.evals.executors import AsyncExecutor, ExecutionDetails, SyncExecutor
 
@@ -33,6 +33,8 @@ from ._criteria import (
     ClassificationCriterion,
     ClassificationFailure,
     ClassificationResponse,
+    Description,
+    Label,
     Name,
 )
 from .decision import DecisionModel
@@ -278,106 +280,96 @@ class Score:
         print(json.dumps(score_dict, indent=indent))
 
 
-@dataclass(frozen=True)
-class Criterion:
+class Criterion(TypedDict):
     """A single classification question within a (possibly multi-criterion) evaluator.
 
-    Each criterion produces one :class:`Score`.
+    Each criterion produces one :class:`Score`. Use the ``_criterion_*`` helpers in this module
+    to read derived values (label list, backend labels) and :func:`_validate_criterion` to
+    validate one.
 
-    Args:
+    Keys:
         name: The criterion name; used as the resulting ``Score.name``.
         instruction: Instructions for this criterion as a whole (the question). May be empty.
-        choices: Either a list of label strings, or a dict mapping each label to its score. A
-            score may be a bare number, or a ``(score, description)`` tuple when the label also
-            needs a description sent to the backend. The description explains that one choice.
-        direction: Optional per-criterion score direction. When ``None``, the evaluator's
-            direction is used.
+        labels: Each label mapped to its description, or ``None`` when the label has none.
+        score_map: Each label mapped to its numeric score, or ``None`` when the criterion has no
+            scores (a bare label list). When present, its keys match ``labels``.
+        direction: Optional per-criterion score direction. When absent or ``None``, the
+            evaluator's direction is used.
     """
 
     name: str
     instruction: str
-    choices: Union[List[str], Dict[str, Union[float, int, Tuple[Union[float, int], str]]]]
-    direction: Optional[DirectionType] = None
+    labels: Dict[Label, Description]
+    score_map: NotRequired[Optional[Dict[Label, Union[float, int]]]]
+    direction: NotRequired[Optional[DirectionType]]
 
-    def __post_init__(self) -> None:
-        if not self.choices:
-            raise ValueError(f"Criterion '{self.name}' must define at least one choice.")
-        if isinstance(self.choices, dict):
-            if not all(isinstance(key, str) for key in self.choices):
-                raise ValueError(f"Criterion '{self.name}' choices dict keys must be strings.")
-            for label, value in self.choices.items():
-                if isinstance(value, tuple):
-                    if len(value) != 2 or not isinstance(value[1], str):
-                        raise ValueError(
-                            f"Criterion '{self.name}' choice '{label}' must be a score or a "
-                            f"(score, description) tuple."
-                        )
-        elif isinstance(self.choices, list):
-            if not all(isinstance(label, str) for label in self.choices):
-                raise ValueError(f"Criterion '{self.name}' choices list must contain only strings.")
-        else:
+
+def _validate_criterion(criterion: Criterion) -> None:
+    """Validate a criterion's labels and score map (previously ``Criterion.__post_init__``)."""
+    name = criterion["name"]
+    labels = criterion["labels"]
+    if not labels:
+        raise ValueError(f"Criterion '{name}' must define at least one label.")
+    if not all(isinstance(label, str) for label in labels):
+        raise ValueError(f"Criterion '{name}' labels must be strings.")
+    score_map = criterion.get("score_map")
+    if score_map is not None:
+        unknown = set(score_map) - set(labels)
+        if unknown:
             raise ValueError(
-                f"Criterion '{self.name}' choices must be a list of label strings or a "
-                f"label->score dict."
+                f"Criterion '{name}' score_map has labels not in labels: {sorted(unknown)}."
             )
 
-    @property
-    def labels(self) -> List[str]:
-        """The label strings for this criterion."""
-        return list(self.choices) if isinstance(self.choices, list) else list(self.choices.keys())
 
-    @property
-    def label_score_map(self) -> Optional[Dict[str, Union[float, int]]]:
-        """Mapping of label to score, or ``None`` when choices are a bare label list."""
-        if not isinstance(self.choices, dict):
-            return None
-        return {
-            label: (value[0] if isinstance(value, tuple) else value)
-            for label, value in self.choices.items()
-        }
+def _criterion_labels(criterion: Criterion) -> List[str]:
+    """The label strings for this criterion."""
+    return list(criterion["labels"].keys())
 
-    @property
-    def backend_labels(self) -> Union[List[str], Dict[str, str]]:
-        """Labels as sent to the backend: a ``label -> description`` dict when any choice carries
-        a description, otherwise a bare list of label strings."""
-        if isinstance(self.choices, dict):
-            descriptions = {
-                label: value[1] for label, value in self.choices.items() if isinstance(value, tuple)
-            }
-            if descriptions:
-                return {label: descriptions.get(label, "") for label in self.labels}
-        return self.labels
 
-    @property
-    def label_descriptions(self) -> Dict[str, Optional[str]]:
-        """Each label mapped to its description, or ``None`` when that label has none."""
-        if isinstance(self.choices, dict):
-            return {
-                label: (value[1] if isinstance(value, tuple) else None)
-                for label, value in self.choices.items()
-            }
-        return {label: None for label in self.choices}
+def _criterion_label_score_map(criterion: Criterion) -> Optional[Dict[str, Union[float, int]]]:
+    """Mapping of label to score, or ``None`` when the criterion has no scores."""
+    return criterion.get("score_map")
 
-    def describe(self) -> Dict[str, Any]:
-        """The Score this criterion produces, for Evaluator.describe's outputs. ``kind`` is not
-        included; it is the evaluator's and sits at the top level of describe()."""
-        return {
-            "name": self.name,
-            "direction": self.direction,
-            "labels": self.label_descriptions,
-            "score_map": self.label_score_map,
-        }
+
+def _criterion_has_descriptions(criterion: Criterion) -> bool:
+    """True when any of the criterion's labels carries a (non-``None``) description."""
+    return any(description is not None for description in criterion["labels"].values())
+
+
+def _criterion_describe(criterion: Criterion) -> Dict[str, Any]:
+    """The Score this criterion produces, for Evaluator.describe's outputs. ``kind`` is not
+    included; it is the evaluator's and sits at the top level of describe()."""
+    return {
+        "name": criterion["name"],
+        "direction": criterion.get("direction"),
+        "labels": criterion["labels"],
+        "score_map": criterion.get("score_map"),
+    }
+
+
+def _choices_to_labels_and_score_map(
+    choices: Union[List[str], Dict[str, Union[float, int, Tuple[Union[float, int], str]]]],
+) -> Tuple[Dict[Label, Description], Optional[Dict[Label, Union[float, int]]]]:
+    """Turn the ergonomic ``choices`` input (a label list, a ``label -> score`` dict, or a
+    ``label -> (score, description)`` dict) into a criterion's ``labels`` and ``score_map``."""
+    if isinstance(choices, list):
+        return {label: None for label in choices}, None
+    labels: Dict[Label, Description] = {}
+    score_map: Dict[Label, Union[float, int]] = {}
+    for label, value in choices.items():
+        if isinstance(value, tuple):
+            score_map[label], labels[label] = value[0], value[1]
+        else:
+            score_map[label], labels[label] = value, None
+    return labels, score_map
 
 
 def _is_criteria_list(choices: Any) -> bool:
-    """True when ``choices`` is the multi-criterion format (a list of Criterion/criterion dicts)."""
+    """True when ``choices`` is the multi-criterion format (a list of criterion dicts)."""
     return (
         isinstance(choices, list)
         and len(choices) > 0
-        and all(
-            isinstance(choice, Criterion) or (isinstance(choice, dict) and "choices" in choice)
-            for choice in choices
-        )
+        and all(isinstance(choice, dict) and "labels" in choice for choice in choices)
     )
 
 
@@ -862,7 +854,7 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
         return self._criteria
 
     def _describe_outputs(self) -> List[Dict[str, Any]]:
-        return [criterion.describe() for criterion in self._criteria]
+        return [_criterion_describe(criterion) for criterion in self._criteria]
 
     def _normalize_choices(
         self,
@@ -875,22 +867,23 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
         direction: DirectionType,
     ) -> List[Criterion]:
         """Convert any supported `choices` format into a canonical list of Criterion."""
-        # Case 4: a list of criteria (Criterion instances or plain dicts).
+        # Case 4: a list of criterion dicts.
         if _is_criteria_list(choices):
             criteria: List[Criterion] = []
-            for choice in cast("List[Union[Criterion, Dict[str, Any]]]", choices):
-                criterion = choice if isinstance(choice, Criterion) else Criterion(**choice)
-                if not criterion.name or not isinstance(criterion.name, str):
-                    raise ValueError("Criterion.name must be a non-empty string.")
-                if not criterion.instruction:
+            for choice in cast("List[Dict[str, Any]]", choices):
+                criterion = cast(Criterion, dict(choice))  # copy so we can fill in direction
+                if not criterion.get("name") or not isinstance(criterion["name"], str):
+                    raise ValueError("Criterion name must be a non-empty string.")
+                if not criterion.get("instruction"):
                     raise ValueError(
-                        f"Criterion '{criterion.name}' must have a non-empty instruction; it "
+                        f"Criterion '{criterion['name']}' must have a non-empty instruction; it "
                         f"becomes the question asked about this criterion."
                     )
-                if criterion.direction is None:
-                    criterion = replace(criterion, direction=direction)
+                _validate_criterion(criterion)
+                if criterion.get("direction") is None:
+                    criterion["direction"] = direction
                 criteria.append(criterion)
-            seen = [c.name for c in criteria]
+            seen = [c["name"] for c in criteria]
             duplicates = sorted({name for name in seen if seen.count(name) > 1})
             if duplicates:
                 raise ValueError(
@@ -899,41 +892,47 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
                 )
             return criteria
 
-        # Cases 1-3: a single-criterion classification named after the evaluator.
-        leaf: Union[List[str], Dict[str, Union[float, int, Tuple[Union[float, int], str]]]]
-        if isinstance(choices, list):
-            if not all(isinstance(label, str) for label in choices):
-                raise ValueError(
-                    "`choices` given as a list must be either all label strings or all "
-                    "Criterion (or criterion dicts); mixing them is not supported."
-                )
-            leaf = cast("List[str]", choices)
-        else:
-            leaf = dict(choices)
-        return [
-            Criterion(
-                name=self.name,
-                instruction="",
-                choices=leaf,
-                direction=direction,
-            ),
-        ]
+        # Cases 1-3: a single-criterion classification named after the evaluator. The ergonomic
+        # `choices` input is normalized into the criterion's labels and score_map.
+        if isinstance(choices, list) and not all(isinstance(label, str) for label in choices):
+            raise ValueError(
+                "`choices` given as a list must be either all label strings or all "
+                "Criterion (or criterion dicts); mixing them is not supported."
+            )
+        labels, score_map = _choices_to_labels_and_score_map(
+            cast(
+                "Union[List[str], Dict[str, Union[float, int, Tuple[Union[float, int], str]]]]",
+                choices,
+            )
+        )
+        criterion = Criterion(
+            name=self.name,
+            instruction="",
+            labels=labels,
+            score_map=score_map,
+            direction=direction,
+        )
+        _validate_criterion(criterion)
+        return [criterion]
 
     def _criteria_payload(self) -> Dict[Name, ClassificationCriterion]:
         """The criteria as the backend-level questions sent to ``generate_classifications``,
         keyed by criterion name."""
         payload: Dict[Name, ClassificationCriterion] = {}
         for criterion in self._criteria:
-            item: ClassificationCriterion = {"labels": criterion.backend_labels}
+            item: ClassificationCriterion = {"labels": criterion["labels"]}
             # An empty question-level instruction is omitted so the backend uses its default.
-            if criterion.instruction:
-                item["instruction"] = criterion.instruction
-            payload[criterion.name] = item
+            if criterion["instruction"]:
+                item["instruction"] = criterion["instruction"]
+            payload[criterion["name"]] = item
         return payload
 
     def _resolve_method(self) -> ObjectGenerationMethod:
-        any_dict = any(isinstance(c.backend_labels, dict) for c in self._criteria)
-        return ObjectGenerationMethod.TOOL_CALLING if any_dict else ObjectGenerationMethod.AUTO
+        # Labels with descriptions produce a oneOf/const schema, which needs TOOL_CALLING.
+        any_descriptions = any(_criterion_has_descriptions(c) for c in self._criteria)
+        return (
+            ObjectGenerationMethod.TOOL_CALLING if any_descriptions else ObjectGenerationMethod.AUTO
+        )
 
     def _failure_score(self, criterion: Criterion, failure: ClassificationFailure) -> Score:
         """A Score for a criterion that could not be classified: no score and no label, with the
@@ -941,12 +940,12 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
         failure is never aggregated as a zero."""
         return Score(
             score=None,
-            name=criterion.name,
+            name=criterion["name"],
             label=None,
             explanation=failure.reason,
             metadata={"model": self.llm.model, "failure_kind": failure.kind, **failure.metadata},
             kind=self.kind,
-            direction=criterion.direction,
+            direction=criterion.get("direction"),
         )
 
     def _scores_from_results(self, response: ClassificationResponse) -> List[Score]:
@@ -955,32 +954,35 @@ class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
         criterion's labels -- yields a failure Score, so the other criteria's Scores are kept."""
         scores: List[Score] = []
         for criterion in self._criteria:
-            outcome = response.results[criterion.name]
+            name = criterion["name"]
+            outcome = response.results[name]
             if isinstance(outcome, ClassificationFailure):
                 scores.append(self._failure_score(criterion, outcome))
                 continue
+            labels = _criterion_labels(criterion)
             label = outcome.label
-            if label not in criterion.labels:
+            if label not in labels:
                 invalid = ClassificationFailure(
                     kind="invalid_label",
                     reason=(
-                        f"ClassificationEvaluator '{criterion.name}' received invalid label "
-                        f"'{label}'. Valid labels are: {criterion.labels}."
+                        f"ClassificationEvaluator '{name}' received invalid label "
+                        f"'{label}'. Valid labels are: {labels}."
                     ),
                     metadata=outcome.metadata,
                 )
                 scores.append(self._failure_score(criterion, invalid))
                 continue
-            score = criterion.label_score_map.get(label) if criterion.label_score_map else None
+            score_map = _criterion_label_score_map(criterion)
+            score = score_map.get(label) if score_map else None
             scores.append(
                 Score(
                     score=score,
-                    name=criterion.name,
+                    name=name,
                     label=label,
                     explanation=outcome.explanation,
                     metadata={"model": self.llm.model, **outcome.metadata},
                     kind=self.kind,
-                    direction=criterion.direction,
+                    direction=criterion.get("direction"),
                 )
             )
         return scores

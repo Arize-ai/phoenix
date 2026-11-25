@@ -328,7 +328,11 @@ class TestGenerateClassificationsSchema:
 
     def test_one_property_per_criterion_keyed_by_name(self):
         criteria = [
-            {"name": "helpfulness", "labels": ["poor", "good"], "instruction": "how helpful"},
+            {
+                "name": "helpfulness",
+                "labels": {"poor": None, "good": None},
+                "instruction": "how helpful",
+            },
             {"name": "accuracy", "labels": {"right": "ok", "wrong": "nope"}},
         ]
         schema = generate_classifications_schema(_by_name(criteria), include_explanation=True)
@@ -350,18 +354,22 @@ class TestGenerateClassificationsSchema:
 
     def test_instructions_become_the_property_description(self):
         criteria = [
-            {"name": "helpfulness", "labels": ["poor", "good"], "instruction": "how helpful"}
+            {
+                "name": "helpfulness",
+                "labels": {"poor": None, "good": None},
+                "instruction": "how helpful",
+            }
         ]
         schema = generate_classifications_schema(_by_name(criteria), include_explanation=True)
         assert schema["properties"]["helpfulness"]["description"] == "how helpful"
 
     def test_missing_instructions_adds_no_description(self):
-        criteria = [{"name": "helpfulness", "labels": ["poor", "good"]}]
+        criteria = [{"name": "helpfulness", "labels": {"poor": None, "good": None}}]
         schema = generate_classifications_schema(_by_name(criteria), include_explanation=True)
         assert "description" not in schema["properties"]["helpfulness"]
 
     def test_include_explanation_false_omits_explanation(self):
-        criteria = [{"name": "a", "labels": ["x", "y"]}]
+        criteria = [{"name": "a", "labels": {"x": None, "y": None}}]
         schema = generate_classifications_schema(_by_name(criteria), include_explanation=False)
         props = schema["properties"]["a"]["properties"]
         assert "explanation" not in props
@@ -372,7 +380,10 @@ class TestParseClassifications:
     """Test cases for _parse_classifications."""
 
     def test_unwraps_each_criterion_in_order(self):
-        criteria = [{"name": "a", "labels": ["x", "y"]}, {"name": "b", "labels": ["x", "y"]}]
+        criteria = [
+            {"name": "a", "labels": {"x": None, "y": None}},
+            {"name": "b", "labels": {"x": None, "y": None}},
+        ]
         raw = {
             "b": {"label": "y", "explanation": "because b"},
             "a": {"label": "x", "explanation": "because a"},
@@ -384,12 +395,12 @@ class TestParseClassifications:
         }
 
     def test_explanation_omitted_when_absent(self):
-        criteria = [{"name": "a", "labels": ["x", "y"]}]
+        criteria = [{"name": "a", "labels": {"x": None, "y": None}}]
         results = _parse_classifications({"a": {"label": "x"}}, _by_name(criteria))
         assert results == {"a": ClassificationResult(label="x", explanation=None)}
 
     def test_missing_criterion_becomes_a_failure(self):
-        criteria = [{"name": "a", "labels": ["x", "y"]}]
+        criteria = [{"name": "a", "labels": {"x": None, "y": None}}]
         [failure] = _parse_classifications({}, _by_name(criteria)).values()
         assert isinstance(failure, ClassificationFailure)
         assert failure.kind == "error"
@@ -397,13 +408,13 @@ class TestParseClassifications:
 
     def test_non_dict_answer_becomes_a_failure(self):
         """A model returning a bare string for a criterion fails it, not an AttributeError."""
-        criteria = [{"name": "a", "labels": ["x", "y"]}]
+        criteria = [{"name": "a", "labels": {"x": None, "y": None}}]
         [failure] = _parse_classifications({"a": "x"}, _by_name(criteria)).values()
         assert isinstance(failure, ClassificationFailure)
         assert failure.kind == "error"
 
     def test_dict_answer_without_label_becomes_a_failure(self):
-        criteria = [{"name": "a", "labels": ["x", "y"]}]
+        criteria = [{"name": "a", "labels": {"x": None, "y": None}}]
         [failure] = _parse_classifications(
             {"a": {"explanation": "no label here"}}, _by_name(criteria)
         ).values()
@@ -423,7 +434,11 @@ class TestLLMGenerateClassifications:
         }
 
         criteria = [
-            {"name": "helpfulness", "labels": ["poor", "good"], "instruction": "how helpful"},
+            {
+                "name": "helpfulness",
+                "labels": {"poor": None, "good": None},
+                "instruction": "how helpful",
+            },
             {"name": "accuracy", "labels": {"right": "ok", "wrong": "nope"}},
         ]
         response = llm.generate_classifications("some text", _by_name(criteria))
@@ -446,7 +461,10 @@ class TestLLMGenerateClassifications:
             return_value={"a": {"label": "x"}, "b": {"label": "y"}}
         )
 
-        criteria = [{"name": "a", "labels": ["x", "y"]}, {"name": "b", "labels": ["x", "y"]}]
+        criteria = [
+            {"name": "a", "labels": {"x": None, "y": None}},
+            {"name": "b", "labels": {"x": None, "y": None}},
+        ]
         results = (await llm.async_generate_classifications("text", _by_name(criteria))).results
 
         assert list(results.keys()) == ["a", "b"]

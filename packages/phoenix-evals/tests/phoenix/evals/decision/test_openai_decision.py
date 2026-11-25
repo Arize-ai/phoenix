@@ -89,7 +89,11 @@ def test_generate_classifications_sends_one_request_with_n_questions(monkeypatch
         "some text",
         _by_name(
             [
-                {"name": "helpfulness", "labels": ["good", "bad"], "instruction": "how helpful"},
+                {
+                    "name": "helpfulness",
+                    "labels": {"good": None, "bad": None},
+                    "instruction": "how helpful",
+                },
                 {"name": "accuracy", "labels": {"right": "ok", "wrong": "nope"}},
             ]
         ),
@@ -130,8 +134,8 @@ def test_generate_classifications_matches_answers_by_name_not_order(monkeypatch)
         "t",
         _by_name(
             [
-                {"name": "helpfulness", "labels": ["good", "bad"]},
-                {"name": "accuracy", "labels": ["right", "wrong"]},
+                {"name": "helpfulness", "labels": {"good": None, "bad": None}},
+                {"name": "accuracy", "labels": {"right": None, "wrong": None}},
             ]
         ),
     ).results
@@ -153,8 +157,8 @@ def test_generate_classifications_missing_answer_becomes_a_failure(monkeypatch):
         "t",
         _by_name(
             [
-                {"name": "helpfulness", "labels": ["good", "bad"]},
-                {"name": "accuracy", "labels": ["right", "wrong"]},
+                {"name": "helpfulness", "labels": {"good": None, "bad": None}},
+                {"name": "accuracy", "labels": {"right": None, "wrong": None}},
             ]
         ),
     ).results
@@ -177,7 +181,7 @@ async def test_async_generate_classifications(monkeypatch):
     decision = DecisionModel(provider="openai", model="gpt-6-luna")
     results = (
         await decision.async_generate_classifications(
-            "text", _by_name([{"name": "a", "labels": ["x", "y"]}])
+            "text", _by_name([{"name": "a", "labels": {"x": None, "y": None}}])
         )
     ).results
 
@@ -203,7 +207,7 @@ def test_routes_a_text_prompt_through_a_single_choice_question(monkeypatch):
 
     decision = DecisionModel(provider="openai", model="gpt-6-luna")
     results = decision.generate_classifications(
-        "Is 2 + 2 = 5 correct?", {"correctness": {"labels": ["correct", "incorrect"]}}
+        "Is 2 + 2 = 5 correct?", {"correctness": {"labels": {"correct": None, "incorrect": None}}}
     ).results
 
     assert results == {
@@ -239,7 +243,7 @@ async def test_async_routes_a_text_prompt_through_a_single_choice_question(monke
     decision = DecisionModel(provider="openai", model="gpt-6-luna")
     results = (
         await decision.async_generate_classifications(
-            "Is the sky blue?", {"correctness": {"labels": ["correct", "incorrect"]}}
+            "Is the sky blue?", {"correctness": {"labels": {"correct": None, "incorrect": None}}}
         )
     ).results
 
@@ -332,7 +336,7 @@ def test_refusal_becomes_a_failure(monkeypatch):
 
     decision = DecisionModel(provider="openai", model="gpt-6-luna")
     results = decision.generate_classifications(
-        "something", {"correctness": {"labels": ["correct", "incorrect"]}}
+        "something", {"correctness": {"labels": {"correct": None, "incorrect": None}}}
     ).results
 
     failure = results["correctness"]
@@ -375,7 +379,7 @@ def test_confidence_is_omitted_when_the_provider_does_not_report_one(monkeypatch
 
     decision = DecisionModel(provider="openai", model="gpt-6-luna")
     results = decision.generate_classifications(
-        "is this ok?", {"correctness": {"labels": ["correct", "incorrect"]}}
+        "is this ok?", {"correctness": {"labels": {"correct": None, "incorrect": None}}}
     ).results
 
     assert "confidence" not in results["correctness"].metadata
@@ -400,7 +404,7 @@ def test_decision_span_records_attributes_and_usage(monkeypatch):
 
     decision = DecisionModel(provider="openai", model="gpt-6-luna")
     results = decision.generate_classifications(
-        "is this valid?", {"validity": {"labels": ["valid", "invalid"]}}, tracer=tracer
+        "is this valid?", {"validity": {"labels": {"valid": None, "invalid": None}}}, tracer=tracer
     ).results
 
     assert "usage" not in results
@@ -487,7 +491,9 @@ def test_assistant_text_is_mapped_to_output_text(monkeypatch):
         {"role": "user", "content": "Rate this."},
         {"role": "assistant", "content": "ok"},
     ]
-    decision.generate_classifications(prompt, {"correctness": {"labels": ["correct", "incorrect"]}})
+    decision.generate_classifications(
+        prompt, {"correctness": {"labels": {"correct": None, "incorrect": None}}}
+    )
 
     _, kwargs = client.decisions.create.call_args
     assert kwargs["input"] == [

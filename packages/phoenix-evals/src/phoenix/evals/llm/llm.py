@@ -428,7 +428,7 @@ def show_provider_availability() -> None:
 
 
 def generate_classification_schema(
-    labels: Union[List[str], Dict[str, str]],
+    labels: Union[List[str], Dict[str, Optional[str]]],
     include_explanation: bool = True,
     description: Optional[str] = None,
 ) -> Dict[str, Any]:

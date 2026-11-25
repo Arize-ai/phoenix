@@ -20,7 +20,7 @@ def test_plural_classifications_is_the_adapter_contract():
             return ClassificationResponse(
                 results={
                     name: ClassificationResult(
-                        label=criterion["labels"][0], metadata={"model_id": "dummy"}
+                        label=next(iter(criterion["labels"])), metadata={"model_id": "dummy"}
                     )
                     for name, criterion in criteria.items()
                 },
@@ -34,8 +34,8 @@ def test_plural_classifications_is_the_adapter_contract():
     raw = adapter.generate_classifications(
         "p",
         {
-            "q1": {"labels": ["a", "b"]},
-            "q2": {"labels": ["c", "d"]},
+            "q1": {"labels": {"a": None, "b": None}},
+            "q2": {"labels": {"c": None, "d": None}},
         },
     )
 

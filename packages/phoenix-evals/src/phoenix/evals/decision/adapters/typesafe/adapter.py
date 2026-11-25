@@ -32,14 +32,10 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
     def client_name(cls) -> str:
         return "typesafe"
 
-    def _build_choice(
-        self, labels: Union[List[str], Dict[str, str]], instructions: Optional[str]
-    ) -> Any:
+    def _build_choice(self, labels: Dict[str, Optional[str]], instructions: Optional[str]) -> Any:
         from typesafe_sdk import Choice
 
-        criteria: Dict[str, Optional[str]] = (
-            dict(labels) if isinstance(labels, dict) else {label: None for label in labels}
-        )
+        criteria = dict(labels)
         if instructions is not None:
             return Choice(criteria=criteria, instructions=instructions)
         return Choice(criteria=criteria)
