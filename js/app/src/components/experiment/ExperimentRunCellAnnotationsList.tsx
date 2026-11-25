@@ -389,6 +389,7 @@ export function ExperimentRunCellAnnotationsList(
               <ExperimentAnnotationButton
                 annotation={annotation}
                 optimizationValue={optimizationValue}
+                isValueEndAligned
                 extra={
                   meanAnnotationScore != null && numRepetitions > 1 ? (
                     <Flex direction="row" gap="size-100" alignItems="center">
