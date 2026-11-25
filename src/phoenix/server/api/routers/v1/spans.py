@@ -627,7 +627,7 @@ def _span_identifier_predicate(span_identifier: str) -> tuple[sa.ColumnElement[b
             "Span",
         )
         predicate = models.Span.id == span_rowid
-        error_detail = f"Span with relay ID '{span_identifier}' not found"
+        error_detail = f"Span with Global ID '{span_identifier}' not found"
     except Exception:
         predicate = models.Span.span_id == span_identifier
         error_detail = f"Span with span_id '{span_identifier}' not found"
@@ -1600,8 +1600,8 @@ async def create_spans(
     operation_id="getSpan",
     summary="Get a single span by span_identifier",
     description=(
-        "Fetch a single span by identifier. The identifier may be either a relay "
-        "GlobalID or an OpenTelemetry span_id. Returns the span in the same shape as "
+        "Fetch a single span by identifier. The identifier may be either a Global ID "
+        "or an OpenTelemetry span_id. Returns the span in the same shape as "
         "the elements of the list-spans endpoint."
     ),
     responses=add_errors_to_responses([404]),
@@ -1609,7 +1609,7 @@ async def create_spans(
 async def get_span(
     request: Request,
     span_identifier: str = Path(
-        description="The span identifier: either a relay GlobalID or OpenTelemetry span_id"
+        description="The span identifier: either a Global ID or OpenTelemetry span_id"
     ),
 ) -> GetSpanResponseBody:
     predicate, error_detail = _span_identifier_predicate(span_identifier)
@@ -1658,7 +1658,7 @@ async def get_span(
 async def delete_span(
     request: Request,
     span_identifier: str = Path(
-        description="The span identifier: either a relay GlobalID or OpenTelemetry span_id"
+        description="The span identifier: either a Global ID or OpenTelemetry span_id"
     ),
 ) -> None:
     """
@@ -1676,7 +1676,7 @@ async def delete_span(
 
     Args:
         request: FastAPI request object
-        span_identifier: Either relay GlobalID or OpenTelemetry span_id
+        span_identifier: Either Global ID or OpenTelemetry span_id
 
     Raises:
         HTTPException(404): If span not found

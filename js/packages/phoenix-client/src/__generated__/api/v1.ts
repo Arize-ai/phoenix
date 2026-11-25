@@ -943,7 +943,7 @@ export interface paths {
         };
         /**
          * Get a single span by span_identifier
-         * @description Fetch a single span by identifier. The identifier may be either a relay GlobalID or an OpenTelemetry span_id. Returns the span in the same shape as the elements of the list-spans endpoint.
+         * @description Fetch a single span by identifier. The identifier may be either a Global ID or an OpenTelemetry span_id. Returns the span in the same shape as the elements of the list-spans endpoint.
          */
         get: operations["getSpan"];
         put?: never;
@@ -10920,7 +10920,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The span identifier: either a relay GlobalID or OpenTelemetry span_id */
+                /** @description The span identifier: either a Global ID or OpenTelemetry span_id */
                 span_identifier: string;
             };
             cookie?: never;
@@ -10970,7 +10970,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The span identifier: either a relay GlobalID or OpenTelemetry span_id */
+                /** @description The span identifier: either a Global ID or OpenTelemetry span_id */
                 span_identifier: string;
             };
             cookie?: never;

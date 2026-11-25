@@ -418,7 +418,7 @@ async def test_delete_span_with_global_id(
     span_hierarchy: dict[str, Any],
     db: DbSessionFactory,
 ) -> None:
-    """Test that deleting a span works with relay GlobalID identifier."""
+    """Test that deleting a span works with a Global ID identifier."""
     hierarchy = span_hierarchy
 
     # Use GlobalID instead of OpenTelemetry span_id
@@ -455,7 +455,7 @@ async def test_get_span_with_global_id(
     httpx_client: httpx2.AsyncClient,
     span_hierarchy: dict[str, Any],
 ) -> None:
-    """Test that a span can be fetched with a relay GlobalID identifier."""
+    """Test that a span can be fetched with a Global ID identifier."""
     hierarchy = span_hierarchy
     child1_global_id = str(GlobalID("Span", str(hierarchy["child1"].id)))
 
