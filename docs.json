@@ -1617,6 +1617,7 @@
           {
             "group": "11.2026",
             "pages": [
+              "docs/phoenix/release-notes/11-2026/11-23-2026-decision-and-embedding-model-costs",
               "docs/phoenix/release-notes/11-2026/11-18-2026-python-decision-model-evaluators-and-opentelemetry-js-3",
               "docs/phoenix/release-notes/11-2026/11-02-2026-authentication-by-default-and-decision-annotations"
             ]
