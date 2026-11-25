@@ -81,7 +81,10 @@ import type {
   ProjectsPageQuery,
 } from "./__generated__/ProjectsPageQuery.graphql";
 import { NewProjectButton } from "./NewProjectButton";
-import { ProjectActionMenu } from "./ProjectActionMenu";
+import {
+  ProjectActionMenu,
+  type ProjectDataChangeOptions,
+} from "./ProjectActionMenu";
 
 const PAGE_SIZE = 10;
 const PROJECTS_POLL_INTERVAL_MS = 60_000;
@@ -357,10 +360,13 @@ export function ProjectsPageContent({
   );
 
   const onClear = useCallback(
-    (projectName: string) => {
+    (projectName: string, { didFail }: ProjectDataChangeOptions = {}) => {
       startTransition(() => {
         refetch({
           onComplete: () => {
+            if (didFail) {
+              return;
+            }
             notifySuccess({
               title: "Project Cleared",
               message: `Project ${projectName} has been cleared of traces.`,
@@ -373,10 +379,13 @@ export function ProjectsPageContent({
   );
 
   const onRemove = useCallback(
-    (projectName: string) => {
+    (projectName: string, { didFail }: ProjectDataChangeOptions = {}) => {
       startTransition(() => {
         refetch({
           onComplete: () => {
+            if (didFail) {
+              return;
+            }
             notifySuccess({
               title: "Project Data Removed",
               message: `Old data from project ${projectName} have been removed.`,
@@ -518,8 +527,8 @@ export function ProjectsPageContent({
 type ProjectViewComponentProps = {
   projects: ProjectsPageProjectsFragment$data["projects"]["edges"][number]["project"][];
   onDelete: (projectName: string) => void;
-  onClear: (projectName: string) => void;
-  onRemove: (projectName: string) => void;
+  onClear: (projectName: string, options?: ProjectDataChangeOptions) => void;
+  onRemove: (projectName: string, options?: ProjectDataChangeOptions) => void;
   timeRangeISOStrings: TimeRangeISOStrings;
   hasNext: boolean;
   loadNext: () => void;
@@ -575,8 +584,10 @@ function ProjectsGrid({
                 project={project}
                 timeRange={timeRangeISOStrings}
                 onProjectDelete={() => onDelete(project.name)}
-                onProjectClear={() => onClear(project.name)}
-                onProjectRemoveData={() => onRemove(project.name)}
+                onProjectClear={(options) => onClear(project.name, options)}
+                onProjectRemoveData={(options) =>
+                  onRemove(project.name, options)
+                }
               />
             </Link>
           </li>
@@ -599,8 +610,8 @@ function ProjectsGrid({
 type ProjectItemProps = {
   project: ProjectsPageProjectsFragment$data["projects"]["edges"][number]["project"];
   onProjectDelete: () => void;
-  onProjectClear: () => void;
-  onProjectRemoveData: () => void;
+  onProjectClear: (options?: ProjectDataChangeOptions) => void;
+  onProjectRemoveData: (options?: ProjectDataChangeOptions) => void;
   timeRange: {
     start: string | undefined;
     end: string | undefined;
@@ -916,8 +927,10 @@ function ProjectsTable({
             <ProjectActionMenu
               projectId={row.original.id}
               projectName={row.original.name}
-              onProjectClear={() => onClear(row.original.name)}
-              onProjectRemoveData={() => onRemove(row.original.name)}
+              onProjectClear={(options) => onClear(row.original.name, options)}
+              onProjectRemoveData={(options) =>
+                onRemove(row.original.name, options)
+              }
               onProjectDelete={() => onDelete(row.original.name)}
             />
           );

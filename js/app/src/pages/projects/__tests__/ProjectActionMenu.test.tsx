@@ -112,7 +112,8 @@ describe("ProjectActionMenu", () => {
     expect(document.body.textContent).toContain(
       "Some traces are in use by another operation; run the clear again to finish."
     );
-    expect(onProjectClear).not.toHaveBeenCalled();
+    expect(onProjectClear).toHaveBeenCalledTimes(1);
+    expect(onProjectClear).toHaveBeenLastCalledWith({ didFail: true });
 
     await act(async () => {
       await userEvent.click(findButtonByText({ text: "Clear" }) as HTMLElement);
@@ -123,7 +124,8 @@ describe("ProjectActionMenu", () => {
       });
     });
 
-    expect(onProjectClear).toHaveBeenCalledTimes(1);
+    expect(onProjectClear).toHaveBeenCalledTimes(2);
+    expect(onProjectClear).toHaveBeenLastCalledWith();
     expect(document.body.textContent).not.toContain("Clear Project");
   });
 
@@ -171,7 +173,7 @@ describe("ProjectActionMenu", () => {
     expect(document.body.textContent).toContain(
       "Some traces are in use by another operation; run the clear again to finish."
     );
-    expect(onProjectRemoveData).not.toHaveBeenCalled();
+    expect(onProjectRemoveData).toHaveBeenCalledWith({ didFail: true });
 
     await act(async () => {
       await userEvent.click(
@@ -184,6 +186,6 @@ describe("ProjectActionMenu", () => {
       });
     });
 
-    expect(onProjectRemoveData).toHaveBeenCalled();
+    expect(onProjectRemoveData).toHaveBeenLastCalledWith();
   });
 });
