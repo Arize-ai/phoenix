@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router";
 
 import { Button, Icon, Icons } from "@phoenix/components";
 import { DatasetSelectWithSplits } from "@phoenix/components/dataset";
+import { SELECTED_EXAMPLE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 import { useClearPlaygroundDataset } from "./useClearPlaygroundDataset";
@@ -90,6 +91,7 @@ export function PlaygroundDatasetSelect({
             }
             if (hasDatasetChanged) {
               next.delete("exampleId");
+              next.delete(SELECTED_EXAMPLE_ID_PARAM);
             }
             return next;
           });

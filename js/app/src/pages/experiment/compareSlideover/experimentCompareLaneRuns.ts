@@ -1,3 +1,4 @@
+import { assertUnreachable } from "@phoenix/typeUtils";
 import { clampNumber } from "@phoenix/utils/numberUtils";
 
 /**
@@ -9,7 +10,14 @@ type CompareLaneRunLike = {
   readonly error: string | null;
 };
 
+type CompareLanePendingRunLike = {
+  readonly repetitionNumber: number;
+  readonly partialOutput: string | null;
+};
+
 export type CompareLaneRunState<TRun extends CompareLaneRunLike> =
+  /** The repetition shown is being generated and has no run record yet */
+  | { type: "pending"; partialOutput: string | null }
   /** The experiment has no run at all for the example */
   | { type: "no-runs" }
   /** Other repetitions ran, but not the one shown */
@@ -39,26 +47,52 @@ export function resolveShownRepetitionNumber({
  * What a lane has to show for the repetition it is on.
  * @param params.runs - the experiment's runs for the example
  * @param params.shownRepetitionNumber - the repetition the lane is on
+ * @param params.pendingRuns - the runs still being generated, when the experiment is running
  */
 export function getCompareLaneRunState<TRun extends CompareLaneRunLike>({
   runs,
   shownRepetitionNumber,
+  pendingRuns = [],
 }: {
   runs: readonly TRun[];
   shownRepetitionNumber: number;
+  pendingRuns?: readonly CompareLanePendingRunLike[];
 }): CompareLaneRunState<TRun> {
-  if (runs.length === 0) {
-    return { type: "no-runs" };
-  }
   const run = runs.find(
     (candidate) => candidate.repetitionNumber === shownRepetitionNumber
   );
-  if (run == null) {
-    return { type: "missing-repetition" };
+  if (run != null) {
+    return run.error != null
+      ? { type: "errored", run }
+      : { type: "completed", run };
   }
-  return run.error != null
-    ? { type: "errored", run }
-    : { type: "completed", run };
+  const pendingRun = pendingRuns.find(
+    (candidate) => candidate.repetitionNumber === shownRepetitionNumber
+  );
+  if (pendingRun != null) {
+    return { type: "pending", partialOutput: pendingRun.partialOutput };
+  }
+  return runs.length === 0
+    ? { type: "no-runs" }
+    : { type: "missing-repetition" };
+}
+
+/**
+ * What a lane cell says in place of a run it does not have.
+ */
+export function getMissingRunMessage(
+  runStateType: "pending" | "no-runs" | "missing-repetition"
+): string {
+  switch (runStateType) {
+    case "pending":
+      return "Run in progress";
+    case "no-runs":
+      return "No run for this example";
+    case "missing-repetition":
+      return "No run for this repetition";
+    default:
+      return assertUnreachable(runStateType);
+  }
 }
 
 /**

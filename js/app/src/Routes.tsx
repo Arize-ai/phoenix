@@ -1074,7 +1074,7 @@ export const appRouteObjects = createRoutesFromElements(
             agentRoute: {
               label: "Playground",
               description:
-                "Experiment with prompts, or compare LLM and code evaluators over a dataset; a page holds one kind of task, up to four side by side. Prompt tasks take the repeatable promptId, promptVersionId and promptTagName params, or experimentId to reopen an experiment. Evaluator tasks take evaluator0-evaluator3, datasetEvaluator0-datasetEvaluator3 or projectEvaluator0-projectEvaluator3 (the number is the task position) and taskKind=evaluator for a new draft. Decision models use state and Choice, Noul/Predicate, and Score questions. Both take datasetId, splitId, exampleId and selectedSpanNodeId.",
+                "Experiment with prompts, or compare LLM and code evaluators over a dataset; a page holds one kind of task, up to four side by side. Prompt tasks take the repeatable promptId, promptVersionId and promptTagName params, or experimentId to reopen an experiment. Evaluator tasks take evaluator0-evaluator3, datasetEvaluator0-datasetEvaluator3 or projectEvaluator0-projectEvaluator3 (the number is the task position) and taskKind=evaluator for a new draft. Decision models use state and Choice, Noul/Predicate, and Score questions. Both take datasetId, splitId, exampleId, selectedSpanNodeId, and selectedExampleId to open an example's run details.",
             },
             navigation: {
               section: "Pages",
@@ -1092,7 +1092,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Playground",
                 description:
-                  "Experiment with prompts, or compare LLM and code evaluators over a dataset; a page holds one kind of task, up to four side by side. Prompt tasks take the repeatable promptId, promptVersionId and promptTagName params, or experimentId to reopen an experiment. Evaluator tasks take evaluator0-evaluator3, datasetEvaluator0-datasetEvaluator3 or projectEvaluator0-projectEvaluator3 (the number is the task position) and taskKind=evaluator for a new draft. Decision models use state and Choice, Noul/Predicate, and Score questions. Both take datasetId, splitId, exampleId and selectedSpanNodeId.",
+                  "Experiment with prompts, or compare LLM and code evaluators over a dataset; a page holds one kind of task, up to four side by side. Prompt tasks take the repeatable promptId, promptVersionId and promptTagName params, or experimentId to reopen an experiment. Evaluator tasks take evaluator0-evaluator3, datasetEvaluator0-datasetEvaluator3 or projectEvaluator0-projectEvaluator3 (the number is the task position) and taskKind=evaluator for a new draft. Decision models use state and Choice, Noul/Predicate, and Score questions. Both take datasetId, splitId, exampleId, selectedSpanNodeId, and selectedExampleId to open an example's run details.",
               },
             }}
           />

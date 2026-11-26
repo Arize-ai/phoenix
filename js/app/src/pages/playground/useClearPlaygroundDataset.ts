@@ -1,5 +1,6 @@
 import { useSearchParams } from "react-router";
 
+import { SELECTED_EXAMPLE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 /**
@@ -18,6 +19,7 @@ export function useClearPlaygroundDataset(): () => void {
       next.delete("datasetId");
       next.delete("splitId");
       next.delete("exampleId");
+      next.delete(SELECTED_EXAMPLE_ID_PARAM);
       return next;
     });
   };

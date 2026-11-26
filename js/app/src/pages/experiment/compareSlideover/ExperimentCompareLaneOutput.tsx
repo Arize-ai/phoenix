@@ -2,6 +2,8 @@ import {
   Card,
   CopyToClipboardButton,
   ExpandableContent,
+  ProgressCircle,
+  Text,
   View,
 } from "@phoenix/components";
 import { ExperimentOutputContent } from "@phoenix/components/experiment/ExperimentOutputContent";
@@ -11,6 +13,7 @@ import { formatContentAsString } from "@phoenix/utils/jsonUtils";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { ExperimentCompareLaneEmpty } from "./ExperimentCompareLaneEmpty";
+import { getMissingRunMessage } from "./experimentCompareLaneRuns";
 import type { CompareLane } from "./experimentCompareLaneTypes";
 import { useCompareLaneRun } from "./useExperimentCompareLaneRunGroup";
 
@@ -18,7 +21,8 @@ import { useCompareLaneRun } from "./useExperimentCompareLaneRunGroup";
 const COLLAPSED_OUTPUT_HEIGHT_PX = 320;
 
 /**
- * A lane's Output cell: the shown run's output, or its error. Long outputs
+ * A lane's Output cell: the shown run's output, its error, or what a run
+ * still being generated has produced so far. Long outputs
  * are clamped, and the expanded state is the caller's so both lanes open and
  * close together and stay aligned.
  */
@@ -36,10 +40,37 @@ export function ExperimentCompareLaneOutput({
   const { runState } = useCompareLaneRun({ exampleId, lane });
   switch (runState.type) {
     case "no-runs":
-      return <ExperimentCompareLaneEmpty message="No run for this example" />;
     case "missing-repetition":
       return (
-        <ExperimentCompareLaneEmpty message="No run for this repetition" />
+        <ExperimentCompareLaneEmpty
+          message={getMissingRunMessage(runState.type)}
+        />
+      );
+    case "pending":
+      return (
+        <Card
+          title="Output"
+          extra={
+            <ProgressCircle isIndeterminate size="S" aria-label="Generating" />
+          }
+        >
+          <ExpandableContent
+            height={COLLAPSED_OUTPUT_HEIGHT_PX}
+            expandedBehavior="grow"
+            isExpanded={isExpanded}
+            onExpandedChange={onExpandedChange}
+          >
+            <View padding="size-200">
+              {runState.partialOutput ? (
+                <ExperimentOutputContent value={runState.partialOutput} />
+              ) : (
+                <Text color="text-500" fontStyle="italic">
+                  Generating...
+                </Text>
+              )}
+            </View>
+          </ExpandableContent>
+        </Card>
       );
     case "errored":
       return (

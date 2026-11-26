@@ -1,7 +1,6 @@
 import { css } from "@emotion/react";
 import type { FocusEvent, PointerEvent } from "react";
 import { Suspense, useEffect, useRef, useState } from "react";
-import { useHotkeys } from "react-hotkeys-hook";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import {
@@ -23,6 +22,8 @@ import {
 import { ErrorBoundary } from "@phoenix/components/exception";
 import { useExperimentColors } from "@phoenix/components/experiment";
 import { indexAnnotationConfigsByName } from "@phoenix/components/experiment/experimentDeltaUtils";
+import { HotkeysEnabledProvider } from "@phoenix/contexts/HotkeysEnabledContext";
+import { useScopedHotkeys } from "@phoenix/hooks/useScopedHotkeys";
 import { ExampleDetailsPaginator } from "@phoenix/pages/experiment/ExampleDetailsPaginator";
 import type { SelectedTraceDetails } from "@phoenix/pages/experiment/TraceDetailsDrawer";
 import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
@@ -48,6 +49,7 @@ import { resolveShownRepetitionNumber } from "./experimentCompareLaneRuns";
 import { ExperimentCompareLaneTrace } from "./ExperimentCompareLaneTrace";
 import type {
   CompareLane,
+  CompareLaneLiveRuns,
   CompareLaneSide,
 } from "./experimentCompareLaneTypes";
 import type {
@@ -59,9 +61,15 @@ import { useExperimentCompareSlideoverState } from "./useExperimentCompareSlideo
 
 type ExperimentCompareSlideoverProps = {
   datasetId: string;
-  baseExperimentId: string;
+  /** Null while the caller has no base experiment to show, as before a first run */
+  baseExperimentId: string | null;
   /** The compared experiments, in display order */
   compareExperimentIds: readonly string[];
+  /**
+   * The open example's runs that are still coming in, by experiment. Omitted
+   * when every experiment is finished.
+   */
+  liveRunsByExperimentId?: Partial<Record<string, CompareLaneLiveRuns>>;
   /** The loaded stops previous and next move through, in the table's order */
   navigationItems: readonly ExperimentCompareNavigationItem[];
   /** The server's count of stops; null when it is not known, as under a filter */
@@ -79,18 +87,13 @@ type ExperimentCompareSlideoverProps = {
 };
 
 /**
- * Options for the slideover's arrow shortcuts: off while another overlay has
- * the keyboard, and never taken from an element that uses arrow keys itself.
- * The event is ignored rather than the shortcut disabled, because a disabled
- * shortcut still cancels the key press for the rest of the page.
+ * Options for the slideover's arrow shortcuts, which are never taken from an
+ * element that uses arrow keys itself.
  */
-function getArrowHotkeyOptions(areHotkeysEnabled: boolean) {
-  return {
-    ignoreEventWhen: (event: KeyboardEvent) =>
-      !areHotkeysEnabled || isArrowKeyConsumer(event.target),
-    preventDefault: true,
-  };
-}
+const ARROW_HOTKEY_OPTIONS = {
+  ignoreEventWhen: (event: KeyboardEvent) => isArrowKeyConsumer(event.target),
+  preventDefault: true,
+};
 
 const slideoverCSS = css`
   display: flex;
@@ -202,20 +205,24 @@ const slideoverCSS = css`
  * The two-lane experiment comparison for one example, docked to the right of
  * the compare table: the base experiment's runs on the left and one compared
  * experiment's on the right, as run details or as traces. It is open while
- * the URL names an example, and renders nothing otherwise.
+ * the URL names an example, and renders nothing otherwise. Its shortcuts
+ * are off while another overlay has the keyboard.
  */
 export function ExperimentCompareSlideover(
   props: ExperimentCompareSlideoverProps
 ) {
   const { state } = useExperimentCompareSlideoverState();
+  const isViewportBlocked = useOverlayFrame()?.isViewportBlocked ?? false;
   if (state.selectedExampleId == null) {
     return null;
   }
   return (
-    <OpenExperimentCompareSlideover
-      {...props}
-      selectedExampleId={state.selectedExampleId}
-    />
+    <HotkeysEnabledProvider isEnabled={!props.isObscured && !isViewportBlocked}>
+      <OpenExperimentCompareSlideover
+        {...props}
+        selectedExampleId={state.selectedExampleId}
+      />
+    </HotkeysEnabledProvider>
   );
 }
 
@@ -223,6 +230,7 @@ function OpenExperimentCompareSlideover({
   datasetId,
   baseExperimentId,
   compareExperimentIds,
+  liveRunsByExperimentId,
   navigationItems,
   totalItemCount,
   hasMoreItems,
@@ -237,8 +245,6 @@ function OpenExperimentCompareSlideover({
   const { defaultSize, onSizeChange } = useDefaultDrawerSize({
     id: "experiment-compare-details",
   });
-  const isViewportBlocked = useOverlayFrame()?.isViewportBlocked ?? false;
-  const areHotkeysEnabled = !isObscured && !isViewportBlocked;
 
   const currentIndex = findNavigationItemIndex({
     items: navigationItems,
@@ -298,16 +304,15 @@ function OpenExperimentCompareSlideover({
     }
   }, [currentIndex, navigationItems, openExample, selectedExampleId]);
 
-  const arrowHotkeyOptions = getArrowHotkeyOptions(areHotkeysEnabled);
-  useHotkeys(
+  useScopedHotkeys(
     "ArrowDown",
     () => navigateToIndex(currentIndex + 1),
-    arrowHotkeyOptions
+    ARROW_HOTKEY_OPTIONS
   );
-  useHotkeys(
+  useScopedHotkeys(
     "ArrowUp",
     () => navigateToIndex(currentIndex - 1),
-    arrowHotkeyOptions
+    ARROW_HOTKEY_OPTIONS
   );
 
   return (
@@ -335,7 +340,6 @@ function OpenExperimentCompareSlideover({
               onExampleChange={navigateToIndex}
               hasMoreExamples={hasMoreItems}
               isLoadingMoreExamples={isLoadingMoreItems}
-              areHotkeysEnabled={areHotkeysEnabled}
             />
             <SegmentedControl
               aria-label="View"
@@ -378,26 +382,32 @@ function OpenExperimentCompareSlideover({
               </LinkButton>
             </div>
           </header>
-          <ErrorBoundary
-            resetKey={[
-              selectedExampleId,
-              baseExperimentId,
-              ...compareExperimentIds,
-            ].join(":")}
-          >
-            <Suspense fallback={<ExperimentCompareSlideoverBodySkeleton />}>
-              <ExperimentCompareSlideoverBody
-                datasetId={datasetId}
-                exampleId={selectedExampleId}
-                baseExperimentId={baseExperimentId}
-                compareExperimentIds={compareExperimentIds}
-                state={state}
-                onStateChange={(changes) => updateState({ changes })}
-                onOpenTrace={onOpenTrace}
-                areHotkeysEnabled={areHotkeysEnabled}
-              />
-            </Suspense>
-          </ErrorBoundary>
+          {baseExperimentId != null ? (
+            <ErrorBoundary
+              resetKey={[
+                selectedExampleId,
+                baseExperimentId,
+                ...compareExperimentIds,
+              ].join(":")}
+            >
+              <Suspense fallback={<ExperimentCompareSlideoverBodySkeleton />}>
+                <ExperimentCompareSlideoverBody
+                  datasetId={datasetId}
+                  exampleId={selectedExampleId}
+                  baseExperimentId={baseExperimentId}
+                  compareExperimentIds={compareExperimentIds}
+                  liveRunsByExperimentId={liveRunsByExperimentId}
+                  state={state}
+                  onStateChange={(changes) => updateState({ changes })}
+                  onOpenTrace={onOpenTrace}
+                />
+              </Suspense>
+            </ErrorBoundary>
+          ) : (
+            <div className="experiment-compare-slideover__body-skeleton">
+              <ExperimentCompareLaneEmpty message="The base experiment has not run yet" />
+            </div>
+          )}
         </div>
       </Dialog>
     </Drawer>
@@ -422,20 +432,29 @@ function ExperimentCompareSlideoverBody({
   exampleId,
   baseExperimentId,
   compareExperimentIds,
+  liveRunsByExperimentId,
   state,
   onStateChange,
   onOpenTrace,
-  areHotkeysEnabled,
 }: {
   datasetId: string;
   exampleId: string;
   baseExperimentId: string;
   compareExperimentIds: readonly string[];
+  liveRunsByExperimentId?: Partial<Record<string, CompareLaneLiveRuns>>;
   state: ExperimentCompareSlideoverState;
   onStateChange: (changes: Partial<ExperimentCompareSlideoverState>) => void;
   onOpenTrace: (details: SelectedTraceDetails) => void;
-  areHotkeysEnabled: boolean;
 }) {
+  const experimentIds = [baseExperimentId, ...compareExperimentIds];
+  // An experiment's repetitions and annotation names are only known in full
+  // once it finishes, so they are read again as its runs come in.
+  const liveFetchKey = experimentIds
+    .flatMap((experimentId) => {
+      const fetchKey = liveRunsByExperimentId?.[experimentId]?.fetchKey;
+      return fetchKey != null ? [`${experimentId}:${fetchKey}`] : [];
+    })
+    .join("|");
   const data = useLazyLoadQuery<ExperimentCompareSlideoverQuery>(
     graphql`
       query ExperimentCompareSlideoverQuery(
@@ -498,7 +517,10 @@ function ExperimentCompareSlideoverBody({
         }
       }
     `,
-    { datasetId, experimentIds: [baseExperimentId, ...compareExperimentIds] }
+    { datasetId, experimentIds },
+    liveFetchKey !== ""
+      ? { fetchKey: liveFetchKey, fetchPolicy: "store-and-network" }
+      : undefined
   );
   const { baseExperimentColor, getExperimentColor } = useExperimentColors();
   const [activeLaneSide, setActiveLaneSide] = useState<CompareLaneSide>("base");
@@ -532,6 +554,7 @@ function ExperimentCompareSlideoverBody({
         requestedRepetitionNumber: state.baseRepetitionNumber,
         repetitionCount: baseExperiment.repetitions,
       }),
+      liveRuns: liveRunsByExperimentId?.[baseExperiment.id],
     });
     if (compareExperiment != null) {
       lanes.push({
@@ -542,6 +565,7 @@ function ExperimentCompareSlideoverBody({
           requestedRepetitionNumber: state.compareRepetitionNumber,
           repetitionCount: compareExperiment.repetitions,
         }),
+        liveRuns: liveRunsByExperimentId?.[compareExperiment.id],
       });
     }
   }
@@ -575,16 +599,15 @@ function ExperimentCompareSlideoverBody({
     }
   };
 
-  const arrowHotkeyOptions = getArrowHotkeyOptions(areHotkeysEnabled);
-  useHotkeys(
+  useScopedHotkeys(
     "ArrowRight",
     () => stepActiveLaneRepetition(1),
-    arrowHotkeyOptions
+    ARROW_HOTKEY_OPTIONS
   );
-  useHotkeys(
+  useScopedHotkeys(
     "ArrowLeft",
     () => stepActiveLaneRepetition(-1),
-    arrowHotkeyOptions
+    ARROW_HOTKEY_OPTIONS
   );
 
   if (baseExperiment == null) {

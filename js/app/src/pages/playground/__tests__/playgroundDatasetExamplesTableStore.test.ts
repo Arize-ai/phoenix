@@ -147,3 +147,38 @@ describe("resetExampleData", () => {
     });
   });
 });
+
+describe("setRowRunExperiment", () => {
+  it("records a row run's experiment for its examples beside earlier row runs", () => {
+    const store = createPlaygroundDatasetExamplesTableStore();
+    store.getState().setRowRunExperiment({
+      instanceId: 1,
+      exampleIds: ["example-1"],
+      experimentId: "experiment-1",
+    });
+    store.getState().setRowRunExperiment({
+      instanceId: 1,
+      exampleIds: ["example-2"],
+      experimentId: "experiment-2",
+    });
+    expect(store.getState().rowRunExperimentIds[1]).toEqual({
+      "example-1": "experiment-1",
+      "example-2": "experiment-2",
+    });
+  });
+
+  it("forgets an instance's row runs when the instance runs in full again", () => {
+    const store = createPlaygroundDatasetExamplesTableStore();
+    for (const instanceId of [1, 2]) {
+      store.getState().setRowRunExperiment({
+        instanceId,
+        exampleIds: ["example-1"],
+        experimentId: `experiment-${instanceId}`,
+      });
+    }
+    store.getState().resetInstanceData([1]);
+    expect(store.getState().rowRunExperimentIds).toEqual({
+      2: { "example-1": "experiment-2" },
+    });
+  });
+});
