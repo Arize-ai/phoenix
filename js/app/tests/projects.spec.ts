@@ -23,8 +23,15 @@ async function createProject(
  * covered by the onboarding guide until it has a trace, so tests that work
  * with the tabs of a fresh project seed one first.
  */
-async function sendSpan(page: Page, projectName: string) {
-  const now = new Date();
+async function sendSpan({
+  page,
+  projectName,
+  endTime = new Date(),
+}: {
+  page: Page;
+  projectName: string;
+  endTime?: Date;
+}): Promise<void> {
   const response = await page.request.post(
     `/v1/projects/${encodeURIComponent(projectName)}/spans`,
     {
@@ -38,10 +45,10 @@ async function sendSpan(page: Page, projectName: string) {
             },
             span_kind: "CHAIN",
             parent_id: null,
-            start_time: new Date(now.getTime() - 50).toISOString(),
-            end_time: now.toISOString(),
+            start_time: new Date(endTime.getTime() - 50).toISOString(),
+            end_time: endTime.toISOString(),
             status_code: "OK",
-            attributes: { "input.value": "hello" },
+            attributes: { "input.value": "hello", "session.id": randomUUID() },
           },
         ],
       },
@@ -193,7 +200,7 @@ test.describe.serial("Projects", () => {
 
     // The first span dismisses the guide without a reload, and the table
     // underneath already shows it.
-    await sendSpan(page, newProjectName);
+    await sendSpan({ page, projectName: newProjectName });
     await expect(guide).not.toBeVisible({ timeout: 20_000 });
     await expect(panels).not.toHaveAttribute("inert", "");
     await expect(page.getByText("seed-span").first()).toBeVisible();
@@ -282,3 +289,73 @@ test.describe.serial("Projects", () => {
     ).toBeVisible();
   });
 });
+
+for (const view of ["Grid view", "Table view"]) {
+  for (const { action, dialogName, button, remainingCount } of [
+    {
+      action: "Clear All Data",
+      dialogName: "Clear Project",
+      button: "Clear",
+      remainingCount: "0",
+    },
+    {
+      action: "Remove Data",
+      dialogName: "Remove Data",
+      button: "Remove Data",
+      remainingCount: "1",
+    },
+  ]) {
+    test(`${view} updates project metrics after ${action}`, async ({
+      page,
+    }) => {
+      const projectName = `metrics-${randomUUID()}`;
+      const now = Date.now();
+      const dayMs = 24 * 60 * 60 * 1000;
+      await createProject(page, projectName, "Project metrics refresh");
+      await sendSpan({
+        page,
+        projectName,
+        endTime: new Date(now - 45 * dayMs),
+      });
+      await sendSpan({ page, projectName, endTime: new Date(now) });
+
+      const timeRange = new URLSearchParams({
+        timeRangeStart: new Date(now - 60 * dayMs).toISOString(),
+        timeRangeEnd: new Date(now + dayMs).toISOString(),
+      });
+      await page.goto(`/projects?${timeRange}`);
+      await page.getByRole("radio", { name: view }).click();
+      await page
+        .getByRole("searchbox", { name: "Search projects by name" })
+        .fill(projectName);
+      const projectItems = page
+        .getByRole(view === "Grid view" ? "listitem" : "row")
+        .filter({
+          has: page.getByRole("heading", { name: "Traces", exact: true }),
+        });
+      await expect(projectItems).toHaveCount(1);
+      const projectItem = projectItems.filter({ hasText: projectName });
+      const traceCount = projectItem
+        .getByRole("heading", { name: "Traces", exact: true })
+        .locator("..");
+      const sessionCount = projectItem
+        .getByRole("heading", { name: "Sessions", exact: true })
+        .locator("..");
+      await expect(traceCount.getByText("2", { exact: true })).toBeVisible();
+      await expect(sessionCount.getByText("2", { exact: true })).toBeVisible();
+
+      await projectItem.getByRole("button").last().click();
+      await page.getByRole("menuitem", { name: action, exact: true }).click();
+      const dialog = page.getByRole("dialog", { name: dialogName });
+      await dialog.getByRole("button", { name: button, exact: true }).click();
+      await expect(dialog).not.toBeVisible();
+
+      await expect(
+        traceCount.getByText(remainingCount, { exact: true })
+      ).toBeVisible();
+      await expect(
+        sessionCount.getByText(remainingCount, { exact: true })
+      ).toBeVisible();
+    });
+  }
+}

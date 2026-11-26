@@ -153,6 +153,13 @@ class CacheForDataLoaders:
         default_factory=SpanCostSummaryCache,
     )
 
+    def invalidate_project_span_metrics(self, *, project_id: int) -> None:
+        self.latency_ms_quantile.invalidate(project_id)
+        self.token_count.invalidate(project_id)
+        self.token_cost.invalidate(project_id)
+        self.record_count.invalidate(project_id)
+        self.min_start_or_max_end_time.invalidate(project_id)
+
 
 @dataclass
 class DataLoaders:

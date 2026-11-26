@@ -83,6 +83,8 @@ class ProjectMutationMixin:
                 project_id,
                 end_time=input.end_time or None,
             )
+        if cache := info.context.cache_for_dataloaders:
+            cache.invalidate_project_span_metrics(project_id=project_id)
         info.context.event_queue.put(SpanDeleteEvent((project_id,)))
         return Query()
 

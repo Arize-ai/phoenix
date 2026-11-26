@@ -3,10 +3,12 @@ import type { OnChangeFn, SortingState } from "@tanstack/react-table";
 import { flexRender, useTable } from "@tanstack/react-table";
 import { formatDistance } from "date-fns";
 import {
+  createContext,
   memo,
   startTransition,
   Suspense,
   useCallback,
+  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -81,6 +83,11 @@ import { ProjectActionMenu } from "./ProjectActionMenu";
 
 const PAGE_SIZE = 10;
 const PROJECTS_POLL_INTERVAL_MS = 60_000;
+
+type ProjectIdentity = { id: string; name: string };
+const ProjectMetricsRefreshContext = createContext<ReadonlyMap<string, number>>(
+  new Map()
+);
 
 const useProjectSortQueryParams = () => {
   const { projectSortOrder } = usePreferencesContext((state) => ({
@@ -208,6 +215,9 @@ export function ProjectsPageContent({
   }));
   const sortQueryParams = useProjectSortQueryParams();
   const [filter, setFilter] = useState<string>("");
+  const [metricsVersions, setMetricsVersions] = useState<
+    ReadonlyMap<string, number>
+  >(() => new Map());
   const notifySuccess = useNotifySuccess();
   const {
     data: projectsData,
@@ -329,36 +339,44 @@ export function ProjectsPageContent({
     [notifySuccess, refetch]
   );
 
+  const refreshProjectMetrics = useCallback((projectId: string): void => {
+    setMetricsVersions((versions) =>
+      new Map(versions).set(projectId, (versions.get(projectId) ?? 0) + 1)
+    );
+  }, []);
+
   const onClear = useCallback(
-    (projectName: string) => {
+    ({ id, name }: ProjectIdentity): void => {
+      refreshProjectMetrics(id);
       startTransition(() => {
         refetch({
           onComplete: () => {
             notifySuccess({
               title: "Project Cleared",
-              message: `Project ${projectName} has been cleared of traces.`,
+              message: `Project ${name} has been cleared of traces.`,
             });
           },
         });
       });
     },
-    [notifySuccess, refetch]
+    [notifySuccess, refetch, refreshProjectMetrics]
   );
 
   const onRemove = useCallback(
-    (projectName: string) => {
+    ({ id, name }: ProjectIdentity): void => {
+      refreshProjectMetrics(id);
       startTransition(() => {
         refetch({
           onComplete: () => {
             notifySuccess({
               title: "Project Data Removed",
-              message: `Old data from project ${projectName} have been removed.`,
+              message: `Old data from project ${name} have been removed.`,
             });
           },
         });
       });
     },
-    [notifySuccess, refetch]
+    [notifySuccess, refetch, refreshProjectMetrics]
   );
 
   const loadNextWithArgs = useCallback(() => {
@@ -421,47 +439,49 @@ export function ProjectsPageContent({
           </Flex>
         </Flex>
       </View>
-      {projectViewMode === "grid" ? (
-        <div
-          css={css`
-            display: flex;
-            flex-direction: column;
-            flex: 1 1 auto;
-          `}
-        >
-          <ProjectsGrid
-            projects={projects}
-            onDelete={onDelete}
-            onClear={onClear}
-            onRemove={onRemove}
-            timeRangeISOStrings={timeRangeISOStrings}
-            hasNext={hasNext}
-            loadNext={loadNextWithArgs}
-            isLoadingNext={isLoadingNext}
-            onSort={onSort}
-          />
-        </div>
-      ) : (
-        <div
-          css={css`
-            display: flex;
-            flex-direction: column;
-            flex: 1 1 auto;
-          `}
-        >
-          <ProjectsTable
-            projects={projects}
-            onDelete={onDelete}
-            onClear={onClear}
-            onRemove={onRemove}
-            timeRangeISOStrings={timeRangeISOStrings}
-            hasNext={hasNext}
-            loadNext={loadNextWithArgs}
-            isLoadingNext={isLoadingNext}
-            onSort={onSort}
-          />
-        </div>
-      )}
+      <ProjectMetricsRefreshContext value={metricsVersions}>
+        {projectViewMode === "grid" ? (
+          <div
+            css={css`
+              display: flex;
+              flex-direction: column;
+              flex: 1 1 auto;
+            `}
+          >
+            <ProjectsGrid
+              projects={projects}
+              onDelete={onDelete}
+              onClear={onClear}
+              onRemove={onRemove}
+              timeRangeISOStrings={timeRangeISOStrings}
+              hasNext={hasNext}
+              loadNext={loadNextWithArgs}
+              isLoadingNext={isLoadingNext}
+              onSort={onSort}
+            />
+          </div>
+        ) : (
+          <div
+            css={css`
+              display: flex;
+              flex-direction: column;
+              flex: 1 1 auto;
+            `}
+          >
+            <ProjectsTable
+              projects={projects}
+              onDelete={onDelete}
+              onClear={onClear}
+              onRemove={onRemove}
+              timeRangeISOStrings={timeRangeISOStrings}
+              hasNext={hasNext}
+              loadNext={loadNextWithArgs}
+              isLoadingNext={isLoadingNext}
+              onSort={onSort}
+            />
+          </div>
+        )}
+      </ProjectMetricsRefreshContext>
     </div>
   );
 }
@@ -469,8 +489,8 @@ export function ProjectsPageContent({
 type ProjectViewComponentProps = {
   projects: ProjectsPageProjectsFragment$data["projects"]["edges"][number]["project"][];
   onDelete: (projectName: string) => void;
-  onClear: (projectName: string) => void;
-  onRemove: (projectName: string) => void;
+  onClear: (project: ProjectIdentity) => void;
+  onRemove: (project: ProjectIdentity) => void;
   timeRangeISOStrings: TimeRangeISOStrings;
   hasNext: boolean;
   loadNext: () => void;
@@ -518,8 +538,8 @@ function ProjectsGrid({
                 project={project}
                 timeRange={timeRangeISOStrings}
                 onProjectDelete={() => onDelete(project.name)}
-                onProjectClear={() => onClear(project.name)}
-                onProjectRemoveData={() => onRemove(project.name)}
+                onProjectClear={() => onClear(project)}
+                onProjectRemoveData={() => onRemove(project)}
               />
             </Link>
           </li>
@@ -682,6 +702,9 @@ const ProjectMetrics = memo(function ProjectMetrics({
   flexProps?: Partial<FlexProps>;
 }) {
   const environment = useRelayEnvironment();
+  const metricsVersion = useContext(ProjectMetricsRefreshContext).get(
+    projectId
+  );
   // ref to the current running "subscription", a.k.a. the current running query request
   const subscriptionRef = useRef<Subscription | null>(null);
   // state to hold the result of the project metrics query
@@ -709,14 +732,13 @@ const ProjectMetrics = memo(function ProjectMetrics({
     });
     return subscription;
   }, [projectId, timeRange, environment]);
-  // when the component mounts, or the time range changes, we fetch the project metrics
   useEffect(() => {
     subscriptionRef.current = fetchProject();
     return () => {
       subscriptionRef.current?.unsubscribe();
       subscriptionRef.current = null;
     };
-  }, [fetchProject]);
+  }, [fetchProject, metricsVersion]);
   // if the project metrics are not loaded yet, we show a loading indicator
   if (projectMetrics == null) {
     return <ProjectMetricsLoadingSkeleton />;
@@ -859,8 +881,8 @@ function ProjectsTable({
             <ProjectActionMenu
               projectId={row.original.id}
               projectName={row.original.name}
-              onProjectClear={() => onClear(row.original.name)}
-              onProjectRemoveData={() => onRemove(row.original.name)}
+              onProjectClear={() => onClear(row.original)}
+              onProjectRemoveData={() => onRemove(row.original)}
               onProjectDelete={() => onDelete(row.original.name)}
             />
           );
