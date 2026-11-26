@@ -1,14 +1,12 @@
 name: Factory Review
 
-# Reviews a pull request labeled `factory-review`, or dispatched by number, in the factory
-# sandbox. It covers fork PRs, which Claude Code Review skips because `pull_request` gets no
-# secrets for a fork.
+# Reviews new PRs when ready, along with maintainer requests, in the factory sandbox.
 on:
   # zizmor: ignore[dangerous-triggers] The job checks out only the base branch and runs
   # review.py from it. The PR's code runs in the Managed Agents sandbox, which holds no repo
   # secret, and a ruleset keeps the app's token off every branch but factory/**.
   pull_request_target:
-    types: [labeled]
+    types: [opened, ready_for_review, labeled]
   workflow_dispatch:
     inputs:
       pr:
@@ -20,8 +18,12 @@ permissions:
 
 jobs:
   review:
-    # Triage access is enough to label a PR, so review.py also checks for write access.
-    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'factory-review'
+    # review.py checks write access for manually requested reviews.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.label.name == 'factory-review' ||
+      (contains(fromJSON('["opened", "ready_for_review"]'), github.event.action) &&
+       !github.event.pull_request.draft)
     # A second trigger for the same PR waits for this one. Set on the job, not the workflow,
     # so runs for other labels skip the group.
     concurrency:
@@ -80,7 +82,14 @@ jobs:
           FACTORY_GITHUB_LOGIN: ${{ vars.FACTORY_GITHUB_LOGIN }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           REQUESTED_BY: ${{ github.event.sender.login }}
-        run: uv run --script factory/review.py --repo "$GH_REPO" --pr "$PR_NUMBER" --head-sha "$PR_HEAD_SHA" start --requested-by "$REQUESTED_BY"
+          AUTOMATIC_REVIEW: ${{ github.event_name == 'pull_request_target' && contains(fromJSON('["opened", "ready_for_review"]'), github.event.action) }}
+        run: |
+          set -euo pipefail
+          args=()
+          if [[ "$AUTOMATIC_REVIEW" == "true" ]]; then
+            args+=(--automatic)
+          fi
+          uv run --script factory/review.py --repo "$GH_REPO" --pr "$PR_NUMBER" --head-sha "$PR_HEAD_SHA" start --requested-by "$REQUESTED_BY" "${args[@]}"
 
       - name: Watch session
         if: steps.start.outputs.started == 'true'
