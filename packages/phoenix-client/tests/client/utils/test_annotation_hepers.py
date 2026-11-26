@@ -194,6 +194,80 @@ class TestAnnotationDataFrameValidation:
             _validate_document_annotations_dataframe(dataframe=df_incomplete_index)
 
 
+class TestNonStringIdAndNameValidation:
+    """Non-string values must be reported, not surfaced as a pandas `.str` AttributeError.
+
+    `_validate_column_values` and `_validate_index_level_values` ran the non-empty
+    check (`.str.strip()`) before the type check. On a column whose dtype is not
+    object/string, pandas raises `AttributeError: Can only use .str accessor with
+    string values` and the type check was never reached, so the caller never learned
+    which column was at fault.
+    """
+
+    @pytest.mark.parametrize(
+        "column, values",
+        [
+            pytest.param("span_id", [111, 222], id="numeric-span-id-column"),
+            pytest.param("name", [1, 2], id="numeric-name-column"),
+        ],
+    )
+    def test_numeric_column_reports_a_value_error(self, column: str, values: list[int]) -> None:
+        frame = {
+            "span_id": ["span1", "span2"],
+            "name": ["quality", "quality"],
+            "annotator_kind": ["HUMAN", "HUMAN"],
+            "label": ["good", "bad"],
+        }
+        frame[column] = values  # type: ignore[assignment]
+        with pytest.raises(ValueError, match=rf"{column} values must be strings"):
+            _validate_span_annotations_dataframe(dataframe=pd.DataFrame(frame))
+
+    def test_numeric_named_index_reports_a_value_error(self) -> None:
+        dataframe = pd.DataFrame(
+            {
+                "name": ["quality", "quality"],
+                "annotator_kind": ["HUMAN", "HUMAN"],
+                "label": ["good", "bad"],
+            },
+            index=pd.Index([111, 222], name="span_id"),
+        )
+        with pytest.raises(ValueError, match=r"Index level 'span_id' values must be strings"):
+            _validate_span_annotations_dataframe(dataframe=dataframe)
+
+    @pytest.mark.parametrize(
+        "column",
+        [
+            pytest.param("span_id", id="empty-span-id"),
+            pytest.param("name", id="empty-name"),
+        ],
+    )
+    def test_empty_strings_are_still_rejected(self, column: str) -> None:
+        """The non-empty check must survive the reordering."""
+        frame = {
+            "span_id": ["span1", "span2"],
+            "name": ["quality", "quality"],
+            "annotator_kind": ["HUMAN", "HUMAN"],
+            "label": ["good", "bad"],
+        }
+        frame[column] = ["", "ok"]
+        with pytest.raises(ValueError, match=rf"{column} values must be non-empty strings"):
+            _validate_span_annotations_dataframe(dataframe=pd.DataFrame(frame))
+
+    def test_empty_named_index_is_still_rejected(self) -> None:
+        dataframe = pd.DataFrame(
+            {
+                "name": ["quality", "quality"],
+                "annotator_kind": ["HUMAN", "HUMAN"],
+                "label": ["good", "bad"],
+            },
+            index=pd.Index(["", "span2"], name="span_id"),
+        )
+        with pytest.raises(
+            ValueError, match=r"Index level 'span_id' values must be non-empty strings"
+        ):
+            _validate_span_annotations_dataframe(dataframe=dataframe)
+
+
 class TestAnnotationDataFrameChunking:
     """Test suite for annotation DataFrame chunking across different ID configurations."""
 
