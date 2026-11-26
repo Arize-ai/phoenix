@@ -13,6 +13,7 @@ export * from "./spanAnnotations";
 export * from "./traceAnnotations";
 export * from "./sessionAnnotations";
 export * from "./prompt";
+export * from "./modelProvider";
 export * from "./promptVersions";
 export * from "./api";
 export * from "./docs";
