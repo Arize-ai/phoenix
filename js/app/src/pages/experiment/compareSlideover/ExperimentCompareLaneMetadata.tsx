@@ -10,6 +10,7 @@ import {
 import { JSONBlock } from "@phoenix/components/code";
 
 import { ExperimentCompareLaneEmpty } from "./ExperimentCompareLaneEmpty";
+import { getMissingRunMessage } from "./experimentCompareLaneRuns";
 import type { CompareLane } from "./experimentCompareLaneTypes";
 import { useCompareLaneRun } from "./useExperimentCompareLaneRunGroup";
 
@@ -29,7 +30,7 @@ export function ExperimentCompareLaneMetadata({
   exampleId: string;
   lane: CompareLane;
 }) {
-  const { shownRun } = useCompareLaneRun({ exampleId, lane });
+  const { runState, shownRun } = useCompareLaneRun({ exampleId, lane });
   const metadataText = JSON.stringify(lane.experiment.metadata, null, 2);
   return (
     <Flex direction="column" gap="size-100">
@@ -65,7 +66,11 @@ export function ExperimentCompareLaneMetadata({
           ) : null}
         </Flex>
       ) : (
-        <ExperimentCompareLaneEmpty message="No run for this example" />
+        <ExperimentCompareLaneEmpty
+          message={getMissingRunMessage(
+            runState.type === "pending" ? "pending" : "no-runs"
+          )}
+        />
       )}
       <Card
         title="Experiment Metadata"

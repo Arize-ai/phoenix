@@ -519,7 +519,12 @@ function AnnotationPlaceholder({
         className="experiment-run-annotations__main"
         css={placeholderButtonCSS}
       >
-        <Flex direction="row" gap="size-100" alignItems="center">
+        <Flex
+          direction="row"
+          gap="size-100"
+          alignItems="center"
+          justifyContent="space-between"
+        >
           <Text weight="heavy" css={nameTextCSS} title={name}>
             {name}
           </Text>
@@ -572,7 +577,12 @@ function AnnotationErrorItem({
             className="button--reset experiment-run-annotations__main"
             css={errorButtonCSS}
           >
-            <Flex direction="row" gap="size-100" alignItems="center">
+            <Flex
+              direction="row"
+              gap="size-100"
+              alignItems="center"
+              justifyContent="space-between"
+            >
               <Text weight="heavy" color="danger" css={nameTextCSS}>
                 {error.evaluatorName}
               </Text>

@@ -87,6 +87,7 @@ import {
   usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+import { useStableSearchParams } from "@phoenix/hooks";
 import {
   getPlaygroundEvaluatorTask,
   getPlaygroundMode,
@@ -102,19 +103,21 @@ import type {
   EditableTableDiff,
   EditableTableStore,
 } from "@phoenix/types/table";
-import {
-  assertUnreachable,
-  isStringArray,
-  isStringKeyedObject,
-} from "@phoenix/typeUtils";
+import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelaySubscriptionError } from "@phoenix/utils/errorUtils";
 import {
   extractPathsFromDatasetExamples,
   getValueAtPath,
 } from "@phoenix/utils/objectUtils";
 
-import { ExperimentCompareDetailsDialog } from "../experiment/ExperimentCompareDetailsDialog";
+import {
+  applyExperimentCompareSlideoverState,
+  getCompareRowProps,
+  parseExperimentCompareSlideoverState,
+  useExperimentCompareSlideoverState,
+} from "../experiment/compareSlideover";
 import { ExperimentRepetitionSelector } from "../experiment/ExperimentRepetitionSelector";
+import type { SelectedTraceDetails } from "../experiment/TraceDetailsDrawer";
 import type { PlaygroundDatasetExamplesTableExpectedOutputsFragment$key } from "./__generated__/PlaygroundDatasetExamplesTableExpectedOutputsFragment.graphql";
 import type { PlaygroundDatasetExamplesTableExpectedOutputsRefetchQuery } from "./__generated__/PlaygroundDatasetExamplesTableExpectedOutputsRefetchQuery.graphql";
 import type { PlaygroundDatasetExamplesTableFragment$key } from "./__generated__/PlaygroundDatasetExamplesTableFragment.graphql";
@@ -176,6 +179,7 @@ import {
 import { usePlaygroundDatasetExamplesTablePreferences } from "./PlaygroundDatasetExamplesTablePreferences";
 import { PlaygroundErrorWrap } from "./PlaygroundErrorWrap";
 import { PlaygroundExampleRowCell } from "./PlaygroundExampleRowCell";
+import { PlaygroundExperimentCompareSlideover } from "./PlaygroundExperimentCompareSlideover";
 import { PlaygroundInstanceRunAggregates } from "./PlaygroundInstanceRunAggregates";
 import { PlaygroundOutputHeader } from "./PlaygroundOutputHeader";
 import { PlaygroundRunTraceDetailsDialog } from "./PlaygroundRunTraceDialog";
@@ -595,7 +599,6 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
   isRunning,
   instanceId,
   exampleId,
-  exampleIndex,
   datasetExample,
   templateVariablesPath,
   onViewExperimentRunDetailsPress,
@@ -604,12 +607,10 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
 }: {
   instanceId: number;
   exampleId: string;
-  /** The example's position in the table, for the details dialog. */
-  exampleIndex: number;
   isRunning: boolean;
   datasetExample: { input: unknown; output: unknown; metadata: unknown };
   templateVariablesPath: string | null;
-  onViewExperimentRunDetailsPress: (exampleIndex: number) => void;
+  onViewExperimentRunDetailsPress: (exampleId: string) => void;
   onViewTracePress: (
     traceId: string,
     projectId: string,
@@ -651,8 +652,8 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
     return examplesByRepetitionNumber?.[repetitionNumber];
   }, [examplesByRepetitionNumber, repetitionNumber]);
   const onViewDetails = useCallback(
-    () => onViewExperimentRunDetailsPress(exampleIndex),
-    [onViewExperimentRunDetailsPress, exampleIndex]
+    () => onViewExperimentRunDetailsPress(exampleId),
+    [onViewExperimentRunDetailsPress, exampleId]
   );
   return exampleData == null ? (
     <EmptyExampleOutput
@@ -703,12 +704,21 @@ function TableBody<T extends RowData>({
   tableContainerRef,
   estimatedRowHeight,
   deletedRowIds,
+  selectedRowId,
+  onRowClick,
 }: {
   table: Table<T>;
   tableContainerRef: RefObject<HTMLDivElement | null>;
   estimatedRowHeight: number;
   /** Rows an edit session has removed, struck through until saved. */
   deletedRowIds?: ReadonlySet<string>;
+  /** The row whose example is open in the compare slideover */
+  selectedRowId?: string | null;
+  /**
+   * Called with a row's ID when the row itself, not a control in it, is
+   * clicked. Omitted while rows have no run details to open.
+   */
+  onRowClick?: (rowId: string) => void;
 }) {
   const rows = table.getRowModel().rows;
   // eslint-disable-next-line react/incompatible-library
@@ -728,11 +738,17 @@ function TableBody<T extends RowData>({
     <tbody>
       {virtualRows.map((virtualRow, index) => {
         const row = rows[virtualRow.index];
+        const compareRowProps =
+          onRowClick != null
+            ? getCompareRowProps({ rowId: row.id, selectedRowId, onRowClick })
+            : undefined;
         return (
           <tr
             key={row.id}
             data-deleted={deletedRowIds?.has(row.id) || undefined}
+            {...compareRowProps}
             style={{
+              ...compareRowProps?.style,
               height: `${virtualRow.size}px`,
               transform: `translateY(${
                 virtualRow.start - index * virtualRow.size
@@ -778,7 +794,10 @@ function TableBody<T extends RowData>({
 // special memoized wrapper for our table body that we will use during column resizing
 export const MemoizedTableBody = memo(
   TableBody,
-  (prev, next) => prev.table.options.data === next.table.options.data
+  (prev, next) =>
+    prev.table.options.data === next.table.options.data &&
+    prev.selectedRowId === next.selectedRowId &&
+    prev.onRowClick === next.onRowClick
 ) as typeof TableBody;
 
 function PlaygroundInstanceOutputColumnHeader({
@@ -879,23 +898,40 @@ export function PlaygroundDatasetExamplesTable({
     arePlaygroundInstancesEqualExceptProgress
   );
   const columnLabels = getExampleColumnLabels(getPlaygroundMode(instances));
-  const { baseExperimentId, compareExperimentIds } = useMemo(() => {
-    const experimentIds = instances.map((instance) => instance.experiment?.id);
-    const [baseExperimentId, ...compareExperimentIds] = experimentIds;
-    return { baseExperimentId, compareExperimentIds };
-  }, [instances]);
-  const [selectedExampleIndex, setSelectedExampleIndex] = useState<
-    number | null
-  >(null);
-  const [selectedTraceInfo, setSelectedTraceInfo] = useState<{
-    traceId: string;
-    projectId: string;
-    evaluatorName?: string;
-  } | null>(null);
+  const selectedExampleId =
+    useExperimentCompareSlideoverState().state.selectedExampleId;
+  const [, updateSearchParams] = useStableSearchParams();
+  // The example drawer would cover the slideover, so opening an example's
+  // run details closes it in the same URL change.
+  const openExampleRunDetails = useCallback(
+    (exampleId: string) => {
+      updateSearchParams({
+        update: (currentSearchParams) => {
+          currentSearchParams.delete("exampleId");
+          return applyExperimentCompareSlideoverState({
+            searchParams: currentSearchParams,
+            changes: { selectedExampleId: exampleId },
+          });
+        },
+        replace: (currentSearchParams) =>
+          parseExperimentCompareSlideoverState(currentSearchParams)
+            .selectedExampleId != null,
+      });
+    },
+    [updateSearchParams]
+  );
+  const [selectedTraceInfo, setSelectedTraceInfo] =
+    useState<SelectedTraceDetails | null>(null);
   // Stable, so the memoized cells keep their memo when the columns rebuild.
   const handleViewTracePress = useCallback(
     (traceId: string, projectId: string, evaluatorName?: string) => {
-      setSelectedTraceInfo({ traceId, projectId, evaluatorName });
+      setSelectedTraceInfo({
+        traceId,
+        projectId,
+        title: evaluatorName
+          ? `Evaluator Trace: ${evaluatorName}`
+          : "Experiment Run Trace",
+      });
     },
     []
   );
@@ -949,6 +985,15 @@ export function PlaygroundDatasetExamplesTable({
   );
   const addRunCosts = usePlaygroundDatasetExamplesTableContext(
     (state) => state.addRunCosts
+  );
+  const setRowRunExperiment = usePlaygroundDatasetExamplesTableContext(
+    (state) => state.setRowRunExperiment
+  );
+  const hasExampleResponses = usePlaygroundDatasetExamplesTableContext(
+    (state) =>
+      Object.values(state.exampleResponsesMap).some(
+        (responses) => responses != null && Object.keys(responses).length > 0
+      )
   );
 
   const pendingExperimentRunAnnotations = useRef<ExperimentRunAnnotation[]>([]);
@@ -1037,16 +1082,6 @@ export function PlaygroundDatasetExamplesTable({
             @arguments(splitIds: $splitIds)
           ... on Dataset {
             exampleCount(splitIds: $splitIds)
-            latestVersions: versions(
-              first: 1
-              sort: { col: createdAt, dir: desc }
-            ) {
-              edges {
-                version: node {
-                  id
-                }
-              }
-            }
           }
         }
       }
@@ -1076,17 +1111,25 @@ export function PlaygroundDatasetExamplesTable({
   const applyEvent = useCallback(
     (event: ExperimentsOverDatasetEvent) => {
       switch (event.type) {
-        case "experimentStarted":
+        case "experimentStarted": {
           // A row run is a spot check beside the column's experiment, so the
           // column keeps its link to the last full run.
-          if (playgroundStore.getState().runExampleIds == null) {
+          const runExampleIds = playgroundStore.getState().runExampleIds;
+          if (runExampleIds == null) {
             setInstanceExperiment(event.instanceId, {
               id: event.experimentId,
               isEphemeral: !playgroundStore.getState().recordExperiments,
             });
+          } else {
+            setRowRunExperiment({
+              instanceId: event.instanceId,
+              exampleIds: runExampleIds,
+              experimentId: event.experimentId,
+            });
           }
 
           return;
+        }
         case "experimentFailed":
           setApiError(event.message);
 
@@ -1202,6 +1245,7 @@ export function PlaygroundDatasetExamplesTable({
       incrementRunsFailed,
       playgroundStore,
       setInstanceExperiment,
+      setRowRunExperiment,
       updateExampleData,
     ]
   );
@@ -1582,9 +1626,18 @@ export function PlaygroundDatasetExamplesTable({
     [refetch, refetchExpectedOutputs, editStore]
   );
 
-  const exampleIds = useMemo(() => {
-    return tableData.map((row) => row.id);
-  }, [tableData]);
+  const navigationItems = useMemo(
+    () =>
+      savedRows.map((row) => ({
+        exampleId: row.id,
+        exampleExternalId: row.externalId,
+      })),
+    [savedRows]
+  );
+  // Rows open their run details once a run has produced any, and not while
+  // their cells are being edited.
+  const canOpenRunDetails =
+    !isEditingExamples && (hasSomeRunIds || hasExampleResponses);
 
   // Compute and cache available paths for template autocomplete when examples are loaded
   // or when templateVariablesPath changes (which scopes the paths)
@@ -1606,13 +1659,6 @@ export function PlaygroundDatasetExamplesTable({
       setAvailablePaths({ availablePaths: [], datasetId });
     }
   }, [tableData, datasetId, templateVariablesPath, setAvailablePaths]);
-
-  // We assume that the experiments were run on the latest version of the dataset.
-  // This is subject to a race condition where a new dataset version is created after the playground experiments were run.
-  // We ignore this edge case for now.
-  const datasetVersionId = useMemo(() => {
-    return dataset.latestVersions?.edges[0]?.version.id ?? "";
-  }, [dataset.latestVersions?.edges]);
 
   const playgroundInstanceOutputColumns = useMemo((): ColumnDef<TableRow>[] => {
     return instances.map((instance, index) => {
@@ -1690,10 +1736,9 @@ export function PlaygroundDatasetExamplesTable({
               exampleId={row.original.id}
               isRunning={isRunning}
               datasetExample={row.original}
-              exampleIndex={row.index}
               templateVariablesPath={templateVariablesPath}
               evaluatorOutputConfigs={evaluatorOutputConfigs}
-              onViewExperimentRunDetailsPress={setSelectedExampleIndex}
+              onViewExperimentRunDetailsPress={openExampleRunDetails}
               onViewTracePress={handleViewTracePress}
             />
           );
@@ -1708,6 +1753,7 @@ export function PlaygroundDatasetExamplesTable({
     runPlaygroundInstances,
     templateVariablesPath,
     handleViewTracePress,
+    openExampleRunDetails,
     evaluatorOutputConfigs,
     expectedOutputExamples,
     expectedOutputsData.allExamples.pageInfo.hasNextPage,
@@ -2056,6 +2102,10 @@ export function PlaygroundDatasetExamplesTable({
                 tableContainerRef={tableContainerRef}
                 estimatedRowHeight={estimatedRowHeight}
                 deletedRowIds={deletedRowIds}
+                selectedRowId={selectedExampleId}
+                onRowClick={
+                  canOpenRunDetails ? openExampleRunDetails : undefined
+                }
               />
             ) : (
               <TableBody
@@ -2063,56 +2113,13 @@ export function PlaygroundDatasetExamplesTable({
                 tableContainerRef={tableContainerRef}
                 estimatedRowHeight={estimatedRowHeight}
                 deletedRowIds={deletedRowIds}
+                selectedRowId={selectedExampleId}
+                onRowClick={
+                  canOpenRunDetails ? openExampleRunDetails : undefined
+                }
               />
             )}
           </table>
-          <ViewportModalOverlay
-            isOpen={selectedExampleIndex !== null}
-            onOpenChange={(isOpen) => {
-              if (!isOpen) {
-                setSelectedExampleIndex(null);
-              }
-            }}
-          >
-            <ViewportModal size="fullscreen">
-              {selectedExampleIndex !== null &&
-                exampleIds[selectedExampleIndex] &&
-                baseExperimentId != null &&
-                isStringArray(compareExperimentIds) && (
-                  <ExperimentCompareDetailsDialog
-                    datasetId={datasetId}
-                    datasetVersionId={datasetVersionId}
-                    selectedExampleIndex={selectedExampleIndex}
-                    selectedExampleId={tableData[selectedExampleIndex].id}
-                    selectedExampleExternalId={
-                      tableData[selectedExampleIndex].externalId
-                    }
-                    baseExperimentId={baseExperimentId}
-                    compareExperimentIds={compareExperimentIds}
-                    exampleIds={exampleIds}
-                    onExampleChange={(exampleIndex) => {
-                      if (
-                        exampleIndex === exampleIds.length - 1 &&
-                        !isLoadingNext &&
-                        hasNext
-                      ) {
-                        loadNext(PAGE_SIZE);
-                      }
-
-                      if (
-                        exampleIndex >= 0 &&
-                        exampleIndex < exampleIds.length
-                      ) {
-                        setSelectedExampleIndex(exampleIndex);
-                      }
-                    }}
-                    openTraceDialog={(traceId, projectId) => {
-                      setSelectedTraceInfo({ traceId, projectId });
-                    }}
-                  />
-                )}
-            </ViewportModal>
-          </ViewportModalOverlay>
           <ViewportModalOverlay
             isOpen={selectedTraceInfo !== null}
             onOpenChange={(isOpen) => {
@@ -2135,16 +2142,23 @@ export function PlaygroundDatasetExamplesTable({
                 <PlaygroundRunTraceDetailsDialog
                   traceId={selectedTraceInfo.traceId}
                   projectId={selectedTraceInfo.projectId}
-                  title={
-                    selectedTraceInfo.evaluatorName
-                      ? `Evaluator Trace: ${selectedTraceInfo.evaluatorName}`
-                      : "Experiment Run Trace"
-                  }
+                  title={selectedTraceInfo.title}
                 />
               )}
             </ViewportModal>
           </ViewportModalOverlay>
         </div>
+        <PlaygroundExperimentCompareSlideover
+          datasetId={datasetId}
+          navigationItems={navigationItems}
+          totalItemCount={exampleCount}
+          hasMoreItems={hasNext}
+          isLoadingMoreItems={isLoadingNext}
+          onLoadMoreItems={() => loadNext(PAGE_SIZE)}
+          onOpenTrace={({ traceId, projectId, title }) =>
+            setSelectedTraceInfo({ traceId, projectId, title })
+          }
+        />
       </PlaygroundExpectedOutputsProvider>
     </InstanceVariablesProvider>
   );

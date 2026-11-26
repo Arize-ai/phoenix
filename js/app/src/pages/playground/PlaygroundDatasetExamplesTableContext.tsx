@@ -136,6 +136,16 @@ type PlaygroundDatasetExamplesTableActions = {
     instanceIds: readonly InstanceId[];
     exampleIds: readonly ExampleId[];
   }) => void;
+  /**
+   * Record the experiment a row run created for an instance. A row run does
+   * not replace the instance's experiment, so its examples' runs are found
+   * through this one.
+   */
+  setRowRunExperiment: (args: {
+    instanceId: InstanceId;
+    exampleIds: readonly ExampleId[];
+    experimentId: string;
+  }) => void;
   setRepetitions: (repetitions: number) => void;
   setExpandedCell: (args: {
     instanceId: InstanceId;
@@ -147,6 +157,14 @@ type PlaygroundDatasetExamplesTableActions = {
 
 type PlaygroundDatasetExamplesTableState = {
   exampleResponsesMap: InstanceToExampleResponsesMap;
+  /**
+   * The experiment that holds an example's runs when a row run produced them
+   * after the instance's last full run.
+   */
+  rowRunExperimentIds: Record<
+    InstanceId,
+    Record<ExampleId, string | undefined> | undefined
+  >;
   runAnnotationAggregateMetrics: Record<
     InstanceId,
     Record<AnnotationName, ExperimentRunAnnotationAggregateMetric>
@@ -167,6 +185,7 @@ export const createPlaygroundDatasetExamplesTableStore = () => {
     PlaygroundDatasetExamplesTableState
   > = (set, get) => ({
     exampleResponsesMap: {},
+    rowRunExperimentIds: {},
     runAnnotationAggregateMetrics: {},
     runCostAggregateMetrics: {},
     repetitions: 1,
@@ -363,23 +382,27 @@ export const createPlaygroundDatasetExamplesTableStore = () => {
     resetInstanceData: (instanceIds) => {
       const {
         exampleResponsesMap,
+        rowRunExperimentIds,
         runAnnotationAggregateMetrics,
         runCostAggregateMetrics,
         expandedCells,
       } = get();
 
       const nextResponses = { ...exampleResponsesMap };
+      const nextRowRunExperimentIds = { ...rowRunExperimentIds };
       const nextAnnotationMetrics = { ...runAnnotationAggregateMetrics };
       const nextCostMetrics = { ...runCostAggregateMetrics };
 
       for (const instanceId of instanceIds) {
         delete nextResponses[instanceId];
+        delete nextRowRunExperimentIds[instanceId];
         delete nextAnnotationMetrics[instanceId];
         delete nextCostMetrics[instanceId];
       }
 
       set({
         exampleResponsesMap: nextResponses,
+        rowRunExperimentIds: nextRowRunExperimentIds,
         runAnnotationAggregateMetrics: nextAnnotationMetrics,
         runCostAggregateMetrics: nextCostMetrics,
         expandedCells: Object.fromEntries(
@@ -453,6 +476,20 @@ export const createPlaygroundDatasetExamplesTableStore = () => {
             ([key]) => !resetPrefixes.some((prefix) => key.startsWith(prefix))
           )
         ),
+      });
+    },
+    setRowRunExperiment: ({ instanceId, exampleIds, experimentId }) => {
+      const { rowRunExperimentIds } = get();
+      set({
+        rowRunExperimentIds: {
+          ...rowRunExperimentIds,
+          [instanceId]: {
+            ...rowRunExperimentIds[instanceId],
+            ...Object.fromEntries(
+              exampleIds.map((exampleId) => [exampleId, experimentId])
+            ),
+          },
+        },
       });
     },
     setRepetitions: (repetitions: number) => {

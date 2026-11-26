@@ -17,13 +17,16 @@ export function useHotkeysEnabled(): boolean {
 
 /**
  * Enables or disables the keyboard shortcuts registered by its descendants.
+ * A provider inside a disabled one stays disabled, so a view that picks its
+ * active pane cannot switch shortcuts back on under an overlay.
  */
 export function HotkeysEnabledProvider({
   isEnabled,
   children,
 }: PropsWithChildren<{ isEnabled: boolean }>) {
+  const isParentEnabled = useHotkeysEnabled();
   return (
-    <HotkeysEnabledContext.Provider value={isEnabled}>
+    <HotkeysEnabledContext.Provider value={isEnabled && isParentEnabled}>
       {children}
     </HotkeysEnabledContext.Provider>
   );

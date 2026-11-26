@@ -28,6 +28,7 @@ import {
 import type { ExperimentCompareAnnotationsTableRow } from "./ExperimentCompareAnnotationsTable";
 import { ExperimentCompareAnnotationsTable } from "./ExperimentCompareAnnotationsTable";
 import { ExperimentCompareLaneEmpty } from "./ExperimentCompareLaneEmpty";
+import { getMissingRunMessage } from "./experimentCompareLaneRuns";
 import type {
   AnnotationConfigsByName,
   CompareLane,
@@ -159,8 +160,14 @@ export function ExperimentCompareLaneAnnotations({
     exampleId,
     lane: baseLane ?? lane,
   });
-  if (runState.type === "no-runs") {
-    return <ExperimentCompareLaneEmpty message="No run for this example" />;
+  if (runGroup.runs.length === 0) {
+    return (
+      <ExperimentCompareLaneEmpty
+        message={getMissingRunMessage(
+          runState.type === "pending" ? "pending" : "no-runs"
+        )}
+      />
+    );
   }
   /** The base lane's shown run when both lanes have one to compare */
   const deltaBaseRun =
@@ -213,7 +220,9 @@ export function ExperimentCompareLaneAnnotations({
           <LaneRunStats run={shownRun} baseRun={deltaBaseRun} />
         ) : (
           <Text color="text-500" size="S">
-            No run for this repetition
+            {getMissingRunMessage(
+              runState.type === "pending" ? "pending" : "missing-repetition"
+            )}
           </Text>
         )}
         {runGroup.runs.length > 1 ? (

@@ -60,13 +60,16 @@ const runGroupFragment = graphql`
  * metrics and annotations. A lane's cells each call this with the same
  * arguments and share a single request, so every cell suspends on its own
  * boundary without one lane waiting on the other.
+ * @param params.fetchKey - re-reads the runs when it changes, for an experiment that is still running
  */
 export function useExperimentCompareLaneRunGroup({
   exampleId,
   experimentId,
+  fetchKey,
 }: {
   exampleId: string;
   experimentId: string;
+  fetchKey?: string;
 }) {
   const data = useLazyLoadQuery<useExperimentCompareLaneRunGroupQuery>(
     graphql`
@@ -84,7 +87,7 @@ export function useExperimentCompareLaneRunGroup({
       }
     `,
     { exampleId, experimentIds: [experimentId] },
-    { fetchPolicy: "store-and-network" }
+    { fetchPolicy: "store-and-network", fetchKey }
   );
   const runGroup = useFragment<useExperimentCompareLaneRunGroup_runGroup$key>(
     runGroupFragment,
@@ -124,10 +127,12 @@ export function useCompareLaneRun({
   const runGroup = useExperimentCompareLaneRunGroup({
     exampleId,
     experimentId: lane.experiment.id,
+    fetchKey: lane.liveRuns?.fetchKey,
   });
   const runState = getCompareLaneRunState({
     runs: runGroup.runs,
     shownRepetitionNumber: lane.shownRepetitionNumber,
+    pendingRuns: lane.liveRuns?.pendingRuns,
   });
   return { runGroup, runState, shownRun: getShownRun(runState) };
 }

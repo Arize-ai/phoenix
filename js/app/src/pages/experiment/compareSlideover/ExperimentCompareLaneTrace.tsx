@@ -7,6 +7,7 @@ import { HotkeysEnabledProvider } from "@phoenix/contexts";
 import { TraceDetailsSkeleton, TraceDetailsView } from "@phoenix/pages/trace";
 
 import { ExperimentCompareLaneEmpty } from "./ExperimentCompareLaneEmpty";
+import { getMissingRunMessage } from "./experimentCompareLaneRuns";
 import type { CompareLane } from "./experimentCompareLaneTypes";
 import { useCompareLaneRun } from "./useExperimentCompareLaneRunGroup";
 
@@ -95,8 +96,8 @@ export function ExperimentCompareLaneTrace({
       <View padding="size-100">
         <ExperimentCompareLaneEmpty
           message={
-            runState.type === "no-runs"
-              ? "No run for this example"
+            runState.type === "no-runs" || runState.type === "pending"
+              ? getMissingRunMessage(runState.type)
               : "No trace for this run"
           }
         />

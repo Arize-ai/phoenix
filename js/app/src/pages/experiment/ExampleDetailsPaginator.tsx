@@ -1,5 +1,4 @@
 import { startTransition } from "react";
-import { useHotkeys } from "react-hotkeys-hook";
 
 import {
   Button,
@@ -12,6 +11,7 @@ import {
   TooltipArrow,
   TooltipTrigger,
 } from "@phoenix/components";
+import { useScopedHotkeys } from "@phoenix/hooks/useScopedHotkeys";
 
 const NEXT_EXAMPLE_HOTKEY = "j";
 const PREVIOUS_EXAMPLE_HOTKEY = "k";
@@ -22,7 +22,6 @@ export const ExampleDetailsPaginator = ({
   onExampleChange,
   hasMoreExamples = false,
   isLoadingMoreExamples = false,
-  areHotkeysEnabled = true,
 }: {
   currentExampleIndex: number;
   exampleIds: readonly string[];
@@ -35,8 +34,6 @@ export const ExampleDetailsPaginator = ({
   hasMoreExamples?: boolean;
   /** Whether the next page of examples is being fetched */
   isLoadingMoreExamples?: boolean;
-  /** Whether the shortcuts respond, e.g. not while another overlay is on top */
-  areHotkeysEnabled?: boolean;
 }) => {
   const hasPrevious = currentExampleIndex > 0;
   const isOnLastLoadedExample = currentExampleIndex >= exampleIds.length - 1;
@@ -58,24 +55,13 @@ export const ExampleDetailsPaginator = ({
     }
   };
 
-  // Ignored rather than disabled: a disabled shortcut still cancels the key
-  // press for the rest of the page
-  const hotkeyOptions = { ignoreEventWhen: () => !areHotkeysEnabled };
-  useHotkeys(
-    NEXT_EXAMPLE_HOTKEY,
-    () => {
-      handleNext();
-    },
-    hotkeyOptions
-  );
+  useScopedHotkeys(NEXT_EXAMPLE_HOTKEY, () => {
+    handleNext();
+  });
 
-  useHotkeys(
-    PREVIOUS_EXAMPLE_HOTKEY,
-    () => {
-      handlePrevious();
-    },
-    hotkeyOptions
-  );
+  useScopedHotkeys(PREVIOUS_EXAMPLE_HOTKEY, () => {
+    handlePrevious();
+  });
 
   return (
     <Flex direction="row" gap="size-50" alignItems="center">

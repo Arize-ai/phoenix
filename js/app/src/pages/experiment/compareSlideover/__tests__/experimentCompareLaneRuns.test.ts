@@ -55,6 +55,36 @@ describe("getCompareLaneRunState", () => {
     expect(getShownRun(state)).toBe(erroredRun);
   });
 
+  it("is pending while the shown repetition is being generated", () => {
+    const state = getCompareLaneRunState({
+      runs: [completedRun],
+      shownRepetitionNumber: 3,
+      pendingRuns: [{ repetitionNumber: 3, partialOutput: "The capital" }],
+    });
+    expect(state).toEqual({ type: "pending", partialOutput: "The capital" });
+    expect(getShownRun(state)).toBeNull();
+  });
+
+  it("is pending instead of without runs when the first run is being generated", () => {
+    expect(
+      getCompareLaneRunState({
+        runs: [],
+        shownRepetitionNumber: 1,
+        pendingRuns: [{ repetitionNumber: 1, partialOutput: null }],
+      })
+    ).toEqual({ type: "pending", partialOutput: null });
+  });
+
+  it("shows a recorded run over a pending one for the same repetition", () => {
+    expect(
+      getCompareLaneRunState({
+        runs: [completedRun],
+        shownRepetitionNumber: 1,
+        pendingRuns: [{ repetitionNumber: 1, partialOutput: "stale" }],
+      })
+    ).toEqual({ type: "completed", run: completedRun });
+  });
+
   it("is completed for a run without an error", () => {
     expect(
       getCompareLaneRunState({
