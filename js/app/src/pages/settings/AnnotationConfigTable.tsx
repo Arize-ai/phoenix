@@ -1,10 +1,12 @@
 import { css } from "@emotion/react";
 import type { RowSelectionState } from "@tanstack/react-table";
 import { flexRender, useTable } from "@tanstack/react-table";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import {
+  Button,
+  DialogTrigger,
   Flex,
   Icon,
   Icons,
@@ -14,8 +16,11 @@ import {
   TooltipArrow,
   TooltipTrigger,
   TriggerWrap,
+  ViewportModal,
+  ViewportModalOverlay,
 } from "@phoenix/components";
 import { AnnotationLabel } from "@phoenix/components/annotation";
+import { AnnotationConfigDialog } from "@phoenix/components/annotation/AnnotationConfigDialog";
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { createRowSelectionColumn } from "@phoenix/components/table";
@@ -39,7 +44,41 @@ import type { AnnotationConfig } from "@phoenix/pages/settings/types";
 
 type PersistedAnnotationConfig = AnnotationConfig & { id: string };
 
-const columns = [
+type OnEditAnnotationConfig = (
+  annotationConfig: AnnotationConfig,
+  {
+    onCompleted,
+    onError,
+  }?: { onCompleted?: () => void; onError?: (error: string) => void }
+) => void;
+
+const EditAnnotationConfigButton = ({
+  annotationConfig,
+  onEditAnnotationConfig,
+}: {
+  annotationConfig: PersistedAnnotationConfig;
+  onEditAnnotationConfig: OnEditAnnotationConfig;
+}) => {
+  return (
+    <DialogTrigger>
+      <Button
+        size="S"
+        leadingVisual={<Icon svg={<Icons.Edit />} />}
+        aria-label={`Edit ${annotationConfig.name}`}
+      />
+      <ViewportModalOverlay>
+        <ViewportModal>
+          <AnnotationConfigDialog
+            initialAnnotationConfig={annotationConfig}
+            onAddAnnotationConfig={onEditAnnotationConfig}
+          />
+        </ViewportModal>
+      </ViewportModalOverlay>
+    </DialogTrigger>
+  );
+};
+
+const baseColumns = [
   createRowSelectionColumn<PersistedAnnotationConfig>({
     size: 30,
     minSize: 30,
@@ -179,13 +218,7 @@ export const AnnotationConfigTable = ({
       onError,
     }?: { onCompleted?: () => void; onError?: (error: string) => void }
   ) => void;
-  onEditAnnotationConfig: (
-    annotationConfig: AnnotationConfig,
-    {
-      onCompleted,
-      onError,
-    }?: { onCompleted?: () => void; onError?: () => void }
-  ) => void;
+  onEditAnnotationConfig: OnEditAnnotationConfig;
 }) => {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const data = useFragment(
@@ -233,6 +266,43 @@ export const AnnotationConfigTable = ({
     () => data.annotationConfigs.edges.map((edge) => edge.annotationConfig),
     [data.annotationConfigs.edges]
   ) as PersistedAnnotationConfig[]; // fields are guaranteed by the concrete config fragments
+  // flexRender remounts a cell when its function changes, closing an open edit
+  // dialog, so the column is built once and reads the latest handler from a ref
+  const onEditAnnotationConfigRef = useRef(onEditAnnotationConfig);
+  useEffect(() => {
+    onEditAnnotationConfigRef.current = onEditAnnotationConfig;
+  });
+  const columns = useMemo(
+    () =>
+      [
+        ...baseColumns,
+        {
+          id: "actions",
+          header: "",
+          enableSorting: false,
+          size: 60,
+          cell: ({ row }: CellContext<PersistedAnnotationConfig, unknown>) => {
+            return (
+              <Flex justifyContent="end">
+                <TooltipTrigger>
+                  <EditAnnotationConfigButton
+                    annotationConfig={row.original}
+                    onEditAnnotationConfig={(...args) =>
+                      onEditAnnotationConfigRef.current(...args)
+                    }
+                  />
+                  <Tooltip>
+                    <TooltipArrow />
+                    Edit annotation config
+                  </Tooltip>
+                </TooltipTrigger>
+              </Flex>
+            );
+          },
+        },
+      ] satisfies ColumnDef<PersistedAnnotationConfig>[],
+    []
+  );
   const table = useTable({
     features: appTableFeatures,
     data: configs,
