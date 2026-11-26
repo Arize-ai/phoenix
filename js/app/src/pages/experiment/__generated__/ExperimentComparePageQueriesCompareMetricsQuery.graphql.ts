@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<31874d5d1bd5ebddd0f7f19072f3fda3>>
+ * @generated SignedSource<<237c35b4e122c27cc9297b47f1b54c96>>
  * @lightSyntaxTransform
  */
 
@@ -64,10 +64,17 @@ v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "__typename",
+  "storageKey": null
+},
+v8 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v8 = [
+v9 = [
   {
     "alias": null,
     "args": null,
@@ -83,28 +90,66 @@ v8 = [
     "storageKey": null
   }
 ],
-v9 = [
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "numRunsImproved",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "numRunsRegressed",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "numRunsEqual",
-    "storageKey": null
-  }
+v10 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "annotationName",
+  "storageKey": null
+},
+v11 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v12 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "optimizationDirection",
+  "storageKey": null
+},
+v13 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "lowerBound",
+  "storageKey": null
+},
+v14 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "upperBound",
+  "storageKey": null
+},
+v15 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "numRunsImproved",
+  "storageKey": null
+},
+v16 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "numRunsRegressed",
+  "storageKey": null
+},
+v17 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "numRunsEqual",
+  "storageKey": null
+},
+v18 = [
+  (v15/*:: as any*/),
+  (v16/*:: as any*/),
+  (v17/*:: as any*/)
 ];
 return {
   "fragment": {
@@ -172,13 +217,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "__typename",
-            "storageKey": null
-          },
+          (v7/*:: as any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -217,7 +256,7 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v7/*:: as any*/),
+                          (v8/*:: as any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -240,7 +279,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "total",
                                 "plural": false,
-                                "selections": (v8/*:: as any*/),
+                                "selections": (v9/*:: as any*/),
                                 "storageKey": null
                               },
                               {
@@ -250,7 +289,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "prompt",
                                 "plural": false,
-                                "selections": (v8/*:: as any*/),
+                                "selections": (v9/*:: as any*/),
                                 "storageKey": null
                               },
                               {
@@ -260,7 +299,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "completion",
                                 "plural": false,
-                                "selections": (v8/*:: as any*/),
+                                "selections": (v9/*:: as any*/),
                                 "storageKey": null
                               }
                             ],
@@ -274,13 +313,7 @@ return {
                             "name": "annotationSummaries",
                             "plural": true,
                             "selections": [
-                              {
-                                "alias": null,
-                                "args": null,
-                                "kind": "ScalarField",
-                                "name": "annotationName",
-                                "storageKey": null
-                              },
+                              (v10/*:: as any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -299,12 +332,136 @@ return {
                   }
                 ],
                 "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": [
+                  {
+                    "kind": "Literal",
+                    "name": "first",
+                    "value": 100
+                  }
+                ],
+                "concreteType": "DatasetEvaluatorConnection",
+                "kind": "LinkedField",
+                "name": "datasetEvaluators",
+                "plural": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "DatasetEvaluatorEdge",
+                    "kind": "LinkedField",
+                    "name": "edges",
+                    "plural": true,
+                    "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "DatasetEvaluator",
+                        "kind": "LinkedField",
+                        "name": "node",
+                        "plural": false,
+                        "selections": [
+                          (v11/*:: as any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": null,
+                            "kind": "LinkedField",
+                            "name": "outputConfigs",
+                            "plural": true,
+                            "selections": [
+                              (v7/*:: as any*/),
+                              {
+                                "kind": "InlineFragment",
+                                "selections": [
+                                  (v11/*:: as any*/),
+                                  (v12/*:: as any*/),
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": "CategoricalAnnotationValue",
+                                    "kind": "LinkedField",
+                                    "name": "values",
+                                    "plural": true,
+                                    "selections": [
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "label",
+                                        "storageKey": null
+                                      },
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "score",
+                                        "storageKey": null
+                                      }
+                                    ],
+                                    "storageKey": null
+                                  }
+                                ],
+                                "type": "CategoricalAnnotationConfig",
+                                "abstractKey": null
+                              },
+                              {
+                                "kind": "InlineFragment",
+                                "selections": [
+                                  (v11/*:: as any*/),
+                                  (v12/*:: as any*/),
+                                  (v13/*:: as any*/),
+                                  (v14/*:: as any*/)
+                                ],
+                                "type": "ContinuousAnnotationConfig",
+                                "abstractKey": null
+                              },
+                              {
+                                "kind": "InlineFragment",
+                                "selections": [
+                                  (v11/*:: as any*/),
+                                  (v12/*:: as any*/),
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "threshold",
+                                    "storageKey": null
+                                  },
+                                  (v13/*:: as any*/),
+                                  (v14/*:: as any*/)
+                                ],
+                                "type": "FreeformAnnotationConfig",
+                                "abstractKey": null
+                              },
+                              {
+                                "kind": "InlineFragment",
+                                "selections": [
+                                  (v8/*:: as any*/)
+                                ],
+                                "type": "Node",
+                                "abstractKey": "__isNode"
+                              }
+                            ],
+                            "storageKey": null
+                          },
+                          (v8/*:: as any*/)
+                        ],
+                        "storageKey": null
+                      }
+                    ],
+                    "storageKey": null
+                  }
+                ],
+                "storageKey": "datasetEvaluators(first:100)"
               }
             ],
             "type": "Dataset",
             "abstractKey": null
           },
-          (v7/*:: as any*/)
+          (v8/*:: as any*/)
         ],
         "storageKey": null
       },
@@ -331,7 +488,7 @@ return {
                 "kind": "LinkedField",
                 "name": "latency",
                 "plural": false,
-                "selections": (v9/*:: as any*/),
+                "selections": (v18/*:: as any*/),
                 "storageKey": null
               },
               {
@@ -341,7 +498,7 @@ return {
                 "kind": "LinkedField",
                 "name": "totalTokenCount",
                 "plural": false,
-                "selections": (v9/*:: as any*/),
+                "selections": (v18/*:: as any*/),
                 "storageKey": null
               },
               {
@@ -351,7 +508,7 @@ return {
                 "kind": "LinkedField",
                 "name": "promptTokenCount",
                 "plural": false,
-                "selections": (v9/*:: as any*/),
+                "selections": (v18/*:: as any*/),
                 "storageKey": null
               },
               {
@@ -361,7 +518,7 @@ return {
                 "kind": "LinkedField",
                 "name": "completionTokenCount",
                 "plural": false,
-                "selections": (v9/*:: as any*/),
+                "selections": (v18/*:: as any*/),
                 "storageKey": null
               },
               {
@@ -371,7 +528,7 @@ return {
                 "kind": "LinkedField",
                 "name": "totalCost",
                 "plural": false,
-                "selections": (v9/*:: as any*/),
+                "selections": (v18/*:: as any*/),
                 "storageKey": null
               },
               {
@@ -381,7 +538,7 @@ return {
                 "kind": "LinkedField",
                 "name": "promptCost",
                 "plural": false,
-                "selections": (v9/*:: as any*/),
+                "selections": (v18/*:: as any*/),
                 "storageKey": null
               },
               {
@@ -391,7 +548,22 @@ return {
                 "kind": "LinkedField",
                 "name": "completionCost",
                 "plural": false,
-                "selections": (v9/*:: as any*/),
+                "selections": (v18/*:: as any*/),
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "ExperimentRunAnnotationMetricComparison",
+                "kind": "LinkedField",
+                "name": "annotations",
+                "plural": true,
+                "selections": [
+                  (v10/*:: as any*/),
+                  (v15/*:: as any*/),
+                  (v16/*:: as any*/),
+                  (v17/*:: as any*/)
+                ],
                 "storageKey": null
               }
             ],
@@ -402,12 +574,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f7b697815accab3308c8d5f74bb2b149",
+    "cacheID": "5cb6a94d8e3c38a0da63adbccd99af4e",
     "id": null,
     "metadata": {},
     "name": "ExperimentComparePageQueriesCompareMetricsQuery",
     "operationKind": "query",
-    "text": "query ExperimentComparePageQueriesCompareMetricsQuery(\n  $datasetId: ID!\n  $baseExperimentId: ID!\n  $compareExperimentIds: [ID!]!\n  $experimentIds: [ID!]!\n  $hasCompareExperiments: Boolean!\n) {\n  ...ExperimentCompareMetricsPage_experiments_4DSN89\n}\n\nfragment ExperimentCompareMetricsPage_experiments_4DSN89 on Query {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      experiments(filterIds: $experimentIds, includeEphemeral: true) {\n        edges {\n          experiment: node {\n            id\n            averageRunLatencyMs\n            costSummary {\n              total {\n                tokens\n                cost\n              }\n              prompt {\n                tokens\n                cost\n              }\n              completion {\n                tokens\n                cost\n              }\n            }\n            annotationSummaries {\n              annotationName\n              meanScore\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n  experimentRunMetricComparisons(baseExperimentId: $baseExperimentId, compareExperimentIds: $compareExperimentIds) @include(if: $hasCompareExperiments) {\n    latency {\n      numRunsImproved\n      numRunsRegressed\n      numRunsEqual\n    }\n    totalTokenCount {\n      numRunsImproved\n      numRunsRegressed\n      numRunsEqual\n    }\n    promptTokenCount {\n      numRunsImproved\n      numRunsRegressed\n      numRunsEqual\n    }\n    completionTokenCount {\n      numRunsImproved\n      numRunsRegressed\n      numRunsEqual\n    }\n    totalCost {\n      numRunsImproved\n      numRunsRegressed\n      numRunsEqual\n    }\n    promptCost {\n      numRunsImproved\n      numRunsRegressed\n      numRunsEqual\n    }\n    completionCost {\n      numRunsImproved\n      numRunsRegressed\n      numRunsEqual\n    }\n  }\n}\n"
+    "text": "query ExperimentComparePageQueriesCompareMetricsQuery(\n  $datasetId: ID!\n  $baseExperimentId: ID!\n  $compareExperimentIds: [ID!]!\n  $experimentIds: [ID!]!\n  $hasCompareExperiments: Boolean!\n) {\n  ...ExperimentCompareMetricsPage_experiments_4DSN89\n}\n\nfragment ExperimentCompareMetricsPage_experiments_4DSN89 on Query {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      experiments(filterIds: $experimentIds, includeEphemeral: true) {\n        edges {\n          experiment: node {\n            id\n            averageRunLatencyMs\n            costSummary {\n              total {\n                tokens\n                cost\n              }\n              prompt {\n                tokens\n                cost\n              }\n              completion {\n                tokens\n                cost\n              }\n            }\n            annotationSummaries {\n              annotationName\n              meanScore\n            }\n          }\n        }\n      }\n      datasetEvaluators(first: 100) {\n        edges {\n          node {\n            name\n            outputConfigs {\n              __typename\n              ... on CategoricalAnnotationConfig {\n                name\n                optimizationDirection\n                values {\n                  label\n                  score\n                }\n              }\n              ... on ContinuousAnnotationConfig {\n                name\n                optimizationDirection\n                lowerBound\n                upperBound\n              }\n              ... on FreeformAnnotationConfig {\n                name\n                optimizationDirection\n                threshold\n                lowerBound\n                upperBound\n              }\n              ... on Node {\n                __isNode: __typename\n                id\n              }\n            }\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n  experimentRunMetricComparisons(baseExperimentId: $baseExperimentId, compareExperimentIds: $compareExperimentIds) @include(if: $hasCompareExperiments) {\n    latency {\n      numRunsImproved\n      numRunsRegressed\n      numRunsEqual\n    }\n    totalTokenCount {\n      numRunsImproved\n      numRunsRegressed\n      numRunsEqual\n    }\n    promptTokenCount {\n      numRunsImproved\n      numRunsRegressed\n      numRunsEqual\n    }\n    completionTokenCount {\n      numRunsImproved\n      numRunsRegressed\n      numRunsEqual\n    }\n    totalCost {\n      numRunsImproved\n      numRunsRegressed\n      numRunsEqual\n    }\n    promptCost {\n      numRunsImproved\n      numRunsRegressed\n      numRunsEqual\n    }\n    completionCost {\n      numRunsImproved\n      numRunsRegressed\n      numRunsEqual\n    }\n    annotations {\n      annotationName\n      numRunsImproved\n      numRunsRegressed\n      numRunsEqual\n    }\n  }\n}\n"
   }
 };
 })();
