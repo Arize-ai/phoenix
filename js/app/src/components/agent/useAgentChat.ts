@@ -270,7 +270,9 @@ export function useAgentChat({
       chatInstance &&
       isRequestActive(chatInstance.status)
     ) {
-      store.getState().markSessionLocallyCancelled(persistedSessionId);
+      store
+        .getState()
+        .markSessionLocallyCancelled({ sessionId: persistedSessionId });
     }
     await stop();
     if (sessionId) {
@@ -399,7 +401,7 @@ export function useAgentChat({
             restorePendingMessage();
             const cancelledAt =
               store.getState().locallyCancelledSessionAtBySessionId[sessionId];
-            if (isSessionSelfCancellationGraceActive(cancelledAt)) {
+            if (isSessionSelfCancellationGraceActive({ cancelledAt })) {
               store
                 .getState()
                 .setSessionNotice(sessionId, "previousTurnCancelled");

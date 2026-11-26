@@ -7,10 +7,13 @@ export const SESSION_CANCELLATION_GRACE_MS = 3_000;
  * are treated as artifacts of this client's own recently cancelled turn rather than
  * another client acquiring the lock.
  */
-export function isSessionSelfCancellationGraceActive(
-  cancelledAt: number | null | undefined,
-  now: number = Date.now()
-): boolean {
+export function isSessionSelfCancellationGraceActive({
+  cancelledAt,
+  now = Date.now(),
+}: {
+  cancelledAt: number | null | undefined;
+  now?: number;
+}): boolean {
   if (cancelledAt == null) {
     return false;
   }

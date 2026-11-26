@@ -119,6 +119,7 @@ export function useAgentSessionSync({
   const shouldSyncOnNextPollSetupRef = useRef(shouldSyncOnMount);
   /** Prevents overlapping poll requests on slow networks. */
   const isPollInFlightRef = useRef(false);
+  const pollSessionRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
   // Turn-lock entry: the session's Relay record (fetched network-only when a
   // session surface binds, and refreshed after each completed turn) is the
@@ -132,21 +133,30 @@ export function useAgentSessionSync({
     const state = store.getState();
     const cancelledAt =
       state.locallyCancelledSessionAtBySessionId[persistedSessionId];
-    if (isSessionSelfCancellationGraceActive(cancelledAt)) {
+    if (isSessionSelfCancellationGraceActive({ cancelledAt })) {
       const remainingMs = Math.max(
         0,
         SESSION_CANCELLATION_GRACE_MS - (Date.now() - (cancelledAt ?? 0)) + 1
       );
+      let timeoutId: ReturnType<typeof setTimeout>;
       const scheduleBusyRecheck = () => {
         const currentState = store.getState();
         const currentCancelledAt =
           currentState.locallyCancelledSessionAtBySessionId[persistedSessionId];
 
-        if (isSessionSelfCancellationGraceActive(currentCancelledAt)) {
+        if (currentCancelledAt == null) {
+          return;
+        }
+
+        if (
+          isSessionSelfCancellationGraceActive({
+            cancelledAt: currentCancelledAt,
+          })
+        ) {
           const remainingMs = Math.max(
             0,
             SESSION_CANCELLATION_GRACE_MS -
-              (Date.now() - (currentCancelledAt ?? 0)) +
+              (Date.now() - currentCancelledAt) +
               1
           );
 
@@ -154,16 +164,10 @@ export function useAgentSessionSync({
           return;
         }
 
-        if (
-          currentState.isBusyElsewhereBySessionId[persistedSessionId] !==
-            true &&
-          !isRequestActive(chatInstance.status)
-        ) {
-          currentState.setSessionBusyElsewhere(persistedSessionId, true);
+        if (!isRequestActive(chatInstance.status)) {
+          void pollSessionRef.current();
         }
       };
-
-      let timeoutId: ReturnType<typeof setTimeout>;
 
       timeoutId = setTimeout(scheduleBusyRecheck, remainingMs);
 
@@ -202,7 +206,7 @@ export function useAgentSessionSync({
           store.getState().locallyCancelledSessionAtBySessionId[
             persistedSessionId
           ];
-        if (!isSessionSelfCancellationGraceActive(cancelledAt)) {
+        if (!isSessionSelfCancellationGraceActive({ cancelledAt })) {
           store.getState().setSessionBusyElsewhere(persistedSessionId, true);
         }
         return;
@@ -241,7 +245,7 @@ export function useAgentSessionSync({
           store.getState().locallyCancelledSessionAtBySessionId[
             persistedSessionId
           ];
-        if (!isSessionSelfCancellationGraceActive(cancelledAt)) {
+        if (!isSessionSelfCancellationGraceActive({ cancelledAt })) {
           store.getState().setSessionBusyElsewhere(persistedSessionId, true);
         }
         return;
@@ -297,6 +301,10 @@ export function useAgentSessionSync({
     relayEnvironment,
     store,
   ]);
+
+  useEffect(() => {
+    pollSessionRef.current = pollSession;
+  }, [pollSession]);
 
   // Poll slowly during normal use and switch to the existing faster cadence
   // while another client holds the turn lock. The visibility-aware interval

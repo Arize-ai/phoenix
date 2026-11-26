@@ -11,27 +11,37 @@ describe("isSessionSelfCancellationGraceActive", () => {
   });
 
   it("returns false when no cancellation marker is present", () => {
-    expect(isSessionSelfCancellationGraceActive(undefined)).toBe(false);
-    expect(isSessionSelfCancellationGraceActive(null)).toBe(false);
+    expect(
+      isSessionSelfCancellationGraceActive({ cancelledAt: undefined })
+    ).toBe(false);
+    expect(isSessionSelfCancellationGraceActive({ cancelledAt: null })).toBe(
+      false
+    );
   });
 
   it("returns true when within the cancellation grace period", () => {
     const cancelledAt = 1_000_000;
     expect(
-      isSessionSelfCancellationGraceActive(cancelledAt, cancelledAt + 1_000)
+      isSessionSelfCancellationGraceActive({
+        cancelledAt,
+        now: cancelledAt + 1_000,
+      })
     ).toBe(true);
   });
 
   it("returns false when the cancellation grace period has expired", () => {
     const cancelledAt = 1_000_000;
     expect(
-      isSessionSelfCancellationGraceActive(
+      isSessionSelfCancellationGraceActive({
         cancelledAt,
-        cancelledAt + SESSION_CANCELLATION_GRACE_MS + 1
-      )
+        now: cancelledAt + SESSION_CANCELLATION_GRACE_MS + 1,
+      })
     ).toBe(false);
     expect(
-      isSessionSelfCancellationGraceActive(cancelledAt, cancelledAt + 10_000)
+      isSessionSelfCancellationGraceActive({
+        cancelledAt,
+        now: cancelledAt + 10_000,
+      })
     ).toBe(false);
   });
 
@@ -39,29 +49,32 @@ describe("isSessionSelfCancellationGraceActive", () => {
     const cancelledAt = 1_000_000;
 
     // Exactly at cancellation time (0ms elapsed) -> active
-    expect(isSessionSelfCancellationGraceActive(cancelledAt, cancelledAt)).toBe(
-      true
-    );
+    expect(
+      isSessionSelfCancellationGraceActive({ cancelledAt, now: cancelledAt })
+    ).toBe(true);
 
     // Exactly at grace period limit (3_000ms elapsed) -> active
     expect(
-      isSessionSelfCancellationGraceActive(
+      isSessionSelfCancellationGraceActive({
         cancelledAt,
-        cancelledAt + SESSION_CANCELLATION_GRACE_MS
-      )
+        now: cancelledAt + SESSION_CANCELLATION_GRACE_MS,
+      })
     ).toBe(true);
 
     // 1ms past grace period limit -> expired
     expect(
-      isSessionSelfCancellationGraceActive(
+      isSessionSelfCancellationGraceActive({
         cancelledAt,
-        cancelledAt + SESSION_CANCELLATION_GRACE_MS + 1
-      )
+        now: cancelledAt + SESSION_CANCELLATION_GRACE_MS + 1,
+      })
     ).toBe(false);
 
     // Negative elapsed time (timestamp in future / clock skew) -> false
     expect(
-      isSessionSelfCancellationGraceActive(cancelledAt, cancelledAt - 1)
+      isSessionSelfCancellationGraceActive({
+        cancelledAt,
+        now: cancelledAt - 1,
+      })
     ).toBe(false);
   });
 
@@ -71,9 +84,9 @@ describe("isSessionSelfCancellationGraceActive", () => {
     vi.setSystemTime(systemTime);
 
     const cancelledAt = systemTime.getTime() - 1_000;
-    expect(isSessionSelfCancellationGraceActive(cancelledAt)).toBe(true);
+    expect(isSessionSelfCancellationGraceActive({ cancelledAt })).toBe(true);
 
     vi.advanceTimersByTime(SESSION_CANCELLATION_GRACE_MS);
-    expect(isSessionSelfCancellationGraceActive(cancelledAt)).toBe(false);
+    expect(isSessionSelfCancellationGraceActive({ cancelledAt })).toBe(false);
   });
 });

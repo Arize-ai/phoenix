@@ -329,7 +329,7 @@ describe("useAgentChat compaction busy-conflict handling", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    store.getState().markSessionLocallyCancelled(SESSION_ID);
+    store.getState().markSessionLocallyCancelled({ sessionId: SESSION_ID });
 
     renderProbe();
     expect(capturedChatApi).not.toBeNull();

@@ -114,7 +114,7 @@ describe("useAgentSessionSync turn-lock cancellation grace", () => {
   }
 
   it("does not enter busy-elsewhere mode when server reports isActive during local cancellation grace", () => {
-    store.getState().markSessionLocallyCancelled("session-1");
+    store.getState().markSessionLocallyCancelled({ sessionId: "session-1" });
 
     renderProbe({ sessionId: "session-1", isActive: true });
 
@@ -123,8 +123,14 @@ describe("useAgentSessionSync turn-lock cancellation grace", () => {
     ).toBeUndefined();
   });
 
-  it("eventually enters busy-elsewhere mode after the cancellation grace period expires", () => {
-    store.getState().markSessionLocallyCancelled("session-1");
+  it("enters busy-elsewhere mode after grace expires when the fresh server probe reports an active session", async () => {
+    store.getState().markSessionLocallyCancelled({ sessionId: "session-1" });
+
+    fetchAgentSessionSyncStateMock.mockResolvedValue({
+      isActive: true,
+      updatedAt: "2026-01-01T00:00:00Z",
+      lastMessageId: "msg-1",
+    });
 
     renderProbe({ sessionId: "session-1", isActive: true });
 
@@ -132,15 +138,16 @@ describe("useAgentSessionSync turn-lock cancellation grace", () => {
       store.getState().isBusyElsewhereBySessionId["session-1"]
     ).toBeUndefined();
 
-    act(() => {
-      vi.advanceTimersByTime(SESSION_CANCELLATION_GRACE_MS + 10);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(SESSION_CANCELLATION_GRACE_MS + 10);
     });
 
+    expect(fetchAgentSessionSyncStateMock).toHaveBeenCalled();
     expect(store.getState().isBusyElsewhereBySessionId["session-1"]).toBe(true);
   });
 
   it("cleans up the retry timeout when the component unmounts", () => {
-    store.getState().markSessionLocallyCancelled("session-1");
+    store.getState().markSessionLocallyCancelled({ sessionId: "session-1" });
 
     renderProbe({ sessionId: "session-1", isActive: true });
 
@@ -162,7 +169,7 @@ describe("useAgentSessionSync turn-lock cancellation grace", () => {
   });
 
   it("cleans up the retry timeout when effect dependencies change", () => {
-    store.getState().markSessionLocallyCancelled("session-1");
+    store.getState().markSessionLocallyCancelled({ sessionId: "session-1" });
 
     renderProbe({ sessionId: "session-1", isActive: true });
 
@@ -179,6 +186,31 @@ describe("useAgentSessionSync turn-lock cancellation grace", () => {
 
     expect(
       store.getState().isBusyElsewhereBySessionId["session-1"]
+    ).toBeUndefined();
+  });
+
+  it("does not enter busy-elsewhere mode after grace expires when the fresh server probe reports an idle session", async () => {
+    store.getState().markSessionLocallyCancelled({ sessionId: "session-1" });
+
+    fetchAgentSessionSyncStateMock.mockResolvedValue({
+      isActive: false,
+      updatedAt: "2026-01-01T00:00:00Z",
+      lastMessageId: "msg-1",
+    });
+
+    renderProbe({ sessionId: "session-1", isActive: true });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(SESSION_CANCELLATION_GRACE_MS + 10);
+    });
+
+    expect(fetchAgentSessionSyncStateMock).toHaveBeenCalled();
+    expect(
+      store.getState().isBusyElsewhereBySessionId["session-1"]
+    ).toBeUndefined();
+
+    expect(
+      store.getState().locallyCancelledSessionAtBySessionId["session-1"]
     ).toBeUndefined();
   });
 });
@@ -224,7 +256,7 @@ describe("useAgentSessionSync polling cancellation grace", () => {
   }
 
   it("does not mark session busy-elsewhere when poll probe reports active session during cancellation grace", async () => {
-    store.getState().markSessionLocallyCancelled("session-1");
+    store.getState().markSessionLocallyCancelled({ sessionId: "session-1" });
     fetchAgentSessionSyncStateMock.mockResolvedValue({
       isActive: true,
       updatedAt: "2026-01-01T00:00:00Z",
@@ -248,7 +280,7 @@ describe("useAgentSessionSync polling cancellation grace", () => {
   });
 
   it("clears local cancellation marker when poll probe reports an idle session", async () => {
-    store.getState().markSessionLocallyCancelled("session-1");
+    store.getState().markSessionLocallyCancelled({ sessionId: "session-1" });
     expect(
       store.getState().locallyCancelledSessionAtBySessionId["session-1"]
     ).toBeTypeOf("number");
@@ -276,7 +308,7 @@ describe("useAgentSessionSync polling cancellation grace", () => {
   });
 
   it("eventually marks session busy-elsewhere when poll probe reports active session after cancellation grace expires", async () => {
-    store.getState().markSessionLocallyCancelled("session-1");
+    store.getState().markSessionLocallyCancelled({ sessionId: "session-1" });
     fetchAgentSessionSyncStateMock.mockResolvedValue({
       isActive: true,
       updatedAt: "2026-01-01T00:00:00Z",
@@ -305,28 +337,72 @@ describe("useAgentSessionSync polling cancellation grace", () => {
     expect(store.getState().isBusyElsewhereBySessionId["session-1"]).toBe(true);
   });
 
-  it("reschedules the busy re-check when cancellation happens again during the grace period", () => {
-    store.getState().markSessionLocallyCancelled("session-1");
+  it("reschedules the busy re-check when cancellation happens again during the grace period", async () => {
+    store.getState().markSessionLocallyCancelled({ sessionId: "session-1" });
+
+    fetchAgentSessionSyncStateMock.mockResolvedValue({
+      isActive: true,
+      updatedAt: "2026-01-01T00:00:00Z",
+      lastMessageId: "msg-1",
+    });
 
     renderProbe({ sessionId: "session-1", isActive: true });
 
-    act(() => {
-      vi.advanceTimersByTime(2_000);
-      store.getState().markSessionLocallyCancelled("session-1");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2_000);
+      store.getState().markSessionLocallyCancelled({ sessionId: "session-1" });
     });
 
-    act(() => {
-      vi.advanceTimersByTime(SESSION_CANCELLATION_GRACE_MS - 2_000 + 1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(
+        SESSION_CANCELLATION_GRACE_MS - 2_000 + 1
+      );
     });
 
     expect(
       store.getState().isBusyElsewhereBySessionId["session-1"]
     ).toBeUndefined();
 
-    act(() => {
-      vi.advanceTimersByTime(2_000);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2_000);
     });
 
+    expect(fetchAgentSessionSyncStateMock).toHaveBeenCalled();
     expect(store.getState().isBusyElsewhereBySessionId["session-1"]).toBe(true);
+  });
+
+  it("does not run the expiry re-check after an idle poll clears the cancellation marker", async () => {
+    store.getState().markSessionLocallyCancelled({ sessionId: "session-1" });
+
+    fetchAgentSessionSyncStateMock.mockResolvedValue({
+      isActive: false,
+      updatedAt: "2026-01-01T00:00:00Z",
+      lastMessageId: "msg-1",
+    });
+
+    renderProbe({
+      sessionId: "session-1",
+      isActive: true,
+      shouldSyncOnMount: true,
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(
+      store.getState().locallyCancelledSessionAtBySessionId["session-1"]
+    ).toBeUndefined();
+
+    fetchAgentSessionSyncStateMock.mockClear();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(SESSION_CANCELLATION_GRACE_MS + 10);
+    });
+
+    expect(fetchAgentSessionSyncStateMock).not.toHaveBeenCalled();
+    expect(
+      store.getState().isBusyElsewhereBySessionId["session-1"]
+    ).toBeUndefined();
   });
 });

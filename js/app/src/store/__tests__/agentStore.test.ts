@@ -151,7 +151,7 @@ describe("agentStore", () => {
         .getState()
         .setPendingMessage(sessionId, { text: "hi", requestedSkills: [] });
       store.getState().setSessionChatStatus(sessionId, "streaming");
-      store.getState().markSessionLocallyCancelled(sessionId);
+      store.getState().markSessionLocallyCancelled({ sessionId });
 
       store.getState().clearSessionEphemeralState(sessionId);
 
@@ -187,7 +187,9 @@ describe("agentStore", () => {
     it("records, isolates, and clears local cancellation markers", () => {
       const store = createAgentStore();
       const timestamp = 1700000000000;
-      store.getState().markSessionLocallyCancelled("session-1", timestamp);
+      store
+        .getState()
+        .markSessionLocallyCancelled({ sessionId: "session-1", timestamp });
       expect(
         store.getState().locallyCancelledSessionAtBySessionId["session-1"]
       ).toBe(timestamp);

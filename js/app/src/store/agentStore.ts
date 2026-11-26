@@ -404,7 +404,10 @@ export interface AgentState extends AgentProps {
   setObservability: (patch: Partial<AgentObservabilitySettings>) => void;
   setPermissions: (patch: Partial<AgentPermissions>) => void;
   locallyCancelledSessionAtBySessionId: Partial<Record<string, number>>;
-  markSessionLocallyCancelled: (sessionId: string, timestamp?: number) => void;
+  markSessionLocallyCancelled: (params: {
+    sessionId: string;
+    timestamp?: number;
+  }) => void;
   clearSessionLocallyCancelled: (sessionId: string) => void;
   setAgentsConfig: (
     patch: Partial<
@@ -915,7 +918,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
       );
     },
     locallyCancelledSessionAtBySessionId: {},
-    markSessionLocallyCancelled: (sessionId, timestamp = Date.now()) => {
+    markSessionLocallyCancelled: ({ sessionId, timestamp = Date.now() }) => {
       set(
         (state) => ({
           locallyCancelledSessionAtBySessionId: {

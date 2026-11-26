@@ -356,9 +356,10 @@ export function createAgentSessionChat({
       }
       if (
         isBusyRejection &&
-        isSessionSelfCancellationGraceActive(
-          store.getState().locallyCancelledSessionAtBySessionId[sessionId]
-        )
+        isSessionSelfCancellationGraceActive({
+          cancelledAt:
+            store.getState().locallyCancelledSessionAtBySessionId[sessionId],
+        })
       ) {
         store.getState().setSessionNotice(sessionId, "previousTurnCancelled");
         return;

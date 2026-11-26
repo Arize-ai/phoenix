@@ -342,7 +342,7 @@ describe("createAgentSessionChat busy conflict handling", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const store = createAgentStore();
-    store.getState().markSessionLocallyCancelled(sessionId);
+    store.getState().markSessionLocallyCancelled({ sessionId });
 
     const chat = createAgentSessionChat({
       sessionId,
@@ -399,7 +399,7 @@ describe("createAgentSessionChat busy conflict handling", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const store = createAgentStore();
-    store.getState().markSessionLocallyCancelled(sessionId);
+    store.getState().markSessionLocallyCancelled({ sessionId });
 
     // Advance beyond the local cancellation grace period.
     vi.advanceTimersByTime(SESSION_CANCELLATION_GRACE_MS + 1_000);
