@@ -304,6 +304,7 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [Ollama with the OpenAI Go SDK](https://arize.com/docs/phoenix/integrations/llm-providers/ollama/ollama-go-sdk): Trace Go OpenAI SDK calls to local Ollama models with openinference-instrumentation-openai-go
 - [OpenRouter Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/openrouter/openai-tracing): Trace OpenRouter API calls
 - [OrcaRouter Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/orcarouter/openai-tracing): Auto-instrument OrcaRouter via its OpenAI-compatible endpoint with openinference-instrumentation-openai
+- [PopNow Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/popnow/openai-tracing): Auto-instrument PopNow via its OpenAI-compatible endpoint with openinference-instrumentation-openai
 - [Cloudflare AI Gateway Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway/cloudflare-ai-gateway-tracing): Configure Cloudflare AI Gateway to export OpenTelemetry gen_ai spans to Phoenix over OTLP
 - [Together AI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/together/together-tracing): Auto-instrument the Together AI Python SDK with openinference-instrumentation-together
 - [TypeSafe AI Tracing (Python)](https://arize.com/docs/phoenix/integrations/llm-providers/typesafe/typesafe-python): Trace TypeSafe AI SDK system_one calls as DECISION spans in Python with openinference-instrumentation-typesafe
@@ -497,6 +498,7 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [OpenAI Integration](https://arize.com/docs/phoenix/integrations/llm-providers/openai): Pick an OpenAI tracing or evals path across Python, Node.js, Go, and Agents SDK
 - [OpenRouter Integration](https://arize.com/docs/phoenix/integrations/llm-providers/openrouter): Trace calls routed through OpenRouter's unified multi-model API
 - [OrcaRouter Integration](https://arize.com/docs/phoenix/integrations/llm-providers/orcarouter): Trace calls through OrcaRouter's OpenAI-compatible gateway to 200+ models
+- [PopNow Integration](https://arize.com/docs/phoenix/integrations/llm-providers/popnow): Trace calls through PopNow's OpenAI-compatible API to Claude, GPT, Gemini, DeepSeek and Kimi models
 - [Cloudflare AI Gateway Integration](https://arize.com/docs/phoenix/integrations/llm-providers/cloudflare-ai-gateway): Send Cloudflare AI Gateway traces to Phoenix
 - [Together AI Integration](https://arize.com/docs/phoenix/integrations/llm-providers/together): Trace Together AI's fast open-source model inference calls in Phoenix
 - [TypeSafe AI Integration](https://arize.com/docs/phoenix/integrations/llm-providers/typesafe): Pick a TypeSafe AI tracing path for Python or TypeScript
