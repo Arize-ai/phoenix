@@ -1,7 +1,11 @@
 import * as fs from "fs";
 import * as path from "path";
-import type { componentsV1, PhoenixClient } from "@arizeai/phoenix-client";
-import { addTraceNote } from "@arizeai/phoenix-client/traces";
+import {
+  type componentsV1,
+  HttpError,
+  type PhoenixClient,
+} from "@arizeai/phoenix-client";
+import { addTraceNote, transferTraces } from "@arizeai/phoenix-client/traces";
 import { Command } from "commander";
 
 import { createPhoenixClient, resolveProjectId } from "../client";
@@ -11,7 +15,13 @@ import {
   validateConfig,
 } from "../config";
 import { assertDeletesEnabled, confirmOrExit } from "../confirm";
-import { ExitCode, getExitCodeForError } from "../exitCodes";
+import {
+  AuthRequiredError,
+  ExitCode,
+  getExitCodeForError,
+  InvalidArgumentError,
+  NetworkError,
+} from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import {
   buildSpanNote,
@@ -45,6 +55,10 @@ import {
   type OutputFormat as TraceOutputFormat,
 } from "./formatTraces";
 import {
+  formatTraceTransferOutput,
+  type OutputFormat as TraceTransferOutputFormat,
+} from "./formatTraceTransfer";
+import {
   buildNoteMutationResult,
   NOTE_ANNOTATION_NAME,
   normalizeNoteText,
@@ -53,6 +67,8 @@ import type {
   AddNoteOptions,
   AnnotationInclusionOptions,
   AnnotateOptions,
+  CommonOptions,
+  ConfirmationOptions,
   DeleteOptions,
   ProjectScopedOptions,
 } from "./options";
@@ -162,6 +178,26 @@ interface TraceGetOptions
    * passed a non-`json` `--format`).
    *
    * @example "./trace.json"
+   */
+  file?: string;
+}
+
+/**
+ * Options for `px trace transfer [trace-id...] --to <project>`.
+ */
+interface TraceTransferOptions
+  extends ConfirmationOptions, CommonOptions<TraceTransferOutputFormat> {
+  /**
+   * `--to <project>`: Destination project name or GlobalID. Required.
+   *
+   * @example "production"
+   */
+  to: string;
+  /**
+   * `--file <path>`: Read more trace IDs from this file, one per line. `-`
+   * reads them from stdin.
+   *
+   * @example "./trace-ids.txt"
    */
   file?: string;
 }
@@ -1121,6 +1157,188 @@ export function createTraceDeleteCommand(): Command {
 }
 
 /**
+ * Read whitespace-separated trace IDs from a file, or from stdin for `-`.
+ */
+async function readTraceIdsFromFile(file: string): Promise<string[]> {
+  let content: string;
+  try {
+    if (file === "-") {
+      const chunks: Buffer[] = [];
+      for await (const chunk of process.stdin) {
+        chunks.push(Buffer.from(chunk));
+      }
+      content = Buffer.concat(chunks).toString("utf-8");
+    } else {
+      content = await fs.promises.readFile(file, "utf-8");
+    }
+  } catch (error) {
+    throw new InvalidArgumentError(
+      `Cannot read trace IDs from ${file === "-" ? "stdin" : file}: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+  return content.split(/\s+/).filter((id) => id.length > 0);
+}
+
+/**
+ * Rewrap an HTTP error from the transfer route with the server's plain-text
+ * detail and a semantic exit code: 401/403 need credentials, and 400 or 422
+ * (traces from multiple projects) mean the arguments must change. Anything
+ * else, including 404 for a missing trace or project, is a plain failure.
+ */
+async function toTraceTransferError(error: unknown): Promise<unknown> {
+  if (!(error instanceof HttpError)) {
+    return error;
+  }
+  const detail = (await error.response.text().catch(() => "")).trim();
+  const message = `HTTP ${error.status}: ${detail || error.statusText}`;
+  if (error.status === 401 || error.status === 403) {
+    return new AuthRequiredError(message);
+  }
+  if (error.status === 400 || error.status === 422) {
+    return new InvalidArgumentError(message);
+  }
+  return new Error(message);
+}
+
+/**
+ * Check the server version before calling `transferTraces`. The helper runs
+ * the same check, but the client reports any failure there, including a
+ * server that can't be reached, as a plain `Error`, which would exit
+ * `FAILURE`. Raising it as a `NetworkError` here makes it exit
+ * `NETWORK_ERROR`. The client caches the version, so the helper doesn't fetch
+ * it again.
+ */
+async function ensureServerReachable(client: PhoenixClient): Promise<void> {
+  try {
+    await client.getServerVersion();
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new NetworkError(
+      `Could not reach the Phoenix server at ${client.config.baseUrl}. ${detail}`
+    );
+  }
+}
+
+/**
+ * Handler for `trace transfer`
+ */
+async function traceTransferHandler(
+  traceIdArgs: string[],
+  options: TraceTransferOptions
+): Promise<void> {
+  try {
+    // Reading stdin to EOF leaves nothing for the confirmation prompt, so
+    // `--file -` can only run with --yes. Reject it before reading anything.
+    if (options.file === "-" && !options.yes) {
+      throw new InvalidArgumentError(
+        "--file - reads IDs from stdin, so it needs --yes"
+      );
+    }
+
+    const config = resolveConfig({
+      cliOptions: {
+        endpoint: options.endpoint,
+        apiKey: options.apiKey,
+      },
+    });
+
+    const validation = validateConfig({ config, projectRequired: false });
+    if (!validation.valid) {
+      writeError({
+        message: getConfigErrorMessage({ errors: validation.errors }),
+      });
+      process.exit(ExitCode.INVALID_ARGUMENT);
+    }
+
+    const fileTraceIds = options.file
+      ? await readTraceIdsFromFile(options.file)
+      : [];
+    const traceIds = [...new Set([...traceIdArgs, ...fileTraceIds])];
+    if (traceIds.length === 0) {
+      throw new InvalidArgumentError(
+        "Provide at least one trace ID as an argument or with --file."
+      );
+    }
+
+    const client = createPhoenixClient({ config });
+    const destination = options.to;
+    const count = traceIds.length;
+
+    await confirmOrExit({
+      message:
+        count === 1
+          ? `Transfer 1 trace to project ${destination}? It will no longer appear in its current project.`
+          : `Transfer ${count} traces to project ${destination}? They will no longer appear in their current project.`,
+      yes: options.yes,
+    });
+    await ensureServerReachable(client);
+
+    writeProgress({
+      message: `Transferring ${count} trace${count === 1 ? "" : "s"} to project ${destination}...`,
+      noProgress: !options.progress,
+    });
+
+    const result = await transferTraces({
+      client,
+      traceIdentifiers: traceIds,
+      destinationProjectIdentifier: destination,
+    }).catch(async (error: unknown) => {
+      throw await toTraceTransferError(error);
+    });
+
+    writeOutput({
+      message: formatTraceTransferOutput({
+        result: {
+          transferred_trace_count: result.transferredTraceCount,
+          destination_project_identifier: destination,
+          destination_project_id: result.destinationProjectId,
+        },
+        format: options.format,
+      }),
+    });
+  } catch (error) {
+    writeError({
+      message: `Error transferring traces: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    process.exit(getExitCodeForError(error));
+  }
+}
+
+export function createTraceTransferCommand(): Command {
+  return new Command("transfer")
+    .description("Move traces into another project")
+    .argument(
+      "[trace-ids...]",
+      "Trace identifiers (OTel trace IDs or GlobalIDs) from one source project"
+    )
+    .requiredOption(
+      "--to <project>",
+      "Destination project name or GlobalID (required)"
+    )
+    .option(
+      "--file <path>",
+      "Read trace IDs from a file, one per line (use - for stdin, with --yes)"
+    )
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .option("-y, --yes", "Skip confirmation prompt")
+    .option(
+      "--format <format>",
+      "Output format: pretty, json, or raw",
+      "pretty"
+    )
+    .option("--no-progress", "Disable progress indicators")
+    .addHelpText(
+      "after",
+      "\nExamples:\n" +
+        "  px trace transfer 0123456789abcdef0123456789abcdef --to production\n" +
+        "  px trace transfer --file trace-ids.txt --to UHJvamVjdDoy --yes\n" +
+        "  cat trace-ids.txt | px trace transfer --file - --to production --yes --format raw\n"
+    )
+    .action(traceTransferHandler);
+}
+
+/**
  * Create the `trace` command with subcommands
  */
 export function createTraceCommand(): Command {
@@ -1131,5 +1349,6 @@ export function createTraceCommand(): Command {
   command.addCommand(createTraceAnnotateCommand());
   command.addCommand(createTraceAddNoteCommand());
   command.addCommand(createTraceDeleteCommand());
+  command.addCommand(createTraceTransferCommand());
   return command;
 }
