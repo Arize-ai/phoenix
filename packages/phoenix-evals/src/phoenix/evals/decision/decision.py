@@ -144,10 +144,10 @@ class DecisionModel:
 
         try:
             sync_client = registration.client_factory(
-                model=model, is_async=False, **kwargs, **(sync_client_kwargs or {})
+                model=model, is_async=False, **{**kwargs, **(sync_client_kwargs or {})}
             )
             async_client = registration.client_factory(
-                model=model, is_async=True, **kwargs, **(async_client_kwargs or {})
+                model=model, is_async=True, **{**kwargs, **(async_client_kwargs or {})}
             )
             rate_limit_errors = (
                 registration.get_rate_limit_errors() if registration.get_rate_limit_errors else []

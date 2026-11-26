@@ -317,3 +317,39 @@ async def test_async_evaluate_through_classification_evaluator(monkeypatch):
     assert score.label == "valid"
     assert score.metadata["confidence"] == 0.95
     async_client.system_one.assert_awaited_once()
+
+
+def test_overlapping_client_kwargs_are_merged_with_specific_taking_precedence(monkeypatch):
+    """Regression test: a kwarg present in both **kwargs and sync/async_client_kwargs
+    must merge (specific wins) instead of raising TypeError, mirroring llm.LLM."""
+    _patch_clients(monkeypatch)
+    import typesafe_sdk
+
+    DecisionModel(
+        provider="typesafe",
+        model="jev-latest",
+        timeout=10,
+        sync_client_kwargs={"timeout": 60},
+        async_client_kwargs={"timeout": 120},
+    )
+
+    assert typesafe_sdk.TypeSafeClient.call_args.kwargs["timeout"] == 60
+    assert typesafe_sdk.AsyncTypeSafeClient.call_args.kwargs["timeout"] == 120
+
+
+def test_general_client_kwargs_reach_both_clients(monkeypatch):
+    """General kwargs are forwarded to both clients alongside the specific ones."""
+    _patch_clients(monkeypatch)
+    import typesafe_sdk
+
+    DecisionModel(
+        provider="typesafe",
+        model="jev-latest",
+        api_key="sk-test",
+        sync_client_kwargs={"timeout": 60},
+    )
+
+    assert typesafe_sdk.TypeSafeClient.call_args.kwargs["api_key"] == "sk-test"
+    assert typesafe_sdk.TypeSafeClient.call_args.kwargs["timeout"] == 60
+    assert typesafe_sdk.AsyncTypeSafeClient.call_args.kwargs["api_key"] == "sk-test"
+    assert "timeout" not in typesafe_sdk.AsyncTypeSafeClient.call_args.kwargs
