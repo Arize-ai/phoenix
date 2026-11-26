@@ -12,6 +12,8 @@ import { PreferencesProvider } from "@phoenix/contexts/PreferencesContext";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
 import {
+  getTurnError,
+  RootSpanMessage,
   SessionTurnList,
   type SessionTurnRow,
 } from "../SessionDetailsTraceList";
@@ -248,6 +250,20 @@ describe("SessionTurnList", () => {
     await waitForPreview("Second turn");
   }
 
+  it("marks only the turns whose root span ended in error", () => {
+    renderTurnList();
+
+    const failedTurns = rows
+      .map((row, index) => ({ row, index }))
+      .filter(({ index }) =>
+        getTurn(index).querySelector(
+          '.status-indicator[data-category="failed"]'
+        )
+      )
+      .map(({ row }) => row.traceId);
+    expect(failedTurns).toEqual(["trace-2"]);
+  });
+
   it("keeps a single click scoped to turn selection", async () => {
     const onTurnClick = vi.fn();
     const onTurnDoubleClick = vi.fn();
@@ -392,5 +408,152 @@ describe("SessionTurnList", () => {
     } finally {
       document.removeEventListener("keydown", onKeyDown);
     }
+  });
+});
+
+describe("getTurnError", () => {
+  const exceptionEvent = { name: "exception", message: "upstream timeout" };
+
+  it("is null for a turn whose root span did not end in error", () => {
+    for (const statusCode of ["OK", "UNSET"] as const) {
+      expect(
+        getTurnError({
+          statusCode,
+          statusMessage: "servers overloaded",
+          events: [exceptionEvent],
+        })
+      ).toBeNull();
+    }
+  });
+
+  it("prefers the root span's status message", () => {
+    expect(
+      getTurnError({
+        statusCode: "ERROR",
+        statusMessage: "servers overloaded",
+        events: [exceptionEvent],
+      })
+    ).toEqual({ message: "servers overloaded" });
+  });
+
+  it("falls back to the first exception event that has a message", () => {
+    expect(
+      getTurnError({
+        statusCode: "ERROR",
+        statusMessage: "",
+        events: [
+          { name: "retry", message: "" },
+          { name: "exception", message: "" },
+          exceptionEvent,
+          { name: "exception", message: "a later failure" },
+        ],
+      })
+    ).toEqual({ message: "upstream timeout" });
+  });
+
+  it("has no message when neither holds one", () => {
+    expect(
+      getTurnError({
+        statusCode: "ERROR",
+        statusMessage: "",
+        events: [{ name: "retry", message: "attempt 2" }],
+      })
+    ).toEqual({ message: null });
+  });
+});
+
+describe("RootSpanMessage", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  beforeEach(() => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn().mockReturnValue({
+        matches: false,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })
+    );
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(() => {
+    act(() => root.unmount());
+    container.remove();
+    vi.unstubAllGlobals();
+  });
+
+  function renderOutput({
+    value,
+    error,
+  }: {
+    value: string | null;
+    error?: { message: string | null };
+  }) {
+    act(() => {
+      root.render(
+        <ThemeProvider themeMode="dark">
+          <PreferencesProvider>
+            <RootSpanMessage role="OUTPUT" value={value} error={error} />
+          </PreferencesProvider>
+        </ThemeProvider>
+      );
+    });
+  }
+
+  function hasErrorIndicator() {
+    return (
+      container.querySelector('.status-indicator[data-category="failed"]') !=
+      null
+    );
+  }
+
+  it("shows the error in place of an empty output", () => {
+    renderOutput({ value: null, error: { message: "servers overloaded" } });
+
+    expect(hasErrorIndicator()).toBe(true);
+    expect(container.textContent).toContain("servers overloaded");
+    expect(container.textContent).not.toContain("--");
+  });
+
+  it("marks an errored turn that recorded no message", () => {
+    renderOutput({ value: null, error: { message: null } });
+
+    expect(hasErrorIndicator()).toBe(true);
+    expect(container.textContent).toContain(
+      "The turn failed without an error message."
+    );
+    expect(container.textContent).not.toContain("--");
+  });
+
+  it("keeps the output an errored turn did record, with its error", () => {
+    renderOutput({
+      value: "partial answer",
+      error: { message: "stream cut off" },
+    });
+
+    expect(hasErrorIndicator()).toBe(true);
+    expect(container.textContent).toContain("partial answer");
+    expect(container.textContent).toContain("stream cut off");
+  });
+
+  it("marks an errored turn's recorded output without an empty alert", () => {
+    renderOutput({ value: "partial answer", error: { message: null } });
+
+    expect(hasErrorIndicator()).toBe(true);
+    expect(container.textContent).toContain("partial answer");
+    expect(container.textContent).not.toContain(
+      "The turn failed without an error message."
+    );
+  });
+
+  it("leaves a turn that did not fail as it was", () => {
+    renderOutput({ value: null });
+
+    expect(hasErrorIndicator()).toBe(false);
+    expect(container.textContent).toContain("--");
   });
 });
