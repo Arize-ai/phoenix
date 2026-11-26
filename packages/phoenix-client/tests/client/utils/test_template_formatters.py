@@ -72,6 +72,20 @@ from phoenix.client.utils.template_formatters import (
         pytest.param(
             MustacheBaseTemplateFormatter,
             "{{ hello }}, {{ world }}",
+            {"hello": "{{ world }}", "world": "{{ hello }}"},
+            "{{ world }}, {{ hello }}",
+            id="mustache-value-contains-variable-placeholder",
+        ),
+        pytest.param(
+            MustacheBaseTemplateFormatter,
+            "{{ hello }}{{ world }}{{ hello }}",
+            {"hello": "1\\", "world": "2\\"},
+            "1\\2\\1\\",
+            id="mustache-value-ending-in-backslash",
+        ),
+        pytest.param(
+            MustacheBaseTemplateFormatter,
+            "{{ hello }}, {{ world }}",
             {"hello": "world", "world": "hello"},
             "world, hello",
             id="mustache-value-is-variable-name",

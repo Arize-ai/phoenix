@@ -140,15 +140,7 @@ class MustacheBaseTemplateFormatter(BaseTemplateFormatter):
         variable_names: Iterable[str],
         variables: Mapping[str, str] = MappingProxyType({}),
     ) -> str:
-        for variable_name in variable_names:
-            pattern = rf"(?<!\\){{{{\s*{re.escape(variable_name)}\s*}}}}"
-            replacement = variables[variable_name]
-            template = re.sub(
-                pattern=pattern,
-                repl=lambda _: replacement,
-                string=template,
-            )
-        return template
+        return self.PATTERN.sub(repl=lambda match: variables[match.group(1)], string=template)
 
 
 class TemplateFormatterError(Exception):
