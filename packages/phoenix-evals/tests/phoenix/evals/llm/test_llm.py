@@ -1,9 +1,22 @@
 # type: ignore
 from typing import Any, Dict, List, Union
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from phoenix.evals.llm.llm import LLM, generate_classification_schema
+from phoenix.evals._criteria import ClassificationFailure, ClassificationResult, TokenUsage
+from phoenix.evals.llm.llm import (
+    LLM,
+    _parse_classifications,
+    generate_classification_schema,
+    generate_classifications_schema,
+)
+from phoenix.evals.llm.types import ObjectGenerationMethod
+
+
+def _by_name(criteria):
+    """Key a list of backend criteria by name, the shape generate_classifications expects."""
+    return {c["name"]: {k: v for k, v in c.items() if k != "name"} for c in criteria}
 
 
 class TestGenerateClassificationSchema:
@@ -309,3 +322,186 @@ def test_wrapper_shim_backward_compatibility():
     assert ShimLLM is LLM
     assert shim_generate_schema is generate_classification_schema
     assert shim_show_availability is show_provider_availability
+
+
+class TestGenerateClassificationsSchema:
+    """Test cases for the multi-criterion generate_classifications_schema function."""
+
+    def test_one_property_per_criterion_keyed_by_name(self):
+        criteria = [
+            {
+                "name": "helpfulness",
+                "labels": {"poor": None, "good": None},
+                "instruction": "how helpful",
+            },
+            {"name": "accuracy", "labels": {"right": "ok", "wrong": "nope"}},
+        ]
+        schema = generate_classifications_schema(_by_name(criteria), include_explanation=True)
+
+        assert schema["type"] == "object"
+        assert list(schema["properties"].keys()) == ["helpfulness", "accuracy"]
+        assert schema["required"] == ["helpfulness", "accuracy"]
+
+    def test_each_property_is_a_single_criterion_schema(self):
+        criteria = [{"name": "accuracy", "labels": {"right": "ok", "wrong": "nope"}}]
+        schema = generate_classifications_schema(_by_name(criteria), include_explanation=True)
+
+        inner = schema["properties"]["accuracy"]
+        expected = generate_classification_schema(
+            {"right": "ok", "wrong": "nope"}, include_explanation=True
+        )
+        # Same inner object (label oneOf/enum + explanation), nested under the criterion name.
+        assert {k: inner[k] for k in expected} == expected
+
+    def test_instructions_become_the_property_description(self):
+        criteria = [
+            {
+                "name": "helpfulness",
+                "labels": {"poor": None, "good": None},
+                "instruction": "how helpful",
+            }
+        ]
+        schema = generate_classifications_schema(_by_name(criteria), include_explanation=True)
+        assert schema["properties"]["helpfulness"]["description"] == "how helpful"
+
+    def test_missing_instructions_adds_no_description(self):
+        criteria = [{"name": "helpfulness", "labels": {"poor": None, "good": None}}]
+        schema = generate_classifications_schema(_by_name(criteria), include_explanation=True)
+        assert "description" not in schema["properties"]["helpfulness"]
+
+    def test_include_explanation_false_omits_explanation(self):
+        criteria = [{"name": "a", "labels": {"x": None, "y": None}}]
+        schema = generate_classifications_schema(_by_name(criteria), include_explanation=False)
+        props = schema["properties"]["a"]["properties"]
+        assert "explanation" not in props
+        assert schema["properties"]["a"]["required"] == ["label"]
+
+
+class TestParseClassifications:
+    """Test cases for _parse_classifications."""
+
+    def test_unwraps_each_criterion_in_order(self):
+        criteria = [
+            {"name": "a", "labels": {"x": None, "y": None}},
+            {"name": "b", "labels": {"x": None, "y": None}},
+        ]
+        raw = {
+            "b": {"label": "y", "explanation": "because b"},
+            "a": {"label": "x", "explanation": "because a"},
+        }
+        results = _parse_classifications(raw, _by_name(criteria))
+        assert results == {
+            "a": ClassificationResult(label="x", explanation="because a"),
+            "b": ClassificationResult(label="y", explanation="because b"),
+        }
+
+    def test_explanation_omitted_when_absent(self):
+        criteria = [{"name": "a", "labels": {"x": None, "y": None}}]
+        results = _parse_classifications({"a": {"label": "x"}}, _by_name(criteria))
+        assert results == {"a": ClassificationResult(label="x", explanation=None)}
+
+    def test_missing_criterion_becomes_a_failure(self):
+        criteria = [{"name": "a", "labels": {"x": None, "y": None}}]
+        [failure] = _parse_classifications({}, _by_name(criteria)).values()
+        assert isinstance(failure, ClassificationFailure)
+        assert failure.kind == "error"
+        assert "malformed or missing answer for criterion 'a'" in failure.reason
+
+    def test_non_dict_answer_becomes_a_failure(self):
+        """A model returning a bare string for a criterion fails it, not an AttributeError."""
+        criteria = [{"name": "a", "labels": {"x": None, "y": None}}]
+        [failure] = _parse_classifications({"a": "x"}, _by_name(criteria)).values()
+        assert isinstance(failure, ClassificationFailure)
+        assert failure.kind == "error"
+
+    def test_dict_answer_without_label_becomes_a_failure(self):
+        criteria = [{"name": "a", "labels": {"x": None, "y": None}}]
+        [failure] = _parse_classifications(
+            {"a": {"explanation": "no label here"}}, _by_name(criteria)
+        ).values()
+        assert isinstance(failure, ClassificationFailure)
+        assert failure.kind == "error"
+
+
+class TestLLMGenerateClassifications:
+    """LLM.generate_classifications issues one generate_object call and parses per criterion."""
+
+    def test_one_generate_object_call_returns_one_result_per_criterion(self, openai_api_key):
+        llm = LLM(provider="openai", model="gpt-4o", client="openai")
+        llm._sync_adapter = MagicMock()
+        llm._sync_adapter.generate_object.return_value = {
+            "helpfulness": {"label": "good", "explanation": "clear"},
+            "accuracy": {"label": "wrong", "explanation": "off"},
+        }
+
+        criteria = [
+            {
+                "name": "helpfulness",
+                "labels": {"poor": None, "good": None},
+                "instruction": "how helpful",
+            },
+            {"name": "accuracy", "labels": {"right": "ok", "wrong": "nope"}},
+        ]
+        response = llm.generate_classifications("some text", _by_name(criteria))
+
+        # LLM usage is not surfaced in the classification envelope -> zero counts.
+        assert response.usage == TokenUsage()
+        assert response.results == {
+            "helpfulness": ClassificationResult(label="good", explanation="clear"),
+            "accuracy": ClassificationResult(label="wrong", explanation="off"),
+        }
+
+        llm._sync_adapter.generate_object.assert_called_once()
+        args, _ = llm._sync_adapter.generate_object.call_args
+        _prompt, schema = args[0], args[1]
+        assert list(schema["properties"].keys()) == ["helpfulness", "accuracy"]
+
+    async def test_async_generate_classifications(self, openai_api_key):
+        llm = LLM(provider="openai", model="gpt-4o", client="openai")
+        llm._async_adapter = MagicMock()
+        llm._async_adapter.async_generate_object = AsyncMock(
+            return_value={"a": {"label": "x"}, "b": {"label": "y"}}
+        )
+
+        criteria = [
+            {"name": "a", "labels": {"x": None, "y": None}},
+            {"name": "b", "labels": {"x": None, "y": None}},
+        ]
+        results = (await llm.async_generate_classifications("text", _by_name(criteria))).results
+
+        assert list(results.keys()) == ["a", "b"]
+        assert [a.label for a in results.values()] == ["x", "y"]
+        llm._async_adapter.async_generate_object.assert_awaited_once()
+
+    def test_plain_labels_emit_enum_with_auto(self, openai_api_key):
+        """Labels without descriptions produce an `enum` schema and the AUTO method, so providers
+        accept strict structured output (parity with the pre-multi-criterion behavior)."""
+        llm = LLM(provider="openai", model="gpt-4o", client="openai")
+        llm._sync_adapter = MagicMock()
+        llm._sync_adapter.generate_object.return_value = {"sentiment": {"label": "yes"}}
+
+        criteria = [{"name": "sentiment", "labels": {"yes": None, "no": None}}]
+        llm.generate_classifications("text", _by_name(criteria))
+
+        _, kwargs = llm._sync_adapter.generate_object.call_args
+        schema = llm._sync_adapter.generate_object.call_args.args[1]
+        label_schema = schema["properties"]["sentiment"]["properties"]["label"]
+        assert label_schema["enum"] == ["yes", "no"]
+        assert "oneOf" not in label_schema
+        assert kwargs["method"] is ObjectGenerationMethod.AUTO
+
+    def test_described_labels_emit_oneof_with_tool_calling(self, openai_api_key):
+        """Labels with descriptions produce a `oneOf`/`const` schema and the TOOL_CALLING method."""
+        llm = LLM(provider="openai", model="gpt-4o", client="openai")
+        llm._sync_adapter = MagicMock()
+        llm._sync_adapter.generate_object.return_value = {"sentiment": {"label": "yes"}}
+
+        criteria = [{"name": "sentiment", "labels": {"yes": "is positive", "no": "is negative"}}]
+        llm.generate_classifications("text", _by_name(criteria))
+
+        _, kwargs = llm._sync_adapter.generate_object.call_args
+        schema = llm._sync_adapter.generate_object.call_args.args[1]
+        label_schema = schema["properties"]["sentiment"]["properties"]["label"]
+        assert [entry["const"] for entry in label_schema["oneOf"]] == ["yes", "no"]
+        assert "enum" not in label_schema
+        assert kwargs["method"] is ObjectGenerationMethod.TOOL_CALLING

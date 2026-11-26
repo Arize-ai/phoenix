@@ -6,8 +6,10 @@ from . import llm, metrics, tracing, utils
 from .decision import DecisionModel
 from .evaluators import (
     ClassificationEvaluator,
+    Criterion,
     EvalInput,
     Evaluator,
+    EvaluatorDescription,
     KindType,
     LLMEvaluator,
     Score,
@@ -35,8 +37,10 @@ def __getattr__(name: str) -> Any:
 
 __all__ = [
     "ClassificationEvaluator",
+    "Criterion",
     "EvalInput",
     "Evaluator",
+    "EvaluatorDescription",
     "LLMEvaluator",
     "Score",
     "ToolSchema",

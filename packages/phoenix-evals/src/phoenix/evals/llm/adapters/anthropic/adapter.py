@@ -52,10 +52,10 @@ _UNSUPPORTED_KEYWORDS = frozenset(
 def _native_output_schema(schema: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """Returns the schema in the form native structured output accepts, or None if it can't.
 
-    Adds `additionalProperties: false` to every object and turns a `oneOf` of `const` values, which
-    `generate_classification` builds for labels with descriptions, into the equivalent `anyOf`.
-    Returns None for number constraints such as `minimum`, any other `oneOf`, and
-    `additionalProperties` set to anything but false.
+    Adds `additionalProperties: false` to every object and turns a `oneOf` of `const` values,
+    which `generate_classification_schema` builds for labels with descriptions, into the
+    equivalent `anyOf`. Returns None for number constraints such as `minimum`, any other
+    `oneOf`, and `additionalProperties` set to anything but false.
     """
     native = close_objects(schema)
     supported = True

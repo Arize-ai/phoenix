@@ -9,9 +9,17 @@ from opentelemetry.trace import Tracer
 from phoenix.evals.rate_limiters import RateLimiter
 from phoenix.evals.tracing import trace
 
+from .._criteria import (
+    ClassificationCriterion,
+    ClassificationFailure,
+    ClassificationResponse,
+    ClassificationResult,
+    Name,
+)
 from .adapters import register_adapters
 from .prompts import PromptLike
 from .registries import PROVIDER_REGISTRY, adapter_availability_table
+from .types import ObjectGenerationMethod
 
 register_adapters()
 
@@ -307,49 +315,6 @@ class LLM:
         )
         return rate_limited_generate(prompt, schema, **kwargs)
 
-    def generate_classification(
-        self,
-        prompt: PromptLike,
-        labels: Union[List[str], Dict[str, str]],
-        include_explanation: bool = True,
-        description: Optional[str] = None,
-        **kwargs: Any,
-    ) -> Dict[str, Any]:
-        """Generate a classification given a prompt and a set of labels.
-
-        Args:
-            prompt (Union[str, List[Dict[str, Any]]]): The prompt template to go with the tool call.
-            labels (Union[List[str], Dict[str, str]]): Either:
-                - A list of strings, where each string is a label
-                - A dictionary where keys are labels and values are descriptions
-            include_explanation (bool): Whether to prompt the LLM for an explanation.
-            description (Optional[str]): A description of the classification task.
-            **kwargs: Additional keyword arguments to pass to the LLM SDK.
-
-        Returns:
-            Dict[str, Any]: The generated classification.
-
-        Examples::
-
-            from phoenix.evals import LLM
-            llm = LLM(provider="openai", model="gpt-4o", client="openai")
-            llm.generate_classification(
-                prompt="Hello, world!",
-                labels=["yes", "no"],
-            )
-            {"label": "yes", "explanation": "The answer is yes."}
-            llm.generate_classification(
-                prompt="Hello, world!",
-                labels={"yes": "Positive response", "no": "Negative response"},
-                include_explanation=False,
-            )
-            {"label": "yes"}
-        """
-        # Generate schema from labels
-        schema = generate_classification_schema(labels, include_explanation, description)
-        result: Dict[str, Any] = self.generate_object(prompt, schema, **kwargs)
-        return result
-
     @trace(
         span_kind=OpenInferenceSpanKindValues.LLM,
         process_input={
@@ -411,32 +376,51 @@ class LLM:
         )
         return await rate_limited_generate(prompt, schema, **kwargs)
 
-    async def async_generate_classification(
+    def generate_classifications(
         self,
         prompt: PromptLike,
-        labels: Union[List[str], Dict[str, str]],
+        criteria: Dict[Name, ClassificationCriterion],
         include_explanation: bool = True,
-        description: Optional[str] = None,
         **kwargs: Any,
-    ) -> Dict[str, Any]:
-        """Asynchronously generate a classification given a prompt and a set of labels.
+    ) -> ClassificationResponse:
+        """Answer several named classification questions about one prompt in a single request.
 
         Args:
-            prompt (Union[str, List[Dict[str, Any]]]): The prompt template to go with the tool call.
-            labels (Union[List[str], Dict[str, str]]): Either:
-                - A list of strings, where each string is a label
-                - A dictionary where keys are labels and values are descriptions
-            include_explanation (bool): Whether to prompt the LLM for an explanation.
-            description (Optional[str]): A description of the classification task.
+            prompt (Union[str, List[Dict[str, Any]]]): The prompt to classify.
+            criteria (Dict[Name, ClassificationCriterion]): The questions to answer; each has a
+                ``name``, its ``labels`` (a label->description dict), and optional
+                ``instruction``.
+            include_explanation (bool): Whether to prompt the LLM for a per-question explanation.
             **kwargs: Additional keyword arguments to pass to the LLM SDK.
 
         Returns:
-            Dict[str, Any]: The generated classification.
+            A :class:`ClassificationResponse`: one outcome per criterion, keyed by criterion name
+            (a :class:`ClassificationResult`, or a :class:`ClassificationFailure` for a criterion
+            whose answer was missing or malformed). ``usage`` is ``None`` -- LLM token usage is
+            recorded on the ``generate_object`` span, not returned here.
         """
-        # Generate schema from labels
-        schema = generate_classification_schema(labels, include_explanation, description)
-        result: Dict[str, Any] = await self.async_generate_object(prompt, schema, **kwargs)
-        return result
+        schema = generate_classifications_schema(criteria, include_explanation)
+        method = _resolve_classification_method(criteria)
+        raw: Dict[str, Any] = self.generate_object(prompt, schema, method=method, **kwargs)
+        return ClassificationResponse(results=_parse_classifications(raw, criteria))
+
+    async def async_generate_classifications(
+        self,
+        prompt: PromptLike,
+        criteria: Dict[Name, ClassificationCriterion],
+        include_explanation: bool = True,
+        **kwargs: Any,
+    ) -> ClassificationResponse:
+        """Asynchronously answer several named classification questions in a single request.
+
+        See :meth:`generate_classifications`.
+        """
+        schema = generate_classifications_schema(criteria, include_explanation)
+        method = _resolve_classification_method(criteria)
+        raw: Dict[str, Any] = await self.async_generate_object(
+            prompt, schema, method=method, **kwargs
+        )
+        return ClassificationResponse(results=_parse_classifications(raw, criteria))
 
 
 def show_provider_availability() -> None:
@@ -449,7 +433,7 @@ def show_provider_availability() -> None:
 
 
 def generate_classification_schema(
-    labels: Union[List[str], Dict[str, str]],
+    labels: Union[List[str], Dict[str, Optional[str]]],
     include_explanation: bool = True,
     description: Optional[str] = None,
 ) -> Dict[str, Any]:
@@ -522,3 +506,76 @@ def generate_classification_schema(
     required.append("label")
 
     return {"type": "object", "properties": properties, "required": required}
+
+
+def _resolve_classification_method(
+    criteria: Dict[Name, ClassificationCriterion],
+) -> ObjectGenerationMethod:
+    """Labels with descriptions produce a ``oneOf``/``const`` schema, which needs TOOL_CALLING;
+    otherwise a plain enum works with AUTO."""
+    any_descriptions = any(
+        description is not None for c in criteria.values() for description in c["labels"].values()
+    )
+    return ObjectGenerationMethod.TOOL_CALLING if any_descriptions else ObjectGenerationMethod.AUTO
+
+
+def generate_classifications_schema(
+    criteria: Dict[Name, ClassificationCriterion],
+    include_explanation: bool = True,
+) -> Dict[str, Any]:
+    """Build one JSON Schema object that classifies several named criteria at once.
+
+    Each criterion becomes a required property (keyed by its name) whose value is the
+    single-criterion object schema (``label`` plus an optional ``explanation``). The
+    criterion's ``instruction`` describes that property.
+
+    Args:
+        criteria (Dict[Name, ClassificationCriterion]): The questions to answer; each has a
+            ``name``, its ``labels``, and optional ``instruction``.
+        include_explanation (bool): Whether each criterion's object requests an explanation.
+
+    Returns:
+        Dict[str, Any]: A JSON Schema object with one property per criterion.
+    """
+    properties: Dict[str, Any] = {}
+    required: List[str] = []
+    for name, criterion in criteria.items():
+        labels = criterion["labels"]
+        # Without descriptions, emit an `enum` (works with AUTO) rather than a `oneOf`/`const`
+        # schema, which would require TOOL_CALLING. See `_resolve_classification_method`.
+        schema_labels: Union[List[str], Dict[str, Optional[str]]] = (
+            list(labels) if all(description is None for description in labels.values()) else labels
+        )
+        inner = generate_classification_schema(schema_labels, include_explanation)
+        instruction = criterion.get("instruction")
+        if instruction:
+            inner["description"] = instruction
+        properties[name] = inner
+        required.append(name)
+    return {"type": "object", "properties": properties, "required": required}
+
+
+def _parse_classifications(
+    raw: Dict[str, Any],
+    criteria: Dict[Name, ClassificationCriterion],
+) -> Dict[Name, Union[ClassificationResult, ClassificationFailure]]:
+    """Turn the nested object from :func:`generate_classifications_schema` into one outcome per
+    criterion, keyed by criterion name. A criterion whose answer is missing or malformed maps to
+    a :class:`ClassificationFailure` so the other criteria's results are preserved."""
+    answers: Dict[Name, Union[ClassificationResult, ClassificationFailure]] = {}
+    for name, criterion in criteria.items():
+        answer = raw.get(name)
+        if not isinstance(answer, dict) or "label" not in answer:
+            answers[name] = ClassificationFailure(
+                kind="error",
+                reason=(
+                    f"The model returned a malformed or missing answer for criterion '{name}': "
+                    f"{answer!r}. Expected an object with a 'label' field."
+                ),
+            )
+            continue
+        answers[name] = ClassificationResult(
+            label=answer["label"],
+            explanation=answer.get("explanation"),
+        )
+    return answers

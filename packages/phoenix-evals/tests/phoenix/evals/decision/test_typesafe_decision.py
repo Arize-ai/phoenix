@@ -3,8 +3,13 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from phoenix.evals import ClassificationEvaluator, DecisionModel
-from phoenix.evals.decision.types import BaseDecisionAdapter
+from phoenix.evals import ClassificationEvaluator, Criterion, DecisionModel
+from phoenix.evals._criteria import ClassificationResult
+
+
+def _by_name(criteria):
+    """Key a list of backend criteria by name, the shape generate_classifications expects."""
+    return {c["name"]: {k: v for k, v in c.items() if k != "name"} for c in criteria}
 
 
 def _response(
@@ -14,11 +19,16 @@ def _response(
     confidence=0.95,
     input_tokens=11,
     output_tokens=3,
+    name="label",
 ):
-    """Build a fake SystemOneResponse exposing `.choices[name]`, `.model`, and `.usage`."""
+    """Build a fake SystemOneResponse exposing `.choices[name]`, `.model`, and `.usage`.
+
+    The answer is keyed ``"label"`` for the direct single-question path; evaluator-driven
+    tests pass the criterion name the plural path asks under.
+    """
     answer = SimpleNamespace(choice=choice, probabilities=probabilities, confidence=confidence)
     usage = SimpleNamespace(input_tokens=input_tokens, output_tokens=output_tokens)
-    return SimpleNamespace(model=model, choices={"label": answer}, usage=usage)
+    return SimpleNamespace(model=model, choices={name: answer}, usage=usage)
 
 
 def _patch_clients(monkeypatch, sync_client=None, async_client=None):
@@ -32,50 +42,61 @@ def _patch_clients(monkeypatch, sync_client=None, async_client=None):
 
 def test_routes_a_text_prompt_through_a_single_choice_question(monkeypatch):
     client = MagicMock()
-    client.system_one.return_value = _response("incorrect", {"correct": 0.03, "incorrect": 0.97})
+    client.system_one.return_value = _response(
+        "incorrect", {"correct": 0.03, "incorrect": 0.97}, name="correctness"
+    )
     _patch_clients(monkeypatch, sync_client=client)
 
     decision = DecisionModel(provider="typesafe", model="jev-latest")
-    result = decision.generate_classification("Is 2 + 2 = 5 correct?", ["correct", "incorrect"])
+    results = decision.generate_classifications(
+        "Is 2 + 2 = 5 correct?", {"correctness": {"labels": {"correct": None, "incorrect": None}}}
+    ).results
 
-    assert result == {
-        "label": "incorrect",
-        "metadata": {
-            "probabilities": {"correct": 0.03, "incorrect": 0.97},
-            "model_id": "mock-evaluation-model",
-            "confidence": 0.95,
-        },
+    assert results == {
+        "correctness": ClassificationResult(
+            label="incorrect",
+            metadata={
+                "probabilities": {"correct": 0.03, "incorrect": 0.97},
+                "model_id": "mock-evaluation-model",
+                "confidence": 0.95,
+            },
+        )
     }
-    assert "explanation" not in result
-    assert "usage" not in result
+    assert results["correctness"].explanation is None
 
     client.system_one.assert_called_once()
     _, kwargs = client.system_one.call_args
     assert kwargs["state"] == "Is 2 + 2 = 5 correct?"
     assert kwargs["model"] == "jev-latest"
-    question = kwargs["questions"]["label"]
+    question = kwargs["questions"]["correctness"]
     assert question.criteria == {"correct": None, "incorrect": None}
     assert question.instructions is None
 
 
 async def test_async_routes_a_text_prompt_through_a_single_choice_question(monkeypatch):
     async_client = MagicMock()
-    async_client.system_one = AsyncMock(return_value=_response("correct", {"correct": 0.9}))
+    async_client.system_one = AsyncMock(
+        return_value=_response("correct", {"correct": 0.9}, name="correctness")
+    )
     _patch_clients(monkeypatch, async_client=async_client)
 
     decision = DecisionModel(provider="typesafe", model="jev-latest")
-    result = await decision.async_generate_classification(
-        "Is the sky blue?", ["correct", "incorrect"]
-    )
+    results = (
+        await decision.async_generate_classifications(
+            "Is the sky blue?", {"correctness": {"labels": {"correct": None, "incorrect": None}}}
+        )
+    ).results
 
-    assert result["label"] == "correct"
-    assert result["metadata"]["probabilities"] == {"correct": 0.9}
+    assert results["correctness"].label == "correct"
+    assert results["correctness"].metadata["probabilities"] == {"correct": 0.9}
     async_client.system_one.assert_awaited_once()
 
 
 def test_evaluator_maps_the_chosen_label_to_a_score_without_an_explanation(monkeypatch):
     client = MagicMock()
-    client.system_one.return_value = _response("invalid", {"valid": 0.1, "invalid": 0.9})
+    client.system_one.return_value = _response(
+        "invalid", {"valid": 0.1, "invalid": 0.9}, name="isValid"
+    )
     _patch_clients(monkeypatch, sync_client=client)
 
     evaluator = ClassificationEvaluator(
@@ -96,7 +117,9 @@ def test_evaluator_maps_the_chosen_label_to_a_score_without_an_explanation(monke
 
 def test_tuple_style_choices_pass_descriptions_as_criteria(monkeypatch):
     client = MagicMock()
-    client.system_one.return_value = _response("valid", {"valid": 0.8, "invalid": 0.2})
+    client.system_one.return_value = _response(
+        "valid", {"valid": 0.8, "invalid": 0.2}, name="isValid"
+    )
     _patch_clients(monkeypatch, sync_client=client)
 
     evaluator = ClassificationEvaluator(
@@ -114,7 +137,7 @@ def test_tuple_style_choices_pass_descriptions_as_criteria(monkeypatch):
     assert score.score == 1
 
     _, kwargs = client.system_one.call_args
-    question = kwargs["questions"]["label"]
+    question = kwargs["questions"]["isValid"]
     assert question.criteria == {
         "valid": "the question is well formed",
         "invalid": "the question is malformed",
@@ -123,7 +146,9 @@ def test_tuple_style_choices_pass_descriptions_as_criteria(monkeypatch):
 
 def test_invocation_kwargs_reach_system_one_but_evaluator_params_do_not(monkeypatch):
     client = MagicMock()
-    client.system_one.return_value = _response("correct", {"correct": 0.9, "incorrect": 0.1})
+    client.system_one.return_value = _response(
+        "correct", {"correct": 0.9, "incorrect": 0.1}, name="correctness"
+    )
     _patch_clients(monkeypatch, sync_client=client)
 
     evaluator = ClassificationEvaluator(
@@ -139,6 +164,153 @@ def test_invocation_kwargs_reach_system_one_but_evaluator_params_do_not(monkeypa
     assert kwargs["timeout"] == 30
     assert "include_explanation" not in kwargs
     assert "method" not in kwargs
+
+
+def _multi_response(
+    answers_by_name,
+    model="mock-evaluation-model",
+    confidence=0.9,
+    input_tokens=20,
+    output_tokens=6,
+):
+    """Build a fake SystemOneResponse with `.choices[name]` for several questions.
+
+    answers_by_name maps each question name to a (choice, probabilities) pair.
+    """
+    choices = {
+        name: SimpleNamespace(choice=choice, probabilities=probs, confidence=confidence)
+        for name, (choice, probs) in answers_by_name.items()
+    }
+    usage = SimpleNamespace(input_tokens=input_tokens, output_tokens=output_tokens)
+    return SimpleNamespace(model=model, choices=choices, usage=usage)
+
+
+def test_generate_classifications_sends_one_request_with_n_questions(monkeypatch):
+    client = MagicMock()
+    client.system_one.return_value = _multi_response(
+        {
+            "helpfulness": ("good", {"good": 0.7, "bad": 0.3}),
+            "accuracy": ("wrong", {"right": 0.2, "wrong": 0.8}),
+        }
+    )
+    _patch_clients(monkeypatch, sync_client=client)
+
+    decision = DecisionModel(provider="typesafe", model="jev-latest")
+    results = decision.generate_classifications(
+        "some text",
+        _by_name(
+            [
+                {
+                    "name": "helpfulness",
+                    "labels": {"good": None, "bad": None},
+                    "instruction": "how helpful",
+                },
+                {"name": "accuracy", "labels": {"right": "ok", "wrong": "nope"}},
+            ]
+        ),
+    ).results
+
+    assert results == {
+        "helpfulness": ClassificationResult(
+            label="good",
+            metadata={
+                "probabilities": {"good": 0.7, "bad": 0.3},
+                "model_id": "mock-evaluation-model",
+                "confidence": 0.9,
+            },
+        ),
+        "accuracy": ClassificationResult(
+            label="wrong",
+            metadata={
+                "probabilities": {"right": 0.2, "wrong": 0.8},
+                "model_id": "mock-evaluation-model",
+                "confidence": 0.9,
+            },
+        ),
+    }
+
+    # One request, N questions keyed by name, per-criterion instructions and criteria.
+    client.system_one.assert_called_once()
+    _, kwargs = client.system_one.call_args
+    questions = kwargs["questions"]
+    assert list(questions.keys()) == ["helpfulness", "accuracy"]
+    assert questions["helpfulness"].criteria == {"good": None, "bad": None}
+    assert questions["helpfulness"].instructions == "how helpful"
+    assert questions["accuracy"].criteria == {"right": "ok", "wrong": "nope"}
+    assert questions["accuracy"].instructions is None
+
+
+async def test_async_generate_classifications(monkeypatch):
+    async_client = MagicMock()
+    async_client.system_one = AsyncMock(
+        return_value=_multi_response(
+            {"a": ("x", {"x": 0.6, "y": 0.4}), "b": ("y", {"x": 0.1, "y": 0.9})}
+        )
+    )
+    _patch_clients(monkeypatch, async_client=async_client)
+
+    decision = DecisionModel(provider="typesafe", model="jev-latest")
+    results = (
+        await decision.async_generate_classifications(
+            "text",
+            _by_name(
+                [
+                    {"name": "a", "labels": {"x": None, "y": None}},
+                    {"name": "b", "labels": {"x": None, "y": None}},
+                ]
+            ),
+        )
+    ).results
+
+    assert list(results.keys()) == ["a", "b"]
+    assert [a.label for a in results.values()] == ["x", "y"]
+    async_client.system_one.assert_awaited_once()
+
+
+def test_evaluator_multiple_criteria_one_request_one_score_each(monkeypatch):
+    """A multi-criterion ClassificationEvaluator issues one request and returns one Score per
+    criterion, each with its own label, score, and direction."""
+    client = MagicMock()
+    client.system_one.return_value = _multi_response(
+        {
+            "helpfulness": ("good", {"good": 0.7, "bad": 0.3}),
+            "accuracy": ("wrong", {"right": 0.2, "wrong": 0.8}),
+        }
+    )
+    _patch_clients(monkeypatch, sync_client=client)
+
+    evaluator = ClassificationEvaluator(
+        name="review",
+        llm=DecisionModel(provider="typesafe", model="jev-latest"),
+        prompt_template="review: {text}",
+        choices=[
+            Criterion(
+                name="helpfulness",
+                instruction="How helpful?",
+                labels={"good": None, "bad": None},
+                score_map={"good": 1, "bad": 0},
+            ),
+            Criterion(
+                name="accuracy",
+                instruction="How accurate?",
+                labels={"right": None, "wrong": None},
+                score_map={"right": 1, "wrong": 0},
+                direction="minimize",
+            ),
+        ],
+    )
+    scores = evaluator.evaluate({"text": "..."})
+
+    assert [s.name for s in scores] == ["helpfulness", "accuracy"]
+    assert scores[0].label == "good" and scores[0].score == 1
+    assert scores[1].label == "wrong" and scores[1].score == 0
+    assert scores[0].direction == "maximize"
+    assert scores[1].direction == "minimize"
+
+    # One request carrying both questions, keyed by criterion name.
+    client.system_one.assert_called_once()
+    _, kwargs = client.system_one.call_args
+    assert list(kwargs["questions"].keys()) == ["helpfulness", "accuracy"]
 
 
 def test_missing_sdk_raises_a_helpful_error(monkeypatch):
@@ -158,40 +330,6 @@ def test_missing_sdk_raises_a_helpful_error(monkeypatch):
         DecisionModel(provider="typesafe", model="jev-latest")
 
 
-def test_to_state_passes_a_string_prompt_through_unchanged():
-    assert BaseDecisionAdapter._to_state("just some text") == "just some text"
-
-
-def test_to_state_joins_a_message_list_and_drops_roles():
-    prompt = [
-        {"role": "system", "content": "You are a judge."},
-        {"role": "user", "content": "Is 2 + 2 = 4?"},
-    ]
-    assert BaseDecisionAdapter._to_state(prompt) == "You are a judge.\n\nIs 2 + 2 = 4?"
-
-
-def test_to_state_keeps_only_text_content_parts():
-    prompt = [
-        {
-            "role": "user",
-            "content": [
-                {"type": "text", "text": "first"},
-                {"type": "image_url", "image_url": {"url": "http://example.com/x.png"}},
-                {"type": "text", "text": "second"},
-            ],
-        },
-    ]
-    assert BaseDecisionAdapter._to_state(prompt) == "first\nsecond"
-
-
-def test_to_state_skips_empty_pieces():
-    prompt = [
-        {"role": "system", "content": ""},
-        {"role": "user", "content": "only this"},
-    ]
-    assert BaseDecisionAdapter._to_state(prompt) == "only this"
-
-
 def test_typesafe_to_input_flattens_like_to_state():
     # TypeSafe has no message roles, so it must keep the base class's flattening behavior:
     # _to_input returns the same plain string as _to_state (roles dropped).
@@ -209,14 +347,16 @@ def test_typesafe_to_input_flattens_like_to_state():
 def test_confidence_is_omitted_when_the_provider_does_not_report_one(monkeypatch):
     client = MagicMock()
     client.system_one.return_value = _response(
-        "correct", {"correct": 0.9, "incorrect": 0.1}, confidence=None
+        "correct", {"correct": 0.9, "incorrect": 0.1}, confidence=None, name="correctness"
     )
     _patch_clients(monkeypatch, sync_client=client)
 
     decision = DecisionModel(provider="typesafe", model="jev-latest")
-    result = decision.generate_classification("is this ok?", ["correct", "incorrect"])
+    results = decision.generate_classifications(
+        "is this ok?", {"correctness": {"labels": {"correct": None, "incorrect": None}}}
+    ).results
 
-    assert "confidence" not in result["metadata"]
+    assert "confidence" not in results["correctness"].metadata
 
 
 def test_decision_span_records_attributes_and_usage(monkeypatch):
@@ -227,7 +367,7 @@ def test_decision_span_records_attributes_and_usage(monkeypatch):
 
     client = MagicMock()
     client.system_one.return_value = _response(
-        "valid", {"valid": 0.8, "invalid": 0.2}, input_tokens=42, output_tokens=5
+        "valid", {"valid": 0.8, "invalid": 0.2}, input_tokens=42, output_tokens=5, name="validity"
     )
     _patch_clients(monkeypatch, sync_client=client)
 
@@ -238,9 +378,11 @@ def test_decision_span_records_attributes_and_usage(monkeypatch):
     tracer = provider.get_tracer("test")
 
     decision = DecisionModel(provider="typesafe", model="jev-latest")
-    result = decision.generate_classification("is this valid?", ["valid", "invalid"], tracer=tracer)
+    results = decision.generate_classifications(
+        "is this valid?", {"validity": {"labels": {"valid": None, "invalid": None}}}, tracer=tracer
+    ).results
 
-    assert "usage" not in result
+    assert "usage" not in results
 
     [span] = exporter.get_finished_spans()
     attrs = dict(span.attributes or {})
@@ -259,7 +401,9 @@ def test_decision_span_records_attributes_and_usage(monkeypatch):
 
 def test_usage_is_not_copied_onto_the_score(monkeypatch):
     client = MagicMock()
-    client.system_one.return_value = _response("valid", {"valid": 0.8, "invalid": 0.2})
+    client.system_one.return_value = _response(
+        "valid", {"valid": 0.8, "invalid": 0.2}, name="isValid"
+    )
     _patch_clients(monkeypatch, sync_client=client)
 
     evaluator = ClassificationEvaluator(
@@ -277,7 +421,9 @@ def test_builtin_evaluator_sends_a_flattened_string_state(monkeypatch):
     from phoenix.evals.metrics.hallucination import HallucinationEvaluator
 
     client = MagicMock()
-    client.system_one.return_value = _response("grounded", {"grounded": 0.8, "hallucinated": 0.2})
+    client.system_one.return_value = _response(
+        "grounded", {"grounded": 0.8, "hallucinated": 0.2}, name="hallucination"
+    )
     _patch_clients(monkeypatch, sync_client=client)
 
     evaluator = HallucinationEvaluator(llm=DecisionModel(provider="typesafe", model="jev-latest"))
@@ -302,7 +448,7 @@ def test_builtin_evaluator_sends_a_flattened_string_state(monkeypatch):
 async def test_async_evaluate_through_classification_evaluator(monkeypatch):
     async_client = MagicMock()
     async_client.system_one = AsyncMock(
-        return_value=_response("valid", {"valid": 0.7, "invalid": 0.3})
+        return_value=_response("valid", {"valid": 0.7, "invalid": 0.3}, name="isValid")
     )
     _patch_clients(monkeypatch, async_client=async_client)
 

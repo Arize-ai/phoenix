@@ -36,14 +36,6 @@ class MockLLM:
         self.provider = "openai"
         self.model = model
 
-    def generate_classification(self, prompt, labels, include_explanation, method):
-        first_label = labels[0] if isinstance(labels, list) else list(labels.keys())[0]
-        return {"label": first_label, "explanation": "mock explanation"}
-
-    async def async_generate_classification(self, prompt, labels, include_explanation, method):
-        first_label = labels[0] if isinstance(labels, list) else list(labels.keys())[0]
-        return {"label": first_label, "explanation": "mock explanation"}
-
 
 # ---------------------------------------------------------------------------
 # Parametrize over every evaluator (class, required eval_input keys)

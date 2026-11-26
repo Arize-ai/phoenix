@@ -2,10 +2,17 @@ from typing import Any, Dict, List, Optional, Union
 
 from ....llm.prompts import PromptLike
 from ...registries import register_provider
-from ...types import BaseDecisionAdapter
+from ...types import (
+    BaseDecisionAdapter,
+    ClassificationCriterion,
+    ClassificationFailure,
+    ClassificationMetadata,
+    ClassificationResponse,
+    ClassificationResult,
+    Name,
+    TokenUsage,
+)
 from .factories import create_typesafe_client, get_typesafe_rate_limit_errors
-
-_QUESTION_NAME = "label"
 
 
 @register_provider(
@@ -26,55 +33,77 @@ class TypeSafeDecisionAdapter(BaseDecisionAdapter):
     def client_name(cls) -> str:
         return "typesafe"
 
-    def _build_questions(self, labels: Union[List[str], Dict[str, str]]) -> Dict[str, Any]:
+    def _build_choice(self, labels: Dict[str, Optional[str]], instructions: Optional[str]) -> Any:
         from typesafe_sdk import Choice
 
-        criteria: Dict[str, Optional[str]] = (
-            dict(labels) if isinstance(labels, dict) else {label: None for label in labels}
-        )
-        return {_QUESTION_NAME: Choice(criteria=criteria)}
+        criteria = dict(labels)
+        if instructions is not None:
+            return Choice(criteria=criteria, instructions=instructions)
+        return Choice(criteria=criteria)
 
     @staticmethod
-    def _to_result(response: Any) -> Dict[str, Any]:
-        answer = response.choices[_QUESTION_NAME]
-        metadata: Dict[str, Any] = {
+    def _usage_dict(response: Any) -> TokenUsage:
+        usage = getattr(response, "usage", None)
+        return TokenUsage(
+            input_tokens=getattr(usage, "input_tokens", 0) or 0,
+            output_tokens=getattr(usage, "output_tokens", 0) or 0,
+        )
+
+    @staticmethod
+    def _answer_metadata(answer: Any, model: Any) -> ClassificationMetadata:
+        metadata: ClassificationMetadata = {
             "probabilities": answer.probabilities,
-            "model_id": response.model,
+            "model_id": model,
         }
         confidence = getattr(answer, "confidence", None)
         if confidence is not None:
             metadata["confidence"] = confidence
+        return metadata
 
-        result: Dict[str, Any] = {"label": answer.choice, "metadata": metadata}
+    @classmethod
+    def _to_results(cls, response: Any, names: List[str]) -> ClassificationResponse:
+        results: Dict[Name, Union[ClassificationResult, ClassificationFailure]] = {}
+        for name in names:
+            if name not in response.choices:
+                results[name] = ClassificationFailure(
+                    kind="error",
+                    reason=f"The model returned no answer for criterion '{name}'.",
+                    metadata={"model_id": response.model},
+                )
+                continue
+            answer = response.choices[name]
+            results[name] = ClassificationResult(
+                label=answer.choice,
+                metadata=cls._answer_metadata(answer, response.model),
+            )
+        return ClassificationResponse(results=results, usage=cls._usage_dict(response))
 
-        usage = getattr(response, "usage", None)
-        if usage is not None:
-            result["usage"] = {
-                "input_tokens": getattr(usage, "input_tokens", None),
-                "output_tokens": getattr(usage, "output_tokens", None),
-            }
-        return result
-
-    def generate_classification(
+    def generate_classifications(
         self,
         prompt: PromptLike,
-        labels: Union[List[str], Dict[str, str]],
+        criteria: Dict[Name, ClassificationCriterion],
         **kwargs: Any,
-    ) -> Dict[str, Any]:
-        questions = self._build_questions(labels)
+    ) -> ClassificationResponse:
+        questions = {
+            name: self._build_choice(c["labels"], c.get("instruction"))
+            for name, c in criteria.items()
+        }
         response = self.client.system_one(
             state=self._to_input(prompt), questions=questions, model=self.model, **kwargs
         )
-        return self._to_result(response)
+        return self._to_results(response, list(criteria))
 
-    async def async_generate_classification(
+    async def async_generate_classifications(
         self,
         prompt: PromptLike,
-        labels: Union[List[str], Dict[str, str]],
+        criteria: Dict[Name, ClassificationCriterion],
         **kwargs: Any,
-    ) -> Dict[str, Any]:
-        questions = self._build_questions(labels)
+    ) -> ClassificationResponse:
+        questions = {
+            name: self._build_choice(c["labels"], c.get("instruction"))
+            for name, c in criteria.items()
+        }
         response = await self.client.system_one(
             state=self._to_input(prompt), questions=questions, model=self.model, **kwargs
         )
-        return self._to_result(response)
+        return self._to_results(response, list(criteria))

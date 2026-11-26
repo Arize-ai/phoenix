@@ -1,7 +1,8 @@
 import functools
 import json
+from dataclasses import asdict, is_dataclass
 from inspect import BoundArguments
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Optional
 
 import opentelemetry.trace as trace_api
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
@@ -13,6 +14,12 @@ from phoenix.evals.tracing import trace
 from ..llm.prompts import PromptLike
 from .adapters import register_adapters
 from .registries import DECISION_PROVIDER_REGISTRY, adapter_availability_table
+from .types import (
+    ClassificationCriterion,
+    ClassificationResponse,
+    Name,
+    TokenUsage,
+)
 
 register_adapters()
 
@@ -39,14 +46,20 @@ def _get_decision_input(bound: BoundArguments) -> str:
     payload = {
         "input": decision_model._sync_adapter._to_input(prompt) if prompt is not None else "",
         "model": decision_model.model,
-        "questions": bound.arguments.get("labels"),
+        "questions": bound.arguments.get("labels") or bound.arguments.get("criteria"),
     }
     return json.dumps(payload, default=str)
 
 
 def _jsonify_output(result: Any) -> str:
     """Convert the classification result to a JSON string for the span output."""
-    return json.dumps(result, default=str)
+
+    def _default(obj: Any) -> Any:
+        if is_dataclass(obj) and not isinstance(obj, type):
+            return asdict(obj)
+        return str(obj)
+
+    return json.dumps(result, default=_default)
 
 
 class DecisionModel:
@@ -175,18 +188,31 @@ class DecisionModel:
         ]
 
     @staticmethod
-    def _record_usage_on_span(result: Dict[str, Any]) -> None:
-        """Moves usage and the response model from the result onto the current span."""
-        usage = result.pop("usage", None) or {}
+    def _record_usage_values(usage: TokenUsage, model_id: Any) -> None:
+        """Record token usage and the response model on the current span. Zero counts (also used
+        when the backend reported no usage) are not recorded, to avoid misleading spans."""
         span = trace_api.get_current_span()
         attributes = {
-            SpanAttributes.DECISION_RESPONSE_MODEL_NAME: result.get("metadata", {}).get("model_id"),
-            SpanAttributes.DECISION_TOKEN_COUNT_INPUT: usage.get("input_tokens"),
-            SpanAttributes.DECISION_TOKEN_COUNT_OUTPUT: usage.get("output_tokens"),
+            SpanAttributes.DECISION_RESPONSE_MODEL_NAME: model_id,
+            SpanAttributes.DECISION_TOKEN_COUNT_INPUT: usage.input_tokens,
+            SpanAttributes.DECISION_TOKEN_COUNT_OUTPUT: usage.output_tokens,
         }
         for key, value in attributes.items():
-            if value is not None:
+            if value:
                 span.set_attribute(key, value)
+
+    @classmethod
+    def _record_multiple_classifications_usage(cls, raw: ClassificationResponse) -> None:
+        """Record the response's token usage and resolved model on the current span."""
+        model_id = next(
+            (
+                o.metadata.get("model_id")
+                for o in raw.results.values()
+                if o.metadata.get("model_id")
+            ),
+            None,
+        )
+        cls._record_usage_values(raw.usage, model_id)
 
     @trace(
         span_kind=OpenInferenceSpanKindValues.DECISION,
@@ -198,40 +224,38 @@ class DecisionModel:
         },
         process_output={SpanAttributes.OUTPUT_VALUE: _jsonify_output},
     )
-    def generate_classification(
+    def generate_classifications(
         self,
         prompt: PromptLike,
-        labels: Union[List[str], Dict[str, str]],
+        criteria: Dict[Name, ClassificationCriterion],
         include_explanation: bool = True,
-        method: Any = None,
         tracer: Optional[Tracer] = None,
         **kwargs: Any,
-    ) -> Dict[str, Any]:
-        """Classify a prompt by selecting exactly one of the labels.
+    ) -> ClassificationResponse:
+        """Answer several named classification questions about one prompt in a single request.
 
         Args:
             prompt (Union[str, List[Dict[str, Any]]]): The prompt to classify.
-            labels (Union[List[str], Dict[str, str]]): Either a list of label strings, or a dict
-                mapping each label to a description.
+            criteria (Dict[Name, ClassificationCriterion]): The questions to answer; each has a
+                ``name``, its ``labels`` (a label->description dict), and optional
+                ``instruction``.
             include_explanation (bool): Sent by ``ClassificationEvaluator`` but not used by
                 decision models, which are decision-only and return no explanation.
-            method (Any): Sent by ``ClassificationEvaluator`` (the object-generation method) but
-                not used by decision models.
-            tracer (Optional[Tracer]): Optional tracer for the DECISION span. If not provided,
-                the global tracer provider is used.
-            **kwargs: Additional keyword arguments forwarded to the decision SDK call (e.g.
-                ``timeout``, ``retry``, ``extra_headers``, ``extra_body``).
+            tracer (Optional[Tracer]): Optional tracer for the DECISION span.
+            **kwargs: Additional keyword arguments forwarded to the decision SDK call.
 
         Returns:
-            Dict[str, Any]: A dict with a ``label`` key and an optional ``metadata`` key.
+            A :class:`ClassificationResponse`: one outcome per criterion, keyed by criterion name
+            (a :class:`ClassificationResult`, or a :class:`ClassificationFailure` for a criterion
+            that could not be classified), plus the request's token usage.
         """
-        fn = self._sync_adapter.generate_classification
+        fn = self._sync_adapter.generate_classifications
         rate_limited = functools.reduce(
             lambda fn, limiter: limiter.limit(fn), self._rate_limiters, fn
         )
-        result: Dict[str, Any] = rate_limited(prompt, labels, **kwargs)
-        self._record_usage_on_span(result)
-        return result
+        raw: ClassificationResponse = rate_limited(prompt, criteria, **kwargs)
+        self._record_multiple_classifications_usage(raw)
+        return raw
 
     @trace(
         span_kind=OpenInferenceSpanKindValues.DECISION,
@@ -243,40 +267,25 @@ class DecisionModel:
         },
         process_output={SpanAttributes.OUTPUT_VALUE: _jsonify_output},
     )
-    async def async_generate_classification(
+    async def async_generate_classifications(
         self,
         prompt: PromptLike,
-        labels: Union[List[str], Dict[str, str]],
+        criteria: Dict[Name, ClassificationCriterion],
         include_explanation: bool = True,
-        method: Any = None,
         tracer: Optional[Tracer] = None,
         **kwargs: Any,
-    ) -> Dict[str, Any]:
-        """Asynchronously classify a prompt by selecting exactly one of the labels.
+    ) -> ClassificationResponse:
+        """Asynchronously answer several named classification questions in a single request.
 
-        Args:
-            prompt (Union[str, List[Dict[str, Any]]]): The prompt to classify.
-            labels (Union[List[str], Dict[str, str]]): Either a list of label strings, or a dict
-                mapping each label to a description.
-            include_explanation (bool): Sent by ``ClassificationEvaluator`` but not used by
-                decision models, which are decision-only and return no explanation.
-            method (Any): Sent by ``ClassificationEvaluator`` (the object-generation method) but
-                not used by decision models.
-            tracer (Optional[Tracer]): Optional tracer for the DECISION span. If not provided,
-                the global tracer provider is used.
-            **kwargs: Additional keyword arguments forwarded to the decision SDK call (e.g.
-                ``timeout``, ``retry``, ``extra_headers``, ``extra_body``).
-
-        Returns:
-            Dict[str, Any]: A dict with a ``label`` key and an optional ``metadata`` key.
+        See :meth:`generate_classifications`.
         """
-        fn = self._async_adapter.async_generate_classification
+        fn = self._async_adapter.async_generate_classifications
         rate_limited = functools.reduce(
             lambda fn, limiter: limiter.alimit(fn), self._rate_limiters, fn
         )
-        result: Dict[str, Any] = await rate_limited(prompt, labels, **kwargs)
-        self._record_usage_on_span(result)
-        return result
+        raw: ClassificationResponse = await rate_limited(prompt, criteria, **kwargs)
+        self._record_multiple_classifications_usage(raw)
+        return raw
 
 
 def show_decision_provider_availability() -> None:

@@ -1,12 +1,28 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Type, Union
+from typing import Any, Callable, Dict, List, Optional, Type
 
+from .._criteria import (
+    ClassificationCriterion,
+    ClassificationFailure,
+    ClassificationMetadata,
+    ClassificationResponse,
+    ClassificationResult,
+    Name,
+    TokenUsage,
+)
 from ..llm.prompts import PromptLike
 
 __all__ = [
     "BaseDecisionAdapter",
+    "ClassificationCriterion",
+    "ClassificationFailure",
+    "ClassificationMetadata",
+    "ClassificationResponse",
+    "ClassificationResult",
+    "Name",
     "ProviderRegistration",
+    "TokenUsage",
 ]
 
 
@@ -15,12 +31,13 @@ class BaseDecisionAdapter(ABC):
     Abstract base class that all decision-model SDK adapters must implement.
 
     A decision model only answers typed questions and cannot generate free-form text, so
-    adapters only need to implement classification:
-    - generate_classification (sync)
-    - async_generate_classification (async)
+    adapters only need to implement classification. Decision SDKs answer several named
+    questions in a single batched request, so the adapter contract is the plural:
+    - generate_classifications (sync)
+    - async_generate_classifications (async)
 
-    The adapter is responsible for translating labels into the SDK's question type, issuing
-    the request, and parsing the response into a plain dict.
+    The adapter is responsible for translating each criterion into the SDK's question type,
+    issuing one request, and parsing the response into a :class:`ClassificationResponse`.
     """
 
     def __init__(self, client: Any, model: str) -> None:
@@ -35,31 +52,33 @@ class BaseDecisionAdapter(ABC):
         pass
 
     @abstractmethod
-    def generate_classification(
+    def generate_classifications(
         self,
         prompt: PromptLike,
-        labels: Union[List[str], Dict[str, str]],
+        criteria: Dict[Name, ClassificationCriterion],
         **kwargs: Any,
-    ) -> Dict[str, Any]:
-        """Classify a prompt by selecting exactly one of the labels.
+    ) -> ClassificationResponse:
+        """Answer several named classification questions about one prompt in a single request.
 
         Args:
             prompt: Either a string or a list of message dicts with 'role' and 'content' fields.
-            labels: Either a list of label strings, or a dict mapping each label to a description.
+            criteria: The questions to answer, keyed by name; each has its ``labels`` and an
+                optional ``instruction``.
 
         Returns:
-            A dict with a ``label`` key and an optional ``metadata`` key.
+            A :class:`ClassificationResponse`: one ``ClassificationResult`` per criterion (in the
+            order given) and the request's token usage (``None`` if none reported).
         """
         pass
 
     @abstractmethod
-    async def async_generate_classification(
+    async def async_generate_classifications(
         self,
         prompt: PromptLike,
-        labels: Union[List[str], Dict[str, str]],
+        criteria: Dict[Name, ClassificationCriterion],
         **kwargs: Any,
-    ) -> Dict[str, Any]:
-        """Async version of generate_classification."""
+    ) -> ClassificationResponse:
+        """Async version of :meth:`generate_classifications`."""
         pass
 
     @property

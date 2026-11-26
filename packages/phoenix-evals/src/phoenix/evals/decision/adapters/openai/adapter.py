@@ -1,12 +1,19 @@
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
-from ....exceptions import PhoenixDecisionRefusal
 from ....llm.prompts import MessageRole, PromptLike, normalize_role
 from ...registries import register_provider
-from ...types import BaseDecisionAdapter
+from ...types import (
+    BaseDecisionAdapter,
+    ClassificationCriterion,
+    ClassificationFailure,
+    ClassificationMetadata,
+    ClassificationResponse,
+    ClassificationResult,
+    Name,
+    TokenUsage,
+)
 from .factories import create_openai_client, get_openai_rate_limit_errors
 
-_QUESTION_NAME = "label"
 # The Decisions API rejects a choice question without instructions.
 _CHOICE_INSTRUCTIONS = "Select the single best label for the input."
 
@@ -56,84 +63,98 @@ class OpenAIDecisionAdapter(BaseDecisionAdapter):
                 messages.append({"role": role, "content": parts})
         return messages
 
-    def _build_questions(self, labels: Union[List[str], Dict[str, str]]) -> List[Dict[str, Any]]:
-        criteria: Dict[str, Any] = (
-            dict(labels) if isinstance(labels, dict) else {label: None for label in labels}
-        )
-
+    @staticmethod
+    def _build_choice_question(
+        name: str, labels: Dict[str, Optional[str]], instructions: Optional[str]
+    ) -> Dict[str, Any]:
         choices: List[Dict[str, Any]] = []
-        for value, description in criteria.items():
+        for value, description in labels.items():
             choice: Dict[str, Any] = {"value": value}
             if description is not None:
                 choice["description"] = description
             choices.append(choice)
-        return [
-            {
-                "type": "choice",
-                "name": _QUESTION_NAME,
-                "instructions": _CHOICE_INSTRUCTIONS,
-                "choices": choices,
-            }
-        ]
+        return {
+            "type": "choice",
+            "name": name,
+            "instructions": instructions or _CHOICE_INSTRUCTIONS,
+            "choices": choices,
+        }
 
     @staticmethod
-    def _to_result(response: Any) -> Dict[str, Any]:
-        answer = response.answers[0]
+    def _usage_dict(response: Any) -> TokenUsage:
+        usage = getattr(response, "usage", None)
+        return TokenUsage(
+            input_tokens=getattr(usage, "input_tokens", 0) or 0,
+            output_tokens=getattr(usage, "output_tokens", 0) or 0,
+        )
 
-        if getattr(answer, "type", None) == "refusal":
-            name = getattr(answer, "name", None)
-            raise PhoenixDecisionRefusal(
-                f"The decision model refused to classify (question '{name}')."
-            )
-
+    @staticmethod
+    def _answer_to_label_metadata(answer: Any, model: Any) -> Dict[str, Any]:
         # OpenAI reports probabilities as a list of {value, probability}; flatten to a
         # value -> probability dict so metadata matches the other decision adapters.
         probabilities = {
-            getattr(option, "value", None): getattr(option, "probability", None)
+            option.value: option.probability
             for option in (getattr(answer, "probabilities", None) or [])
         }
-        metadata: Dict[str, Any] = {
-            "probabilities": probabilities,
-            "model_id": response.model,
-        }
+        metadata: ClassificationMetadata = {"probabilities": probabilities, "model_id": model}
         confidence = getattr(answer, "confidence", None)
         if confidence is not None:
             metadata["confidence"] = confidence
+        return {"label": answer.choice, "metadata": metadata}
 
-        result: Dict[str, Any] = {"label": answer.choice, "metadata": metadata}
+    @classmethod
+    def _to_results(cls, response: Any, names: List[str]) -> ClassificationResponse:
+        by_name = {getattr(answer, "name", None): answer for answer in response.answers}
+        results: Dict[Name, Union[ClassificationResult, ClassificationFailure]] = {}
+        for name in names:
+            if name not in by_name:
+                results[name] = ClassificationFailure(
+                    kind="error",
+                    reason=f"The model returned no answer for criterion '{name}'.",
+                    metadata={"model_id": response.model},
+                )
+                continue
+            answer = by_name[name]
+            if getattr(answer, "type", None) == "refusal":
+                results[name] = ClassificationFailure(
+                    kind="refusal",
+                    reason=f"The decision model refused to classify (question '{name}').",
+                    metadata={"model_id": response.model},
+                )
+                continue
+            label_metadata = cls._answer_to_label_metadata(answer, response.model)
+            results[name] = ClassificationResult(
+                label=label_metadata["label"],
+                metadata=label_metadata["metadata"],
+            )
+        return ClassificationResponse(results=results, usage=cls._usage_dict(response))
 
-        usage = getattr(response, "usage", None)
-        if usage is not None:
-            result["usage"] = {
-                "input_tokens": getattr(usage, "input_tokens", None),
-                "output_tokens": getattr(usage, "output_tokens", None),
-            }
-        return result
-
-    def generate_classification(
+    def generate_classifications(
         self,
         prompt: PromptLike,
-        labels: Union[List[str], Dict[str, str]],
+        criteria: Dict[Name, ClassificationCriterion],
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> ClassificationResponse:
+        questions = [
+            self._build_choice_question(name, c["labels"], c.get("instruction"))
+            for name, c in criteria.items()
+        ]
         response = self.client.decisions.create(
-            model=self.model,
-            input=self._to_input(prompt),
-            questions=self._build_questions(labels),
-            **kwargs,
+            model=self.model, input=self._to_input(prompt), questions=questions, **kwargs
         )
-        return self._to_result(response)
+        return self._to_results(response, list(criteria))
 
-    async def async_generate_classification(
+    async def async_generate_classifications(
         self,
         prompt: PromptLike,
-        labels: Union[List[str], Dict[str, str]],
+        criteria: Dict[Name, ClassificationCriterion],
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> ClassificationResponse:
+        questions = [
+            self._build_choice_question(name, c["labels"], c.get("instruction"))
+            for name, c in criteria.items()
+        ]
         response = await self.client.decisions.create(
-            model=self.model,
-            input=self._to_input(prompt),
-            questions=self._build_questions(labels),
-            **kwargs,
+            model=self.model, input=self._to_input(prompt), questions=questions, **kwargs
         )
-        return self._to_result(response)
+        return self._to_results(response, list(criteria))
