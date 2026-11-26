@@ -8,7 +8,8 @@ from pydantic import SecretStr
 from strawberry.extensions import SchemaExtension
 from strawberry.schema.config import StrawberryConfig
 from strawberry.types.base import StrawberryObjectDefinition, StrawberryType
-from strawberry.types.execution import ExecutionContext
+from strawberry.types.execution import ExecutionContext, ExecutionResult
+from strawberry.types.graphql import OperationType
 
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import get_mask_errors_extension, is_expected_error
@@ -42,6 +43,36 @@ class PhoenixSchema(strawberry.Schema):
     the client. Expected errors echo what the user sent, so they are not logged at
     all; the rest are logged by operation and position only.
     """
+
+    async def execute(
+        self,
+        query: Optional[str],
+        variable_values: Optional[dict[str, Any]] = None,
+        context_value: Optional[Any] = None,
+        root_value: Optional[Any] = None,
+        operation_name: Optional[str] = None,
+        allowed_operation_types: Optional[Iterable[OperationType]] = None,
+        operation_extensions: Optional[dict[str, Any]] = None,
+    ) -> ExecutionResult:
+        # `execute` runs operations to a single result and never calls a subscription
+        # field's resolver, so a subscription run here resolves its non-null field to
+        # null. Strawberry still sends subscriptions here when an HTTP request lacks the
+        # multipart subscription `Accept` header; disallowing them makes it reject the
+        # request with a 400 instead. Streamed subscriptions go through `stream`.
+        allowed = (
+            {OperationType.QUERY, OperationType.MUTATION}
+            if allowed_operation_types is None
+            else set(allowed_operation_types) - {OperationType.SUBSCRIPTION}
+        )
+        return await super().execute(
+            query,
+            variable_values=variable_values,
+            context_value=context_value,
+            root_value=root_value,
+            operation_name=operation_name,
+            allowed_operation_types=allowed,
+            operation_extensions=operation_extensions,
+        )
 
     def process_errors(
         self,
