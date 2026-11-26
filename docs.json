@@ -2228,6 +2228,10 @@
       "destination": "/docs/phoenix/cookbook/evaluation/evaluate-rag"
     },
     {
+      "source": "/docs/phoenix/use-cases/rag-evaluation",
+      "destination": "/docs/phoenix/cookbook/evaluation/evaluate-rag"
+    },
+    {
       "source": "/docs/phoenix/inferences/use-cases-inferences/embeddings-analysis",
       "destination": "/docs/phoenix/cookbook"
     },
