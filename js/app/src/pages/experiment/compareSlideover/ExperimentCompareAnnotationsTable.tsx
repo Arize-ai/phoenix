@@ -80,7 +80,7 @@ const annotationsTableCSS = css`
     grid-template-columns: subgrid;
     grid-column: 1 / -1;
     align-items: center;
-    min-height: var(--global-dimension-size-400);
+    min-height: var(--global-dimension-size-350);
     /* Matches the inset of the cards the table sits beside */
     padding: 0 var(--global-dimension-size-100) 0
       var(--global-dimension-size-200);
@@ -91,7 +91,7 @@ const annotationsTableCSS = css`
   }
 
   .experiment-compare-annotations__row--header {
-    min-height: var(--global-card-header-height);
+    min-height: var(--global-dimension-size-400);
     background-color: var(--global-color-gray-75);
     color: var(--global-text-color-500);
     font-size: var(--global-font-size-xs);
