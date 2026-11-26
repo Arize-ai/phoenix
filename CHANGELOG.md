@@ -1,5 +1,44 @@
 # Changelog
 
+## [22.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v22.0.1...arize-phoenix-v22.1.0) (2026-11-26)
+
+
+### Features
+
+* **api:** add GET /spans/{span_identifier} endpoint to fetch a single span ([#18229](https://github.com/Arize-ai/phoenix/issues/18229)) ([88ad514](https://github.com/Arize-ai/phoenix/commit/88ad5143b577ba19613fcb1dcabb8952965eb95e))
+* **cli:** add px project create command ([#17052](https://github.com/Arize-ai/phoenix/issues/17052)) ([d3eafcb](https://github.com/Arize-ai/phoenix/commit/d3eafcb16f9100a10847fd8cabfdc1a99f251650)), closes [#12031](https://github.com/Arize-ai/phoenix/issues/12031)
+* **cli:** add px setup doctor to diagnose connection problems ([#18069](https://github.com/Arize-ai/phoenix/issues/18069)) ([697aaca](https://github.com/Arize-ai/phoenix/commit/697aaca4c8efd573eedbb3d6dc6b79c541bf45e9))
+* **client:** add model-provider listing helper ([#15744](https://github.com/Arize-ai/phoenix/issues/15744)) ([da8995e](https://github.com/Arize-ai/phoenix/commit/da8995e3d462c745eca305d8ca4d158ed848c1a2))
+* **datasets:** permanently delete dataset examples ([#17968](https://github.com/Arize-ai/phoenix/issues/17968)) ([c822820](https://github.com/Arize-ai/phoenix/commit/c82282015373353bd9813dc3447094308e628e29))
+* **harbor:** add eval-workflows tasks built on seeded Phoenix state ([#17952](https://github.com/Arize-ai/phoenix/issues/17952)) ([8f1dd1e](https://github.com/Arize-ai/phoenix/commit/8f1dd1e77daee69dfb28cda6042133ff90cf2fe2))
+* make playground task timeout configurable via PHOENIX_PLAYGROUND_TIMEOUT_SECONDS ([#16545](https://github.com/Arize-ai/phoenix/issues/16545)) ([d54adfb](https://github.com/Arize-ai/phoenix/commit/d54adfba1a1cec77a1bed2f181d0ba3f72feb0bf))
+* **skills:** split phoenix-evals into evals, experiments, and judge alignment ([#18077](https://github.com/Arize-ai/phoenix/issues/18077)) ([aa88873](https://github.com/Arize-ai/phoenix/commit/aa888730e9aa9ed621050aa87317e049646b012c))
+
+
+### Bug Fixes
+
+* **api:** run dataset deletion cleanup as background tasks ([#17969](https://github.com/Arize-ai/phoenix/issues/17969)) ([e2e8a83](https://github.com/Arize-ai/phoenix/commit/e2e8a83239538adfa87a1e479c84524068212c64))
+* **deps:** patch vulnerable transitive deps in Java ADK example ([#18240](https://github.com/Arize-ai/phoenix/issues/18240)) ([f6e4a7f](https://github.com/Arize-ai/phoenix/commit/f6e4a7fe9f41de4e6ef5d09b44cc4570c1c3c8c3))
+* **deps:** update arize-phoenix-client to 3.8.0 ([#18172](https://github.com/Arize-ai/phoenix/issues/18172)) ([0db3fbc](https://github.com/Arize-ai/phoenix/commit/0db3fbc94e42a32158e213fb9a7fc126f63ef907))
+* **evaluators:** bind nan/inf so the code evaluator harness doesn't crash ([#15158](https://github.com/Arize-ai/phoenix/issues/15158)) ([97e2a7b](https://github.com/Arize-ai/phoenix/commit/97e2a7b1989dba279f51a30d7c27d837f689ee80))
+* **factory:** deploy Railway previews from Docker Hub ([#18106](https://github.com/Arize-ai/phoenix/issues/18106)) ([99c5e99](https://github.com/Arize-ai/phoenix/commit/99c5e99647753110d0cb94d0eba063775161dbbf))
+* **playground:** send replayed tool calls to AWS Bedrock as toolUse blocks ([#16433](https://github.com/Arize-ai/phoenix/issues/16433)) ([f7e0f9d](https://github.com/Arize-ai/phoenix/commit/f7e0f9d5555d30143d2553739abb523d941d0a84))
+* **playground:** sync built-in model prices and model lists ([#18134](https://github.com/Arize-ai/phoenix/issues/18134)) ([2a37210](https://github.com/Arize-ai/phoenix/commit/2a372100db49c3d91dfdc726651a5a3cee0c4e2e))
+* **playground:** sync built-in model prices and model lists ([#18192](https://github.com/Arize-ai/phoenix/issues/18192)) ([631f177](https://github.com/Arize-ai/phoenix/commit/631f177a2e7d80160e163fb451ef1956019ec602))
+* **playground:** sync built-in model prices and model lists ([#18247](https://github.com/Arize-ai/phoenix/issues/18247)) ([6fad54b](https://github.com/Arize-ai/phoenix/commit/6fad54bb2aac65090427d645efc7eeb9bc8175a1))
+* **playground:** tolerate null function in Anthropic tool call content ([#18158](https://github.com/Arize-ai/phoenix/issues/18158)) ([150398e](https://github.com/Arize-ai/phoenix/commit/150398edff6c703924c8baceb6d8c919bfcefc80))
+* **prompts:** return 409/Conflict when deleting prompt used by an LLM evaluator ([#18184](https://github.com/Arize-ai/phoenix/issues/18184)) ([2639a86](https://github.com/Arize-ai/phoenix/commit/2639a8608ef4094d730def6cc723a0153b75e003))
+* **server:** keep an explicit Chat Completions API type without a base URL ([#18213](https://github.com/Arize-ai/phoenix/issues/18213)) ([8d654b6](https://github.com/Arize-ai/phoenix/commit/8d654b6528aea9dcc7b510ef9aeb4ff410c0dbe4))
+* **server:** keep gen_ai output messages without per-message finish_reason ([#18252](https://github.com/Arize-ai/phoenix/issues/18252)) ([f5520da](https://github.com/Arize-ai/phoenix/commit/f5520dabe4586776f456ab6f113b9f2675be0ea6)), closes [#18187](https://github.com/Arize-ai/phoenix/issues/18187)
+* **server:** return 409 when creating a project with an existing name via REST ([#18246](https://github.com/Arize-ai/phoenix/issues/18246)) ([97b94d2](https://github.com/Arize-ai/phoenix/commit/97b94d2fbc9cbe32d8d424f89e267ea5919dc463)), closes [#18245](https://github.com/Arize-ai/phoenix/issues/18245)
+
+
+### Documentation
+
+* add Phoenix release notes ([#18248](https://github.com/Arize-ai/phoenix/issues/18248)) ([37cf0bc](https://github.com/Arize-ai/phoenix/commit/37cf0bcf3e6537a9effe7c339ad785bc7fdde570))
+* **skills:** weekly audit — 2026-11-25 ([#18256](https://github.com/Arize-ai/phoenix/issues/18256)) ([2d237a6](https://github.com/Arize-ai/phoenix/commit/2d237a67ff8da88c82237a1f20642ed78f879df6))
+* tighten community PR and UI evidence rules in contributing guide ([#18142](https://github.com/Arize-ai/phoenix/issues/18142)) ([940e11a](https://github.com/Arize-ai/phoenix/commit/940e11a3173962d933ea9772ebbaafa0adb6c0d0))
+
 ## [22.0.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v22.0.0...arize-phoenix-v22.0.1) (2026-11-21)
 
 
