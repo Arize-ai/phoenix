@@ -64,6 +64,7 @@ export function useAgentModelCredentialStatus(value: ModelMenuValue | null): {
           credentialRequirements {
             envVarName
             isRequired
+            isSetInServerEnvironment
           }
           credentialsSet
         }

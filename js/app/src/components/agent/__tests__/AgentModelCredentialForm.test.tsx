@@ -36,7 +36,11 @@ const MODEL_PROVIDERS = [
     key: "ANTHROPIC",
     name: "Anthropic",
     credentialRequirements: [
-      { envVarName: "ANTHROPIC_API_KEY", isRequired: true },
+      {
+        envVarName: "ANTHROPIC_API_KEY",
+        isRequired: true,
+        isSetInServerEnvironment: false,
+      },
     ],
     credentialsSet: false,
   },
@@ -44,9 +48,21 @@ const MODEL_PROVIDERS = [
     key: "AWS",
     name: "AWS Bedrock",
     credentialRequirements: [
-      { envVarName: "AWS_ACCESS_KEY_ID", isRequired: true },
-      { envVarName: "AWS_SECRET_ACCESS_KEY", isRequired: true },
-      { envVarName: "AWS_SESSION_TOKEN", isRequired: false },
+      {
+        envVarName: "AWS_ACCESS_KEY_ID",
+        isRequired: true,
+        isSetInServerEnvironment: false,
+      },
+      {
+        envVarName: "AWS_SECRET_ACCESS_KEY",
+        isRequired: true,
+        isSetInServerEnvironment: false,
+      },
+      {
+        envVarName: "AWS_SESSION_TOKEN",
+        isRequired: false,
+        isSetInServerEnvironment: false,
+      },
     ],
     credentialsSet: false,
   },
@@ -54,7 +70,11 @@ const MODEL_PROVIDERS = [
     key: "OPENAI",
     name: "OpenAI",
     credentialRequirements: [
-      { envVarName: "OPENAI_API_KEY", isRequired: true },
+      {
+        envVarName: "OPENAI_API_KEY",
+        isRequired: true,
+        isSetInServerEnvironment: false,
+      },
     ],
     credentialsSet: true,
   },

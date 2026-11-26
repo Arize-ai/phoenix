@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import {
+  Alert,
   Button,
   CredentialField,
   CredentialInput,
@@ -137,6 +138,13 @@ function BrowserCredentials({
 
   return (
     <Flex direction="column" gap="size-100">
+      {provider.credentialsSet && !hasSavedCredentials && (
+        <Alert variant="info">
+          {provider.name} is already configured on the server. Credentials saved
+          here are used instead of the server&apos;s in the playground and
+          evaluators.
+        </Alert>
+      )}
       {credentialRequirements.map(({ envVarName, isRequired }) => (
         <Controller
           key={envVarName}

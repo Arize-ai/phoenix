@@ -11,7 +11,11 @@ function provider(overrides: Partial<Provider> = {}): Provider {
     dependenciesInstalled: true,
     dependencies: [],
     credentialRequirements: [
-      { envVarName: "OPENAI_API_KEY", isRequired: true },
+      {
+        envVarName: "OPENAI_API_KEY",
+        isRequired: true,
+        isSetInServerEnvironment: false,
+      },
     ],
     credentialsSet: false,
     ...overrides,
@@ -79,7 +83,11 @@ describe("getProviderCredentialsStatus", () => {
           name: "AWS Bedrock",
           key: "AWS",
           credentialRequirements: [
-            { envVarName: "AWS_ACCESS_KEY_ID", isRequired: true },
+            {
+              envVarName: "AWS_ACCESS_KEY_ID",
+              isRequired: true,
+              isSetInServerEnvironment: false,
+            },
           ],
         }),
         hasLocalCredentials: false,
