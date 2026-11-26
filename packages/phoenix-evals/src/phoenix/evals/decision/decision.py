@@ -237,7 +237,7 @@ class DecisionModel:
         Args:
             prompt (Union[str, List[Dict[str, Any]]]): The prompt to classify.
             criteria (Dict[Name, ClassificationCriterion]): The questions to answer; each has a
-                ``name``, its ``labels`` (a list or a label->description dict), and optional
+                ``name``, its ``labels`` (a label->description dict), and optional
                 ``instruction``.
             include_explanation (bool): Sent by ``ClassificationEvaluator`` but not used by
                 decision models, which are decision-only and return no explanation.

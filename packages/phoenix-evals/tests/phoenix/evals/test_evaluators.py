@@ -548,6 +548,11 @@ class TestClassificationEvaluator:
                 id="empty-labels",
             ),
             pytest.param(
+                {"name": "c", "instruction": "d", "labels": ["a", "b"]},
+                "labels must be a label->description dict",
+                id="list-labels",
+            ),
+            pytest.param(
                 {"name": "c", "instruction": "d", "labels": {"a": None}, "score_map": {"z": 1}},
                 "score_map has labels not in labels",
                 id="score-map-unknown-label",

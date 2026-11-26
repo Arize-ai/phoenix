@@ -311,9 +311,14 @@ class Criterion(TypedDict):
 
 
 def _validate_criterion(criterion: Criterion) -> None:
-    """Validate a criterion's labels and score map (previously ``Criterion.__post_init__``)."""
+    """Validate a criterion's labels and score map"""
     name = criterion["name"]
     labels = criterion["labels"]
+    if not isinstance(labels, dict):
+        raise ValueError(
+            f"Criterion '{name}' labels must be a label->description dict, "
+            f"got {type(labels).__name__}."
+        )
     if not labels:
         raise ValueError(f"Criterion '{name}' must define at least one label.")
     if not all(isinstance(label, str) for label in labels):

@@ -388,7 +388,7 @@ class LLM:
         Args:
             prompt (Union[str, List[Dict[str, Any]]]): The prompt to classify.
             criteria (Dict[Name, ClassificationCriterion]): The questions to answer; each has a
-                ``name``, its ``labels`` (a list or a label->description dict), and optional
+                ``name``, its ``labels`` (a label->description dict), and optional
                 ``instruction``.
             include_explanation (bool): Whether to prompt the LLM for a per-question explanation.
             **kwargs: Additional keyword arguments to pass to the LLM SDK (e.g. ``method``).
