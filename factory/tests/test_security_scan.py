@@ -51,7 +51,14 @@ def test_semgrep_parse_errors_are_not_fatal(
 ) -> None:
     errors = [{"type": error_type, "path": str(tmp_path / "a.py")}]
     findings, _ = _semgrep_findings(monkeypatch, tmp_path, errors)
-    assert findings == []
+    assert findings == [
+        security_scan.Finding(
+            "a.py",
+            1,
+            "semgrep-unparsed",
+            "Semgrep could not parse this file; its Python rules did not run",
+        )
+    ]
 
 
 def test_other_semgrep_errors_still_fail_and_name_the_file(

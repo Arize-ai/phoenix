@@ -708,7 +708,15 @@ def semgrep_findings(
             "Semgrep could not completely inspect the changed files: "
             + ", ".join(sorted(errors)[:3])
         )
-    findings = []
+    findings = [
+        Finding(
+            path,
+            1,
+            "semgrep-unparsed",
+            "Semgrep could not parse this file; its Python rules did not run",
+        )
+        for path in sorted(unparsed)
+    ]
     for hit in output["results"]:
         path = str(Path(hit["path"]).relative_to(destination))
         line = hit["start"]["line"]
