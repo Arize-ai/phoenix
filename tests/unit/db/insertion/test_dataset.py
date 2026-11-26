@@ -475,6 +475,83 @@ async def test_add_dataset_examples_returns_update_counts(
     assert append_event.num_deleted_examples == 0
 
 
+async def test_add_dataset_examples_writes_version_description_to_new_version_only(
+    db: DbSessionFactory,
+) -> None:
+    name = "version-description"
+    async with db() as session:
+        create_event = await add_dataset_examples(
+            session=session,
+            examples=_hash_examples([ExampleContent(input={"x": 1}, output={}, external_id="a")]),
+            name=name,
+            description="dataset description",
+            action=DatasetAction.CREATE,
+        )
+    async with db() as session:
+        append_event = await add_dataset_examples(
+            session=session,
+            examples=_hash_examples([ExampleContent(input={"x": 2}, output={}, external_id="b")]),
+            name=name,
+            action=DatasetAction.APPEND,
+            version_description="second batch",
+        )
+    assert append_event.dataset_version_id != create_event.dataset_version_id
+    async with db() as session:
+        update_event = await add_dataset_examples(
+            session=session,
+            examples=_hash_examples([ExampleContent(input={"x": 2}, output={}, external_id="b")]),
+            name=name,
+            action=DatasetAction.UPDATE,
+            version_description="drop a",
+        )
+    assert update_event.dataset_version_id != append_event.dataset_version_id
+    async with db() as session:
+        # Identical content: no new version is inserted and no existing description changes.
+        noop_event = await add_dataset_examples(
+            session=session,
+            examples=_hash_examples([ExampleContent(input={"x": 2}, output={}, external_id="b")]),
+            name=name,
+            action=DatasetAction.APPEND,
+            version_description="should be ignored",
+        )
+    assert noop_event.num_created_examples == 0
+    assert noop_event.num_patched_examples == 0
+    assert noop_event.num_deleted_examples == 0
+
+    async with db() as session:
+        descriptions = {
+            version.id: version.description
+            for version in await session.scalars(select(models.DatasetVersion))
+        }
+        dataset = await session.get(models.Dataset, create_event.dataset_id)
+    assert descriptions == {
+        create_event.dataset_version_id: None,
+        append_event.dataset_version_id: "second batch",
+        update_event.dataset_version_id: "drop a",
+    }
+    assert dataset is not None
+    assert dataset.description == "dataset description"
+
+
+async def test_add_dataset_examples_first_version_gets_version_description_without_changes(
+    db: DbSessionFactory,
+) -> None:
+    """A dataset with no version yet gets its first version even when the upload
+    has no examples, and that new version carries the description."""
+    async with db() as session:
+        event = await add_dataset_examples(
+            session=session,
+            examples=[],
+            name="empty-first-version",
+            action=DatasetAction.APPEND,
+            version_description="placeholder",
+        )
+    async with db() as session:
+        version = await session.get(models.DatasetVersion, event.dataset_version_id)
+    assert version is not None
+    assert version.description == "placeholder"
+
+
 async def test_add_dataset_examples_splits_only_change_counts_as_patch(
     db: DbSessionFactory,
 ) -> None:

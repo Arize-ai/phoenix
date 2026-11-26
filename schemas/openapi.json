@@ -2673,6 +2673,10 @@
                   "description": {
                     "type": "string"
                   },
+                  "version_description": {
+                    "type": "string",
+                    "description": "Optional description for the dataset version that this upload creates. Surrounding whitespace is stripped and a blank value means no description. The dataset's own description is not changed. If the dataset already has a version and the upload changes no examples, no new version is created and this is ignored."
+                  },
                   "inputs": {
                     "type": "array",
                     "items": {
@@ -2765,6 +2769,10 @@
                   },
                   "description": {
                     "type": "string"
+                  },
+                  "version_description": {
+                    "type": "string",
+                    "description": "Optional description for the dataset version that this upload creates. Surrounding whitespace is stripped and a blank value means no description. The dataset's own description is not changed. If the dataset already has a version and the upload changes no examples, no new version is created and this is ignored."
                   },
                   "input_keys[]": {
                     "type": "array",
