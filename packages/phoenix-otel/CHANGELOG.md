@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.17.4](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.17.3...arize-phoenix-otel-v0.17.4) (2026-11-26)
+
+
+### Bug Fixes
+
+* **otel:** keep IPv6 brackets in the inferred gRPC collector endpoint ([#17820](https://github.com/Arize-ai/phoenix/issues/17820)) ([a676b54](https://github.com/Arize-ai/phoenix/commit/a676b5429ff826cab12726f5a63998c51f7bb85c))
+
+
+### Documentation
+
+* remove Slack community links from READMEs ([#18109](https://github.com/Arize-ai/phoenix/issues/18109)) ([02ed180](https://github.com/Arize-ai/phoenix/commit/02ed1808d9fb82263e85479e6ae80310883fcc2b))
+
 ## [0.17.3](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.17.2...arize-phoenix-otel-v0.17.3) (2026-11-06)
 
 
