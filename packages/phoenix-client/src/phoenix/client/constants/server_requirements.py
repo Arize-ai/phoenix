@@ -128,7 +128,7 @@ CREATE_PROMPT_TAGS = ParameterRequirement(
     parameter_name="tags",
     parameter_location="body",
     route="POST /v1/prompts",
-    min_server_version=Version(22, 1, 0),
+    min_server_version=Version(22, 2, 0),
 )
 
 PATCH_PROMPT = RouteRequirement(

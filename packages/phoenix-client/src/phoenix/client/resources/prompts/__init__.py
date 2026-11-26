@@ -193,7 +193,7 @@ class Prompts:
         Raises:
             TypeError: If tags is a string instead of a sequence of tag names.
             phoenix.client.exceptions.PhoenixException: If tags are provided and the server
-                is older than Phoenix 22.1.0.
+                is older than Phoenix 22.2.0.
             httpx.HTTPStatusError: If creating the version or assigning a tag fails.
                 The version and tags are saved atomically; a failure leaves neither saved.
         """
@@ -592,7 +592,7 @@ class AsyncPrompts:
         Raises:
             TypeError: If tags is a string instead of a sequence of tag names.
             phoenix.client.exceptions.PhoenixException: If tags are provided and the server
-                is older than Phoenix 22.1.0.
+                is older than Phoenix 22.2.0.
             httpx.HTTPStatusError: If creating the version or assigning a tag fails.
                 The version and tags are saved atomically; a failure leaves neither saved.
         """

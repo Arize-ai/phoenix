@@ -101,7 +101,7 @@ class TestServerVersionGuard:
 
 
 @pytest.mark.parametrize("is_async", [False, True])
-@pytest.mark.parametrize("server_version", ["22.0.1", "22.1.0"])
+@pytest.mark.parametrize("server_version", ["22.1.0", "22.2.0"])
 @pytest.mark.asyncio
 async def test_create_prompt_tags_checks_server_version_before_writes(
     is_async: bool, server_version: str
@@ -125,8 +125,8 @@ async def test_create_prompt_tags_checks_server_version_before_writes(
     if is_async:
         async with httpx.AsyncClient(transport=transport, base_url="http://test") as async_client:
             prompts = AsyncPrompts(async_client)
-            if server_version == "22.0.1":
-                with pytest.raises(PhoenixException, match="requires Phoenix >= 22.1.0"):
+            if server_version == "22.1.0":
+                with pytest.raises(PhoenixException, match="requires Phoenix >= 22.2.0"):
                     await prompts.create(name="my-prompt", version=version, tags=["production"])
             else:
                 for _ in range(2):
@@ -137,8 +137,8 @@ async def test_create_prompt_tags_checks_server_version_before_writes(
     else:
         with httpx.Client(transport=transport, base_url="http://test") as client:
             sync_prompts = Prompts(client)
-            if server_version == "22.0.1":
-                with pytest.raises(PhoenixException, match="requires Phoenix >= 22.1.0"):
+            if server_version == "22.1.0":
+                with pytest.raises(PhoenixException, match="requires Phoenix >= 22.2.0"):
                     sync_prompts.create(name="my-prompt", version=version, tags=["production"])
             else:
                 for _ in range(2):
@@ -149,5 +149,5 @@ async def test_create_prompt_tags_checks_server_version_before_writes(
 
     assert [(request.method, request.url.path) for request in requests] == [
         ("GET", "/arize_phoenix_version"),
-        *([("POST", "/v1/prompts")] * 2 if server_version == "22.1.0" else []),
+        *([("POST", "/v1/prompts")] * 2 if server_version == "22.2.0" else []),
     ]
