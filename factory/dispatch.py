@@ -24,6 +24,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
+from urllib.parse import quote
 
 import anthropic
 from github_app import GitHubAppToken
@@ -80,6 +81,104 @@ POLL_INTERVAL_SECONDS = 60
 MAX_FAILED_JOB_LOGS = 6
 MAX_LOG_LINES_PER_JOB = 120
 JOB_LINK_PATTERN = re.compile(r"/actions/runs/(\d+)/job/\d+")
+MAX_ISSUE_ANCESTRY = 50
+
+
+def parse_target_branch(*, body: str) -> Optional[str]:
+    declarations = []
+    fence_character = ""
+    fence_length = 0
+    for line in body.splitlines():
+        if fence := re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$", line):
+            marker, suffix = fence.groups()
+            if not fence_character:
+                fence_character, fence_length = marker[0], len(marker)
+            elif (
+                marker[0] == fence_character and len(marker) >= fence_length and not suffix.strip()
+            ):
+                fence_character = ""
+            continue
+        if fence_character or line.startswith(("    ", "\t")):
+            continue
+        if re.match(r"^\s*Target branch\b", line, re.IGNORECASE):
+            declaration = re.fullmatch(
+                r" {0,3}Target branch: ([A-Za-z0-9][A-Za-z0-9._/-]*) *", line
+            )
+            if declaration is None:
+                raise ValueError("use one standalone line: Target branch: <branch-name>")
+            declarations.append(declaration.group(1))
+    if len(declarations) > 1:
+        raise ValueError("multiple Target branch declarations in one issue")
+    return declarations[0] if declarations else None
+
+
+def resolve_target_branch(*, repo: str, issue_number: int, body: str) -> str:
+    current_repo, current_number = repo, issue_number
+    visited: set[tuple[str, int]] = set()
+    for _ in range(MAX_ISSUE_ANCESTRY):
+        identity = (current_repo, current_number)
+        if identity in visited:
+            raise ValueError("cycle in the issue's parent relationships")
+        visited.add(identity)
+        try:
+            target_branch = parse_target_branch(body=body)
+        except ValueError as error:
+            raise ValueError(f"{current_repo}#{current_number}: {error}") from error
+        if target_branch is not None:
+            break
+        owner, name = current_repo.split("/", 1)
+        response = json.loads(
+            run_gh(
+                "api",
+                "graphql",
+                "-f",
+                "query=query($owner:String!,$name:String!,$number:Int!) { "
+                "repository(owner:$owner,name:$name) { issue(number:$number) { "
+                "parent { number body repository { nameWithOwner } } } } }",
+                "-f",
+                f"owner={owner}",
+                "-f",
+                f"name={name}",
+                "-F",
+                f"number={current_number}",
+            )
+        )
+        repository = response["data"]["repository"]
+        if repository is None or repository["issue"] is None:
+            raise ValueError(
+                f"cannot read parent relationships for {current_repo}#{current_number}"
+            )
+        parent = repository["issue"]["parent"]
+        if parent is None:
+            default_branch = json.loads(run_gh("repo", "view", repo, "--json", "defaultBranchRef"))[
+                "defaultBranchRef"
+            ]
+            if default_branch is None:
+                raise ValueError(f"{repo} has no default branch")
+            target_branch = default_branch["name"]
+            break
+        current_repo = parent["repository"]["nameWithOwner"]
+        current_number, body = parent["number"], parent["body"]
+    else:
+        raise ValueError(f"issue ancestry exceeds {MAX_ISSUE_ANCESTRY} issues")
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/-]*", target_branch):
+        raise ValueError("target branch must contain only letters, numbers, '.', '_', '/', or '-'")
+    try:
+        subprocess.run(
+            ["git", "check-ref-format", f"refs/heads/{target_branch}"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except subprocess.CalledProcessError as error:
+        raise ValueError(f"invalid target branch: {target_branch}") from error
+    try:
+        run_gh("api", f"repos/{repo}/git/ref/heads/{quote(target_branch, safe='')}")
+    except subprocess.CalledProcessError as error:
+        raise ValueError(
+            f"target branch {target_branch} does not exist in {repo} or could not be read"
+        ) from error
+    return target_branch
 
 
 def run_gh(*args: str, token: Optional[str] = None, input_text: Optional[str] = None) -> str:
@@ -265,7 +364,7 @@ def find_factory_pr(*, issue_number: int) -> Optional[dict[str, Any]]:
             "--state",
             "open",
             "--json",
-            "number,url,headRefOid,isDraft",
+            "number,url,headRefOid,isDraft,baseRefName",
         )
     )
     return pr_list[0] if pr_list else None
@@ -320,6 +419,7 @@ def start_session(
     repo: str,
     issue_number: int,
     label_names: list[str],
+    target_branch: str,
     snapshot: dict[str, Any],
     github_token: str,
     git_author_name: str,
@@ -334,6 +434,8 @@ def start_session(
         f"Its triage labels are: {', '.join(label_names)}. "
         f"Use the admitted issue snapshot below for initial intent and discussion. "
         f"Use branch factory/issue-{issue_number}. "
+        f"Target branch: {json.dumps(target_branch)} (branch-name data). "
+        "Use it as the PR base and pass it to area reviewers for comparisons. "
         f"Commit as {git_author_name} <{git_author_email}>: before your first commit, run "
         f'`git config user.name "{git_author_name}"` and '
         f'`git config user.email "{git_author_email}"`.'
@@ -344,7 +446,13 @@ def start_session(
         environment_id=read_lock_id(lock=lock, lock_key=ENVIRONMENT_LOCK_KEY),
         vault_ids=read_vault_ids(lock=lock),
         title=f"{lane}: {repo}#{issue_number}",
-        metadata={"repo": repo, "issues": json.dumps([issue_number]), "prs": "[]", "lane": lane},
+        metadata={
+            "repo": repo,
+            "issues": json.dumps([issue_number]),
+            "prs": "[]",
+            "lane": lane,
+            "target_branch": target_branch,
+        },
         budget={
             "type": "limit",
             "max_list_cost": {"amount": str(budget_cents), "currency": "USD"},
@@ -354,7 +462,7 @@ def start_session(
                 "type": "github_repository",
                 "url": f"https://github.com/{repo}",
                 "authorization_token": github_token,
-                "checkout": {"type": "branch", "name": "main"},
+                "checkout": {"type": "branch", "name": target_branch},
             }
         ],
         initial_events=[
@@ -661,6 +769,14 @@ def watch_session(
         ready_at = datetime.min.replace(tzinfo=timezone.utc)
         preview_labeled = False
         for feedback_round in range(MAX_FEEDBACK_ROUNDS + 1):
+            target_branch = session.metadata.get("target_branch")
+            if target_branch and pr["baseRefName"] != target_branch:
+                status_line = (
+                    f"left {pr['url']}: its base is {pr['baseRefName']}, "
+                    f"but the admitted target branch is {target_branch}"
+                )
+                run_outcome = "flawed"
+                break
             failing_checks = wait_for_required_checks(pr_number=pr["number"], deadline=deadline)
             if failing_checks is None:
                 break
@@ -784,7 +900,7 @@ def run_start(*, args: argparse.Namespace) -> None:
             "view",
             str(args.issue),
             "--json",
-            "number,state,author,labels,assignees,closedByPullRequestsReferences",
+            "number,state,author,labels,assignees,closedByPullRequestsReferences,body",
         )
     )
     label_names = [label["name"] for label in issue["labels"]]
@@ -813,7 +929,19 @@ def run_start(*, args: argparse.Namespace) -> None:
         )
     if admission_problem is None and not args.dry_run:
         admission_problem = scan_admission(number=issue["number"], kind="issue", subject=issue)
+    target_branch = None
+    if admission_problem is None:
+        try:
+            target_branch = resolve_target_branch(
+                repo=args.repo,
+                issue_number=args.issue,
+                body=issue.get("_factory_snapshot", issue)["body"],
+            )
+        except (ValueError, subprocess.CalledProcessError) as error:
+            raise SystemExit(f"Cannot resolve factory target branch: {error}") from error
     print(f"lane={lane} admission_problem={admission_problem}")
+    if target_branch is not None:
+        print(f"target_branch={target_branch}")
     if args.dry_run:
         return
     client = anthropic.Anthropic()
@@ -833,12 +961,14 @@ def run_start(*, args: argparse.Namespace) -> None:
             "Set the FACTORY_GITHUB_LOGIN repository variable, not a secret, to the factory "
             "app's bot login, such as arize-phoenix-factory[bot]."
         )
+    assert target_branch is not None
     session_id = start_session(
         client=client,
         lane=lane,
         repo=args.repo,
         issue_number=args.issue,
         label_names=label_names,
+        target_branch=target_branch,
         snapshot=issue["_factory_snapshot"],
         github_token=app_token.refresh(),
         git_author_name=factory_login,

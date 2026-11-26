@@ -1,0 +1,28 @@
+{
+ "reference": "The pass or fail annotations for the four requirements agree with the hidden labels, within the recall bars below, on the 60 production traces and on the 40 new traces the nightly script scores. On the production traces, grounded fails most often (21 of 60), then correct_amount (18), valid_format (15), and no_pii_leak (15).",
+ "min_coverage": 0.95,
+ "min_recall": {
+  "valid_format": 0.9,
+  "correct_amount": 0.9,
+  "no_pii_leak": 0.9,
+  "grounded": 0.8
+ },
+ "production_traces": {
+  "traces": 60,
+  "failing": {
+   "valid_format": 15,
+   "correct_amount": 18,
+   "no_pii_leak": 15,
+   "grounded": 21
+  }
+ },
+ "new_traces": {
+  "traces": 40,
+  "failing": {
+   "valid_format": 10,
+   "correct_amount": 12,
+   "no_pii_leak": 10,
+   "grounded": 14
+  }
+ }
+}

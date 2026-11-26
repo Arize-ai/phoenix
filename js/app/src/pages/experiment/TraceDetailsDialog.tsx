@@ -36,6 +36,7 @@ export function TraceDetailsDialog({
             <LinkButton
               size="S"
               to={`/projects/${projectId}/traces/${encodeURIComponent(traceId)}`}
+              target="_blank"
             >
               View Trace in Project
             </LinkButton>

@@ -1,8 +1,9 @@
 import { css } from "@emotion/react";
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 import React, { Fragment } from "react";
 import type {
   ComboBoxProps as AriaComboBoxProps,
+  InputProps,
   ListBoxItemProps as AriaListBoxItemProps,
   ListBoxProps,
   ValidationResult,
@@ -46,6 +47,13 @@ export interface ComboBoxProps<T extends object>
    * but should be used sparingly.
    */
   stopPropagation?: boolean;
+  /** Props forwarded to the native text input rendered by the combobox. */
+  inputProps?: Omit<
+    InputProps,
+    "defaultValue" | "onChange" | "placeholder" | "value"
+  > & {
+    ref?: Ref<HTMLInputElement>;
+  };
 }
 
 /**
@@ -66,6 +74,7 @@ export function ComboBox<T extends object>({
   size = "M",
   width,
   stopPropagation,
+  inputProps,
   renderEmptyState,
   isInvalid,
   menuTrigger = "focus",
@@ -92,7 +101,7 @@ export function ComboBox<T extends object>({
         onKeyDown={stopPropagation ? stopPropagationHandler : undefined}
         onKeyUp={stopPropagation ? stopPropagationHandler : undefined}
       >
-        <Input placeholder={placeholder} />
+        <Input placeholder={placeholder} {...inputProps} />
         <Button>
           <SelectChevronUpDownIcon />
         </Button>

@@ -8,15 +8,16 @@ compare the conditions in the Phoenix UI.
 
 | Job file | Question it answers | Tasks | Phoenix dataset |
 | --- | --- | --- | --- |
-| `jobs/regression.yaml` | Can PXI, or Claude Code with the MCP server or px, do a multi-step error analysis and hill-climb a prompt? CI runs this. | `tasks/regression/*` | `regression` |
-| `jobs/trail-benchmark-dev.yaml` | Which Phoenix interface (MCP server, px CLI, or PXI) answers the same project questions most accurately, and at what cost? | `tasks/trail-benchmark-dev/*` | `trail-benchmark-dev` |
+| `jobs/regression.yaml` | Can PXI, or Claude Code with the MCP server or px, do a multi-step error analysis and hill-climb a prompt? CI runs this. | `datasets/regression/tasks/*` | `regression` |
+| `jobs/trail-benchmark-dev.yaml` | Which Phoenix interface (MCP server, px CLI, or PXI) answers the same project questions most accurately, and at what cost? | `datasets/trail-benchmark-dev/tasks/*` | `trail-benchmark-dev` |
+| `jobs/eval-workflows.yaml` | Can a coding agent do a Phoenix user's evaluation work, such as building, fixing, and trusting evals, and what do the Phoenix skills change? See [its README](datasets/eval-workflows/README.md). | `datasets/eval-workflows/tasks/*` | `eval-workflows` |
 
 | Path | Contents |
 | --- | --- |
-| `agents/` | PXI and the Claude Code or Codex configurations for the MCP server and px |
-| `environments/` | The shared Dockerfile and the fixture script for each database |
+| `agents/` | PXI, the Claude Code or Codex configurations for the MCP server and px, and `snapshot_skills.sh`, which extracts the skills at a commit for a condition to load |
+| `environments/` | The shared Dockerfile, runtime assets, and generic JSON-to-Phoenix seeder |
 | `jobs/` | One configuration file for each benchmark |
-| `tasks/` | One directory per benchmark: the tasks under `regression/` and under `trail-benchmark-dev/` |
+| `datasets/` | Each dataset has a README, shared `fixtures/`, and a `tasks/` directory containing only Harbor tasks. |
 | `verifiers/` | The `harbor_verifiers` package: the reply grader, LLM judge, and reference-solution query helpers, installed in the image as a wheel |
 | `scripts/` | Scripts for staging, building the px archive, selecting job subsets, and checking CI rewards |
 
@@ -32,8 +33,8 @@ compare the conditions in the Phoenix UI.
   the terms of
   [PatronusAI/TRAIL](https://huggingface.co/datasets/PatronusAI/TRAIL). TRAIL is gated
   and cannot be redistributed. Seed the database with your own token, and do not commit
-  or upload the dataset or generated fixture. Without a token, staging skips the TRAIL
-  tasks. CI does not set this token.
+  or upload the dataset or generated fixture. Without a token or a cached fixture,
+  preparation of a TRAIL job fails. The default regression job needs no token.
 
 ## Run a benchmark
 
@@ -46,16 +47,60 @@ archive for the CLI agents, and builds the client wheel that provides the Harbor
 ```bash
 # Stage the regression tasks only.
 make harbor-stage
-# Also seed the TRAIL fixture and stage its tasks.
-HF_TOKEN=... make harbor-stage
+# Prepare eval-workflows only.
+make harbor-stage HARBOR_JOB=evals/harbor/jobs/eval-workflows.yaml
+# Prepare TRAIL only, with your token loaded in the environment.
+make harbor-stage HARBOR_JOB=evals/harbor/jobs/trail-benchmark-dev.yaml
 ```
 
-The px archive requires Docker and takes a few minutes to build. If the job has no CLI
-agent, set `HARBOR_CLI=0` to skip the archive. Use `HARBOR_CLI_PLATFORM` to change the
+Both `harbor-stage` and `harbor-run` use `HARBOR_JOB`, which defaults to
+`jobs/regression.yaml`. Staging prepares only the job's explicit tasks and dataset task
+patterns. To prepare a subset, create a reduced job as described below.
+`HARBOR_TASKS_DIR` is no longer a selector.
+
+The px archive requires Docker and takes a few minutes to build. Staging detects CLI
+agents in the job and builds the archive when needed. `HARBOR_ARGS='-a oracle'` or
+`HARBOR_ARGS='-a nop'` skips it automatically. `HARBOR_CLI=0` skips the archive, and
+`HARBOR_CLI=1` forces a build. Use `HARBOR_CLI_PLATFORM` to change the
 target from `linux/amd64`. Restage after changing the server, `verifiers/`,
 `environments/`, or a fixture because the image contains copies of these files.
-`RESEED=1` also rebuilds the fixtures. `make harbor-run` refuses to start a job whose
-tasks are not staged.
+`RESEED=1` regenerates only selected fixtures in new cache generations. Previous
+fixture databases and task environments remain on disk. JSON fixture cache keys include
+the seed, seeder, Phoenix and client Python sources, and dependency lock file.
+`make harbor-run` rejects missing inputs and incomplete staging. It also rejects changes
+to staged inputs, including task files, the Dockerfile, runtime assets, and verifier code.
+A failed restage cannot fall back to an old environment.
+
+`make harbor-stage` invokes the selected dataset's `fixture.sh` scripts automatically.
+You do not run those scripts separately. For eval-workflows, committed seed JSON is ready
+for staging; run a task's `fixture/build.py` only when changing or recreating its inputs.
+
+Each dataset separates its tasks from shared setup:
+
+```text
+datasets/<dataset>/
+  README.md
+  fixtures/
+  tasks/
+    <task>/
+      task.toml
+      fixture/       # Task-specific seed inputs, when needed.
+      workdir/
+      tests/
+      solution/
+```
+
+Dataset setup lives beside the tasks:
+
+| Dataset | Fixture setup |
+| --- | --- |
+| Regression | `datasets/regression/fixtures/*/fixture.sh` downloads published databases. |
+| TRAIL | `datasets/trail-benchmark-dev/fixtures/` downloads gated rows and builds a database. |
+| Eval-workflows | Each task's `fixture/build.py` creates its seed JSON. `datasets/eval-workflows/fixtures/` holds shared trace builders. |
+
+The shared `environments/fixtures/seed_phoenix.py` converts seed JSON into Phoenix state.
+Staging fails if any selected input is missing or unavailable. Run that task's builder
+first if its seed JSON is missing.
 
 ### 2. Run a job
 
@@ -95,7 +140,7 @@ A local Phoenix instance on the default port needs neither variable. If the plug
 reach Phoenix, the job fails before any trial starts.
 
 The plugin records one experiment per condition on the dataset in the table above. The
-dataset takes the name of the job's task directory, so every copy of a job file, subset
+dataset takes the name of the dataset directory above `tasks/`, so every copy of a job file, subset
 or full, records to the same dataset. Set `HARBOR_DATASET=<name>` to select another dataset. Set
 `HARBOR_PLUGIN=` to run without recording results in Phoenix.
 
@@ -172,7 +217,7 @@ the provider host to the task's `[verifier]` table.
 ### Add a task
 
 ```text
-tasks/trail-benchmark-dev/<name>/
+datasets/trail-benchmark-dev/tasks/<name>/
   instruction.md                 the question, and nothing about where to put the answer
   task.toml                      [task] name and description, then a shared block
   .gitignore                     identical across tasks
@@ -218,7 +263,7 @@ together.
 
 ## The regression benchmark
 
-`tasks/regression/error-analysis` is a two-step scenario on a hand-prepared database. The agent
+`datasets/regression/tasks/error-analysis` is a two-step scenario on a hand-prepared database. The agent
 open-codes a project's traces into notes, then axial-codes them into per-dimension
 annotation configurations. Its verifier lives with the task under `tests/` and reads the
 database and the agent's sidecars directly. `jobs/regression.yaml` runs it with two
@@ -233,7 +278,7 @@ gcloud storage cp --cache-control=no-store phoenix.db \
 RESEED=1 make harbor-stage HARBOR_CLI=0
 ```
 
-`tasks/regression/prompt-hill-climb` is a three-step scenario on a database holding one text-to-SQL
+`datasets/regression/tasks/prompt-hill-climb` is a three-step scenario on a database holding one text-to-SQL
 dataset, `banking_saas_dataset_clean` (28 examples, half of them expecting a `REFUSED:`
 string). The agent writes an exact-match evaluator and attaches it to the dataset, runs the
 empty prompt as a baseline experiment and iterates until an experiment passes all 28

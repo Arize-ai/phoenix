@@ -1,16 +1,16 @@
-"""Pins the grammar documented in `internal_docs/specs/span-filter-dsl.md`.
+"""Pins the accepted and rejected span filter grammar.
 
 These are not behavioral tests -- `test_filter.py` covers behavior. They exist so
-the spec cannot drift from the code silently. Filter conditions are becoming
+the grammar cannot drift silently. Filter conditions are becoming
 persisted data, which makes the accepted grammar a compatibility surface: every
 stored row is an expression a future parser has to keep accepting with unchanged
 meaning.
 
 A failure here means one of two things, and the difference matters:
 
-- **Something was added.** Additions are backward compatible. Update the spec.
+- **Something was added.** Additions are backward compatible. Update this corpus.
 - **Something was restricted.** Previously-valid stored conditions will stop
-  parsing. Before persistence ships, that is a deliberate tightening the spec
+  parsing. Before persistence ships, that is a deliberate tightening this corpus
   must record; after, it is forbidden outright -- there is no grammar version
   to bump, by policy -- and the only sanctioned path is the compatibility
   policy's defined-divergence clause, for shapes already enumerated as
@@ -26,7 +26,7 @@ import pytest
 
 from phoenix.trace.dsl.filter import SpanFilter, root_span_scope
 
-# Every form the spec documents as accepted.
+# Every form the grammar accepts.
 ACCEPTED = [
     # expression forms
     "latency_ms > 100",
@@ -138,7 +138,7 @@ ACCEPTED = [
     "annotations['q'].score > 0.5 and any(d.cost > 1 for d in cost_details)",
 ]
 
-# Every form the spec documents as rejected, with the reason it documents.
+# Every form the grammar rejects, with the reason it gives.
 REJECTED = [
     ("cost_details > 1", "can only be iterated"),
     ("any(d.nope > 1 for d in cost_details)", "invalid field `d.nope`"),

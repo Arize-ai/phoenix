@@ -77,26 +77,7 @@ _PRELUDE_IMPORTS = {
 
 # Examples that fail today, keyed by test ID. Each entry is a bug in the skill; fix the skill
 # and delete its entry. The tests are strict, so a fixed example fails until its entry goes.
-KNOWN_BROKEN = {
-    "skills/phoenix-evals/references/experiments-datasets-typescript.md#0": (
-        "the block declares datasetId twice"
-    ),
-    "skills/phoenix-evals/references/experiments-datasets-typescript.md#3": (
-        "@arizeai/phoenix-client/datasets has no listDatasets"
-    ),
-    "skills/phoenix-evals/references/integrations-vitest-jest.md#2": (
-        "test.each names a case with a function that can return undefined"
-    ),
-    "skills/phoenix-evals/references/observe-sampling-typescript.md#2": (
-        "groupBy returns an attribute typed {}, not a string"
-    ),
-    "skills/phoenix-evals/references/observe-tracing-setup.md#0": (
-        "@arizeai/phoenix-otel has no registerPhoenix; use register"
-    ),
-    "skills/phoenix-evals/references/validation-evaluators-typescript.md#1": (
-        "@arizeai/phoenix-client/datasets has no createOrGetDataset"
-    ),
-}
+KNOWN_BROKEN: dict[str, str] = {}
 
 
 @dataclass(frozen=True)

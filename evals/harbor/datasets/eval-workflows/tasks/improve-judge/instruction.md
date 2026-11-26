@@ -1,0 +1,3 @@
+Our `policy_compliant` judge (`/app/evals/policy_judge.py`) disagrees with our reviewers too often to be useful. It checks whether the refund decisions our support agent makes follow our refund policy, and the agent's traces are in Phoenix under the `refund-decisions` project. Our reviewers' verdicts are on some of those traces as `human_review` annotations.
+
+Can you improve the judge so it agrees with them, and rerun it so every trace in the project gets a fresh `policy_compliant` annotation? Our nightly job runs `python evals/policy_judge.py` on new traces, so it needs to keep working that way and stay on `gpt-5-nano`. It has to work on next week's traffic too, so don't tune it to the traces our reviewers looked at.

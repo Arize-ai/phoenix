@@ -1,4 +1,4 @@
-import { act } from "react";
+import { act, createRef } from "react";
 import type { Root } from "react-dom/client";
 import { createRoot } from "react-dom/client";
 import { userEvent } from "storybook/test";
@@ -98,5 +98,34 @@ describe("ComboBox", () => {
       "classifier/",
       "v12:",
     ]);
+  });
+
+  it("forwards native input props and refs", () => {
+    const inputRef = createRef<HTMLInputElement>();
+    const onCompositionStart = vi.fn();
+    act(() => {
+      root.render(
+        <ComboBox
+          label="Prompt"
+          inputProps={{ ref: inputRef, onCompositionStart }}
+        >
+          <ComboBoxItem id="support" textValue="Customer support">
+            Customer support
+          </ComboBoxItem>
+        </ComboBox>
+      );
+    });
+
+    const promptInput = container.querySelector<HTMLInputElement>(
+      'input[role="combobox"]'
+    );
+    expect(inputRef.current).toBe(promptInput);
+
+    act(() => {
+      promptInput?.dispatchEvent(
+        new Event("compositionstart", { bubbles: true })
+      );
+    });
+    expect(onCompositionStart).toHaveBeenCalledTimes(1);
   });
 });

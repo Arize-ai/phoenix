@@ -4,8 +4,8 @@ import type * as ReactRelayModule from "react-relay";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
+import { IDENTIFIER_ERROR_MESSAGES } from "@phoenix/constants";
 import { ThemeProvider } from "@phoenix/contexts";
-import { IDENTIFIER_ERROR_MESSAGES } from "@phoenix/utils/identifierUtils";
 
 installTestMatchMedia();
 
@@ -220,7 +220,36 @@ describe("SavePromptForm", () => {
     expect(getButton(container, "Create Prompt")).toBeDefined();
   });
 
-  it("waits for blur to flag a trailing dash in a new tag name", async () => {
+  it("does not create a prompt whose name ends with a separator", async () => {
+    const onCreate = vi.fn();
+    await act(async () => {
+      root.render(
+        <ThemeProvider themeMode="light" disableBodyTheme>
+          <SavePromptForm
+            onCreate={onCreate}
+            onUpdate={vi.fn()}
+            onClose={vi.fn()}
+          />
+        </ThemeProvider>
+      );
+    });
+
+    await act(async () => {
+      typeInto({ input: getPromptNameInput(container), value: "My Prompt " });
+    });
+    expect(getPromptNameInput(container).value).toBe("my-prompt-");
+
+    await act(async () => {
+      container
+        .querySelector("form")
+        ?.dispatchEvent(
+          new SubmitEvent("submit", { bubbles: true, cancelable: true })
+        );
+    });
+    expect(onCreate).not.toHaveBeenCalled();
+  });
+
+  it("trims a trailing dash from a new tag name on blur", async () => {
     await renderSavePromptForm(root);
     const tagInput = container.querySelector<HTMLInputElement>(
       'input[aria-label="New tag name"]'
@@ -238,9 +267,23 @@ describe("SavePromptForm", () => {
     await act(async () => {
       tagInput.blur();
     });
-    expect(container.textContent).toContain(
+    expect(tagInput.value).toBe("my");
+    expect(container.textContent).not.toContain(
       IDENTIFIER_ERROR_MESSAGES.leadingTrailing
     );
+  });
+
+  it("drops leading separators from a new tag name as you type", async () => {
+    await renderSavePromptForm(root);
+    const tagInput = container.querySelector<HTMLInputElement>(
+      'input[aria-label="New tag name"]'
+    )!;
+
+    await act(async () => {
+      tagInput.focus();
+      typeInto({ input: tagInput, value: " -_Café" });
+    });
+    expect(tagInput.value).toBe("cafe");
   });
 });
 

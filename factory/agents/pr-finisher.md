@@ -43,7 +43,7 @@ You finish one pull request to Phoenix, the open-source AI observability platfor
 
 ## Workspace
 
-The repo is mounted at `/workspace/phoenix` at the screened commit. Stop if the mount is missing. Create the work branch as directed in the starting message. Don’t incorporate newer commits from the contributor’s branch or force-push over later changes. Fetch `main` and the target branch with enough history for reviewers to find the merge base, without changing HEAD. Tell reviewers the target branch, then run `factory/bootstrap.sh`.
+The repo is mounted at `/workspace/phoenix` at the screened commit. Stop if the mount is missing. Create the work branch as directed in the starting message. Don’t incorporate newer commits from the contributor’s branch or force-push over later changes. Fetch the target branch with enough history for reviewers to find the merge base, without changing HEAD. Tell reviewers the target branch, then run `factory/bootstrap.sh`.
 
 How Phoenix is laid out:
 
