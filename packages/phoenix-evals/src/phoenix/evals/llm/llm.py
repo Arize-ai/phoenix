@@ -540,7 +540,13 @@ def generate_classifications_schema(
     properties: Dict[str, Any] = {}
     required: List[str] = []
     for name, criterion in criteria.items():
-        inner = generate_classification_schema(criterion["labels"], include_explanation)
+        labels = criterion["labels"]
+        # Without descriptions, emit an `enum` (works with AUTO) rather than a `oneOf`/`const`
+        # schema, which would require TOOL_CALLING. See `_resolve_classification_method`.
+        schema_labels: Union[List[str], Dict[str, Optional[str]]] = (
+            list(labels) if all(description is None for description in labels.values()) else labels
+        )
+        inner = generate_classification_schema(schema_labels, include_explanation)
         instruction = criterion.get("instruction")
         if instruction:
             inner["description"] = instruction

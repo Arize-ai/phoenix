@@ -11,6 +11,7 @@ from phoenix.evals.llm.llm import (
     generate_classification_schema,
     generate_classifications_schema,
 )
+from phoenix.evals.llm.types import ObjectGenerationMethod
 
 
 def _by_name(criteria):
@@ -471,3 +472,36 @@ class TestLLMGenerateClassifications:
         assert list(results.keys()) == ["a", "b"]
         assert [a.label for a in results.values()] == ["x", "y"]
         llm._async_adapter.async_generate_object.assert_awaited_once()
+
+    def test_plain_labels_emit_enum_with_auto(self, openai_api_key):
+        """Labels without descriptions produce an `enum` schema and the AUTO method, so providers
+        accept strict structured output (parity with the pre-multi-criterion behavior)."""
+        llm = LLM(provider="openai", model="gpt-4o", client="openai")
+        llm._sync_adapter = MagicMock()
+        llm._sync_adapter.generate_object.return_value = {"sentiment": {"label": "yes"}}
+
+        criteria = [{"name": "sentiment", "labels": {"yes": None, "no": None}}]
+        llm.generate_classifications("text", _by_name(criteria))
+
+        _, kwargs = llm._sync_adapter.generate_object.call_args
+        schema = llm._sync_adapter.generate_object.call_args.args[1]
+        label_schema = schema["properties"]["sentiment"]["properties"]["label"]
+        assert label_schema["enum"] == ["yes", "no"]
+        assert "oneOf" not in label_schema
+        assert kwargs["method"] is ObjectGenerationMethod.AUTO
+
+    def test_described_labels_emit_oneof_with_tool_calling(self, openai_api_key):
+        """Labels with descriptions produce a `oneOf`/`const` schema and the TOOL_CALLING method."""
+        llm = LLM(provider="openai", model="gpt-4o", client="openai")
+        llm._sync_adapter = MagicMock()
+        llm._sync_adapter.generate_object.return_value = {"sentiment": {"label": "yes"}}
+
+        criteria = [{"name": "sentiment", "labels": {"yes": "is positive", "no": "is negative"}}]
+        llm.generate_classifications("text", _by_name(criteria))
+
+        _, kwargs = llm._sync_adapter.generate_object.call_args
+        schema = llm._sync_adapter.generate_object.call_args.args[1]
+        label_schema = schema["properties"]["sentiment"]["properties"]["label"]
+        assert [entry["const"] for entry in label_schema["oneOf"]] == ["yes", "no"]
+        assert "enum" not in label_schema
+        assert kwargs["method"] is ObjectGenerationMethod.TOOL_CALLING
