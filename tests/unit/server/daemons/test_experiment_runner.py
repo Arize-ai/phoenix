@@ -7,8 +7,17 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import anyio
 import pytest
+from sqlalchemy import select
 
 from phoenix.db import models
+from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.prompts import (
+    PromptOpenAIInvocationParameters,
+    PromptOpenAIInvocationParametersContent,
+    PromptStringTemplate,
+    PromptTemplateFormat,
+    PromptTemplateType,
+)
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,
     EvaluationChunk,
@@ -1317,3 +1326,154 @@ class TestEvalWorkItemPersistsErrorAnnotation:
         assert failure_args is not None
         assert failure_args.args[0] is eval_item
         assert failure_args.args[1] is error
+
+
+class TestResumeOrphanedWithoutCredentials:
+    async def test_orphan_whose_provider_has_no_api_key_is_marked_failed(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """An orphaned prompt experiment whose API key was ephemeral cannot be resumed.
+
+        After a restart the browser-supplied key is gone, so building the LLM client
+        fails. The orphan scan must leave the experiment terminal (ERROR, unclaimed)
+        with a user-visible log row, rather than leaving the stale RUNNING claim in
+        place for the next scan to retry forever.
+        """
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        stale_claimed_at = datetime.now(timezone.utc) - timedelta(minutes=30)
+        async with db() as session:
+            dataset = models.Dataset(name="orphan-dataset", metadata_={})
+            session.add(dataset)
+            await session.flush()
+            version = models.DatasetVersion(dataset_id=dataset.id, description=None, metadata_={})
+            session.add(version)
+            await session.flush()
+            experiment = models.Experiment(
+                dataset_id=dataset.id,
+                dataset_version_id=version.id,
+                name="orphan-experiment",
+                repetitions=1,
+                metadata_={},
+            )
+            session.add(experiment)
+            await session.flush()
+            session.add(
+                models.ExperimentPromptTask(
+                    id=experiment.id,
+                    model_provider=ModelProvider.OPENAI,
+                    model_name="gpt-4o-mini",
+                    template_type=PromptTemplateType.STRING,
+                    template_format=PromptTemplateFormat.F_STRING,
+                    template=PromptStringTemplate(type="string", template="{input}"),
+                    invocation_parameters=PromptOpenAIInvocationParameters(
+                        type="openai", openai=PromptOpenAIInvocationParametersContent()
+                    ),
+                    status="RUNNING",
+                    claimed_at=stale_claimed_at,
+                    claimed_by="crashed-replica",
+                )
+            )
+            await session.flush()
+            experiment_id = experiment.id
+
+        runner = ExperimentRunner(
+            db,
+            decrypt=lambda value: value,
+            tracer_factory=MagicMock(),
+            sandbox_session_manager=MagicMock(),
+            sandbox_runtime=MagicMock(),
+        )
+
+        await runner._resume_orphaned()
+
+        assert experiment_id not in runner._experiments
+        async with db() as session:
+            job = await session.get(models.ExperimentJob, experiment_id)
+            assert job is not None
+            await session.refresh(job)
+            job_state = (job.status, job.claimed_at, job.claimed_by)
+            error_logs = (
+                await session.scalars(
+                    select(models.ExperimentJobLog)
+                    .where(models.ExperimentJobLog.experiment_id == experiment_id)
+                    .where(models.ExperimentJobLog.level == "ERROR")
+                )
+            ).all()
+        assert job_state == ("ERROR", None, None)
+        assert len(error_logs) == 1
+
+    async def test_failing_an_orphan_leaves_a_claim_taken_after_the_scan(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        """Another replica may claim the orphan between the scan and the failure write.
+
+        That claim is newer than the scan's stale cutoff, so marking the orphan as
+        failed must not release it or record an error.
+        """
+        fresh_claimed_at = datetime.now(timezone.utc)
+        async with db() as session:
+            dataset = models.Dataset(name="claimed-dataset", metadata_={})
+            session.add(dataset)
+            await session.flush()
+            version = models.DatasetVersion(dataset_id=dataset.id, description=None, metadata_={})
+            session.add(version)
+            await session.flush()
+            experiment = models.Experiment(
+                dataset_id=dataset.id,
+                dataset_version_id=version.id,
+                name="claimed-experiment",
+                repetitions=1,
+                metadata_={},
+            )
+            session.add(experiment)
+            await session.flush()
+            session.add(
+                models.ExperimentPromptTask(
+                    id=experiment.id,
+                    model_provider=ModelProvider.OPENAI,
+                    model_name="gpt-4o-mini",
+                    template_type=PromptTemplateType.STRING,
+                    template_format=PromptTemplateFormat.F_STRING,
+                    template=PromptStringTemplate(type="string", template="{input}"),
+                    invocation_parameters=PromptOpenAIInvocationParameters(
+                        type="openai", openai=PromptOpenAIInvocationParametersContent()
+                    ),
+                    status="RUNNING",
+                    claimed_at=fresh_claimed_at,
+                    claimed_by="live-replica",
+                )
+            )
+            await session.flush()
+            experiment_id = experiment.id
+
+        runner = ExperimentRunner(
+            db,
+            decrypt=lambda value: value,
+            tracer_factory=MagicMock(),
+            sandbox_session_manager=MagicMock(),
+            sandbox_runtime=MagicMock(),
+        )
+
+        await runner._fail_orphaned_experiment(
+            experiment_id,
+            stale_cutoff=fresh_claimed_at - timedelta(minutes=2),
+            error_message="Could not resume the experiment",
+        )
+
+        async with db() as session:
+            job = await session.get(models.ExperimentJob, experiment_id)
+            assert job is not None
+            await session.refresh(job)
+            job_state = (job.status, job.claimed_by)
+            error_logs = (
+                await session.scalars(
+                    select(models.ExperimentJobLog).where(
+                        models.ExperimentJobLog.experiment_id == experiment_id
+                    )
+                )
+            ).all()
+        assert job_state == ("RUNNING", "live-replica")
+        assert error_logs == []

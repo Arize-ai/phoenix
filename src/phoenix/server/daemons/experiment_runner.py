@@ -126,6 +126,7 @@ from phoenix.server.api.evaluators import (
     evaluation_result_to_model,
     get_evaluators,
 )
+from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.message_helpers import (
     build_template_variables,
     extract_and_convert_example_messages,
@@ -2541,8 +2542,53 @@ class ExperimentRunner(DaemonTask):
             try:
                 await self.start_experiment(config_id, subscribe=False)
                 logger.info(f"Resumed orphaned experiment {config_id}")
+            except (BadRequest, NotFound) as error:
+                # The experiment's configuration can't be resolved without input that
+                # is gone, e.g. an API key that was entered only in the browser and
+                # never stored. The failed start rolled back its claim, so the claim
+                # stays stale and every later scan would fail the same way. Release
+                # the claim and record the error so the user can see why it stopped.
+                logger.warning(f"Cannot resume orphaned experiment {config_id}: {error}")
+                await self._fail_orphaned_experiment(
+                    config_id,
+                    stale_cutoff=cutoff,
+                    error_message=f"Could not resume the experiment: {error}",
+                )
             except Exception:
                 logger.exception(f"Failed to start orphaned experiment {config_id}")
+
+    async def _fail_orphaned_experiment(
+        self,
+        experiment_id: int,
+        *,
+        stale_cutoff: datetime,
+        error_message: str,
+    ) -> None:
+        """Mark an orphaned experiment as errored and release its stale claim.
+
+        The update only applies while the claim is still older than
+        ``stale_cutoff``, so it never overwrites a claim another replica has
+        taken since the orphan scan found it.
+        """
+        try:
+            async with self._db() as session:
+                updated = await session.scalar(
+                    update(models.ExperimentJob)
+                    .where(models.ExperimentJob.id == experiment_id)
+                    .where(models.ExperimentJob.claimed_at < stale_cutoff)
+                    .values(claimed_at=None, claimed_by=None, status="ERROR")
+                    .returning(models.ExperimentJob.id)
+                )
+                if updated is not None:
+                    session.add(
+                        models.ExperimentJobLog(
+                            experiment_id=experiment_id,
+                            level="ERROR",
+                            message=error_message,
+                        )
+                    )
+        except SQLAlchemyError:
+            logger.exception(f"Failed to mark orphaned experiment {experiment_id} as failed")
 
     # === Internal helpers for start_experiment ===
 
