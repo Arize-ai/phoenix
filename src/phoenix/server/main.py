@@ -1,4 +1,4 @@
-from argparse import SUPPRESS, ArgumentParser
+from argparse import ArgumentParser
 
 from phoenix.config import (
     get_env_db_logging_level,
@@ -18,15 +18,21 @@ def main() -> None:
     initialize_settings()
     setup_logging()
 
-    parser = ArgumentParser(prog="phoenix", add_help=False)
-    parser.add_argument("-h", "--help", action="help", help=SUPPRESS)
-    subparsers = parser.add_subparsers(dest="command", required=True, help=SUPPRESS)
+    parser = ArgumentParser(
+        prog="phoenix",
+        description="Arize Phoenix: AI observability and evaluation.",
+        epilog="Run `phoenix serve` to start the server (default: http://localhost:6006).",
+    )
+    subparsers = parser.add_subparsers(dest="command", title="commands", metavar="<command>")
 
     serve.register(subparsers)
     db.register(subparsers)
     datagen.register(subparsers)
 
     args = parser.parse_args()
+    if args.command is None:
+        parser.print_help()
+        return
     args.func(args)
 
 
