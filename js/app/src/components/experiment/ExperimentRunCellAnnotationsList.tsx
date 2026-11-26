@@ -45,21 +45,41 @@ import {
   ExperimentMetricDelta,
 } from "./ExperimentMetricDelta";
 
+// One grid for the whole list, so the value, average, delta and action
+// columns keep the same position in every row
 const listCSS = css`
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  column-gap: var(--global-dimension-size-50);
   padding: var(--global-dimension-size-100);
   border-top: var(--global-border-size-thin) solid var(--global-color-gray-100);
   background-color: var(--global-color-gray-50);
 `;
 
 const listItemCSS = css`
-  display: flex;
-  flex-direction: row;
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
   align-items: center;
-  gap: var(--global-dimension-size-50);
   min-height: 32px;
+
+  .experiment-run-annotations__main {
+    grid-column: 1 / -2;
+  }
+  .experiment-run-annotations__delta {
+    justify-self: end;
+    padding-inline: var(--global-dimension-size-50);
+  }
 `;
+
+const averageCSS = css`
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--global-dimension-size-100);
+  min-width: 10ch;
+`;
+
+const ACTION_COLUMN = "max-content";
 
 const placeholderButtonCSS = css`
   flex: 1 1 auto;
@@ -347,8 +367,15 @@ export function ExperimentRunCellAnnotationsList(
     return null;
   }
 
+  const gridTemplateColumns = [
+    "minmax(0, 1fr)",
+    ...(showDeltas ? ["max-content"] : []),
+    ...(renderFilters ? [ACTION_COLUMN] : []),
+    ACTION_COLUMN,
+  ].join(" ");
+
   return (
-    <ul css={listCSS}>
+    <ul css={listCSS} style={{ gridTemplateColumns }}>
       {unifiedItems.map((item) => {
         if (item.type === "pending") {
           return (
@@ -392,14 +419,14 @@ export function ExperimentRunCellAnnotationsList(
                 isValueEndAligned
                 extra={
                   meanAnnotationScore != null && numRepetitions > 1 ? (
-                    <Flex direction="row" gap="size-100" alignItems="center">
+                    <span css={averageCSS}>
                       <Text fontFamily="mono">
                         {floatFormatter(meanAnnotationScore)}
                       </Text>
                       <Text fontFamily="mono" color="gray-500">
                         AVG
                       </Text>
-                    </Flex>
+                    </span>
                   ) : null
                 }
               />
@@ -408,14 +435,16 @@ export function ExperimentRunCellAnnotationsList(
               </RichTooltip>
             </TooltipTrigger>
             {showDeltas && (
-              <AnnotationDelta
-                annotation={annotation}
-                meanScore={meanAnnotationScore}
-                baseAnnotation={baseAnnotationByName[annotation.name]}
-                baseMeanScore={baseSummaryByName[annotation.name]?.meanScore}
-                config={annotationConfig}
-                numRepetitions={numRepetitions}
-              />
+              <span className="experiment-run-annotations__delta">
+                <AnnotationDelta
+                  annotation={annotation}
+                  meanScore={meanAnnotationScore}
+                  baseAnnotation={baseAnnotationByName[annotation.name]}
+                  baseMeanScore={baseSummaryByName[annotation.name]?.meanScore}
+                  config={annotationConfig}
+                  numRepetitions={numRepetitions}
+                />
+              </span>
             )}
             {renderFilters && (
               <DialogTrigger>
@@ -486,7 +515,10 @@ function AnnotationPlaceholder({
 }) {
   return (
     <li css={listItemCSS}>
-      <div css={placeholderButtonCSS}>
+      <div
+        className="experiment-run-annotations__main"
+        css={placeholderButtonCSS}
+      >
         <Flex direction="row" gap="size-100" alignItems="center">
           <Text weight="heavy" css={nameTextCSS} title={name}>
             {name}
@@ -536,7 +568,10 @@ function AnnotationErrorItem({
     <li css={listItemCSS}>
       <TooltipTrigger delay={0}>
         <Pressable>
-          <button className="button--reset" css={errorButtonCSS}>
+          <button
+            className="button--reset experiment-run-annotations__main"
+            css={errorButtonCSS}
+          >
             <Flex direction="row" gap="size-100" alignItems="center">
               <Text weight="heavy" color="danger" css={nameTextCSS}>
                 {error.evaluatorName}
