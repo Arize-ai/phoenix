@@ -92,6 +92,30 @@ test.describe("Datasets", () => {
     await expect(datasetRow(page, datasetName)).toBeVisible();
   });
 
+  test("updates the side nav dataset count after navigating", async ({
+    page,
+  }) => {
+    const datasetName = `test-dataset-${randomUUID()}`;
+
+    await page.goto("/datasets");
+    await page.waitForURL("**/datasets");
+
+    const datasetCount = page
+      .getByRole("link", { name: /Datasets & Experiments/ })
+      .locator(".counter");
+    await expect(datasetCount).toBeVisible();
+    const numDatasetsBefore = Number(await datasetCount.textContent());
+
+    await createDataset(page, datasetName, "Counted in the side nav");
+    await page.getByRole("link", { name: /^Evaluators/ }).click();
+    await page.waitForURL("**/evaluators");
+
+    // Other workers create datasets too, so only the direction is stable
+    await expect
+      .poll(async () => Number(await datasetCount.textContent()))
+      .toBeGreaterThan(numDatasetsBefore);
+  });
+
   test("shows validation error when dataset name is empty", async ({
     page,
   }) => {
