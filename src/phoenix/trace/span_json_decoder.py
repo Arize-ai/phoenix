@@ -5,7 +5,10 @@ from typing import Any, Optional
 from openinference.semconv.trace import SpanAttributes
 
 from phoenix.trace.schemas import (
+    EXCEPTION_ESCAPED,
     EXCEPTION_MESSAGE,
+    EXCEPTION_STACKTRACE,
+    EXCEPTION_TYPE,
     MimeType,
     Span,
     SpanContext,
@@ -71,8 +74,11 @@ def json_to_span(data: dict[str, Any]) -> Any:
         data["status_code"] = SpanStatusCode(data["status_code"])
         data["events"] = [
             SpanException(
-                message=(event.get("attributes") or {}).get(EXCEPTION_MESSAGE) or "",
+                message=(attrs := event.get("attributes") or {}).get(EXCEPTION_MESSAGE) or "",
                 timestamp=datetime.fromisoformat(event["timestamp"]),
+                exception_type=attrs.get(EXCEPTION_TYPE),
+                exception_escaped=attrs.get(EXCEPTION_ESCAPED),
+                exception_stacktrace=attrs.get(EXCEPTION_STACKTRACE),
             )
             if event["name"] == "exception"
             else SpanEvent(
