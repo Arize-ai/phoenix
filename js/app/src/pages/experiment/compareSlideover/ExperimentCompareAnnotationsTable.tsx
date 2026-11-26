@@ -81,8 +81,9 @@ const annotationsTableCSS = css`
     grid-column: 1 / -1;
     align-items: center;
     min-height: var(--global-dimension-size-400);
-    padding: 0 var(--global-dimension-size-50) 0
-      var(--global-dimension-size-100);
+    /* Matches the inset of the cards the table sits beside */
+    padding: 0 var(--global-dimension-size-100) 0
+      var(--global-dimension-size-200);
     &:not(:last-of-type) {
       border-bottom: var(--global-border-size-thin) solid
         var(--global-color-gray-100);
@@ -90,7 +91,7 @@ const annotationsTableCSS = css`
   }
 
   .experiment-compare-annotations__row--header {
-    min-height: var(--global-dimension-size-350);
+    min-height: var(--global-card-header-height);
     background-color: var(--global-color-gray-75);
     color: var(--global-text-color-500);
     font-size: var(--global-font-size-xs);
@@ -397,7 +398,7 @@ export function ExperimentCompareAnnotationsTable({
         className="experiment-compare-annotations__row experiment-compare-annotations__row--header"
         aria-hidden="true"
       >
-        <Text weight="heavy" size="S">
+        <Text weight="heavy" size="M">
           Annotations
         </Text>
         <span />

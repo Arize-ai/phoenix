@@ -54,7 +54,7 @@ const statsRowCSS = css`
   & > .metric-stat-row {
     flex: none;
   }
-  padding: 0 var(--global-dimension-size-100);
+  padding: 0 var(--global-dimension-size-200);
 `;
 
 /**
