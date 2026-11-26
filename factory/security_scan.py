@@ -40,6 +40,7 @@ CONTEXT_BYTES = 8 * 1024
 MAX_IMAGE_TEXT_BYTES = 128 * 1024
 MAX_FILES = 100
 SEMGREP_VERSION = "1.144.0"
+SEMGREP_PARSE_ERRORS = {"Lexical error", "Syntax error", "Other syntax error", "AST builder error"}
 INVISIBLE = re.compile(
     "[\u00ad\u034f\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060-\u206f"
     "\u3164\ufe00-\ufe0f\ufeff\uffa0\U000e0000-\U000e007f\U000e0100-\U000e01ef]"
@@ -332,6 +333,12 @@ class HiddenHTML(HTMLParser):
 
 def canonical_json(value: Any) -> bytes:
     return json.dumps(value, sort_keys=True, ensure_ascii=True, separators=(",", ":")).encode()
+
+
+def code_span(text: str) -> str:
+    """Quote untrusted text for a bot comment so GitHub renders none of it as markdown."""
+    safe = "".join("?" if ord(c) < 32 or c == "`" else c for c in text)
+    return f"`{INVISIBLE.sub('?', safe)}`"
 
 
 def write_summary(text: str) -> None:
@@ -655,7 +662,6 @@ def semgrep_findings(
                 executable,
                 "scan",
                 "--json",
-                "--strict",
                 "--metrics=off",
                 "--disable-version-check",
                 "--disable-nosem",
@@ -679,9 +685,38 @@ def semgrep_findings(
             check=True,
         )
     output = json.loads(result.stdout)
-    if output.get("errors"):
-        raise ValueError("Semgrep could not completely inspect the changed files")
-    findings = []
+    # A file Semgrep cannot parse yields no findings, so failing on it would block review
+    # without adding signal (the model scan still reads the file). Any other error, such as
+    # a timeout, still fails closed.
+    unparsed: set[str] = set()
+    errors: set[str] = set()
+    for error in output.get("errors", []):
+        error_type = error.get("type")
+        error_path = str(error.get("path", "?")).removeprefix(f"{destination}/")
+        if (isinstance(error_type, str) and error_type in SEMGREP_PARSE_ERRORS) or (
+            isinstance(error_type, list) and error_type[:1] == ["PartialParsing"]
+        ):
+            unparsed.add(error_path)
+        else:
+            errors.add(error_path)
+    if unparsed:
+        write_summary(
+            f"Semgrep could not parse, so skipped rules on: {', '.join(sorted(unparsed))}"
+        )
+    if errors:
+        raise ValueError(
+            "Semgrep could not completely inspect the changed files: "
+            + ", ".join(sorted(errors)[:3])
+        )
+    findings = [
+        Finding(
+            path,
+            1,
+            "semgrep-unparsed",
+            "Semgrep could not parse this file; its Python rules did not run",
+        )
+        for path in sorted(unparsed)
+    ]
     for hit in output["results"]:
         path = str(Path(hit["path"]).relative_to(destination))
         line = hit["start"]["line"]
@@ -882,4 +917,8 @@ def find_admission_problem(
             f"Admission scan unavailable ({type(error).__name__}): {str(error)[:300]}; "
             "no session admitted"
         )
-        return "the security scan could not complete; see the workflow run and retry"
+        reason = code_span(f"{type(error).__name__}: {str(error)[:300]}")
+        return (
+            f"the security scan could not complete ({reason}); "
+            "see the workflow run, and retry only if this looks transient"
+        )
