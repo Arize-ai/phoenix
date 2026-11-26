@@ -43,6 +43,11 @@ export function PlaygroundConfigButton() {
   const isRunning = usePlaygroundContext((state) =>
     state.instances.some((instance) => instance.activeRunId != null)
   );
+  // The Bedrock prefix only applies to AWS models, so only show it when an
+  // instance is using the AWS provider
+  const hasAwsInstance = usePlaygroundContext((state) =>
+    state.instances.some((instance) => instance.model.provider === "AWS")
+  );
   return (
     <DialogTrigger>
       <Button
@@ -50,7 +55,9 @@ export function PlaygroundConfigButton() {
         aria-label="Playground Settings"
         leadingVisual={<Icon svg={<Icons.Options />} />}
         isDisabled={isRunning}
-      />
+      >
+        Settings
+      </Button>
       <Popover>
         <PopoverArrow />
         <Dialog>
@@ -95,27 +102,33 @@ export function PlaygroundConfigButton() {
                   Enable streaming to view experiment task output as it is
                   generated in real time.
                 </Text>
-                <ComboBox
-                  aria-label="AWS Bedrock Model Prefix"
-                  label="AWS Bedrock Model Prefix"
-                  description="Cross-region inference prefix for AWS Bedrock models"
-                  selectedKey={awsBedrockModelPrefix}
-                  onSelectionChange={(value) => {
-                    if (value != null) {
-                      setAwsBedrockModelPrefix(value as AwsBedrockModelPrefix);
-                    }
-                  }}
-                >
-                  {awsBedrockModelPrefixes.map((prefix) => (
-                    <ComboBoxItem
-                      key={prefix === "" ? "__none__" : prefix}
-                      id={prefix}
-                      textValue={prefix === "" ? "None (no prefix)" : prefix}
-                    >
-                      <Text>{prefix === "" ? "None (no prefix)" : prefix}</Text>
-                    </ComboBoxItem>
-                  ))}
-                </ComboBox>
+                {hasAwsInstance ? (
+                  <ComboBox
+                    aria-label="AWS Bedrock Model Prefix"
+                    label="AWS Bedrock Model Prefix"
+                    description="Cross-region inference prefix for AWS Bedrock models"
+                    selectedKey={awsBedrockModelPrefix}
+                    onSelectionChange={(value) => {
+                      if (value != null) {
+                        setAwsBedrockModelPrefix(
+                          value as AwsBedrockModelPrefix
+                        );
+                      }
+                    }}
+                  >
+                    {awsBedrockModelPrefixes.map((prefix) => (
+                      <ComboBoxItem
+                        key={prefix === "" ? "__none__" : prefix}
+                        id={prefix}
+                        textValue={prefix === "" ? "None (no prefix)" : prefix}
+                      >
+                        <Text>
+                          {prefix === "" ? "None (no prefix)" : prefix}
+                        </Text>
+                      </ComboBoxItem>
+                    ))}
+                  </ComboBox>
+                ) : null}
               </Flex>
             </View>
           </View>
