@@ -509,7 +509,17 @@ async def _wait_for(
     cancelled with a custom message.
     """
     task = asyncio.create_task(coro)
-    done, pending = await asyncio.wait([task], timeout=timeout)
+    try:
+        done, pending = await asyncio.wait([task], timeout=timeout)
+    except asyncio.CancelledError:
+        # asyncio.wait does not cancel the awaited task when this coroutine
+        # is cancelled, so cancel it here. Otherwise the task keeps running
+        # and holds the async generator it is iterating, and a later
+        # aclose() on that generator fails with "asynchronous generator is
+        # already running".
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+        raise
     assert len(done) + len(pending) == 1
     if done:
         task = done.pop()

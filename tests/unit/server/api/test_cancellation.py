@@ -11,7 +11,10 @@ from typing import Any, AsyncGenerator, Optional
 
 import pytest
 
-from phoenix.server.api.subscriptions import _cleanup_chat_completion_resources
+from phoenix.server.api.subscriptions import (
+    _cleanup_chat_completion_resources,
+    _create_task_with_timeout,
+)
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionPayload,
     TextChunk,
@@ -510,3 +513,36 @@ class TestCancellationIntegration:
         # (gen1 raised an error but gen2 should still be closed)
         assert tracker1.aclose_called
         assert tracker2.aclose_called
+
+
+@pytest.mark.asyncio
+class TestWaitForCancellation:
+    """Tests for _wait_for cancelling its inner task when it is cancelled."""
+
+    async def test_cancelling_wait_for_closes_the_stream(self) -> None:
+        """
+        Cancelling the task returned by _create_task_with_timeout must cancel
+        the inner task too, so the stream's finally block runs immediately
+        and aclose() succeeds instead of raising "asynchronous generator is
+        already running".
+        """
+        finally_ran = asyncio.Event()
+        entered_sleep = asyncio.Event()
+
+        async def slow_stream() -> ChatStream:
+            try:
+                yield TextChunk(content="first")
+                entered_sleep.set()
+                await asyncio.sleep(10)  # still generating when cancelled
+            finally:
+                finally_ran.set()
+
+        stream = slow_stream()
+        await stream.asend(None)  # start the generator so its finally can run
+        task = _create_task_with_timeout(stream, timeout_in_seconds=60)
+        await entered_sleep.wait()  # the inner task is now inside the generator
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert finally_ran.is_set()
+        await stream.aclose()  # must not raise "already running"
