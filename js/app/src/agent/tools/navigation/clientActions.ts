@@ -8,6 +8,7 @@ import type { UIOperationHandler } from "@phoenix/agent/uiOperations/types";
 import type { AgentStore } from "@phoenix/store/agentStore";
 
 import { bindPendingNavigationActions } from "./pendingNavigation";
+import { getRegisteredRouterNavigationStateSource } from "./routerStateRegistry";
 import type { NavigationGoToInput } from "./types";
 
 /**
@@ -54,7 +55,13 @@ export function createNavigationGoToClientAction({
           "Use get_route_info to find a valid path first.",
       });
     }
-    if (getCurrentPath() === path) {
+    const routerSource = getRegisteredRouterNavigationStateSource();
+    const currentPath =
+      routerSource != null ? routerSource.getPathname() : getCurrentPath();
+    if (
+      currentPath === path &&
+      (!routerSource || routerSource.getNavigationStatus() === "idle")
+    ) {
       return Promise.resolve({
         ok: true,
         output: {
