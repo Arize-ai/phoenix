@@ -123,6 +123,39 @@ class TestEnvFileDiscovery:
         with patch.dict(os.environ, {"PHOENIX_API_KEY": "env-key"}, clear=True):
             assert get_env_phoenix_auth_header() == {"authorization": "Bearer env-key"}
 
+    def test_empty_process_env_value_counts_as_unset(self, tmp_path: Path) -> None:
+        # `export PHOENIX_API_KEY=` must behave like an unexported variable:
+        # the env-file tier supplies the real endpoint and credentials instead
+        # of resolution being pinned to a value nothing can use (#17420).
+        (tmp_path / ".env.phoenix").write_text(
+            "PHOENIX_COLLECTOR_ENDPOINT=http://file-host:6006\nPHOENIX_API_KEY=file-key\n"
+        )
+        with patch.dict(
+            os.environ,
+            {"PHOENIX_COLLECTOR_ENDPOINT": "", "PHOENIX_API_KEY": ""},
+            clear=True,
+        ):
+            assert get_env_collector_endpoint() == "http://file-host:6006"
+            assert get_env_phoenix_auth_header() == {"authorization": "Bearer file-key"}
+
+    def test_empty_process_env_value_without_file_stays_unset(self) -> None:
+        with patch.dict(os.environ, {"PHOENIX_API_KEY": ""}, clear=True):
+            assert get_env_phoenix_auth_header() is None
+
+    def test_invalid_file_endpoint_with_empty_process_override_is_ignored(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        # The empty process value counts as unset, so an invalid file value
+        # takes the warn-and-ignore branch instead of raising.
+        (tmp_path / ".env.phoenix").write_text("PHOENIX_COLLECTOR_ENDPOINT=http://x:bad\n")
+        with patch.dict(os.environ, {"PHOENIX_COLLECTOR_ENDPOINT": ""}, clear=True):
+            with caplog.at_level("WARNING"):
+                assert get_env_collector_endpoint() is None
+        assert any(
+            "Ignoring invalid PHOENIX_COLLECTOR_ENDPOINT" in record.message
+            for record in caplog.records
+        )
+
     def test_walks_up_to_parent_directories(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
