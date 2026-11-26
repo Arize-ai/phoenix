@@ -29,7 +29,9 @@ const laneRowCSS = css`
     min-width: 0;
     box-sizing: border-box;
   }
-  .experiment-compare-lane-row__cell + .experiment-compare-lane-row__cell {
+  &[data-divided="true"]
+    .experiment-compare-lane-row__cell
+    + .experiment-compare-lane-row__cell {
     border-left: var(--global-border-size-thin) solid
       var(--global-border-color-default);
   }
@@ -38,7 +40,9 @@ const laneRowCSS = css`
     &[data-lane-count="2"] {
       grid-template-columns: minmax(0, 1fr);
     }
-    .experiment-compare-lane-row__cell + .experiment-compare-lane-row__cell {
+    &[data-divided="true"]
+      .experiment-compare-lane-row__cell
+      + .experiment-compare-lane-row__cell {
       border-left: none;
       border-top: var(--global-border-size-thin) solid
         var(--global-border-color-default);
@@ -56,17 +60,21 @@ export function ExperimentCompareLaneRow({
   lanes,
   children,
   className,
+  isDividerHidden = false,
 }: {
   /** The base lane, then the compare lane when there is one */
   lanes: readonly CompareLane[];
   children: (lane: CompareLane) => ReactNode;
   className?: string;
+  /** Leaves out the rule between the lanes, for rows whose cells hold cards */
+  isDividerHidden?: boolean;
 }) {
   return (
     <div
       className={classNames("experiment-compare-lane-row", className)}
       css={laneRowCSS}
       data-lane-count={lanes.length}
+      data-divided={!isDividerHidden}
     >
       {lanes.map((lane) => (
         <div

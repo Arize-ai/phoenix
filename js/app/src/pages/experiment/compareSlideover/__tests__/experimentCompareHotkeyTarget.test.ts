@@ -93,7 +93,7 @@ describe("getCompareRowProps", () => {
       selectedRowId: null,
       onRowClick,
     });
-    onClick?.({
+    onClick({
       target: container.querySelector(targetSelector),
       currentTarget: container.querySelector("tr"),
     } as unknown as MouseEvent<HTMLTableRowElement>);

@@ -843,7 +843,7 @@ function TableBody<T extends RowData>({
   /** The row whose example is open in the compare slideover */
   selectedRowId?: string | null;
   /** Called with a row's ID when the row itself, not a control in it, is clicked */
-  onRowClick?: (rowId: string) => void;
+  onRowClick: (rowId: string) => void;
 }) {
   const rows = table.getRowModel().rows;
   // eslint-disable-next-line react/incompatible-library

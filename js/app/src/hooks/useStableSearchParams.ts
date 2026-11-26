@@ -5,10 +5,10 @@ export type SearchParamsUpdater = (params: {
   /** Returns the next search params from a copy of the current ones */
   update: (searchParams: URLSearchParams) => URLSearchParams;
   /**
-   * Whether the change replaces the current history entry (default true).
-   * A function decides from the search params being replaced.
+   * Decides, from the search params being replaced, whether the change
+   * replaces the current history entry. Without it the entry is replaced.
    */
-  replace?: boolean | ((searchParams: URLSearchParams) => boolean);
+  replace?: (searchParams: URLSearchParams) => boolean;
 }) => void;
 
 /**
@@ -32,7 +32,7 @@ export function useStableSearchParams(): [
   }, [searchParams]);
 
   const updateSearchParams: SearchParamsUpdater = useCallback(
-    ({ update, replace = true }) => {
+    ({ update, replace }) => {
       const currentSearchParams = latestSearchParamsRef.current;
       const nextSearchParams = update(new URLSearchParams(currentSearchParams));
       if (nextSearchParams.toString() === currentSearchParams.toString()) {
@@ -42,12 +42,7 @@ export function useStableSearchParams(): [
       latestSearchParamsRef.current = nextSearchParams;
       navigate(
         { search: nextSearchParams.toString() },
-        {
-          replace:
-            typeof replace === "function"
-              ? replace(currentSearchParams)
-              : replace,
-        }
+        { replace: replace?.(currentSearchParams) ?? true }
       );
     },
     [navigate]

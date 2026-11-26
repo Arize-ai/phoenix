@@ -1287,15 +1287,12 @@ export function ExperimentCompareListPage({
     },
     [clearSelectedSpanSearchParam]
   );
-  const handleRowClick = useCallback(
-    (rowId: string) => {
-      const row = rows.find((candidate) => candidate.id === rowId);
-      if (row != null) {
-        openExample(getRowNavigationItem(row.original));
-      }
-    },
-    [rows, openExample, getRowNavigationItem]
-  );
+  const handleRowClick = (rowId: string) => {
+    const row = rows.find((candidate) => candidate.id === rowId);
+    if (row != null) {
+      openExample(getRowNavigationItem(row.original));
+    }
+  };
 
   return (
     <View overflow="auto">
@@ -1500,7 +1497,7 @@ function TableBody<T extends RowData>({
   /** The row whose run is open in the compare slideover */
   selectedRowId?: string | null;
   /** Called with a row's ID when the row itself, not a control in it, is clicked */
-  onRowClick?: (rowId: string) => void;
+  onRowClick: (rowId: string) => void;
   /**
    * Read from the virtualizer by the caller: the virtualizer is a stable
    * object, so a compiled body reading it directly would never see new rows.

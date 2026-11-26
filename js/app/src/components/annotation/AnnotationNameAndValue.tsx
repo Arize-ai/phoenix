@@ -31,6 +31,11 @@ const valuePartsCSS = css`
   gap: var(--global-dimension-size-100);
 `;
 
+const valueEndAlignedCSS = css`
+  margin-left: auto;
+  flex: none;
+`;
+
 /**
  * A single renderable piece of an annotation value. Scores render in a
  * monospace font; labels render in the default font.
@@ -141,11 +146,9 @@ export function AnnotationNameAndValue({
           css={css(
             textCSS(maxWidth),
             css`
-              margin-left: ${isValueEndAligned
-                ? "auto"
-                : "var(--global-dimension-100)"};
-              flex: ${isValueEndAligned ? "none" : "initial"};
-            `
+              margin-left: var(--global-dimension-100);
+            `,
+            isValueEndAligned && valueEndAlignedCSS
           )}
         >
           <AnnotationScoreText optimizationValue={optimizationValue}>

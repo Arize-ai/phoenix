@@ -138,7 +138,7 @@ const slideoverCSS = css`
   }
 
   /* Details mode scrolls under the lane headers. Both reserve the scrollbar's
-     width so the divider between the lanes stays in one line. */
+     width so the lanes keep the same width above and below. */
   .experiment-compare-slideover__body[data-mode="details"]
     .experiment-compare-slideover__lane-headers {
     overflow: hidden;
@@ -364,16 +364,13 @@ function OpenExperimentCompareSlideover({
                 size="S"
                 to={`/datasets/${datasetId}/examples/${selectedExampleId}`}
                 target="_blank"
-                rel="noopener noreferrer"
               >
                 View Example
               </LinkButton>
             </div>
           </header>
-          {/* Keyed so that opening another example or changing the experiments
-              leaves a failed load behind */}
           <ErrorBoundary
-            key={[
+            resetKey={[
               selectedExampleId,
               baseExperimentId,
               ...compareExperimentIds,
