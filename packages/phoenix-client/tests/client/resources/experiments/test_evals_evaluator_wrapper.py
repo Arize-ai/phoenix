@@ -22,6 +22,8 @@ class _FakeEvalsEvaluator:
     name: str
     source: str
     scores: ScoreResult
+    direction: str = "maximize"
+    input_schema: Any = None
 
     def evaluate(self, input: dict[str, Any]) -> ScoreResult:
         return self.scores
@@ -44,7 +46,7 @@ def test_multi_criterion_scores_all_recorded() -> None:
     result = wrap_phoenix_evals_evaluator(evaluator).evaluate(output="x")
 
     assert isinstance(result, list)
-    assert [evaluation["name"] for evaluation in result] == [
+    assert [evaluation.get("name") for evaluation in result] == [
         "helpfulness",
         "professionalism",
         "resolution",
@@ -70,7 +72,7 @@ async def test_multi_criterion_scores_all_recorded_async() -> None:
     result = await wrap_phoenix_evals_evaluator(evaluator).async_evaluate(output="x")
 
     assert isinstance(result, list)
-    assert [evaluation["name"] for evaluation in result] == ["helpfulness", "professionalism"]
+    assert [evaluation.get("name") for evaluation in result] == ["helpfulness", "professionalism"]
 
 
 def test_single_score_returns_one_evaluation() -> None:
@@ -83,5 +85,5 @@ def test_single_score_returns_one_evaluation() -> None:
     result = wrap_phoenix_evals_evaluator(evaluator).evaluate(output="x")
 
     assert isinstance(result, dict)
-    assert result["name"] == "sentiment"
-    assert result["label"] == "positive"
+    assert result.get("name") == "sentiment"
+    assert result.get("label") == "positive"
