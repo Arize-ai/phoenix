@@ -16,6 +16,7 @@ export function ExperimentAnnotationButton({
   optimizationValue,
   compact = false,
   displayName,
+  isValueEndAligned,
 }: {
   annotation: Annotation;
   /**
@@ -36,6 +37,11 @@ export function ExperimentAnnotationButton({
   compact?: boolean;
   /** The name to show in place of the annotation's own; null shows no name. */
   displayName?: string | null;
+  /**
+   * Pushes the value to the end of the button, so the values of stacked
+   * annotations line up in a column.
+   */
+  isValueEndAligned?: boolean;
 }) {
   return (
     <Pressable>
@@ -90,6 +96,7 @@ export function ExperimentAnnotationButton({
             showColorSwatch={false}
             truncateNameFirst={compact}
             displayName={displayName}
+            isValueEndAligned={isValueEndAligned}
           />
           {extra}
         </Flex>

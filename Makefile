@@ -34,7 +34,7 @@ NC := \033[0m # No Color
 	graphql schema-graphql relay-build \
 	openapi schema-openapi schema-generative-ui ui-message-stream-fixtures codegen-python-client codegen-ts-client codegen-ts-app codegen-harbor-graphql \
 	dev dev-backend dev-frontend dev-stack dev-mock-llm \
-	test test-python test-frontend test-ts test-helm test-jcs doctest typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
+	test test-python test-factory test-frontend test-ts test-helm test-jcs doctest typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
 	skills skills-check codegen-prompts sync-models test-sync-models schema-ddl check-graphql-permissions check-filter-dsl-snippets check-skill-graphql-examples check-skill-filter-examples check-skill-python-examples check-skill-typescript-examples check-skill-px-commands sync-docs-snippets check-docs-snippets check-evaluator-bound-variables check-evaluator-path-parity check-prompt-compilers gen-otel-models \

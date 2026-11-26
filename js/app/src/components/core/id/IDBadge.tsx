@@ -123,15 +123,25 @@ export const IDBadge = ({
       >
         {variant === "badge" ? (
           <Badge size={size}>
-            <Icon svgKey="ID" />
-            <Text fontFamily="mono" size="S" color="text-700">
+            <Icon className="id-badge__id-icon" svgKey="ID" />
+            <Text
+              className="id-badge__id"
+              fontFamily="mono"
+              size="S"
+              color="text-700"
+            >
               {label}
             </Text>
             {copyIcon}
           </Badge>
         ) : (
           <>
-            <Text fontFamily="mono" size="S" color="text-500">
+            <Text
+              className="id-badge__id"
+              fontFamily="mono"
+              size="S"
+              color="text-500"
+            >
               {label}
             </Text>
             {copyIcon}

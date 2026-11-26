@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import {
@@ -17,13 +18,15 @@ import {
   Text,
   TextArea,
   TextField,
-  transformInputValue,
   View,
   ViewportModal,
   ViewportModalOverlay,
 } from "@phoenix/components";
+import { IDENTIFIER_DESCRIPTION } from "@phoenix/constants";
+import { TransformingInputController } from "@phoenix/hooks/useTransformingInput";
 import {
-  replaceWhitespaceWithDashes,
+  transformIdentifierInput,
+  trimIdentifierSeparators,
   validateIdentifier,
 } from "@phoenix/utils/identifierUtils";
 
@@ -49,10 +52,11 @@ export function NewVersionTagDialog({
   error: string | null;
   isCommitting: boolean;
 }) {
+  const [isNameFocused, setIsNameFocused] = useState(false);
   const {
     control,
     handleSubmit,
-    formState: { isDirty },
+    formState: { isDirty, isSubmitted },
   } = useForm<VersionTagFormParams>({
     defaultValues: {
       name: "",
@@ -86,33 +90,49 @@ export function NewVersionTagDialog({
                   }}
                   render={({
                     field: { name, onChange, onBlur, value },
-                    fieldState: { invalid, error },
-                  }) => (
-                    <TextField
-                      isInvalid={invalid}
-                      onChange={(value) =>
-                        onChange(
-                          transformInputValue({
-                            value,
-                            transform: replaceWhitespaceWithDashes,
-                          })
-                        )
-                      }
-                      onBlur={onBlur}
-                      name={name}
-                      value={value}
-                    >
-                      <Label>Tag Name</Label>
-                      <Input placeholder="e.x. prod" />
-                      {error?.message ? (
-                        <FieldError>{error.message}</FieldError>
-                      ) : (
-                        <Text slot="description">
-                          The identifier of the tag
-                        </Text>
-                      )}
-                    </TextField>
-                  )}
+                    fieldState: { error, isTouched },
+                  }) => {
+                    const displayedError =
+                      (isTouched && !isNameFocused) || isSubmitted
+                        ? error
+                        : undefined;
+                    return (
+                      <TransformingInputController
+                        value={value}
+                        onValueChange={onChange}
+                        transformValue={transformIdentifierInput}
+                        finalizeValue={trimIdentifierSeparators}
+                      >
+                        {(transformingInput) => (
+                          <TextField
+                            isInvalid={!!displayedError}
+                            onChange={transformingInput.handleValueChange}
+                            onFocus={() => setIsNameFocused(true)}
+                            onBlur={() => {
+                              setIsNameFocused(false);
+                              transformingInput.handleBlur();
+                              onBlur();
+                            }}
+                            name={name}
+                            value={transformingInput.displayValue}
+                          >
+                            <Label>Tag Name</Label>
+                            <Input
+                              {...transformingInput.inputProps}
+                              placeholder="e.x. prod"
+                            />
+                            {displayedError?.message ? (
+                              <FieldError>{displayedError.message}</FieldError>
+                            ) : (
+                              <Text slot="description">
+                                {IDENTIFIER_DESCRIPTION}
+                              </Text>
+                            )}
+                          </TextField>
+                        )}
+                      </TransformingInputController>
+                    );
+                  }}
                 />
                 <Controller
                   name="description"

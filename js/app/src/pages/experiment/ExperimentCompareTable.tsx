@@ -77,7 +77,6 @@ import {
   datasetEvaluatorsToAnnotationConfigs,
   getAnnotationConfigsWithResults,
 } from "@phoenix/utils/datasetEvaluatorUtils";
-import { isWhitespaceOnlyReformat } from "@phoenix/utils/jsonUtils";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
 import type {

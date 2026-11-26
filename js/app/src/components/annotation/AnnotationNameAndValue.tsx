@@ -132,6 +132,12 @@ interface AnnotationNameAndValueProps {
    * The title tooltip keeps the annotation's full name either way.
    */
   displayName?: string | null;
+  /**
+   * Fills the available width and pushes the value to its end, so the values
+   * of stacked annotations line up in a column.
+   * @default false
+   */
+  isValueEndAligned?: boolean;
 }
 export function AnnotationNameAndValue({
   annotation,
@@ -143,6 +149,7 @@ export function AnnotationNameAndValue({
   showColorSwatch = true,
   truncateNameFirst = false,
   displayName,
+  isValueEndAligned = false,
 }: AnnotationNameAndValueProps) {
   const valueParts = getAnnotationValueParts(annotation, displayPreference);
   const name = displayName === undefined ? annotation.name : displayName;
@@ -181,7 +188,8 @@ export function AnnotationNameAndValue({
             css`
               margin-left: var(--global-dimension-100);
             `,
-            truncateNameFirst && valueKeepsWidthCSS
+            truncateNameFirst && valueKeepsWidthCSS,
+            isValueEndAligned && valueEndAlignedCSS
           )}
         >
           <AnnotationScoreText

@@ -34,7 +34,13 @@ from phoenix.db.types.evaluator_definition import (
     InlineDecisionEvaluatorDefinition,
 )
 from phoenix.db.types.evaluators import InputMapping
+from phoenix.db.types.experiment_config import OpenAIConnectionConfig
 from phoenix.db.types.identifier import Identifier
+from phoenix.db.types.model_provider import (
+    AuthenticationMethodApiKey,
+    GenerativeModelCustomerProviderConfig,
+    OpenAICustomProviderConfig,
+)
 from phoenix.db.types.prompts import PromptMessageRole, PromptTemplateFormat
 from phoenix.server.api import subscriptions
 from phoenix.server.api.helpers.decision_clients import (
@@ -1302,10 +1308,11 @@ class TestExperimentsOverDatasetPromptTaskSubscription:
                                     ]
                                 },
                                 "modelProvider": "OPENAI",
-                                "modelName": "gpt-4o",
+                                "modelName": "gpt-4",
                                 "invocationParameters": {"openai": {}},
                                 "tools": None,
                             },
+                            "connectionConfig": CHAT_COMPLETIONS_CONNECTION_CONFIG,
                         },
                     },
                 ],
@@ -1880,7 +1887,7 @@ class TestExperimentsOverDatasetPromptTaskSubscription:
             payload
             for example_payloads in payloads.values()
             for payload in example_payloads
-            if payload["chatCompletionOverDataset"]["__typename"]
+            if payload["experimentsOverDataset"]["__typename"]
             == ChatCompletionSubscriptionError.__name__
         ]
 

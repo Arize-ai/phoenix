@@ -20,7 +20,14 @@ import {
 } from "@phoenix/components";
 import { CodeEditorFieldWrapper, JSONEditor } from "@phoenix/components/code";
 import { formatPromptVersionMetadataForEditor } from "@phoenix/components/playground/playgroundPromptUtils";
-import { DEFAULT_PROMPT_VERSION_TAGS } from "@phoenix/constants";
+import {
+  DEFAULT_PROMPT_VERSION_TAGS,
+  IDENTIFIER_DESCRIPTION,
+} from "@phoenix/constants";
+import {
+  TransformingInputController,
+  useTransformingInput,
+} from "@phoenix/hooks/useTransformingInput";
 import type { SavePromptFormQuery } from "@phoenix/pages/playground/__generated__/SavePromptFormQuery.graphql";
 import { PromptComboBox } from "@phoenix/pages/playground/PromptComboBox";
 import {

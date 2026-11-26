@@ -854,7 +854,10 @@ def _add_prompt_task(
     task_connection = (
         None
         if prompt_version.custom_provider_id is not None
-        else to_connection_config(prompt_version.model_provider, task.connection_config)
+        else to_connection_config(
+            model_provider=prompt_version.model_provider,
+            connection_config_input=task.connection_config,
+        )
     )
     prompt_version_id = (
         from_global_id_with_expected_type(task.prompt_version_id, "PromptVersion")

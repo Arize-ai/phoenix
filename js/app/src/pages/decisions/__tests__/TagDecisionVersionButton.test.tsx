@@ -2,8 +2,8 @@ import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type * as ReactRelay from "react-relay";
 
+import { IDENTIFIER_ERROR_MESSAGES } from "@phoenix/constants";
 import { ThemeContext } from "@phoenix/contexts/ThemeContext";
-import { IDENTIFIER_ERROR_MESSAGES } from "@phoenix/utils/identifierUtils";
 
 import { TagDecisionVersionButton } from "../TagDecisionVersionButton";
 
