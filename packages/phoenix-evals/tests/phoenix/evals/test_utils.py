@@ -7,6 +7,7 @@ import pytest
 from jsonpath_ng.exceptions import JsonPathParserError
 
 from phoenix.evals.utils import (
+    _mapping_source_key,
     extract_with_jsonpath,
     remap_eval_input,
     to_annotation_dataframe,
@@ -322,6 +323,53 @@ class TestRemapEvalInput:
             remap_eval_input(
                 eval_input=eval_input, required_fields=required_fields, input_mapping=input_mapping
             )
+
+    @pytest.mark.parametrize(
+        "path,expected_source_key",
+        [
+            pytest.param("data.text", "data", id="bare_dot_path"),
+            pytest.param("$.data.text", "data", id="rooted_dot_path"),
+            pytest.param("$['data'].text", "data", id="rooted_single_quoted_bracket"),
+            pytest.param('$["data"].text', "data", id="rooted_double_quoted_bracket"),
+            pytest.param("messages[0].content", "messages", id="bare_index_path"),
+            pytest.param("$.messages[0].content", "messages", id="rooted_index_path"),
+            pytest.param("$.data", "data", id="rooted_single_segment"),
+            pytest.param("$", None, id="bare_root_has_no_single_source_key"),
+            pytest.param("$[0]", None, id="root_index_has_no_single_source_key"),
+        ],
+    )
+    def test_mapping_source_key(self, path, expected_source_key):
+        assert _mapping_source_key(path) == expected_source_key
+
+    @pytest.mark.parametrize(
+        "input_mapping",
+        [
+            pytest.param({"output": "data.prediction"}, id="bare"),
+            pytest.param({"output": "$.data.prediction"}, id="rooted"),
+            pytest.param({"output": "$['data'].prediction"}, id="rooted_bracket"),
+        ],
+    )
+    def test_jsonpath_root_does_not_leak_the_source_key(self, input_mapping):
+        """An explicit `$` root must consume the source key like the bare path does.
+
+        Previously the source key was derived with `path.split(".")[0]`, which yields
+        "$" for a rooted path, so `data` was treated as unmapped and passed through
+        alongside the remapped field.
+        """
+        out = remap_eval_input(
+            eval_input={"data": {"prediction": "yes"}},
+            required_fields={"output"},
+            input_mapping=input_mapping,
+        )
+        assert out == {"output": "yes"}
+
+    def test_unmapped_keys_still_pass_through_with_a_rooted_path(self):
+        out = remap_eval_input(
+            eval_input={"messages": [{"content": "hi"}], "extra": 1},
+            required_fields={"output"},
+            input_mapping={"output": "$.messages[0].content"},
+        )
+        assert out == {"output": "hi", "extra": 1}
 
 
 class TestExtractWithJsonPath:
