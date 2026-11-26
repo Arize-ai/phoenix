@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v3.8.0...arize-phoenix-client-v3.9.0) (2026-11-26)
+
+
+### Features
+
+* **api:** add GET /spans/{span_identifier} endpoint to fetch a single span ([#18229](https://github.com/Arize-ai/phoenix/issues/18229)) ([88ad514](https://github.com/Arize-ai/phoenix/commit/88ad5143b577ba19613fcb1dcabb8952965eb95e))
+
+
+### Documentation
+
+* **client:** fix PromptVersion and get_traces examples in README ([#18129](https://github.com/Arize-ai/phoenix/issues/18129)) ([e0b90fe](https://github.com/Arize-ai/phoenix/commit/e0b90fef1eb25925d383c49833bf95e49d583525))
+
 ## [3.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v3.7.0...arize-phoenix-client-v3.8.0) (2026-11-23)
 
 
