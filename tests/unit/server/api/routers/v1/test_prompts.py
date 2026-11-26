@@ -603,6 +603,113 @@ class TestPrompts:
         assert tag.prompt_version_id == created_id
         assert tag.description == "Serves prod traffic"
 
+    async def test_create_prompt_version_tag_without_description_preserves_existing(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, prompt_versions = await self._insert_prompt_versions(db)
+        tag_name = Identifier.model_validate("production")
+        await self._tag_prompt_version_with_description(
+            db, prompt, prompt_versions[0], tag_name, "Serves prod traffic"
+        )
+        target_version_id = str(GlobalID(PromptVersion.__name__, str(prompt_versions[1].id)))
+        url = f"v1/prompt_versions/{quote_plus(target_version_id)}/tags"
+
+        response = await httpx_client.post(url, json={"name": tag_name.root})
+
+        assert response.status_code == 204, response.text
+        async with db() as session:
+            tag = await session.scalar(
+                select(models.PromptVersionTag).where(
+                    models.PromptVersionTag.prompt_id == prompt.id,
+                    models.PromptVersionTag.name == tag_name,
+                )
+            )
+        assert tag is not None
+        assert tag.prompt_version_id == prompt_versions[1].id
+        assert tag.description == "Serves prod traffic"
+
+    async def test_create_prompt_version_tag_with_null_description_clears_existing(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, prompt_versions = await self._insert_prompt_versions(db)
+        tag_name = Identifier.model_validate("production")
+        await self._tag_prompt_version_with_description(
+            db, prompt, prompt_versions[0], tag_name, "Serves prod traffic"
+        )
+        target_version_id = str(GlobalID(PromptVersion.__name__, str(prompt_versions[1].id)))
+        url = f"v1/prompt_versions/{quote_plus(target_version_id)}/tags"
+
+        response = await httpx_client.post(url, json={"name": tag_name.root, "description": None})
+
+        assert response.status_code == 204, response.text
+        async with db() as session:
+            tag = await session.scalar(
+                select(models.PromptVersionTag).where(
+                    models.PromptVersionTag.prompt_id == prompt.id,
+                    models.PromptVersionTag.name == tag_name,
+                )
+            )
+        assert tag is not None
+        assert tag.prompt_version_id == prompt_versions[1].id
+        assert tag.description is None
+
+    async def test_create_prompt_version_tag_with_description_updates_existing(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, prompt_versions = await self._insert_prompt_versions(db)
+        tag_name = Identifier.model_validate("production")
+        await self._tag_prompt_version_with_description(
+            db, prompt, prompt_versions[0], tag_name, "Serves prod traffic"
+        )
+        target_version_id = str(GlobalID(PromptVersion.__name__, str(prompt_versions[1].id)))
+        url = f"v1/prompt_versions/{quote_plus(target_version_id)}/tags"
+
+        response = await httpx_client.post(
+            url, json={"name": tag_name.root, "description": "Now on v2"}
+        )
+
+        assert response.status_code == 204, response.text
+        async with db() as session:
+            tag = await session.scalar(
+                select(models.PromptVersionTag).where(
+                    models.PromptVersionTag.prompt_id == prompt.id,
+                    models.PromptVersionTag.name == tag_name,
+                )
+            )
+        assert tag is not None
+        assert tag.prompt_version_id == prompt_versions[1].id
+        assert tag.description == "Now on v2"
+
+    async def test_create_prompt_version_tag_without_description_on_new_tag(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, prompt_versions = await self._insert_prompt_versions(db)
+        tag_name = Identifier.model_validate("staging")
+        target_version_id = str(GlobalID(PromptVersion.__name__, str(prompt_versions[0].id)))
+        url = f"v1/prompt_versions/{quote_plus(target_version_id)}/tags"
+
+        response = await httpx_client.post(url, json={"name": tag_name.root})
+
+        assert response.status_code == 204, response.text
+        async with db() as session:
+            tag = await session.scalar(
+                select(models.PromptVersionTag).where(
+                    models.PromptVersionTag.prompt_id == prompt.id,
+                    models.PromptVersionTag.name == tag_name,
+                )
+            )
+        assert tag is not None
+        assert tag.prompt_version_id == prompt_versions[0].id
+        assert tag.description is None
+
     async def test_create_prompt_version_rejects_mismatched_provider(
         self,
         httpx_client: httpx2.AsyncClient,
@@ -784,6 +891,24 @@ class TestPrompts:
             )
             session.add(prompt_version_tag)
         return tag_name
+
+    @staticmethod
+    async def _tag_prompt_version_with_description(
+        db: DbSessionFactory,
+        prompt: models.Prompt,
+        prompt_version: models.PromptVersion,
+        tag_name: Identifier,
+        description: Optional[str],
+    ) -> None:
+        async with db() as session:
+            session.add(
+                models.PromptVersionTag(
+                    name=tag_name,
+                    description=description,
+                    prompt_id=prompt.id,
+                    prompt_version_id=prompt_version.id,
+                )
+            )
 
     @staticmethod
     async def _insert_prompt_versions(
