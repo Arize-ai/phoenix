@@ -139,7 +139,7 @@ async def test_select_parent_id_as_span_id(
     expected = pd.DataFrame(
         {
             "context.span_id": ["123", "234", "234", "234"],
-            "name": ["root span", "embedding span", "retriever span", "llm span"],
+            "name": ["root span", "llm span", "retriever span", "embedding span"],
         }
     ).set_index("context.span_id")
     async with db() as session:
@@ -312,11 +312,12 @@ async def test_limit_with_select_statement(
     sq = SpanQuery().select("context.span_id")
     expected = pd.DataFrame(
         {
-            "context.span_id": ["234", "345"],
+            "context.span_id": ["567", "456"],
         }
     ).set_index("context.span_id")
     async with db() as session:
         actual = await session.run_sync(sq, project_name="abc", limit=2)
+    assert actual.index.tolist() == ["567", "456"]
     assert_frame_equal(
         actual.sort_index().sort_index(axis=1),
         expected.sort_index().sort_index(axis=1),
