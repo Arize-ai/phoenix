@@ -1,9 +1,16 @@
 import base64
+import json
 from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Any, cast
+from unittest.mock import AsyncMock
 
+import httpx2
 import pytest
+from openai.types.chat import ChatCompletion
+from pydantic_ai.exceptions import UserError
+from pydantic_ai.messages import ImageUrl, ModelRequest, UserPromptPart, VideoUrl
+from pydantic_ai.models import ModelRequestParameters
 
 from phoenix.db.types.model_provider import (
     AnthropicCustomProviderConfig,
@@ -34,6 +41,167 @@ class _ProviderRecord:
 
 
 class TestBuildModel:
+    @pytest.mark.parametrize("model_name", ["MiniMax-M3", "MiniMax-M2.7"])
+    async def test_builtin_minimax_preserves_text_requests(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+        model_name: str,
+    ) -> None:
+        monkeypatch.setenv("MINIMAX_API_KEY", "test-key")
+        model = await build_model(
+            BuiltInProviderModelSelection(
+                provider_type="builtin",
+                provider=ModelProvider.MINIMAX,
+                model_name=model_name,
+            ),
+            db=db,
+            decrypt=lambda value: value,
+        )
+        create = AsyncMock(
+            return_value=ChatCompletion(
+                id="test-completion",
+                created=0,
+                model=model_name,
+                object="chat.completion",
+                choices=[
+                    {
+                        "index": 0,
+                        "finish_reason": "stop",
+                        "message": {"role": "assistant", "content": "Done."},
+                    }
+                ],
+            )
+        )
+        monkeypatch.setattr(cast(Any, model)._provider.client.chat.completions, "create", create)
+        await model.request(
+            [ModelRequest(parts=[UserPromptPart(content="Hello.")])], None, ModelRequestParameters()
+        )
+        assert create.call_args.kwargs["messages"] == [{"role": "user", "content": "Hello."}]
+
+    @pytest.mark.parametrize(
+        "content",
+        [
+            ImageUrl(url="https://example.test/image.png"),
+            VideoUrl(url="https://example.test/video.mp4"),
+        ],
+    )
+    async def test_builtin_minimax_rejects_media_for_text_model(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+        content: Any,
+    ) -> None:
+        monkeypatch.setenv("MINIMAX_API_KEY", "test-key")
+        model = await build_model(
+            BuiltInProviderModelSelection(
+                provider_type="builtin",
+                provider=ModelProvider.MINIMAX,
+                model_name="MiniMax-M2.7",
+            ),
+            db=db,
+            decrypt=lambda value: value,
+        )
+        with pytest.raises(UserError, match="not supported by this MiniMax model"):
+            await model.request(
+                [ModelRequest(parts=[UserPromptPart(content=[content])])],
+                None,
+                ModelRequestParameters(),
+            )
+
+    @pytest.mark.parametrize(
+        "video_url",
+        ["https://example.test/video.mp4", "mm_file://video-file", "data:video/mp4;base64,AA=="],
+    )
+    async def test_builtin_minimax_serializes_media(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+        video_url: str,
+    ) -> None:
+        monkeypatch.setenv("MINIMAX_API_KEY", "test-key")
+        params = BuiltInProviderModelSelection(
+            provider_type="builtin",
+            provider=ModelProvider.MINIMAX,
+            model_name="MiniMax-M3",
+        )
+        model = await build_model(params, db=db, decrypt=lambda value: value)
+        payloads: list[dict[str, Any]] = []
+
+        def respond(request: httpx2.Request) -> httpx2.Response:
+            payloads.append(json.loads(request.content))
+            return httpx2.Response(
+                200,
+                json={
+                    "id": "test-completion",
+                    "created": 0,
+                    "model": "MiniMax-M3",
+                    "object": "chat.completion",
+                    "choices": [
+                        {
+                            "index": 0,
+                            "finish_reason": "stop",
+                            "message": {"role": "assistant", "content": "Done."},
+                        }
+                    ],
+                },
+            )
+
+        async with httpx2.AsyncClient(transport=httpx2.MockTransport(respond)) as client:
+            monkeypatch.setattr(cast(Any, model)._provider.client, "_client", client)
+            await model.request(
+                [
+                    ModelRequest(
+                        parts=[
+                            UserPromptPart(
+                                content=[
+                                    "Compare these.",
+                                    ImageUrl(
+                                        url="data:image/png;base64,AA==",
+                                        vendor_metadata={"max_long_side_pixel": 1024},
+                                    ),
+                                    VideoUrl(
+                                        url=video_url,
+                                        vendor_metadata={
+                                            "fps": 2,
+                                            "detail": "default",
+                                            "max_long_side_pixel": 720,
+                                        },
+                                    ),
+                                ]
+                            )
+                        ]
+                    )
+                ],
+                None,
+                ModelRequestParameters(),
+            )
+        assert len(payloads) == 1
+        assert payloads[0]["messages"] == [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "Compare these."},
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": "data:image/png;base64,AA==",
+                            "max_long_side_pixel": 1024,
+                        },
+                    },
+                    {
+                        "type": "video_url",
+                        "video_url": {
+                            "url": video_url,
+                            "fps": 2,
+                            "detail": "default",
+                            "max_long_side_pixel": 720,
+                        },
+                    },
+                ],
+            }
+        ]
+
     async def test_returns_404_for_missing_custom_provider(self, db: DbSessionFactory) -> None:
         params = CustomProviderModelSelection(
             provider_type="custom",
