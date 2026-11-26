@@ -1,0 +1,69 @@
+---
+title: "Straitly Tracing"
+description: "Phoenix provides auto-instrumentation for Straitly through the OpenAI Python Library since Straitly provides an OpenAI-compatible API endpoint."
+---
+
+import RegisterTracerPython from "../../../../snippets/register-tracer-python.mdx";
+
+## Install
+
+```bash
+pip install arize-phoenix-otel openinference-instrumentation-openai openai
+```
+
+## Setup
+
+Add your Straitly API key as an environment variable. Create one in the [Straitly console](https://straitly.ai/console/keys):
+
+```bash
+export STRAITLY_API_KEY='your_straitly_api_key'
+```
+
+<RegisterTracerPython projectName="my-llm-app" />
+
+## Run Straitly
+
+```python
+import os
+import openai
+
+client = openai.OpenAI(
+    base_url="https://api.straitly.ai/v1",
+    api_key=os.environ["STRAITLY_API_KEY"]
+)
+
+response = client.chat.completions.create(
+    model="deepseek/deepseek-v4-1-flash-1017",
+    messages=[{"role": "user", "content": "Write a haiku about observability."}],
+)
+print(response.choices[0].message.content)
+```
+
+Use any model ID from the [Straitly model list](https://straitly.ai/models), for example `claude-sonnet-5-5`. List them with `client.models.list()`.
+
+## Observe
+
+Now that you have tracing set up, all invocations of the OpenAI client pointed at Straitly will be streamed to your running Phoenix for observability and evaluation.
+
+## What Gets Traced
+
+All Straitly model calls are automatically traced and include:
+
+* Request/response data and timing
+* Model name
+* Token usage
+* Error handling and debugging information
+
+## Common Issues
+
+* **API Key**: Use your Straitly API key, not an OpenAI key
+* **Model Names**: Use the model ID exactly as listed on the [Straitly model list](https://straitly.ai/models), including any lab prefix such as `deepseek/`
+* **Insufficient balance**: Straitly is billed per token from prepaid credits. Add credits before you send requests
+* **Base URL**: Ensure you're using `https://api.straitly.ai/v1` as the base URL
+
+## Resources
+
+<Columns cols={2}>
+  <Card title="Straitly Quickstart" href="https://straitly.ai/docs/quickstart" icon="book" horizontal description="Straitly setup docs"/>
+  <Card title="OpenInference OpenAI Instrumentation" href="https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai" icon="puzzle-piece" horizontal description="OpenAI instrumentation package"/>
+</Columns>

@@ -140,6 +140,10 @@
       "reason": "No OrcaRouter API key is provisioned for docs CI."
     },
     {
+      "doc": "docs/phoenix/integrations/llm-providers/straitly/openai-tracing.mdx",
+      "reason": "No Straitly API key is provisioned for docs CI."
+    },
+    {
       "doc": "docs/phoenix/integrations/platforms/claude-managed-agents/claude-managed-agents-tracing.mdx",
       "reason": "Requires an Anthropic-managed OTEL destination that CI cannot provision."
     },

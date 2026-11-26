@@ -320,6 +320,7 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [Novita AI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/novita-ai/novita-ai-tracing): Trace Novita AI chat completions with openinference-instrumentation-openai
 - [PrismML Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/prismml/prismml-tracing): Trace local PrismML Bonsai model calls with openinference-instrumentation-openai
 - [Qwen Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/qwen/qwen-tracing): Trace Qwen calls via Alibaba Cloud Model Studio with openinference-instrumentation-openai
+- [Straitly Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/straitly/openai-tracing): Auto-instrument Straitly via its OpenAI-compatible endpoint with openinference-instrumentation-openai
 - [TrueFoundry Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/truefoundry/truefoundry-tracing): Trace app-side TrueFoundry AI Gateway calls with openinference-instrumentation-openai
 - [vLLM Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/vllm/vllm-tracing): Combine vLLM's built-in OpenTelemetry export with OpenAI SDK client instrumentation
 - [xAI Grok Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/xai/xai-tracing): Trace xAI Grok calls with openinference-instrumentation-openai
@@ -511,6 +512,7 @@ For an agent working with Phoenix: the px CLI needs only a shell and PHOENIX_END
 - [Novita AI Integration](https://arize.com/docs/phoenix/integrations/llm-providers/novita-ai): Trace Novita AI model API calls in Phoenix
 - [PrismML Integration](https://arize.com/docs/phoenix/integrations/llm-providers/prismml): Trace locally served PrismML Bonsai open-weight models in Phoenix
 - [Qwen Integration](https://arize.com/docs/phoenix/integrations/llm-providers/qwen): Trace Qwen model calls from Alibaba Cloud Model Studio in Phoenix
+- [Straitly Integration](https://arize.com/docs/phoenix/integrations/llm-providers/straitly): Trace calls through Straitly's OpenAI-compatible gateway to more than 150 models
 - [TrueFoundry Integration](https://arize.com/docs/phoenix/integrations/llm-providers/truefoundry): Trace calls through TrueFoundry's multi-provider AI Gateway in Phoenix
 - [vLLM Integration](https://arize.com/docs/phoenix/integrations/llm-providers/vllm): Trace vLLM server spans and client calls in Phoenix
 - [xAI Grok Integration](https://arize.com/docs/phoenix/integrations/llm-providers/xai): Trace xAI Grok model calls in Phoenix
