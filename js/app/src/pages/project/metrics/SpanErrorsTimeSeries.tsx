@@ -82,7 +82,7 @@ export function SpanErrorsTimeSeries({
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
 
   const SemanticChartColors = useSemanticChartColors();
-  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey, showAll } =
     useInteractiveLegend();
   return (
     <TimeRangeChartBrush
@@ -132,6 +132,7 @@ export function SpanErrorsTimeSeries({
                 iconType="circle"
                 iconSize={8}
                 onToggleDataKey={toggleDataKey}
+                onShowAll={showAll}
               />
             </BarChart>
           </ChartResponsiveContainer>

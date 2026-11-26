@@ -223,7 +223,7 @@ export function TraceTokenCountTimeSeries({
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
 
   const colors = useCategoryChartColors();
-  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey, showAll } =
     useInteractiveLegend();
   return (
     <TimeRangeChartBrush
@@ -280,6 +280,7 @@ export function TraceTokenCountTimeSeries({
                 iconType="circle"
                 iconSize={8}
                 onToggleDataKey={toggleDataKey}
+                onShowAll={showAll}
               />
             </BarChart>
           </ChartResponsiveContainer>
@@ -331,7 +332,7 @@ function TraceTokenDetailsTimeSeries({
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
 
   const colors = useCategoryChartColors();
-  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey, showAll } =
     useInteractiveLegend();
   return (
     <TimeRangeChartBrush
@@ -391,6 +392,7 @@ function TraceTokenDetailsTimeSeries({
                 iconType="circle"
                 iconSize={8}
                 onToggleDataKey={toggleDataKey}
+                onShowAll={showAll}
               />
             </BarChart>
           </ChartResponsiveContainer>

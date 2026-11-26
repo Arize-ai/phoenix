@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import { cloneElement, createElement, isValidElement, useState } from "react";
-import type { MouseEvent } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import type {
   DefaultLegendContentProps,
   LegendPayload,
@@ -36,6 +36,12 @@ export type InteractiveLegendDataKey = Extract<
   string | number
 >;
 
+type ToggleDataKeyOptions = {
+  dataKey: InteractiveLegendDataKey;
+  /** When provided, show only dataKey among these legend entries. */
+  isolateDataKeys?: ReadonlyArray<InteractiveLegendDataKey>;
+};
+
 type RechartsSymbolType = SymbolsProps["type"];
 
 /**
@@ -49,13 +55,15 @@ type RechartsLegendContentProps = DefaultLegendContentProps & {
 type InteractiveLegendContentProps = RechartsLegendContentProps & {
   baseContent?: LegendProps["content"];
   hiddenDataKeys: ReadonlySet<InteractiveLegendDataKey>;
-  onToggleDataKey: (dataKey: InteractiveLegendDataKey) => void;
+  onToggleDataKey: (options: ToggleDataKeyOptions) => void;
+  onShowAll: () => void;
   additionalLegendItems?: ReadonlyArray<LegendPayload>;
 };
 
 export type InteractiveLegendProps = LegendProps & {
   hiddenDataKeys: ReadonlySet<InteractiveLegendDataKey>;
-  onToggleDataKey: (dataKey: InteractiveLegendDataKey) => void;
+  onToggleDataKey: (options: ToggleDataKeyOptions) => void;
+  onShowAll: () => void;
   /**
    * Additional entries appended after Recharts' generated series. Entries
    * without a data key are rendered as static, non-interactive items.
@@ -328,19 +336,38 @@ function getEnhancedPayload({
 function renderBaseLegendContent({
   baseContent,
   contentProps,
+  resetButton,
 }: {
   baseContent: LegendProps["content"];
   contentProps: RechartsLegendContentProps;
+  resetButton: ReactNode;
 }) {
+  let customContent: ReactNode;
   if (isValidElement<RechartsLegendContentProps>(baseContent)) {
-    return cloneElement(baseContent, contentProps);
+    customContent = cloneElement(baseContent, contentProps);
+  } else if (typeof baseContent === "function") {
+    customContent = createElement(baseContent, contentProps);
+  } else {
+    return (
+      <DefaultInteractiveLegendContent
+        {...contentProps}
+        resetButton={resetButton}
+      />
+    );
   }
 
-  if (typeof baseContent === "function") {
-    return createElement(baseContent, contentProps);
-  }
-
-  return <DefaultInteractiveLegendContent {...contentProps} />;
+  return (
+    <div
+      css={[
+        legendCSS,
+        contentProps.layout === "vertical" && verticalLegendCSS,
+        getLegendAlignmentCSS(contentProps.align),
+      ]}
+    >
+      {customContent}
+      {resetButton}
+    </div>
+  );
 }
 
 /**
@@ -363,8 +390,9 @@ function DefaultInteractiveLegendContent({
   onMouseEnter,
   onMouseLeave,
   payload,
-}: RechartsLegendContentProps) {
-  if (payload == null || payload.length === 0) {
+  resetButton,
+}: RechartsLegendContentProps & { resetButton: ReactNode }) {
+  if ((payload == null || payload.length === 0) && !resetButton) {
     return null;
   }
 
@@ -377,7 +405,7 @@ function DefaultInteractiveLegendContent({
       ]}
       className="recharts-default-legend"
     >
-      {payload.map((entry, index) => {
+      {payload?.map((entry, index) => {
         if (entry.type === "none") {
           return null;
         }
@@ -465,6 +493,7 @@ function DefaultInteractiveLegendContent({
           </li>
         );
       })}
+      {resetButton && <li css={legendItemCSS}>{resetButton}</li>}
     </ul>
   );
 }
@@ -483,6 +512,7 @@ function InteractiveLegendContent({
   hiddenDataKeys,
   onClick,
   onToggleDataKey,
+  onShowAll,
   payload,
   additionalLegendItems,
   ...contentProps
@@ -490,6 +520,10 @@ function InteractiveLegendContent({
   const enhancedPayload = getEnhancedPayload({
     hiddenDataKeys,
     payload: [...(payload ?? []), ...(additionalLegendItems ?? [])],
+  });
+  const interactiveDataKeys = (enhancedPayload ?? []).flatMap((item) => {
+    const key = getInteractiveDataKey(item.dataKey);
+    return key != null && item.type !== "none" ? [key] : [];
   });
   const onLegendItemClick = (
     entry: LegendPayload,
@@ -499,12 +533,30 @@ function InteractiveLegendContent({
     onClick?.(entry, index, event);
     const dataKey = getInteractiveDataKey(entry.dataKey);
     if (dataKey != null && !event.defaultPrevented) {
-      onToggleDataKey(dataKey);
+      if (event.shiftKey) {
+        if (entry.type === "none") {
+          return;
+        }
+        onToggleDataKey({ dataKey, isolateDataKeys: interactiveDataKeys });
+      } else {
+        onToggleDataKey({ dataKey });
+      }
     }
   };
 
   return renderBaseLegendContent({
     baseContent,
+    // Only offer a reset when a series in this legend is hidden; stale hidden
+    // keys from series that left the chart are cleared by it but don't show it.
+    resetButton: interactiveDataKeys.some((key) => hiddenDataKeys.has(key)) ? (
+      <button
+        css={[legendButtonCSS, { textDecoration: "underline" }]}
+        type="button"
+        onClick={onShowAll}
+      >
+        Show all
+      </button>
+    ) : null,
     contentProps: {
       ...contentProps,
       content: baseContent,
@@ -528,8 +580,14 @@ export function useInteractiveLegend({
     dataKey: InteractiveLegendDataKey | null | undefined
   ) => dataKey != null && hiddenDataKeys.has(dataKey);
 
-  const toggleDataKey = (dataKey: InteractiveLegendDataKey) => {
+  const toggleDataKey = ({
+    dataKey,
+    isolateDataKeys,
+  }: ToggleDataKeyOptions) => {
     setHiddenDataKeys((currentHiddenDataKeys) => {
+      if (isolateDataKeys) {
+        return new Set(isolateDataKeys.filter((key) => key !== dataKey));
+      }
       const nextHiddenDataKeys = new Set(currentHiddenDataKeys);
       if (nextHiddenDataKeys.has(dataKey)) {
         nextHiddenDataKeys.delete(dataKey);
@@ -539,8 +597,9 @@ export function useInteractiveLegend({
       return nextHiddenDataKeys;
     });
   };
+  const showAll = () => setHiddenDataKeys(new Set());
 
-  return { hiddenDataKeys, isDataKeyHidden, toggleDataKey };
+  return { hiddenDataKeys, isDataKeyHidden, toggleDataKey, showAll };
 }
 
 /**
@@ -553,6 +612,7 @@ export function InteractiveLegend({
   content,
   hiddenDataKeys,
   onToggleDataKey,
+  onShowAll,
   additionalLegendItems,
   ...legendProps
 }: InteractiveLegendProps) {
@@ -564,6 +624,7 @@ export function InteractiveLegend({
           baseContent={content}
           hiddenDataKeys={hiddenDataKeys}
           onToggleDataKey={onToggleDataKey}
+          onShowAll={onShowAll}
           additionalLegendItems={additionalLegendItems}
         />
       }

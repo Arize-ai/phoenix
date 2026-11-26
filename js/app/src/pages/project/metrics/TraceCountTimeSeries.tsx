@@ -92,7 +92,7 @@ export function TraceCountTimeSeries({
 
   const colors = useSequentialChartColors();
   const SemanticChartColors = useSemanticChartColors();
-  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey, showAll } =
     useInteractiveLegend();
   return (
     <TimeRangeChartBrush
@@ -149,6 +149,7 @@ export function TraceCountTimeSeries({
                 {...compactLegendProps}
                 hiddenDataKeys={hiddenDataKeys}
                 onToggleDataKey={toggleDataKey}
+                onShowAll={showAll}
               />
             </BarChart>
           </ChartResponsiveContainer>
