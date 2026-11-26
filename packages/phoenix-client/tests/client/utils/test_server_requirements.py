@@ -1,8 +1,12 @@
 # pyright: reportPrivateUsage=false
+import json
+
 import httpx
 import pytest
 
 from phoenix.client.exceptions import PhoenixException
+from phoenix.client.resources.prompts import AsyncPrompts, Prompts
+from phoenix.client.types import PromptVersion
 from phoenix.client.utils.server_requirements import (
     ParameterRequirement,
     RouteRequirement,
@@ -94,3 +98,56 @@ class TestServerVersionGuard:
         guard = ServerVersionGuard(client)
         with pytest.raises(PhoenixException, match="requires Phoenix >= 13.5.0"):
             guard.require(ROUTE)
+
+
+@pytest.mark.parametrize("is_async", [False, True])
+@pytest.mark.parametrize("server_version", ["22.1.0", "22.2.0"])
+@pytest.mark.asyncio
+async def test_create_prompt_tags_checks_server_version_before_writes(
+    is_async: bool, server_version: str
+) -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.url.path == "/arize_phoenix_version":
+            return httpx.Response(200, text=server_version)
+        assert request.method == "POST"
+        assert request.url.path == "/v1/prompts"
+        body = json.loads(request.content)
+        assert body["tags"] == [{"name": "production"}]
+        return httpx.Response(
+            200, json={"data": {**body["version"], "id": "version-1", "created_at": "2026-11-24"}}
+        )
+
+    version = PromptVersion([{"role": "user", "content": "Hello"}], model_name="gpt-4o")
+    transport = httpx.MockTransport(handler)
+    if is_async:
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as async_client:
+            prompts = AsyncPrompts(async_client)
+            if server_version == "22.1.0":
+                with pytest.raises(PhoenixException, match="requires Phoenix >= 22.2.0"):
+                    await prompts.create(name="my-prompt", version=version, tags=["production"])
+            else:
+                for _ in range(2):
+                    result = await prompts.create(
+                        name="my-prompt", version=version, tags=["production", "production"]
+                    )
+                    assert result.id == "version-1"
+    else:
+        with httpx.Client(transport=transport, base_url="http://test") as client:
+            sync_prompts = Prompts(client)
+            if server_version == "22.1.0":
+                with pytest.raises(PhoenixException, match="requires Phoenix >= 22.2.0"):
+                    sync_prompts.create(name="my-prompt", version=version, tags=["production"])
+            else:
+                for _ in range(2):
+                    result = sync_prompts.create(
+                        name="my-prompt", version=version, tags=["production", "production"]
+                    )
+                    assert result.id == "version-1"
+
+    assert [(request.method, request.url.path) for request in requests] == [
+        ("GET", "/arize_phoenix_version"),
+        *([("POST", "/v1/prompts")] * 2 if server_version == "22.2.0" else []),
+    ]

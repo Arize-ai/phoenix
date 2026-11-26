@@ -115,9 +115,15 @@ class GetPromptVersionsResponseBody(PaginatedResponseBody[PromptVersion]):
     pass
 
 
+class PromptVersionTagData(V1RoutesBaseModel):
+    name: Identifier
+    description: Optional[str] = None
+
+
 class CreatePromptRequestBody(V1RoutesBaseModel):
     prompt: PromptData
     version: PromptVersionData
+    tags: Optional[list[PromptVersionTagData]] = None
 
 
 class CreatePromptResponseBody(ResponseBody[PromptVersion]):
@@ -526,13 +532,18 @@ async def create_prompt(
             metadata_=version.metadata,
         )
         session.add(version_orm)
+        await session.flush()
+        for tag in request_body.tags or []:
+            await upsert_prompt_version_tag(
+                session,
+                prompt_orm.id,
+                version_orm.id,
+                tag.name,
+                tag.description,
+                user_id=user_id,
+            )
     data = _prompt_version_from_orm_version(version_orm)
     return CreatePromptResponseBody(data=data)
-
-
-class PromptVersionTagData(V1RoutesBaseModel):
-    name: Identifier
-    description: Optional[str] = None
 
 
 class PromptVersionTag(PromptVersionTagData):

@@ -312,6 +312,21 @@ class PromptVersion:
         cls,
         obj: Union[v1.PromptVersionData, v1.PromptVersion],
     ) -> Self:
+        return cls.from_dict(obj)
+
+    @classmethod
+    def from_dict(
+        cls,
+        obj: Union[v1.PromptVersionData, v1.PromptVersion],
+    ) -> Self:
+        """Load a prompt version from its REST API representation.
+
+        Args:
+            obj: Serialized prompt version data, optionally including its server ID.
+
+        Returns:
+            PromptVersion: The prompt version with its template and model configuration.
+        """
         assert obj["template"]["type"] == "chat"
         messages: Sequence[v1.PromptMessage] = obj["template"]["messages"]
         ans = cls(

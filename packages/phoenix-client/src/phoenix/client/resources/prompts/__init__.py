@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any, Optional, Union, cast
 
 import httpx
@@ -9,6 +9,7 @@ from httpx import HTTPStatusError
 
 from phoenix.client.__generated__ import v1
 from phoenix.client.constants.server_requirements import (
+    CREATE_PROMPT_TAGS,
     CREATE_PROMPT_VERSION_METADATA,
     DELETE_PROMPT,
     PATCH_PROMPT,
@@ -22,6 +23,12 @@ from phoenix.client.utils.server_requirements import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _build_prompt_tags(*, tags: Optional[Sequence[str]]) -> list[v1.PromptVersionTagData]:
+    if isinstance(tags, str):
+        raise TypeError("tags must be a sequence of tag names, not a string")
+    return [v1.PromptVersionTagData(name=tag) for tag in dict.fromkeys(tags or ())]
 
 
 def _build_patch_prompt_body(
@@ -162,6 +169,7 @@ class Prompts:
         name: str,
         prompt_description: Optional[str] = None,
         prompt_metadata: Optional[dict[str, Any]] = None,
+        tags: Optional[Sequence[str]] = None,
     ) -> PromptVersion:
         """
         Creates a new version for the prompt under the name specified. The prompt will
@@ -176,10 +184,20 @@ class Prompts:
                 If prompt already exists, this value is ignored by the server.
             prompt_metadata (Optional[dict[str, Any]]): An optional metadata dictionary
                 for the prompt. If prompt already exists, this value is ignored by the server.
+            tags (Optional[Sequence[str]]): Tag names to assign to the created version.
+                Existing tags with these names on this prompt move to the new version.
 
         Returns:
             PromptVersion: The created prompt version data.
+
+        Raises:
+            TypeError: If tags is a string instead of a sequence of tag names.
+            phoenix.client.exceptions.PhoenixException: If tags are provided and the server
+                is older than Phoenix 22.2.0.
+            httpx.HTTPStatusError: If creating the version or assigning a tag fails.
+                The version and tags are saved atomically; a failure leaves neither saved.
         """
+        prompt_tags = _build_prompt_tags(tags=tags)
         url = "v1/prompts"
         prompt = v1.PromptData(name=name)
         if prompt_description:
@@ -189,9 +207,13 @@ class Prompts:
         if version.metadata:
             self._guard.require(CREATE_PROMPT_VERSION_METADATA)
         json_ = v1.CreatePromptRequestBody(prompt=prompt, version=version._dumps())  # pyright: ignore[reportPrivateUsage]
+        if prompt_tags:
+            self._guard.require(CREATE_PROMPT_TAGS)
+            json_["tags"] = prompt_tags
         response = self._client.post(url=url, json=json_)
         response.raise_for_status()
-        return PromptVersion._loads(cast(v1.CreatePromptResponseBody, response.json())["data"])  # pyright: ignore[reportPrivateUsage]
+        data = cast(v1.CreatePromptResponseBody, response.json())["data"]
+        return PromptVersion.from_dict(data)
 
     def update(
         self,
@@ -546,6 +568,7 @@ class AsyncPrompts:
         name: str,
         prompt_description: Optional[str] = None,
         prompt_metadata: Optional[dict[str, Any]] = None,
+        tags: Optional[Sequence[str]] = None,
     ) -> PromptVersion:
         """
         Creates a new version for the prompt under the name specified. The prompt will
@@ -560,10 +583,20 @@ class AsyncPrompts:
                 If prompt already exists, this value is ignored by the server.
             prompt_metadata (Optional[dict[str, Any]]): An optional metadata dictionary
                 for the prompt. If prompt already exists, this value is ignored by the server.
+            tags (Optional[Sequence[str]]): Tag names to assign to the created version.
+                Existing tags with these names on this prompt move to the new version.
 
         Returns:
             PromptVersion: The created prompt version data.
+
+        Raises:
+            TypeError: If tags is a string instead of a sequence of tag names.
+            phoenix.client.exceptions.PhoenixException: If tags are provided and the server
+                is older than Phoenix 22.2.0.
+            httpx.HTTPStatusError: If creating the version or assigning a tag fails.
+                The version and tags are saved atomically; a failure leaves neither saved.
         """
+        prompt_tags = _build_prompt_tags(tags=tags)
         url = "v1/prompts"
         prompt = v1.PromptData(name=name)
         if prompt_description:
@@ -573,9 +606,13 @@ class AsyncPrompts:
         if version.metadata:
             await self._guard.require(CREATE_PROMPT_VERSION_METADATA)
         json_ = v1.CreatePromptRequestBody(prompt=prompt, version=version._dumps())  # pyright: ignore[reportPrivateUsage]
+        if prompt_tags:
+            await self._guard.require(CREATE_PROMPT_TAGS)
+            json_["tags"] = prompt_tags
         response = await self._client.post(url=url, json=json_)
         response.raise_for_status()
-        return PromptVersion._loads(cast(v1.CreatePromptResponseBody, response.json())["data"])  # pyright: ignore[reportPrivateUsage]
+        data = cast(v1.CreatePromptResponseBody, response.json())["data"]
+        return PromptVersion.from_dict(data)
 
     async def update(
         self,

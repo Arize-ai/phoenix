@@ -128,6 +128,9 @@ The Phoenix Client organizes functionality into resources that correspond to key
 
 Manage prompt templates and versions:
 
+Pass tag names to `prompts.create()` to save the version and its tags atomically.
+This requires Phoenix 22.2.0 or later. Duplicate tag names are applied once.
+
 ```python
 from phoenix.client import Client
 from phoenix.client.types import PromptVersion
@@ -148,10 +151,11 @@ prompt = client.prompts.create(
         model_name="gpt-4o-mini",
     ),
     prompt_description="Summarize an article in a few bullet points",
+    tags=["production"],
 )
 
 # Retrieve and use prompts
-prompt = client.prompts.get(prompt_identifier="article-bullet-summarizer")
+prompt = client.prompts.get(prompt_identifier="article-bullet-summarizer", tag="production")
 
 # Format the prompt with variables
 prompt_vars = {

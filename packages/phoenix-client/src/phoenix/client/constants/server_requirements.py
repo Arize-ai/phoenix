@@ -124,6 +124,13 @@ CREATE_PROMPT_VERSION_METADATA = ParameterRequirement(
     description="Prompt version metadata on POST /v1/prompts",
 )
 
+CREATE_PROMPT_TAGS = ParameterRequirement(
+    parameter_name="tags",
+    parameter_location="body",
+    route="POST /v1/prompts",
+    min_server_version=Version(22, 2, 0),
+)
+
 PATCH_PROMPT = RouteRequirement(
     method="PATCH",
     path="/v1/prompts/{prompt_identifier}",
