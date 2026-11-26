@@ -357,7 +357,9 @@ describe("getSpans", () => {
       [' "hello" '],
       ['"line\\nbreak"'],
       ["NaN"],
+      ["Infinity"],
       ["-Infinity"],
+      [" NaN "],
     ])(
       "should quote %j so the server decodes the original string",
       async (value) => {
