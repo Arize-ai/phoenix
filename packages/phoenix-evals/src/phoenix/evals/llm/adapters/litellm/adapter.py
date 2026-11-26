@@ -15,6 +15,8 @@ from ...prompts import (
 )
 from ...registries import register_provider
 from ...types import BaseLLMAdapter, ObjectGenerationMethod
+from ..json_schema import close_objects
+from ..tool_calling import TOOL_INSTRUCTION, TOOL_NAME
 from .client import LiteLLMClient
 from .factories import (
     create_anthropic_client,
@@ -295,7 +297,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """Generate object using structured output."""
-        formatted_schema = self._ensure_additional_properties_false(schema)
+        formatted_schema = close_objects(schema)
 
         response_format = {
             "type": "json_schema",
@@ -325,17 +327,21 @@ class LiteLLMAdapter(BaseLLMAdapter):
     ) -> Dict[str, Any]:
         """Generate object using tool calling."""
         tool_definition = self._schema_to_tool(schema)
-        messages = self._build_messages(prompt)
+        messages, tool_choice = self._tool_calling_messages_and_choice(prompt)
 
         response = self._litellm.completion(
             model=self.client.model_string,
             messages=messages,
             tools=[tool_definition],
-            tool_choice={"type": "function", "function": {"name": "extract_structured_data"}},
+            tool_choice=tool_choice,
             **kwargs,
         )
 
-        tool_call = response.choices[0].message.tool_calls[0]
+        tool_calls = response.choices[0].message.tool_calls
+        if not tool_calls:
+            raise ValueError("No tool calls in response")
+
+        tool_call = tool_calls[0]
         arguments = tool_call.function.arguments
         if isinstance(arguments, str):
             return cast(Dict[str, Any], json.loads(arguments))
@@ -349,7 +355,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """Async generate object using structured output."""
-        formatted_schema = self._ensure_additional_properties_false(schema)
+        formatted_schema = close_objects(schema)
 
         response_format = {
             "type": "json_schema",
@@ -379,17 +385,21 @@ class LiteLLMAdapter(BaseLLMAdapter):
     ) -> Dict[str, Any]:
         """Async generate object using tool calling."""
         tool_definition = self._schema_to_tool(schema)
-        messages = self._build_messages(prompt)
+        messages, tool_choice = self._tool_calling_messages_and_choice(prompt)
 
         response = await self._litellm.acompletion(
             model=self.client.model_string,
             messages=messages,
             tools=[tool_definition],
-            tool_choice={"type": "function", "function": {"name": "extract_structured_data"}},
+            tool_choice=tool_choice,
             **kwargs,
         )
 
-        tool_call = response.choices[0].message.tool_calls[0]
+        tool_calls = response.choices[0].message.tool_calls
+        if not tool_calls:
+            raise ValueError("No tool calls in response")
+
+        tool_call = tool_calls[0]
         arguments = tool_call.function.arguments
         if isinstance(arguments, str):
             return cast(Dict[str, Any], json.loads(arguments))
@@ -400,6 +410,28 @@ class LiteLLMAdapter(BaseLLMAdapter):
     def model_name(self) -> str:
         """Return the LiteLLM model name."""
         return cast(str, self.client.model_string)
+
+    def _tool_calling_messages_and_choice(
+        self, prompt: PromptLike
+    ) -> tuple[list[dict[str, Any]], Any]:
+        messages = self._build_messages(prompt)
+        if self.client.provider != "anthropic":
+            return messages, {"type": "function", "function": {"name": TOOL_NAME}}
+        # Some Claude models reject a forced tool_choice (see TOOL_INSTRUCTION), so ask for the
+        # call in the system prompt instead. LiteLLM only hoists the leading run of system
+        # messages (developer messages become system ones) into Anthropic's system prompt; a later
+        # one stays in the conversation, so the instruction goes at the end of that leading run.
+        system_roles = (MessageRole.SYSTEM.value, MessageRole.DEVELOPER.value)
+        system_count = next(
+            (
+                index
+                for index, message in enumerate(messages)
+                if message["role"] not in system_roles
+            ),
+            len(messages),
+        )
+        instruction = {"role": MessageRole.SYSTEM.value, "content": TOOL_INSTRUCTION}
+        return [*messages[:system_count], instruction, *messages[system_count:]], "auto"
 
     def _schema_to_tool(self, schema: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -420,7 +452,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
         tool_definition = {
             "type": "function",
             "function": {
-                "name": "extract_structured_data",
+                "name": TOOL_NAME,
                 "description": description,
                 "parameters": schema,
             },
@@ -525,50 +557,6 @@ class LiteLLMAdapter(BaseLLMAdapter):
 
         # If we get here, prompt is an unexpected type
         raise ValueError(f"Expected prompt to be str or list, got {type(prompt).__name__}")
-
-    def _ensure_additional_properties_false(self, schema: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Ensure that additionalProperties is set to false for structured output.
-
-        This normalization ensures compatibility with OpenAI's structured output API
-        requirements and is generally harmless for other providers.
-
-        Args:
-            schema: The original JSON schema
-
-        Returns:
-            Schema with additionalProperties: false added where needed
-        """
-        import json
-
-        # Use JSON serialization for deep copy to avoid type issues
-        schema_str = json.dumps(schema)
-        formatted_schema = json.loads(schema_str)
-
-        def add_additional_properties_false(obj: Any) -> None:
-            if isinstance(obj, dict):
-                # If this is an object type, ensure additionalProperties is false
-                if obj.get("type") == "object" and "additionalProperties" not in obj:  # pyright: ignore
-                    obj["additionalProperties"] = False  # pyright: ignore
-
-                # Recursively process nested objects
-                for value in obj.values():  # pyright: ignore
-                    add_additional_properties_false(value)
-
-            elif isinstance(obj, list):
-                for item in obj:  # pyright: ignore
-                    add_additional_properties_false(item)
-
-        add_additional_properties_false(formatted_schema)
-
-        # Ensure the root level has additionalProperties: false if it's an object
-        if (
-            formatted_schema.get("type") == "object"
-            and "additionalProperties" not in formatted_schema
-        ):
-            formatted_schema["additionalProperties"] = False
-
-        return cast(Dict[str, Any], formatted_schema)
 
     def _validate_schema(self, schema: Dict[str, Any]) -> None:
         """

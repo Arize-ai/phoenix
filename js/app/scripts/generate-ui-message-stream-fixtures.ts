@@ -534,7 +534,7 @@ function getCaseName({
 }
 
 /**
- * Expand literal object rows from an upstream `it.each` test.
+ * Expand literal rows from an upstream `it.each` test.
  * @param params - Upstream test context.
  * @param params.containingFunction - Callback containing the stream constructor.
  * @param params.sourceFile - Parsed upstream test source.
@@ -566,7 +566,9 @@ function getCaseContexts({
     nameExpression == null ||
     !ts.isStringLiteral(nameExpression) ||
     parameter == null ||
-    !ts.isObjectBindingPattern(parameter.name)
+    containingFunction.parameters.length !== 1 ||
+    (!ts.isObjectBindingPattern(parameter.name) &&
+      !ts.isIdentifier(parameter.name))
   ) {
     throw new Error(`${caseName}: unsupported parameterized test`);
   }
@@ -578,7 +580,22 @@ function getCaseContexts({
   if (!Array.isArray(rows) || rows.length === 0) {
     throw new Error(`${caseName}: expected a nonempty test table`);
   }
-  const parameterBindings = parameter.name.elements;
+  const parameterName = parameter.name;
+  if (ts.isIdentifier(parameterName)) {
+    return rows.map((row: unknown) => {
+      if (row != null && typeof row === "object") {
+        throw new Error(
+          `${caseName}: scalar test table rows must be primitives`
+        );
+      }
+      const name = nameExpression.text.replace(/%s/g, String(row));
+      return {
+        name: `${caseName} > ${name}`,
+        bindings: { [parameterName.text]: row },
+      };
+    });
+  }
+  const parameterBindings = parameterName.elements;
   return rows.map((row: unknown) => {
     if (typeof row !== "object" || row === null || Array.isArray(row)) {
       throw new Error(`${caseName}: test table rows must be objects`);

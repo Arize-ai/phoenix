@@ -33,12 +33,18 @@ client = session.client("bedrock-runtime")
 From here you can run Bedrock as normal
 
 ```python
-prompt = (
-    b'{"prompt": "Human: Hello there, how are you? Assistant:", "max_tokens_to_sample": 1024}'
+import json
+
+body = json.dumps(
+    {
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": 1024,
+        "messages": [{"role": "user", "content": "Hello there, how are you?"}],
+    }
 )
-response = client.invoke_model(modelId="anthropic.claude-v2", body=prompt)
+response = client.invoke_model(modelId="us.anthropic.claude-sonnet-4-6", body=body)
 response_body = json.loads(response.get("body").read())
-print(response_body["completion"])
+print(response_body["content"][0]["text"])
 ```
 
 <Warning>

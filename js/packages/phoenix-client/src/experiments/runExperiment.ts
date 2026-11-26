@@ -603,6 +603,7 @@ function runTaskWithExamples({
       try {
         const taskOutput = await promisifyResult(task(example));
         thisRun.output = taskOutput;
+        span.setStatus({ code: SpanStatusCode.OK });
       } catch (error) {
         thisRun.error =
           error instanceof Error ? error.message : "Unknown error";
@@ -633,7 +634,6 @@ function runTaskWithExamples({
           typeof example.input === "string" ? MimeType.TEXT : MimeType.JSON;
         const outputMimeType =
           typeof thisRun.output === "string" ? MimeType.TEXT : MimeType.JSON;
-        span.setStatus({ code: SpanStatusCode.OK });
         span.setAttributes({
           [SemanticConventions.OPENINFERENCE_SPAN_KIND]:
             OpenInferenceSpanKind.CHAIN,

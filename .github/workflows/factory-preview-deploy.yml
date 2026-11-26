@@ -1,0 +1,199 @@
+name: Factory Preview Deploy
+
+on:
+  workflow_call:
+    secrets:
+      DOCKERHUB_USERNAME:
+        required: true
+      DOCKERHUB_PASSWORD:
+        required: true
+      FACTORY_PREVIEW_RAILWAY_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build preview images
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    outputs:
+      short-sha: ${{ steps.plan.outputs.short-sha }}
+      seed-summary: ${{ steps.plan.outputs.seed-summary }}
+      baseline: ${{ steps.plan.outputs.baseline }}
+      database: ${{ steps.plan.outputs.database }}
+      revisions: ${{ steps.plan.outputs.revisions }}
+    env:
+      GH_REPO: ${{ github.repository }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Check out the base branch for the scripts
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          path: base
+          persist-credentials: false
+      - name: Check out the PR as the build context
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: head
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version-file: base/pyproject.toml
+          resolution-strategy: "lowest"
+          python-version: "3.12"
+          enable-cache: false
+
+      - name: Prepare startup files, sample data, and tags
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/preview-startup"
+          cp base/factory/preview/{Dockerfile,launch.py,seed_log.py} "$RUNNER_TEMP/preview-startup/"
+          uv run --script base/factory/preview/plan.py --pr "$PR_NUMBER" --head-sha "$HEAD_SHA" --seed-dir "$RUNNER_TEMP/preview-startup" > "$RUNNER_TEMP/plan.out"
+          cat "$RUNNER_TEMP/plan.out" >> "$GITHUB_OUTPUT"
+
+      - name: Check out the target commit as the baseline build context
+        if: steps.plan.outputs.baseline == 'on'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: baseline
+          persist-credentials: false
+
+      - name: Build baseline image
+        if: steps.plan.outputs.baseline == 'on'
+        uses: ./base/.github/actions/docker-build-image
+        with:
+          artifact-prefix: preview-base-
+          variants: root
+          revision: ${{ github.event.pull_request.base.sha }}
+          platform: linux/amd64
+          source-dir: ${{ github.workspace }}/baseline
+          startup-and-data-dir: ${{ runner.temp }}/preview-startup
+          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Build candidate image
+        uses: ./base/.github/actions/docker-build-image
+        with:
+          artifact-prefix: preview-head-
+          variants: root
+          revision: ${{ github.event.pull_request.head.sha }}
+          platform: linux/amd64
+          source-dir: ${{ github.workspace }}/head
+          startup-and-data-dir: ${{ runner.temp }}/preview-startup
+          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+  publish-dockerhub:
+    name: Publish to Docker Hub
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        revision: ${{ fromJSON(needs.build.outputs.revisions) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out the base branch for the scripts
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          path: base
+          persist-credentials: false
+      - name: Upload image and publish Docker Hub tags
+        uses: ./base/.github/actions/docker-publish-image
+        with:
+          artifact-prefix: preview-${{ matrix.revision }}-
+          variant: root
+          tags: |
+            arizephoenix/phoenix:pr-${{ github.event.pull_request.number }}-${{ matrix.revision }}-${{ github.run_id }}
+            ${{ matrix.revision == 'head' && format('arizephoenix/phoenix:pr-{0}', github.event.pull_request.number) || '' }}
+            ${{ matrix.revision == 'head' && format('arizephoenix/phoenix:pr-{0}-{1}', github.event.pull_request.number, needs.build.outputs.short-sha) || '' }}
+          expected-digests: 1
+          dockerhub-username: ${{ secrets.DOCKERHUB_USERNAME }}
+          dockerhub-password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+  publish-ghcr:
+    name: Publish to GHCR
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        revision: ${{ fromJSON(needs.build.outputs.revisions) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Check out the base branch for the scripts
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          path: base
+          persist-credentials: false
+      - name: Upload image and publish GHCR tags
+        uses: ./base/.github/actions/docker-publish-image
+        with:
+          artifact-prefix: preview-${{ matrix.revision }}-
+          variant: root
+          tags: |
+            ghcr.io/arize-ai/phoenix:pr-${{ github.event.pull_request.number }}-${{ matrix.revision }}-${{ github.run_id }}
+            ${{ matrix.revision == 'head' && format('ghcr.io/arize-ai/phoenix:pr-{0}', github.event.pull_request.number) || '' }}
+            ${{ matrix.revision == 'head' && format('ghcr.io/arize-ai/phoenix:pr-{0}-{1}', github.event.pull_request.number, needs.build.outputs.short-sha) || '' }}
+          expected-digests: 1
+
+  deploy:
+    name: Deploy to Railway
+    needs: [build, publish-dockerhub]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Check out the base branch for the scripts
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          path: base
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version-file: base/pyproject.toml
+          resolution-strategy: "lowest"
+          python-version: "3.12"
+          enable-cache: false
+      - name: Install pinned Railway CLI and IaC SDK
+        working-directory: base/factory/preview
+        run: npm install --no-audit --no-fund --no-package-lock --no-save @railway/cli@5.75.0 railway@3.17.0
+      - name: Deploy to Railway
+        working-directory: base/factory/preview
+        env:
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GH_TOKEN: ${{ github.token }}
+          RAILWAY_API_TOKEN: ${{ secrets.FACTORY_PREVIEW_RAILWAY_TOKEN }}
+          RAILWAY_WORKSPACE_ID: ${{ vars.FACTORY_PREVIEW_RAILWAY_WORKSPACE_ID }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PREVIEW_BASE_IMAGE: arizephoenix/phoenix:pr-${{ github.event.pull_request.number }}-base-${{ github.run_id }}
+          PREVIEW_HEAD_IMAGE: arizephoenix/phoenix:pr-${{ github.event.pull_request.number }}-head-${{ github.run_id }}
+          SEED_SUMMARY: ${{ needs.build.outputs.seed-summary }}
+          PREVIEW_BASELINE: ${{ needs.build.outputs.baseline }}
+          PREVIEW_DATABASE: ${{ needs.build.outputs.database }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: >-
+          uv run --script deploy.py deploy
+          --pr "$PR_NUMBER" --base-sha "$BASE_SHA" --head-sha "$HEAD_SHA"
+          --seed "$SEED_SUMMARY" --run-url "$RUN_URL"
+          --baseline "$PREVIEW_BASELINE" --database "$PREVIEW_DATABASE"

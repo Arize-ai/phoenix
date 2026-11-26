@@ -7,7 +7,7 @@ Annotations are named labels/scores attached to spans, traces, sessions, or expe
 `SpanAnnotation` and `TraceAnnotation` share these fields:
 
 - `name`, `label`, `score`, `explanation`
-- `annotatorKind` (`AnnotatorKind` enum: human / LLM / code)
+- `annotatorKind` (`AnnotatorKind` enum: human / LLM / code / decision / agent)
 - `metadata`, `identifier`, `createdAt`, `updatedAt`
 
 `SpanAnnotation` additionally has `spanId: GlobalID!` and `span`; `TraceAnnotation` has `trace` (but no `traceId` global-id field). `ProjectSessionAnnotation` has the same scalar shape.

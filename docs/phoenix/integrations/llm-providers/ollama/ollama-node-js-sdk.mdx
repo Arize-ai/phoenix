@@ -1,0 +1,85 @@
+---
+title: "Ollama with the OpenAI Node.js SDK"
+description: Trace Node.js OpenAI SDK calls to Ollama's local OpenAI-compatible API.
+---
+
+[Ollama](https://ollama.com/) exposes an OpenAI-compatible API, so applications using the OpenAI Node.js SDK can call local Ollama models. Phoenix traces these calls with the OpenAI Node.js instrumentation.
+
+## Install
+
+```bash
+npm install --save @arizeai/openinference-instrumentation-openai openai
+npm install --save @opentelemetry/api@~1.9.0 @opentelemetry/sdk-trace-node@2.12.0 \
+  @opentelemetry/sdk-trace-base@2.12.0 \
+  @opentelemetry/resources@2.12.0 \
+  @opentelemetry/semantic-conventions \
+  @opentelemetry/instrumentation@0.212.0 \
+  @opentelemetry/exporter-trace-otlp-proto@0.212.0 \
+  @arizeai/openinference-semantic-conventions
+```
+
+## Setup
+
+Register the OpenAI instrumentation and point its OTLP exporter at Phoenix. Create `instrumentation.js`:
+
+```javascript expandable
+import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-proto";
+import { resourceFromAttributes } from "@opentelemetry/resources";
+import { SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base";
+import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
+import { ATTR_SERVICE_NAME } from "@opentelemetry/semantic-conventions";
+import { SEMRESATTRS_PROJECT_NAME } from "@arizeai/openinference-semantic-conventions";
+import { registerInstrumentations } from "@opentelemetry/instrumentation";
+import OpenAI from "openai";
+import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
+
+const endpoint = (process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006").replace(/\/$/, "");
+const projectName = process.env.PHOENIX_PROJECT_NAME ?? "ollama-node-app";
+
+export const provider = new NodeTracerProvider({
+  resource: resourceFromAttributes({
+    [ATTR_SERVICE_NAME]: projectName,
+    [SEMRESATTRS_PROJECT_NAME]: projectName,
+  }),
+  spanProcessors: [
+    new SimpleSpanProcessor(new OTLPTraceExporter({ url: `${endpoint}/v1/traces` })),
+  ],
+});
+
+provider.register();
+const instrumentation = new OpenAIInstrumentation();
+instrumentation.manuallyInstrument(OpenAI);
+registerInstrumentations({ instrumentations: [instrumentation] });
+```
+
+## Run Ollama
+
+Start Ollama locally and pull a model, for example `ollama pull llama3.2:1b`. Then use the OpenAI SDK with Ollama's local compatible endpoint. The API key value is required by the SDK and ignored by a local Ollama server:
+
+```javascript expandable
+import { provider } from "./instrumentation.js";
+import OpenAI from "openai";
+
+const client = new OpenAI({
+  baseURL: "http://127.0.0.1:11434/v1/",
+  apiKey: "ollama",
+});
+
+const response = await client.chat.completions.create({
+  model: "llama3.2:1b",
+  messages: [{ role: "user", content: "Explain why local language models are useful." }],
+});
+
+console.log(response.choices[0].message.content);
+await provider.forceFlush();
+await provider.shutdown();
+```
+
+## Observe
+
+Phoenix receives an LLM span for the Ollama-backed completion, including the model name and messages.
+
+## Resources
+
+* [Ollama OpenAI compatibility](https://docs.ollama.com/api/openai-compatibility)
+* [OpenInference instrumentation for the OpenAI Node.js SDK](https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-openai)

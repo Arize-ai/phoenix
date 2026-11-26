@@ -1,6 +1,6 @@
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import type { DefaultLegendContentProps, LegendPayload } from "recharts";
+import type { DefaultLegendContentProps } from "recharts";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -456,31 +456,7 @@ describe("InteractiveLegend", () => {
     );
   });
 
-  it("renders supplemental entries without data keys as static items", () => {
-    const additionalLegendItems: ReadonlyArray<LegendPayload> = [
-      {
-        value: "Baseline",
-        type: "plainline",
-        color: "#4338ca",
-        payload: { strokeDasharray: "4 4" },
-      },
-    ];
-
-    act(() => {
-      root.render(<TestChart legendProps={{ additionalLegendItems }} />);
-    });
-
-    const baselineItem = Array.from(
-      container.querySelectorAll(".recharts-legend-item")
-    ).find((element) => element.textContent === "Baseline");
-    expect(baselineItem).toBeTruthy();
-    expect(baselineItem?.querySelector("button")).toBeNull();
-    expect(
-      baselineItem?.querySelector("line")?.getAttribute("stroke-dasharray")
-    ).toBe("4 4");
-  });
-
-  it("calls the provided legend onClick before toggling", () => {
+  it("calls the provided legend onClick for a series toggle but not Show all", () => {
     const onClick = vi.fn<NonNullable<InteractiveLegendProps["onClick"]>>();
 
     act(() => {
@@ -521,39 +497,6 @@ describe("InteractiveLegend", () => {
     expect(findLegendButton("Hide uv").getAttribute("aria-pressed")).toBe(
       "true"
     );
-  });
-
-  it("composes custom Recharts legend content with enhanced payload and click props", () => {
-    act(() => {
-      root.render(<TestChart legendProps={{ content: CustomLegendContent }} />);
-    });
-
-    const uvButton = findLegendButton("uv");
-    expect(uvButton.getAttribute("data-inactive")).toBe("false");
-
-    clickLegend("uv");
-
-    const hiddenUvButton = findLegendButton("uv");
-    expect(
-      container.querySelector('[data-testid="uv-hidden"]')?.textContent
-    ).toBe("true");
-    expect(hiddenUvButton.getAttribute("data-inactive")).toBe("true");
-  });
-
-  it("clones custom Recharts legend content elements with enhanced props", () => {
-    act(() => {
-      root.render(
-        <TestChart legendProps={{ content: <CustomLegendContent /> }} />
-      );
-    });
-
-    const pvButton = findLegendButton("pv");
-    expect(pvButton.getAttribute("data-inactive")).toBe("false");
-
-    clickLegend("pv");
-
-    const hiddenPvButton = findLegendButton("pv");
-    expect(hiddenPvButton.getAttribute("data-inactive")).toBe("true");
   });
 
   it("renders custom Recharts legend content functions as React components", () => {

@@ -80,10 +80,10 @@ function getRunGroupDeltaNote({
 }
 
 /**
- * A compare group's change in one operational stat against the base group,
- * on per-run values.
+ * A compare run's or run group's change in one operational stat against the
+ * base's.
  */
-function RunGroupStatDelta({
+export function RunGroupStatDelta({
   base,
   compare,
   metricLabel,
@@ -91,10 +91,10 @@ function RunGroupStatDelta({
   note,
 }: {
   base: number | null;
-  compare: number;
+  compare: number | null;
   metricLabel: string;
   formatter: (value: number | null | undefined) => string;
-  note: string | undefined;
+  note?: string;
 }) {
   return (
     <ExperimentMetricDelta

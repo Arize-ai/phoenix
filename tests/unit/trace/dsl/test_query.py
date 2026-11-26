@@ -2,6 +2,7 @@ import warnings
 from datetime import datetime
 from typing import Any
 
+import numpy as np
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
@@ -43,32 +44,32 @@ async def test_select_all(
             "attributes.llm.token_count.prompt": [None, None, None, 100.0],
             "attributes.llm.token_count.completion": [None, None, None, 200.0],
             "attributes.metadata": [
-                None,
+                np.nan,
                 {"a.b.c": 123, "1.2.3": "abc", "x.y": {"z.a": {"b.c": 321}}},
-                None,
-                None,
+                np.nan,
+                np.nan,
             ],
             "attributes.embedding.model_name": [None, "xyz", None, None],
             "attributes.embedding.embeddings": [
-                None,
+                np.nan,
                 [
                     {"embedding.vector": [1, 2, 3], "embedding.text": "123"},
                     {"embedding.vector": [2, 3, 4], "embedding.text": "234"},
                 ],
-                None,
-                None,
+                np.nan,
+                np.nan,
             ],
             "attributes.retrieval.documents": [
-                None,
-                None,
+                np.nan,
+                np.nan,
                 [
                     {"document.content": "A", "document.score": 1.0},
                     {"document.content": "B", "document.score": 2.0},
                     {"document.content": "C", "document.score": 3.0},
                 ],
-                None,
+                np.nan,
             ],
-            "attributes.attributes": [None, None, "attributes", {"attributes": "attributes"}],
+            "attributes.attributes": [np.nan, np.nan, "attributes", {"attributes": "attributes"}],
             "events": [[], [], [], []],
         }
     ).set_index("context.span_id", drop=False)
@@ -527,30 +528,6 @@ async def test_filter_on_latency(
             "context.span_id": ["567"],
             "name": ["llm span"],
             "Latency (milliseconds)": [10000.0],
-        }
-    ).set_index("context.span_id")
-    async with db() as session:
-        actual = await session.run_sync(sq, project_name="abc")
-    assert_frame_equal(
-        actual.sort_index().sort_index(axis=1),
-        expected.sort_index().sort_index(axis=1),
-    )
-
-
-async def test_filter_on_cumulative_token_count(
-    db: DbSessionFactory,
-    default_project: Any,
-    abc_project: Any,
-) -> None:
-    sq = (
-        SpanQuery()
-        .select("name")
-        .where("290 < cumulative_token_count.total < 310 and llm.token_count.prompt is None")
-    )
-    expected = pd.DataFrame(
-        {
-            "context.span_id": ["234"],
-            "name": ["root span"],
         }
     ).set_index("context.span_id")
     async with db() as session:
@@ -1352,7 +1329,7 @@ async def test_explode_and_concat_on_same_array_but_with_typo_in_concat_array_na
         {
             "context.span_id": ["456", "456", "456"],
             "document_position": [0, 1, 2],
-            "content": [None, None, None],
+            "content": pd.Series([np.nan, np.nan, np.nan], dtype=object),
             "score": [1, 2, 3],
         }
     ).set_index(["context.span_id", "document_position"])

@@ -6,9 +6,9 @@ from pydantic_ai.messages import (
     ModelResponse,
     NativeToolCallPart,
     NativeToolReturnPart,
-    RetryPromptPart,
     TextPart,
     ToolCallPart,
+    ToolReturnPart,
 )
 from pydantic_ai.models import ModelRequestContext, ModelRequestParameters
 from pydantic_ai.models.anthropic import AnthropicModel
@@ -168,7 +168,7 @@ async def test_anthropic_accepts_converted_native_tool_history(
         for message in repaired_message_history
         if not isinstance(message, ModelResponse)
         for part in message.parts
-        if isinstance(part, RetryPromptPart)
+        if isinstance(part, ToolReturnPart) and part.outcome == "retried"
     ]
     assert len(retry_prompts_in_repaired_history) == 1
     assert retry_prompts_in_repaired_history[0].tool_name == "code_execution"

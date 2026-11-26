@@ -12,6 +12,7 @@ from typing import (
     Callable,
     DefaultDict,
     Dict,
+    Generic,
     List,
     Literal,
     Optional,
@@ -24,10 +25,11 @@ from typing import (
 import pandas as pd
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from pydantic import BaseModel, BeforeValidator, ValidationError, create_model
-from typing_extensions import Annotated, Mapping
+from typing_extensions import Annotated, Mapping, TypeVar
 
 from phoenix.evals.executors import AsyncExecutor, ExecutionDetails, SyncExecutor
 
+from .decision import DecisionModel
 from .llm import LLM, PromptLike
 from .llm.prompts import PromptTemplate, Template
 from .llm.types import ObjectGenerationMethod
@@ -52,6 +54,13 @@ def _coerce_to_str(value: Any) -> str:
 
 
 EnforcedString = Annotated[str, BeforeValidator(_coerce_to_str)]
+
+
+def _convert_numpy_scalar(value: Any) -> Any:
+    """Convert a NumPy scalar (np.int64, np.float32, np.bool_, ...) to its Python type."""
+    if type(value).__module__ == "numpy" and hasattr(value, "item"):
+        return value.item()
+    return value
 
 
 def _smart_string_coerce(value: Any) -> str:
@@ -506,33 +515,42 @@ class Evaluator(ABC):
 
 
 # --- LLM Evaluator base ---
-class LLMEvaluator(Evaluator):
+
+_ModelT = TypeVar("_ModelT", default=LLM)
+
+
+class LLMEvaluator(Evaluator, Generic[_ModelT]):
     """
     Base LLM evaluator that infers required input fields from its prompt template and
     constructs a default Pydantic input schema when none is supplied.
+
+    Generic over the judge type ``_ModelT`` — an `LLM` or a `DecisionModel` (defaults to
+    `LLM`) — which subclasses fix to the judge type they accept.
 
     Note: Subclasses must implement either the `_evaluate` or `_async_evaluate` method.
     Implementing both methods is recommended.
 
     Args:
         name: Identifier for this evaluator and the name used in produced Scores.
-        llm: The LLM instance to use for evaluation.
+        llm: The judge used for evaluation — the generic type parameter ``_ModelT``
+            (defaults to `LLM`); subclasses may specialize it to an `LLM`, a `DecisionModel`,
+            or a union of both.
         prompt_template: The prompt template with placeholders for required fields; used to infer
             required variables. Can be either a string template or a list of message dictionaries
             (for chat-based models).
-        schema: Optional tool/JSON schema for structured output when supported by the LLM.
+        schema: Optional tool/JSON schema for structured output when supported by the judge.
         input_schema: Optional Pydantic model describing/validating inputs. If not provided,
             a model is dynamically created from the prompt variables (all str, required).
         direction: The score optimization direction ("maximize" or "minimize"). Defaults to
             "maximize".
-        **kwargs: Invocation parameters forwarded to the LLM client
+        **kwargs: Invocation parameters forwarded to the underlying model client
     """
 
     def __init__(
         self,
         *,
         name: str,
-        llm: LLM,
+        llm: _ModelT,
         prompt_template: Union[PromptLike, PromptTemplate, Template],
         schema: Optional[ToolSchema] = None,
         input_schema: Optional[type[BaseModel]] = None,
@@ -572,7 +590,7 @@ class LLMEvaluator(Evaluator):
             direction=direction,
             input_schema=input_schema,
         )
-        self.llm = llm
+        self.llm: _ModelT = llm
         self.schema = schema
 
     @property
@@ -598,17 +616,20 @@ class LLMEvaluator(Evaluator):
 
 
 # --- LLM ClassificationEvaluator ---
-class ClassificationEvaluator(LLMEvaluator):
+class ClassificationEvaluator(LLMEvaluator[Union[LLM, DecisionModel]]):
     """
-    LLM-based evaluator for classification-style judgements.
+    Evaluator for classification-style judgements, backed by an `LLM` or a `DecisionModel`.
 
-    Supports label-only or label+score mappings, and returns explanations by default.
-    Note: Requires the LLM to have tool calling or structured output capabilities.
+    Supports label-only or label+score mappings. When backed by an `LLM`, returns an
+    explanation by default and requires a model with tool calling or structured output
+    capabilities; a `DecisionModel` answers through a typed choices API and returns a label
+    with probabilities, and sometimes confidence, but no explanation.
 
     Args:
         name: Identifier for this evaluator and the name used in produced Scores.
-        llm: The LLM instance to use for evaluation. Must support tool calling or
-            structured output for reliable classification.
+        llm: The `LLM` or `DecisionModel` used for evaluation. An `LLM` judge must support
+            tool calling or structured output for reliable classification; a `DecisionModel`
+            answers through a typed choices API, so this does not apply.
         prompt_template: The prompt template with placeholders for required input fields.
             Can be either a string template or a list of message dictionaries (for chat-based
             models). Template variables are inferred automatically.
@@ -622,12 +643,13 @@ class ClassificationEvaluator(LLMEvaluator):
                 "negative": (0.0, "Negative sentiment")}). Not recommended as LLMs do not
                 reliably follow this schema.
         include_explanation: Whether to request explanations for classification decisions.
-            Defaults to True in accordance with best practices.
+            Defaults to True in accordance with best practices. Ignored by decision models,
+            which never return an explanation.
         input_schema: Optional Pydantic model for input validation. If not provided,
             a model is automatically created from prompt template variables.
         direction: Score optimization direction ("maximize" or "minimize"). Defaults to
             "maximize".
-        **kwargs: Invocation parameters forwarded to the LLM client
+        **kwargs: Invocation parameters forwarded to the model client
 
     Returns:
         List[Score]: A list containing a single Score object with the classification
@@ -698,7 +720,7 @@ class ClassificationEvaluator(LLMEvaluator):
         self,
         *,
         name: str,
-        llm: LLM,
+        llm: Union[LLM, DecisionModel],
         prompt_template: Union[PromptLike, PromptTemplate, Template],
         choices: Union[
             List[str], Dict[str, Union[float, int]], Dict[str, Tuple[Union[float, int], str]]
@@ -716,6 +738,9 @@ class ClassificationEvaluator(LLMEvaluator):
             direction=direction,
             **kwargs,
         )
+
+        if not choices:
+            raise ValueError("Labels must be a non-empty list or dictionary.")
 
         self.include_explanation = include_explanation
         score_map: Optional[Dict[str, Union[float, int]]] = None
@@ -776,7 +801,7 @@ class ClassificationEvaluator(LLMEvaluator):
                 name=self.name,
                 label=label,
                 explanation=explanation,
-                metadata={"model": self.llm.model},  # could add more metadata here
+                metadata={"model": self.llm.model, **response.get("metadata", {})},
                 kind=self.kind,
                 direction=self.direction,
             )
@@ -818,7 +843,7 @@ class ClassificationEvaluator(LLMEvaluator):
                 name=self.name,
                 label=label,
                 explanation=explanation,
-                metadata={"model": self.llm.model},  # could add more metadata here
+                metadata={"model": self.llm.model, **response.get("metadata", {})},
                 kind=self.kind,
                 direction=self.direction,
             )
@@ -918,7 +943,7 @@ def create_evaluator(
         - A boolean (converted to integer Score.score and string Score.label)
         - A short string (≤3 words, converted to Score.label)
         - A long string (≥4 words, converted to Score.explanation)
-        - A dictionary with keys "score", "label", or "explanation"
+        - A dictionary with keys "score", "label", "explanation", or "metadata"
         - A tuple of values (only bool, number, str types allowed)
 
         An input_schema is automatically created from the function signature, capturing the required
@@ -960,11 +985,17 @@ def create_evaluator(
             f"tuples of numbers, booleans, and strings. "
             f"Got: {repr(result)}"
         )
+        # NumPy scalars (e.g. np.int64, np.float32, np.bool_) are not int/float/bool instances
+        result = _convert_numpy_scalar(result)
+        if isinstance(result, tuple):
+            result = tuple(_convert_numpy_scalar(item) for item in result)
+        elif isinstance(result, dict) and "score" in result:
+            result = {**result, "score": _convert_numpy_scalar(result["score"])}
         # If already a Score object, ensure name, kind, and direction are set correctly
         if isinstance(result, Score):
             # Create a new Score with the correct name, kind, and direction
             return Score(
-                score=result.score,
+                score=_convert_numpy_scalar(result.score),
                 name=name,
                 label=result.label,
                 explanation=result.explanation,
@@ -994,7 +1025,7 @@ def create_evaluator(
         if isinstance(result, dict):
             dict_score_data: Dict[str, Any] = {}
             for key, value in result.items():
-                if key in ["score", "label", "explanation"]:
+                if key in ["score", "label", "explanation", "metadata"]:
                     dict_score_data[key] = value
             return Score(name=name, kind=kind, direction=direction, **dict_score_data)
 
@@ -1133,7 +1164,7 @@ def create_evaluator(
 def create_classifier(
     name: str,
     prompt_template: str,
-    llm: LLM,
+    llm: Union[LLM, DecisionModel],
     choices: Union[
         List[str], Dict[str, Union[float, int]], Dict[str, Tuple[Union[float, int], str]]
     ],
@@ -1142,11 +1173,13 @@ def create_classifier(
     """
     Factory to create a `ClassificationEvaluator`.
 
-    Note: The evaluator requires the LLM to have tool calling or structured output capabilities.
+    Note: When backed by an `LLM`, the evaluator requires a model with tool calling or
+    structured output capabilities; a `DecisionModel` answers through a typed choices API,
+    so this does not apply.
 
     Args:
         name: Identifier for this evaluator and the name used in produced Scores.
-        llm: The LLM instance to use for evaluation.
+        llm: The `LLM` or `DecisionModel` used for evaluation.
         prompt_template: Prompt template string with placeholders for inputs.
         choices: One of List[str], Dict[str, number], or Dict[str, Tuple[number, str]] describing
             classification labels (and optional scores/descriptions).
@@ -1372,7 +1405,7 @@ def _process_results_and_add_to_dataframe(
     """
     # Pre-compute column locations for efficiency
     execution_details_cols = {
-        evaluator.name: result_df.columns.get_loc(f"{evaluator.name}_execution_details")
+        evaluator.name: cast(int, result_df.columns.get_loc(f"{evaluator.name}_execution_details"))
         for evaluator in evaluators
     }
 
@@ -1384,7 +1417,7 @@ def _process_results_and_add_to_dataframe(
         evaluator_name = evaluators[evaluator_index].name
         col_idx = execution_details_cols[evaluator_name]
         #  use iat to avoid Series alignment on dict
-        result_df.iat[eval_input_index, col_idx] = _process_execution_details(details)
+        result_df.iat[eval_input_index, col_idx] = _process_execution_details(details)  # type: ignore[assignment]
 
         # Process scores
         if results is None:
@@ -1402,7 +1435,7 @@ def _process_results_and_add_to_dataframe(
     for score_col, score_dict in score_dicts.items():
         # Convert dictionary to list using positional indices
         score_list = [score_dict.get(pos, None) for pos in range(len(result_df))]
-        result_df[score_col] = score_list
+        result_df[score_col] = score_list  # type: ignore[assignment]
 
 
 @_deprecate_positional_args("evaluate_dataframe")

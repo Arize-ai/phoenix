@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 import strawberry
 from openinference.instrumentation import OITracer, TraceConfig
-from opentelemetry.trace import NoOpTracerProvider, Tracer, TracerProvider
+from opentelemetry.trace import NoOpTracerProvider, TracerProvider
 from pydantic_ai import Agent, DeferredToolRequests
 from pydantic_ai.capabilities import (
     AbstractCapability,
@@ -60,7 +60,7 @@ if TYPE_CHECKING:
     from phoenix.server.bearer_auth import PhoenixUser
 
 
-def build_agent_tracer(tracer_provider: TracerProvider | None) -> Tracer:
+def build_agent_tracer(tracer_provider: TracerProvider | None) -> OITracer:
     """The OpenInference tracer the PXI agent and its wrappers emit spans through."""
     provider = tracer_provider or NoOpTracerProvider()
     return OITracer(provider.get_tracer("phoenix.server.agents"), config=TraceConfig())
@@ -154,13 +154,14 @@ def build_agent(
         # transport auth. Writes share `writes_permitted` with GraphQL
         # mutations: a headless run has nobody to answer an approval request,
         # so unless edit permission is "bypass" the write tools are filtered
-        # out entirely (subagents therefore get read/search only — duplicate
-        # checking is delegable, filing stays in the main thread).
+        # out entirely. Subagents get read/search only regardless of edit
+        # permission — duplicate checking is delegable, filing stays in the
+        # main thread — so a "bypass" run cannot file issues from a subagent.
         capabilities.append(
             build_github_mcp_capability(
                 github_mcp_config,
                 instructions=resolved_prompts.github_tools,
-                allow_writes=writes_permitted,
+                allow_writes=writes_permitted and not is_subagent,
                 require_write_approval=require_mutation_approval,
             )
         )

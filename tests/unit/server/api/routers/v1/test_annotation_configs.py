@@ -2,7 +2,7 @@ from copy import deepcopy
 from typing import Any, Optional
 
 import pytest
-from httpx import AsyncClient
+from httpx2 import AsyncClient
 from strawberry.relay.types import GlobalID
 
 from phoenix.db import models

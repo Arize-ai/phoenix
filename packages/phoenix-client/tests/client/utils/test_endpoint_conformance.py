@@ -232,8 +232,13 @@ HOST_SHAPE_ROWS: list[tuple[dict[str, str], str]] = [
     # scheme it carries; only a bare host gets a scheme and PHOENIX_PORT.
     ({"PHOENIX_HOST": "http://myhost:1234"}, "http://myhost:1234"),
     ({"PHOENIX_HOST": "https://myhost"}, "https://myhost"),
-    ({"PHOENIX_HOST": "myhost:1234"}, "http://myhost:1234"),
+    ({"PHOENIX_HOST": "myhost:1234", "PHOENIX_PORT": "not-a-port"}, "http://myhost:1234"),
     ({"PHOENIX_HOST": "myhost", "PHOENIX_PORT": "1234"}, "http://myhost:1234"),
+    ({"PHOENIX_HOST": "::", "PHOENIX_PORT": "7007"}, "http://127.0.0.1:7007"),
+    ({"PHOENIX_HOST": "[::]"}, "http://127.0.0.1:6006"),
+    ({"PHOENIX_HOST": "::1", "PHOENIX_PORT": "1234"}, "http://[::1]:1234"),
+    ({"PHOENIX_HOST": "[::1]"}, "http://[::1]:6006"),
+    ({"PHOENIX_HOST": "[::1]:1234", "PHOENIX_PORT": "not-a-port"}, "http://[::1]:1234"),
 ]
 
 

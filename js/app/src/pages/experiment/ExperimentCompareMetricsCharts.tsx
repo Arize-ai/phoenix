@@ -1,8 +1,8 @@
 import { Suspense, useCallback } from "react";
 
-import { Loading } from "@phoenix/components";
 import {
   ChartPanelStrip,
+  ChartPanelStripSkeleton,
   getMetricChartsViewSetting,
 } from "@phoenix/components/chart";
 import type { TableViewSetting } from "@phoenix/components/table";
@@ -126,7 +126,7 @@ export function ExperimentCompareGridCharts({
 }: CompareChartsProps) {
   const persistedKeys = usePersistedCompareChartKeys(datasetId);
   return (
-    <Suspense fallback={<Loading />}>
+    <Suspense fallback={<ChartPanelStripSkeleton />}>
       {persistedKeys != null ? (
         <CompareChartsStrip
           datasetId={datasetId}

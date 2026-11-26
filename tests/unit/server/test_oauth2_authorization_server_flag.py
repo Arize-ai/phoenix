@@ -13,7 +13,7 @@ from __future__ import annotations
 import contextlib
 from typing import AsyncIterator
 
-import httpx
+import httpx2
 import pytest
 from asgi_lifespan import LifespanManager
 from pydantic import SecretStr
@@ -40,9 +40,9 @@ async def _auth_app(db: DbSessionFactory, *, authorization_server: bool) -> Asyn
         yield manager.app
 
 
-def _client(app: ASGIApp) -> httpx.AsyncClient:
-    return httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=app),
+def _client(app: ASGIApp) -> httpx2.AsyncClient:
+    return httpx2.AsyncClient(
+        transport=httpx2.ASGITransport(app=app),
         base_url="http://test",
     )
 

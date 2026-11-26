@@ -1,85 +1,92 @@
 ---
 title: "Tag a prompt"
-description: How to deploy prompts to different environments safely
+description: Tag prompt versions to deploy prompts safely to different environments
 ---
 
-Prompts in Phoenix are versioned in a linear history, creating a comprehensive audit trail of all modifications. Each change is tracked, allowing you to:
+This guide shows how to tag prompt versions, so that you can deploy a specific version to an environment. For how versions and tags work, see [Prompt Version Tag](/docs/phoenix/prompt-engineering/concepts-prompts/prompts-concepts#prompt-version-tag).
 
-* Review the complete history of a prompt
+Phoenix keeps prompt versions in a linear history. This history is an audit trail of all changes. With it, you can:
 
-* Understand who made specific changes
+* Review the full history of a prompt.
 
-* Revert to previous versions if needed
+* See who made a specific change.
+
+* Revert to a previous version if necessary.
 
 <Frame caption="">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/ddda4195-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/ddda4195-image.jpeg" alt="Prompt versions connected to development, staging, and production tags" />
 </Frame>
 
 ## Creating a Tag
 
-When you are ready to deploy a prompt to a certain environment (let's say staging), the best thing to do is to tag a specific version of your prompt as **ready**. By default Phoenix offers 3 tags, **production**, **staging**, and **development** but you can create your own tags as well.
+To deploy a prompt to an environment (for example, staging), tag a specific version of the prompt as **ready**.
 
-Each tag can include an optional description to provide additional context about its purpose or significance. Tags are unique per prompt, meaning you cannot have two tags with the same name for the same prompt.
+Phoenix gives 3 default tags: **production**, **staging**, and **development**. You can also create your own tags.
+
+Each tag can have an optional description of its purpose. Tags are unique per prompt. Thus, one prompt cannot have two tags with the same name.
 
 <Frame caption="">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/76900b85-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/76900b85-image.jpeg" alt="Creating a tag for a prompt version in Phoenix" />
 </Frame>
 
 ## Creating a custom tag
 
-It can be helpful to have custom tags to track different versions of a prompt. For example if you wanted to tag a certain prompt as the one that was used in your v0 release, you can create a custom tag with that name to keep track!
+Create a custom tag to track a specific version of a prompt. For example, to mark the prompt version in your v0 release, create a custom tag with that name.
 
-When creating a custom tag, you can provide:
+When you create a custom tag, give:
 
-* A name for the tag (must be a valid identifier)
+* A name for the tag. The name must be a valid identifier (see [Tag Naming Rules](#tag-naming-rules)).
 
-* An optional description to provide context about the tag's purpose
+* An optional description of the tag's purpose.
 
 <Frame caption="Use custom tags to track releases or maybe just an arbitrary milestone">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/9a141b89-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/9a141b89-image.jpeg" alt="Phoenix prompt version with a custom tag" />
 </Frame>
 
 ## Pulling a prompt by tag
 
-Once a prompt version is tagged, you can pull this version of the prompt into any environment that you would like (an application, an experiment). Similar to git tags, prompt version tags let you create a "release" of a prompt (e.x. pushing a prompt to staging).
+After you tag a prompt version, you can pull it into any environment, for example an application or an experiment. Prompt version tags are similar to git tags. Use them to make a "release" of a prompt (for example, to push a prompt to staging).
 
-You can retrieve a prompt version by:
+To get a prompt version, use one of these:
 
-* Using the tag name directly (e.g., "production", "staging", "development")
+* A default tag name ("production", "staging", or "development")
 
-* Using a custom tag name
+* A custom tag name
 
-* Using the latest version (which will return the most recent version regardless of tags)
+* The latest version. This gives the most recent version, regardless of tags.
 
-For full details on how to use prompts in code, see [Using a prompt](/docs/phoenix/prompt-engineering/how-to-prompts/using-a-prompt)
+For the full procedure to use prompts in code, see [Using a prompt](/docs/phoenix/prompt-engineering/how-to-prompts/using-a-prompt)
 
 ## Listing tags
 
-You can list all tags associated with a specific prompt version. The list is paginated, allowing you to efficiently browse through large numbers of tags. Each tag in the list includes:
+List the tags of a prompt version to:
 
-* The tag's unique identifier
+* Review all tags of a prompt version.
 
-* The tag's name
+* Make sure which version has the tag for a specific environment.
 
-* The tag's description (if provided)
+* Track the history of tag changes for a prompt version.
 
-This is particularly useful when you need to:
+The list is paginated, so you can browse large numbers of tags. Each tag in the list has:
 
-* Review all tags associated with a prompt version
+* The unique identifier of the tag
 
-* Verify which version is currently tagged for a specific environment
+* The name of the tag
 
-* Track the history of tag changes for a prompt version
+* The description of the tag (if it has one)
 
 ## Using the Client
 
 ### Tag Naming Rules
 
-Tag names must be valid identifiers: lowercase letters, numbers, hyphens, and underscores, starting and ending with a letter or number.
+A tag name must be a valid identifier. It can contain lowercase letters, numbers, hyphens, and underscores. It must start and end with a letter or a number.
 
 Examples: `staging`, `production-v1`, `release-2024`
 
 ### Creating and Managing Tags
+
+Use the Phoenix client to create a tag, list tags, and get a prompt version by tag.
+
 <Tabs>
 
   <Tab title="Python" icon="python">

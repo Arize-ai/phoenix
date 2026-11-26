@@ -1,7 +1,6 @@
 import { css } from "@emotion/react";
-import { useEvent, useResizeObserver } from "@react-aria/utils";
 import type { ComponentProps } from "react";
-import React, { useEffect, useRef, useState } from "react";
+import React from "react";
 import {
   SelectionIndicator as AriaSelectionIndicator,
   Tab as AriaTab,
@@ -17,52 +16,7 @@ import {
 import type { StylableProps } from "@phoenix/components/core/types";
 import { classNames } from "@phoenix/utils/classNames";
 
-/**
- * Tracks whether a horizontally scrollable tab list has tabs hidden beyond
- * its start and/or end edges. Used to render a directional fade affordance on
- * the tab bar, since the scrollbar is hidden and macOS does not show one until
- * the user actively scrolls.
- *
- * Returns a ref to attach to the scroll container plus booleans for whether
- * content overflows past the start (left) and end (right) edges.
- */
-function useHorizontalOverflow() {
-  const elementRef = useRef<HTMLDivElement | null>(null);
-  const [hasOverflowAtStart, setHasOverflowAtStart] = useState(false);
-  const [hasOverflowAtEnd, setHasOverflowAtEnd] = useState(false);
-
-  const update = () => {
-    const el = elementRef.current;
-    if (!el) {
-      return;
-    }
-    // The fade affordance only applies to horizontal tab lists; clear any
-    // overflow state left over from before an orientation flip so vertical
-    // lists never report horizontal overflow.
-    if (el.getAttribute("data-orientation") !== "horizontal") {
-      setHasOverflowAtStart(false);
-      setHasOverflowAtEnd(false);
-      return;
-    }
-    const { scrollLeft, scrollWidth, clientWidth } = el;
-    // Account for sub-pixel rounding so the fade doesn't linger at the ends.
-    const maxScroll = scrollWidth - clientWidth;
-    setHasOverflowAtStart(scrollLeft > 1);
-    setHasOverflowAtEnd(scrollLeft < maxScroll - 1);
-  };
-
-  useEvent(elementRef, "scroll", update);
-  useResizeObserver({ ref: elementRef, onResize: update });
-  // The resize observer only sees the container's own box, so content-width
-  // changes that don't resize it (tabs added or removed, count badges
-  // updating) would go unnoticed. Those changes all flow through a React
-  // render, so re-measure after every commit.
-  useEffect(() => {
-    update();
-  });
-
-  return { ref: elementRef, hasOverflowAtStart, hasOverflowAtEnd };
-}
+import { useHorizontalOverflow } from "./useHorizontalOverflow";
 
 const tabsCSS = css`
   display: flex;

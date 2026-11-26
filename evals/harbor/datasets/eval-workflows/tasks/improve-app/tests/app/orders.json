@@ -1,0 +1,1207 @@
+{
+ "as_of": "2026-11-10T15:00:00",
+ "customers": {
+  "C-1001": {
+   "name": "Maya Chen",
+   "email": "maya.chen@example.com"
+  },
+  "C-1002": {
+   "name": "Jordan Reyes",
+   "email": "jordan.reyes@example.com"
+  },
+  "C-1003": {
+   "name": "Priya Natarajan",
+   "email": "priya.n@example.com"
+  },
+  "C-1004": {
+   "name": "Ben Okafor",
+   "email": "ben.okafor@example.com"
+  },
+  "C-1005": {
+   "name": "Sofia Marino",
+   "email": "sofia.marino@example.com"
+  },
+  "C-1006": {
+   "name": "Liam Walsh",
+   "email": "liam.walsh@example.com"
+  },
+  "C-1007": {
+   "name": "Hannah Brooks",
+   "email": "hannah.brooks@example.com"
+  },
+  "C-1008": {
+   "name": "Diego Alvarez",
+   "email": "diego.alvarez@example.com"
+  },
+  "C-1009": {
+   "name": "Grace Liu",
+   "email": "grace.liu@example.com"
+  },
+  "C-1010": {
+   "name": "Tom Fischer",
+   "email": "tom.fischer@example.com"
+  },
+  "C-1011": {
+   "name": "Aisha Rahman",
+   "email": "aisha.rahman@example.com"
+  },
+  "C-1012": {
+   "name": "Noah Kim",
+   "email": "noah.kim@example.com"
+  },
+  "C-1013": {
+   "name": "Raj Natarajan",
+   "email": "raj.natarajan@example.net"
+  },
+  "C-1014": {
+   "name": "Carla Mendes",
+   "email": "carla.mendes@example.org"
+  },
+  "C-1015": {
+   "name": "Kevin Park",
+   "email": "kpark@example.net"
+  },
+  "C-1016": {
+   "name": "Diane Walsh",
+   "email": "diane.walsh@example.org"
+  },
+  "C-1017": {
+   "name": "Sam Whitaker",
+   "email": "sam@whitaker-outdoor.example.com"
+  },
+  "C-1018": {
+   "name": "Lucia Alvarez",
+   "email": "lucia.alvarez@example.org"
+  },
+  "C-1019": {
+   "name": "Victor Huang",
+   "email": "victor.huang@example.net"
+  },
+  "C-1020": {
+   "name": "Nadia Rossi",
+   "email": "nadia.rossi@example.org"
+  },
+  "C-1021": {
+   "name": "Owen Fletcher",
+   "email": "owen.fletcher@example.net"
+  },
+  "C-1022": {
+   "name": "Mia Kim",
+   "email": "mia.kim@example.org"
+  },
+  "C-1023": {
+   "name": "Olivia Grant",
+   "email": "olivia.grant@example.net"
+  },
+  "C-1024": {
+   "name": "Zoe Turner",
+   "email": "zoe.turner@example.org"
+  },
+  "C-1025": {
+   "name": "Alex Reyes",
+   "email": "alex.reyes@example.net"
+  }
+ },
+ "orders": [
+  {
+   "order_id": "R-41230",
+   "customer_id": "C-1007",
+   "placed_at": "2023-08-10T09:30",
+   "status": "delivered",
+   "shipping_method": "standard",
+   "shipped_on": "2023-08-11",
+   "delivered_on": "2023-08-15",
+   "tracking_number": "1ZRL41230",
+   "ship_to": {
+    "name": "Hannah Brooks",
+    "address": "12 Summit Ave, Boulder, CO",
+    "phone": "303-555-0177"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Basecamp 2-person tent",
+     "price": 259.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 0.0,
+   "total": 259.0
+  },
+  {
+   "order_id": "R-47755",
+   "customer_id": "C-1006",
+   "placed_at": "2025-08-28T20:05",
+   "status": "delivered",
+   "shipping_method": "standard",
+   "shipped_on": "2025-08-29",
+   "delivered_on": "2025-09-01",
+   "tracking_number": "1ZRL47755",
+   "ship_to": {
+    "name": "Liam Walsh",
+    "address": "300 Lake Dr, Duluth, MN",
+    "phone": "218-555-0166"
+   },
+   "items": [
+    {
+     "name": "Garmin Instinct GPS watch",
+     "price": 299.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 0.0,
+   "total": 299.0
+  },
+  {
+   "order_id": "R-48810",
+   "customer_id": "C-1004",
+   "placed_at": "2026-02-26T13:10",
+   "status": "delivered",
+   "shipping_method": "standard",
+   "shipped_on": "2026-02-27",
+   "delivered_on": "2026-03-02",
+   "tracking_number": "1ZRL48810",
+   "ship_to": {
+    "name": "Ben Okafor",
+    "address": "27 Pine St, Missoula, MT",
+    "phone": "406-555-0144"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Ridge 30L daypack",
+     "price": 119.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 0.0,
+   "total": 119.0
+  },
+  {
+   "order_id": "R-49020",
+   "customer_id": "C-1005",
+   "placed_at": "2026-06-10T08:45",
+   "status": "delivered",
+   "shipping_method": "standard",
+   "shipped_on": "2026-06-11",
+   "delivered_on": "2026-06-14",
+   "tracking_number": "1ZRL49020",
+   "ship_to": {
+    "name": "Sofia Marino",
+    "address": "22 Elm St, Apt 2A, Portland, OR",
+    "phone": "503-555-0155"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Kestrel trekking poles",
+     "price": 99.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 0.0,
+   "total": 99.0
+  },
+  {
+   "order_id": "R-50112",
+   "customer_id": "C-1001",
+   "placed_at": "2026-10-25T10:12",
+   "status": "delivered",
+   "shipping_method": "standard",
+   "shipped_on": "2026-10-26",
+   "delivered_on": "2026-10-29",
+   "tracking_number": "1ZRL50112",
+   "ship_to": {
+    "name": "Maya Chen",
+    "address": "41 Willow St, Madison, WI",
+    "phone": "608-555-0110"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Summit hiking boots",
+     "price": 149.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 0.0,
+   "total": 149.0
+  },
+  {
+   "order_id": "R-50127",
+   "customer_id": "C-1002",
+   "placed_at": "2026-09-25T18:40",
+   "status": "delivered",
+   "shipping_method": "standard",
+   "shipped_on": "2026-09-26",
+   "delivered_on": "2026-09-30",
+   "tracking_number": "1ZRL50127",
+   "ship_to": {
+    "name": "Jordan Reyes",
+    "address": "9 Ridge Rd, Asheville, NC",
+    "phone": "828-555-0121"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Stormline rain jacket",
+     "price": 189.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 0.0,
+   "total": 189.0
+  },
+  {
+   "order_id": "R-50133",
+   "customer_id": "C-1003",
+   "placed_at": "2026-10-31T09:05",
+   "status": "delivered",
+   "shipping_method": "standard",
+   "shipped_on": "2026-11-01",
+   "delivered_on": "2026-11-04",
+   "tracking_number": "1ZRL50133",
+   "ship_to": {
+    "name": "Priya Natarajan",
+    "address": "418 Maple Ave, Austin, TX",
+    "phone": "512-555-0133"
+   },
+   "items": [
+    {
+     "name": "Trailblazer fleece (clearance)",
+     "price": 39.0,
+     "final_sale": true
+    }
+   ],
+   "shipping_cost": 6.95,
+   "total": 45.95
+  },
+  {
+   "order_id": "R-50137",
+   "customer_id": "C-1003",
+   "placed_at": "2026-11-03T20:15",
+   "status": "delivered",
+   "shipping_method": "standard",
+   "shipped_on": "2026-11-05",
+   "delivered_on": "2026-11-09",
+   "tracking_number": "1ZRL50137",
+   "ship_to": {
+    "name": "Priya Natarajan",
+    "address": "418 Maple Ave, Austin, TX",
+    "phone": "512-555-0133"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Cascade insulated bottle",
+     "price": 34.0,
+     "final_sale": false
+    },
+    {
+     "name": "Ridgeline Trail hoodie, gray",
+     "price": 69.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 0.0,
+   "total": 103.0
+  },
+  {
+   "order_id": "R-50158",
+   "customer_id": "C-1006",
+   "placed_at": "2026-10-27T12:00",
+   "status": "delivered",
+   "shipping_method": "standard",
+   "shipped_on": "2026-10-28",
+   "delivered_on": "2026-11-01",
+   "tracking_number": "1ZRL50158",
+   "ship_to": {
+    "name": "Liam Walsh",
+    "address": "300 Lake Dr, Duluth, MN",
+    "phone": "218-555-0166"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Alpine down jacket, size M",
+     "price": 229.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 0.0,
+   "total": 229.0
+  },
+  {
+   "order_id": "R-50164",
+   "customer_id": "C-1007",
+   "placed_at": "2026-10-20T16:30",
+   "status": "delivered",
+   "shipping_method": "standard",
+   "shipped_on": "2026-10-21",
+   "delivered_on": "2026-10-25",
+   "tracking_number": "1ZRL50164",
+   "ship_to": {
+    "name": "Hannah Brooks",
+    "address": "12 Summit Ave, Boulder, CO",
+    "phone": "303-555-0177"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Basecamp 2-person tent, orange",
+     "price": 279.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 0.0,
+   "total": 279.0
+  },
+  {
+   "order_id": "R-50170",
+   "customer_id": "C-1010",
+   "placed_at": "2026-11-01T11:00",
+   "status": "delivered",
+   "shipping_method": "standard",
+   "shipped_on": "2026-11-02",
+   "delivered_on": "2026-11-05",
+   "tracking_number": "1ZRL50170",
+   "ship_to": {
+    "name": "Tom Fischer",
+    "address": "8 Mill Rd, Burlington, VT",
+    "phone": "802-555-0102"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Ember camp stove",
+     "price": 129.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 0.0,
+   "total": 129.0
+  },
+  {
+   "order_id": "R-50176",
+   "customer_id": "C-1011",
+   "placed_at": "2026-10-28T08:00",
+   "status": "delivered",
+   "shipping_method": "standard",
+   "shipped_on": "2026-10-29",
+   "delivered_on": "2026-11-02",
+   "tracking_number": "1ZRL50176",
+   "ship_to": {
+    "name": "Aisha Rahman",
+    "address": "16 Linden St, Portland, OR",
+    "phone": "971-555-0113"
+   },
+   "items": [
+    {
+     "name": "Petzl Actik headlamp",
+     "price": 59.95,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 6.95,
+   "total": 66.9
+  },
+  {
+   "order_id": "R-50181",
+   "customer_id": "C-1010",
+   "placed_at": "2026-11-07T19:20",
+   "status": "shipped",
+   "shipping_method": "standard",
+   "shipped_on": "2026-11-09",
+   "delivered_on": null,
+   "tracking_number": "1ZRL50181",
+   "ship_to": {
+    "name": "Tom Fischer",
+    "address": "8 Mill Rd, Burlington, VT",
+    "phone": "802-555-0102"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Drift sleeping pad",
+     "price": 89.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 0.0,
+   "total": 89.0
+  },
+  {
+   "order_id": "R-50195",
+   "customer_id": "C-1012",
+   "placed_at": "2026-11-03T09:30",
+   "status": "shipped",
+   "shipping_method": "standard",
+   "shipped_on": "2026-11-08",
+   "delivered_on": null,
+   "tracking_number": "1ZRL50195",
+   "ship_to": {
+    "name": "Noah Kim",
+    "address": "250 Oak Blvd, Ann Arbor, MI",
+    "phone": "734-555-0124"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Ridge 30L daypack",
+     "price": 119.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 0.0,
+   "total": 119.0
+  },
+  {
+   "order_id": "R-50202",
+   "customer_id": "C-1008",
+   "placed_at": "2026-11-10T14:40",
+   "status": "processing",
+   "shipping_method": "standard",
+   "shipped_on": null,
+   "delivered_on": null,
+   "tracking_number": null,
+   "ship_to": {
+    "name": "Diego Alvarez",
+    "address": "731 Cedar Ct, Denver, CO",
+    "phone": "720-555-0188"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Trail hoodie, blue",
+     "price": 69.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 6.95,
+   "total": 75.95
+  },
+  {
+   "order_id": "R-50211",
+   "customer_id": "C-1009",
+   "placed_at": "2026-11-10T10:00",
+   "status": "processing",
+   "shipping_method": "standard",
+   "shipped_on": null,
+   "delivered_on": null,
+   "tracking_number": null,
+   "ship_to": {
+    "name": "Grace Liu",
+    "address": "65 Bay St, Oakland, CA",
+    "phone": "510-555-0199"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Glacier sleeping bag",
+     "price": 199.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 0.0,
+   "total": 199.0
+  },
+  {
+   "order_id": "R-50230",
+   "customer_id": "C-1013",
+   "placed_at": "2026-11-06T21:10",
+   "status": "shipped",
+   "shipping_method": "standard",
+   "shipped_on": "2026-11-08",
+   "delivered_on": null,
+   "tracking_number": "1ZRL50230",
+   "ship_to": {
+    "name": "Raj Natarajan",
+    "address": "1200 Congress Ave, Austin, TX",
+    "phone": "512-555-0135"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Kestrel trekking poles",
+     "price": 99.0,
+     "final_sale": false
+    },
+    {
+     "name": "Ridgeline Lumen headlamp",
+     "price": 45.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 0.0,
+   "total": 144.0
+  },
+  {
+   "order_id": "R-50244",
+   "customer_id": "C-1014",
+   "placed_at": "2026-11-10T08:15",
+   "status": "processing",
+   "shipping_method": "standard",
+   "shipped_on": null,
+   "delivered_on": null,
+   "tracking_number": null,
+   "ship_to": {
+    "name": "Carla Mendes",
+    "address": "95 Juniper Rd, Boise, ID",
+    "phone": "208-555-0146"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Pathfinder compass (12-pack)",
+     "price": 216.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 0.0,
+   "total": 216.0
+  },
+  {
+   "order_id": "R-50251",
+   "customer_id": "C-1015",
+   "placed_at": "2026-11-04T13:00",
+   "status": "delivered",
+   "shipping_method": "standard",
+   "shipped_on": "2026-11-05",
+   "delivered_on": "2026-11-09",
+   "tracking_number": "1ZRL50251",
+   "ship_to": {
+    "name": "Kevin Park",
+    "address": "22 Elm St, Apt 4B, Portland, OR",
+    "phone": "503-555-0142"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Sawtooth 45L backpack",
+     "price": 169.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 0.0,
+   "total": 169.0
+  },
+  {
+   "order_id": "R-50263",
+   "customer_id": "C-1016",
+   "placed_at": "2026-11-05T10:00",
+   "status": "shipped",
+   "shipping_method": "standard",
+   "shipped_on": "2026-11-07",
+   "delivered_on": null,
+   "tracking_number": "1ZRL50263",
+   "ship_to": {
+    "name": "Diane Walsh",
+    "address": "7 Orchard Ln, Hibbing, MN",
+    "phone": "218-555-0157"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Hearth camp blanket",
+     "price": 79.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 0.0,
+   "total": 79.0
+  },
+  {
+   "order_id": "R-50270",
+   "customer_id": "C-1017",
+   "placed_at": "2026-10-15T15:45",
+   "status": "delivered",
+   "shipping_method": "standard",
+   "shipped_on": "2026-10-16",
+   "delivered_on": "2026-10-20",
+   "tracking_number": "1ZRL50270",
+   "ship_to": {
+    "name": "Sam Whitaker",
+    "address": "310 Canyon Rd, Santa Fe, NM",
+    "phone": "505-555-0168"
+   },
+   "items": [
+    {
+     "name": "Ridgeline 2-burner basecamp stove",
+     "price": 159.0,
+     "final_sale": false
+    },
+    {
+     "name": "Isobutane fuel canister (4-pack)",
+     "price": 22.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 0.0,
+   "total": 181.0
+  },
+  {
+   "order_id": "R-48977",
+   "customer_id": "C-1009",
+   "placed_at": "2026-04-15T12:00",
+   "status": "delivered",
+   "shipping_method": "standard",
+   "shipped_on": "2026-04-16",
+   "delivered_on": "2026-04-20",
+   "tracking_number": "1ZRL48977",
+   "ship_to": {
+    "name": "Grace Liu",
+    "address": "65 Bay St, Oakland, CA",
+    "phone": "510-555-0199"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Lumen headlamp",
+     "price": 45.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 6.95,
+   "total": 51.95
+  },
+  {
+   "order_id": "R-49105",
+   "customer_id": "C-1012",
+   "placed_at": "2026-05-12T17:25",
+   "status": "delivered",
+   "shipping_method": "standard",
+   "shipped_on": "2026-05-13",
+   "delivered_on": "2026-05-18",
+   "tracking_number": "1ZRL49105",
+   "ship_to": {
+    "name": "Noah Kim",
+    "address": "250 Oak Blvd, Ann Arbor, MI",
+    "phone": "734-555-0124"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Trailhead camp chair",
+     "price": 59.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 6.95,
+   "total": 65.95
+  },
+  {
+   "order_id": "R-49530",
+   "customer_id": "C-1010",
+   "placed_at": "2025-10-22T07:50",
+   "status": "delivered",
+   "shipping_method": "standard",
+   "shipped_on": "2025-10-23",
+   "delivered_on": "2025-10-28",
+   "tracking_number": "1ZRL49530",
+   "ship_to": {
+    "name": "Tom Fischer",
+    "address": "8 Mill Rd, Burlington, VT",
+    "phone": "802-555-0102"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Merino hiking socks (3-pack)",
+     "price": 42.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 6.95,
+   "total": 48.95
+  },
+  {
+   "order_id": "R-49880",
+   "customer_id": "C-1011",
+   "placed_at": "2026-06-28T21:00",
+   "status": "delivered",
+   "shipping_method": "standard",
+   "shipped_on": "2026-06-29",
+   "delivered_on": "2026-07-02",
+   "tracking_number": "1ZRL49880",
+   "ship_to": {
+    "name": "Aisha Rahman",
+    "address": "16 Linden St, Portland, OR",
+    "phone": "971-555-0113"
+   },
+   "items": [
+    {
+     "name": "Black Diamond RockLock carabiner",
+     "price": 24.95,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 6.95,
+   "total": 31.9
+  },
+  {
+   "order_id": "R-50311",
+   "customer_id": "C-1009",
+   "placed_at": "2026-11-01T14:20",
+   "status": "delivered",
+   "shipping_method": "standard",
+   "shipped_on": "2026-11-02",
+   "delivered_on": "2026-11-05",
+   "tracking_number": "1ZRL50311",
+   "ship_to": {
+    "name": "Grace Liu",
+    "address": "65 Bay St, Oakland, CA",
+    "phone": "510-555-0199"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Ridge 20L daypack",
+     "price": 99.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 0.0,
+   "total": 99.0
+  },
+  {
+   "order_id": "R-50318",
+   "customer_id": "C-1010",
+   "placed_at": "2026-09-18T10:10",
+   "status": "delivered",
+   "shipping_method": "standard",
+   "shipped_on": "2026-09-19",
+   "delivered_on": "2026-09-23",
+   "tracking_number": "1ZRL50318",
+   "ship_to": {
+    "name": "Tom Fischer",
+    "address": "8 Mill Rd, Burlington, VT",
+    "phone": "802-555-0102"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Swift trail runners",
+     "price": 139.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 0.0,
+   "total": 139.0
+  },
+  {
+   "order_id": "R-50325",
+   "customer_id": "C-1011",
+   "placed_at": "2026-10-30T19:40",
+   "status": "delivered",
+   "shipping_method": "standard",
+   "shipped_on": "2026-10-31",
+   "delivered_on": "2026-11-03",
+   "tracking_number": "1ZRL50325",
+   "ship_to": {
+    "name": "Aisha Rahman",
+    "address": "16 Linden St, Portland, OR",
+    "phone": "971-555-0113"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Summit gloves (last-chance sale)",
+     "price": 24.0,
+     "final_sale": true
+    }
+   ],
+   "shipping_cost": 6.95,
+   "total": 30.95
+  },
+  {
+   "order_id": "R-50332",
+   "customer_id": "C-1012",
+   "placed_at": "2026-10-26T11:15",
+   "status": "delivered",
+   "shipping_method": "standard",
+   "shipped_on": "2026-10-27",
+   "delivered_on": "2026-10-31",
+   "tracking_number": "1ZRL50332",
+   "ship_to": {
+    "name": "Noah Kim",
+    "address": "250 Oak Blvd, Ann Arbor, MI",
+    "phone": "734-555-0124"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Switchback hiking pants",
+     "price": 89.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 0.0,
+   "total": 89.0
+  },
+  {
+   "order_id": "R-50346",
+   "customer_id": "C-1004",
+   "placed_at": "2026-11-08T09:00",
+   "status": "shipped",
+   "shipping_method": "standard",
+   "shipped_on": "2026-11-09",
+   "delivered_on": null,
+   "tracking_number": "1ZRL50346",
+   "ship_to": {
+    "name": "Ben Okafor",
+    "address": "27 Pine St, Missoula, MT",
+    "phone": "406-555-0144"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Drift sleeping pad",
+     "price": 89.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 0.0,
+   "total": 89.0
+  },
+  {
+   "order_id": "R-50353",
+   "customer_id": "C-1006",
+   "placed_at": "2026-11-09T13:00",
+   "status": "processing",
+   "shipping_method": "standard",
+   "shipped_on": null,
+   "delivered_on": null,
+   "tracking_number": null,
+   "ship_to": {
+    "name": "Liam Walsh",
+    "address": "300 Lake Dr, Duluth, MN",
+    "phone": "218-555-0166"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Lumen headlamp",
+     "price": 45.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 6.95,
+   "total": 51.95
+  },
+  {
+   "order_id": "R-50360",
+   "customer_id": "C-1007",
+   "placed_at": "2026-11-05T08:00",
+   "status": "delivered",
+   "shipping_method": "standard",
+   "shipped_on": "2026-11-06",
+   "delivered_on": "2026-11-10",
+   "tracking_number": "1ZRL50360",
+   "ship_to": {
+    "name": "Hannah Brooks",
+    "address": "12 Summit Ave, Boulder, CO",
+    "phone": "303-555-0177"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Trailhead camp chair",
+     "price": 59.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 6.95,
+   "total": 65.95
+  },
+  {
+   "order_id": "R-50367",
+   "customer_id": "C-1008",
+   "placed_at": "2026-11-01T18:30",
+   "status": "delivered",
+   "shipping_method": "standard",
+   "shipped_on": "2026-11-02",
+   "delivered_on": "2026-11-06",
+   "tracking_number": "1ZRL50367",
+   "ship_to": {
+    "name": "Diego Alvarez",
+    "address": "731 Cedar Ct, Denver, CO",
+    "phone": "720-555-0188"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Ember camp stove",
+     "price": 129.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 0.0,
+   "total": 129.0
+  },
+  {
+   "order_id": "R-50374",
+   "customer_id": "C-1001",
+   "placed_at": "2026-11-10T14:50",
+   "status": "processing",
+   "shipping_method": "standard",
+   "shipped_on": null,
+   "delivered_on": null,
+   "tracking_number": null,
+   "ship_to": {
+    "name": "Maya Chen",
+    "address": "41 Willow St, Madison, WI",
+    "phone": "608-555-0110"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Cirrus rain pants",
+     "price": 99.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 0.0,
+   "total": 99.0
+  },
+  {
+   "order_id": "R-50381",
+   "customer_id": "C-1002",
+   "placed_at": "2026-11-09T12:30",
+   "status": "processing",
+   "shipping_method": "standard",
+   "shipped_on": null,
+   "delivered_on": null,
+   "tracking_number": null,
+   "ship_to": {
+    "name": "Jordan Reyes",
+    "address": "9 Ridge Rd, Asheville, NC",
+    "phone": "828-555-0121"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Basecamp 2-person tent, blue",
+     "price": 279.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 0.0,
+   "total": 279.0
+  },
+  {
+   "order_id": "R-50388",
+   "customer_id": "C-1003",
+   "placed_at": "2026-11-04T17:00",
+   "status": "delivered",
+   "shipping_method": "standard",
+   "shipped_on": "2026-11-05",
+   "delivered_on": "2026-11-07",
+   "tracking_number": "1ZRL50388",
+   "ship_to": {
+    "name": "Priya Natarajan",
+    "address": "418 Maple Ave, Austin, TX",
+    "phone": "512-555-0133"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Clearstream water filter",
+     "price": 49.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 6.95,
+   "total": 55.95
+  },
+  {
+   "order_id": "R-50395",
+   "customer_id": "C-1004",
+   "placed_at": "2026-10-20T10:00",
+   "status": "delivered",
+   "shipping_method": "standard",
+   "shipped_on": "2026-10-21",
+   "delivered_on": "2026-10-24",
+   "tracking_number": "1ZRL50395",
+   "ship_to": {
+    "name": "Ben Okafor",
+    "address": "27 Pine St, Missoula, MT",
+    "phone": "406-555-0144"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Stormline rain jacket",
+     "price": 189.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 0.0,
+   "total": 189.0
+  },
+  {
+   "order_id": "R-50399",
+   "customer_id": "C-1005",
+   "placed_at": "2026-11-09T19:00",
+   "status": "processing",
+   "shipping_method": "standard",
+   "shipped_on": null,
+   "delivered_on": null,
+   "tracking_number": null,
+   "ship_to": {
+    "name": "Sofia Marino",
+    "address": "22 Elm St, Apt 2A, Portland, OR",
+    "phone": "503-555-0155"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Trail hoodie, green",
+     "price": 69.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 6.95,
+   "total": 75.95
+  },
+  {
+   "order_id": "R-50402",
+   "customer_id": "C-1018",
+   "placed_at": "2026-11-06T16:00",
+   "status": "shipped",
+   "shipping_method": "standard",
+   "shipped_on": "2026-11-08",
+   "delivered_on": null,
+   "tracking_number": "1ZRL50402",
+   "ship_to": {
+    "name": "Lucia Alvarez",
+    "address": "731 Cedar Ct, Denver, CO",
+    "phone": "720-555-0179"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Talus 60L backpack",
+     "price": 249.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 0.0,
+   "total": 249.0
+  },
+  {
+   "order_id": "R-50409",
+   "customer_id": "C-1019",
+   "placed_at": "2026-11-07T07:45",
+   "status": "shipped",
+   "shipping_method": "standard",
+   "shipped_on": "2026-11-09",
+   "delivered_on": null,
+   "tracking_number": "1ZRL50409",
+   "ship_to": {
+    "name": "Victor Huang",
+    "address": "56 Harbor Way, Seattle, WA",
+    "phone": "206-555-0181"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Nimbus down quilt",
+     "price": 219.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 0.0,
+   "total": 219.0
+  },
+  {
+   "order_id": "R-50416",
+   "customer_id": "C-1020",
+   "placed_at": "2026-11-10T09:00",
+   "status": "processing",
+   "shipping_method": "standard",
+   "shipped_on": null,
+   "delivered_on": null,
+   "tracking_number": null,
+   "ship_to": {
+    "name": "Nadia Rossi",
+    "address": "88 Aspen Dr, Bend, OR",
+    "phone": "541-555-0192"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Guide first-aid kit (4-pack)",
+     "price": 256.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 0.0,
+   "total": 256.0
+  },
+  {
+   "order_id": "R-50423",
+   "customer_id": "C-1021",
+   "placed_at": "2026-11-04T12:00",
+   "status": "delivered",
+   "shipping_method": "standard",
+   "shipped_on": "2026-11-05",
+   "delivered_on": "2026-11-09",
+   "tracking_number": "1ZRL50423",
+   "ship_to": {
+    "name": "Owen Fletcher",
+    "address": "14 Linden St, Portland, OR",
+    "phone": "971-555-0187"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Ember camp stove",
+     "price": 129.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 0.0,
+   "total": 129.0
+  },
+  {
+   "order_id": "R-50430",
+   "customer_id": "C-1022",
+   "placed_at": "2026-10-29T22:10",
+   "status": "delivered",
+   "shipping_method": "standard",
+   "shipped_on": "2026-10-30",
+   "delivered_on": "2026-11-02",
+   "tracking_number": "1ZRL50430",
+   "ship_to": {
+    "name": "Mia Kim",
+    "address": "400 College Ave, Ithaca, NY",
+    "phone": "607-555-0103"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Halo climbing harness",
+     "price": 79.0,
+     "final_sale": false
+    },
+    {
+     "name": "Ridgeline Grip chalk bag",
+     "price": 19.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 0.0,
+   "total": 98.0
+  },
+  {
+   "order_id": "R-50437",
+   "customer_id": "C-1023",
+   "placed_at": "2026-11-07T11:30",
+   "status": "shipped",
+   "shipping_method": "standard",
+   "shipped_on": "2026-11-09",
+   "delivered_on": null,
+   "tracking_number": "1ZRL50437",
+   "ship_to": {
+    "name": "Olivia Grant",
+    "address": "2210 Sunset Blvd, Los Angeles, CA",
+    "phone": "323-555-0114"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Cascade insulated bottle",
+     "price": 34.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 6.95,
+   "total": 40.95
+  },
+  {
+   "order_id": "R-50444",
+   "customer_id": "C-1003",
+   "placed_at": "2026-11-06T15:00",
+   "status": "shipped",
+   "shipping_method": "standard",
+   "shipped_on": "2026-11-09",
+   "delivered_on": null,
+   "tracking_number": "1ZRL50444",
+   "ship_to": {
+    "name": "Priya Natarajan",
+    "address": "418 Maple Ave, Austin, TX",
+    "phone": "512-555-0133"
+   },
+   "items": [
+    {
+     "name": "Ridgeline Firefly lantern",
+     "price": 39.0,
+     "final_sale": false
+    }
+   ],
+   "shipping_cost": 6.95,
+   "total": 45.95
+  }
+ ]
+}

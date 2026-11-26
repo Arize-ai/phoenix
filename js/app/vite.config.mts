@@ -8,11 +8,16 @@ import { defineConfig } from "vite";
 import reactFallbackThrottlePlugin from "vite-plugin-react-fallback-throttle";
 import relay from "vite-plugin-relay";
 
+import { backendProxyPlugin } from "./vite/backendProxyPlugin.mts";
+import { reactDevtoolsMcpPlugin } from "./vite/reactDevtoolsMcpPlugin.mts";
+
 // We default to not exporting source maps since the JS bundle gets added to the python package.
 // We however want to enable source maps on the containers for debugging purposes.
 const enableSourceMap = process.env.PHOENIX_ENABLE_SOURCE_MAP === "True";
 
-export default defineConfig(() => {
+const appEntry = resolve(import.meta.dirname, "src/index.tsx");
+
+export default defineConfig(({ mode }) => {
   const plugins = [
     // disable react's built-in 300ms suspense fallback timer
     // without this build plugin we see a 300ms delay on most UI interactions
@@ -23,7 +28,18 @@ export default defineConfig(() => {
     }),
     relay,
     lezer(),
+    // dev server only: exposes React tools to Chrome DevTools MCP
+    reactDevtoolsMcpPlugin({ entry: appEntry }),
   ];
+  if (mode === "ui-only") {
+    const backendUrl = process.env.PHOENIX_BACKEND_URL;
+    if (!backendUrl) {
+      throw new Error(
+        "PHOENIX_BACKEND_URL must be set to the URL of the Phoenix server to run the UI against, e.g. PHOENIX_BACKEND_URL=https://phoenix.example.com pnpm dev:ui-only"
+      );
+    }
+    plugins.push(backendProxyPlugin({ backendUrl }));
+  }
   // Uncomment below to visualize the bundle size after running the build command also uncomment import { visualizer } from "rollup-plugin-visualizer";
   // plugins.push(visualizer());
   return {
@@ -35,11 +51,15 @@ export default defineConfig(() => {
     // prefix for entry assets via `basename`; this handles everything loaded
     // from within the JS bundle. See https://github.com/Arize-ai/phoenix/issues/15178
     base: "./",
-    root: resolve(__dirname, "src"),
+    root: resolve(import.meta.dirname, "src"),
     plugins,
-    publicDir: resolve(__dirname, "static"),
+    publicDir: resolve(import.meta.dirname, "static"),
     server: {
       port: parseInt(process.env.VITE_PORT || "5173"),
+      // Fail fast instead of silently picking another port. The Phoenix
+      // server is told the Vite port up front (--dev-vite-port), so an
+      // auto-assigned port would cause a mismatch.
+      strictPort: true,
       warmup: {
         clientFiles: ["./index.tsx", "./App.tsx", "./Routes.tsx"],
       },
@@ -59,9 +79,9 @@ export default defineConfig(() => {
     },
     resolve: {
       alias: {
-        "@phoenix": resolve(__dirname, "src"),
+        "@phoenix": resolve(import.meta.dirname, "src"),
         "@codemirror/state": resolve(
-          __dirname,
+          import.meta.dirname,
           "./node_modules/@codemirror/state/dist/index.cjs"
         ),
       },
@@ -70,7 +90,7 @@ export default defineConfig(() => {
       include: ["../__tests__/*.test.{ts,tsx}", "**/__tests__/*.test.{ts,tsx}"],
       exclude: ["../node_modules/**"],
       environment: "jsdom",
-      setupFiles: [resolve(__dirname, "./vitest.setup.ts")],
+      setupFiles: [resolve(import.meta.dirname, "./vitest.setup.ts")],
       globals: true,
       server: {
         deps: {
@@ -82,11 +102,11 @@ export default defineConfig(() => {
     },
     build: {
       manifest: true,
-      outDir: resolve(__dirname, "../../src/phoenix/server/static"),
+      outDir: resolve(import.meta.dirname, "../../src/phoenix/server/static"),
       emptyOutDir: true,
       sourcemap: enableSourceMap,
       rolldownOptions: {
-        input: resolve(__dirname, "src/index.tsx"),
+        input: appEntry,
         output: {
           codeSplitting: {
             groups: [

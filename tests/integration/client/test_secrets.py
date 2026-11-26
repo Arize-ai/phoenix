@@ -1,23 +1,27 @@
 from __future__ import annotations
 
-import functools
+import asyncio
+import traceback
 from collections.abc import Iterator
 from secrets import token_hex
 from typing import TYPE_CHECKING, Any, Callable
 
 import httpx
+import httpx2
 import pytest
-from pydantic import SecretStr
+from phoenix.client import AsyncClient
+from phoenix.client import Client as SyncClient
 
 from phoenix.server.api.exceptions import Unauthorized
-from phoenix.server.redaction import Redactor
 
 from .._helpers import (
     _ADMIN,
     _MEMBER,
     _VIEWER,
+    _await_or_return,
     _gql,
     _httpx_client,
+    _redactor_for_app,
 )
 
 if TYPE_CHECKING:
@@ -26,15 +30,8 @@ if TYPE_CHECKING:
 _UNSET: Any = object()
 
 
-@functools.lru_cache(maxsize=None)
-def _redactor_for(phoenix_secret: str) -> Redactor:
-    """Cached Redactor keyed off the running server's PHOENIX_SECRET."""
-    return Redactor(SecretStr(phoenix_secret))
-
-
 def _unredact(app: _AppInfo, token: str) -> str:
-    """Un-redact a server-emitted RedactedString using the server's secret."""
-    return _redactor_for(app.env["PHOENIX_SECRET"]).unredact(token)
+    return _redactor_for_app(app).unredact(token)
 
 
 @pytest.fixture()
@@ -88,7 +85,7 @@ def _put_secrets(
     app: _AppInfo,
     secrets: list[dict[str, Any]],
     auth: _SecurityArtifact | None = _UNSET,
-) -> httpx.Response:
+) -> httpx2.Response:
     """PUT /v1/secrets and return the response.
 
     Pass ``auth=None`` to send the request without any credentials.
@@ -605,3 +602,59 @@ class TestSecretsValidation:
                 variables={"input": {"secrets": [{"key": "k", "value": ""}]}},
                 operation_name="UpsertOrDeleteSecrets",
             )
+
+
+class TestSecretsViaPythonClient:
+    """The phoenix-client ``secrets`` resource against a live server."""
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_create_rotate_and_delete(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+        _secret_keys: Callable[[str], str],
+    ) -> None:
+        # _query_secret_value calls asyncio.run(), so it runs off the event loop thread.
+        Client = AsyncClient if is_async else SyncClient
+        client = Client(base_url=_app.base_url, api_key=_app.admin_secret)
+        key = _secret_keys(f"PY_CLIENT_{token_hex(4)}")
+        old_key = _secret_keys(f"PY_CLIENT_OLD_{token_hex(4)}")
+
+        created = await _await_or_return(
+            client.secrets.upsert_or_delete(secrets={key: "v1", old_key: "old"})
+        )
+        assert sorted(created["upserted_keys"]) == sorted([key, old_key])
+        assert list(created["deleted_keys"]) == []
+        assert await asyncio.to_thread(_query_secret_value, _app, key) == "v1"
+
+        # Rotate one key and delete the other in a single atomic request.
+        rotated = await _await_or_return(
+            client.secrets.upsert_or_delete(secrets={key: "v2", old_key: None})
+        )
+        assert list(rotated["upserted_keys"]) == [key]
+        assert list(rotated["deleted_keys"]) == [old_key]
+        assert await asyncio.to_thread(_query_secret_value, _app, key) == "v2"
+        _assert_secret_absent(_app, old_key)
+
+    @pytest.mark.parametrize("is_async", [True, False])
+    async def test_rejected_batch_does_not_leak_values(
+        self,
+        is_async: bool,
+        _app: _AppInfo,
+    ) -> None:
+        Client = AsyncClient if is_async else SyncClient
+        client = Client(base_url=_app.base_url, api_key=_app.admin_secret)
+        sentinel = f"sk-sentinel-{token_hex(16)}"
+        key = f"PY_CLIENT_REJECTED_{token_hex(4)}"
+
+        # The invalid key makes the server reject the whole batch with 422.
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+            await _await_or_return(
+                client.secrets.upsert_or_delete(secrets={key: sentinel, "has-dash": sentinel})
+            )
+        exc = exc_info.value
+        assert exc.response.status_code == 422
+        assert sentinel not in "".join(traceback.format_exception(exc))
+        assert sentinel.encode() not in exc.request.content
+        assert sentinel not in exc.response.text
+        _assert_secret_absent(_app, key)

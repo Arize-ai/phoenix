@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { startTransition, useCallback, useState } from "react";
 import { ConnectionHandler, graphql, useMutation } from "react-relay";
 
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -13,7 +13,7 @@ import { DatasetForm } from "./DatasetForm";
 export type CreateDatasetFormProps = {
   onDatasetCreated: (
     dataset: CreateDatasetFormMutation$data["createDataset"]["dataset"]
-  ) => void;
+  ) => void | Promise<void>;
   onDatasetCreateError?: (error: Error) => void;
   onCancel?: () => void;
   submitButtonText?: string;
@@ -26,6 +26,8 @@ export function CreateDatasetForm({
   submitButtonText = "Create Dataset",
 }: CreateDatasetFormProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isAwaitingCreatedHandler, setIsAwaitingCreatedHandler] =
+    useState(false);
   const [commit, isCommitting] = useMutation<CreateDatasetFormMutation>(graphql`
     mutation CreateDatasetFormMutation(
       $name: String!
@@ -48,7 +50,15 @@ export function CreateDatasetForm({
       commit({
         variables: { ...params, metadata: JSON.parse(params.metadata) },
         onCompleted: (response) => {
-          onDatasetCreated(response["createDataset"]["dataset"]);
+          const handled = onDatasetCreated(
+            response["createDataset"]["dataset"]
+          );
+          if (handled) {
+            setIsAwaitingCreatedHandler(true);
+            handled.finally(() =>
+              startTransition(() => setIsAwaitingCreatedHandler(false))
+            );
+          }
         },
         updater: (store) => {
           // Add the new dataset to the list of datasets
@@ -79,11 +89,12 @@ export function CreateDatasetForm({
     [commit, onDatasetCreated, onDatasetCreateError]
   );
 
+  const isSubmitting = isCommitting || isAwaitingCreatedHandler;
   return (
     <DatasetForm
-      isSubmitting={isCommitting}
+      isSubmitting={isSubmitting}
       onSubmit={onSubmit}
-      submitButtonText={isCommitting ? "Creating..." : submitButtonText}
+      submitButtonText={isSubmitting ? "Creating..." : submitButtonText}
       formMode="create"
       errorMessage={errorMessage}
       onCancel={onCancel}

@@ -7,6 +7,7 @@ import {
   Icon,
   Icons,
   KeyboardToken,
+  ProgressCircle,
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
@@ -19,13 +20,28 @@ export const ExampleDetailsPaginator = ({
   currentExampleIndex,
   exampleIds,
   onExampleChange,
+  hasMoreExamples = false,
+  isLoadingMoreExamples = false,
+  areHotkeysEnabled = true,
 }: {
   currentExampleIndex: number;
-  exampleIds: string[];
+  exampleIds: readonly string[];
+  /**
+   * Called with the index to move to. With `hasMoreExamples`, that index is
+   * one past the loaded examples when next is pressed on the last of them.
+   */
   onExampleChange: (exampleIndex: number) => void;
+  /** Whether the server has examples past the loaded ones */
+  hasMoreExamples?: boolean;
+  /** Whether the next page of examples is being fetched */
+  isLoadingMoreExamples?: boolean;
+  /** Whether the shortcuts respond, e.g. not while another overlay is on top */
+  areHotkeysEnabled?: boolean;
 }) => {
   const hasPrevious = currentExampleIndex > 0;
-  const hasNext = currentExampleIndex < exampleIds.length - 1;
+  const isOnLastLoadedExample = currentExampleIndex >= exampleIds.length - 1;
+  const isNextPending = isOnLastLoadedExample && isLoadingMoreExamples;
+  const hasNext = !isNextPending && (!isOnLastLoadedExample || hasMoreExamples);
 
   const handleNext = () => {
     if (hasNext) {
@@ -42,13 +58,24 @@ export const ExampleDetailsPaginator = ({
     }
   };
 
-  useHotkeys(NEXT_EXAMPLE_HOTKEY, () => {
-    handleNext();
-  });
+  // Ignored rather than disabled: a disabled shortcut still cancels the key
+  // press for the rest of the page
+  const hotkeyOptions = { ignoreEventWhen: () => !areHotkeysEnabled };
+  useHotkeys(
+    NEXT_EXAMPLE_HOTKEY,
+    () => {
+      handleNext();
+    },
+    hotkeyOptions
+  );
 
-  useHotkeys(PREVIOUS_EXAMPLE_HOTKEY, () => {
-    handlePrevious();
-  });
+  useHotkeys(
+    PREVIOUS_EXAMPLE_HOTKEY,
+    () => {
+      handlePrevious();
+    },
+    hotkeyOptions
+  );
 
   return (
     <Flex direction="row" gap="size-50" alignItems="center">
@@ -56,9 +83,20 @@ export const ExampleDetailsPaginator = ({
         <Button
           size="S"
           aria-label="Next"
-          isDisabled={!hasNext}
+          isDisabled={!hasNext && !isNextPending}
+          isPending={isNextPending}
           onPress={handleNext}
-          leadingVisual={<Icon svg={<Icons.ArrowDown />} />}
+          leadingVisual={
+            isNextPending ? (
+              <ProgressCircle
+                isIndeterminate
+                size="S"
+                aria-label="Loading more examples"
+              />
+            ) : (
+              <Icon svg={<Icons.ArrowDown />} />
+            )
+          }
         ></Button>
         <Tooltip offset={4}>
           <TooltipArrow />

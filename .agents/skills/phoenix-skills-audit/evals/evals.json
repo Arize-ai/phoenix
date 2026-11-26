@@ -5,7 +5,7 @@
       "id": 0,
       "name": "standard-weekly-audit",
       "prompt": "Audit the three external-facing Phoenix skills (phoenix-tracing, phoenix-cli, phoenix-evals) against the last 7 days of changes on origin/main and patch anything stale or missing. Apply the edits in place — don't just produce a report.",
-      "expected_output": "Edits applied only inside .agents/skills/phoenix-tracing/, phoenix-cli/, or phoenix-evals/. A run summary covering edits, skipped commits, and out-of-scope findings. No invented APIs.",
+      "expected_output": "Edits applied only inside skills/phoenix-tracing/, phoenix-cli/, or phoenix-evals/. A run summary covering edits, skipped commits, and out-of-scope findings. No invented APIs.",
       "files": []
     },
     {

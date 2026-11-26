@@ -1,6 +1,9 @@
 <p align="center">
     <a target="_blank" href="https://phoenix.arize.com" style="background:none">
-        <img alt="phoenix banner" src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/socal/github-large-banner-phoenix-v2.jpg?raw=true" width="auto" height="auto"></img>
+        <picture>
+            <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Arize-ai/phoenix/main/assets/brand/arize-phoenix-banner-dark.svg">
+            <img alt="phoenix banner" src="https://raw.githubusercontent.com/Arize-ai/phoenix/main/assets/brand/arize-phoenix-banner-light.svg" width="100%">
+        </picture>
     </a>
     <br/>
     <br/>
@@ -9,9 +12,6 @@
     <br/>
     <a href="https://arize.com/docs/phoenix/">
         <img src="https://img.shields.io/static/v1?message=Docs&logo=data:image/png;base64,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&labelColor=grey&color=blue&logoColor=white&label=%20"/>
-    </a>
-    <a target="_blank" href="https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g">
-        <img src="https://img.shields.io/static/v1?message=Community&logo=slack&labelColor=grey&color=blue&logoColor=white&label=%20"/>
     </a>
      <a target="_blank" href="https://bsky.app/profile/arize-phoenix.bsky.social">
         <img src="https://img.shields.io/badge/-phoenix-blue.svg?color=blue&labelColor=gray&logo=bluesky">
@@ -44,7 +44,19 @@
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.ja.md" />
 </p>
 
-Arize Phoenix は、実験・評価・トラブルシューティングのために設計された、Arize が提供するオープンソースの AI オブザーバビリティプラットフォームです。本番環境向けのマネージドワークフローには、Arize が [Arize AX](https://arize.com/products/ax/) も提供しています。Phoenix は以下の機能を備えています。
+<p align="center">
+    <a target="_blank" href="https://github.com/Arize-ai/phoenix/stargazers">
+        <img alt="Star Arize Phoenix on GitHub" src="https://img.shields.io/github/stars/Arize-ai/phoenix?style=social&label=Star%20on%20GitHub" />
+    </a>
+</p>
+
+<p align="center">
+ <a href="https://www.star-history.com/arize-ai/phoenix">
+  <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /><img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /></picture> <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /><img alt="GitHub Trending Repository of the Day" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /></picture>
+ </a>
+</p>
+
+Arize Phoenix は、実験・評価・トラブルシューティングのために設計された、Arize が提供するオープンソースの AI オブザーバビリティプラットフォームです。本番環境向けのマネージドワークフローには、Arize が [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-ja) も提供しています。Phoenix は以下の機能を備えています。
 
 - [**_トレーシング_**](https://arize.com/docs/phoenix/tracing/llm-traces) - OpenTelemetry ベースの計装により、LLM アプリケーションの実行時の動作をトレースします。
 - [**_評価_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - LLM を活用し、応答および検索（リトリーバル）の評価によってアプリケーションのパフォーマンスをベンチマークします。
@@ -61,10 +73,10 @@ Arize Phoenix は、実験・評価・トラブルシューティングのため
 
 Phoenix は特定のベンダーや言語に依存せず、人気のフレームワーク（[OpenAI Agents SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk)、[Claude Agent SDK](https://arize.com/docs/phoenix/integrations/python/claude-agent-sdk)、[LangGraph](https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain)、[Vercel AI SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk)、[Mastra](https://arize.com/docs/phoenix/integrations/typescript/mastra)、[CrewAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/crewai)、[LlamaIndex](https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex)、[DSPy](https://arize.com/docs/phoenix/tracing/integrations-tracing/dspy)）や LLM プロバイダー（[OpenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai)、[Anthropic](https://arize.com/docs/phoenix/tracing/integrations-tracing/anthropic)、[Google GenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai)、[Google ADK](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing)、[AWS Bedrock](https://arize.com/docs/phoenix/tracing/integrations-tracing/bedrock)、[OpenRouter](https://arize.com/docs/phoenix/integrations/python/openrouter)、[LiteLLM](https://arize.com/docs/phoenix/tracing/integrations-tracing/litellm) など）をすぐに利用できます。自動計装の詳細については、[OpenInference](https://github.com/Arize-ai/openinference) プロジェクトをご覧ください。
 
-Phoenix はローカルマシン、コンテナ化されたデプロイ環境、クラウドなど、ほぼあらゆる環境で動作します。各オプションの手順については [環境](https://arize.com/docs/phoenix/environments) を参照するか、すぐに [トレーシングのクイックスタート](https://arize.com/docs/phoenix/get-started/get-started-tracing) に進んでください。
+Phoenix はローカルマシン、コンテナ化されたデプロイ環境、クラウドなど、ほぼあらゆる環境で動作します。各オプションの手順については [環境](https://arize.com/docs/phoenix/self-hosting) を参照するか、すぐに [トレーシングのクイックスタート](https://arize.com/docs/phoenix/get-started/get-started-tracing) に進んでください。
 
 > [!NOTE]
-> Phoenix はオープンソースのセルフホスト型プラットフォームです。マネージドプラットフォームとしては、Arize が [Arize AX](https://arize.com/products/ax/) を提供しており、同じ OpenTelemetry/OpenInference の計装をどちらでも利用できます。[詳細な比較](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize) をご覧ください。
+> Phoenix はオープンソースのセルフホスト型プラットフォームです。マネージドプラットフォームとしては、Arize が [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-ja) を提供しており、同じ OpenTelemetry/OpenInference の計装をどちらでも利用できます。[詳細な比較](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize) をご覧ください。
 
 ## 目次
 
@@ -144,7 +156,6 @@ Docker Compose、Kubernetes/Helm、その他のデプロイオプションにつ
 | [@arizeai/phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel)     | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                           | Phoenix 向けのデフォルト設定を備えた、OpenTelemetry プリミティブの軽量ラッパーを提供                   |
 | [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                       | Arize Phoenix API 用のクライアント                                                                             |
 | [@arizeai/phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals)   | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                         | LLM アプリケーション向けの TypeScript 評価ライブラリ（アルファ版）                                           |
-| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | 旧バージョンの Phoenix 向けのスタンドアロン stdio MCP サーバー（メンテナンスモード — Phoenix に組み込まれた [リモート MCP サーバー](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) に置き換えられました） |
 | [@arizeai/phoenix-cli](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)](https://www.npmjs.com/package/@arizeai/phoenix-cli) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) | Claude Code、Cursor などのコーディングエージェントで使用するために、トレース、データセット、実験を取得する CLI |
 
 ## トレーシング統合
@@ -268,16 +279,16 @@ Phoenix の [コード評価器](https://arize.com/docs/phoenix/evaluation/serve
 Phoenix は、人間と AI コーディングエージェントのどちらからも操作できるように設計されています。エージェント（Claude Code、Codex、Cursor など）がトレース、データセット、実験を扱うための 3 つのインターフェースがあります。
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — `npx @arizeai/phoenix-cli` はトレース、データセット、実験を取得し、アプリを計装します（`setup`）。これにより、エージェントはターミナルからコンテキストを取得して作業できます。
-- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`.agents/skills/`](../../.agents/skills/) には、Phoenix を使ったデバッグ、評価、トレースの方法をエージェントに教えるワークフローがパッケージ化されています。
+- **[Skills](https://docs.anthropic.com/en/docs/claude-code/skills)** — [`skills/`](../../skills/) には、Phoenix を使ったデバッグ、評価、トレースの方法をエージェントに教えるワークフローがパッケージ化されています。
 - **[リモート MCP サーバー](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — 任意の MCP クライアントをインスタンスの `/mcp` エンドポイントに接続し、Phoenix に直接クエリできます。
 
 セットアップと使用方法については、[コーディングエージェントのドキュメント](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents) を参照してください。
 
 | スキル                                              | 説明                                                                                                                |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/)         | Phoenix CLI を使って LLM アプリケーションをデバッグ — トレースの取得、エラーの分析、実験のレビュー、GraphQL API のクエリ |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/)     | Phoenix を使って AI/LLM アプリケーション向けの評価器を構築・実行                                                             |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | LLM アプリケーションをトレースするための OpenInference セマンティック規約と計装                                        |
+| [phoenix-cli](../../skills/phoenix-cli/)         | Phoenix CLI を使って LLM アプリケーションをデバッグ — トレースの取得、エラーの分析、実験のレビュー、GraphQL API のクエリ |
+| [phoenix-evals](../../skills/phoenix-evals/)     | Phoenix を使って AI/LLM アプリケーション向けの評価器を構築・実行                                                             |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | LLM アプリケーションをトレースするための OpenInference セマンティック規約と計装                                        |
 
 ## セキュリティとプライバシー
 
@@ -293,9 +304,7 @@ Phoenix は、人間と AI コーディングエージェントのどちらか�
 
 コミュニティに参加して、数千人の AI ビルダーとつながりましょう。
 
-- 🌍 [Slack コミュニティ](https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g) に参加する。
 - 📚 [ドキュメント](https://arize.com/docs/phoenix) を読む。
-- 💡 _#phoenix-support_ チャンネルで質問やフィードバックを送る。
 - 🌟 [GitHub](https://github.com/Arize-ai/phoenix) でスターを付ける。
 - 🐞 [GitHub Issues](https://github.com/Arize-ai/phoenix/issues) でバグを報告する。
 - 𝕏 [𝕏](https://twitter.com/ArizePhoenix) でフォローする。
@@ -314,3 +323,15 @@ Copyright 2025 Arize AI, Inc. All Rights Reserved.
 このコードの一部は、1 件以上の米国特許によって保護されています。[IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE) を参照してください。
 
 このソフトウェアは Elastic License 2.0 (ELv2) の条件の下でライセンスされています。[LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE) を参照してください。
+
+## Star History
+
+Phoenix is fully open source and built in the open. If it helps you, please [⭐ star the repo](https://github.com/Arize-ai/phoenix) to support the project.
+
+<a href="https://www.star-history.com/?repos=arize-ai%2Fphoenix&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+ </picture>
+</a>

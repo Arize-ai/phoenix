@@ -172,6 +172,36 @@ export const revalidateOnProjectChange: ShouldRevalidateFunction = ({
   return currentParams.projectId !== nextParams.projectId;
 };
 
+// :datasetId's loader depends only on its own param, while the pages under it
+// keep view state in search params that change on every keystroke.
+export const revalidateOnDatasetChange: ShouldRevalidateFunction = ({
+  currentUrl,
+  nextUrl,
+  currentParams,
+  nextParams,
+  defaultShouldRevalidate,
+}) => {
+  if (currentUrl.href === nextUrl.href) return defaultShouldRevalidate;
+  return currentParams.datasetId !== nextParams.datasetId;
+};
+
+// :promptId's loader always revalidates so versions saved elsewhere show up,
+// except when opening or switching versions of the same prompt: its query
+// holds only the first page of the paginated versions list, so re-running it
+// would drop the pages already scrolled in, including the version just clicked.
+const revalidatePromptUnlessOpeningVersion: ShouldRevalidateFunction = ({
+  currentUrl,
+  nextUrl,
+  currentParams,
+  nextParams,
+}) => {
+  if (currentUrl.href === nextUrl.href) return true;
+  const isOpeningVersion =
+    currentParams.promptId === nextParams.promptId &&
+    nextParams.versionId != null;
+  return !isOpeningVersion;
+};
+
 // Shared by the traces and spans tabs, which both host the compare drawer
 const compareTracesRouteHandle = {
   agentRoute: {
@@ -566,6 +596,7 @@ export const appRouteObjects = createRoutesFromElements(
           <Route
             path=":datasetId"
             loader={datasetLoader}
+            shouldRevalidate={revalidateOnDatasetChange}
             handle={{
               crumb: (data: DatasetLoaderData) => data?.dataset?.name,
               agentRoute: {
@@ -844,9 +875,7 @@ export const appRouteObjects = createRoutesFromElements(
           <Route
             path=":promptId"
             loader={promptLoader}
-            // force this route to always revalidate, preventing stale versions from being
-            // displayed when navigating back to the prompt page after gql mutation
-            shouldRevalidate={() => true}
+            shouldRevalidate={revalidatePromptUnlessOpeningVersion}
             handle={{
               crumb: (data: PromptLoaderData) => {
                 if (data?.prompt?.__typename === "Prompt") {
@@ -1046,7 +1075,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Secrets",
                 description:
-                  "Manage write-only secrets used by Phoenix integrations, custom providers, sandboxes, and tools.",
+                  "Manage write-only secrets used by Phoenix integrations, custom providers, sandboxes, and tools, and review saved credential encryption status.",
               },
             }}
           />
@@ -1085,7 +1114,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Models",
                 description:
-                  "Configure saved model settings including provider, model name patterns, start dates, and token pricing.",
+                  "Configure saved model settings including provider, model name patterns, start dates, and token pricing for LLM, decision, and embedding models.",
               },
             }}
           />

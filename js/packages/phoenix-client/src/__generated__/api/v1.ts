@@ -417,7 +417,11 @@ export interface paths {
         get: operations["getDatasetExamples"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Permanently delete examples from a dataset
+         * @description Permanently delete examples and all of their revisions from every version of the dataset. The experiment runs on these examples, their evaluations, their task and evaluator traces, and their experiment logs are deleted too. The dataset, its versions, its experiments, and its other examples are kept. This cannot be undone. Example IDs that are not in the dataset are skipped, so a repeated request succeeds. Wait for experiments on the dataset to finish first, because runs and traces that arrive after the request are kept.
+         */
+        delete: operations["deleteDatasetExamples"];
         options?: never;
         head?: never;
         patch?: never;
@@ -941,7 +945,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Get a single span by span_identifier
+         * @description Fetch a single span by identifier. The identifier may be either a Global ID or an OpenTelemetry span_id. Returns the span in the same shape as the elements of the list-spans endpoint.
+         */
+        get: operations["getSpan"];
         put?: never;
         post?: never;
         /**
@@ -1130,7 +1138,7 @@ export interface paths {
         post?: never;
         /**
          * Delete a prompt
-         * @description Delete a prompt and all its versions, tags, and labels by identifier.
+         * @description Delete a prompt and all its versions, tags, and labels by identifier. Returns 409 if one or more LLM evaluators use the prompt.
          */
         delete: operations["deletePrompt"];
         options?: never;
@@ -1613,7 +1621,7 @@ export interface paths {
         };
         /**
          * Logout
-         * @description Log out user by revoking tokens and clearing cookies.
+         * @description Log out of every browser session by revoking its tokens, and clear the cookies.
          */
         get: operations["_logout_auth_logout_get"];
         put?: never;
@@ -3625,6 +3633,10 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
+        /** GetSpanResponseBody */
+        GetSpanResponseBody: {
+            data: components["schemas"]["Span"];
+        };
         /** GetTracesResponseBody */
         GetTracesResponseBody: {
             /** Data */
@@ -5289,6 +5301,12 @@ export interface components {
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
             /** Id */
             id: string;
+            /**
+             * Created At
+             * Format: date-time
+             * @description The creation timestamp of the prompt version.
+             */
+            created_at: string;
         };
         /** PromptVersionData */
         PromptVersionData: {
@@ -5496,7 +5514,7 @@ export interface components {
              * @description The kind of annotator used for the annotation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -5530,7 +5548,7 @@ export interface components {
              * @description The kind of annotator used for the annotation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -5862,7 +5880,7 @@ export interface components {
              * @description The kind of annotator used for the annotation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -5896,7 +5914,7 @@ export interface components {
              * @description The kind of annotator used for the annotation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -5956,7 +5974,7 @@ export interface components {
              * @description The kind of annotator used for the annotation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -6378,7 +6396,7 @@ export interface components {
              * @description The kind of annotator used for the annotation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -6412,7 +6430,7 @@ export interface components {
              * @description The kind of annotator used for the annotation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT";
             /** @description The result of the annotation */
             result?: components["schemas"]["AnnotationResult"] | null;
             /**
@@ -6733,7 +6751,7 @@ export interface components {
              * @description The kind of annotator used for the evaluation
              * @enum {string}
              */
-            annotator_kind: "LLM" | "CODE" | "HUMAN";
+            annotator_kind: "LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT";
             /**
              * Start Time
              * Format: date-time
@@ -7942,7 +7960,7 @@ export interface operations {
                 /** @description Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier. */
                 identifier?: string | null;
                 /** @description Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind. */
-                annotator_kind?: ("LLM" | "CODE" | "HUMAN") | null;
+                annotator_kind?: ("LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT") | null;
                 /** @description Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC. */
                 start_time?: string | null;
                 /** @description Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC. */
@@ -8066,7 +8084,7 @@ export interface operations {
                 /** @description Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier. */
                 identifier?: string | null;
                 /** @description Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind. */
-                annotator_kind?: ("LLM" | "CODE" | "HUMAN") | null;
+                annotator_kind?: ("LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT") | null;
                 /** @description Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC. */
                 start_time?: string | null;
                 /** @description Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC. */
@@ -8190,7 +8208,7 @@ export interface operations {
                 /** @description Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier. */
                 identifier?: string | null;
                 /** @description Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind. */
-                annotator_kind?: ("LLM" | "CODE" | "HUMAN") | null;
+                annotator_kind?: ("LLM" | "CODE" | "HUMAN" | "DECISION" | "AGENT") | null;
                 /** @description Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC. */
                 start_time?: string | null;
                 /** @description Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC. */
@@ -9033,6 +9051,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deleteDatasetExamples: {
+        parameters: {
+            query: {
+                /** @description Identifiers of the examples to delete: dataset example IDs (GlobalIDs) or user-provided IDs. To delete more examples, send more requests. */
+                example_ids: string[];
+            };
+            header?: never;
+            path: {
+                /** @description The ID of the dataset */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid dataset ID, no example IDs, or too many example IDs */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
         };
@@ -10901,12 +10970,62 @@ export interface operations {
             };
         };
     };
+    getSpan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The span identifier: either a Global ID or OpenTelemetry span_id */
+                span_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetSpanResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     deleteSpan: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                /** @description The span identifier: either a relay GlobalID or OpenTelemetry span_id */
+                /** @description The span identifier: either a Global ID or OpenTelemetry span_id */
                 span_identifier: string;
             };
             cookie?: never;
@@ -11489,6 +11608,15 @@ export interface operations {
                     "text/plain": string;
                 };
             };
+            /** @description Prompt is in use by one or more LLM evaluators */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -11627,6 +11755,15 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -13150,6 +13287,7 @@ export interface operations {
             };
             cookie: {
                 "phoenix-oauth2-state": string;
+                "phoenix-oauth2-login-context"?: string | null;
                 "phoenix-oauth2-nonce": string;
                 "phoenix-oauth2-code-verifier"?: string | null;
             };

@@ -3,10 +3,11 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import Mock
 
-import httpx
+import httpx2
 import pytest
 from pydantic import SecretStr
 from pydantic_ai.exceptions import ModelRetry, ToolFailed
+from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets import ApprovalRequiredToolset, FilteredToolset
 
@@ -119,18 +120,34 @@ class TestDegradeOnConnectFailure:
         async with toolset:
             assert await toolset.get_tools(Mock()) == {}
 
+    async def test_tool_listing_failure_degrades_instead_of_raising(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # A transport failure AFTER a successful init (tools/list is its own
+        # RPC) must also degrade to no tools rather than fail the turn with a
+        # potentially header-echoing exception.
+        toolset: GitHubMCPToolset[Any] = GitHubMCPToolset(_config())
+
+        async def raise_transport_error(self: Any, ctx: Any) -> Any:
+            raise httpx2.ConnectError(f"listing failed, headers: Bearer {_TOKEN}")
+
+        monkeypatch.setattr(MCPToolset, "get_tools", raise_transport_error)
+        assert await toolset.get_tools(Mock()) == {}
+        # The toolset stays degraded for the rest of the run.
+        assert await toolset.get_tools(Mock()) == {}
+
 
 class TestErrorSanitization:
     @staticmethod
     def _failing_call(status_code: int) -> Any:
         async def call_tool(name: str, args: dict[str, Any], **_: Any) -> Any:
-            request = httpx.Request(
+            request = httpx2.Request(
                 "POST", "https://example.com/mcp/", headers={"Authorization": f"Bearer {_TOKEN}"}
             )
-            raise httpx.HTTPStatusError(
+            raise httpx2.HTTPStatusError(
                 f"{status_code} for url with Authorization: Bearer {_TOKEN}",
                 request=request,
-                response=httpx.Response(status_code, request=request),
+                response=httpx2.Response(status_code, request=request),
             )
 
         return call_tool
@@ -160,7 +177,7 @@ class TestErrorSanitization:
 
     async def test_transport_error_reduces_to_class_name(self) -> None:
         async def call_tool(name: str, args: dict[str, Any], **_: Any) -> Any:
-            raise httpx.ConnectError(f"connect failed, headers: Bearer {_TOKEN}")
+            raise httpx2.ConnectError(f"connect failed, headers: Bearer {_TOKEN}")
 
         with pytest.raises(ModelRetry) as exc_info:
             await _call_tool_with_sanitized_errors(Mock(), call_tool, "issue_read", {})

@@ -15,7 +15,7 @@ LLM tracing records the paths taken by requests as they propagate through multip
 Tracing is a helpful tool for understanding how your LLM application works. Phoenix offers comprehensive tracing capabilities that are not tied to any specific LLM vendor or framework. Phoenix accepts traces over the OpenTelemetry protocol (OTLP) and supports first-class instrumentation for a variety of frameworks ( [LlamaIndex](/docs/phoenix/integrations/python/llamaindex), [LangChain](/docs/phoenix/integrations/python/langchain), [DSPy](/docs/phoenix/integrations/python/dspy/dspy-tracing)), SDKs ([OpenAI](/docs/phoenix/integrations/llm-providers/openai), [Bedrock](/docs/phoenix/integrations/llm-providers/amazon-bedrock), [Mistral](/docs/phoenix/integrations/llm-providers/mistralai), [Vertex](/docs/phoenix/integrations/llm-providers/vertexai)), and languages. ([Python](/docs/phoenix/integrations/python/agno), [TypeScript](/docs/phoenix/integrations/typescript/beeai), etc.)
 
 <Frame caption="View the inner workings for your LLM Application">
-  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/15fe0366-image.jpeg" />
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/15fe0366-image.jpeg" alt="Phoenix trace tree with the input and output of a selected span" />
 </Frame>
 
 Using Phoenix's tracing capabilities can provide important insights into the inner workings of your LLM application. By analyzing the collected trace data, you can identify and address various performance and operational issues and improve the overall reliability and efficiency of your system.

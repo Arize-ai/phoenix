@@ -1,0 +1,69 @@
+{
+  "skill_name": "phoenix-explainer-video",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "make a ~30s explainer video for the top of docs/phoenix/tracing/concepts-tracing/what-are-traces.mdx that shows how a trace is built from spans (parent/child, span kinds). it'll autoplay muted on the docs page",
+      "expected_output": "Silent, type-led 1920x1080 H.264 MP4s of about 30s in dark and light looks, teaching how spans form a trace with accurate span kinds, plus a docs embed that switches on theme.",
+      "files": [],
+      "assertions": [
+        "A dark and a light MP4 exist in outputs/ (names end in -dark.mp4 and -light.mp4)",
+        "Each video stream is H.264, yuv420p, 1920x1080",
+        "Each file has no audio stream (silent video)",
+        "Each MP4 is under 10 MB",
+        "report.md includes an embed that pairs the light MP4 (block dark:hidden) with the dark MP4 (hidden dark:block) on storage.googleapis.com/arize-phoenix-assets",
+        "Every scene has a two-line headline: a gray lead-in and a bright payoff",
+        "No text in the reviewed frames overflows, is clipped, or overlaps other elements, in either look",
+        "All on-screen text is at least 32px in the 1920px source",
+        "Frames show no cards, panels, borders, glows, gradients, window chrome, badges, or uppercase eyebrow labels",
+        "Emphasis uses brightness or dimming, not colored words, boxes, rings, or highlight bars",
+        "Duration is between 20s and 40s",
+        "Every span kind shown is a real OpenInference span kind (CHAIN, LLM, RETRIEVER, TOOL, EMBEDDING, AGENT, RERANKER, GUARDRAIL, EVALUATOR, PROMPT, DECISION, UNKNOWN)",
+        "Video shows parent/child relationships between spans (a tree or nesting, not just a flat list)"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Can you make a short clip for the 10.27.2026 release note (docs/phoenix/release-notes/10-2026/10-27-2026-decision-model-evaluators-and-project-onboarding.mdx), just the decision-model evaluators section? Show passing a decision model to a classification evaluator and getting label probabilities back.",
+      "expected_output": "Silent, type-led MP4s of 20-60s in dark and light looks whose code matches the shipped @arizeai/phoenix-evals API (decision model passed as model, metadata.probabilities), naming the version, plus a release-note embed.",
+      "files": [],
+      "assertions": [
+        "A dark and a light MP4 exist in outputs/ (names end in -dark.mp4 and -light.mp4)",
+        "Each video stream is H.264, yuv420p, 1920x1080",
+        "Each file has no audio stream (silent video)",
+        "Each MP4 is under 10 MB",
+        "report.md includes an embed that pairs the light MP4 (block dark:hidden) with the dark MP4 (hidden dark:block) on storage.googleapis.com/arize-phoenix-assets",
+        "Every scene has a two-line headline: a gray lead-in and a bright payoff",
+        "No text in the reviewed frames overflows, is clipped, or overlaps other elements, in either look",
+        "All on-screen text is at least 32px in the 1920px source",
+        "Frames show no cards, panels, borders, glows, gradients, window chrome, badges, or uppercase eyebrow labels",
+        "Emphasis uses brightness or dimming, not colored words, boxes, rings, or highlight bars",
+        "Duration is between 15s and 60s",
+        "Code on screen passes a decision model as `model` to a classification evaluator, using openai.decisionModel(...) as in the release note",
+        "Video shows label probabilities via metadata.probabilities",
+        "Video states the version requirement (@arizeai/phoenix-evals 2.7.0+)"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "we need a quick looping video for docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/retrieve-traces-via-cli.mdx showing someone pulling recent traces with the px CLI in a terminal. keep it under 30 seconds",
+      "expected_output": "Silent, type-led MP4s under 30s in dark and light looks showing real px commands and output, with a docs embed that switches on theme.",
+      "files": [],
+      "assertions": [
+        "A dark and a light MP4 exist in outputs/ (names end in -dark.mp4 and -light.mp4)",
+        "Each video stream is H.264, yuv420p, 1920x1080",
+        "Each file has no audio stream (silent video)",
+        "Each MP4 is under 10 MB",
+        "report.md includes an embed that pairs the light MP4 (block dark:hidden) with the dark MP4 (hidden dark:block) on storage.googleapis.com/arize-phoenix-assets",
+        "Every scene has a two-line headline: a gray lead-in and a bright payoff",
+        "No text in the reviewed frames overflows, is clipped, or overlaps other elements, in either look",
+        "All on-screen text is at least 32px in the 1920px source",
+        "Frames show no cards, panels, borders, glows, gradients, window chrome, badges, or uppercase eyebrow labels",
+        "Emphasis uses brightness or dimming, not colored words, boxes, rings, or highlight bars",
+        "Duration is under 30s",
+        "Every px command and flag shown exists in js/packages/phoenix-cli",
+        "Video shows px commands being entered and their real output"
+      ]
+    }
+  ]
+}

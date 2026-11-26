@@ -147,6 +147,34 @@ export const DATASET_UPLOAD_EXAMPLE_IDS: ParameterRequirement = {
   minServerVersion: [15, 0, 0],
 };
 
+export const LIST_DATASET_LABELS: RouteRequirement = {
+  kind: "route",
+  method: "GET",
+  path: "/v1/datasets/{dataset_identifier}/labels",
+  minServerVersion: [17, 16, 0],
+};
+
+export const ADD_DATASET_LABEL: RouteRequirement = {
+  kind: "route",
+  method: "PUT",
+  path: "/v1/datasets/{dataset_identifier}/labels/{label_id}",
+  minServerVersion: [17, 16, 0],
+};
+
+export const REMOVE_DATASET_LABEL: RouteRequirement = {
+  kind: "route",
+  method: "DELETE",
+  path: "/v1/datasets/{dataset_identifier}/labels/{label_id}",
+  minServerVersion: [17, 16, 0],
+};
+
+export const REPLACE_DATASET_LABELS: RouteRequirement = {
+  kind: "route",
+  method: "PUT",
+  path: "/v1/datasets/{dataset_identifier}/labels",
+  minServerVersion: [17, 16, 0],
+};
+
 export const CREATE_DATASET_SPLIT: RouteRequirement = {
   kind: "route",
   method: "POST",
@@ -304,6 +332,13 @@ export const AGENT_SESSION_MESSAGES: RouteRequirement = {
   minServerVersion: [20, 0, 0],
 };
 
+export const LIST_MODEL_PROVIDERS: RouteRequirement = {
+  kind: "route",
+  method: "GET",
+  path: "/v1/model_providers",
+  minServerVersion: [20, 4, 0],
+};
+
 /**
  * Aggregate list of every known capability requirement.
  *
@@ -328,6 +363,10 @@ export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   LIST_SESSIONS_FILTER_EXPRESSION,
   TRANSFER_TRACES,
   DATASET_UPLOAD_EXAMPLE_IDS,
+  LIST_DATASET_LABELS,
+  ADD_DATASET_LABEL,
+  REMOVE_DATASET_LABEL,
+  REPLACE_DATASET_LABELS,
   CREATE_DATASET_SPLIT,
   UPDATE_DATASET_SPLIT,
   DELETE_DATASET_SPLIT,
@@ -350,4 +389,5 @@ export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   AGENT_SESSION_TOOL_OUTPUTS,
   AGENT_SESSION_CHAT,
   AGENT_SESSION_MESSAGES,
+  LIST_MODEL_PROVIDERS,
 ] as const;

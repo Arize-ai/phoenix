@@ -6,7 +6,7 @@ from random import choice, sample
 from secrets import token_bytes, token_hex
 from typing import Any, Literal, NamedTuple, Optional, Sequence, cast
 
-import httpx
+import httpx2
 import pandas as pd
 import pytest
 from opentelemetry.sdk.trace import ReadableSpan
@@ -1258,7 +1258,7 @@ class TestClientForSpanDocumentAnnotations:
         _, span_id1, *_ = choice(_existing_spans)
 
         # Setup HTTP client for direct requests
-        async with httpx.AsyncClient(base_url=_app.base_url) as client:
+        async with httpx2.AsyncClient(base_url=_app.base_url) as client:
             headers = {
                 "Authorization": f"Bearer {_app.admin_secret}",
                 "Content-Type": "application/json",

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import re
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from collections.abc import AsyncIterator, Callable, Iterator
@@ -13,6 +14,7 @@ from typing import (
     Generic,
     Hashable,
     Iterable,
+    Literal,
     Mapping,
     NamedTuple,
     Optional,
@@ -22,7 +24,6 @@ from typing import (
     cast,
 )
 
-import httpx
 import openinference.instrumentation as oi
 import sqlalchemy as sa
 import wrapt
@@ -181,6 +182,11 @@ class PlaygroundClient(ABC, Generic[ClientT]):
     @property
     @abstractmethod
     def llm_system(self) -> str: ...
+
+    @property
+    def supports_forced_tool_choice(self) -> bool:
+        """True if the model accepts a tool choice that requires a tool call; false otherwise."""
+        return True
 
     @classmethod
     @abstractmethod
@@ -1316,7 +1322,6 @@ class OllamaClient(OpenAICompatibleClient):
     model_names=[
         PROVIDER_DEFAULT,
         "qwen-3.8-27b",
-        "llama3.1-8b",
         "gpt-oss-120b",
     ],
 )
@@ -1351,17 +1356,14 @@ class GroqClient(OpenAICompatibleClient):
     provider_key=GenerativeProviderKey.MOONSHOT,
     model_names=[
         PROVIDER_DEFAULT,
+        "kimi-k3.1-pro",
+        "kimi-k3.1-pro-highspeed",
         "kimi-k3",
         "kimi-k2.7-code",
         "kimi-k2.6",
         "kimi-k2-turbo-preview",
         "kimi-k2-thinking-turbo",
         "kimi-k2-thinking",
-        "kimi-k2.5",
-        "moonshot-v1-128k",
-        "moonshot-v1-32k",
-        "moonshot-v1-8k",
-        "moonshot-v1-auto",
     ],
 )
 class MoonshotClient(OpenAICompatibleClient):
@@ -1449,6 +1451,7 @@ class MetaClient(OpenAICompatibleClient):
     provider_key=GenerativeProviderKey.AWS,
     model_names=[
         PROVIDER_DEFAULT,
+        "anthropic.claude-fable-5-2",
         "anthropic.claude-fable-5-1",
         "anthropic.claude-fable-5",
         "anthropic.claude-opus-5-5",
@@ -1464,7 +1467,6 @@ class MetaClient(OpenAICompatibleClient):
         "anthropic.claude-sonnet-4-5-20250929-v1:0",
         "anthropic.claude-haiku-4-5-20251001-v1:0",
         "anthropic.claude-opus-4-20250514-v1:0",
-        "anthropic.claude-sonnet-4-20250514-v1:0",
         "amazon.titan-embed-text-v2:0",
         "amazon.nova-pro-v1:0",
         "amazon.nova-premier-v1:0:8k",
@@ -1480,11 +1482,6 @@ class MetaClient(OpenAICompatibleClient):
         "meta.llama3-1-8b-instruct-v1:0",
         "meta.llama3-1-70b-instruct-v1:0:128k",
         "meta.llama3-1-70b-instruct-v1:0",
-        "meta.llama3-1-405b-instruct-v1:0",
-        "meta.llama3-2-11b-instruct-v1:0",
-        "meta.llama3-2-90b-instruct-v1:0",
-        "meta.llama3-2-1b-instruct-v1:0",
-        "meta.llama3-2-3b-instruct-v1:0",
         "meta.llama3-3-70b-instruct-v1:0",
         "meta.llama4-scout-17b-instruct-v1:0",
         "meta.llama4-maverick-17b-instruct-v1:0",
@@ -1494,6 +1491,14 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
     @property
     def llm_system(self) -> str:
         return "aws"
+
+    @property
+    @override
+    def supports_forced_tool_choice(self) -> bool:
+        is_anthropic_model = "anthropic." in self.model_name.lower()
+        return not is_anthropic_model or anthropic_model_supports_forced_tool_choice(
+            self.model_name
+        )
 
     # AWS Bedrock throttling error codes
     _THROTTLE_ERROR_CODES = frozenset(
@@ -1622,9 +1627,8 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
             ToolTypeDef,
         )
 
-        request = ConverseStreamRequestTypeDef(modelId=self.model_name)
-
-        request["messages"] = self._build_converse_messages(messages)
+        # messages are filled in once it is known whether a toolConfig is sent
+        request = ConverseStreamRequestTypeDef(modelId=self.model_name, messages=[])
 
         system_prompt = self._extract_system_prompt(messages)
         if system_prompt:
@@ -1686,6 +1690,11 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
 
             if send_tools:
                 request["toolConfig"] = tool_config
+
+        # Converse rejects toolUse/toolResult blocks in a request without a toolConfig.
+        request["messages"] = self._build_converse_messages(
+            messages, tool_blocks_as_text="toolConfig" not in request
+        )
 
         if response_format:
             json_schema = JsonSchemaDefinitionTypeDef(
@@ -1905,8 +1914,22 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
     def _build_converse_messages(
         self,
         messages: Sequence[PlaygroundMessage],
+        *,
+        tool_blocks_as_text: bool = False,
     ) -> list[MessageTypeDef]:
-        """Convert messages to Converse API format."""
+        """
+        Convert messages to Converse API format.
+
+        Converse requires user and assistant turns to alternate, so consecutive
+        messages with the same role are merged into one turn. In particular, the
+        results of parallel tool calls become one user turn holding every
+        `toolResult` block, right after the assistant turn with the `toolUse`
+        blocks.
+
+        With `tool_blocks_as_text`, replayed tool calls and results are sent as
+        text blocks instead, for requests that have no toolConfig: Converse
+        rejects `toolUse`/`toolResult` blocks without one.
+        """
         from types_aiobotocore_bedrock_runtime.type_defs import (
             ContentBlockTypeDef,
             MessageTypeDef,
@@ -1915,49 +1938,62 @@ class BedrockClient(PlaygroundClient["BedrockRuntimeClient"]):
         )
 
         converse_messages: list[MessageTypeDef] = []
+
+        def append(role: Literal["user", "assistant"], blocks: list[ContentBlockTypeDef]) -> None:
+            if converse_messages and converse_messages[-1]["role"] == role:
+                converse_messages[-1]["content"] = [*converse_messages[-1]["content"], *blocks]
+            else:
+                converse_messages.append(MessageTypeDef(role=role, content=blocks))
+
         for msg in messages:
             role = msg["role"]
             content = msg["content"]
             tool_call_id = msg.get("tool_call_id")
             tool_calls = msg.get("tool_calls")
             if role == ChatCompletionMessageRole.USER:
-                converse_messages.append(
-                    MessageTypeDef(
-                        role="user",
-                        content=[ContentBlockTypeDef(text=content)],
-                    )
-                )
+                append("user", [ContentBlockTypeDef(text=content)])
             elif role == ChatCompletionMessageRole.TOOL:
+                if tool_blocks_as_text:
+                    append(
+                        "user",
+                        [ContentBlockTypeDef(text=f"[tool result {tool_call_id or ''}] {content}")],
+                    )
+                    continue
                 tool_result = ToolResultBlockTypeDef(
                     toolUseId=tool_call_id or "",
                     content=[ToolResultContentBlockTypeDef(text=content)],
                 )
-                converse_messages.append(
-                    MessageTypeDef(
-                        role="user", content=[ContentBlockTypeDef(toolResult=tool_result)]
-                    )
-                )
+                append("user", [ContentBlockTypeDef(toolResult=tool_result)])
             elif role == ChatCompletionMessageRole.AI:
                 blocks: list[ContentBlockTypeDef] = []
                 if content:
                     blocks.append(ContentBlockTypeDef(text=content))
-                if tool_calls:
-                    # tool_calls are already in Bedrock ContentBlock format
-                    # ({"toolUse": {...}}) from prior AI responses
-                    blocks.extend(cast(Any, tool_calls))
-                converse_messages.append(MessageTypeDef(role="assistant", content=blocks))
+                for tc in tool_calls or []:
+                    tool_use_id = tc.get("id", "")
+                    name = tc.get("function", {}).get("name", "")
+                    arguments = tc.get("function", {}).get("arguments", {})
+                    if tool_blocks_as_text:
+                        blocks.append(
+                            ContentBlockTypeDef(
+                                text=f"[tool call {tool_use_id}] {name}"
+                                f"({safe_json_dumps(arguments)})"
+                            )
+                        )
+                    else:
+                        blocks.append(
+                            ContentBlockTypeDef(
+                                toolUse={"toolUseId": tool_use_id, "name": name, "input": arguments}
+                            )
+                        )
+                append("assistant", blocks)
         return converse_messages
 
 
 OPENAI_CHAT_COMPLETIONS_MODELS = [
     "gpt-4.1",
     "gpt-4.1-mini",
-    "gpt-4.1-nano",
     "gpt-4o",
     "gpt-4o-mini",
-    "gpt-4-turbo",
-    "gpt-4",
-    "gpt-3.5-turbo",
 ]
 """OpenAI models that default to /v1/chat/completions. Any other name, known or
 not, defaults to the Responses API. See ``get_openai_client_class``."""
@@ -1998,12 +2034,8 @@ OPENAI_REASONING_MODELS = [
     "gpt-5-mini",
     "gpt-5-nano",
     "gpt-5-pro",
-    "o1",
-    "o1-pro",
     "o3",
     "o3-pro",
-    "o3-mini",
-    "o4-mini",
 ]
 
 
@@ -2011,6 +2043,9 @@ OPENAI_REASONING_MODELS = [
     provider_key=GenerativeProviderKey.OPENAI,
     model_names=[
         PROVIDER_DEFAULT,
+        "gpt-6.2-astra",
+        "gpt-6.2-sol",
+        "gpt-6.1-terra",
         *OPENAI_REASONING_MODELS,
     ],
 )
@@ -2140,6 +2175,7 @@ _ANTHROPIC_SAMPLING_PARAM_KEYS = frozenset(("temperature", "top_p"))
 # (`thinking: {"type": "enabled", "budget_tokens": N}`) from their request
 # surface; sending any of them returns a 400.
 ANTHROPIC_ADAPTIVE_THINKING_MODELS = [
+    "claude-fable-5-2",
     "claude-fable-5-1",
     "claude-fable-5",
     "claude-opus-5-5",
@@ -2165,6 +2201,48 @@ ANTHROPIC_EXTENDED_THINKING_MODELS = [
     "claude-opus-4-0",
 ]
 
+# Anthropic models that accept a `tool_choice` of type `any` or `tool`. Newer models
+# such as `claude-opus-5-5` accept only `auto` and `none`, so a model missing from
+# this list is treated as rejecting a required tool call.
+ANTHROPIC_MODELS_WITH_FORCED_TOOL_CHOICE = [
+    "claude-fable-5",
+    "claude-opus-5",
+    "claude-opus-4-8",
+    "claude-opus-4-7",
+    "claude-sonnet-5",
+    "claude-haiku-5-5",
+    "claude-opus-4-6",
+    "claude-sonnet-4-6",
+    "claude-opus-4-5",
+    "claude-sonnet-4-5",
+    "claude-haiku-4-5",
+    "claude-sonnet-4-0",
+    "claude-opus-4-0",
+    "claude-sonnet-4",
+    "claude-opus-4",
+]
+
+# A name must be followed by the end of the ID, a snapshot date, or a Bedrock version,
+# so `claude-opus-5` doesn't match `claude-opus-5-5`.
+_ANTHROPIC_MODEL_WITH_FORCED_TOOL_CHOICE = re.compile(
+    r"(?:^|[./])(?:"
+    + "|".join(map(re.escape, ANTHROPIC_MODELS_WITH_FORCED_TOOL_CHOICE))
+    + r")(?:$|[@:]|-\d{8}|-v\d)",
+    re.IGNORECASE,
+)
+
+
+def anthropic_model_supports_forced_tool_choice(model_name: str) -> bool:
+    """Checks whether an Anthropic model accepts a `tool_choice` of `any` or `tool`.
+
+    Args:
+        model_name: A model name or ID, in any case. It can be an Anthropic name such
+            as `claude-opus-5@20260801`, a Bedrock ID such as
+            `us-gov.anthropic.claude-opus-5-v1:0`, or an inference-profile ARN.
+            An unknown name counts as unsupported.
+    """
+    return _ANTHROPIC_MODEL_WITH_FORCED_TOOL_CHOICE.search(model_name) is not None
+
 
 @register_llm_client(
     provider_key=GenerativeProviderKey.ANTHROPIC,
@@ -2178,6 +2256,11 @@ class AnthropicClient(PlaygroundClient["AsyncAnthropic"]):
     @property
     def llm_system(self) -> str:
         return OpenInferenceLLMSystemValues.ANTHROPIC.value
+
+    @property
+    @override
+    def supports_forced_tool_choice(self) -> bool:
+        return anthropic_model_supports_forced_tool_choice(self.model_name)
 
     def __init__(
         self,
@@ -2607,8 +2690,8 @@ class AnthropicClient(PlaygroundClient["AsyncAnthropic"]):
                 ToolUseBlockParam(
                     type="tool_use",
                     id=tc.get("id", ""),
-                    name=tc.get("function", {}).get("name", ""),
-                    input=tc.get("function", {}).get("arguments", {}),
+                    name=(tc.get("function") or {}).get("name", ""),
+                    input=(tc.get("function") or {}).get("arguments", {}),
                 )
                 for tc in tool_calls
             )
@@ -2982,6 +3065,9 @@ class GoogleClient(PlaygroundClient["GoogleAsyncClient"]):
 
 
 GEMINI_4_MODELS = [
+    "gemini-4-neon",
+    "gemini-4-hydrogen",
+    "gemini-4-carbon",
     "gemini-4-argon",
 ]
 
@@ -3050,28 +3136,30 @@ LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING = (
 LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION_DETAILS_AUDIO
 
 
-class _HttpxClient(wrapt.ObjectProxy):  # type: ignore
-    """Records the outgoing request URL on the span without altering the request.
+if TYPE_CHECKING:
 
-    Provider SDKs disagree on their HTTP library: the openai SDK is built on httpx2, the
-    others on httpx. Both are accepted because only ``request.url`` is read.
-    """
+    class _HttpxClientBase(wrapt.ObjectProxy[httpx2.AsyncClient], httpx2.AsyncClient):  # type: ignore[misc]
+        pass
+
+else:
+    _HttpxClientBase = wrapt.ObjectProxy
+
+
+class _HttpxClient(_HttpxClientBase):
+    """Records the outgoing request URL on the span without altering the request."""
 
     def __init__(
         self,
-        wrapped: httpx.AsyncClient | httpx2.AsyncClient,
+        wrapped: httpx2.AsyncClient,
         span: OTelSpan,
     ):
         super().__init__(wrapped)
         self._self_span = span
 
-    async def send(
-        self, request: httpx.Request | httpx2.Request, **kwargs: Any
-    ) -> httpx.Response | httpx2.Response:
+    async def send(self, request: httpx2.Request, **kwargs: Any) -> httpx2.Response:
         self._self_span.set_attribute(URL_FULL, str(request.url))
         self._self_span.set_attribute(URL_PATH, request.url.path.removeprefix(self.base_url.path))
-        response = await self.__wrapped__.send(request, **kwargs)
-        return cast("httpx.Response | httpx2.Response", response)
+        return await self.__wrapped__.send(request, **kwargs)
 
 
 CustomProviderId: TypeAlias = int

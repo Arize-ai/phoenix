@@ -16,7 +16,7 @@ interactions:
       REFERENCE ANSWER]\\nPageDownTool\\n[END REFERENCE ANSWER]\\n\\n[BEGIN AGENT
       REPLY]\\n**page_down (PageDownTool)** \u2014 109 failed spans...\\n[END AGENT
       REPLY]\\n\\nDoes the reply's conclusion semantically match the reference after
-      applying the grading notes?\"}],\"model\":\"gpt-5-nano\",\"response_format\":{\"type\":\"json_schema\",\"json_schema\":{\"name\":\"extract_structured_data\",\"schema\":{\"type\":\"object\",\"properties\":{\"explanation\":{\"type\":\"string\",\"description\":\"A
+      applying the grading notes?\"}],\"model\":\"gpt-5.6-luna\",\"response_format\":{\"type\":\"json_schema\",\"json_schema\":{\"name\":\"extract_structured_data\",\"schema\":{\"type\":\"object\",\"properties\":{\"explanation\":{\"type\":\"string\",\"description\":\"A
       brief explanation of your reasoning.\"},\"label\":{\"type\":\"string\",\"enum\":[\"match\",\"mismatch\"]}},\"required\":[\"explanation\",\"label\"],\"additionalProperties\":false},\"strict\":true}}}"
     headers: {}
     method: POST
@@ -58,7 +58,7 @@ interactions:
       REFERENCE ANSWER]\nPageDownTool\n[END REFERENCE ANSWER]\n\n[BEGIN AGENT REPLY]\nThe
       page_down tool failed the most: **109 times** out of 174 failed tool spans.\n[END
       AGENT REPLY]\n\nDoes the reply''s conclusion semantically match the reference
-      after applying the grading notes?"}],"model":"gpt-5-nano","response_format":{"type":"json_schema","json_schema":{"name":"extract_structured_data","schema":{"type":"object","properties":{"explanation":{"type":"string","description":"A
+      after applying the grading notes?"}],"model":"gpt-5.6-luna","response_format":{"type":"json_schema","json_schema":{"name":"extract_structured_data","schema":{"type":"object","properties":{"explanation":{"type":"string","description":"A
       brief explanation of your reasoning."},"label":{"type":"string","enum":["match","mismatch"]}},"required":["explanation","label"],"additionalProperties":false},"strict":true}}}'
     headers: {}
     method: POST
@@ -100,7 +100,7 @@ interactions:
       Reject a reply that selects another tool or remains undecided between tools.\n\n[BEGIN
       REFERENCE ANSWER]\nPageDownTool\n[END REFERENCE ANSWER]\n\n[BEGIN AGENT REPLY]\nTextInspectorTool\n[END
       AGENT REPLY]\n\nDoes the reply''s conclusion semantically match the reference
-      after applying the grading notes?"}],"model":"gpt-5-nano","response_format":{"type":"json_schema","json_schema":{"name":"extract_structured_data","schema":{"type":"object","properties":{"explanation":{"type":"string","description":"A
+      after applying the grading notes?"}],"model":"gpt-5.6-luna","response_format":{"type":"json_schema","json_schema":{"name":"extract_structured_data","schema":{"type":"object","properties":{"explanation":{"type":"string","description":"A
       brief explanation of your reasoning."},"label":{"type":"string","enum":["match","mismatch"]}},"required":["explanation","label"],"additionalProperties":false},"strict":true}}}'
     headers: {}
     method: POST
@@ -142,7 +142,7 @@ interactions:
       REFERENCE ANSWER]\nPageDownTool\n[END REFERENCE ANSWER]\n\n[BEGIN AGENT REPLY]\nEither
       page_down or TextInspectorTool; I cannot determine which.\n[END AGENT REPLY]\n\nDoes
       the reply''s conclusion semantically match the reference after applying the
-      grading notes?"}],"model":"gpt-5-nano","response_format":{"type":"json_schema","json_schema":{"name":"extract_structured_data","schema":{"type":"object","properties":{"explanation":{"type":"string","description":"A
+      grading notes?"}],"model":"gpt-5.6-luna","response_format":{"type":"json_schema","json_schema":{"name":"extract_structured_data","schema":{"type":"object","properties":{"explanation":{"type":"string","description":"A
       brief explanation of your reasoning."},"label":{"type":"string","enum":["match","mismatch"]}},"required":["explanation","label"],"additionalProperties":false},"strict":true}}}'
     headers: {}
     method: POST
@@ -185,7 +185,7 @@ interactions:
       REFERENCE ANSWER]\nPageDownTool\n[END REFERENCE ANSWER]\n\n[BEGIN AGENT REPLY]\nPageDownTool
       appeared frequently, but TextInspectorTool failed the most.\n[END AGENT REPLY]\n\nDoes
       the reply''s conclusion semantically match the reference after applying the
-      grading notes?"}],"model":"gpt-5-nano","response_format":{"type":"json_schema","json_schema":{"name":"extract_structured_data","schema":{"type":"object","properties":{"explanation":{"type":"string","description":"A
+      grading notes?"}],"model":"gpt-5.6-luna","response_format":{"type":"json_schema","json_schema":{"name":"extract_structured_data","schema":{"type":"object","properties":{"explanation":{"type":"string","description":"A
       brief explanation of your reasoning."},"label":{"type":"string","enum":["match","mismatch"]}},"required":["explanation","label"],"additionalProperties":false},"strict":true}}}'
     headers: {}
     method: POST
@@ -226,7 +226,7 @@ interactions:
       Reject a reply that selects another tool or remains undecided between tools.\n\n[BEGIN
       REFERENCE ANSWER]\nPageDownTool\n[END REFERENCE ANSWER]\n\n[BEGIN AGENT REPLY]\nTextInspectorTool,
       not page_down, had the most failures.\n[END AGENT REPLY]\n\nDoes the reply''s
-      conclusion semantically match the reference after applying the grading notes?"}],"model":"gpt-5-nano","response_format":{"type":"json_schema","json_schema":{"name":"extract_structured_data","schema":{"type":"object","properties":{"explanation":{"type":"string","description":"A
+      conclusion semantically match the reference after applying the grading notes?"}],"model":"gpt-5.6-luna","response_format":{"type":"json_schema","json_schema":{"name":"extract_structured_data","schema":{"type":"object","properties":{"explanation":{"type":"string","description":"A
       brief explanation of your reasoning."},"label":{"type":"string","enum":["match","mismatch"]}},"required":["explanation","label"],"additionalProperties":false},"strict":true}}}'
     headers: {}
     method: POST

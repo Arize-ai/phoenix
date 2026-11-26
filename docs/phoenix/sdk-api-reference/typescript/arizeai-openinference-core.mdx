@@ -235,7 +235,7 @@ const tracer = trace.getTracer("llm-service");
 tracer.startActiveSpan("llm-inference", (span) => {
   const attributes = getLLMAttributes({
     provider: "openai",
-    modelName: "gpt-4",
+    modelName: "gpt-5.6-luna",
     inputMessages: [{ role: "user", content: "What is AI?" }],
     outputMessages: [{ role: "assistant", content: "AI is..." }],
     tokenCount: { prompt: 10, completion: 50, total: 60 },
@@ -343,7 +343,7 @@ const instrumentation = new OpenAIInstrumentation({ traceConfig });
 ## Reference Documentation
 
 <CardGroup cols={2}>
-  <Card title="OpenInference JS Docs" icon="book" href="https://arize-ai.github.io/openinference/js/">
+  <Card title="OpenInference JS Docs" icon="book" href="https://openinf.dev/js/">
     Full API documentation and examples
   </Card>
   <Card title="npm" icon="arrow-up-right-from-square" href="https://www.npmjs.com/package/@arizeai/openinference-core">

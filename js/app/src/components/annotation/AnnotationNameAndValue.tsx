@@ -31,6 +31,11 @@ const valuePartsCSS = css`
   gap: var(--global-dimension-size-100);
 `;
 
+const valueEndAlignedCSS = css`
+  margin-left: auto;
+  flex: none;
+`;
+
 /**
  * A single renderable piece of an annotation value. Scores render in a
  * monospace font; labels render in the default font.
@@ -91,15 +96,20 @@ interface AnnotationNameAndValueProps {
   maxWidth?: CSSProperties["maxWidth"];
   size?: TextSize;
   /**
-   * Whether the annotation is a positive or negative optimization
-   *
-   * If not provided, the component will not display the optimization information.
+   * Signed optimization value from -1 (worst) to 1 (best) that colors the
+   * value. If not provided, the value is not colored.
    */
-  positiveOptimization?: boolean;
+  optimizationValue?: number | null;
   /**
    * Whether to show the color swatch next to the annotation name
    */
   showColorSwatch?: boolean;
+  /**
+   * Fills the available width and pushes the value to its end, so the values
+   * of stacked annotations line up in a column.
+   * @default false
+   */
+  isValueEndAligned?: boolean;
 }
 export function AnnotationNameAndValue({
   annotation,
@@ -107,8 +117,9 @@ export function AnnotationNameAndValue({
   size,
   minWidth = "5rem",
   maxWidth = "9rem",
-  positiveOptimization,
+  optimizationValue,
   showColorSwatch = true,
+  isValueEndAligned = false,
 }: AnnotationNameAndValueProps) {
   const valueParts = getAnnotationValueParts(annotation, displayPreference);
 
@@ -120,6 +131,7 @@ export function AnnotationNameAndValue({
       className="annotation-name-and-value"
       maxWidth={maxWidth}
       minWidth={minWidth}
+      flex={isValueEndAligned ? "1 1 auto" : undefined}
     >
       {showColorSwatch && (
         <AnnotationColorSwatch annotationName={annotation.name} />
@@ -135,10 +147,11 @@ export function AnnotationNameAndValue({
             textCSS(maxWidth),
             css`
               margin-left: var(--global-dimension-100);
-            `
+            `,
+            isValueEndAligned && valueEndAlignedCSS
           )}
         >
-          <AnnotationScoreText positiveOptimization={positiveOptimization}>
+          <AnnotationScoreText optimizationValue={optimizationValue}>
             <span css={valuePartsCSS}>
               {valueParts.map((part, index) => (
                 <Fragment key={index}>

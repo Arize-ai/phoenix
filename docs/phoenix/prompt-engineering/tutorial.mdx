@@ -1,14 +1,12 @@
 ---
 title: "Tutorial"
 sidebarTitle: "Overview"
-description: Phoenix Prompts Tutorial
+description: Learn to find, test, compare, and optimize a prompt in Phoenix, from one trace to an automated optimization loop.
 ---
 
-In agents and LLM applications, prompts define how our systems reason, when they call tools, what information they retrieve, and how they decide between possible outputs. A well-written prompt can make the difference between brittle, unpredictable outputs and reliable, production-grade behavior.\
-But iterating in your prompts requires infrastructure that treats prompts like any other part of a machine learning system: versioned, evaluated, and optimized with data.
+In this tutorial, you improve the prompt of a support agent that classifies customer queries. You start with one wrong classification in a trace. At the end, you have an optimized prompt, measured on a full dataset.
 
-This tutorial walks through how to build that workflow end to end in Phoenix.\
-You’ll learn how to identify underperforming prompts, run experiments across datasets, compare model and parameter changes, and even automatically improve your prompts based on evaluation feedback.
+For background on prompts, prompt templates, and prompt versions, see [Prompts Concepts](/docs/phoenix/prompt-engineering/concepts-prompts/prompts-concepts).
 
 <Info>
 **Follow along with code**: This guide has a companion notebook with runnable code examples. Find it [here](https://github.com/Arize-ai/phoenix/blob/main/tutorials/prompts/phoenix_prompt_tutorial.ipynb).
@@ -18,45 +16,45 @@ You’ll learn how to identify underperforming prompts, run experiments across d
 
 ## **Tutorial Structure**
 
+Do the parts in this order. Each part uses the result of the part before it.
+
 ### [Identify & Edit Prompts](/docs/phoenix/prompt-engineering/tutorial/identify-and-edit-prompts)
 
-**Goal:** Find and fix misclassifications at the trace level.\
-Learn how to inspect LLM traces, replay failing spans in the Playground, and edit your prompt directly to improve performance.\
-You’ll also learn how to save and version each prompt in the Prompts tab, laying the foundation for controlled, iterative experimentation.
+**Goal:** Find and fix a wrong classification in a trace.\
+You find the failing span, replay it in the Playground, and edit the prompt.\
+You save the original prompt and the edited prompt as two versions.
 
 ***
 
 ### [Test Prompts at Scale](/docs/phoenix/prompt-engineering/tutorial/test-prompts-at-scale)
 
-**Goal:** Move from anecdotal fixes to measurable performance.\
-Run your updated prompt across a labeled dataset to quantify accuracy and identify recurring failure patterns.\
-Use LLM-based evaluators to generate structured, natural-language feedback explaining _why_ each output failed, turning evaluation data into actionable insight.
+**Goal:** Measure the prompt on a labeled dataset.\
+You run the prompt on every example in the dataset and get an accuracy score.\
+You use an LLM evaluator to explain why each wrong output failed.
 
 ***
 
 ### [Compare Prompt Versions](/docs/phoenix/prompt-engineering/tutorial/compare-prompt-versions)
 
-**Goal:** Measure whether your edits actually worked.\
-Experiment with different instructions, models, and inference parameters (e.g., temperature, top-p).\
-Compare prompt versions side-by-side to determine which configuration performs best, balancing accuracy, cost, and consistency.
+**Goal:** Measure whether your edits improve the prompt.\
+You create one version with a new instruction and one version with new model parameters.\
+You run both versions on the dataset and compare the results.
 
 ***
 
 ### [Optimize Prompts Automatically](/docs/phoenix/prompt-engineering/tutorial/optimize-prompts-automatically)
 
-**Goal:** Scale beyond manual iteration.\
-Leverage Prompt Learning, an optimization algorithm that uses your own evaluation feedback to generate improved prompts automatically.\
-Feed experiment data back into the system, train a new prompt version through the SDK, and re-measure performance, in Phoenix.
+**Goal:** Let an algorithm improve the prompt for you.\
+You give your experiment results to Prompt Learning, which generates a new prompt version.\
+You run the new version on the dataset and measure the improvement.
 
 ***
 
 ## **What You’ll Have by the End**
 
-After completing the tutorial, you’ll have:
+When you complete the tutorial, you have:
 
-* A full dataset and experiment workflow for testing prompts.
-* Multiple prompt versions tracked and reproducible.
-* Evaluation feedback structured for analysis and iteration.
-* An automated optimization loop using Prompt Learning.
-
-Together, these pieces turn prompt design from a manual process into a **data-driven, repeatable workflow -** the same framework used to maintain production LLM systems at scale.
+* A dataset and an experiment workflow to test prompts.
+* Multiple prompt versions that Phoenix tracks.
+* Evaluation feedback that explains each failure.
+* An automated optimization loop that uses Prompt Learning.

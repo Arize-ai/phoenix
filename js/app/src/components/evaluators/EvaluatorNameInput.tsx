@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useRef } from "react";
 import { Controller, useForm, type ValidateResult } from "react-hook-form";
 
-import { FieldError, Input, Label } from "@phoenix/components";
+import { FieldError, Input, Label, Text } from "@phoenix/components";
 import { TextField, type TextFieldProps } from "@phoenix/components/core/field";
+import { IDENTIFIER_DESCRIPTION } from "@phoenix/constants";
 import {
   useEvaluatorStore,
   useEvaluatorStoreInstance,
 } from "@phoenix/contexts/EvaluatorContext";
+import { TransformingInputController } from "@phoenix/hooks/useTransformingInput";
 import type { EvaluatorStoreProps } from "@phoenix/store/evaluatorStore";
 import {
-  IDENTIFIER_ERROR_MESSAGES,
+  transformIdentifierInput,
+  trimIdentifierSeparators,
   validateIdentifier,
 } from "@phoenix/utils/identifierUtils";
 
@@ -17,16 +20,6 @@ import {
  * The field name used by react-hook-form and as the error key in the validation registry.
  */
 const FIELD_NAME = "name" as const;
-
-/**
- * Transforms an evaluator name by lowercasing, converting spaces to dashes,
- * and stripping disallowed characters.
- */
-const transformEvaluatorName = (value: string) =>
-  value
-    .toLowerCase()
-    .replace(/ /g, "-")
-    .replace(/[^_a-z0-9-]/g, "");
 
 /**
  * Whether to use the user-facing name (for dataset evaluators) vs the global name.
@@ -92,7 +85,6 @@ export const EvaluatorNameInput = ({
   const form = useEvaluatorNameInputForm();
   const store = useEvaluatorStoreInstance();
   const { control, trigger } = form;
-  const inputRef = useRef<HTMLInputElement>(null);
   const hasBlurredRef = useRef(false);
 
   // Register with the evaluator store so the parent can trigger
@@ -120,58 +112,50 @@ export const EvaluatorNameInput = ({
       control={control}
       rules={{ validate }}
       render={({ field, fieldState: { error } }) => {
-        // Only show blur-specific errors after the field has been blurred
-        const shouldShowError =
-          error?.message &&
-          (hasBlurredRef.current ||
-            error.message !== IDENTIFIER_ERROR_MESSAGES.leadingTrailing);
+        // Identifier errors are deferred until blur or parent-form submission.
+        const shouldShowError = error?.message && hasBlurredRef.current;
         const displayedError = shouldShowError ? error.message : undefined;
-
-        const handleChange = (value: string) => {
-          const input = inputRef.current;
-          const selectionStart = input?.selectionStart ?? value.length;
-
-          const transformed = transformEvaluatorName(value);
-
-          // Calculate new cursor position by transforming the text before cursor
-          const beforeCursor = value.slice(0, selectionStart);
-          const newCursorPosition = transformEvaluatorName(beforeCursor).length;
-
-          field.onChange(transformed);
-
-          // Restore cursor position after React updates the DOM
-          requestAnimationFrame(() => {
-            input?.setSelectionRange(newCursorPosition, newCursorPosition);
-          });
-        };
 
         const handleFocus = () => {
           // Reset blur state so deferred validation doesn't run while typing
           hasBlurredRef.current = false;
         };
 
-        const handleBlur = () => {
-          hasBlurredRef.current = true;
-          field.onBlur();
-          // Re-trigger validation to include blur-only rules
-          trigger("name");
-        };
-
         return (
-          <TextField
-            {...field}
-            onChange={handleChange}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-            autoComplete="off"
-            isInvalid={!!displayedError}
-            autoFocus
-            {...props}
+          <TransformingInputController
+            value={field.value}
+            onValueChange={field.onChange}
+            transformValue={transformIdentifierInput}
+            finalizeValue={trimIdentifierSeparators}
           >
-            <Label>Name</Label>
-            <Input ref={inputRef} placeholder={placeholder} />
-            <FieldError>{displayedError}</FieldError>
-          </TextField>
+            {(transformingInput) => (
+              <TextField
+                {...field}
+                value={transformingInput.displayValue}
+                onChange={transformingInput.handleValueChange}
+                onFocus={handleFocus}
+                onBlur={() => {
+                  transformingInput.handleBlur();
+                  hasBlurredRef.current = true;
+                  field.onBlur();
+                  // Re-trigger validation to include blur-only rules
+                  trigger("name");
+                }}
+                autoComplete="off"
+                isInvalid={!!displayedError}
+                autoFocus
+                {...props}
+              >
+                <Label>Name</Label>
+                <Input
+                  {...transformingInput.inputProps}
+                  placeholder={placeholder}
+                />
+                <Text slot="description">{IDENTIFIER_DESCRIPTION}</Text>
+                <FieldError>{displayedError}</FieldError>
+              </TextField>
+            )}
+          </TransformingInputController>
         );
       }}
     />

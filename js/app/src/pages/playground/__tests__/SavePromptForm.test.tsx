@@ -4,6 +4,7 @@ import type * as ReactRelayModule from "react-relay";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installTestMatchMedia } from "@phoenix/__tests__/installTestMatchMedia";
+import { IDENTIFIER_ERROR_MESSAGES } from "@phoenix/constants";
 import { ThemeProvider } from "@phoenix/contexts";
 
 installTestMatchMedia();
@@ -40,10 +41,19 @@ vi.mock("@phoenix/components/code", () => ({
 vi.mock("../PromptComboBox", () => ({
   PromptComboBox: ({
     onChange,
+    inputValue,
+    onInputChange,
   }: {
     onChange: (promptId: string | null) => void;
+    inputValue?: string;
+    onInputChange?: (value: string) => void;
   }) => (
     <>
+      <input
+        aria-label="Prompt name"
+        value={inputValue ?? ""}
+        onChange={(event) => onInputChange?.(event.target.value)}
+      />
       <button type="button" onClick={() => onChange("prompt-1")}>
         Select prompt
       </button>
@@ -158,7 +168,163 @@ describe("SavePromptForm", () => {
       JSON.stringify(promptMetadata, null, 2)
     );
   });
+
+  it("converts spaces to dashes as the prompt name is typed", async () => {
+    await renderSavePromptForm(root);
+
+    await act(async () => {
+      typeInto({ input: getPromptNameInput(container), value: "my prompt" });
+    });
+    expect(getPromptNameInput(container).value).toBe("my-prompt");
+  });
+
+  it("fills the prompt name when selecting an existing prompt", async () => {
+    await renderSavePromptForm(root);
+
+    await act(async () => {
+      getButton(container, "Select prompt").click();
+    });
+    expect(getPromptNameInput(container).value).toBe("Existing prompt");
+  });
+
+  it("restores the prompt name when the selected prompt is sent again", async () => {
+    await renderSavePromptForm(root);
+
+    await act(async () => {
+      getButton(container, "Select prompt").click();
+    });
+    await act(async () => {
+      typeInto({ input: getPromptNameInput(container), value: "Existing" });
+    });
+    // The ComboBox sends the selected key again to revert an edit, e.g. on Escape
+    await act(async () => {
+      getButton(container, "Select prompt").click();
+    });
+    expect(getPromptNameInput(container).value).toBe("Existing prompt");
+    expect(getButton(container, "Update Prompt")).toBeDefined();
+  });
+
+  it("keeps a typed name when the prompt is deselected", async () => {
+    await renderSavePromptForm(root);
+
+    await act(async () => {
+      getButton(container, "Select prompt").click();
+    });
+    await act(async () => {
+      typeInto({ input: getPromptNameInput(container), value: "new name" });
+    });
+    await act(async () => {
+      getButton(container, "Clear prompt").click();
+    });
+    expect(getPromptNameInput(container).value).toBe("new-name");
+    expect(getButton(container, "Create Prompt")).toBeDefined();
+  });
+
+  it("does not create a prompt whose name ends with a separator", async () => {
+    const onCreate = vi.fn();
+    await act(async () => {
+      root.render(
+        <ThemeProvider themeMode="light" disableBodyTheme>
+          <SavePromptForm
+            onCreate={onCreate}
+            onUpdate={vi.fn()}
+            onClose={vi.fn()}
+          />
+        </ThemeProvider>
+      );
+    });
+
+    await act(async () => {
+      typeInto({ input: getPromptNameInput(container), value: "My Prompt " });
+    });
+    expect(getPromptNameInput(container).value).toBe("my-prompt-");
+
+    await act(async () => {
+      container
+        .querySelector("form")
+        ?.dispatchEvent(
+          new SubmitEvent("submit", { bubbles: true, cancelable: true })
+        );
+    });
+    expect(onCreate).not.toHaveBeenCalled();
+  });
+
+  it("trims a trailing dash from a new tag name on blur", async () => {
+    await renderSavePromptForm(root);
+    const tagInput = container.querySelector<HTMLInputElement>(
+      'input[aria-label="New tag name"]'
+    )!;
+
+    await act(async () => {
+      tagInput.focus();
+      typeInto({ input: tagInput, value: "my " });
+    });
+    expect(tagInput.value).toBe("my-");
+    expect(container.textContent).not.toContain(
+      IDENTIFIER_ERROR_MESSAGES.leadingTrailing
+    );
+
+    await act(async () => {
+      tagInput.blur();
+    });
+    expect(tagInput.value).toBe("my");
+    expect(container.textContent).not.toContain(
+      IDENTIFIER_ERROR_MESSAGES.leadingTrailing
+    );
+  });
+
+  it("drops leading separators from a new tag name as you type", async () => {
+    await renderSavePromptForm(root);
+    const tagInput = container.querySelector<HTMLInputElement>(
+      'input[aria-label="New tag name"]'
+    )!;
+
+    await act(async () => {
+      tagInput.focus();
+      typeInto({ input: tagInput, value: " -_Café" });
+    });
+    expect(tagInput.value).toBe("cafe");
+  });
 });
+
+async function renderSavePromptForm(root: Root) {
+  await act(async () => {
+    root.render(
+      <ThemeProvider themeMode="light" disableBodyTheme>
+        <SavePromptForm
+          onCreate={vi.fn()}
+          onUpdate={vi.fn()}
+          onClose={vi.fn()}
+        />
+      </ThemeProvider>
+    );
+  });
+}
+
+function getPromptNameInput(container: HTMLElement): HTMLInputElement {
+  const input = container.querySelector<HTMLInputElement>(
+    'input[aria-label="Prompt name"]'
+  );
+  expect(input).not.toBeNull();
+  return input!;
+}
+
+/**
+ * Sets the value the way a browser does, so React's onChange fires.
+ */
+function typeInto({
+  input,
+  value,
+}: {
+  input: HTMLInputElement;
+  value: string;
+}) {
+  Object.getOwnPropertyDescriptor(
+    HTMLInputElement.prototype,
+    "value"
+  )?.set?.call(input, value);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+}
 
 function getMetadataEditor(container: HTMLElement): HTMLTextAreaElement {
   const editor = container.querySelector<HTMLTextAreaElement>(

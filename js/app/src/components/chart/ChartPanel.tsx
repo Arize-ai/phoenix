@@ -2,7 +2,7 @@ import { css } from "@emotion/react";
 import React, { Suspense } from "react";
 
 import type { HeadingProps } from "@phoenix/components";
-import { Heading, Text } from "@phoenix/components";
+import { Heading, Skeleton, Text } from "@phoenix/components";
 import { ErrorBoundary } from "@phoenix/components/exception";
 
 import { ChartSkeleton } from "./ChartSkeleton";
@@ -23,6 +23,19 @@ export const CHART_MIN_WIDTH = 400;
  * space; the title alone still identifies the chart.
  */
 const COMPACT_HEIGHT_BREAKPOINT = "200px";
+
+/**
+ * The height of a default-height panel with a subtitle: its borders, the
+ * header's top padding and title and subtitle lines, and the padded chart.
+ */
+const DEFAULT_PANEL_HEIGHT = `calc(
+  2 * var(--global-border-size-thin) +
+  var(--global-dimension-size-100) +
+  var(--global-line-height-s) +
+  var(--global-line-height-xs) +
+  2 * var(--global-dimension-size-100) +
+  ${DEFAULT_CHART_HEIGHT}px
+)`;
 
 const chartPanelCSS = css`
   display: flex;
@@ -202,5 +215,23 @@ export function ChartPanel({
         </ErrorBoundary>
       </div>
     </section>
+  );
+}
+
+const chartPanelSkeletonCSS = css`
+  min-width: ${CHART_MIN_WIDTH}px;
+`;
+
+/**
+ * A loading placeholder the size of a default-height panel with a subtitle,
+ * for where the panels themselves are not yet known.
+ */
+export function ChartPanelSkeleton() {
+  return (
+    <Skeleton
+      css={chartPanelSkeletonCSS}
+      height={DEFAULT_PANEL_HEIGHT}
+      borderRadius="medium"
+    />
   );
 }

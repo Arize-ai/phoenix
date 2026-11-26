@@ -11,7 +11,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from fastapi.routing import APIRoute
 from pydantic import ConfigDict, Field
-from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError
+from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError, UnexpectedModelBehavior
 from pydantic_ai.messages import (
     FinishReason,
     ModelMessage,
@@ -240,6 +240,21 @@ class ChatCompletionChunk(V1RoutesBaseModel):
     usage: Optional[ChatCompletionUsage] = None
 
 
+_NON_ASCII_CREDENTIAL_MESSAGE = (
+    "The provider API key or a custom header value contains a non-ASCII character "
+    "(often an invisible character pasted along with the key), so the request to the "
+    "provider could not be built. Re-enter the credential in Phoenix secrets, the "
+    "environment, or the custom provider configuration."
+)
+
+
+def _non_ascii_credential_error() -> _ChatCompletionError:
+    """HTTP header values must be ASCII; httpx raises ``UnicodeEncodeError`` with
+    the ``ascii`` codec while building the provider request when an API key or
+    custom header value is not."""
+    return _ChatCompletionError(_NON_ASCII_CREDENTIAL_MESSAGE, status_code=400)
+
+
 def _unknown_model_error(model_id: str) -> _ChatCompletionError:
     return _ChatCompletionError(
         f"Unknown model {model_id!r}. {_MODEL_FORMAT_HELP}",
@@ -432,8 +447,12 @@ async def create_chat_completion(
         )
     try:
         response = await model.request(messages, settings, ModelRequestParameters())
-    except ModelAPIError as exc:
+    except (ModelAPIError, UnexpectedModelBehavior) as exc:
         return _provider_error_response(exc)
+    except UnicodeEncodeError as exc:
+        if exc.encoding != "ascii":
+            raise
+        raise _non_ascii_credential_error() from exc
     completion = ChatCompletion(
         id=_completion_id(response.provider_response_id),
         created=int(response.timestamp.timestamp()),
@@ -452,7 +471,7 @@ async def create_chat_completion(
 _HTTP_STATUS_CODE_LIMIT = 600
 
 
-def _provider_error_response(exc: ModelAPIError) -> JSONResponse:
+def _provider_error_response(exc: Union[ModelAPIError, UnexpectedModelBehavior]) -> JSONResponse:
     if isinstance(exc, ModelHTTPError):
         provider_status_code = exc.status_code
         provider_status_is_forwardable = (
@@ -462,7 +481,6 @@ def _provider_error_response(exc: ModelAPIError) -> JSONResponse:
             provider_status_code if provider_status_is_forwardable else HTTP_502_BAD_GATEWAY
         )
     else:
-        # The provider never answered (DNS failure, refused connection, timeout).
         response_status_code = HTTP_502_BAD_GATEWAY
     return _error_response(str(exc), status_code=response_status_code)
 
@@ -553,8 +571,12 @@ async def _create_streaming_response(
     producer = asyncio.create_task(produce())
     try:
         await provider_stream_opened
-    except ModelAPIError as exc:
+    except (ModelAPIError, UnexpectedModelBehavior) as exc:
         return _provider_error_response(exc)
+    except UnicodeEncodeError as exc:
+        if exc.encoding != "ascii":
+            raise
+        raise _non_ascii_credential_error() from exc
     except BaseException:
         producer.cancel()
         raise

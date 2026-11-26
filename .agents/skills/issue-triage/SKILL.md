@@ -4,7 +4,7 @@ description: Run open-source triage on Arize-ai/phoenix issues — classify type
 license: Apache-2.0
 metadata:
   author: oss@arize.com
-  version: "4.1.0"
+  version: "4.3.0"
   internal: true
 ---
 
@@ -39,6 +39,7 @@ Never close an issue, never touch a pull request, never run git.
 | Policy | Gate label |
 | --- | --- |
 | [good-student-issue](references/good-student-issue.md) | `good student issue` |
+| [factory-candidate](references/factory-candidate.md) | `factory-candidate` |
 
 Policies are self-contained and removable — deleting one leaves stages 1–6
 intact.
@@ -80,14 +81,17 @@ The caller sets the scope; defaults apply to anything left unspecified.
 
 | Parameter | Default | Notes |
 | --- | --- | --- |
+| `issue` | none | Triage one issue by number. The other parameters are ignored and the regression pass is skipped |
 | `created` | none (whole backlog) | GitHub date range: `2025-01-01..2025-12-31`, `>=2026-01-01`, `<2025-07-01` |
 | `limit` | `25` | Issues fetched per pass |
 | `sort` | `updated-asc` | `created-asc` when sweeping a `created` window |
 | `stages` | `1-7` | Restrict to a subset, e.g. `1-4` for labels only. The already-shipped check runs with 4 |
 | regression | on | Re-triage issues already carrying a gate label |
 
-Three shapes cover most runs:
+Four shapes cover most runs:
 
+- **Single issue** — `issue` set. The workflow runs this when an issue is
+  opened. All seven stages run on that one issue and nothing else is touched.
 - **Incremental** — the defaults. Oldest-updated 25, no date filter. What the
   scheduled workflow does. Seven stages per issue is a lot of judgment to hold at
   once; a larger `limit` does not improve the quality of any single issue, so
@@ -123,6 +127,9 @@ gh issue list --repo Arize-ai/phoenix --state open \
   --jq '.[] | {number, title, labels: [.labels[].name],
         assignees: [.assignees[].login], body: ((.body // "")[:600])}'
 ```
+
+For a single issue, skip the listing and read the issue in full with
+`gh issue view`.
 
 If one truncated body leaves sufficiency genuinely unclear, read **that** issue
 in full. Never widen the truncation for the whole slice to settle one case.
@@ -203,7 +210,7 @@ Insufficient issues are the main reason contributor time is wasted, so act on it
 
 | Finding | Action |
 | --- | --- |
-| Insufficient | Add `needs information`. Remove every contributor-facing gate label it carries: `good first issue`, `good student issue`, `good-agent-issue` |
+| Insufficient | Add `needs information`. Remove every gate label it carries: `good first issue`, `good-agent-issue`, and each label in [Gate policies](#gate-policies) |
 | Sufficient, carries `needs information` | Remove `needs information` |
 
 An insufficient issue still gets stages 3, 4 and 6 — components, complexity and
@@ -350,8 +357,8 @@ churn.
 
 ## Stage 7 — Gate policy
 
-Read the policy file you were given and apply it to each issue that reached this
-stage. An issue passes the gate only if it meets **every** "Qualifies when"
+Read each policy file you were given and apply each one, on its own, to every
+issue that reached this stage. An issue passes the gate only if it meets **every** "Qualifies when"
 condition and trips **no** "Never label when" condition — and it must have
 passed stage 2.
 

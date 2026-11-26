@@ -14,7 +14,6 @@ from faker import Faker
 from pandas.testing import assert_frame_equal
 from pyarrow import parquet
 
-from phoenix.datetime_utils import normalize_timestamps
 from phoenix.trace.errors import InvalidParquetMetadataError
 from phoenix.trace.schemas import (
     Span,
@@ -25,7 +24,12 @@ from phoenix.trace.schemas import (
     SpanStatusCode,
 )
 from phoenix.trace.span_evaluations import SpanEvaluations
-from phoenix.trace.trace_dataset import REQUIRED_COLUMNS, TraceDataset, _parse_schema_metadata
+from phoenix.trace.trace_dataset import (
+    REQUIRED_COLUMNS,
+    TraceDataset,
+    _parse_schema_metadata,
+    normalize_dataframe,
+)
 
 
 def test_trace_dataset_accepts_empty_dataframe() -> None:
@@ -173,10 +177,7 @@ def test_trace_dataset_construction_from_spans() -> None:
             },
         ]
     )
-    for column_name in ("start_time", "end_time"):
-        expected_dataframe[column_name] = normalize_timestamps(
-            expected_dataframe[column_name],
-        )
+    expected_dataframe = normalize_dataframe(expected_dataframe)
     dataset = TraceDataset.from_spans(spans)
     assert_frame_equal(expected_dataframe, dataset.dataframe[expected_dataframe.columns])
 
@@ -291,6 +292,41 @@ def test_trace_dataset_save_and_load_preserve_values(tmp_path: Path) -> None:
     assert_frame_equal(read_ds.dataframe, ds.dataframe)
     assert read_ds.evaluations[0].id == eval_ds.id
     assert_frame_equal(read_ds.evaluations[0].dataframe, eval_ds.dataframe)
+
+
+def test_trace_dataset_save_handles_documents_with_empty_metadata(
+    tmp_path: Path,
+) -> None:
+    traces_df = pd.DataFrame(
+        {
+            "name": ["retrieve"],
+            "span_kind": ["RETRIEVER"],
+            "parent_id": [None],
+            "start_time": [datetime.now()],
+            "end_time": [datetime.now()],
+            "status_code": ["OK"],
+            "status_message": [""],
+            "context.trace_id": ["trace-1"],
+            "context.span_id": ["span-1"],
+            "attributes.retrieval.documents": [
+                [
+                    {
+                        "document.id": "doc-1",
+                        "document.content": "hello",
+                        "document.metadata": {},
+                    }
+                ]
+            ],
+        }
+    )
+    ds = TraceDataset(traces_df)
+
+    dataset_id = ds.save(tmp_path)
+
+    read_ds = TraceDataset.load(dataset_id, tmp_path)
+    assert read_ds.dataframe["attributes.retrieval.documents"].tolist() == [
+        [{"document.id": "doc-1", "document.content": "hello"}]
+    ]
 
 
 def test_trace_dataset_load_logs_warning_when_an_evaluation_cannot_be_loaded(

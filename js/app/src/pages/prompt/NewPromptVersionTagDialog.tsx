@@ -23,8 +23,16 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
+import { movePromptVersionTag } from "@phoenix/components/prompt/movePromptVersionTag";
+import { IDENTIFIER_DESCRIPTION } from "@phoenix/constants";
+import { TransformingInputController } from "@phoenix/hooks/useTransformingInput";
 
-import { validateIdentifier } from "../../utils/identifierUtils";
+import {
+  transformIdentifierInput,
+  trimIdentifierSeparators,
+  validateIdentifier,
+} from "../../utils/identifierUtils";
+import type { NewPromptVersionTagDialogMutation } from "./__generated__/NewPromptVersionTagDialogMutation.graphql";
 
 type PromptVersionTagFormParams = {
   name: string;
@@ -33,9 +41,14 @@ type PromptVersionTagFormParams = {
 
 export function NewPromptVersionDialog({
   onNewTagCreated,
+  promptId,
   promptVersionId,
   onDismiss,
 }: {
+  /**
+   * The prompt the version belongs to
+   */
+  promptId: string;
   /**
    * The prompt version to set the tag on
    */
@@ -43,10 +56,11 @@ export function NewPromptVersionDialog({
   onNewTagCreated: (tag: PromptVersionTagFormParams) => void;
   onDismiss: () => void;
 }) {
+  const [isNameFocused, setIsNameFocused] = useState(false);
   const {
     control,
     handleSubmit,
-    formState: { isDirty },
+    formState: { isDirty, isSubmitted },
   } = useForm<PromptVersionTagFormParams>({
     defaultValues: {
       name: "",
@@ -55,20 +69,20 @@ export function NewPromptVersionDialog({
     mode: "onChange",
   });
   const [error, setError] = useState<string | null>(null);
-  const [commitCreate, isCommitting] = useMutation(graphql`
-    mutation NewPromptVersionTagDialogMutation(
-      $input: SetPromptVersionTagInput!
-      $promptVersionId: ID!
-    ) {
-      setPromptVersionTag(input: $input) {
-        query {
-          node(id: $promptVersionId) {
-            ...PromptVersionTagsList_data
+  const [commitCreate, isCommitting] =
+    useMutation<NewPromptVersionTagDialogMutation>(graphql`
+      mutation NewPromptVersionTagDialogMutation(
+        $input: SetPromptVersionTagInput!
+      ) {
+        setPromptVersionTag(input: $input) {
+          promptVersionTag {
+            id
+            name
+            promptVersionId
           }
         }
       }
-    }
-  `);
+    `);
   const onSubmit = (newTag: PromptVersionTagFormParams) => {
     setError(null);
     commitCreate({
@@ -78,7 +92,17 @@ export function NewPromptVersionDialog({
           description: newTag.description,
           promptVersionId: promptVersionId,
         },
-        promptVersionId,
+      },
+      updater: (store, data) => {
+        const tagId = data?.setPromptVersionTag.promptVersionTag?.id;
+        if (tagId) {
+          movePromptVersionTag({
+            store,
+            promptId,
+            versionId: promptVersionId,
+            tagId,
+          });
+        }
       },
       onCompleted: () => {
         onNewTagCreated(newTag);
@@ -116,26 +140,49 @@ export function NewPromptVersionDialog({
                   }}
                   render={({
                     field: { name, onChange, onBlur, value },
-                    fieldState: { invalid, error },
-                  }) => (
-                    <TextField
-                      isInvalid={invalid}
-                      onChange={onChange}
-                      onBlur={onBlur}
-                      name={name}
-                      value={value}
-                    >
-                      <Label>Tag Name</Label>
-                      <Input placeholder="e.x. prod" />
-                      {error?.message ? (
-                        <FieldError>{error.message}</FieldError>
-                      ) : (
-                        <Text slot="description">
-                          The identifier of the tag
-                        </Text>
-                      )}
-                    </TextField>
-                  )}
+                    fieldState: { error, isTouched },
+                  }) => {
+                    const displayedError =
+                      (isTouched && !isNameFocused) || isSubmitted
+                        ? error
+                        : undefined;
+                    return (
+                      <TransformingInputController
+                        value={value}
+                        onValueChange={onChange}
+                        transformValue={transformIdentifierInput}
+                        finalizeValue={trimIdentifierSeparators}
+                      >
+                        {(transformingInput) => (
+                          <TextField
+                            isInvalid={!!displayedError}
+                            onChange={transformingInput.handleValueChange}
+                            onFocus={() => setIsNameFocused(true)}
+                            onBlur={() => {
+                              setIsNameFocused(false);
+                              transformingInput.handleBlur();
+                              onBlur();
+                            }}
+                            name={name}
+                            value={transformingInput.displayValue}
+                          >
+                            <Label>Tag Name</Label>
+                            <Input
+                              {...transformingInput.inputProps}
+                              placeholder="e.x. prod"
+                            />
+                            {displayedError?.message ? (
+                              <FieldError>{displayedError.message}</FieldError>
+                            ) : (
+                              <Text slot="description">
+                                {IDENTIFIER_DESCRIPTION}
+                              </Text>
+                            )}
+                          </TextField>
+                        )}
+                      </TransformingInputController>
+                    );
+                  }}
                 />
                 <Controller
                   name="description"

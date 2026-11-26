@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Suspense } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Group, Panel } from "react-resizable-panels";
@@ -13,10 +14,12 @@ import {
   View,
 } from "@phoenix/components";
 import {
+  ChartPanelStripSkeleton,
   METRIC_CHARTS_CONTENT_PANEL_ID,
   MetricChartsPanel,
   useMetricChartsLayout,
 } from "@phoenix/components/chart";
+import { TableSkeleton } from "@phoenix/components/table";
 
 import type { ExperimentsPageQuery } from "./__generated__/ExperimentsPageQuery.graphql";
 import { ExperimentsEmpty } from "./ExperimentsEmpty";
@@ -48,11 +51,6 @@ export function ExperimentsPage() {
     },
     { fetchPolicy: "store-and-network" }
   );
-  const areChartsShown = useAreExperimentsMetricChartsShown();
-  const chartsLayout = useMetricChartsLayout({
-    id: "experiments-table-metrics-layout",
-    isChartsPanelShown: areChartsShown,
-  });
 
   if (!data.dataset?.experimentCount) {
     return <ExperimentsEmpty />;
@@ -60,24 +58,68 @@ export function ExperimentsPage() {
 
   return (
     <>
-      <Group orientation="vertical" {...chartsLayout}>
-        {areChartsShown && (
-          <MetricChartsPanel>
-            <ExperimentsMetricsCharts />
-          </MetricChartsPanel>
-        )}
-        <Panel id={METRIC_CHARTS_CONTENT_PANEL_ID}>
-          <View height="100%" overflow="hidden" flex="1 1 auto">
-            <ErrorBoundary fallback={ErrorBoundaryFallback}>
-              <ExperimentsTable dataset={data.dataset} />
-            </ErrorBoundary>
-          </View>
-        </Panel>
-      </Group>
+      <ExperimentsMetricChartsPanelGroup>
+        <ErrorBoundary fallback={ErrorBoundaryFallback}>
+          <ExperimentsTable dataset={data.dataset} />
+        </ErrorBoundary>
+      </ExperimentsMetricChartsPanelGroup>
       <Suspense>
         <Outlet />
       </Suspense>
     </>
+  );
+}
+
+/**
+ * A loading placeholder for the experiments page: the metric charts strip,
+ * when shown, above the table's toolbar and rows.
+ */
+export function ExperimentsPageSkeleton() {
+  return (
+    <ExperimentsMetricChartsPanelGroup isSkeleton>
+      <TableSkeleton hasToolbar isSelectable rowCount="fill" />
+    </ExperimentsMetricChartsPanelGroup>
+  );
+}
+
+/**
+ * Lays out the metric charts strip above the experiments table in a
+ * vertically resizable panel group, the strip only while charts are shown.
+ */
+function ExperimentsMetricChartsPanelGroup({
+  isSkeleton = false,
+  children,
+}: {
+  /**
+   * Show a skeleton of the charts in place of the charts, for a page that is
+   * still loading.
+   * @default false
+   */
+  isSkeleton?: boolean;
+  children: ReactNode;
+}) {
+  const areChartsShown = useAreExperimentsMetricChartsShown();
+  const chartsLayout = useMetricChartsLayout({
+    id: "experiments-table-metrics-layout",
+    isChartsPanelShown: areChartsShown,
+  });
+  return (
+    <Group orientation="vertical" {...chartsLayout}>
+      {areChartsShown && (
+        <MetricChartsPanel>
+          {isSkeleton ? (
+            <ChartPanelStripSkeleton />
+          ) : (
+            <ExperimentsMetricsCharts />
+          )}
+        </MetricChartsPanel>
+      )}
+      <Panel id={METRIC_CHARTS_CONTENT_PANEL_ID}>
+        <View height="100%" overflow="hidden" flex="1 1 auto">
+          {children}
+        </View>
+      </Panel>
+    </Group>
   );
 }
 /**

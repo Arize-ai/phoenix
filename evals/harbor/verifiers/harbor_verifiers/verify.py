@@ -15,6 +15,9 @@ letter case. Use ``{"reference": "117 traces", "notes": "..."}`` to ask the LLM 
 in :mod:`harbor_verifiers.llm_judge` whether the reply gives the reference answer.
 State verifiers can call :func:`write_reward` to record their own reward and include the
 trajectory measurements.
+
+Add ``skills_expected`` or ``skills_unexpected`` to ``expected.json`` to also score which
+skills the agent loaded. See :func:`harbor_verifiers.skills.skill_scores`.
 """
 
 from __future__ import annotations
@@ -29,7 +32,7 @@ from typing import Any, Literal
 
 from phoenix.evals.metrics import exact_match
 
-ANSWER_PATH = Path("/app/answer.txt")
+ANSWER_PATH = Path(os.environ.get("TASK_APP_DIR", "/app")) / "answer.txt"
 TRAJECTORY_PATH = Path(
     os.environ.get("PHOENIX_EVAL_TRAJECTORY_PATH", "/logs/agent/trajectory.json")
 )
@@ -81,19 +84,38 @@ def started_at(trajectory: dict[str, Any] | None) -> datetime | None:
     return min(timestamps) if timestamps else None
 
 
+def _message_text(message: Any) -> str:
+    if isinstance(message, str):
+        return message
+    if isinstance(message, list):
+        return "\n".join(
+            str(part.get("text", ""))
+            for part in message
+            if isinstance(part, dict) and part.get("type") == "text"
+        )
+    return ""
+
+
 def final_reply(trajectory: dict[str, Any] | None) -> str:
-    for step in reversed(agent_steps(trajectory)):
-        message = step.get("message")
-        if isinstance(message, str) and message.strip():
-            return message
-        if isinstance(message, list):
-            text = "\n".join(
-                str(part.get("text", ""))
-                for part in message
-                if isinstance(part, dict) and part.get("type") == "text"
-            )
-            if text.strip():
-                return text
+    """Returns the agent's text messages after its last tool call, or else its last text message.
+
+    Joining them keeps the answer when the agent adds a follow-up, such as when a
+    background task finishes.
+    """
+    steps = agent_steps(trajectory)
+    trailing: list[str] = []
+    for step in reversed(steps):
+        if step.get("tool_calls"):
+            break
+        text = _message_text(step.get("message"))
+        if text.strip():
+            trailing.append(text)
+    if trailing:
+        return "\n\n".join(reversed(trailing))
+    for step in reversed(steps):
+        text = _message_text(step.get("message"))
+        if text.strip():
+            return text
     return ""
 
 
@@ -175,7 +197,14 @@ def main(argv: list[str] | None = None) -> None:
     expected = json.loads(args.expected.read_text())
     reply, source = read_reply(args.trajectory, args.answer)
     reward, reason = check(reply, expected)
-    scores = write_reward(reward, trajectory_path=args.trajectory, reward_path=args.reward_file)
+    from harbor_verifiers import skills
+
+    loaded = skills.loaded_skills(read_trajectory(args.trajectory))
+    components: dict[str, Any] = {"loaded_skills": loaded}
+    components.update(skills.skill_scores(loaded, expected))
+    scores = write_reward(
+        reward, trajectory_path=args.trajectory, reward_path=args.reward_file, **components
+    )
     print(
         json.dumps(
             {
@@ -183,6 +212,7 @@ def main(argv: list[str] | None = None) -> None:
                 "reply_source": source,
                 "expected": expected,
                 "reason": reason,
+                "loaded_skills": loaded,
                 "scores": scores,
             }
         )

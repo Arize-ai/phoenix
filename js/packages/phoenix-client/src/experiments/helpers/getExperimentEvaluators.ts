@@ -1,7 +1,24 @@
 import type { LLMEvaluator } from "@arizeai/phoenix-evals";
 
+import type { AnnotatorKind } from "../../types/annotations";
 import type { Evaluator } from "../../types/experiments";
 import { fromPhoenixLLMEvaluator } from "./fromPhoenixLLMEvaluator";
+
+const ANNOTATOR_KINDS = new Set<AnnotatorKind>(
+  Object.keys({
+    LLM: true,
+    CODE: true,
+    HUMAN: true,
+    DECISION: true,
+    AGENT: true,
+  } satisfies Record<AnnotatorKind, true>) as AnnotatorKind[]
+);
+
+function isAnnotatorKind(value: unknown): value is AnnotatorKind {
+  return (
+    typeof value === "string" && ANNOTATOR_KINDS.has(value as AnnotatorKind)
+  );
+}
 
 /**
  * A type guard for LLMEvaluator classes.
@@ -51,8 +68,7 @@ function isExperimentEvaluator(evaluator: unknown): evaluator is Evaluator {
     "name" in evaluator &&
     typeof evaluator.name === "string" &&
     "kind" in evaluator &&
-    typeof evaluator.kind === "string" &&
-    (evaluator.kind === "CODE" || evaluator.kind === "LLM")
+    isAnnotatorKind(evaluator.kind)
   );
 }
 

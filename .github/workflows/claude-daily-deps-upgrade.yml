@@ -1,0 +1,157 @@
+name: Daily Dependency Upgrade
+
+on:
+  schedule:
+    - cron: "0 12 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: daily-deps-upgrade
+  cancel-in-progress: true
+
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    env:
+      CI: "true"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version-file: "pyproject.toml"
+          resolution-strategy: "lowest"
+
+      - name: Install PNPM
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        with:
+          package_json_file: js/package.json
+
+      - name: Use Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Create branch
+        id: branch
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          BRANCH="claude/daily-deps-upgrade"
+          git checkout -b "$BRANCH"
+          {
+            echo "BRANCH=$BRANCH"
+            echo "DATE=$DATE"
+          } >> "$GITHUB_ENV"
+          {
+            echo "branch=$BRANCH"
+            echo "date=$DATE"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Bump exact Python pins
+        # `uv lock --upgrade` won't cross `==` pins; `uv pip compile` inherits
+        # `exclude-newer` from `[tool.uv]` and skips yanked/pre-releases.
+        run: |
+          pins=$(printf 'strawberry-graphql\npydantic-monty\n' \
+            | uv pip compile - --no-deps --no-header --no-annotate --python-version 3.11)
+          echo "$pins"
+          while IFS='=' read -r name _ version; do
+            [ -n "$name" ] || continue
+            sed -i -E "s/(\"${name}(\[[^]]*\])?==)[0-9][^\"]*\"/\1${version}\"/g" pyproject.toml
+          done <<< "$pins"
+          git diff --stat -- pyproject.toml
+
+      - name: Upgrade Python (uv)
+        run: |
+          uv lock --upgrade
+          uv sync
+
+      - name: Upgrade JavaScript (pnpm)
+        working-directory: ./js
+        run: |
+          pnpm update --recursive
+          pnpm install --frozen-lockfile
+
+      - name: Detect changes
+        id: changes
+        run: |
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Nothing to upgrade — exiting."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit, open PR, hand to the factory
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+        run: |
+          gh auth setup-git
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          blocked_files=$({ git diff --name-only origin/main...HEAD; git diff --name-only; } | sort -u | awk '
+            /^\.github\// ||
+            /^\.cursor\// ||
+            /^\.claude\// ||
+            /^\.agents\// ||
+            /^factory\// ||
+            /^plugins\// ||
+            /(^|\/)AGENTS\.md$/ ||
+            /(^|\/)CLAUDE\.md$/
+          ')
+          if [ -n "$blocked_files" ]; then
+            echo "::warning::Dependency upgrade changed automation or agent-instruction files; restoring them from origin/main."
+            printf '%s\n' "$blocked_files"
+            while IFS= read -r file; do
+              if git cat-file -e "origin/main:$file" 2>/dev/null; then
+                git restore --source=origin/main --worktree --staged -- "$file"
+              else
+                git restore --staged -- "$file" 2>/dev/null || true
+                rm -f -- "$file"
+              fi
+            done <<< "$blocked_files"
+          fi
+          git add -A
+          git commit -m "chore(deps): daily dependency upgrade ${DATE}"
+          git push --force -u origin "${BRANCH}"
+          TITLE="chore(deps): daily dependency upgrade ${DATE}"
+          BODY="Automated daily dependency upgrade.
+
+          - exact \`==\` pins bumped to the newest PyPI release outside the 3-day cool-down (Python)
+          - \`uv lock --upgrade\` (Python)
+          - \`pnpm update --recursive\` in \`js/\`
+
+          The factory finish lane regenerates artifacts, fixes regressions and takes this PR to green; see its status comment below."
+          if [ "$(gh pr view "${BRANCH}" --json state --jq .state 2>/dev/null)" = "OPEN" ]; then
+            gh pr edit "${BRANCH}" --title "$TITLE" --body "$BODY"
+          else
+            gh pr create --draft --title "$TITLE" --body "$BODY"
+          fi
+          gh pr edit "${BRANCH}" --add-label factory-finish
+
+  slack-notification:
+    name: Slack Notification
+    runs-on: ubuntu-latest
+    needs: [upgrade]
+    if: ${{ always() && needs.upgrade.result == 'failure' }}
+    permissions: {}
+    steps:
+      - name: Notify failure
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            {
+              "channel": "${{ vars.SLACK_CHANNEL_ID }}",
+              "text": ":x: Daily dependency upgrade failed\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }

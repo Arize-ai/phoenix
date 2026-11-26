@@ -18,6 +18,7 @@ import {
   SETTINGS_AGENTS_TABS,
   settingsAgentsTabPath,
 } from "./SettingsAgentsShared";
+import { SettingsCardSkeleton } from "./SettingsCardSkeleton";
 
 const pageCSS = css`
   max-width: 900px;
@@ -64,7 +65,7 @@ export function SettingsAgentsPage() {
           {/* The router already resolves which tab's content the outlet
               renders, so one panel keyed to the selected tab suffices. */}
           <TabPanel id={selectedTab} padded>
-            <Suspense>
+            <Suspense fallback={<SettingsCardSkeleton />}>
               <Outlet />
             </Suspense>
           </TabPanel>

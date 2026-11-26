@@ -18,17 +18,20 @@ from openinference.semconv.trace import (
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.trace import StatusCode, Tracer
+from opentelemetry.trace import StatusCode
 from pydantic_ai import Agent
 from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.messages import (
+    CapabilityPartRendering,
     ModelMessage,
     ModelRequest,
     ModelResponse,
     NativeToolCallPart,
     NativeToolReturnPart,
+    OperatorSource,
     TextPart,
     ThinkingPart,
+    UnknownCapabilityPart,
     UserPromptPart,
 )
 from pydantic_ai.models import ModelRequestParameters, StreamedResponse
@@ -41,6 +44,7 @@ from phoenix.server.agents.pydantic_ai import (
     OpenInferenceCapabilityWrapper,
     OpenInferenceModelWrapper,
 )
+from phoenix.server.agents.pydantic_ai.openinference_agent_wrapper import _get_message_io_value
 
 
 @dataclass
@@ -66,7 +70,7 @@ def tracer(tracer_provider: TracerProvider) -> OITracer:
 
 
 @pytest.fixture
-def wrapped_model(tracer: Tracer) -> OpenInferenceModelWrapper:
+def wrapped_model(tracer: OITracer) -> OpenInferenceModelWrapper:
     inner = TestModel(custom_output_text=MODEL_OUTPUT_TEXT)
     return OpenInferenceModelWrapper(inner, tracer=tracer)
 
@@ -74,7 +78,7 @@ def wrapped_model(tracer: Tracer) -> OpenInferenceModelWrapper:
 @pytest.fixture
 def wrapped_agent(
     wrapped_model: OpenInferenceModelWrapper,
-    tracer: Tracer,
+    tracer: OITracer,
 ) -> OpenInferenceAgentWrapper[None, str]:
     inner: Agent[None, str] = Agent(
         wrapped_model,
@@ -113,7 +117,7 @@ def raising_model() -> WrapperModel:
 
 
 @pytest.fixture
-def native_tool_agent(tracer: Tracer) -> OpenInferenceAgentWrapper[None, str]:
+def native_tool_agent(tracer: OITracer) -> OpenInferenceAgentWrapper[None, str]:
     class _NativeToolModel(WrapperModel):
         async def request(
             self,
@@ -167,7 +171,7 @@ def native_tool_agent(tracer: Tracer) -> OpenInferenceAgentWrapper[None, str]:
 @pytest.fixture
 def raising_agent(
     raising_model: WrapperModel,
-    tracer: Tracer,
+    tracer: OITracer,
 ) -> OpenInferenceAgentWrapper[None, str]:
     """An OpenInferenceAgentWrapper whose underlying model always raises."""
     inner: Agent[None, str] = Agent(raising_model, deps_type=type(None))
@@ -176,7 +180,7 @@ def raising_agent(
 
 @pytest.fixture
 def test_model_agent(
-    tracer: Tracer,
+    tracer: OITracer,
 ) -> OpenInferenceAgentWrapper[None, str]:
     """An OpenInferenceAgentWrapper backed by TestModel — no network, no VCR.
 
@@ -205,7 +209,7 @@ def _get_tool_spans(spans: tuple[ReadableSpan, ...]) -> list[ReadableSpan]:
 
 @pytest.fixture
 def make_agent_with_response_parts(
-    tracer: Tracer,
+    tracer: OITracer,
 ) -> Callable[[list[Any]], OpenInferenceAgentWrapper[None, str]]:
     def _make_agent_with_response_parts(parts: list[Any]) -> OpenInferenceAgentWrapper[None, str]:
         class _StaticResponseModel(WrapperModel):
@@ -275,7 +279,7 @@ async def test_iter_emits_agent_span_for_text_response(
 
 async def test_iter_uses_explicit_span_name_override(
     wrapped_model: OpenInferenceModelWrapper,
-    tracer: Tracer,
+    tracer: OITracer,
     in_memory_span_exporter: InMemorySpanExporter,
 ) -> None:
     """``span_name`` overrides the default ``{agent name}.iter`` naming."""
@@ -289,6 +293,22 @@ async def test_iter_uses_explicit_span_name_override(
     spans = in_memory_span_exporter.get_finished_spans()
     agent_span = _get_agent_span(spans)
     assert agent_span.name == "pxi.iter.server"
+
+
+def test_capability_part_is_serialized_as_structured_turn_input() -> None:
+    capability_part = UnknownCapabilityPart(
+        kind="test.progress",
+        source=OperatorSource(),
+        content="Three steps done.",
+        rendering=CapabilityPartRendering(tag="progress"),
+    )
+    value, mime_type = _get_message_io_value(ModelRequest(parts=[capability_part]))
+
+    assert mime_type == OpenInferenceMimeTypeValues.JSON
+    [serialized_part] = json.loads(value)
+    assert serialized_part["part_kind"] == "capability"
+    assert serialized_part["kind"] == "test.progress"
+    assert serialized_part["content"] == "Three steps done."
 
 
 async def test_agent_span_filters_empty_thinking_for_single_text_output(
@@ -515,6 +535,7 @@ async def test_emits_tool_span_for_provider_native_tool(
         },
         {
             "content": {"results": [{"title": "Phoenix"}]},
+            "content_file_digests": [],
             "outcome": "success",
             "part_kind": "builtin-tool-return",
             "provider_details": {"status": "completed"},

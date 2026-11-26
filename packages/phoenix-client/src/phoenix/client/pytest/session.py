@@ -52,13 +52,13 @@ class DatasetGroup:
     dataset_description: Optional[str] = None
     experiment_description: Optional[str] = None
     experiment_metadata: Optional[dict[str, Any]] = None
-    bindings: dict[str, ItemBinding] = field(default_factory=dict)
+    bindings: dict[str, ItemBinding] = field(default_factory=dict[str, ItemBinding])
     dataset_id: Optional[str] = None
     dataset_version_id: Optional[str] = None
     experiment_id: Optional[str] = None
     project_name: Optional[str] = None
     # external_id -> dataset example node_id (GlobalID), not the example "id"
-    example_ids: dict[str, str] = field(default_factory=dict)
+    example_ids: dict[str, str] = field(default_factory=dict[str, str])
     max_repetitions: int = 1
 
 
@@ -70,7 +70,7 @@ class RecordedRun:
     passed: bool
     error: Optional[str]
     repetition_number: int = 1
-    evaluations: dict[str, dict[str, Any]] = field(default_factory=dict)
+    evaluations: dict[str, dict[str, Any]] = field(default_factory=dict[str, dict[str, Any]])
 
 
 def _merge_group_value(group: DatasetGroup, field_name: str, value: Any) -> None:

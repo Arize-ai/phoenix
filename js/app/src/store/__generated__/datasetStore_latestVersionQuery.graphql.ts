@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c3555fad6c4c762e0f136e0d2dd6007f>>
+ * @generated SignedSource<<0a600b6ebc3f25b88d18cdc8c410114c>>
  * @lightSyntaxTransform
  */
 
@@ -13,6 +13,7 @@ export type datasetStore_latestVersionQuery$variables = {
 };
 export type datasetStore_latestVersionQuery$data = {
   readonly dataset: {
+    readonly exampleCount?: number;
     readonly id: string;
     readonly latestVersions?: {
       readonly edges: ReadonlyArray<{
@@ -55,6 +56,13 @@ v2 = {
 v3 = {
   "kind": "InlineFragment",
   "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "exampleCount",
+      "storageKey": null
+    },
     {
       "alias": "latestVersions",
       "args": [
@@ -174,16 +182,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "8d1b89f8e5b4cd2774b9862c9aff1d3e",
+    "cacheID": "908a33c7c5a7cea600c1b92f29595901",
     "id": null,
     "metadata": {},
     "name": "datasetStore_latestVersionQuery",
     "operationKind": "query",
-    "text": "query datasetStore_latestVersionQuery(\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      latestVersions: versions(first: 1, sort: {col: createdAt, dir: desc}) {\n        edges {\n          version: node {\n            id\n            description\n            createdAt\n          }\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query datasetStore_latestVersionQuery(\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      exampleCount\n      latestVersions: versions(first: 1, sort: {col: createdAt, dir: desc}) {\n        edges {\n          version: node {\n            id\n            description\n            createdAt\n          }\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "55c5e6b728d6f3e3088308750a4e43f7";
+(node as any).hash = "1b188d7c7be19c603239e397a1124561";
 
 export default node;

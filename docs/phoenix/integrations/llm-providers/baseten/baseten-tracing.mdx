@@ -1,0 +1,73 @@
+---
+title: "Baseten Tracing"
+description: "Phoenix provides auto-instrumentation for Baseten through the OpenAI Python library, since Baseten exposes an OpenAI-compatible API endpoint."
+---
+
+import RegisterTracerPython from "../../../../snippets/register-tracer-python.mdx";
+
+[Baseten](https://www.baseten.co/) serves foundation models and custom model deployments through OpenAI-compatible APIs. Point the OpenAI Python client at Baseten's inference endpoint and Phoenix captures each request through [`openinference-instrumentation-openai`](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai).
+
+<Note>
+This page uses Baseten's OpenAI-compatible API. There is no separate Baseten-specific OpenInference instrumentor required.
+</Note>
+
+## Install
+
+```bash
+pip install arize-phoenix-otel openinference-instrumentation-openai openai
+```
+
+## Setup
+
+Add your Baseten API key and the model you want to call, along with your Phoenix connection details, as environment variables:
+
+```bash
+export BASETEN_API_KEY="<your-baseten-api-key>"
+export BASETEN_MODEL="<your-baseten-model-id>"
+export PHOENIX_COLLECTOR_ENDPOINT="<your-phoenix-collector-endpoint>"  # use http://localhost:6006 for local Phoenix
+export PHOENIX_API_KEY="<your-phoenix-api-key>"  # required for Phoenix Cloud or authenticated Phoenix
+```
+
+<RegisterTracerPython projectName="my-llm-app" />
+
+## Run Baseten
+
+```python
+import os
+import openai
+
+client = openai.OpenAI(
+    base_url="https://inference.baseten.co/v1",
+    api_key=os.environ["BASETEN_API_KEY"],
+)
+
+response = client.chat.completions.create(
+    model=os.environ["BASETEN_MODEL"],
+    messages=[
+        {
+            "role": "user",
+            "content": "Explain one benefit of tracing LLM calls in production.",
+        },
+    ],
+)
+print(response.choices[0].message.content)
+```
+
+## Observe
+
+Now that you have tracing set up, all invocations of the OpenAI client pointed at Baseten will be streamed to your running Phoenix for observability and evaluation. Each request appears as a `ChatCompletion` LLM span with the prompt, response, model name, token usage, and latency.
+
+## Common Issues
+
+* **No traces in Phoenix**: Confirm `PHOENIX_COLLECTOR_ENDPOINT` (and `PHOENIX_API_KEY` if your Phoenix requires one) is set in the same shell that runs your app
+* **Baseten spans missing**: Call `register()` before you create the OpenAI client, and make sure `openinference-instrumentation-openai` is installed so `auto_instrument=True` picks it up
+* **`401` from Baseten**: Use your Baseten API key, not your OpenAI key
+* **Model not found**: Confirm `BASETEN_MODEL` matches a Baseten model identifier or deployment that supports OpenAI-compatible chat completions
+* **Base URL**: Ensure you're using `https://inference.baseten.co/v1` as the base URL
+
+## Resources
+
+<Columns cols={2}>
+  <Card title="Baseten Model APIs" href="https://docs.baseten.co/inference/model-apis/overview" icon="book" horizontal description="Baseten OpenAI-compatible Model APIs"/>
+  <Card title="OpenInference OpenAI Instrumentation" href="https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai" icon="puzzle-piece" horizontal description="OpenAI instrumentation package"/>
+</Columns>

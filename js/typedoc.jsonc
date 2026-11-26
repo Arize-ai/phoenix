@@ -8,7 +8,6 @@
   "name": "Arize Phoenix TS",
   "exclude": [
     "packages/phoenix-cli",
-    "packages/phoenix-mcp",
     "packages/phoenix-client/examples/**",
     "packages/phoenix-evals/examples/**",
     "packages/phoenix-evals/benchmarks/**",

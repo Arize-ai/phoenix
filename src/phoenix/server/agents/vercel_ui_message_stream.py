@@ -708,11 +708,7 @@ def _update_tool_part(
         if approval is not None
         else (existing_part.approval if isinstance(existing_part, _TOOL_PART_TYPES) else None)
     )
-    static_type = (
-        existing_part.type
-        if isinstance(existing_part, _STATIC_TOOL_PART_TYPES)
-        else f"tool-{tool_name}"
-    )
+    static_type = f"tool-{tool_name}"
 
     if dynamic:
         if part_state == "input-streaming":
