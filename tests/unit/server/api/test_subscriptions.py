@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Any, AsyncIterator, Awaitable, Callable, Mapping, Optional, cast
 
 import anyio
+import httpx2
 import pytest
 from openinference.semconv.trace import (
     MessageAttributes,
@@ -300,6 +301,62 @@ class TestChatCompletionSubscription:
         ]
         assert payloads[1]["message"] == "Playground task timed out"
         assert timeouts == [1, 1]
+
+    @pytest.mark.parametrize(
+        "method, accept",
+        [
+            pytest.param("POST", None, id="post-no-accept"),
+            pytest.param("POST", "application/json", id="post-accept-json"),
+            pytest.param("POST", "*/*", id="post-accept-any"),
+            pytest.param("POST", "multipart/mixed", id="post-multipart-without-spec"),
+            pytest.param("GET", None, id="get-no-accept"),
+        ],
+    )
+    async def test_subscription_that_cannot_be_streamed_is_rejected(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        caplog: pytest.LogCaptureFixture,
+        method: str,
+        accept: Optional[str],
+    ) -> None:
+        """A subscription sent without the multipart subscription Accept header
+        cannot be streamed. The server must reject it, not run it as a query and
+        resolve the non-null chatCompletion field to null."""
+        query = "subscription ($input: ChatCompletionInput!) { chatCompletion(input: $input) { __typename } }"
+        variables: dict[str, Any] = {
+            "input": {
+                "promptVersion": {
+                    "templateFormat": "NONE",
+                    "template": {
+                        "messages": [{"role": "USER", "content": [{"text": {"text": "hello"}}]}]
+                    },
+                    "modelProvider": "OPENAI",
+                    "modelName": "gpt-4",
+                    "invocationParameters": {"openai": {}},
+                    "tools": None,
+                },
+                "repetitions": 1,
+            },
+        }
+        headers = {"Accept": accept} if accept is not None else {}
+        if method == "GET":
+            response = await httpx_client.get(
+                "/graphql",
+                params={"query": query, "variables": json.dumps(variables)},
+                headers=headers,
+            )
+        else:
+            response = await httpx_client.post(
+                "/graphql", json={"query": query, "variables": variables}, headers=headers
+            )
+
+        assert not any(
+            "Cannot return null for non-nullable field Subscription.chatCompletion"
+            in str(record.exc_info[1] if record.exc_info else record.getMessage())
+            for record in caplog.records
+        )
+        assert response.status_code == 400, response.text
+        assert "subscription" in response.text.lower()
 
     async def test_openai_text_response_emits_expected_payloads_and_records_expected_span(
         self,
