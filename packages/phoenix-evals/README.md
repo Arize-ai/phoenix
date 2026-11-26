@@ -75,9 +75,11 @@ The `phoenix.evals.metrics` module provides ready-to-use evaluators for common t
 | Tool Response Handling | `ToolResponseHandlingEvaluator` | Evaluates how well the model uses a tool's response |
 | User Friction | `UserFrictionEvaluator` | Detects expressed corrections, retries, frustration, and challenges |
 | PII Detection | `PiiDetectionEvaluator` | Screens a conversation record for personally identifiable information |
+| Answer Consistency | `AnswerConsistencyEvaluator` | Measures how much repeated runs on the same input agree in meaning, using an LLM judge (score 0–1) |
 | Exact Match | `exact_match` | Checks for exact string equality between output and expected |
 | Regex Match | `MatchesRegex` | Checks whether the output matches a regular expression |
 | Precision/Recall | `PrecisionRecallFScore` | Computes precision, recall, and F-score for classification tasks |
+| Retrieval Consistency | `RetrievalConsistencyEvaluator` | Measures how much repeated retrievals for the same query overlap, by document ID or text (score 0–1) |
 
 ```python
 from phoenix.evals.llm import LLM
