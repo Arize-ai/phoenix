@@ -126,6 +126,7 @@ from phoenix.server.bearer_auth import BearerTokenAuthBackend, PhoenixUser, is_a
 from phoenix.server.cost_tracking.span_cost_calculator import SpanCostCalculator
 from phoenix.server.daemons.agent_session_sweeper import AgentSessionSweeper
 from phoenix.server.daemons.db_disk_usage_monitor import DbDiskUsageMonitor
+from phoenix.server.daemons.db_health_monitor import DbHealthMonitor
 from phoenix.server.daemons.experiment_runner import ExperimentRunner
 from phoenix.server.daemons.experiment_sweeper import ExperimentSweeper
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
@@ -692,6 +693,7 @@ def _lifespan(
     model_cost_manifest_fetcher: Optional[ModelCostManifestFetcher],
     system_settings: SystemSettings,
     db_disk_usage_monitor: DbDiskUsageMonitor,
+    db_health_monitor: DbHealthMonitor,
     experiment_runner: ExperimentRunner,
     sandbox_session_manager: SandboxSessionManager,
     sandbox_runtime: SandboxRuntimeContext,
@@ -798,6 +800,7 @@ def _lifespan(
                     await stack.enter_async_context(model_cost_manifest_fetcher)
                 await stack.enter_async_context(system_settings)
                 await stack.enter_async_context(db_disk_usage_monitor)
+                await stack.enter_async_context(db_health_monitor)
                 await stack.enter_async_context(sandbox_runtime.monty)
                 # ``sandbox_session_manager`` must enter before ``experiment_runner``
                 # so ``AsyncExitStack`` tears them down in reverse and the runner
@@ -913,17 +916,17 @@ def _lifespan(
 
 
 @router.get("/healthz")
-async def check_healthz(_: Request) -> PlainTextResponse:
+async def check_healthz(request: Request) -> PlainTextResponse:
+    db_health_monitor: DbHealthMonitor = request.app.state.db_health_monitor
+    if not db_health_monitor.is_live:
+        return PlainTextResponse("database unreachable", status_code=503)
     return PlainTextResponse("OK")
 
 
 @router.get("/readyz")
 async def check_readyz(request: Request) -> JSONResponse:
-    try:
-        async with request.app.state.db() as session:
-            await session.execute(select(1))
-    except Exception as e:
-        logger.error(f"Database health check failed: {e}")
+    db_health_monitor: DbHealthMonitor = request.app.state.db_health_monitor
+    if not db_health_monitor.is_ready:
         raise HTTPException(status_code=503, detail="database unreachable")
     return JSONResponse({})
 
@@ -1189,6 +1192,7 @@ def create_app(
     agent_session_sweeper = AgentSessionSweeper(db, settings=system_settings)
     experiment_sweeper = ExperimentSweeper(db)
     generative_model_store = GenerativeModelStore(db)
+    db_health_monitor = DbHealthMonitor(db)
     # A read-only server leaves the built-in prices to the server that writes.
     model_cost_manifest_url = None if read_only else get_env_model_cost_manifest_url()
     model_cost_manifest_fetcher = (
@@ -1273,6 +1277,7 @@ def create_app(
             model_cost_manifest_fetcher=model_cost_manifest_fetcher,
             system_settings=system_settings,
             db_disk_usage_monitor=DbDiskUsageMonitor(db, email_sender),
+            db_health_monitor=db_health_monitor,
             experiment_runner=experiment_runner,
             sandbox_session_manager=sandbox_session_manager,
             sandbox_runtime=sandbox_runtime,
@@ -1504,6 +1509,7 @@ def create_app(
 
         app.state.ldap_authenticator = LDAPAuthenticator(ldap_config)
     app.state.db = db
+    app.state.db_health_monitor = db_health_monitor
     app.state.system_settings = system_settings
     app.state.email_sender = email_sender
     app.state.span_cost_calculator = span_cost_calculator

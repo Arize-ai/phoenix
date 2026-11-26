@@ -19,6 +19,21 @@ By default, the container exposes the following ports:
 
 If the above ports need to be modified, consult the section below.
 
+## Health Checks
+
+Phoenix serves two unauthenticated health endpoints on the HTTP port.
+
+| Endpoint   | Use as          | Returns `200`                                           | Returns `503`                                               |
+| ---------- | --------------- | ------------------------------------------------------- | ----------------------------------------------------------- |
+| `/readyz`  | Readiness probe | The database answered in the last 20 seconds.           | The database did not answer in the last 20 seconds.         |
+| `/healthz` | Liveness probe  | The database answered in the last 5 minutes.            | The database did not answer in the last 5 minutes.          |
+
+A background task tests the PostgreSQL connection every 5 seconds. The endpoints report the result of that test. A request to a health endpoint does not query the database.
+
+A test that gets no answer in 3 seconds counts against `/readyz` only. `/healthz` returns `503` only when the connection fails outright for 5 minutes.
+
+With SQLite, the two endpoints return `200` while the server runs.
+
 ## Environment Variables
 
 Phoenix uses environment variables to control how data is sent, received, and stored. Here is the comprehensive list:
