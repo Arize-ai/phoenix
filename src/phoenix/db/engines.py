@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import weakref
 from enum import Enum
 from sqlite3 import Connection
 from threading import Thread
@@ -332,10 +333,37 @@ def aio_sqlite_engine(
     )
     event.listen(engine.sync_engine, "connect", set_sqlite_pragma)
     configure_sqlite_transactions(engine)
+
+    # SQLite destroys a shared-cache :memory: database as soon as its last
+    # connection closes. Because this engine uses a single pooled connection
+    # (pool_size=1), invalidating that connection on a cancelled or timed-out
+    # statement would otherwise drop every table before the pool reconnects.
+    # Hold an idle keepalive connection to the same shared-cache URI for the
+    # lifetime of the engine and release it on dispose() or garbage collection.
+    release_keepalive: Optional[Callable[[], Any]] = None
+    if database.startswith(":memory:") and shared_cache:
+        separator = "&" if "?" in database else "?"
+        keepalive = sqlean.connect(
+            f"file:{database}{separator}mode=rwc",
+            uri=True,
+            check_same_thread=False,
+        )
+        release_keepalive = weakref.finalize(engine.sync_engine, keepalive.close)
+        event.listen(
+            engine.sync_engine,
+            "engine_disposed",
+            lambda _engine, _release=release_keepalive: _release(),
+        )
+
     if not migrate:
         return engine
     if database.startswith(":memory:"):
-        _init_memory_models(engine)
+        try:
+            _init_memory_models(engine)
+        except BaseException:
+            if release_keepalive is not None:
+                release_keepalive()
+            raise
     else:
         migration_engine = sqlite_migration_engine(url, echo=log_migrations)
         migrate_in_thread(migration_engine, log_migrations=log_migrations)
