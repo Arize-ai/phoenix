@@ -1309,3 +1309,70 @@ class TestOAuth2CallbackLoginContext:
     )
     def test_valid_relative_return_url_is_accepted(self, return_url: str) -> None:
         assert _is_relative_url(return_url) is True
+
+
+class TestOAuth2CallbackTokenEndpointFailure:
+    @staticmethod
+    def _callback_app(*, token_endpoint_handler: Any) -> FastAPI:
+        oauth2_client = OAuth2Client(
+            name="dev",
+            client_id="dev-client",
+            client_secret="dev-secret",
+            authorize_url="https://idp.example/authorize",
+            access_token_url="https://idp.example/token",
+            client_kwargs={
+                "scope": "openid email",
+                "transport": httpx2.MockTransport(token_endpoint_handler),
+            },
+            display_name="Dev IDP",
+            allow_sign_up=True,
+            auto_login=False,
+        )
+
+        class _Clients:
+            def get_client(self, idp_name: str) -> object:
+                return oauth2_client
+
+        app = FastAPI()
+        app.state.oauth2_clients = _Clients()
+        app.state.oauth2_login_context_key = _LOGIN_CONTEXT_KEY
+        app.state.access_token_expiry = timedelta(minutes=15)
+        app.state.refresh_token_expiry = timedelta(days=7)
+        app.state.get_token_store = lambda: object()
+        app.include_router(router)
+        app.dependency_overrides[login_rate_limiter] = _skip_rate_limit
+        app.dependency_overrides[create_tokens_rate_limiter] = _skip_rate_limit
+        return app
+
+    @staticmethod
+    def _respond_with_server_error(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(500, text="Internal Server Error")
+
+    @staticmethod
+    def _time_out(request: httpx2.Request) -> httpx2.Response:
+        raise httpx2.ReadTimeout("timed out", request=request)
+
+    @pytest.mark.parametrize(
+        "token_endpoint_handler",
+        [
+            pytest.param(_respond_with_server_error, id="idp_server_error"),
+            pytest.param(_time_out, id="idp_read_timeout"),
+        ],
+    )
+    async def test_token_endpoint_failure_redirects_to_login(
+        self, token_endpoint_handler: Any
+    ) -> None:
+        app = self._callback_app(token_endpoint_handler=token_endpoint_handler)
+        async with httpx2.AsyncClient(
+            transport=httpx2.ASGITransport(app=app),
+            base_url="http://test",
+        ) as client:
+            login_response = await client.get("/oauth2/dev/login", follow_redirects=False)
+            assert login_response.status_code == 302
+            state = parse_qs(urlparse(login_response.headers["location"]).query)["state"][0]
+            callback_response = await client.get(
+                "/oauth2/dev/tokens",
+                params={"state": state, "code": "auth-code"},
+                follow_redirects=False,
+            )
+        assert _redirect_error(callback_response) == "oauth_error"
