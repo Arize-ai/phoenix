@@ -391,7 +391,7 @@ class LLM:
                 ``name``, its ``labels`` (a label->description dict), and optional
                 ``instruction``.
             include_explanation (bool): Whether to prompt the LLM for a per-question explanation.
-            **kwargs: Additional keyword arguments to pass to the LLM SDK (e.g. ``method``).
+            **kwargs: Additional keyword arguments to pass to the LLM SDK.
 
         Returns:
             A :class:`ClassificationResponse`: one outcome per criterion, keyed by criterion name
