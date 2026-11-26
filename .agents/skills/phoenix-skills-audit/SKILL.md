@@ -53,7 +53,10 @@ The checks exempt some code, and the audit still covers it by reading:
   fails CI until its entry is removed, and the CI workflow stages only skill files.
   Don't fix these in a CI run. List them under "Known-broken examples" in the run
   summary instead. In a manual run, fix the example and delete its entry in the same
-  change.
+  change. Entries name a block by its position in the file, such as
+  `fundamentals.md#3`, so in a CI run don't add, remove, or reorder Python or
+  TypeScript blocks above a known-broken block in the same file. Put new examples
+  after it, or list the edit under "Known-broken examples".
 
 ## What the audit looks for
 
