@@ -289,6 +289,14 @@ class TestHelperFunctions:
             headers = _get_csv_column_headers(mock_path)
             assert headers == ("col1", "col2", "col3")
 
+    def test_get_csv_column_headers_strips_utf8_bom(self, tmp_path: Path) -> None:
+        path = tmp_path / "excel.csv"
+        path.write_text("question,answer\nCapital of France?,Paris\n", encoding="utf-8-sig")
+
+        assert _get_csv_column_headers(path) == ("question", "answer")
+
+        _prepare_csv(path, DatasetKeys(frozenset({"question"}), frozenset({"answer"}), frozenset()))
+
     def test_get_csv_column_headers_errors(self) -> None:
         # Test empty file
         mock_path = Mock(spec=Path)
