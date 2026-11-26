@@ -706,8 +706,13 @@ def _span_orm_to_pydantic(span_orm: models.Span, trace_id: str) -> Span:
     "/spans",
     operation_id="querySpans",
     summary="Query spans with query DSL",
+    description=(
+        "Deprecated. Use `GET /v1/projects/{project_identifier}/spans` with the `filter` "
+        "query parameter instead, and build dataframes on the client."
+    ),
     responses=add_errors_to_responses([404, 422]),
     include_in_schema=False,
+    deprecated=True,
 )
 async def query_spans_handler(
     request: Request,
