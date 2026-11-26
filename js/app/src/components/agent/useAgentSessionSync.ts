@@ -6,6 +6,10 @@ import { useRelayEnvironment } from "react-relay";
 import { isRequestActive } from "@phoenix/agent/chat/chatUtils";
 import { getTurnClientState } from "@phoenix/agent/chat/createAgentSessionChat";
 import { cleanupResolvedPendingToolState } from "@phoenix/agent/chat/pendingToolStateCleanup";
+import {
+  isSessionSelfCancellationGraceActive,
+  SESSION_CANCELLATION_GRACE_MS,
+} from "@phoenix/agent/chat/sessionCancellation";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useInterval } from "@phoenix/hooks/useInterval";
@@ -115,6 +119,7 @@ export function useAgentSessionSync({
   const shouldSyncOnNextPollSetupRef = useRef(shouldSyncOnMount);
   /** Prevents overlapping poll requests on slow networks. */
   const isPollInFlightRef = useRef(false);
+  const pollSessionRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
   // Turn-lock entry: the session's Relay record (fetched network-only when a
   // session surface binds, and refreshed after each completed turn) is the
@@ -123,9 +128,53 @@ export function useAgentSessionSync({
   // without a separate imperative status check.
   useEffect(() => {
     if (!persistedSessionId || !chatInstance || !isActive) {
-      return;
+      return undefined;
     }
     const state = store.getState();
+    const cancelledAt =
+      state.locallyCancelledSessionAtBySessionId[persistedSessionId];
+    if (isSessionSelfCancellationGraceActive({ cancelledAt })) {
+      const remainingMs = Math.max(
+        0,
+        SESSION_CANCELLATION_GRACE_MS - (Date.now() - (cancelledAt ?? 0)) + 1
+      );
+      let timeoutId: ReturnType<typeof setTimeout>;
+      const scheduleBusyRecheck = () => {
+        const currentState = store.getState();
+        const currentCancelledAt =
+          currentState.locallyCancelledSessionAtBySessionId[persistedSessionId];
+
+        if (currentCancelledAt == null) {
+          return;
+        }
+
+        if (
+          isSessionSelfCancellationGraceActive({
+            cancelledAt: currentCancelledAt,
+          })
+        ) {
+          const remainingMs = Math.max(
+            0,
+            SESSION_CANCELLATION_GRACE_MS -
+              (Date.now() - currentCancelledAt) +
+              1
+          );
+
+          timeoutId = setTimeout(scheduleBusyRecheck, remainingMs);
+          return;
+        }
+
+        if (!isRequestActive(chatInstance.status)) {
+          void pollSessionRef.current();
+        }
+      };
+
+      timeoutId = setTimeout(scheduleBusyRecheck, remainingMs);
+
+      return () => {
+        clearTimeout(timeoutId);
+      };
+    }
     // Never treat this client's own in-flight turn as busy elsewhere.
     if (
       state.isBusyElsewhereBySessionId[persistedSessionId] !== true &&
@@ -133,6 +182,7 @@ export function useAgentSessionSync({
     ) {
       state.setSessionBusyElsewhere(persistedSessionId, true);
     }
+    return undefined;
   }, [persistedSessionId, chatInstance, isActive, store]);
 
   const isSessionPollingPaused = isRequestActive(chatStatus) || isCompacting;
@@ -152,14 +202,23 @@ export function useAgentSessionSync({
       }
       shouldSyncOnNextPollSetupRef.current = false;
       if (syncState.isActive) {
-        store.getState().setSessionBusyElsewhere(persistedSessionId, true);
+        const cancelledAt =
+          store.getState().locallyCancelledSessionAtBySessionId[
+            persistedSessionId
+          ];
+        if (!isSessionSelfCancellationGraceActive({ cancelledAt })) {
+          store.getState().setSessionBusyElsewhere(persistedSessionId, true);
+        }
         return;
       }
+
+      // A successful probe confirms that the session lock is free.
+      store.getState().clearSessionLocallyCancelled(persistedSessionId);
       // Read busy state fresh from the store: the probe may have set it on a
       // previous tick and this closure could be stale.
-      const wasBusyElsewhere =
-        store.getState().isBusyElsewhereBySessionId[persistedSessionId] ??
-        false;
+      const wasBusyElsewhere = Boolean(
+        store.getState().isBusyElsewhereBySessionId[persistedSessionId]
+      );
       const lastSynced = lastSyncedSessionStateRef.current;
       const isTranscriptUnchanged = isSameSessionTail({
         lastSynced,
@@ -182,22 +241,28 @@ export function useAgentSessionSync({
       if (agentSession.isActive) {
         // Another client claimed the turn lock between the probe and the
         // full fetch; treat this tick as busy and let the next tick resync.
-        store.getState().setSessionBusyElsewhere(persistedSessionId, true);
+        const cancelledAt =
+          store.getState().locallyCancelledSessionAtBySessionId[
+            persistedSessionId
+          ];
+        if (!isSessionSelfCancellationGraceActive({ cancelledAt })) {
+          store.getState().setSessionBusyElsewhere(persistedSessionId, true);
+        }
         return;
       }
+
       // This client started its own turn (or a compaction) while the fetch
       // was in flight; never replace its in-flight optimistic messages.
-      if (
-        isRequestActive(chatInstance.status) ||
-        (store.getState().isCompactionPendingBySessionId[persistedSessionId] ??
-          false)
-      ) {
+      const isCompacting =
+        store.getState().isCompactionPendingBySessionId[persistedSessionId] ===
+        true;
+      if (isRequestActive(chatInstance.status) || isCompacting) {
         return;
       }
       // A flush of this client's outputs or answers is still in flight, so
       // the fetched transcript predates it. Applying it would reset answers
       // the user gave, and an approval cannot be re-derived.
-      if (getTurnClientState(chatInstance)?.hasPendingFlush() ?? false) {
+      if (getTurnClientState(chatInstance)?.hasPendingFlush()) {
         return;
       }
       // Clear a lingering conflict error only after the other client's turn
@@ -236,6 +301,10 @@ export function useAgentSessionSync({
     relayEnvironment,
     store,
   ]);
+
+  useEffect(() => {
+    pollSessionRef.current = pollSession;
+  }, [pollSession]);
 
   // Poll slowly during normal use and switch to the existing faster cadence
   // while another client holds the turn lock. The visibility-aware interval
