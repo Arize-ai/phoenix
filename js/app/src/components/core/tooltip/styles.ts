@@ -16,6 +16,9 @@ export const tooltipCSS = css`
   padding: var(--global-dimension-size-100) var(--global-dimension-size-200);
   max-width: 200px;
   font-size: var(--global-font-size-s);
+  /* Wrap long strings including paths and JSON */
+  overflow-wrap: break-word;
+  word-break: break-word;
   /* fixes FF gap */
   transform: translate3d(0, 0, 0);
   transition:
@@ -82,6 +85,12 @@ export const richTooltipCSS = css`
   padding: var(--global-dimension-size-200) var(--rich-tooltip-padding-x);
   min-width: 200px;
   font-size: var(--global-font-size-s);
+  /* Wrap long strings including paths and JSON */
+  overflow-wrap: break-word;
+  word-break: break-word;
+  /* Cap height for very long errors with scrolling */
+  max-height: 400px;
+  overflow-y: auto;
   /* fixes FF gap */
   transform: translate3d(0, 0, 0);
   transition:
