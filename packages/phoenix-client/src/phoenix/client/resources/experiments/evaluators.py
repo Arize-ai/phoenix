@@ -43,6 +43,17 @@ def _score_result_to_evaluation_result(score: ScoreResult) -> EvaluationResult:
         return [_score_to_experiment_evaluation(s) for s in score]
 
 
+def _evals_scores_to_evaluation_result(
+    scores: ScoreResult, evaluator_name: str
+) -> EvaluationResult:
+    if not isinstance(scores, EvaluationScore):
+        if not scores:
+            raise ValueError(f"Evaluator {evaluator_name!r} returned no scores")
+        if len(scores) == 1:
+            return _score_to_experiment_evaluation(scores[0])
+    return _score_result_to_evaluation_result(scores)
+
+
 def get_func_name(fn: Callable[..., Any]) -> str:
     """
     Makes a best-effort attempt to get the name of the function.
@@ -262,18 +273,11 @@ def wrap_phoenix_evals_evaluator(evaluator: EvalsEvaluator) -> Evaluator:
                 self._kind = AnnotatorKind.CODE
 
         def evaluate(self, **kwargs: Any) -> EvaluationResult:
-            scores = evaluator.evaluate(kwargs)
-            if isinstance(scores, EvaluationScore):
-                return _score_to_experiment_evaluation(scores)
-            else:
-                return _score_to_experiment_evaluation(scores[0])
+            return _evals_scores_to_evaluation_result(evaluator.evaluate(kwargs), self._name)
 
         async def async_evaluate(self, **kwargs: Any) -> EvaluationResult:
             scores = await evaluator.async_evaluate(kwargs)
-            if isinstance(scores, EvaluationScore):
-                return _score_to_experiment_evaluation(scores)
-            else:
-                return _score_to_experiment_evaluation(scores[0])
+            return _evals_scores_to_evaluation_result(scores, self._name)
 
     return PhoenixEvalsEvaluator()
 
