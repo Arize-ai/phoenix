@@ -16,19 +16,39 @@ type ErrorBoundaryProps = {
    * @default BugReportErrorBoundaryFallback
    */
   fallback?: ErrorBoundaryFallbackComponent;
+  /**
+   * Clears a caught error when it changes, so the children render again
+   * without being remounted while there is no error.
+   */
+  resetKey?: string;
+};
+type ErrorBoundaryState = {
+  hasError: boolean;
+  error: unknown;
+  /** The reset key the error state belongs to */
+  resetKey: string | undefined;
 };
 export class ErrorBoundary extends Component<
   ErrorBoundaryProps,
-  { hasError: boolean; error: unknown }
+  ErrorBoundaryState
 > {
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, resetKey: props.resetKey };
   }
 
   static getDerivedStateFromError(error: unknown) {
     // Update state so the next render will show the fallback UI.
     return { hasError: true, error };
+  }
+
+  static getDerivedStateFromProps(
+    props: ErrorBoundaryProps,
+    state: ErrorBoundaryState
+  ): ErrorBoundaryState | null {
+    return props.resetKey === state.resetKey
+      ? null
+      : { hasError: false, error: null, resetKey: props.resetKey };
   }
 
   componentDidCatch(error: unknown, errorInfo: ErrorInfo) {

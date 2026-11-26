@@ -14,6 +14,7 @@ export function ExperimentAnnotationButton({
   annotation,
   extra,
   optimizationValue,
+  isValueEndAligned,
 }: {
   annotation: Annotation;
   /**
@@ -25,6 +26,11 @@ export function ExperimentAnnotationButton({
    * Additional content like controls that will be placed on the right
    */
   extra?: ReactNode;
+  /**
+   * Pushes the value to the end of the button, so the values of stacked
+   * annotations line up in a column.
+   */
+  isValueEndAligned?: boolean;
 }) {
   return (
     <Pressable>
@@ -56,6 +62,7 @@ export function ExperimentAnnotationButton({
             displayPreference="score-and-label"
             maxWidth="unset"
             showColorSwatch={false}
+            isValueEndAligned={isValueEndAligned}
           />
           {extra}
         </Flex>

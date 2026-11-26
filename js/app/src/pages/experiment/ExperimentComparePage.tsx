@@ -101,11 +101,14 @@ export function ExperimentComparePage() {
   );
   useAdvertiseAgentContext(advertisedDatasetContext);
   const [searchParams] = useSearchParams();
+  // Keyed on the picked IDs rather than the search params, which also carry
+  // view state that changes without the selection changing
+  const experimentIdsKey = JSON.stringify(searchParams.getAll("experimentId"));
   const { baseExperimentId, compareExperimentIds } = useMemo(() => {
-    const [baseExperimentId, ...compareExperimentIds] =
-      searchParams.getAll("experimentId");
+    const [baseExperimentId, ...compareExperimentIds]: string[] =
+      JSON.parse(experimentIdsKey);
     return { baseExperimentId, compareExperimentIds };
-  }, [searchParams]);
+  }, [experimentIdsKey]);
   const viewMode: ExperimentCompareViewMode = useMemo(() => {
     const viewMode = searchParams.get("view");
     if (isExperimentCompareViewMode(viewMode)) {

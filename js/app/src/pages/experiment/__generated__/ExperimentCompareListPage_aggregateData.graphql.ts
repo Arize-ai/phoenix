@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a30f658cd7e4f0afd20f63e962d4a9a5>>
+ * @generated SignedSource<<e3edbad885fe782daab80478dac87a2f>>
  * @lightSyntaxTransform
  */
 
@@ -63,9 +63,6 @@ export type ExperimentCompareListPage_aggregateData$data = {
               readonly cost: number | null;
               readonly tokens: number | null;
             };
-          };
-          readonly datasetVersion: {
-            readonly id: string;
           };
           readonly id: string;
           readonly repetitions: number;
@@ -230,18 +227,6 @@ return {
                           "args": null,
                           "kind": "ScalarField",
                           "name": "repetitions",
-                          "storageKey": null
-                        },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "concreteType": "DatasetVersion",
-                          "kind": "LinkedField",
-                          "name": "datasetVersion",
-                          "plural": false,
-                          "selections": [
-                            (v0/*:: as any*/)
-                          ],
                           "storageKey": null
                         },
                         {
@@ -456,6 +441,6 @@ return {
 };
 })();
 
-(node as any).hash = "72d6f4996920dc99aa5ee715d73fe83f";
+(node as any).hash = "4fb545ae5be9c8085a5a75a171cac025";
 
 export default node;

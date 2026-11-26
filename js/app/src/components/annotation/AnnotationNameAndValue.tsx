@@ -31,6 +31,11 @@ const valuePartsCSS = css`
   gap: var(--global-dimension-size-100);
 `;
 
+const valueEndAlignedCSS = css`
+  margin-left: auto;
+  flex: none;
+`;
+
 /**
  * A single renderable piece of an annotation value. Scores render in a
  * monospace font; labels render in the default font.
@@ -99,6 +104,12 @@ interface AnnotationNameAndValueProps {
    * Whether to show the color swatch next to the annotation name
    */
   showColorSwatch?: boolean;
+  /**
+   * Fills the available width and pushes the value to its end, so the values
+   * of stacked annotations line up in a column.
+   * @default false
+   */
+  isValueEndAligned?: boolean;
 }
 export function AnnotationNameAndValue({
   annotation,
@@ -108,6 +119,7 @@ export function AnnotationNameAndValue({
   maxWidth = "9rem",
   optimizationValue,
   showColorSwatch = true,
+  isValueEndAligned = false,
 }: AnnotationNameAndValueProps) {
   const valueParts = getAnnotationValueParts(annotation, displayPreference);
 
@@ -119,6 +131,7 @@ export function AnnotationNameAndValue({
       className="annotation-name-and-value"
       maxWidth={maxWidth}
       minWidth={minWidth}
+      flex={isValueEndAligned ? "1 1 auto" : undefined}
     >
       {showColorSwatch && (
         <AnnotationColorSwatch annotationName={annotation.name} />
@@ -134,7 +147,8 @@ export function AnnotationNameAndValue({
             textCSS(maxWidth),
             css`
               margin-left: var(--global-dimension-100);
-            `
+            `,
+            isValueEndAligned && valueEndAlignedCSS
           )}
         >
           <AnnotationScoreText optimizationValue={optimizationValue}>

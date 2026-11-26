@@ -8,7 +8,7 @@ import type { ButtonProps } from "./types";
 
 interface LinkButtonProps
   extends
-    Pick<LinkProps, "to" | "children" | "aria-label">,
+    Pick<LinkProps, "to" | "children" | "aria-label" | "target">,
     Pick<
       ButtonProps,
       | "size"
@@ -45,6 +45,7 @@ function LinkButton({
     css: propCSS,
     isDisabled,
     to,
+    target,
     "aria-label": ariaLabel,
   } = props;
   return (
@@ -56,6 +57,8 @@ function LinkButton({
       data-disabled={isDisabled}
       css={css(buttonCSS, linkButtonCSS, propCSS)}
       to={to}
+      target={target}
+      rel={target === "_blank" ? "noopener noreferrer" : undefined}
       aria-label={ariaLabel}
     >
       {leadingVisual}
