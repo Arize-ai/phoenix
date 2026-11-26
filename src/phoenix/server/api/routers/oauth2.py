@@ -14,6 +14,7 @@ from random import randrange
 from typing import Any, Optional, TypedDict
 from urllib.parse import urlparse
 
+import httpx2
 import jmespath
 from authlib.common.security import generate_token
 from authlib.integrations.starlette_client import OAuthError
@@ -280,6 +281,17 @@ async def create_tokens(
         token_data = await oauth2_client.fetch_access_token(**fetch_kwargs)
     except OAuthError as e:
         logger.error("OAuth2 error for IDP %s: %s", idp_name, e)
+        return _redirect_to_login(request=request, error="oauth_error")
+    except httpx2.HTTPStatusError as e:
+        # The IdP's response body is not logged because it may echo request secrets.
+        logger.error(
+            "OAuth2 token request to IDP %s failed with HTTP status %s",
+            idp_name,
+            e.response.status_code,
+        )
+        return _redirect_to_login(request=request, error="oauth_error")
+    except httpx2.TransportError as e:
+        logger.error("OAuth2 token request to IDP %s failed: %s", idp_name, type(e).__name__)
         return _redirect_to_login(request=request, error="oauth_error")
     _validate_token_data(token_data)
     if "id_token" not in token_data:
