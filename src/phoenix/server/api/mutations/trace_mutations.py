@@ -114,5 +114,8 @@ class TraceMutationMixin:
                 .where(models.Trace.id.in_(trace_rowids))
                 .values(project_rowid=dest_project_rowid)
             )
+        info.context.event_queue.put(
+            SpanDeleteEvent(tuple({*source_project_ids, dest_project_rowid}))
+        )
 
         return Query()
