@@ -1,0 +1,27 @@
+schema_version = "1.3"
+
+[task]
+name = "arize/skill-loading-phoenix-evals-ts-relevance-judge"
+description = "Write a TypeScript evaluator that judges whether an answer is relevant to the question"
+
+[metadata]
+skill = "phoenix-evals"
+tags = ["plugin-eval"]
+
+[metadata.arize-phoenix]
+reference_output_path = "tests/expected.json"
+
+[environment]
+os = "linux"
+cpus = 1
+memory_mb = 2048
+# Agents reach their model provider through hosts in job.yaml. The verifier needs none.
+network_mode = "allowlist"
+
+[agent]
+user = "agent"
+# A fallback. The stop hook and the Codex wrapper end the session before this.
+timeout_sec = 30.0
+
+[verifier]
+timeout_sec = 60.0
