@@ -2,8 +2,11 @@ import textwrap
 from datetime import datetime, timezone
 from typing import Any
 
+import anyio
 import pytest
+from fastapi import FastAPI
 from sqlalchemy import func, insert, select
+from starlette.types import ASGIApp
 from strawberry.relay import GlobalID
 
 from phoenix.config import DEFAULT_PROJECT_NAME
@@ -947,6 +950,122 @@ async def test_delete_a_dataset(
             await session.execute(select(models.Dataset).where(models.Dataset.id == 1))
         ).first()
     assert not dataset
+
+
+async def test_delete_a_dataset_stops_running_experiments(
+    app: FastAPI,
+    asgi_app: ASGIApp,
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert asgi_app is not None
+    async with db() as session:
+        session.add(models.Dataset(id=1, name="dataset-1", description=None, metadata_={}))
+        session.add(models.DatasetVersion(id=1, dataset_id=1, metadata_={}))
+        await session.flush()
+        session.add_all(
+            [
+                models.Experiment(
+                    id=0,
+                    dataset_id=1,
+                    dataset_version_id=1,
+                    name="exp-0",
+                    repetitions=1,
+                    metadata_={},
+                ),
+                models.Experiment(
+                    id=1,
+                    dataset_id=1,
+                    dataset_version_id=1,
+                    name="exp-1",
+                    repetitions=1,
+                    metadata_={},
+                ),
+            ]
+        )
+
+    runner = app.state.lifespan_state["experiment_runner"]
+
+    class _RunningExperimentStub:
+        def __init__(self) -> None:
+            self.stopped = False
+            self._drained = anyio.Event()
+            self._drained.set()
+
+        def stop(self) -> None:
+            self.stopped = True
+
+    stub_initial = _RunningExperimentStub()
+    stub_resumed = _RunningExperimentStub()
+    stub_concurrent = _RunningExperimentStub()
+    runner._experiments[0] = stub_initial
+
+    stop_calls: list[tuple[int, bool]] = []
+    original_stop = runner.stop_experiment
+
+    async def spy_stop_experiment(experiment_id: int) -> bool:
+        async with db() as session:
+            dataset_exists = (
+                await session.scalar(select(models.Dataset.id).where(models.Dataset.id == 1))
+            ) is not None
+        stop_calls.append((experiment_id, dataset_exists))
+        result = await original_stop(experiment_id)
+        if len(stop_calls) == 1:
+            # Simulate an experiment resuming and another starting between pre-delete stop and DELETE.
+            runner._experiments[0] = stub_resumed
+            async with db() as session:
+                session.add(
+                    models.Experiment(
+                        id=2,
+                        dataset_id=1,
+                        dataset_version_id=1,
+                        name="concurrent-experiment",
+                        repetitions=1,
+                        metadata_={},
+                    )
+                )
+            runner._experiments[2] = stub_concurrent
+        return bool(result)
+
+    monkeypatch.setattr(runner, "stop_experiment", spy_stop_experiment)
+
+    dataset_id = GlobalID(type_name="Dataset", node_id=str(1))
+    mutation = textwrap.dedent(
+        """
+        mutation ($datasetId: ID!) {
+          deleteDataset(input: { datasetId: $datasetId }) {
+            dataset {
+              id
+            }
+          }
+        }
+        """
+    )
+    response = await gql_client.execute(
+        query=mutation,
+        variables={"datasetId": str(dataset_id)},
+    )
+    assert not response.errors
+
+    assert stub_initial.stopped
+    assert stub_resumed.stopped
+    assert stub_concurrent.stopped
+    assert runner._experiments == {}
+    pre_delete_stops = {exp_id for exp_id, exists in stop_calls if exists}
+    post_delete_stops = {exp_id for exp_id, exists in stop_calls if not exists}
+    assert pre_delete_stops == {0, 1}
+    assert post_delete_stops == {0, 1, 2}
+
+    async with db() as session:
+        assert (
+            await session.scalar(select(models.Dataset.id).where(models.Dataset.id == 1))
+        ) is None
+        assert (
+            await session.scalars(
+                select(models.Experiment.id).where(models.Experiment.dataset_id == 1)
+            )
+        ).all() == []
 
 
 async def test_deleting_a_nonexistent_dataset_fails(gql_client: AsyncGraphQLClient) -> None:

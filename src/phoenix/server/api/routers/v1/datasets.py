@@ -35,7 +35,6 @@ from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
-from phoenix.db.helpers import get_eval_trace_ids_for_datasets, get_project_names_for_datasets
 from phoenix.db.insertion.dataset import (
     DatasetAction,
     DatasetExampleAdditionEvent,
@@ -52,7 +51,11 @@ from phoenix.server.api.types.DatasetExample import DatasetExample as DatasetExa
 from phoenix.server.api.types.DatasetSplit import DatasetSplit as DatasetSplitNodeType
 from phoenix.server.api.types.DatasetVersion import DatasetVersion as DatasetVersionNodeType
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.api.utils import delete_projects, delete_traces
+from phoenix.server.api.utils import (
+    delete_dataset_and_stop_experiments,
+    delete_projects,
+    delete_traces,
+)
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import DatasetInsertEvent, SpanDeleteEvent
@@ -198,18 +201,15 @@ async def delete_dataset(
             raise HTTPException(detail=f"Invalid Dataset ID: {id}", status_code=422)
     else:
         raise HTTPException(detail="Missing Dataset ID", status_code=422)
-    project_names_stmt = get_project_names_for_datasets(dataset_id)
-    eval_trace_ids_stmt = get_eval_trace_ids_for_datasets(dataset_id)
-    stmt = (
-        delete(models.Dataset).where(models.Dataset.id == dataset_id).returning(models.Dataset.id)
+    deleted = await delete_dataset_and_stop_experiments(
+        db=request.app.state.db,
+        experiment_runner=request.state.experiment_runner,
+        dataset_id=dataset_id,
     )
-    async with request.app.state.db() as session:
-        project_names = await session.scalars(project_names_stmt)
-        eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
-        if (await session.scalar(stmt)) is None:
-            raise HTTPException(detail="Dataset does not exist", status_code=404)
-    background_tasks.add_task(delete_projects, request.app.state.db, *project_names)
-    background_tasks.add_task(delete_traces, request.app.state.db, *eval_trace_ids)
+    if deleted is None:
+        raise HTTPException(detail="Dataset does not exist", status_code=404)
+    background_tasks.add_task(delete_projects, request.app.state.db, *deleted.project_names)
+    background_tasks.add_task(delete_traces, request.app.state.db, *deleted.eval_trace_ids)
 
 
 class DatasetWithExampleCount(Dataset):
