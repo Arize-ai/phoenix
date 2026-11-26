@@ -57,3 +57,28 @@ def test_omitted_version_metadata_defaults_to_empty() -> None:
     )
 
     assert prompt.metadata == {}
+
+
+def test_openai_max_completion_tokens_carries_over_to_anthropic() -> None:
+    prompt = PromptVersion.from_openai(
+        {
+            "model": "gpt-4o",
+            "max_completion_tokens": 2048,
+            "messages": [{"role": "user", "content": "Hello"}],
+        },
+    )
+
+    assert prompt.format(sdk="anthropic").kwargs["max_tokens"] == 2048
+
+
+def test_openai_max_completion_tokens_takes_precedence_over_max_tokens_for_anthropic() -> None:
+    prompt = PromptVersion.from_openai(
+        {
+            "model": "gpt-4o",
+            "max_tokens": 512,
+            "max_completion_tokens": 2048,
+            "messages": [{"role": "user", "content": "Hello"}],
+        },
+    )
+
+    assert prompt.format(sdk="anthropic").kwargs["max_tokens"] == 2048
