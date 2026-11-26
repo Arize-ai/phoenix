@@ -690,6 +690,13 @@
                 ]
               },
               {
+                "group": "Straitly",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/straitly",
+                  "docs/phoenix/integrations/llm-providers/straitly/openai-tracing"
+                ]
+              },
+              {
                 "group": "Together AI",
                 "pages": [
                   "docs/phoenix/integrations/llm-providers/together",

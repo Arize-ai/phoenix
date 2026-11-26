@@ -383,6 +383,23 @@
       }
     },
     {
+      "id": "straitly-python-lint",
+      "document": "docs/phoenix/integrations/llm-providers/straitly/openai-tracing.mdx",
+      "language": "python",
+      "install_section": "Install",
+      "setup_section": "Setup",
+      "run_section": "Run Straitly",
+      "required_env": [],
+      "setup": {
+        "source": "referenced_components",
+        "language": "python",
+        "project_name_prop": "projectName"
+      },
+      "verification": {
+        "kind": "phoenix_spans"
+      }
+    },
+    {
       "id": "guardrails-python",
       "document": "docs/phoenix/integrations/python/guardrails-ai/guardrails-ai-tracing.mdx",
       "language": "python",

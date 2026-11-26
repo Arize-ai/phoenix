@@ -640,6 +640,9 @@ replaces = [
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/spring-ai.png",
 ]
 
+[integrations.straitly]
+logo = "straitly"
+
 [integrations.tanstack]
 logo = "tanstack"
 replaces = [
@@ -866,6 +869,10 @@ logo = "orcarouter"
 replaces = [
   "https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/orcarouter-card.avif",
 ]
+
+[banners.integrations-llm-providers-straitly]
+title = "Straitly"
+logo = "straitly"
 
 [banners.integrations-llm-providers-together]
 title = "Together AI"
