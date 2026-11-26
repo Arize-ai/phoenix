@@ -40,6 +40,13 @@ class TestMustacheFormatterExtractVariablesWithTypes:
         result = formatter.extract_variables_with_types("{{^empty}}has content{{/empty}}")
         assert result == {"empty": "section"}
 
+    def test_vars_inside_inverted_section_extracted(self) -> None:
+        """An inverted section renders against the same context, so its inner
+        variables are top-level variables too."""
+        formatter = MustacheFormatter()
+        result = formatter.extract_variables_with_types("{{^urgent}}{{customer_name}}{{/urgent}}")
+        assert result == {"urgent": "section", "customer_name": "string"}
+
     def test_section_precedence_over_string(self) -> None:
         """A variable used as both a section and a plain var — section wins."""
         formatter = MustacheFormatter()

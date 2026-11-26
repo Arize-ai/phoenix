@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pandas as pd
 import pytest
+from pydantic import ValidationError
 
 from phoenix.evals.evaluators import (
     ClassificationEvaluator,
@@ -2060,6 +2061,18 @@ class TestLLMEvaluatorStructuredInputEndToEnd:
         template = "Query: {{query}}"
         rendered = self._render_prompt(template, {"query": "find me"})
         assert rendered == "Query: find me"
+
+    def test_var_inside_inverted_section_renders(self) -> None:
+        template = "Customer: {{^urgent}}{{customer_name}}{{/urgent}}"
+        rendered = self._render_prompt(template, {"urgent": False, "customer_name": "Ada"})
+        assert rendered == "Customer: Ada"
+
+    def test_var_inside_inverted_section_is_required_input(self) -> None:
+        """A variable that appears only inside an inverted section is a required
+        input of the auto-built schema, even when the section flag is truthy."""
+        template = "Customer: {{^urgent}}{{customer_name}}{{/urgent}}"
+        with pytest.raises(ValidationError, match="customer_name"):
+            self._render_prompt(template, {"urgent": True})
 
     def test_dotted_mustache_var_renders_from_root_object(self) -> None:
         template = "User: {{user.name}}"
