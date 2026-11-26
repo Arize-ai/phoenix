@@ -16,10 +16,7 @@ import {
   truncateSingleCSS,
   View,
 } from "@phoenix/components";
-import type {
-  Annotation,
-  AnnotationConfig,
-} from "@phoenix/components/annotation";
+import type { AnnotationConfig } from "@phoenix/components/annotation";
 import {
   AnnotationColorSwatch,
   getAnnotationScoreColorProps,
@@ -427,7 +424,7 @@ export function ExperimentCompareAnnotationsTable({
               {annotation != null ? (
                 <DialogTrigger>
                   <ExperimentAnnotationButton
-                    annotation={annotation as Annotation}
+                    annotation={annotation}
                     optimizationValue={getOptimizationValueFromConfig({
                       config,
                       score: annotation.score,
@@ -438,9 +435,7 @@ export function ExperimentCompareAnnotationsTable({
                     <PopoverArrow />
                     <Dialog style={{ width: 400 }}>
                       <View padding="size-200">
-                        <AnnotationDetailsContent
-                          annotation={annotation as Annotation}
-                        />
+                        <AnnotationDetailsContent annotation={annotation} />
                       </View>
                     </Dialog>
                   </Popover>

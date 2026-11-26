@@ -560,7 +560,7 @@ export function ExperimentCompareListPage({
     > = {
       header: "example",
       accessorKey: "example",
-      size: 110,
+      size: 200,
       cell: ({ row }) => {
         return (
           <Flex direction="row" gap="size-100" alignItems="center">

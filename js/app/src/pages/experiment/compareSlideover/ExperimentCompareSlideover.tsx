@@ -111,6 +111,13 @@ const slideoverCSS = css`
       var(--global-border-color-default);
   }
 
+  /* A long example ID truncates instead of crowding out the header */
+  .experiment-compare-slideover__title {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 40ch;
+  }
+
   .experiment-compare-slideover__position {
     font-family: var(--global-font-family-mono);
     font-variant-numeric: tabular-nums;
@@ -343,10 +350,12 @@ function OpenExperimentCompareSlideover({
               <SegmentedControlItem id="details">Details</SegmentedControlItem>
               <SegmentedControlItem id="traces">Traces</SegmentedControlItem>
             </SegmentedControl>
-            <TitleWithID
-              title="Example"
-              id={currentItem?.exampleExternalId ?? selectedExampleId}
-            />
+            <div className="experiment-compare-slideover__title">
+              <TitleWithID
+                title="Example"
+                id={currentItem?.exampleExternalId ?? selectedExampleId}
+              />
+            </div>
             <Text
               className="experiment-compare-slideover__position"
               size="S"

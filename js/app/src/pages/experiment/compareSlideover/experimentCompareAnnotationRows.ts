@@ -1,3 +1,4 @@
+import type { Annotation } from "@phoenix/components/annotation";
 import type { AnnotationOptimizationConfig } from "@phoenix/components/annotation/optimizationUtils";
 import { getOptimizationBounds } from "@phoenix/components/annotation/optimizationUtils";
 import type {
@@ -17,13 +18,7 @@ const DEFAULT_MAX_VISIBLE_REPETITION_CELLS = 8;
 
 const MIN_SCORE_CELL_OPACITY = 0.2;
 
-export type CompareLaneAnnotationLike = {
-  readonly name: string;
-  readonly score: number | null;
-  readonly label: string | null;
-};
-
-type CompareLaneAnnotatedRun<TAnnotation extends CompareLaneAnnotationLike> = {
+type CompareLaneAnnotatedRun<TAnnotation extends Annotation> = {
   readonly repetitionNumber: number;
   readonly error: string | null;
   readonly annotations: readonly TAnnotation[];
@@ -48,7 +43,7 @@ export type AnnotationRepetitionCell = {
   hasValue: boolean;
 };
 
-export type LaneAnnotationRow<TAnnotation extends CompareLaneAnnotationLike> = {
+export type LaneAnnotationRow<TAnnotation extends Annotation> = {
   annotationName: string;
   kind: AnnotationRowKind;
   /** The shown repetition's annotation; null when it has none */
@@ -96,9 +91,7 @@ export function computeLabelMode(labels: readonly string[]): string | null {
  * An annotation's value as a row shows it: its score, else its label, else
  * `--`.
  */
-export function formatAnnotationValue(
-  annotation: CompareLaneAnnotationLike | null
-): string {
+export function formatAnnotationValue(annotation: Annotation | null): string {
   if (annotation?.score != null) {
     return floatFormatter(annotation.score);
   }
@@ -114,9 +107,7 @@ export function formatAnnotationValue(
  * @param params.minScore - the experiment's lowest score for the annotation
  * @param params.maxScore - the experiment's highest score for the annotation
  */
-export function buildLaneAnnotationRow<
-  TAnnotation extends CompareLaneAnnotationLike,
->({
+export function buildLaneAnnotationRow<TAnnotation extends Annotation>({
   annotationName,
   runs,
   shownRepetitionNumber,
@@ -221,8 +212,8 @@ export function computeAnnotationRowDelta({
   compareAnnotation,
   config,
 }: {
-  baseAnnotation: CompareLaneAnnotationLike | null;
-  compareAnnotation: CompareLaneAnnotationLike | null;
+  baseAnnotation: Annotation | null;
+  compareAnnotation: Annotation | null;
   config: AnnotationOptimizationConfig | undefined;
 }): AnnotationRowDelta {
   const hasScore =

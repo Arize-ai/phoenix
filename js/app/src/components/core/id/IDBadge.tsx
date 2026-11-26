@@ -16,6 +16,23 @@ const idBadgeCSS = css`
   all: unset;
   display: inline-flex;
   cursor: pointer;
+  /* A long ID truncates to the width it is given instead of wrapping */
+  max-width: 100%;
+  min-width: 0;
+  .badge {
+    max-width: 100%;
+    min-width: 0;
+  }
+  .id-badge__id {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .id-badge__copy-icon,
+  .id-badge__id-icon {
+    flex: none;
+  }
   &:focus-visible {
     outline: var(--focus-ring-thickness) solid var(--focus-ring-color);
     outline-offset: var(--focus-ring-offset);
@@ -99,15 +116,25 @@ export const IDBadge = ({
       >
         {variant === "badge" ? (
           <Badge size={size}>
-            <Icon svgKey="ID" />
-            <Text fontFamily="mono" size="S" color="text-700">
+            <Icon className="id-badge__id-icon" svgKey="ID" />
+            <Text
+              className="id-badge__id"
+              fontFamily="mono"
+              size="S"
+              color="text-700"
+            >
               {id}
             </Text>
             {copyIcon}
           </Badge>
         ) : (
           <>
-            <Text fontFamily="mono" size="S" color="text-500">
+            <Text
+              className="id-badge__id"
+              fontFamily="mono"
+              size="S"
+              color="text-500"
+            >
               {id}
             </Text>
             {copyIcon}
