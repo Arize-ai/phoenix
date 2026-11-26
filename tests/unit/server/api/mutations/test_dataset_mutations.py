@@ -1,6 +1,7 @@
 import textwrap
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 from sqlalchemy import func, insert, select
@@ -911,6 +912,53 @@ class TestDeleteDatasetExamplesScope:
         )
         assert response.errors
         assert "not the specified dataset" in response.errors[0].message
+
+    async def test_created_at_is_set_by_database_in_utc(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        dataset_with_revisions: None,
+    ) -> None:
+        # Monkeypatch _LOCAL_TIMEZONE to an offset that differs from UTC.
+        # The old code passed naive datetime.now() through normalize_datetime,
+        # which stamps it with _LOCAL_TIMEZONE. A wrong cached offset produces
+        # timestamps shifted by that offset, making the assertions fail.
+        fake_tz = timezone(timedelta(hours=5))
+        before = datetime.now(timezone.utc).replace(microsecond=0)
+        with patch("phoenix.datetime_utils._LOCAL_TIMEZONE", fake_tz):
+            response = await gql_client.execute(
+                query=self._MUTATION,
+                variables={
+                    "input": {
+                        "datasetId": str(GlobalID("Dataset", str(1))),
+                        "exampleIds": [
+                            str(GlobalID(type_name=DatasetExample.__name__, node_id=str(1)))
+                        ],
+                    }
+                },
+            )
+        after = datetime.now(timezone.utc)
+        assert not response.errors
+        async with db() as session:
+            version = (
+                await session.scalars(
+                    select(models.DatasetVersion).order_by(models.DatasetVersion.id.desc()).limit(1)
+                )
+            ).first()
+            assert version is not None
+            assert version.created_at.tzinfo is not None
+            assert before <= version.created_at <= after
+            revisions = (
+                await session.scalars(
+                    select(models.DatasetExampleRevision).where(
+                        models.DatasetExampleRevision.dataset_version_id == version.id,
+                    )
+                )
+            ).all()
+            assert len(revisions) > 0
+            for revision in revisions:
+                assert revision.created_at.tzinfo is not None
+                assert before <= revision.created_at <= after
 
 
 async def test_delete_a_dataset(
