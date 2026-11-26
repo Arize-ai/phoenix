@@ -250,9 +250,10 @@ export interface PreferencesState extends PreferencesProps {
    */
   setProjectSortOrder: (projectSortOrder: ProjectSortOrder) => void;
   /**
-   * Setter for the last project selected on the dashboards page.
+   * Setter for the last project selected on the dashboards page. Pass
+   * `undefined` to forget it, e.g. when the project no longer exists.
    */
-  setLastSelectedDashboardProjectId: (projectId: string) => void;
+  setLastSelectedDashboardProjectId: (projectId: string | undefined) => void;
   /**
    * Setter for the user's preferred side nav open state
    */
