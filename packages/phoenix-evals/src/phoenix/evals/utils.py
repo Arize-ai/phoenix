@@ -348,6 +348,14 @@ def _format_score_data(
     # Create copy with all span_id columns + score column
     eval_df = dataframe[span_id_cols + [score_column]].copy()
 
+    # Handle empty DataFrame case - return empty structure with expected columns
+    if eval_df.empty:
+        # Create empty DataFrame with all expected columns
+        empty_df = pd.DataFrame(columns=span_id_cols)
+        for col in ["score", "label", "explanation", "metadata", "annotation_name", "annotator_kind"]:
+            empty_df[col] = pd.Series(dtype=object)
+        return empty_df
+
     # Parse JSON score data
     cols = ["score", "label", "explanation", "kind"]
 
