@@ -278,7 +278,7 @@ describe("project create", () => {
     );
   });
 
-  it("exits FAILURE with the HTTP status on an unauthorized response", async () => {
+  it("exits AUTH_REQUIRED with the HTTP status on an unauthorized response", async () => {
     mock.server.use(
       http.post("/v1/projects", ({ response }) =>
         response.untyped(
@@ -297,9 +297,9 @@ describe("project create", () => {
         ["create", "--name", "my-project", ...BASE_ARGS],
         { from: "user" }
       )
-    ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);
+    ).rejects.toThrow(`process.exit:${ExitCode.AUTH_REQUIRED}`);
 
-    expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.AUTH_REQUIRED);
     expect(io.stderr).toHaveBeenCalledWith(
       "Error creating project: Failed to create project (HTTP 401): Invalid token"
     );

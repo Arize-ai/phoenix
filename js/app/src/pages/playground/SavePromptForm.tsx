@@ -19,6 +19,7 @@ import {
   View,
 } from "@phoenix/components";
 import { CodeEditorFieldWrapper, JSONEditor } from "@phoenix/components/code";
+import { formatPromptVersionMetadataForEditor } from "@phoenix/components/playground/playgroundPromptUtils";
 import {
   DEFAULT_PROMPT_VERSION_TAGS,
   IDENTIFIER_DESCRIPTION,
@@ -28,7 +29,6 @@ import {
   useTransformingInput,
 } from "@phoenix/hooks/useTransformingInput";
 import type { SavePromptFormQuery } from "@phoenix/pages/playground/__generated__/SavePromptFormQuery.graphql";
-import { formatPromptVersionMetadataForEditor } from "@phoenix/pages/playground/playgroundPromptUtils";
 import { PromptComboBox } from "@phoenix/pages/playground/PromptComboBox";
 import {
   transformIdentifierInput,

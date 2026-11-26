@@ -30,8 +30,12 @@ from phoenix.server.agents.model_selection import (
 )
 from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
 from phoenix.server.api.exceptions import BadRequest
-from phoenix.server.api.helpers.agent_sessions import get_custom_provider
-from phoenix.server.api.helpers.playground_clients import _resolve_secrets
+from phoenix.server.api.helpers.agent_sessions import (
+    get_custom_provider,
+    require_chat_custom_provider,
+    require_chat_model_provider,
+)
+from phoenix.server.api.helpers.builtin_providers import resolve_secrets
 from phoenix.server.types import DbSessionFactory
 from phoenix.utilities.env_vars import without_env_vars
 
@@ -78,12 +82,12 @@ async def _resolve_secrets_or_env(
     environment second; absent keys map to ``None``. A failure to decrypt
     a stored secret surfaces as ``ProviderConfigError`` so callers don't
     need to know about the GraphQL-flavoured exception that
-    ``_resolve_secrets`` raises.
+    ``resolve_secrets`` raises.
     """
     if not keys:
         return {}
     try:
-        secrets = await _resolve_secrets(session, decrypt, *keys)
+        secrets = await resolve_secrets(session, decrypt, *keys)
     except BadRequest as exc:
         raise ProviderConfigError(str(exc)) from exc
     return {key: secrets.get(key) or getenv(key) for key in keys}
@@ -134,6 +138,8 @@ def _builtin_provider_credential_env_vars(provider: ModelProvider) -> tuple[str,
         return ("ZAI_API_KEY",)
     if provider is ModelProvider.META:
         return ("META_API_KEY",)
+    if provider is ModelProvider.TYPESAFE:
+        return ("TYPESAFE_API_KEY",)
     assert_never(provider)
 
 
@@ -162,12 +168,14 @@ async def build_model(
     if isinstance(model, CustomProviderModelSelection):
         async with db() as session:
             provider = await get_custom_provider(session, model.provider_id)
+        require_chat_custom_provider(provider)
         pydantic_ai_model = await _get_pydantic_ai_model_from_generative_model_custom_provider(
             provider_record=provider,
             model_name=model.model_name,
             decrypt=decrypt,
         )
     elif isinstance(model, BuiltInProviderModelSelection):
+        require_chat_model_provider(model.provider)
         async with db() as session:
             credentials = await _resolve_secrets_or_env(
                 session,

@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: smtp-dev
+  labels:
+    app: smtp-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: smtp-dev
+  template:
+    metadata:
+      labels:
+        app: smtp-dev
+    spec:
+      containers:
+        - name: smtp-dev
+          image: docker.io/library/devops-smtp-dev:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: smtp
+              containerPort: 1025
+            - name: web
+              containerPort: 8025
+          env:
+            - name: SMTP_PORT
+              value: "1025"
+            - name: WEB_PORT
+              value: "8025"
+            - name: HOST
+              value: "0.0.0.0"
+            - name: MAX_EMAILS
+              value: "1000"
+            - name: LOG_LEVEL
+              value: "info"
+          resources:
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: smtp-dev
+  labels:
+    app: smtp-dev
+spec:
+  selector:
+    app: smtp-dev
+  ports:
+    - name: smtp
+      port: 1025
+      targetPort: 1025
+    - name: web
+      port: 8025
+      targetPort: 8025

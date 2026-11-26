@@ -1,0 +1,260 @@
+import { fetchQuery, graphql } from "react-relay";
+
+import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
+import {
+  isTemplateFormat,
+  type TemplateFormat,
+} from "@phoenix/components/templateEditor/types";
+import { DEFAULT_MODEL_PROVIDER } from "@phoenix/constants/generativeConstants";
+import RelayEnvironment from "@phoenix/RelayEnvironment";
+import type {
+  PlaygroundInstance,
+  PlaygroundInstanceDecision,
+} from "@phoenix/store/playground";
+import { createDecisionTaskInstance } from "@phoenix/store/playground";
+import { isModelProvider } from "@phoenix/utils/generativeUtils";
+
+import type {
+  fetchPlaygroundDecisionQuery,
+  fetchPlaygroundDecisionQuery$data,
+} from "./__generated__/fetchPlaygroundDecisionQuery.graphql";
+import {
+  type SavedDecisionVersion,
+  savedDecisionVersionToDraft,
+  toSavedDecisionQuestions,
+} from "./savedDecisionUtils";
+
+const decisionVersionQuery = graphql`
+  query fetchPlaygroundDecisionQuery(
+    $decisionId: ID!
+    $versionId: ID
+    $tagName: Identifier
+  ) {
+    decision: node(id: $decisionId) {
+      ... on Decision {
+        id
+        name
+        version(versionId: $versionId, tagName: $tagName) {
+          id
+          modelProvider
+          modelName
+          customProvider {
+            id
+            name
+          }
+          templateFormat
+          state {
+            __typename
+            ... on DecisionTextState {
+              text
+            }
+            ... on DecisionJsonState {
+              json
+            }
+          }
+          questions {
+            __typename
+            ... on DecisionPredicateQuestion {
+              name
+              instructions
+              criteria {
+                true
+                false
+              }
+            }
+            ... on DecisionChoiceQuestion {
+              name
+              instructions
+              choices {
+                value
+                description
+              }
+            }
+            ... on DecisionScaleQuestion {
+              name
+              instructions
+              levels {
+                label
+                description
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+type FetchedVersion = NonNullable<
+  NonNullable<fetchPlaygroundDecisionQuery$data["decision"]>["version"]
+>;
+
+/** A fetched version or frozen experiment task in the shape the draft conversion reads. */
+export function toSavedDecisionVersion(
+  version: Pick<FetchedVersion, "templateFormat" | "state" | "questions">
+): SavedDecisionVersion {
+  const state: SavedDecisionVersion["state"] =
+    version.state.__typename === "DecisionJsonState"
+      ? { kind: "json", json: version.state.json }
+      : {
+          kind: "text",
+          text:
+            version.state.__typename === "DecisionTextState"
+              ? version.state.text
+              : "",
+        };
+  return {
+    templateFormat: toTemplateFormat(version.templateFormat),
+    state,
+    questions: toSavedDecisionQuestions(version.questions),
+  };
+}
+
+/** A saved decision version, as fetched: its definition and its model. */
+export type FetchedDecisionVersion = {
+  decision: Omit<PlaygroundInstanceDecision, "tag">;
+  version: SavedDecisionVersion;
+  modelProvider: string;
+  modelName: string;
+  customProvider: { id: string; name: string } | null;
+};
+
+/**
+ * Fetches a saved decision's version, by version id or by tag; the latest
+ * when neither is given. Null when the decision or the version is gone.
+ */
+export async function fetchDecisionVersion({
+  decisionId,
+  decisionVersionId = null,
+  tagName = null,
+}: {
+  decisionId: string;
+  decisionVersionId?: string | null;
+  tagName?: string | null;
+}): Promise<FetchedDecisionVersion | null> {
+  const data = await fetchQuery<fetchPlaygroundDecisionQuery>(
+    RelayEnvironment,
+    decisionVersionQuery,
+    { decisionId, versionId: decisionVersionId, tagName },
+    { fetchPolicy: "network-only" }
+  ).toPromise();
+  const decision = data?.decision;
+  const version = decision?.version;
+
+  if (!decision?.id || !decision.name || !version) {
+    return null;
+  }
+
+  return {
+    decision: {
+      id: decision.id,
+      name: decision.name,
+      versionId: version.id,
+    },
+    version: toSavedDecisionVersion(version),
+    modelProvider: version.modelProvider,
+    modelName: version.modelName,
+    customProvider: version.customProvider ?? null,
+  };
+}
+
+/** A template format from the server; formats this app doesn't know read as Mustache. */
+function toTemplateFormat(format: string): TemplateFormat {
+  return isTemplateFormat(format) ? format : TemplateFormats.Mustache;
+}
+
+/**
+ * The decision instance for a fetched version, written in the page's
+ * template format. A base instance keeps what the version doesn't set: the
+ * chat model the instance can switch back to, and the base URL of a provider
+ * the version still uses.
+ *
+ * Throws when the page's format can't express the version's state; see
+ * {@link savedDecisionVersionToDraft}.
+ */
+export function toDecisionInstance({
+  fetched,
+  tagName,
+  templateFormat,
+  base,
+}: {
+  fetched: FetchedDecisionVersion;
+  tagName: string | null;
+  templateFormat: TemplateFormat;
+  base?: Pick<PlaygroundInstance, "model" | "llmModel">;
+}): Omit<PlaygroundInstance, "id"> {
+  const decisionPrompt = savedDecisionVersionToDraft({
+    version: fetched.version,
+    templateFormat,
+  });
+  const provider = isModelProvider(fetched.modelProvider)
+    ? fetched.modelProvider
+    : (base?.model.provider ?? DEFAULT_MODEL_PROVIDER);
+  const baseModel = base?.model.modelType === "DECISION" ? base.model : null;
+  const instance = createDecisionTaskInstance({
+    model: baseModel ?? undefined,
+    llmModel: base?.llmModel ?? (baseModel ? undefined : base?.model),
+  });
+
+  return {
+    ...instance,
+    decisionPrompt,
+    decision: { ...fetched.decision, tag: tagName },
+    model: {
+      ...instance.model,
+      provider,
+      modelName: fetched.modelName,
+      modelType: "DECISION",
+      customProvider: fetched.customProvider,
+      baseUrl:
+        !fetched.customProvider && baseModel && provider === baseModel.provider
+          ? (baseModel.baseUrl ?? null)
+          : null,
+    },
+  };
+}
+
+/**
+ * Fetches a saved decision version as the instance content to land with
+ * `loadInstance`. Null when it no longer exists. Throws when the page's
+ * template format can't express it.
+ */
+export async function fetchPlaygroundDecisionAsInstance({
+  decisionId,
+  decisionVersionId,
+  tagName,
+  templateFormat,
+  base,
+}: {
+  decisionId: string;
+  decisionVersionId?: string | null;
+  tagName?: string | null;
+  /** The page's format; the version's own when the page has no say. */
+  templateFormat: TemplateFormat | null;
+  base?: Pick<PlaygroundInstance, "model" | "llmModel">;
+}): Promise<{
+  instance: Omit<PlaygroundInstance, "id">;
+  templateFormat: TemplateFormat;
+} | null> {
+  const fetched = await fetchDecisionVersion({
+    decisionId,
+    decisionVersionId,
+    tagName,
+  });
+
+  if (!fetched) {
+    return null;
+  }
+
+  const format = templateFormat ?? fetched.version.templateFormat;
+
+  return {
+    instance: toDecisionInstance({
+      fetched,
+      tagName: tagName ?? null,
+      templateFormat: format,
+      base,
+    }),
+    templateFormat: format,
+  };
+}

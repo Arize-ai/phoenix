@@ -7,11 +7,11 @@ import { CompositeField, Flex, Text } from "@phoenix/components";
 import type {
   PromptData,
   PromptVersion,
-} from "@phoenix/pages/playground/PromptMenu";
+} from "@phoenix/components/playground/PromptMenu";
 import {
   PromptSelector,
   PromptVersionSelector,
-} from "@phoenix/pages/playground/PromptMenu";
+} from "@phoenix/components/playground/PromptMenu";
 
 /**
  * Container CSS that matches the PromptMenu component's wrapper.
@@ -270,6 +270,7 @@ function PresetRender({
             prompts={prompts}
             selectedPrompt={selectedPrompt}
             onSelectPrompt={handleSelectPrompt}
+            hasVersionSelector
           />
           <PromptVersionSelector
             prompt={selectedPrompt}
@@ -289,6 +290,7 @@ function PresetRender({
         prompts={prompts}
         selectedPrompt={null}
         onSelectPrompt={handleSelectPrompt}
+        hasVersionSelector={false}
       />
     </div>
   );
@@ -399,6 +401,7 @@ function PlaygroundRender(args: StoryArgs) {
             prompts={prompts}
             selectedPrompt={selectedPrompt}
             onSelectPrompt={handleSelectPrompt}
+            hasVersionSelector
           />
           <PromptVersionSelector
             prompt={selectedPrompt}
@@ -418,6 +421,7 @@ function PlaygroundRender(args: StoryArgs) {
         prompts={prompts}
         selectedPrompt={null}
         onSelectPrompt={handleSelectPrompt}
+        hasVersionSelector={false}
       />
     </div>
   );

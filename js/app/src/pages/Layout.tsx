@@ -135,6 +135,20 @@ const sideLinksCSS = css`
   display: flex;
   flex-direction: column;
   gap: var(--global-dimension-size-50);
+  /* When the window is shorter than the nav's contents (e.g. while the version
+     update notice is showing), this list yields height and scrolls instead of
+     pushing the bottom links past the viewport, where the application frame
+     would clip them. */
+  min-height: 0;
+  overflow-y: auto;
+  /* A scroll container clips the focus rings of links flush with its edges.
+     Reserve room for the ring and pull the box back by the same amount so
+     the layout is unchanged. */
+  --side-links-ring-clearance: calc(
+    var(--focus-ring-thickness) + var(--focus-ring-offset)
+  );
+  padding: var(--side-links-ring-clearance);
+  margin: calc(-1 * var(--side-links-ring-clearance));
 `;
 
 export function Layout() {
@@ -295,7 +309,12 @@ function SideNavContent({
   return (
     <SideNavbar isExpanded={isExpanded}>
       <Brand />
-      <Flex direction="column" justifyContent="space-between" flex="1 1 auto">
+      <Flex
+        direction="column"
+        justifyContent="space-between"
+        flex="1 1 auto"
+        minHeight={0}
+      >
         <ul css={sideLinksCSS}>
           <li key="search">
             <GlobalSearch isExpanded={isExpanded} />
@@ -340,8 +359,14 @@ function SideNavContent({
               text="Evaluators"
               leadingVisual={<Icon svg={<Icons.Scale />} />}
               trailingVisual={
-                counts?.evaluatorCount != null ? (
-                  <Counter variant="quiet" count={counts.evaluatorCount} />
+                counts != null ? (
+                  <Counter
+                    variant="quiet"
+                    count={
+                      counts.projectEvaluatorCount +
+                      counts.datasetEvaluatorCount
+                    }
+                  />
                 ) : undefined
               }
               isExpanded={isExpanded}
@@ -354,10 +379,13 @@ function SideNavContent({
             <NavLink
               to="/prompts"
               text="Prompts"
-              leadingVisual={<Icon svg={<Icons.MessageSquare />} />}
+              leadingVisual={<Icon svg={<Icons.MessagesSquare />} />}
               trailingVisual={
                 counts?.promptCount != null ? (
-                  <Counter variant="quiet" count={counts.promptCount} />
+                  <Counter
+                    variant="quiet"
+                    count={counts.promptCount + (counts.decisionCount ?? 0)}
+                  />
                 ) : undefined
               }
               isExpanded={isExpanded}

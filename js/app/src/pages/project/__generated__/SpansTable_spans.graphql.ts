@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<53df339d7e02c8817bfff3ffd399a6b6>>
+ * @generated SignedSource<<514d58a364a50bcca7c275ba10348eaa>>
  * @lightSyntaxTransform
  */
 
@@ -15,7 +15,6 @@ import { FragmentRefs } from "relay-runtime";
 export type SpansTable_spans$data = {
   readonly id: string;
   readonly name: string;
-  readonly spanAnnotationNames: ReadonlyArray<string>;
   readonly spans: {
     readonly edges: ReadonlyArray<{
       readonly span: {
@@ -75,7 +74,7 @@ export type SpansTable_spans$data = {
       };
     }>;
   };
-  readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment" | "SpanColumnSelector_annotations" | "SpanColumnSelector_traceAnnotations">;
+  readonly " $fragmentSpreads": FragmentRefs<"ProjectAnnotationConfigsByNameFragment">;
   readonly " $fragmentType": "SpansTable_spans";
 };
 export type SpansTable_spans$key = {
@@ -159,6 +158,11 @@ return {
       "name": "first"
     },
     {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "projectEvaluatorId"
+    },
+    {
       "defaultValue": true,
       "kind": "LocalArgument",
       "name": "rootSpansOnly"
@@ -209,26 +213,9 @@ return {
   "selections": [
     (v1/*:: as any*/),
     {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "spanAnnotationNames",
-      "storageKey": null
-    },
-    {
       "args": null,
       "kind": "FragmentSpread",
       "name": "ProjectAnnotationConfigsByNameFragment"
-    },
-    {
-      "args": null,
-      "kind": "FragmentSpread",
-      "name": "SpanColumnSelector_annotations"
-    },
-    {
-      "args": null,
-      "kind": "FragmentSpread",
-      "name": "SpanColumnSelector_traceAnnotations"
     },
     {
       "alias": "spans",
@@ -237,6 +224,11 @@ return {
           "kind": "Variable",
           "name": "filterCondition",
           "variableName": "filterCondition"
+        },
+        {
+          "kind": "Variable",
+          "name": "projectEvaluatorId",
+          "variableName": "projectEvaluatorId"
         },
         {
           "kind": "Variable",
@@ -586,6 +578,6 @@ return {
 };
 })();
 
-(node as any).hash = "b88f93524380fcbcce735d30518603af";
+(node as any).hash = "76090bc78099bdac6213a9703426d1f5";
 
 export default node;

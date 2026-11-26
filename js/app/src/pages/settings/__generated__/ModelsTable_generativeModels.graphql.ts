@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c99b6e4a7de5f6e90cc12c7a8ee88d8d>>
+ * @generated SignedSource<<d71bfb6a51abe5df388c336b812ea8db>>
  * @lightSyntaxTransform
  */
 
@@ -10,7 +10,7 @@
 import { ReaderFragment } from 'relay-runtime';
 export type GenerativeModelKind = "BUILT_IN" | "CUSTOM";
 export type GenerativeModelType = "DECISION" | "EMBEDDING" | "LLM";
-export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI" | "ZAI";
+export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "META" | "MINIMAX" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "TYPESAFE" | "XAI" | "ZAI";
 export type TokenKind = "COMPLETION" | "PROMPT";
 import { FragmentRefs } from "relay-runtime";
 export type ModelsTable_generativeModels$data = {

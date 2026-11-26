@@ -21,12 +21,12 @@ import {
 import { Button } from "@phoenix/components/core/button";
 import { SelectChevronUpDownIcon } from "@phoenix/components/core/icon";
 import { Popover } from "@phoenix/components/core/overlay";
-import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
-import type { ParamSpec } from "@phoenix/pages/playground/invocationParameterSpecs";
+import type { ParamSpec } from "@phoenix/components/playground/invocationParameterSpecs";
 import {
   getVisibleInvocationParameterSpecs,
   readInvocationConfigField,
-} from "@phoenix/pages/playground/providerAdapters";
+} from "@phoenix/components/playground/providerAdapters";
+import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 /**
  * Sentinel used in the generic enum Select to represent "no value" (i.e. the

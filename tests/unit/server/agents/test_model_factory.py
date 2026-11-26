@@ -127,9 +127,7 @@ class TestCustomProviderModels:
             def __init__(self, **kwargs: Any) -> None:
                 self.kwargs = kwargs
                 self.base_url = kwargs.get("base_url", "https://example.test/v1")
-                # pydantic-ai reads the resource attribute matching the model class
-                # while constructing the model, so a stand-in client must expose the
-                # attribute for every ``openai_api_type`` under test.
+                # pydantic-ai reads the client attribute matching the model class at construction.
                 self.chat = SimpleNamespace(completions=object())
                 self.responses = object()
 
@@ -189,7 +187,7 @@ class TestCustomProviderModels:
 
 class TestSecretResolutionErrorTranslation:
     """Regression: a stored secret that cannot be decrypted used to bubble up
-    as ``BadRequest`` from ``playground_clients._resolve_secrets`` and reach
+    as ``BadRequest`` from ``builtin_providers.resolve_secrets`` and reach
     FastAPI as an unhandled exception (500). It must surface as
     ``ProviderConfigError`` so the chat router maps it to a 400."""
 

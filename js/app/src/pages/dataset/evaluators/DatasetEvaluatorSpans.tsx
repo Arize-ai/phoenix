@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
+import { useParams } from "react-router";
 
 import { useTimeRange } from "@phoenix/components/datetime";
 import { ErrorBoundary } from "@phoenix/components/exception";
@@ -98,6 +99,7 @@ function DatasetEvaluatorSpansTable({
                 filterCondition: $filterCondition
                 rootSpansOnly: $rootSpansOnly
               )
+            ...useSpanAnnotationNames_project @defer
           }
         }
       }
@@ -113,5 +115,13 @@ function DatasetEvaluatorSpansTable({
       fetchKey: projectId,
     }
   );
-  return <SpansTable project={data.project} seed={seed} />;
+  const { traceId } = useParams();
+  return (
+    <SpansTable
+      project={data.project}
+      seed={seed}
+      selectedRowId={traceId}
+      initialRequest={null}
+    />
+  );
 }

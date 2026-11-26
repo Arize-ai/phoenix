@@ -23,6 +23,10 @@ export type DatasetEvaluatorOutputConfig = {
  */
 export type DatasetEvaluatorForConfig = {
   readonly name: string;
+  /** The evaluator kind; decision bindings name their annotations differently. */
+  readonly kind?: string;
+  /** The bound evaluator, read for its kind when `kind` is not set. */
+  readonly evaluator?: { readonly kind?: string } | null;
   /** Array of output configurations for multi-output evaluators */
   readonly outputConfigs?: readonly DatasetEvaluatorOutputConfig[] | null;
 };
@@ -78,12 +82,52 @@ function outputConfigToAnnotationConfig(
 }
 
 /**
+ * The annotation name a decision binding's question is stored under: the
+ * binding's name when the judge has one question, otherwise
+ * `{binding}.{question}`. Mirrors the server's `result_annotation_names`.
+ */
+export function getDecisionAnnotationName({
+  bindingName,
+  questionName,
+  questionCount,
+}: {
+  bindingName: string;
+  questionName: string;
+  questionCount: number;
+}): string {
+  return questionCount === 1 ? bindingName : `${bindingName}.${questionName}`;
+}
+
+/**
  * Converts a single dataset evaluator to an array of AnnotationConfigs.
  * Handles the outputConfigs array for multi-output evaluator support.
+ * A decision binding's output configs are named after its questions, so they
+ * are renamed to the annotation names its results are stored under.
  */
 export function datasetEvaluatorToAnnotationConfigs(
   evaluator: DatasetEvaluatorForConfig
 ): AnnotationConfig[] {
+  const kind = evaluator.kind ?? evaluator.evaluator?.kind;
+  if (
+    kind === "DECISION" &&
+    evaluator.outputConfigs &&
+    evaluator.outputConfigs.length > 0
+  ) {
+    const questionCount = evaluator.outputConfigs.length;
+    return evaluator.outputConfigs.map((config) =>
+      outputConfigToAnnotationConfig(
+        {
+          ...config,
+          name: getDecisionAnnotationName({
+            bindingName: evaluator.name,
+            questionName: config.name ?? "",
+            questionCount,
+          }),
+        },
+        evaluator.name
+      )
+    );
+  }
   if (evaluator.outputConfigs && evaluator.outputConfigs.length > 0) {
     return evaluator.outputConfigs.map((config) =>
       outputConfigToAnnotationConfig(config, evaluator.name)
@@ -107,4 +151,34 @@ export function datasetEvaluatorsToAnnotationConfigs(
   evaluators: readonly DatasetEvaluatorForConfig[]
 ): AnnotationConfig[] {
   return evaluators.flatMap(datasetEvaluatorToAnnotationConfigs);
+}
+
+/**
+ * Narrows annotation configs to the annotations that have results.
+ *
+ * Keeps the configs whose name is among `annotationNames`, in config order,
+ * then appends a freeform config for each remaining name with no config
+ * (e.g. an evaluator that ran from an SDK or was since removed from the
+ * dataset), sorted by name.
+ */
+export function getAnnotationConfigsWithResults({
+  annotationConfigs,
+  annotationNames,
+}: {
+  annotationConfigs: readonly AnnotationConfig[];
+  /** Names of the annotations that have at least one result */
+  annotationNames: Iterable<string>;
+}): AnnotationConfig[] {
+  const namesWithResults = new Set(annotationNames);
+  const configsWithResults = annotationConfigs.filter((config) =>
+    namesWithResults.has(config.name)
+  );
+  const configuredNames = new Set(
+    annotationConfigs.map((config) => config.name)
+  );
+  const unconfiguredConfigs: AnnotationConfig[] = [...namesWithResults]
+    .filter((name) => !configuredNames.has(name))
+    .sort((a, b) => a.localeCompare(b))
+    .map((name) => ({ name, annotationType: "FREEFORM" }));
+  return [...configsWithResults, ...unconfiguredConfigs];
 }

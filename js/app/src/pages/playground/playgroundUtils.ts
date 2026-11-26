@@ -1,14 +1,43 @@
 import { z } from "zod";
 
-import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
-import { getTemplateFormatUtils } from "@phoenix/components/templateEditor/templateEditorUtils";
+import {
+  buildDecisionInstanceFromSpanAttributes,
+  isDecisionSpanAttributes,
+} from "@phoenix/components/playground/decisionUtils";
+import {
+  isResponsesShapedRawTool,
+  buildPromptVersionInput,
+  buildPromptToolFunctionInput,
+  getChatRole,
+  openInferenceModelProviderToPhoenixModelProvider,
+  toGqlCredentials,
+  denormalizePlaygroundInstance,
+  getVariablesMapFromInstances,
+} from "@phoenix/components/playground/playgroundInstanceUtils";
+import {
+  getDefaultInvocationConfig,
+  spanInvocationToConfigAndPromoted,
+  type ProviderInvocationConfig,
+} from "@phoenix/components/playground/providerAdapters";
+import type {
+  LlmToolSchema,
+  MessageSchema,
+} from "@phoenix/components/playground/schemas";
+import {
+  chatMessagesSchema,
+  llmInputMessageSchema,
+  llmOutputMessageSchema,
+  llmToolSchema,
+  modelConfigSchema,
+  modelConfigWithInvocationParametersSchema,
+  outputSchema,
+  promptTemplateSchema,
+  urlSchema,
+} from "@phoenix/components/playground/schemas";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import {
-  ChatRoleMap,
-  DEFAULT_CHAT_ROLE,
   DEFAULT_MODEL_PROVIDER,
   DEFAULT_OPENAI_API_TYPE,
-  ProviderToCredentialsConfigMap,
 } from "@phoenix/constants/generativeConstants";
 import {
   anthropicToolDefinitionSchema,
@@ -21,12 +50,9 @@ import type { JSONLiteral } from "@phoenix/schemas/jsonLiteralSchema";
 import type { PhoenixToolEditorType } from "@phoenix/schemas/phoenixToolTypeSchemas";
 import type {
   AnthropicToolCall,
-  LlmProviderToolCall,
   OpenAIToolCall,
 } from "@phoenix/schemas/toolCallSchemas";
 import {
-  createAnthropicToolCall,
-  createOpenAIToolCall,
   findToolCallArguments,
   findToolCallId,
   findToolCallName,
@@ -47,7 +73,6 @@ import type {
   ModelConfig,
   PlaygroundInput,
   PlaygroundInstance,
-  PlaygroundNormalizedInstance,
   PlaygroundStore,
   Tool,
 } from "@phoenix/store/playground";
@@ -55,20 +80,20 @@ import {
   createNormalizedPlaygroundInstance,
   generateMessageId,
   generateToolId,
+  getTemplateVariablesPath,
 } from "@phoenix/store/playground";
-import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
+import { isStringKeyedObject } from "@phoenix/typeUtils";
 import {
   formatContentAsString,
   safelyParseJSON,
 } from "@phoenix/utils/jsonUtils";
 
 import type {
-  ChatCompletionOverDatasetInput,
   EvaluatorInputMappingInput,
+  PromptTaskInput,
 } from "./__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import type {
   ChatCompletionInput,
-  GenerativeCredentialInput,
   PromptMessageRole,
 } from "./__generated__/PlaygroundOutputSubscription.graphql";
 import type { ChatPromptVersionInput } from "./__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
@@ -84,58 +109,8 @@ import {
   SPAN_ATTRIBUTES_PARSING_ERROR,
   TOOLS_PARSING_ERROR,
 } from "./constants";
-import {
-  getVisibleInvocationParameterSpecs,
-  getDefaultInvocationConfig,
-  invocationConfigToPromptInput,
-  readInvocationConfigField,
-  spanInvocationToConfigAndPromoted,
-  type ProviderInvocationConfig,
-} from "./providerAdapters";
-import type { LlmToolSchema, MessageSchema } from "./schemas";
-import {
-  chatMessageRolesSchema,
-  chatMessagesSchema,
-  llmInputMessageSchema,
-  llmOutputMessageSchema,
-  llmToolSchema,
-  modelConfigSchema,
-  modelConfigWithInvocationParametersSchema,
-  outputSchema,
-  promptTemplateSchema,
-  urlSchema,
-} from "./schemas";
 import { inferOpenAIApiTypeFromAttributes } from "./spanInvocationParameterHydration";
 import type { PlaygroundSpan } from "./spanPlaygroundPageLoader";
-
-/**
- * Checks if a string is a valid chat message role
- */
-export function isChatMessageRole(role: unknown): role is ChatMessageRole {
-  return chatMessageRolesSchema.safeParse(role).success;
-}
-
-/**
- * Takes a string role and attempts to map the role to a valid ChatMessageRole.
- * If the role is not found, it will default to {@link DEFAULT_CHAT_ROLE}.
- * @param role the role to map
- * @returns ChatMessageRole
- *
- * NB: Only exported for testing
- */
-export function getChatRole(_role: string): ChatMessageRole {
-  const role = _role.toLowerCase();
-  if (isChatMessageRole(role)) {
-    return role;
-  }
-
-  for (const [chatRole, acceptedValues] of Object.entries(ChatRoleMap)) {
-    if (acceptedValues.includes(role)) {
-      return chatRole as ChatMessageRole;
-    }
-  }
-  return DEFAULT_CHAT_ROLE;
-}
 
 /**
  * Takes tool calls on a message from span attributes and a provider and transforms them into the corresponding providers tool calls for a message in the playground
@@ -369,34 +344,6 @@ export function getOutputFromAttributes({
 }
 
 /**
- * Converts an OpenInference model provider to a Phoenix model provider.
- * @param provider the OpenInference model provider
- * @returns the Phoenix model provider or null if the provider is not supported / defined
- */
-export function openInferenceModelProviderToPhoenixModelProvider(
-  provider: string | undefined | null
-): ModelProvider | null {
-  if (provider == null) {
-    return null;
-  }
-  const maybeProvider = provider.toLowerCase();
-  switch (maybeProvider) {
-    case "openai":
-      return "OPENAI";
-    case "anthropic":
-      return "ANTHROPIC";
-    case "aws":
-      return "AWS";
-    case "google":
-      return "GOOGLE";
-    case "azure":
-      return "AZURE_OPENAI";
-    default:
-      return null;
-  }
-}
-
-/**
  * Attempts to infer the provider of the model from the model name.
  * @param modelName the model name to get the provider from
  * @returns the provider of the model defaulting to {@link DEFAULT_MODEL_PROVIDER} if the provider cannot be inferred
@@ -461,76 +408,6 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
     };
   }
   return { modelConfig: null, parsingErrors: [MODEL_CONFIG_PARSING_ERROR] };
-}
-
-/**
- * Tool `type` values that are exclusive to OpenAI Chat Completions (i.e. not
- * accepted by the Responses API). Used as a negative list so that a tool with
- * one of these types is NOT treated as a Responses signal even though its
- * type isn't "function".
- *
- * Currently just "custom" (ChatCompletionCustomToolParam — a Chat-Completions
- * tool that processes input via a specified format). If OpenAI ever ships
- * another non-function Chat-Completions-only tool, add it here. Failure mode
- * if we miss one: prompts containing it get misclassified as Responses, which
- * surfaces as a confusing 400 from OpenAI at request time.
- */
-const CHAT_COMPLETIONS_ONLY_NON_FUNCTION_TYPES: ReadonlySet<string> = new Set([
-  "custom",
-]);
-
-/**
- * Two positive signals that a tool came from the OpenAI Responses API:
- *
- *   1. The tool's `type` is a non-"function" string AND is not in the
- *      Chat-Completions-only set above (e.g. "web_search", "file_search",
- *      "computer_use_preview"). Chat Completions otherwise only accepts
- *      function tools, so seeing any other type is proof of Responses.
- *   2. The tool is a function tool but in *flat* Responses shape:
- *      `{ type: "function", name, parameters, ... }` with the function fields
- *      at the top level. Chat Completions wraps them in a nested
- *      `function: { name, parameters, ... }` sub-object instead.
- *
- * Either signal alone is sufficient. Returns null if neither is present (the
- * tool could be Chat Completions or could be a Responses prompt that happens
- * to contain only Chat-Completions-shaped tools — we can't distinguish those).
- */
-function isResponsesShapedRawTool(definition: unknown): boolean {
-  if (!isStringKeyedObject(definition)) {
-    return false;
-  }
-  const type = definition.type;
-  if (typeof type !== "string") {
-    return false;
-  }
-  if (type !== "function") {
-    return !CHAT_COMPLETIONS_ONLY_NON_FUNCTION_TYPES.has(type);
-  }
-  // type: "function" — Chat Completions nests fields under `function`,
-  // Responses puts them at the top level.
-  return !isStringKeyedObject(definition.function);
-}
-
-/**
- * Infer the OpenAI API surface from tool shape. A Responses-only shape on any
- * tool ⇒ Responses; otherwise return `fallback` (Responses also accepts
- * Chat-Completions-shaped function tools, so the absence of a positive signal
- * isn't proof of Chat Completions).
- *
- * Spec: https://platform.openai.com/docs/api-reference/chat/create vs
- * https://platform.openai.com/docs/api-reference/responses/create
- *
- * Only consults `kind: "raw"` tools — `kind: "function"` tools have already
- * been normalized, losing the original shape signal.
- */
-export function inferOpenAIApiTypeFromTools(
-  tools: readonly Tool[],
-  fallback: OpenAIApiType | null = null
-): OpenAIApiType | null {
-  const hasResponsesShape = tools.some(
-    (tool) => tool.kind === "raw" && isResponsesShapedRawTool(tool.raw)
-  );
-  return hasResponsesShape ? "RESPONSES" : fallback;
 }
 
 /**
@@ -1106,6 +983,7 @@ export function transformSpanAttributesToPlaygroundInstance(
    */
   parsingErrors: string[];
   playgroundInput?: PlaygroundInput;
+  templateFormat?: TemplateFormat;
 } {
   const { instance, instanceMessages } = createNormalizedPlaygroundInstance();
   const basePlaygroundInstance: PlaygroundInstance = {
@@ -1134,6 +1012,17 @@ export function transformSpanAttributesToPlaygroundInstance(
       },
       parsingErrors: [SPAN_ATTRIBUTES_PARSING_ERROR],
     };
+  }
+
+  // A decision span replays as a decision instance: the request body on the
+  // span becomes the editable request and the response its first output.
+  if (isDecisionSpanAttributes(parsedAttributes)) {
+    return buildDecisionInstanceFromSpanAttributes({
+      base: basePlaygroundInstance,
+      spanId: span.id,
+      attributes: parsedAttributes,
+      status: { code: span.statusCode, message: span.statusMessage },
+    });
   }
 
   const baseModelConfigResult =
@@ -1248,71 +1137,6 @@ export const isChatMessages = (
   return chatMessagesSchema.safeParse(messages).success;
 };
 
-export const extractVariablesFromInstance = ({
-  instance,
-  templateFormat,
-}: {
-  instance: PlaygroundInstance;
-  templateFormat: TemplateFormat;
-}) => {
-  if (templateFormat === TemplateFormats.NONE) {
-    return [];
-  }
-  const variables = new Set<string>();
-  const instanceType = instance.template.__type;
-  const utils = getTemplateFormatUtils(templateFormat);
-  // this double nested loop should be okay since we don't expect more than 4 instances
-  // and a handful of messages per instance
-  switch (instanceType) {
-    case "chat": {
-      // for each chat message in the instance
-      instance.template.messages.forEach((message) => {
-        // extract variables from the message content
-        const extractedVariables =
-          message.content == null
-            ? []
-            : utils.extractVariables(message.content);
-        extractedVariables.forEach((variable) => {
-          variables.add(variable);
-        });
-      });
-      break;
-    }
-    case "text_completion": {
-      const extractedVariables = utils.extractVariables(
-        instance.template.prompt
-      );
-      extractedVariables.forEach((variable) => {
-        variables.add(variable);
-      });
-      break;
-    }
-    default: {
-      assertUnreachable(instanceType);
-    }
-  }
-  return Array.from(variables);
-};
-
-export const extractVariablesFromInstances = ({
-  instances,
-  templateFormat,
-}: {
-  instances: PlaygroundInstance[];
-  templateFormat: TemplateFormat;
-}) => {
-  if (templateFormat === TemplateFormats.NONE) {
-    return [];
-  }
-  return Array.from(
-    new Set(
-      instances.flatMap((instance) =>
-        extractVariablesFromInstance({ instance, templateFormat })
-      )
-    )
-  );
-};
-
 /**
  * Extracts the root variable name from a path expression.
  *
@@ -1333,56 +1157,6 @@ export const extractRootVariable = (path: string): string => {
  */
 export const extractRootVariables = (paths: string[]): string[] => {
   return Array.from(new Set(paths.map(extractRootVariable)));
-};
-
-export const getVariablesMapFromInstances = ({
-  instances,
-  templateFormat,
-  input,
-}: {
-  instances: PlaygroundInstance[];
-  templateFormat: TemplateFormat;
-  input: PlaygroundInput;
-}) => {
-  if (templateFormat === TemplateFormats.NONE) {
-    return { variablesMap: {}, variableKeys: [] };
-  }
-  const variableKeys = extractVariablesFromInstances({
-    instances,
-    templateFormat,
-  });
-
-  const variableValueCache = input.variablesValueCache ?? {};
-
-  const variablesMap = variableKeys.reduce<
-    NonNullable<PlaygroundInput["variablesValueCache"]>
-  >((acc, key) => {
-    acc[key] = variableValueCache[key] || "";
-    return acc;
-  }, {});
-  return { variablesMap, variableKeys };
-};
-
-/** Discriminator predicate for the function-tool branch of {@link Tool}. */
-export const isFunctionTool = (
-  tool: Tool
-): tool is Extract<Tool, { kind: "function" }> => tool.kind === "function";
-
-/** Discriminator predicate for the raw-tool branch of {@link Tool}. */
-export const isRawTool = (tool: Tool): tool is Extract<Tool, { kind: "raw" }> =>
-  tool.kind === "raw";
-
-/**
- * Best-effort display name for any tool, function or raw. For raw tools the
- * tool's own `name` field is preferred, falling back to its `type`.
- */
-export const getToolName = (tool: Tool): string | null => {
-  if (isFunctionTool(tool)) {
-    return tool.definition?.name ?? null;
-  }
-  const rawName = typeof tool.raw.name === "string" ? tool.raw.name : null;
-  const rawType = typeof tool.raw.type === "string" ? tool.raw.type : null;
-  return rawName ?? rawType;
 };
 
 /**
@@ -1431,41 +1205,6 @@ export const createTool = ({
     editorType: type,
     definition: defaultDefinition,
   };
-};
-
-/**
- * Creates a toolCall for the given provider
- * @param provider the provider to create the toolCall for
- * returns a toolCall for the given provider
- */
-export const createToolCallForProvider = (
-  provider: ModelProvider
-): LlmProviderToolCall => {
-  switch (provider) {
-    case "OPENAI":
-    case "AZURE_OPENAI":
-    case "DEEPSEEK":
-    case "XAI":
-    case "AWS":
-    case "OLLAMA":
-    case "CEREBRAS":
-    case "FIREWORKS":
-    case "GROQ":
-    case "MOONSHOT":
-    case "MINIMAX":
-    case "PERPLEXITY":
-    case "TOGETHER":
-    case "ZAI":
-    case "META":
-      return createOpenAIToolCall();
-    case "ANTHROPIC":
-      return createAnthropicToolCall();
-    // TODO(apowell): #5348 Add Google tool call
-    case "GOOGLE":
-      return createOpenAIToolCall();
-    default:
-      return assertUnreachable(provider);
-  }
 };
 
 /**
@@ -1548,63 +1287,6 @@ const getBaseChatCompletionInput = ({
     repetitions: playgroundStore.getState().repetitions,
   };
 };
-
-/**
- * Denormalize a playground instance with the actual messages
- *
- * A playground instance differs from a playground normalized instance in that it contains the actual messages
- * and not just the messageIds. This function will replace the messageIds with the actual messages.
- */
-export const denormalizePlaygroundInstance = (
-  instance: PlaygroundNormalizedInstance,
-  allInstanceMessages: Record<number, ChatMessage>
-): PlaygroundInstance => {
-  if (instance.template.__type === "chat") {
-    const { messageIds: _, ...rest } = instance.template;
-    return {
-      ...instance,
-      template: {
-        ...rest,
-        messages: instance.template.messageIds.map(
-          (messageId) => allInstanceMessages[messageId]
-        ),
-      },
-    } satisfies PlaygroundInstance;
-  }
-  // it cannot be a normalized instance if it is not a chat template
-  return instance as PlaygroundInstance;
-};
-
-/**
- * Transforms credentials state into GraphQL input format.
- * Collects all non-empty credentials from all providers for API calls.
- * This is needed because evaluators may use different providers than the prompt.
- */
-export function toGqlCredentials(
-  credentials: CredentialsState
-): GenerativeCredentialInput[] {
-  const allCredentials: GenerativeCredentialInput[] = [];
-
-  for (const [provider, config] of Object.entries(
-    ProviderToCredentialsConfigMap
-  )) {
-    const providerCredentials = credentials[provider as ModelProvider];
-    if (!providerCredentials) {
-      continue;
-    }
-    for (const credential of config) {
-      const value = providerCredentials[credential.envVarName];
-      if (value) {
-        allCredentials.push({
-          envVarName: credential.envVarName,
-          value,
-        });
-      }
-    }
-  }
-
-  return allCredentials;
-}
 
 /** Convert a ChatMessageRole to the uppercase PromptMessageRole expected by the API */
 function chatRoleToPromptRole(role: ChatMessageRole): PromptMessageRole {
@@ -1763,12 +1445,6 @@ export function displayToCanonicalResponseFormat(
   };
 }
 
-export function buildPromptResponseFormatInput(
-  responseFormat: CanonicalResponseFormat | null | undefined
-): CanonicalResponseFormat | null {
-  return responseFormat ?? null;
-}
-
 /** When normalizing to canonical, store {} instead of { type: "object" } when it's the only key. */
 function canonicalParameters(parameters: unknown): unknown {
   if (
@@ -1861,89 +1537,6 @@ export function toCanonicalToolDefinition(
 }
 
 /**
- * For display in the JSON editor: ensure parameters/input_schema has "type": "object" when missing.
- * Used for Anthropic (input_schema) and AWS (inputSchema.json) which require it.
- * Not used for OpenAI: having only "type": "object" (and nothing else) is not allowed there.
- */
-function parametersSchemaWithObjectType(
-  parameters: unknown
-): Record<string, unknown> {
-  const obj =
-    parameters != null &&
-    typeof parameters === "object" &&
-    !Array.isArray(parameters)
-      ? (parameters as Record<string, unknown>)
-      : {};
-  if (obj.type === undefined) {
-    return { ...obj, type: "object" };
-  }
-  return obj;
-}
-
-/**
- * Convert canonical tool definition to the provider-specific display format
- * shown in the JSON editor (spoke of the hub-and-spoke).
- *
- * Constructs provider shapes directly — no OpenAI pivot — mirroring how
- * {@link getResponseFormatDisplay} handles response format.
- */
-export function getToolDefinitionDisplay(
-  toolDefinition: CanonicalToolDefinition,
-  provider: ModelProvider
-): unknown {
-  if (provider === "ANTHROPIC") {
-    return {
-      name: toolDefinition.name,
-      ...(toolDefinition.description != null && {
-        description: toolDefinition.description,
-      }),
-      input_schema: parametersSchemaWithObjectType(toolDefinition.parameters),
-      ...(toolDefinition.strict != null && { strict: toolDefinition.strict }),
-    };
-  }
-  if (provider === "AWS") {
-    return {
-      toolSpec: {
-        name: toolDefinition.name,
-        ...(toolDefinition.description != null && {
-          description: toolDefinition.description,
-        }),
-        inputSchema: {
-          json: parametersSchemaWithObjectType(toolDefinition.parameters),
-        },
-        ...(toolDefinition.strict != null && { strict: toolDefinition.strict }),
-      },
-    };
-  }
-  if (provider === "GOOGLE") {
-    return {
-      name: toolDefinition.name,
-      ...(toolDefinition.description != null && {
-        description: toolDefinition.description,
-      }),
-      ...(toolDefinition.parameters != null && {
-        parameters: toolDefinition.parameters,
-      }),
-    };
-  }
-  // OpenAI-compatible: OPENAI, AZURE_OPENAI, DEEPSEEK, XAI, OLLAMA, CEREBRAS,
-  // FIREWORKS, GROQ, MOONSHOT, MINIMAX, PERPLEXITY, TOGETHER, ZAI, META
-  return {
-    type: "function",
-    function: {
-      name: toolDefinition.name,
-      ...(toolDefinition.description != null && {
-        description: toolDefinition.description,
-      }),
-      ...(toolDefinition.parameters != null && {
-        parameters: toolDefinition.parameters,
-      }),
-      ...(toolDefinition.strict != null && { strict: toolDefinition.strict }),
-    },
-  };
-}
-
-/**
  * Convert a provider-specific JSON editor value back to canonical form.
  * Inverse of {@link getToolDefinitionDisplay}.
  */
@@ -1951,105 +1544,6 @@ export function displayToCanonicalToolDefinition(
   display: unknown
 ): CanonicalToolDefinition | null {
   return toCanonicalToolDefinition(display);
-}
-
-/**
- * Convert a canonical tool definition to the PromptToolFunctionInput wire format
- * for saving to the backend (passthrough — canonical is already the wire shape).
- */
-export function buildPromptToolFunctionInput(
-  toolDefinition: CanonicalToolDefinition | null | undefined
-): {
-  function: {
-    name: string;
-    description?: string | null;
-    parameters?: unknown;
-    strict?: boolean | null;
-  };
-} {
-  return {
-    function: {
-      name: toolDefinition?.name ?? "",
-      description: toolDefinition?.description ?? null,
-      parameters: toolDefinition?.parameters ?? null,
-      strict: toolDefinition?.strict ?? null,
-    },
-  };
-}
-
-/**
- * Shape of a single tool element from any Relay `tools.tools` selection that
- * spreads on `PromptToolFunction` and `PromptToolRaw` (e.g. the fragments in
- * fetchPlaygroundPrompt.ts, experimentRehydration.ts, and PromptTools.tsx).
- * Mirrors the generated discriminated union with `__typename` as the tag,
- * including Relay's `"%other"` fallthrough variant.
- */
-export type GraphQLPromptTool =
-  | {
-      readonly __typename: "PromptToolFunction";
-      readonly function: {
-        readonly name: string;
-        readonly description: string | null;
-        readonly parameters: unknown;
-        readonly strict: boolean | null;
-      };
-    }
-  | {
-      readonly __typename: "PromptToolRaw";
-      readonly raw: unknown;
-    }
-  | { readonly __typename: "%other" };
-
-export function promptToolFromGraphQL(tool: GraphQLPromptTool): Tool | null {
-  switch (tool.__typename) {
-    case "PromptToolFunction":
-      return {
-        kind: "function",
-        id: generateToolId(),
-        editorType: "json",
-        definition: {
-          name: tool.function.name,
-          description: tool.function.description ?? null,
-          parameters: tool.function.parameters,
-          strict: tool.function.strict ?? null,
-        },
-      };
-    case "PromptToolRaw":
-      if (!isStringKeyedObject(tool.raw)) {
-        return null;
-      }
-      return {
-        kind: "raw",
-        id: generateToolId(),
-        editorType: "json",
-        raw: tool.raw,
-      };
-    case "%other":
-      // Schema added a tool variant the client wasn't built against. Drop it
-      // (the alternative is crashing the prompt page on schema drift).
-      return null;
-    default:
-      return assertUnreachable(tool);
-  }
-}
-
-/**
- * Pull the prompt's tools and inferred OpenAI API surface out of a GraphQL
- * `tools.tools` array. Centralizes the logic shared by the prompt-loading and
- * experiment-rehydration paths so they can't drift.
- */
-export function deriveToolsAndOpenAIApiType(
-  rawTools: readonly GraphQLPromptTool[] | null | undefined,
-  provider: ModelProvider
-): { tools: Tool[]; openaiApiType: OpenAIApiType | null } {
-  const tools = (rawTools ?? [])
-    .map(promptToolFromGraphQL)
-    .filter((tool): tool is Tool => tool != null);
-  const isOpenAIProvider = provider === "OPENAI" || provider === "AZURE_OPENAI";
-  const openaiApiType = isOpenAIProvider
-    ? inferOpenAIApiTypeFromTools(tools, DEFAULT_OPENAI_API_TYPE)
-    : null;
-  return { tools, openaiApiType };
 }
 
 /**
@@ -2088,85 +1582,6 @@ export function toolFromEditorJSON({
   };
 }
 
-export function toolToPromptToolInput(
-  tool: Tool
-):
-  | ReturnType<typeof buildPromptToolFunctionInput>
-  | { raw: Record<string, unknown> } {
-  if (isRawTool(tool)) {
-    return { raw: tool.raw };
-  }
-  return buildPromptToolFunctionInput(tool.definition);
-}
-
-/**
- * Convert a canonical tool choice to the PromptToolChoiceInput wire format
- * (isomorphic to DB PromptToolChoice).
- */
-export function toCanonicalToolChoice(
-  toolChoice: CanonicalToolChoice | null | undefined
-):
-  | { none: true }
-  | { zeroOrMore: true }
-  | { oneOrMore: true }
-  | { functionName: string }
-  | null {
-  if (toolChoice == null) return null;
-  switch (toolChoice.type) {
-    case "NONE":
-      return { none: true };
-    case "ZERO_OR_MORE":
-      return { zeroOrMore: true };
-    case "ONE_OR_MORE":
-      return { oneOrMore: true };
-    case "SPECIFIC_FUNCTION":
-      return { functionName: toolChoice.functionName ?? "" };
-    default:
-      return assertUnreachable(toolChoice.type);
-  }
-}
-
-/**
- * Shared prompt-version payload builder used by playground save/run paths.
- */
-export function buildPromptVersionInput({
-  instance,
-  modelName,
-  templateFormat,
-  promptMessages,
-  invocationParameters,
-}: {
-  instance: Pick<PlaygroundInstance, "model" | "tools" | "toolChoice">;
-  modelName: string;
-  templateFormat: ChatPromptVersionInput["templateFormat"];
-  promptMessages: ChatPromptVersionInput["template"]["messages"];
-  invocationParameters: ProviderInvocationConfig;
-}): ChatPromptVersionInput {
-  return {
-    templateFormat,
-    template: {
-      messages: promptMessages,
-    },
-    modelProvider: instance.model
-      .provider as ChatPromptVersionInput["modelProvider"],
-    modelName,
-    customProviderId: instance.model.customProvider?.id ?? null,
-    invocationParameters: invocationConfigToPromptInput(
-      instance.model.provider,
-      invocationParameters
-    ),
-    tools: instance.tools.length
-      ? {
-          tools: instance.tools.map(toolToPromptToolInput),
-          toolChoice: toCanonicalToolChoice(instance.toolChoice),
-        }
-      : null,
-    responseFormat: buildPromptResponseFormatInput(
-      instance.model.responseFormat
-    ),
-  };
-}
-
 /**
  * Gets chat completion input for running over variables.
  *
@@ -2196,6 +1611,7 @@ export const getChatCompletionInput = ({
     templateFormat,
     input,
     allInstanceMessages: instanceMessages,
+    allInstanceDecisionPrompts,
     repetitions,
     streaming,
   } = playgroundStore.getState();
@@ -2210,7 +1626,11 @@ export const getChatCompletionInput = ({
 
   // Compute template variables for mustache / f-string substitution
   const playgroundInstances = instances.map((i) =>
-    denormalizePlaygroundInstance(i, instanceMessages)
+    denormalizePlaygroundInstance(
+      i,
+      instanceMessages,
+      allInstanceDecisionPrompts
+    )
   );
   const { variablesMap } = getVariablesMapFromInstances({
     instances: playgroundInstances,
@@ -2221,7 +1641,8 @@ export const getChatCompletionInput = ({
   // Convert messages to PromptMessageInput
   const denormalized = denormalizePlaygroundInstance(
     instance,
-    instanceMessages
+    instanceMessages,
+    allInstanceDecisionPrompts
   );
   if (denormalized.template.__type !== "chat") {
     throw new Error("We only support chat templates for now");
@@ -2260,7 +1681,7 @@ export const getChatCompletionInput = ({
  * preferring the scaffold value and falling back to the trimmed store value.
  * An empty result becomes null so the server applies its generated default.
  */
-function resolveNextExperimentField(
+export function resolveNextExperimentField(
   scaffoldValue: string | null | undefined,
   storeValue: string | null | undefined
 ): string | null {
@@ -2268,26 +1689,23 @@ function resolveNextExperimentField(
 }
 
 /**
- * Gets chat completion input for running over a dataset.
- *
- * Builds the same hub-and-spoke ChatCompletionOverDatasetInput shape as
- * getChatCompletionInput, but uses the store's templateFormat (MUSTACHE /
- * F_STRING / NONE) rather than hardcoding "NONE", so dataset-level variable
- * substitution still works.
+ * The prompt task a dataset run creates an experiment for: the instance's
+ * prompt version and connection, the dataset paths it reads, and the dataset
+ * evaluators that score its outputs. Uses the store's templateFormat
+ * (MUSTACHE / F_STRING / NONE) rather than hardcoding "NONE", so dataset-level
+ * variable substitution still works.
  */
-export const getChatCompletionOverDatasetInput = ({
+export const getPromptTaskInput = ({
   playgroundStore,
   instanceId,
   credentials,
   datasetId,
-  splitIds,
   evaluatorMappings,
 }: {
   playgroundStore: PlaygroundStore;
   instanceId: number;
   credentials: CredentialsState;
   datasetId: string;
-  splitIds?: string[];
   /**
    * Record of datasetEvaluatorId to name and input mappings
    */
@@ -2295,7 +1713,7 @@ export const getChatCompletionOverDatasetInput = ({
     string,
     { name: string; inputMapping: EvaluatorInputMappingInput }
   >;
-}): ChatCompletionOverDatasetInput => {
+}): PromptTaskInput => {
   const baseChatCompletionVariables = getBaseChatCompletionInput({
     playgroundStore,
     instanceId,
@@ -2305,11 +1723,9 @@ export const getChatCompletionOverDatasetInput = ({
   const {
     instances,
     templateFormat,
-    repetitions,
     allInstanceMessages: instanceMessages,
+    allInstanceDecisionPrompts,
     stateByDatasetId,
-    recordExperiments,
-    nextExperimentScaffold,
     streaming,
   } = playgroundStore.getState();
 
@@ -2324,7 +1740,8 @@ export const getChatCompletionOverDatasetInput = ({
   // Convert messages to PromptMessageInput
   const denormalized = denormalizePlaygroundInstance(
     instance,
-    instanceMessages
+    instanceMessages,
+    allInstanceDecisionPrompts
   );
   if (denormalized.template.__type !== "chat") {
     throw new Error("We only support chat templates for now");
@@ -2343,18 +1760,25 @@ export const getChatCompletionOverDatasetInput = ({
       baseChatCompletionVariables.invocationParameters ?? [],
   });
 
-  const playgroundDatasetState = stateByDatasetId[datasetId];
-  const { appendedMessagesPath, templateVariablesPath, maxConcurrency } =
-    playgroundDatasetState ?? {};
+  const { appendedMessagesPath } = stateByDatasetId[datasetId] ?? {};
+
+  // The prompt kind's path; the server reads an empty one as the example root.
+  const templateVariablesPath =
+    getTemplateVariablesPath({
+      stateByDatasetId,
+      datasetId,
+      mode: "task",
+    }) ?? "";
 
   return {
     promptVersion,
+    promptVersionId: instance.prompt?.version ?? null,
+    promptName: instance.prompt?.name,
     connectionConfig: baseChatCompletionVariables.connectionConfig,
     headers: baseChatCompletionVariables.headers,
-    credentials: baseChatCompletionVariables.credentials,
-    repetitions,
-    datasetId,
-    splitIds: splitIds ?? null,
+    appendedMessagesPath,
+    templateVariablesPath,
+    streamModelOutput: streaming,
     evaluators: Object.entries(evaluatorMappings).map(
       ([datasetEvaluatorId, { name, inputMapping }]) => ({
         id: datasetEvaluatorId,
@@ -2362,38 +1786,8 @@ export const getChatCompletionOverDatasetInput = ({
         inputMapping,
       })
     ),
-    appendedMessagesPath,
-    templateVariablesPath: templateVariablesPath ?? "",
-    promptName: instance.prompt?.name,
-    promptVersionId: instance.prompt?.version ?? null,
-    createEphemeralExperiment: !recordExperiments,
-    experimentName: resolveNextExperimentField(
-      nextExperimentScaffold?.name,
-      playgroundDatasetState?.experimentName
-    ),
-    experimentDescription: resolveNextExperimentField(
-      nextExperimentScaffold?.description,
-      playgroundDatasetState?.experimentDescription
-    ),
-    experimentMetadata: nextExperimentScaffold?.metadata ?? null,
-    streamModelOutput: streaming,
-    maxConcurrency: maxConcurrency ?? 10,
   };
 };
-
-export function areRequiredInvocationParametersConfigured(
-  config: ProviderInvocationConfig,
-  model: Pick<ModelConfig, "provider" | "openaiApiType">
-) {
-  const requiredSpecs = getVisibleInvocationParameterSpecs(
-    model,
-    config
-  ).filter((s) => s.required);
-  return requiredSpecs.every(
-    (spec) =>
-      readInvocationConfigField(model.provider, config, spec.name) !== undefined
-  );
-}
 
 // --- Azure helpers (module-level) --------------------------------------------------------------
 // Regex to extract deployment name from a path like: deployments/<name>/chat/completions

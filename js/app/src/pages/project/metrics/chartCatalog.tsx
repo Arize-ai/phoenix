@@ -9,15 +9,25 @@ import {
 import { useFrozenWhileHidden } from "@phoenix/hooks/useFrozenWhileHidden";
 import type {
   BuiltInProjectMetricChartKey,
-  MetricChartTableView,
+  AnnotationMetricLevel,
   ProjectMetricChartKey,
 } from "@phoenix/pages/project/constants";
 import {
+  EVALUATOR_METRIC_CHART_KEYS,
   getProjectAnnotationMetricChartInfo,
   PROJECT_ANNOTATION_METRIC_CHART_DESCRIPTION,
   PROJECT_METRIC_CHART_KEYS,
 } from "@phoenix/pages/project/constants";
 
+import {
+  CostByEvaluator,
+  CostOverTimeByEvaluatorTimeSeries,
+  EvaluationLagByEvaluatorTimeSeries,
+  EvaluationQueueSizeTimeSeries,
+  EvaluationQueueThroughputTimeSeries,
+  EvaluationsByEvaluatorTimeSeries,
+  FailuresByEvaluatorTimeSeries,
+} from "./EvaluatorActivityCharts";
 import { LLMSpanCountTimeSeries } from "./LLMSpanCountTimeSeries";
 import { LLMSpanErrorsTimeSeries } from "./LLMSpanErrorsTimeSeries";
 import { ProjectAnnotationMetricPanel } from "./ProjectAnnotationMetrics";
@@ -41,7 +51,7 @@ import type { ProjectMetricViewProps } from "./types";
 
 export type ProjectMetricChart = {
   key: ProjectMetricChartKey;
-  annotationLevel?: MetricChartTableView;
+  annotationLevel?: AnnotationMetricLevel;
   annotationName?: string;
   /**
    * Shown as the chart panel title and as the chart's name in chart pickers
@@ -61,9 +71,13 @@ export type ProjectMetricChart = {
 };
 
 type ProjectMetricPanelProps = ProjectMetricViewProps & {
-  annotationLevel?: MetricChartTableView;
+  annotationLevel?: AnnotationMetricLevel;
   annotationName?: string;
   fillHeight?: boolean;
+  /** Panel title; the catalog entry's name when omitted. */
+  title?: string;
+  /** Panel subtitle; the catalog entry's description when omitted. */
+  subtitle?: string;
 };
 
 type ProjectMetricChartDefinition = Omit<
@@ -71,12 +85,15 @@ type ProjectMetricChartDefinition = Omit<
   "key" | "Panel"
 > & {
   Component: ComponentType<ProjectMetricViewProps>;
+  /** What the chart shows, behind an info icon beside its title. */
+  help?: string;
 };
 
 /**
- * The catalog of all project metric charts, keyed by chart key. Every chart
- * here can be rendered on the metrics tab as well as added to the strip of
- * charts above the spans table.
+ * The catalog of all project metric charts, keyed by chart key. The project
+ * charts can be rendered on the metrics tab as well as added to the strip of
+ * charts above the spans, traces and sessions tables; the evaluator charts to
+ * the strip above the evaluators table.
  */
 const CHART_DEFINITIONS: Record<
   BuiltInProjectMetricChartKey,
@@ -178,16 +195,78 @@ const CHART_DEFINITIONS: Record<
     chartType: "line",
     Component: SessionAnnotationScoreTimeSeries,
   },
+  evaluation_queue_throughput: {
+    name: "Added vs completed",
+    description: "Evaluations added to and completed from the queue",
+    chartType: "bar",
+    help: "This project's evaluations queued (above) and finished (below) over time. When the top bar is taller, the queue grew.",
+    Component: EvaluationQueueThroughputTimeSeries,
+  },
+  evaluation_queue_size: {
+    name: "Queue size",
+    description: "Evaluations in queue, and how many were processed",
+    chartType: "line",
+    help: "This project's evaluations in the queue over time.",
+    Component: EvaluationQueueSizeTimeSeries,
+  },
+  evaluations_by_evaluator: {
+    name: "Evaluations by evaluator",
+    description: "Completed evaluations",
+    chartType: "bar",
+    help: "Evaluations each evaluator finished over time, not counting failures.",
+    Component: EvaluationsByEvaluatorTimeSeries,
+  },
+  evaluation_lag_by_evaluator: {
+    name: "Lag p95 by evaluator",
+    description: "Time from added to completed",
+    chartType: "line",
+    help: "How long evaluations took from queued to finished, for 95% of each evaluator's evaluations.",
+    Component: EvaluationLagByEvaluatorTimeSeries,
+  },
+  cost_by_evaluator: {
+    name: "Cost by evaluator",
+    description:
+      "Estimated cost and share of total; evaluators with tracing off add none",
+    chartType: "barHorizontal",
+    help: "Evaluation cost per evaluator. Evaluators with tracing off add no cost.",
+    Component: CostByEvaluator,
+  },
+  failures_by_evaluator: {
+    name: "Failures by evaluator",
+    description: "Failed evaluations",
+    chartType: "line",
+    help: "Evaluations each evaluator gave up on over time.",
+    Component: FailuresByEvaluatorTimeSeries,
+  },
+  cost_over_time_by_evaluator: {
+    name: "Cost over time by evaluator",
+    description:
+      "Estimated cost per interval; evaluators with tracing off add none",
+    chartType: "bar",
+    help: "Evaluation cost per evaluator over time. Evaluators with tracing off add no cost.",
+    Component: CostOverTimeByEvaluatorTimeSeries,
+  },
 };
 
 function createProjectMetricPanel({
   name,
   description,
+  help,
   Component,
 }: ProjectMetricChartDefinition): ComponentType<ProjectMetricPanelProps> {
-  return function ProjectMetricPanel({ fillHeight = false, ...props }) {
+  return function ProjectMetricPanel({
+    fillHeight = false,
+    title,
+    subtitle,
+    ...props
+  }) {
     return (
-      <ChartPanel title={name} subtitle={description} fillHeight={fillHeight}>
+      <ChartPanel
+        title={title ?? name}
+        subtitle={subtitle ?? description}
+        help={help}
+        fillHeight={fillHeight}
+      >
         <Component {...props} />
       </ChartPanel>
     );
@@ -200,7 +279,7 @@ function createProjectMetricPanel({
  * one stable panel component.
  */
 const CHARTS_BY_KEY = Object.fromEntries(
-  PROJECT_METRIC_CHART_KEYS.map((key) => {
+  [...PROJECT_METRIC_CHART_KEYS, ...EVALUATOR_METRIC_CHART_KEYS].map((key) => {
     const definition = CHART_DEFINITIONS[key];
     return [
       key,
@@ -237,28 +316,39 @@ function ProjectAnnotationChartPanel({
   );
 }
 
+type DeferredProjectMetricPanelProps = ProjectMetricViewProps & {
+  chart: ProjectMetricChart;
+  fillHeight?: boolean;
+  /** Panel title; the catalog entry's name when omitted. */
+  title?: string;
+  /** Panel subtitle; the catalog entry's description when omitted. */
+  subtitle?: string;
+};
+
 /**
  * A catalog chart wrapped in a {@link DeferredChartPanel} so it doesn't fetch
  * until scrolled into view. The placeholder's title and subtitle come from
- * the same catalog entry as the chart's, so they can't drift apart.
+ * the same source as the chart's — the overrides when given, the catalog
+ * entry otherwise — so they can't drift apart.
  */
 export function DeferredProjectMetricPanel({
   chart,
   fillHeight = false,
+  title,
+  subtitle,
   ...props
-}: ProjectMetricViewProps & {
-  chart: ProjectMetricChart;
-  fillHeight?: boolean;
-}) {
+}: DeferredProjectMetricPanelProps) {
   return (
     <DeferredChartPanel
-      title={chart.name}
-      subtitle={chart.description}
+      title={title ?? chart.name}
+      subtitle={subtitle ?? chart.description}
       fillHeight={fillHeight}
     >
       <MetricPanelWithFrozenTimeRange
         chart={chart}
         fillHeight={fillHeight}
+        title={title}
+        subtitle={subtitle}
         {...props}
       />
     </DeferredChartPanel>
@@ -275,10 +365,7 @@ function MetricPanelWithFrozenTimeRange({
   timeRange,
   fillHeight,
   ...props
-}: ProjectMetricViewProps & {
-  chart: ProjectMetricChart;
-  fillHeight?: boolean;
-}) {
+}: DeferredProjectMetricPanelProps) {
   const visibleTimeRange = useFrozenWhileHidden(timeRange);
   return (
     <chart.Panel
@@ -321,3 +408,9 @@ export const getProjectMetricCharts = (
  */
 export const PROJECT_METRIC_CHARTS: ProjectMetricChart[] =
   getProjectMetricCharts(PROJECT_METRIC_CHART_KEYS);
+
+/**
+ * The evaluator metric charts in display order.
+ */
+export const EVALUATOR_METRIC_CHARTS: ProjectMetricChart[] =
+  getProjectMetricCharts(EVALUATOR_METRIC_CHART_KEYS);

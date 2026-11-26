@@ -56,7 +56,10 @@ vi.mock("@phoenix/components/generative/useModelMenuData", async () => ({
   ...(await vi.importActual<object>(
     "@phoenix/components/generative/useModelMenuData"
   )),
-  useModelMenuData: () => MODEL_MENU_DATA,
+  useModelMenuData: () => ({
+    ...MODEL_MENU_DATA,
+    chatModelProviders: MODEL_MENU_DATA.data.modelProviders,
+  }),
 }));
 
 vi.mock("@phoenix/contexts/ViewerContext", async () => ({
@@ -118,7 +121,7 @@ describe("SettingsAgentsGeneralTab model setting", () => {
       ...document.body.querySelectorAll<HTMLElement>('[role="menuitemradio"]'),
     ].find(
       (candidate) =>
-        candidate.querySelector(".agent-model-row__name")?.textContent === name
+        candidate.querySelector(".model-row__name")?.textContent === name
     );
     if (!item) throw new Error(`no row named "${name}"`);
     return item;

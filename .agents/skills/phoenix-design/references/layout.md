@@ -4,6 +4,8 @@
 
 Loading states MUST use skeleton loaders so the page does not shift between loading and loaded states.
 
+A navigation MUST show the destination's skeleton as soon as it is clicked. A route loader that awaits data holds the previous page until the data lands, so the skeleton is never seen; see the route loader rules in the `phoenix-frontend` skill's Relay reference.
+
 A skeleton MUST be made of skeleton components only. It MUST NOT draw borders, dividers, separators, backgrounds, card frames, titles or other text; padding and gaps that only place the skeletons are allowed. See the `Skeleton` Docs page in Storybook (`Page Skeleton Composition`).
 
 ## Scroll behavior
@@ -15,6 +17,12 @@ Pages SHOULD have only one scrollable region. Scroll traps where the user's scro
 Each action MUST have one method of invocation. Confirm/cancel SHOULD be placed at the bottom of a dialog — controls MUST NOT be duplicated across header, footer, and shortcuts. Exception: dialog close buttons MAY appear in both the top-right corner and the footer.
 
 Row actions (e.g. delete, edit) for simple list or menu items MUST be always visible. Hiding actions behind hover states reduces discoverability and is inaccessible to touch users.
+
+## Switches
+
+A switch aligned to the end of its container, such as one in a section header or at the end of a row, MUST place its label before the switch (`labelPlacement="start"`). The label's width changes with its text, so a label after the switch moves the switch every time it is toggled. With the label first, the switch stays fixed at the edge.
+
+A switch that shows its state as its label SHOULD use "Enabled" and "Disabled", not "On" and "Off".
 
 ## Copy affordances
 

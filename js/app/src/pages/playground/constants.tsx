@@ -42,4 +42,6 @@ export const modelProviderToModelPrefixMap: Record<ModelProvider, string[]> = {
   TOGETHER: [],
   ZAI: ["glm"],
   META: ["muse"],
+  // Decision-only: a chat span must never infer it, as it has no chat invocation parameters
+  TYPESAFE: [],
 };

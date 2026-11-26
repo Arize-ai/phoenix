@@ -24,6 +24,16 @@ Do **not** use this hook when:
 - the ref is shared and another component owns disposal
 - the ref is passed through context or props for multiple readers without clear single-owner semantics
 
+## Route loaders
+
+A route loader returns at once. React Router commits a navigation only after every matched loader has returned, so a loader that awaits a fetch freezes the page the user is on and the destination's skeleton is never seen.
+
+- Start the page's queries with `loadQuery` and return the refs; the page reads them and suspends into its own `Suspense` boundary. The boundary has to be the page's: the router navigates in a transition, which holds a boundary that is already mounted.
+- Anything else the route needs from the response, such as a breadcrumb's name, is returned as a promise for its consumer to resolve.
+- A failed lookup is handled where the query is read, by an error boundary, not by awaiting in the loader.
+
+Redirect loaders are the exception: a redirect has no page to show. `src/__tests__/routeLoaders.test.ts` fails on any other `async` loader.
+
 ## Rules
 
 - **Prefer declarative hooks.** Use hooks such as `usePreloadedQuery` or `useLazyLoadQuery` to fetch data that will be rendered on a page.
@@ -42,6 +52,10 @@ When a PXI `ui.*` write changes which records a mounted list contains or how it 
 When you need a single object by id (e.g. a lazy tooltip, a detail popover), fetch it directly via the `node(id: $id)` root field with an inline fragment on the concrete type — do **not** fetch a whole collection and `.find()` the one you want on the client. Over-fetching a list to grab one row wastes a round trip and scales badly.
 
 If the type isn't yet exposed through the `node` interface, make it a `Node` on the backend (have its GQL type declare `id: NodeID[int]` / implement `Node`, resolve fields lazily from the id, and add an `elif type_name == X.__name__: return X(id=node_id)` branch to `Query.node` in `src/phoenix/server/api/queries.py`) rather than working around it with a collection query.
+
+## Reading fragment data outside render
+
+Don't use `@relay(mask: false)`; Relay's docs recommend against it. For data read in a helper or a parent's derivation, define the fragment with `@inline`, spread it in the query, and read it with `readInlineData`. Derive what children need at the query owner and pass the result down, rather than unmasking the selection into shared types and fixtures.
 
 ## Testing
 

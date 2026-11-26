@@ -63,7 +63,10 @@ dependencies = [
   # Code-mode sandbox. Direct, not via fastmcp's `code-mode` extra, whose exact `pydantic-monty` pin conflicts and would ship in wheel metadata.
   "pydantic-monty==1.5.0",
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
-  "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.71.0,<3",
+  "pydantic-ai-slim[anthropic,bedrock,mcp,openai,ui]>=2.71.0,<3",
+  # Direct, not via pydantic-ai-slim's `google` extra, whose `<3` cap conflicts
+  # with the `>=3.2.0` floor Gemini's Decisions API needs and would ship in wheel metadata.
+  "google-genai>=3.2.0,<4",
   # Arrives via pydantic-ai-slim[anthropic], which sets no upper bound. Pinned
   # here so the major version is chosen deliberately rather than by resolution.
   "anthropic>=1,<2",
@@ -104,7 +107,7 @@ dev = [
   "e2b-code-interpreter>=0.0.12",  # type-checking only; runtime is gated by the [e2b] extra
   "Faker>=30.1.0",
   "freezegun",
-  "google-genai>=1.0.0",
+  "google-genai>=3.2.0",
   "grpc-interceptor[testing]",
   "grpcio",
   "httpx2",
@@ -119,7 +122,7 @@ dev = [
   "nest-asyncio",  # for executor testing
   "numpy",
   "scikit-learn",  # reference implementation for retrieval metric tests
-  "openai>=3.1.0,<4",
+  "openai>=3.31.0,<4",
   "openinference-semantic-conventions>=0.1.46",
   "openinference-instrumentation>=0.1.60",
   "opentelemetry-exporter-otlp",
@@ -149,6 +152,7 @@ dev = [
   "pytest-xdist",
   "requests",  # this is needed to type-check third-party packages
   "responses",
+  "respx>=0.22.0",
   "strawberry-graphql[opentelemetry,cli]==0.341.2",  # cli extra provides typer for `strawberry export-schema` (schema-graphql); previously satisfied transitively via huggingface-hub, which dropped typer in 1.22.0
   "syrupy",
   "tenacity",
@@ -179,6 +183,7 @@ dev = [
   "grpcio-tools>=1.78.0",
   "mypy-protobuf>=5.0.0",
   "jinja2>=3.1.6",
+  "typesafe-sdk>=0.7.5",
 ]
 
 [project.optional-dependencies]
@@ -213,10 +218,11 @@ azure = [
   "aiohttp",  # required async HTTP transport for azure.identity.aio
 ]
 container = [
+  "typesafe-sdk>=0.7.5",
   "anthropic>=1,<2",
-  "google-genai>=1.50.0",
+  "google-genai>=3.2.0",
   "prometheus-client",
-  "openai>=3.1.0,<4",
+  "openai>=3.31.0,<4",
   "azure-identity>=1.18.0",  # MSAL-backed in-memory token cache for ManagedIdentityCredential
   "aiohttp",  # used by azure-identity via azure.core.pipeline.transport
   "py-grpc-prometheus",
@@ -263,7 +269,7 @@ artifacts = [
   "src/phoenix/db/migrations",
   "src/phoenix/db/ddl",
   "src/phoenix/server/cost_tracking/manifests",
-  "src/phoenix/server/api/helpers/substitutions/server.yaml",
+  "src/phoenix/server/evaluators/substitutions/server.yaml",
 ]
 
 [tool.hatch.build]
@@ -288,7 +294,7 @@ artifacts = [
   "src/phoenix/db/migrations",
   "src/phoenix/db/ddl",
   "src/phoenix/server/cost_tracking/manifests",
-  "src/phoenix/server/api/helpers/substitutions/server.yaml",
+  "src/phoenix/server/evaluators/substitutions/server.yaml",
 ]
 
 # check-wheel-contents runs every check except W002 (duplicate files). Each skill
@@ -492,7 +498,7 @@ exclude-newer-package = { arize-phoenix-client = "2099-12-31T00:00:00Z", arize-p
 # because phoenix uses litellm purely as a client library and never reaches the
 # code paths those bounds guard.
 override-dependencies = [
-  "openai>=3.1.0,<4",
+  "openai>=3.31.0,<4",
   "python-dotenv>=1.1.0",
 ]
 

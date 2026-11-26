@@ -1,0 +1,341 @@
+import { useMemo } from "react";
+import { graphql, useLazyLoadQuery } from "react-relay";
+import { useLocation, useNavigate, useParams } from "react-router";
+import invariant from "tiny-invariant";
+
+import {
+  type DecisionEvaluatorData,
+  readDecisionEvaluatorData,
+} from "@phoenix/components/evaluators/decision/decisionEvaluatorUtils";
+import { getEvaluatorCopyName } from "@phoenix/components/evaluators/evaluatorCopyName";
+import type { projectEvaluatorDetailsQuery } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorDetailsQuery.graphql";
+import type { ProjectEvaluatorSlideoverRoutesCopyNamesQuery } from "@phoenix/pages/project/evaluators/__generated__/ProjectEvaluatorSlideoverRoutesCopyNamesQuery.graphql";
+import type { projectEvaluatorTemplatesQuery as ProjectEvaluatorTemplatesQueryType } from "@phoenix/pages/project/evaluators/__generated__/projectEvaluatorTemplatesQuery.graphql";
+import {
+  CreateProjectEvaluatorSlideover,
+  type ProjectEvaluatorCreationMode,
+} from "@phoenix/pages/project/evaluators/CreateProjectEvaluatorSlideover";
+import { EditProjectEvaluatorSlideover } from "@phoenix/pages/project/evaluators/EditProjectEvaluatorSlideover";
+import { useProjectEvaluatorDetailsOutletContext } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsOutletContext";
+import {
+  buildAttachCodeCreationMode,
+  buildCopyCodeCreationMode,
+  buildCopyLlmCreationMode,
+  type CodeProjectEvaluatorDetails,
+  type LlmProjectEvaluatorDetails,
+  projectEvaluatorDetailsQueryNode,
+  readProjectEvaluatorDetails,
+  UNSUPPORTED_PROMPT_TEMPLATE_ERROR,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorOptions";
+import { useProjectEvaluatorPaths } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
+import { ProjectEvaluatorSlideoverError } from "@phoenix/pages/project/evaluators/ProjectEvaluatorSlideoverError";
+import {
+  buildTemplateCreationMode,
+  projectEvaluatorTemplatesQuery,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorTemplates";
+
+/**
+ * Closes the slideover by leaving its nested route for its parent page.
+ * Replaces rather than pushes, so a dismissed slideover does not sit one step
+ * back in history waiting to be reopened. The current search is retained so
+ * the parent page restores the view state the slideover was opened over.
+ */
+function useCloseSlideover() {
+  const navigate = useNavigate();
+  const { search } = useLocation();
+  return (isOpen: boolean) => {
+    if (!isOpen) {
+      navigate(
+        { pathname: "..", search },
+        { relative: "route", replace: true }
+      );
+    }
+  };
+}
+
+function useRouteProjectId() {
+  const { projectId } = useParams();
+  invariant(projectId, "projectId is required");
+  return projectId;
+}
+
+/**
+ * A creation slideover on its route. Dismissing returns to the parent route
+ * (the list, or the gallery); finishing lands on the list showing the new
+ * evaluator, wherever it was opened from. Both replace, so the slideover does
+ * not linger in history.
+ */
+function CreateProjectEvaluatorRoute({
+  creationMode,
+}: {
+  creationMode: ProjectEvaluatorCreationMode;
+}) {
+  const projectId = useRouteProjectId();
+  const onOpenChange = useCloseSlideover();
+  const navigate = useNavigate();
+  const { list } = useProjectEvaluatorPaths();
+  return (
+    <CreateProjectEvaluatorSlideover
+      isOpen
+      onOpenChange={onOpenChange}
+      onCreated={() => navigate(list, { replace: true })}
+      projectId={projectId}
+      creationMode={creationMode}
+    />
+  );
+}
+
+/**
+ * The evaluator a copy or attach route is seeded from, or null when the id in
+ * the URL names nothing. Suspends, so the slideover opens only once that
+ * evaluator has loaded.
+ */
+function useSourceEvaluatorNode() {
+  const { evaluatorId } = useParams();
+  invariant(evaluatorId, "evaluatorId is required");
+  const data = useLazyLoadQuery<projectEvaluatorDetailsQuery>(
+    projectEvaluatorDetailsQueryNode,
+    { id: evaluatorId },
+    { fetchPolicy: "store-or-network" }
+  );
+  return data.evaluator;
+}
+
+function useSourceEvaluator() {
+  return readProjectEvaluatorDetails(useSourceEvaluatorNode());
+}
+
+const copyNamesQuery = graphql`
+  query ProjectEvaluatorSlideoverRoutesCopyNamesQuery(
+    $projectId: ID!
+    $filter: ProjectEvaluatorFilter!
+  ) {
+    project: node(id: $projectId) {
+      ... on Project {
+        evaluators(first: 100, filter: $filter) {
+          edges {
+            node {
+              name
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+function useTakenCopyNames(baseName: string): readonly string[] {
+  const projectId = useRouteProjectId();
+  const data = useLazyLoadQuery<ProjectEvaluatorSlideoverRoutesCopyNamesQuery>(
+    copyNamesQuery,
+    { projectId, filter: { col: "name", value: `${baseName.trim()}_copy` } },
+    { fetchPolicy: "network-only" }
+  );
+  const edges = data.project.evaluators?.edges;
+  return useMemo(() => edges?.map(({ node }) => node.name) ?? [], [edges]);
+}
+
+export function NewLlmProjectEvaluatorPage() {
+  return <CreateProjectEvaluatorRoute creationMode={{ kind: "scratch" }} />;
+}
+
+export function NewCodeProjectEvaluatorPage() {
+  return <CreateProjectEvaluatorRoute creationMode={{ kind: "newCode" }} />;
+}
+
+export function NewDecisionProjectEvaluatorPage() {
+  return <CreateProjectEvaluatorRoute creationMode={{ kind: "newDecision" }} />;
+}
+
+export function NewLlmFromTemplateProjectEvaluatorPage() {
+  const { templateName } = useParams();
+  invariant(templateName, "templateName is required");
+  const onOpenChange = useCloseSlideover();
+  const data = useLazyLoadQuery<ProjectEvaluatorTemplatesQueryType>(
+    projectEvaluatorTemplatesQuery,
+    {},
+    { fetchPolicy: "store-and-network" }
+  );
+  const template = data.evaluatorGalleryConfigs.find(
+    (config) => config.name === templateName
+  );
+  if (!template) {
+    return (
+      <ProjectEvaluatorSlideoverError
+        title="Cannot create evaluator"
+        message="This link does not name an evaluator template."
+        onOpenChange={onOpenChange}
+      />
+    );
+  }
+  return (
+    <CreateProjectEvaluatorRoute
+      creationMode={buildTemplateCreationMode(template)}
+    />
+  );
+}
+
+const COPY_ERROR_TITLE = "Cannot copy evaluator";
+
+export function CopyLlmProjectEvaluatorPage() {
+  const onOpenChange = useCloseSlideover();
+  const evaluator = useSourceEvaluator();
+  if (evaluator?.__typename !== "LLMEvaluator") {
+    return (
+      <ProjectEvaluatorSlideoverError
+        title={COPY_ERROR_TITLE}
+        message="This link does not name an LLM evaluator."
+        onOpenChange={onOpenChange}
+      />
+    );
+  }
+  return <CopyLlmProjectEvaluatorRoute evaluator={evaluator} />;
+}
+
+function CopyLlmProjectEvaluatorRoute({
+  evaluator,
+}: {
+  evaluator: LlmProjectEvaluatorDetails;
+}) {
+  const onOpenChange = useCloseSlideover();
+  const takenNames = useTakenCopyNames(evaluator.name);
+  // Memoized: this walks every prompt message and mints fresh message ids, and
+  // the page re-renders under the open slideover (e.g. as the toolbar filter
+  // changes). A new object each time would rebuild the evaluator store too.
+  const built = useMemo(
+    () => buildCopyLlmCreationMode(evaluator, takenNames),
+    [evaluator, takenNames]
+  );
+  if (!built.ok) {
+    return (
+      <ProjectEvaluatorSlideoverError
+        title={COPY_ERROR_TITLE}
+        message={UNSUPPORTED_PROMPT_TEMPLATE_ERROR}
+        onOpenChange={onOpenChange}
+      />
+    );
+  }
+  return <CreateProjectEvaluatorRoute creationMode={built.mode} />;
+}
+
+export function AttachProjectEvaluatorPage() {
+  const onOpenChange = useCloseSlideover();
+  const evaluator = useSourceEvaluator();
+  // Memoized for the same reason as the copy route: it parses the evaluator's
+  // source twice to extract its variables.
+  const creationMode = useMemo(
+    () =>
+      evaluator?.__typename === "CodeEvaluator"
+        ? buildAttachCodeCreationMode(evaluator)
+        : null,
+    [evaluator]
+  );
+  if (!creationMode) {
+    return (
+      <ProjectEvaluatorSlideoverError
+        title="Cannot add evaluator"
+        message="This link does not name a code evaluator."
+        onOpenChange={onOpenChange}
+      />
+    );
+  }
+  return <CreateProjectEvaluatorRoute creationMode={creationMode} />;
+}
+
+export function CopyCodeProjectEvaluatorPage() {
+  const onOpenChange = useCloseSlideover();
+  const evaluator = useSourceEvaluator();
+  if (evaluator?.__typename !== "CodeEvaluator") {
+    return (
+      <ProjectEvaluatorSlideoverError
+        title={COPY_ERROR_TITLE}
+        message="This link does not name a code evaluator."
+        onOpenChange={onOpenChange}
+      />
+    );
+  }
+  return <CopyCodeProjectEvaluatorRoute evaluator={evaluator} />;
+}
+
+function CopyCodeProjectEvaluatorRoute({
+  evaluator,
+}: {
+  evaluator: CodeProjectEvaluatorDetails;
+}) {
+  const takenNames = useTakenCopyNames(evaluator.name);
+  return (
+    <CreateProjectEvaluatorRoute
+      creationMode={buildCopyCodeCreationMode(evaluator, takenNames)}
+    />
+  );
+}
+
+export function CopyDecisionProjectEvaluatorPage() {
+  const onOpenChange = useCloseSlideover();
+  const node = useSourceEvaluatorNode();
+  const evaluator =
+    node?.__typename === "DecisionEvaluator"
+      ? readDecisionEvaluatorData(node)
+      : null;
+  if (node?.__typename !== "DecisionEvaluator" || !evaluator) {
+    return (
+      <ProjectEvaluatorSlideoverError
+        title={COPY_ERROR_TITLE}
+        message="This link does not name a decision evaluator."
+        onOpenChange={onOpenChange}
+      />
+    );
+  }
+  return (
+    <CopyDecisionProjectEvaluatorRoute
+      evaluator={evaluator}
+      description={node.description ?? ""}
+    />
+  );
+}
+
+function CopyDecisionProjectEvaluatorRoute({
+  evaluator,
+  description,
+}: {
+  evaluator: DecisionEvaluatorData;
+  description: string;
+}) {
+  const takenNames = useTakenCopyNames(evaluator.name);
+  return (
+    <CreateProjectEvaluatorRoute
+      creationMode={{
+        kind: "copyDecision",
+        initialState: {
+          copyName: getEvaluatorCopyName(evaluator.name, takenNames),
+          description,
+          evaluator,
+        },
+      }}
+    />
+  );
+}
+
+export function EditProjectEvaluatorPage() {
+  const onOpenChange = useCloseSlideover();
+  const { projectEvaluator } = useProjectEvaluatorDetailsOutletContext();
+  const { kind } = projectEvaluator.evaluator;
+  if (kind !== "LLM" && kind !== "CODE" && kind !== "DECISION") {
+    return (
+      <ProjectEvaluatorSlideoverError
+        title="Cannot edit evaluator"
+        message={`“${projectEvaluator.name}” is a built-in evaluator, which cannot be edited. Copy it to author your own version.`}
+        onOpenChange={onOpenChange}
+      />
+    );
+  }
+  return (
+    <EditProjectEvaluatorSlideover
+      isOpen
+      onOpenChange={onOpenChange}
+      projectEvaluatorId={projectEvaluator.id}
+      kind={kind}
+      name={projectEvaluator.name}
+    />
+  );
+}

@@ -1,0 +1,202 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: toxiproxy-setup
+data:
+  setup-toxiproxy.sh: |
+    #!/bin/sh
+    echo "🔄 Waiting for Toxiproxy to be ready..."
+    for i in $(seq 1 30); do
+      if curl -f http://toxiproxy:8474/version 2>/dev/null; then
+        echo "✅ Toxiproxy is ready!"
+        break
+      fi
+      echo "⏳ Toxiproxy not ready, waiting ($i/30)..."
+      sleep 2
+    done
+
+    echo "🔧 Setting up PostgreSQL proxy..."
+    curl -s -X POST "http://toxiproxy:8474/proxies" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "postgres",
+        "listen": "0.0.0.0:5433",
+        "upstream": "db:5433",
+        "enabled": true
+      }' || true
+
+    echo "🌍 Applying default same-region network conditions..."
+    curl -s -X POST "http://toxiproxy:8474/proxies/postgres/toxics" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "latency",
+        "type": "latency",
+        "attributes": {
+          "latency": 2,
+          "jitter": 1
+        }
+      }' || true
+
+    curl -s http://toxiproxy:8474/proxies | grep -q postgres
+  nginx.conf: |
+    # Serves the Toxiproxy control page and forwards its API calls to the
+    # Toxiproxy admin API, so that the page and the API share one origin.
+    server {
+        listen 8080;
+
+        # Cluster DNS (kube-dns) so nginx resolves the toxiproxy Service at request time.
+        resolver kube-dns.kube-system.svc.cluster.local valid=10s;
+        set $toxiproxy http://toxiproxy.phoenix-devops.svc.cluster.local:8474;
+
+        location = / {
+            root /srv/toxiproxy-ui;
+            try_files /index.html =404;
+            add_header Cache-Control "no-store";
+        }
+
+        location /api/ {
+            if ($http_x_requested_with != "toxiproxy-ui") {
+                return 403 '{"error":"missing header X-Requested-With: toxiproxy-ui"}';
+            }
+            proxy_set_header User-Agent "toxiproxy-ui";
+            rewrite ^/api/(.*)$ /$1 break;
+            proxy_pass $toxiproxy;
+        }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: toxiproxy
+  labels:
+    app: toxiproxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: toxiproxy
+  template:
+    metadata:
+      labels:
+        app: toxiproxy
+    spec:
+      containers:
+        - name: toxiproxy
+          image: ghcr.io/shopify/toxiproxy:2.11.0
+          ports:
+            - name: postgres-proxy
+              containerPort: 5433
+            - name: admin
+              containerPort: 8474
+          readinessProbe:
+            httpGet:
+              path: /version
+              port: 8474
+            initialDelaySeconds: 1
+            periodSeconds: 3
+          resources:
+            limits:
+              memory: "128Mi"
+              cpu: "250m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: toxiproxy
+  labels:
+    app: toxiproxy
+spec:
+  selector:
+    app: toxiproxy
+  ports:
+    - name: postgres-proxy
+      port: 5433
+      targetPort: 5433
+    - name: admin
+      port: 8474
+      targetPort: 8474
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: toxiproxy-ui
+  labels:
+    app: toxiproxy-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: toxiproxy-ui
+  template:
+    metadata:
+      labels:
+        app: toxiproxy-ui
+    spec:
+      containers:
+        - name: toxiproxy-ui
+          image: nginx:1.27-alpine
+          ports:
+            - name: http
+              containerPort: 8080
+          volumeMounts:
+            - name: ui-html
+              mountPath: /srv/toxiproxy-ui/index.html
+              subPath: index.html
+              readOnly: true
+            - name: nginx-conf
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: nginx.conf
+              readOnly: true
+          resources:
+            limits:
+              memory: "64Mi"
+              cpu: "250m"
+      volumes:
+        - name: ui-html
+          configMap:
+            name: toxiproxy-ui-html
+        - name: nginx-conf
+          configMap:
+            name: toxiproxy-setup
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: toxiproxy-ui
+  labels:
+    app: toxiproxy-ui
+spec:
+  selector:
+    app: toxiproxy-ui
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: toxiproxy-init
+  labels:
+    app: toxiproxy-init
+spec:
+  backoffLimit: 5
+  template:
+    metadata:
+      labels:
+        app: toxiproxy-init
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: toxiproxy-init
+          image: curlimages/curl:8.11.1
+          command: ["sh", "/setup-toxiproxy.sh"]
+          volumeMounts:
+            - name: setup
+              mountPath: /setup-toxiproxy.sh
+              subPath: setup-toxiproxy.sh
+              readOnly: true
+      volumes:
+        - name: setup
+          configMap:
+            name: toxiproxy-setup

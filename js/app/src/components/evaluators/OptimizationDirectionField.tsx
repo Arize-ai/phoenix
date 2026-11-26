@@ -19,14 +19,30 @@ import type { EvaluatorOptimizationDirection } from "@phoenix/types";
 export const DEFAULT_OPTIMIZATION_DIRECTION: EvaluatorOptimizationDirection =
   "MAXIMIZE";
 
-export const optimizationDirectionOptions: {
+export type OptimizationDirectionOption = {
   value: EvaluatorOptimizationDirection;
   label: string;
-}[] = [
+};
+
+const optimizationDirectionOptions: readonly OptimizationDirectionOption[] = [
   { value: "MAXIMIZE", label: "Maximize (higher is better)" },
   { value: "MINIMIZE", label: "Minimize (lower is better)" },
   { value: "NONE", label: "None" },
 ];
+
+/**
+ * The same three directions, worded for a Yes / No question, whose score is
+ * the probability of true: maximizing it means true is the good answer.
+ */
+export const PREDICATE_OPTIMIZATION_DIRECTION_OPTIONS: readonly OptimizationDirectionOption[] =
+  [
+    { value: "MAXIMIZE", label: "True is good" },
+    { value: "MINIMIZE", label: "False is good" },
+    { value: "NONE", label: "Neither" },
+  ];
+
+export const PREDICATE_OPTIMIZATION_DIRECTION_DESCRIPTION =
+  "Marks which answer is good. It doesn't change the answer or its probability.";
 
 const getOptimizationDirectionLabel = (
   value: EvaluatorOptimizationDirection
@@ -37,6 +53,61 @@ const getOptimizationDirectionLabel = (
   );
 };
 
+type OptimizationDirectionSelectProps = {
+  value: EvaluatorOptimizationDirection;
+  onChange: (value: EvaluatorOptimizationDirection) => void;
+  isDisabled?: boolean;
+  /** Helper text rendered beneath the field via the `description` slot. */
+  description?: string;
+  /** The choices and their wording; the generic maximize / minimize by default. */
+  options?: readonly OptimizationDirectionOption[];
+  "aria-label"?: string;
+  "data-testid"?: string;
+};
+
+/**
+ * The optimization direction select every evaluator annotation editor draws:
+ * a labelled `Select` of the three directions that fills its row.
+ */
+export function OptimizationDirectionSelect({
+  value,
+  onChange,
+  isDisabled,
+  description,
+  options = optimizationDirectionOptions,
+  "aria-label": ariaLabel = "Optimization direction",
+  "data-testid": testId = "optimization-direction-picker",
+}: OptimizationDirectionSelectProps) {
+  return (
+    <Select
+      data-testid={testId}
+      value={value}
+      onChange={(key) => onChange(key as EvaluatorOptimizationDirection)}
+      isDisabled={isDisabled}
+      aria-label={ariaLabel}
+      css={css`
+        width: 100%;
+      `}
+    >
+      <Label>Optimization direction</Label>
+      <Button>
+        <SelectValue />
+        <SelectChevronUpDownIcon />
+      </Button>
+      <Popover>
+        <ListBox>
+          {options.map((option) => (
+            <SelectItem key={option.value} id={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </ListBox>
+      </Popover>
+      {description ? <Text slot="description">{description}</Text> : null}
+    </Select>
+  );
+}
+
 export type OptimizationDirectionFieldProps = {
   isReadOnly?: boolean;
   isDisabled?: boolean;
@@ -45,6 +116,7 @@ export type OptimizationDirectionFieldProps = {
    * shown beneath the field when editable.
    */
   description?: string;
+  onChange?: () => void;
 };
 
 /**
@@ -57,6 +129,7 @@ export const OptimizationDirectionField = ({
   isReadOnly,
   isDisabled,
   description,
+  onChange,
 }: OptimizationDirectionFieldProps) => {
   const { optimizationDirection, setOutputConfigOptimizationDirectionAtIndex } =
     useEvaluatorStore(
@@ -78,36 +151,14 @@ export const OptimizationDirectionField = ({
   }
 
   return (
-    <Select
+    <OptimizationDirectionSelect
       value={optimizationDirection}
-      onChange={(e) =>
-        setOutputConfigOptimizationDirectionAtIndex(
-          0,
-          e as EvaluatorOptimizationDirection
-        )
-      }
+      onChange={(direction) => {
+        onChange?.();
+        setOutputConfigOptimizationDirectionAtIndex(0, direction);
+      }}
       isDisabled={isDisabled}
-      aria-label="Optimization direction"
-      data-testid="optimization-direction-picker"
-      css={css`
-        width: 100%;
-      `}
-    >
-      <Label>Optimization direction</Label>
-      <Button>
-        <SelectValue />
-        <SelectChevronUpDownIcon />
-      </Button>
-      <Popover>
-        <ListBox>
-          {optimizationDirectionOptions.map((option) => (
-            <SelectItem key={option.value} id={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </ListBox>
-      </Popover>
-      {description ? <Text slot="description">{description}</Text> : null}
-    </Select>
+      description={description}
+    />
   );
 };

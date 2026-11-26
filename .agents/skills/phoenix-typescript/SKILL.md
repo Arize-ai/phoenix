@@ -19,6 +19,8 @@ Self-documenting names eliminate mental parsing for the next reader.
 - Complex conditions should be extracted into named booleans so code reads as prose.
 - Booleans must use verb prefixes: `isAllowed`, `hasError`, `canSubmit` — not `allowed`, `error`.
 - Function names must start with an action verb that describes what the function does: `getUser`, `normalizeTimestamp`, `logEvent`, `parseResponse`, `buildQuery` — not `user()`, `timestamp()`, `event()`.
+- A hook's file is named after the hook, and the hook's name says what it returns.
+- Names come from vocabulary the codebase, React, Relay and GraphQL already use, not from a paraphrase of the behavior. If a name needs a paragraph to explain it, rename it.
 
 ```ts
 // Bad — single letters and ambiguous names
@@ -44,7 +46,7 @@ const isDisabled = !hasPermission || isSubmitting;
 ## Functions
 
 - Functions with 2+ parameters must take a single destructured object — this makes call sites readable and resilient to reordering. Callbacks whose signature is fixed by a library or the DOM are exempt.
-- Object parameters should be documented with JSDoc using `@param` dot notation so editors surface descriptions on hover and during autocomplete.
+- Object parameters should be documented with TSDoc using `@param` dot notation so editors surface descriptions on hover and during autocomplete.
 - Behavior should be built from composition (functions and hooks), not inheritance.
 - Transforms should prefer functional purity over mutation — use `map` not `reduce` for element-wise transforms, return new objects instead of mutating.
 - Pure utilities must not reach for hardcoded module constants or ambient state (`Date.now()`, `new Date()`, config singletons) deep inside their bodies. Expose every such value as an optional parameter whose default is the constant, so callers — and especially tests — can override it and the function's output depends only on its inputs. The module constant becomes the default, prefixed `DEFAULT_`.
@@ -118,7 +120,7 @@ const value = map["missing"]; // typed as string | undefined
 
 ## Comments
 
-Default to no inline comments, in `js/app/` and the packages alike. Keep one only if a competent reader of the final code, without it, would likely change the code wrongly — an early return that looks dead, two calls that must stay in that order. Delete a comment that restates the next line, describes a helper or a test step, or justifies the change; that reasoning belongs in the commit message or PR description.
+Default to no inline comments, in `js/app/` and the packages alike. Keep one only if a competent reader of the final code, without it, would likely change the code wrongly — an early return that looks dead, two calls that must stay in that order. Delete a comment that restates the next line, describes a helper or a test step, or justifies the change; that reasoning belongs in the commit message or PR description. A comment that explains what a condition or expression means is a name that is missing: extract it into a named boolean or variable instead.
 
 TSDoc on exported symbols in `js/packages/` is public API, not an inline comment: keep it.
 

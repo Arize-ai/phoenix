@@ -61,9 +61,9 @@ class DatasetEvaluatorFieldsOutputConfigsFreeformAnnotationConfig(BaseModel):
 
 
 class DatasetEvaluatorFieldsEvaluatorEvaluator(BaseModel):
-    typename__: Literal["BuiltInEvaluator", "Evaluator", "LLMEvaluator"] = Field(
-        alias="__typename"
-    )
+    typename__: Literal[
+        "BuiltInEvaluator", "DecisionEvaluator", "Evaluator", "LLMEvaluator"
+    ] = Field(alias="__typename")
     id: str
     name: str
     kind: EvaluatorKind

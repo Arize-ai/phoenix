@@ -1,6 +1,6 @@
 from enum import Enum
 from types import MappingProxyType
-from typing import Any, ClassVar, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Any, ClassVar, Mapping, Optional, Union
 
 import strawberry
 from openinference.semconv.trace import OpenInferenceLLMProviderValues, SpanAttributes
@@ -8,11 +8,16 @@ from strawberry.types import Info
 from typing_extensions import assert_never
 
 from phoenix.config import getenv
-from phoenix.db.types.model_provider import ModelProvider
+from phoenix.db.types.model_provider import (
+    SDK_TO_MODEL_PROVIDER,
+    ModelProvider,
+)
 from phoenix.server.api.context import Context
+from phoenix.server.api.types.ModelType import ModelType
 from phoenix.trace.attributes import get_attribute_value
 
-MINIMAX_MODEL_NAMES = ("MiniMax-M3.1-Flash", "MiniMax-M3")
+if TYPE_CHECKING:
+    from phoenix.server.api.helpers.model_clients import ModelClient
 
 
 @strawberry.enum
@@ -34,6 +39,7 @@ class GenerativeProviderKey(Enum):
     TOGETHER = "Together"
     ZAI = "Z.ai"
     META = "Meta"
+    TYPESAFE = "TypeSafe"
 
     @classmethod
     def from_model_provider(cls, model_provider: "ModelProvider") -> "GenerativeProviderKey":
@@ -73,6 +79,8 @@ class GenerativeProviderKey(Enum):
             return cls.ZAI
         elif model_provider is ModelProvider.META:
             return cls.META
+        elif model_provider is ModelProvider.TYPESAFE:
+            return cls.TYPESAFE
         assert_never(model_provider)
 
     def to_model_provider(self) -> "ModelProvider":
@@ -110,6 +118,8 @@ class GenerativeProviderKey(Enum):
             return ModelProvider.ZAI
         if self is GenerativeProviderKey.META:
             return ModelProvider.META
+        if self is GenerativeProviderKey.TYPESAFE:
+            return ModelProvider.TYPESAFE
         assert_never(self)
 
 
@@ -136,6 +146,7 @@ GENERATIVE_PROVIDER_KEY_TO_PROVIDER_STRING: Mapping[GenerativeProviderKey, str] 
         # OpenInference semconv has no `meta` provider value yet; ship a plain
         # string literal until an upstream semconv PR lands.
         GenerativeProviderKey.META: "meta",
+        GenerativeProviderKey.TYPESAFE: OpenInferenceLLMProviderValues.TYPESAFE.value,
     }
 )
 
@@ -151,11 +162,8 @@ KNOWN_LLM_PROVIDER_STRINGS: frozenset[str] = frozenset(
 
 CONFIG_TYPE_TO_GENERATIVE_PROVIDER_KEY: Mapping[str, GenerativeProviderKey] = MappingProxyType(
     {
-        "openai": GenerativeProviderKey.OPENAI,
-        "azure_openai": GenerativeProviderKey.AZURE_OPENAI,
-        "anthropic": GenerativeProviderKey.ANTHROPIC,
-        "aws_bedrock": GenerativeProviderKey.AWS,
-        "google_genai": GenerativeProviderKey.GOOGLE,
+        sdk: GenerativeProviderKey.from_model_provider(provider)
+        for sdk, provider in SDK_TO_MODEL_PROVIDER.items()
     }
 )
 
@@ -189,6 +197,7 @@ class GenerativeProvider:
         GenerativeProviderKey.TOGETHER: [],
         GenerativeProviderKey.ZAI: ["glm"],
         GenerativeProviderKey.META: ["muse"],
+        GenerativeProviderKey.TYPESAFE: ["jev"],
     }
 
     attribute_provider_to_generative_provider_map: ClassVar[dict[str, GenerativeProviderKey]] = {
@@ -197,6 +206,7 @@ class GenerativeProvider:
         OpenInferenceLLMProviderValues.AZURE.value: GenerativeProviderKey.AZURE_OPENAI,
         OpenInferenceLLMProviderValues.GOOGLE.value: GenerativeProviderKey.GOOGLE,
         OpenInferenceLLMProviderValues.AWS.value: GenerativeProviderKey.AWS,
+        OpenInferenceLLMProviderValues.TYPESAFE.value: GenerativeProviderKey.TYPESAFE,
         # Note: DeepSeek uses OpenAI compatibility but we can't duplicate the key in the dict
         # The provider will be determined through model name prefix matching instead
         # Note: xAI uses OpenAI compatibility but we can't duplicate the key in the dict
@@ -260,6 +270,9 @@ class GenerativeProvider:
         GenerativeProviderKey.META: [
             GenerativeProviderCredentialConfig(env_var_name="META_API_KEY", is_required=True)
         ],
+        GenerativeProviderKey.TYPESAFE: [
+            GenerativeProviderCredentialConfig(env_var_name="TYPESAFE_API_KEY", is_required=True)
+        ],
         GenerativeProviderKey.AWS: [
             GenerativeProviderCredentialConfig(env_var_name="AWS_ACCESS_KEY_ID", is_required=True),
             GenerativeProviderCredentialConfig(
@@ -269,29 +282,36 @@ class GenerativeProvider:
         ],
     }
 
-    @strawberry.field
-    async def dependencies(self) -> list[str]:
-        from phoenix.server.api.helpers.playground_registry import (
-            PLAYGROUND_CLIENT_REGISTRY,
-            PROVIDER_DEFAULT,
-        )
+    def _client(self, model_type: Optional[ModelType] = None) -> Optional[type["ModelClient[Any]"]]:
+        from phoenix.server.api.helpers.client_registry import CLIENT_REGISTRY
 
-        default_client = PLAYGROUND_CLIENT_REGISTRY.get_client(self.key, PROVIDER_DEFAULT)
-        if default_client:
-            return [dependency.name for dependency in default_client.dependencies()]
-        return []
+        if model_type is not None:
+            return CLIENT_REGISTRY.get_client(self.key, model_type=model_type.to_model_type_key())
+        for key in CLIENT_REGISTRY.model_types(self.key):
+            if client := CLIENT_REGISTRY.get_client(self.key, model_type=key):
+                return client
+        return None
 
     @strawberry.field
-    async def dependencies_installed(self) -> bool:
-        from phoenix.server.api.helpers.playground_registry import (
-            PLAYGROUND_CLIENT_REGISTRY,
-            PROVIDER_DEFAULT,
-        )
+    async def dependencies(self, model_type: Optional[ModelType] = None) -> list[str]:
+        client = self._client(model_type)
+        return [dependency.name for dependency in client.dependencies()] if client else []
 
-        default_client = PLAYGROUND_CLIENT_REGISTRY.get_client(self.key, PROVIDER_DEFAULT)
-        if default_client:
-            return default_client.dependencies_are_installed()
-        return False
+    @strawberry.field
+    async def dependencies_installed(self, model_type: Optional[ModelType] = None) -> bool:
+        client = self._client(model_type)
+        return client.dependencies_are_installed() if client else False
+
+    @strawberry.field(
+        description=(
+            "The model types this provider offers: chat models, decision models, or both. "
+            "Derived from which clients serve the provider, not from its name."
+        )
+    )  # type: ignore
+    async def model_types(self) -> list[ModelType]:
+        from phoenix.server.api.helpers.client_registry import CLIENT_REGISTRY
+
+        return [ModelType[model_type] for model_type in CLIENT_REGISTRY.model_types(self.key)]
 
     @strawberry.field(description="The credential requirements for the provider")  # type: ignore
     async def credential_requirements(self) -> list[GenerativeProviderCredentialConfig]:

@@ -122,6 +122,11 @@ function matchEntityRoute(
       }),
     };
   }
+  // Decisions are listed and viewed under /prompts/decisions; they are not
+  // tracked, and must not be mistaken for a prompt whose id is "decisions".
+  if (matchPath({ path: "/prompts/decisions", end: false }, pathname)) {
+    return null;
+  }
   const promptMatch = matchPath(
     { path: "/prompts/:promptId", end: false },
     pathname

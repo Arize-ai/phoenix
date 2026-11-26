@@ -47,6 +47,17 @@ const urlFieldSchema = z
     { message: "Must be a valid URL" }
   );
 
+// Decision model settings shared by the SDKs that can serve decision models
+const decisionModelsSchema = {
+  decision_enabled: z.boolean(),
+  decision_model_names: z.string().optional(),
+};
+
+// Suggested chat model names, shared by the SDKs that serve chat models
+const chatModelsSchema = {
+  model_names: z.string().optional(),
+};
+
 // Base schema shared by all providers
 const baseProviderSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -63,6 +74,8 @@ const openAISchema = baseProviderSchema.extend({
   openai_organization: z.string().optional(),
   openai_project: z.string().optional(),
   openai_default_headers: httpHeadersFieldSchema,
+  ...chatModelsSchema,
+  ...decisionModelsSchema,
 });
 
 // Azure OpenAI schema - endpoint requires URL validation with non-empty check
@@ -96,6 +109,8 @@ const azureOpenAISchema = baseProviderSchema.extend({
   azure_client_secret: z.string().optional(),
   azure_scope: z.string().optional(),
   azure_default_headers: httpHeadersFieldSchema,
+  ...chatModelsSchema,
+  ...decisionModelsSchema,
 });
 
 // Anthropic schema
@@ -104,6 +119,7 @@ const anthropicSchema = baseProviderSchema.extend({
   anthropic_api_key: z.string().min(1, "API key is required"),
   anthropic_base_url: urlFieldSchema,
   anthropic_default_headers: httpHeadersFieldSchema,
+  ...chatModelsSchema,
 });
 
 // AWS Bedrock schema
@@ -115,6 +131,7 @@ const awsBedrockSchema = baseProviderSchema.extend({
   aws_secret_access_key: z.string().optional(),
   aws_session_token: z.string().optional(),
   aws_endpoint_url: urlFieldSchema,
+  ...chatModelsSchema,
 });
 
 // Google GenAI schema
@@ -123,6 +140,17 @@ const googleGenAISchema = baseProviderSchema.extend({
   google_api_key: z.string().min(1, "API key is required"),
   google_base_url: urlFieldSchema,
   google_headers: httpHeadersFieldSchema,
+  ...chatModelsSchema,
+  ...decisionModelsSchema,
+});
+
+// TypeSafe schema
+const typeSafeSchema = baseProviderSchema.extend({
+  sdk: z.literal("TYPESAFE"),
+  typesafe_api_key: z.string().min(1, "API key is required"),
+  typesafe_base_url: urlFieldSchema,
+  typesafe_default_headers: httpHeadersFieldSchema,
+  ...decisionModelsSchema,
 });
 
 // Discriminated union of all provider schemas
@@ -132,6 +160,7 @@ const baseProviderFormSchema = z.discriminatedUnion("sdk", [
   anthropicSchema,
   awsBedrockSchema,
   googleGenAISchema,
+  typeSafeSchema,
 ]);
 
 // Add conditional validation for auth methods on top of the discriminated union

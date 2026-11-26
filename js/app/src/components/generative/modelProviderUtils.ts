@@ -17,12 +17,19 @@ const GENERATIVE_MODEL_SDK_TO_PROVIDER_KEY: Record<
   ANTHROPIC: "ANTHROPIC",
   AWS_BEDROCK: "AWS",
   GOOGLE_GENAI: "GOOGLE",
+  TYPESAFE: "TYPESAFE",
 };
 
 export function getProviderKeyForGenerativeModelSDK(
   sdk: GenerativeModelSDK
 ): GenerativeProviderKey {
   return GENERATIVE_MODEL_SDK_TO_PROVIDER_KEY[sdk];
+}
+
+export function getChatModelProviders<
+  Provider extends { readonly modelTypes: readonly ModelType[] },
+>(providers: readonly Provider[]): Provider[] {
+  return providers.filter((provider) => provider.modelTypes.includes("CHAT"));
 }
 
 /**

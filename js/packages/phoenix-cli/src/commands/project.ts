@@ -19,6 +19,7 @@ import type {
   DeleteOptions,
   ProgressOptions,
 } from "./options";
+import { createProjectEvaluatorCommand } from "./projectEvaluator";
 
 /**
  * Options for `px project list`.
@@ -466,5 +467,6 @@ export function createProjectCommand(): Command {
   command.addCommand(createProjectGetCommand());
   command.addCommand(createProjectCreateCommand());
   command.addCommand(createProjectDeleteCommand());
+  command.addCommand(createProjectEvaluatorCommand());
   return command;
 }

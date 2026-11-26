@@ -56,11 +56,51 @@ export const getErrorMessagesFromRelayMutationError = (
   if (typeof rawErrorMessage !== "string") {
     return null;
   }
+  const trailingErrors = parseTrailingGraphQLErrors(rawErrorMessage);
+  if (trailingErrors) {
+    const messages = trailingErrors.flatMap((entry) =>
+      isErrorWithMessage(entry) ? [entry.message] : []
+    );
+    return messages.length > 0 ? messages : null;
+  }
+  // The errors array could not be parsed; fall back to scanning the string.
   const messages = [...rawErrorMessage.matchAll(mutationErrorRegex)].map(
     (match) => match[1]
   );
   return messages.length > 0 ? messages : null;
 };
+
+/** The message of a failed mutation, from a network error or GraphQL errors. */
+export function getMutationErrorMessage(error: unknown): string {
+  return (
+    getErrorMessagesFromRelayMutationError(error)?.join("\n") ??
+    (error instanceof Error ? error.message : "An unknown error occurred")
+  );
+}
+
+/**
+ * The GraphQL errors array at the end of a Relay network error message.
+ *
+ * The network layer formats a failure as
+ * `Error fetching GraphQL query 'Name' with variables '{...}': [{...}]`. The
+ * variables may carry their own `message` keys (a chat message, a decision
+ * state) and even credentials, so the trailing array is located and parsed
+ * instead of regexing the whole string.
+ */
+function parseTrailingGraphQLErrors(rawErrorMessage: string): unknown[] | null {
+  let searchFrom = 0;
+  for (;;) {
+    const arrayStart = rawErrorMessage.indexOf(": [", searchFrom);
+    if (arrayStart === -1) return null;
+    try {
+      const parsed: unknown = JSON.parse(rawErrorMessage.slice(arrayStart + 2));
+      if (Array.isArray(parsed)) return parsed;
+    } catch {
+      // A ": [" inside the variables, not the errors array; keep looking.
+    }
+    searchFrom = arrayStart + 1;
+  }
+}
 
 interface ErrorWithSource extends Error {
   source: {

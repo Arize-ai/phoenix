@@ -43,7 +43,7 @@ members = [
     "harbor-verifiers",
 ]
 overrides = [
-    { name = "openai", specifier = ">=3.1.0,<4" },
+    { name = "openai", specifier = ">=3.31.0,<4" },
     { name = "python-dotenv", specifier = ">=1.1.0" },
 ]
 
@@ -483,6 +483,7 @@ dependencies = [
     { name = "email-validator" },
     { name = "fastapi" },
     { name = "fastmcp-slim", extra = ["client", "server"] },
+    { name = "google-genai" },
     { name = "graphql-core" },
     { name = "grpc-interceptor" },
     { name = "grpcio" },
@@ -507,7 +508,7 @@ dependencies = [
     { name = "psutil" },
     { name = "pyarrow" },
     { name = "pydantic" },
-    { name = "pydantic-ai-slim", extra = ["anthropic", "bedrock", "google", "mcp", "openai", "ui"] },
+    { name = "pydantic-ai-slim", extra = ["anthropic", "bedrock", "mcp", "openai", "ui"] },
     { name = "pydantic-monty" },
     { name = "pystache" },
     { name = "python-dateutil" },
@@ -549,6 +550,7 @@ container = [
     { name = "py-grpc-prometheus" },
     { name = "strawberry-graphql", extra = ["opentelemetry"] },
     { name = "types-aiobotocore-bedrock-runtime" },
+    { name = "typesafe-sdk" },
     { name = "uvloop", marker = "sys_platform != 'win32'" },
     { name = "vercel" },
     { name = "wasmtime" },
@@ -642,6 +644,7 @@ dev = [
     { name = "pytest-xdist" },
     { name = "requests" },
     { name = "responses" },
+    { name = "respx" },
     { name = "ruff" },
     { name = "scikit-learn" },
     { name = "strawberry-graphql", extra = ["cli", "opentelemetry"] },
@@ -665,6 +668,7 @@ dev = [
     { name = "types-setuptools" },
     { name = "types-tabulate" },
     { name = "types-tqdm" },
+    { name = "typesafe-sdk" },
     { name = "typing-extensions" },
     { name = "uvloop", marker = "sys_platform != 'win32'" },
     { name = "vcrpy" },
@@ -703,7 +707,8 @@ requires-dist = [
     { name = "email-validator" },
     { name = "fastapi", specifier = ">=0.142.0" },
     { name = "fastmcp-slim", extras = ["client", "server"], specifier = ">=4,<5" },
-    { name = "google-genai", marker = "extra == 'container'", specifier = ">=1.50.0" },
+    { name = "google-genai", specifier = ">=3.2.0,<4" },
+    { name = "google-genai", marker = "extra == 'container'", specifier = ">=3.2.0" },
     { name = "graphql-core", specifier = ">=3.3.1,<3.4" },
     { name = "grpc-interceptor" },
     { name = "grpcio" },
@@ -717,7 +722,7 @@ requires-dist = [
     { name = "modal", marker = "extra == 'container'", specifier = ">=1.2.0" },
     { name = "modal", marker = "extra == 'modal'", specifier = ">=1.2.0" },
     { name = "numpy" },
-    { name = "openai", marker = "extra == 'container'", specifier = ">=3.1.0,<4" },
+    { name = "openai", marker = "extra == 'container'", specifier = ">=3.31.0,<4" },
     { name = "openinference-instrumentation", specifier = ">=0.1.60" },
     { name = "openinference-instrumentation-openai", specifier = ">=0.1.41" },
     { name = "openinference-semantic-conventions", specifier = ">=0.1.46" },
@@ -732,7 +737,7 @@ requires-dist = [
     { name = "py-grpc-prometheus", marker = "extra == 'container'" },
     { name = "pyarrow" },
     { name = "pydantic", specifier = ">=2.1.0" },
-    { name = "pydantic-ai-slim", extras = ["anthropic", "bedrock", "google", "mcp", "openai", "ui"], specifier = ">=2.71.0,<3" },
+    { name = "pydantic-ai-slim", extras = ["anthropic", "bedrock", "mcp", "openai", "ui"], specifier = ">=2.71.0,<3" },
     { name = "pydantic-monty", specifier = "==1.5.0" },
     { name = "pystache" },
     { name = "python-dateutil" },
@@ -747,6 +752,7 @@ requires-dist = [
     { name = "tqdm" },
     { name = "types-aiobotocore-bedrock-runtime", marker = "extra == 'aws'", specifier = ">=3.6.0" },
     { name = "types-aiobotocore-bedrock-runtime", marker = "extra == 'container'", specifier = ">=3.6.0" },
+    { name = "typesafe-sdk", marker = "extra == 'container'", specifier = ">=0.7.5" },
     { name = "typing-extensions", specifier = ">=4.6" },
     { name = "uvicorn" },
     { name = "uvloop", marker = "sys_platform != 'win32' and extra == 'container'" },
@@ -779,7 +785,7 @@ dev = [
     { name = "e2b-code-interpreter", specifier = ">=0.0.12" },
     { name = "faker", specifier = ">=30.1.0" },
     { name = "freezegun" },
-    { name = "google-genai", specifier = ">=1.0.0" },
+    { name = "google-genai", specifier = ">=3.2.0" },
     { name = "grpc-interceptor", extras = ["testing"] },
     { name = "grpcio" },
     { name = "grpcio-tools", specifier = ">=1.78.0" },
@@ -797,7 +803,7 @@ dev = [
     { name = "mypy-protobuf", specifier = ">=5.0.0" },
     { name = "nest-asyncio" },
     { name = "numpy" },
-    { name = "openai", specifier = ">=3.1.0,<4" },
+    { name = "openai", specifier = ">=3.31.0,<4" },
     { name = "openinference-instrumentation", specifier = ">=0.1.60" },
     { name = "openinference-semantic-conventions", specifier = ">=0.1.46" },
     { name = "opentelemetry-exporter-otlp" },
@@ -826,6 +832,7 @@ dev = [
     { name = "pytest-xdist" },
     { name = "requests" },
     { name = "responses" },
+    { name = "respx", specifier = ">=0.22.0" },
     { name = "ruff", specifier = ">=0.15.2" },
     { name = "scikit-learn" },
     { name = "strawberry-graphql", extras = ["opentelemetry", "cli"], specifier = "==0.341.2" },
@@ -849,6 +856,7 @@ dev = [
     { name = "types-setuptools" },
     { name = "types-tabulate" },
     { name = "types-tqdm" },
+    { name = "typesafe-sdk", specifier = ">=0.7.5" },
     { name = "typing-extensions" },
     { name = "uvloop", marker = "sys_platform != 'win32'" },
     { name = "vcrpy", specifier = ">=8.3" },
@@ -2798,13 +2806,13 @@ requests = [
 
 [[package]]
 name = "google-genai"
-version = "2.34.0"
+version = "3.6.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
     { name = "distro" },
     { name = "google-auth", extra = ["requests"] },
-    { name = "httpx" },
+    { name = "httpx2" },
     { name = "pydantic" },
     { name = "requests" },
     { name = "sniffio" },
@@ -2812,9 +2820,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/22/89/4621aee9cb183efa5b8a187f0e315c49fddcfb8cd7f238b4a3bf4946dcd0/google_genai-2.34.0.tar.gz", hash = "sha256:8e182cf3f73384167b96861cf0aef5102b5070f2db1ea11002879e913806ef37", size = 791853, upload-time = "2026-10-29T06:43:23.706Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0f/15/ecebc770eb7edec0e588498d6b872aff6091ce1af1a9c503bd70b5a1ea7a/google_genai-3.6.1.tar.gz", hash = "sha256:dfd4120a15ba5aff6a3de8a85d76e1d5d0af65c70a54c459b1c5e76f503e46e7", size = 885277, upload-time = "2026-11-18T22:18:48.819Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2e/42/c24db865d9231b1c672ea26242a4dcf340e200bb1a9823dce4aa9c4c07a4/google_genai-2.34.0-py3-none-any.whl", hash = "sha256:a4cb02aebc4c357f863d2938132f0e3f7967fc5e00b8a4078673f68aad340665", size = 1258155, upload-time = "2026-10-29T06:43:21.121Z" },
+    { url = "https://files.pythonhosted.org/packages/c0/1a/576adc030b48c7491b33ab94b96521151ef5b956552c0057628ef39c69bb/google_genai-3.6.1-py3-none-any.whl", hash = "sha256:4b35064da644f61d7e5f6c0e9406bf63b945e7e96b4af18cadb3371cbc3acf74", size = 1472097, upload-time = "2026-11-18T22:18:46.803Z" },
 ]
 
 [[package]]
@@ -6242,9 +6250,6 @@ anthropic = [
 bedrock = [
     { name = "boto3" },
 ]
-google = [
-    { name = "google-genai" },
-]
 mcp = [
     { name = "fastmcp-slim", extra = ["client"] },
 ]
@@ -7320,6 +7325,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/9f/47/f216a33221db8eff328987661cf18371afee89c62a62b434b963d6b509c9/responses-0.26.3.tar.gz", hash = "sha256:b0c11ca8131b8b227b8d5108e6ed39772222bd5aab030ed430e8f99057c4c409", size = 86335, upload-time = "2026-08-26T19:17:24.373Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/6d/86/ca7958de70cb0752350575e98229368a3a2f746a2942034b3364e17312bb/responses-0.26.3-py3-none-any.whl", hash = "sha256:74474f799334ac4f37d93b6437ecc3bb1bb5c77a8d31780a338643be2dce0af8", size = 36289, upload-time = "2026-08-26T19:17:23.176Z" },
+]
+
+[[package]]
+name = "respx"
+version = "0.23.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/43/98/4e55c9c486404ec12373708d015ebce157966965a5ebe7f28ff2c784d41b/respx-0.23.1.tar.gz", hash = "sha256:242dcc6ce6b5b9bf621f5870c82a63997e8e82bc7c947f9ffe272b8f3dd5a780", size = 29243, upload-time = "2026-04-08T14:37:16.008Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1d/4a/221da6ca167db45693d8d26c7dc79ccfc978a440251bf6721c9aaf251ac0/respx-0.23.1-py2.py3-none-any.whl", hash = "sha256:b18004b029935384bccfa6d7d9d74b4ec9af73a081cc28600fffc0447f4b8c1a", size = 25557, upload-time = "2026-04-08T14:37:14.613Z" },
 ]
 
 [[package]]

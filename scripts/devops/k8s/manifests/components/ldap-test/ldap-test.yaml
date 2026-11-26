@@ -1,0 +1,1000 @@
+# Adversarial LDAP TLS + POSIX test suite (ported from overrides/ldap-test.yml)
+# The main `phoenix` instance (LDAPS + no-email) is deployed via Helm using values/ldap-test.yaml.
+
+# ---------------------------------------------------------------------------
+# 1. Standard OpenLDAP (with mail attribute + TLS) + MITM proxy + seed
+# ---------------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ldap
+  labels:
+    app: ldap
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ldap
+  template:
+    metadata:
+      labels:
+        app: ldap
+    spec:
+      enableServiceLinks: false
+      hostname: ldap
+      containers:
+        - name: ldap
+          image: osixia/openldap:1.5.0
+          args: ["--copy-service", "--loglevel", "debug"]
+          ports:
+            - containerPort: 389
+            - containerPort: 636
+          env:
+            - name: LDAP_ORGANISATION
+              value: "Example Corp"
+            - name: LDAP_DOMAIN
+              value: "example.com"
+            - name: LDAP_ADMIN_PASSWORD
+              value: "admin_password"
+            - name: LDAP_CONFIG_PASSWORD
+              value: "config_password"
+            - name: LDAP_READONLY_USER
+              value: "true"
+            - name: LDAP_READONLY_USER_USERNAME
+              value: "readonly"
+            - name: LDAP_READONLY_USER_PASSWORD
+              value: "readonly_password"
+            - name: LDAP_TLS
+              value: "true"
+            - name: LDAP_TLS_VERIFY_CLIENT
+              value: "never"
+            - name: LDAP_LOG_LEVEL
+              value: "256"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ldap
+spec:
+  selector:
+    app: ldap
+  ports:
+    - name: ldap
+      port: 389
+      targetPort: 389
+    - name: ldaps
+      port: 636
+      targetPort: 636
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ldap-seed
+spec:
+  backoffLimit: 5
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: ldap-seed
+          image: osixia/openldap:1.5.0
+          command:
+            - /bin/bash
+            - -c
+            - |
+              for i in $(seq 1 30); do
+                ldapsearch -x -H ldap://ldap:389 -b 'dc=example,dc=com' '(objectClass=*)' dn >/dev/null 2>&1 && break
+                sleep 2
+              done
+              ldapadd -x -H ldap://ldap:389 -D 'cn=admin,dc=example,dc=com' -w admin_password -f /seed/ldap-seed.ldif || true
+          volumeMounts:
+            - name: seeds
+              mountPath: /seed
+              readOnly: true
+      volumes:
+        - name: seeds
+          configMap:
+            name: ldap-seeds
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ldap-mitm-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ldap-mitm-proxy
+  template:
+    metadata:
+      labels:
+        app: ldap-mitm-proxy
+    spec:
+      containers:
+        - name: ldap-mitm-proxy
+          image: python:3.13-slim
+          command:
+            - python3
+            - -u
+            - /scripts/ldap_mitm_proxy.py
+            - --ldap-host
+            - ldap
+            - --ldap-port
+            - "389"
+            - --listen-port
+            - "3389"
+            - --api-host
+            - "0.0.0.0"
+            - --api-port
+            - "8080"
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+          ports:
+            - name: ldap-proxy
+              containerPort: 3389
+            - name: api
+              containerPort: 8080
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+      volumes:
+        - name: scripts
+          configMap:
+            name: ldap-test-scripts
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ldap-mitm-proxy
+spec:
+  selector:
+    app: ldap-mitm-proxy
+  ports:
+    - name: ldap-proxy
+      port: 3389
+      targetPort: 3389
+    - name: api
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ldap-admin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ldap-admin
+  template:
+    metadata:
+      labels:
+        app: ldap-admin
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: ldap-admin
+          image: osixia/phpldapadmin:0.9.0
+          ports:
+            - containerPort: 80
+          env:
+            - name: PHPLDAPADMIN_LDAP_HOSTS
+              value: "ldap"
+            - name: PHPLDAPADMIN_HTTPS
+              value: "false"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ldap-admin
+spec:
+  type: NodePort
+  selector:
+    app: ldap-admin
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      nodePort: 30643
+
+# ---------------------------------------------------------------------------
+# 2. No-Email OpenLDAP (TLS) + seed
+# ---------------------------------------------------------------------------
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ldap-no-email
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ldap-no-email
+  template:
+    metadata:
+      labels:
+        app: ldap-no-email
+    spec:
+      enableServiceLinks: false
+      hostname: ldap-no-email
+      containers:
+        - name: ldap-no-email
+          image: osixia/openldap:1.5.0
+          args: ["--copy-service", "--loglevel", "debug"]
+          ports:
+            - containerPort: 389
+            - containerPort: 636
+          env:
+            - name: LDAP_ORGANISATION
+              value: "Example Corp No Email"
+            - name: LDAP_DOMAIN
+              value: "example.com"
+            - name: LDAP_ADMIN_PASSWORD
+              value: "admin_password"
+            - name: LDAP_CONFIG_PASSWORD
+              value: "config_password"
+            - name: LDAP_READONLY_USER
+              value: "true"
+            - name: LDAP_READONLY_USER_USERNAME
+              value: "readonly"
+            - name: LDAP_READONLY_USER_PASSWORD
+              value: "readonly_password"
+            - name: LDAP_TLS
+              value: "true"
+            - name: LDAP_TLS_VERIFY_CLIENT
+              value: "never"
+            - name: LDAP_LOG_LEVEL
+              value: "256"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ldap-no-email
+spec:
+  selector:
+    app: ldap-no-email
+  ports:
+    - name: ldap
+      port: 389
+      targetPort: 389
+    - name: ldaps
+      port: 636
+      targetPort: 636
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ldap-no-email-seed
+spec:
+  backoffLimit: 5
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: ldap-no-email-seed
+          image: osixia/openldap:1.5.0
+          command:
+            - /bin/bash
+            - -c
+            - |
+              for i in $(seq 1 30); do
+                ldapsearch -x -H ldap://ldap-no-email:389 -b 'dc=example,dc=com' '(objectClass=*)' dn >/dev/null 2>&1 && break
+                sleep 2
+              done
+              ldapadd -x -H ldap://ldap-no-email:389 -D 'cn=admin,dc=example,dc=com' -w admin_password -f /seed/ldap-no-email-seed.ldif || true
+          volumeMounts:
+            - name: seeds
+              mountPath: /seed
+              readOnly: true
+      volumes:
+        - name: seeds
+          configMap:
+            name: ldap-seeds
+
+# ---------------------------------------------------------------------------
+# 3. Anonymous OpenLDAP (TLS + ACLs) + seed + MITM proxy
+# ---------------------------------------------------------------------------
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ldap-anonymous
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ldap-anonymous
+  template:
+    metadata:
+      labels:
+        app: ldap-anonymous
+    spec:
+      enableServiceLinks: false
+      hostname: ldap-anonymous
+      containers:
+        - name: ldap-anonymous
+          image: osixia/openldap:1.5.0
+          args: ["--copy-service", "--loglevel", "debug"]
+          ports:
+            - containerPort: 389
+            - containerPort: 636
+          env:
+            - name: LDAP_ORGANISATION
+              value: "Example Corp"
+            - name: LDAP_DOMAIN
+              value: "example.com"
+            - name: LDAP_ADMIN_PASSWORD
+              value: "admin_password"
+            - name: LDAP_CONFIG_PASSWORD
+              value: "config_password"
+            - name: LDAP_TLS
+              value: "true"
+            - name: LDAP_TLS_VERIFY_CLIENT
+              value: "never"
+            - name: LDAP_LOG_LEVEL
+              value: "256"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ldap-anonymous
+spec:
+  selector:
+    app: ldap-anonymous
+  ports:
+    - name: ldap
+      port: 389
+      targetPort: 389
+    - name: ldaps
+      port: 636
+      targetPort: 636
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ldap-anonymous-seed
+spec:
+  backoffLimit: 5
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: ldap-anonymous-seed
+          image: osixia/openldap:1.5.0
+          command:
+            - /bin/bash
+            - -c
+            - |
+              for i in $(seq 1 30); do
+                ldapsearch -x -H ldap://ldap-anonymous:389 -b 'dc=example,dc=com' '(objectClass=*)' dn >/dev/null 2>&1 && break
+                sleep 2
+              done
+              ldapadd -x -H ldap://ldap-anonymous:389 -D 'cn=admin,dc=example,dc=com' -w admin_password -f /seed/ldap-seed.ldif || true
+              ldapmodify -x -H ldap://ldap-anonymous:389 -D 'cn=admin,cn=config' -w config_password -f /seed/ldap-anonymous-acl.ldif
+          volumeMounts:
+            - name: seeds
+              mountPath: /seed
+              readOnly: true
+      volumes:
+        - name: seeds
+          configMap:
+            name: ldap-seeds
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ldap-anonymous-mitm-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ldap-anonymous-mitm-proxy
+  template:
+    metadata:
+      labels:
+        app: ldap-anonymous-mitm-proxy
+    spec:
+      containers:
+        - name: ldap-anonymous-mitm-proxy
+          image: python:3.13-slim
+          command:
+            - python3
+            - -u
+            - /scripts/ldap_mitm_proxy.py
+            - --ldap-host
+            - ldap-anonymous
+            - --ldap-port
+            - "389"
+            - --listen-port
+            - "3389"
+            - --api-host
+            - "0.0.0.0"
+            - --api-port
+            - "8080"
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+          ports:
+            - name: ldap-proxy
+              containerPort: 3389
+            - name: api
+              containerPort: 8080
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+      volumes:
+        - name: scripts
+          configMap:
+            name: ldap-test-scripts
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ldap-anonymous-mitm-proxy
+spec:
+  selector:
+    app: ldap-anonymous-mitm-proxy
+  ports:
+    - name: ldap-proxy
+      port: 3389
+      targetPort: 3389
+    - name: api
+      port: 8080
+      targetPort: 8080
+
+# ---------------------------------------------------------------------------
+# 4. POSIX OpenLDAP (no memberOf overlay) + seed
+# ---------------------------------------------------------------------------
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ldap-posix
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ldap-posix
+  template:
+    metadata:
+      labels:
+        app: ldap-posix
+    spec:
+      enableServiceLinks: false
+      hostname: ldap-posix
+      containers:
+        - name: ldap-posix
+          image: osixia/openldap:1.5.0
+          args: ["--copy-service", "--loglevel", "debug"]
+          ports:
+            - containerPort: 389
+          env:
+            - name: LDAP_ORGANISATION
+              value: "Example Corp POSIX"
+            - name: LDAP_DOMAIN
+              value: "example.com"
+            - name: LDAP_ADMIN_PASSWORD
+              value: "admin_password"
+            - name: LDAP_CONFIG_PASSWORD
+              value: "config_password"
+            - name: LDAP_READONLY_USER
+              value: "true"
+            - name: LDAP_READONLY_USER_USERNAME
+              value: "readonly"
+            - name: LDAP_READONLY_USER_PASSWORD
+              value: "readonly_password"
+            - name: LDAP_TLS
+              value: "false"
+            - name: LDAP_LOG_LEVEL
+              value: "256"
+            - name: LDAP_REMOVE_CONFIG_AFTER_SETUP
+              value: "false"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ldap-posix
+spec:
+  selector:
+    app: ldap-posix
+  ports:
+    - name: ldap
+      port: 389
+      targetPort: 389
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ldap-posix-seed
+spec:
+  backoffLimit: 5
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: ldap-posix-seed
+          image: osixia/openldap:1.5.0
+          command:
+            - /bin/bash
+            - -c
+            - |
+              for i in $(seq 1 30); do
+                ldapsearch -x -H ldap://ldap-posix:389 -b 'dc=example,dc=com' '(objectClass=*)' dn >/dev/null 2>&1 && break
+                sleep 2
+              done
+              ldapmodify -x -H ldap://ldap-posix:389 -D 'cn=admin,cn=config' -w config_password <<'EOFMOD' || true
+              dn: olcOverlay={0}memberof,olcDatabase={1}mdb,cn=config
+              changetype: delete
+              EOFMOD
+              ldapadd -x -H ldap://ldap-posix:389 -D 'cn=admin,dc=example,dc=com' -w admin_password -f /seed/ldap-posix-seed.ldif || true
+          volumeMounts:
+            - name: seeds
+              mountPath: /seed
+              readOnly: true
+      volumes:
+        - name: seeds
+          configMap:
+            name: ldap-seeds
+
+# ---------------------------------------------------------------------------
+# 5. Companion Phoenix deployments (STARTTLS, Anonymous LDAPS/STARTTLS, POSIX) + Grafana LDAP
+# ---------------------------------------------------------------------------
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: phoenix-starttls
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: phoenix-starttls
+  template:
+    metadata:
+      labels:
+        app: phoenix-starttls
+    spec:
+      containers:
+        - name: phoenix
+          image: docker.io/library/devops-phoenix:local
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "phoenix.server.main", "serve"]
+          ports:
+            - containerPort: 6006
+          env:
+            - name: PHOENIX_PORT
+              value: "6006"
+            - name: PHOENIX_ENABLE_AUTH
+              value: "true"
+            - name: PHOENIX_DISABLE_BASIC_AUTH
+              value: "false"
+            - name: PHOENIX_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION
+              value: "true"
+            - name: PHOENIX_DISABLE_RATE_LIMIT
+              value: "true"
+            - name: PHOENIX_SECRET
+              value: "dev-secret-for-ldap-testing-only-12345678"
+            - name: PHOENIX_ADMIN_SECRET
+              value: "dev-admin-secret-for-ldap-testing-abc-0123456789"
+            - name: PHOENIX_LDAP_HOST
+              value: "ldap-mitm-proxy"
+            - name: PHOENIX_LDAP_PORT
+              value: "3389"
+            - name: PHOENIX_LDAP_TLS_MODE
+              value: "starttls"
+            - name: PHOENIX_LDAP_TLS_VERIFY
+              value: "false"
+            - name: PHOENIX_LDAP_BIND_DN
+              value: "cn=readonly,dc=example,dc=com"
+            - name: PHOENIX_LDAP_BIND_PASSWORD
+              value: "readonly_password"
+            - name: PHOENIX_LDAP_USER_SEARCH_BASE_DNS
+              value: '["ou=users,dc=example,dc=com"]'
+            - name: PHOENIX_LDAP_USER_SEARCH_FILTER
+              value: "(uid=%s)"
+            - name: PHOENIX_LDAP_ATTR_EMAIL
+              value: "mail"
+            - name: PHOENIX_LDAP_ATTR_DISPLAY_NAME
+              value: "displayName"
+            - name: PHOENIX_LDAP_ATTR_MEMBER_OF
+              value: "memberOf"
+            - name: PHOENIX_LDAP_ATTR_UNIQUE_ID
+              value: "entryUUID"
+            - name: PHOENIX_LDAP_GROUP_ROLE_MAPPINGS
+              value: '[{"group_dn":"cn=admins,ou=groups,dc=example,dc=com","role":"ADMIN"},{"group_dn":"cn=members,ou=groups,dc=example,dc=com","role":"MEMBER"},{"group_dn":"*","role":"VIEWER"}]'
+            - name: PHOENIX_LDAP_ALLOW_SIGN_UP
+              value: "true"
+            - name: PHOENIX_SQL_DATABASE_URL
+              value: "sqlite:///:memory:"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: phoenix-starttls
+spec:
+  selector:
+    app: phoenix-starttls
+  ports:
+    - port: 6006
+      targetPort: 6006
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: phoenix-anonymous-ldaps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: phoenix-anonymous-ldaps
+  template:
+    metadata:
+      labels:
+        app: phoenix-anonymous-ldaps
+    spec:
+      containers:
+        - name: phoenix
+          image: docker.io/library/devops-phoenix:local
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "phoenix.server.main", "serve"]
+          ports:
+            - containerPort: 6006
+          env:
+            - name: PHOENIX_PORT
+              value: "6006"
+            - name: PHOENIX_ENABLE_AUTH
+              value: "true"
+            - name: PHOENIX_DISABLE_BASIC_AUTH
+              value: "false"
+            - name: PHOENIX_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION
+              value: "true"
+            - name: PHOENIX_DISABLE_RATE_LIMIT
+              value: "true"
+            - name: PHOENIX_SECRET
+              value: "dev-secret-for-ldap-testing-only-12345678"
+            - name: PHOENIX_ADMIN_SECRET
+              value: "dev-admin-secret-for-ldap-testing-abc-0123456789"
+            - name: PHOENIX_LDAP_HOST
+              value: "ldap-anonymous"
+            - name: PHOENIX_LDAP_PORT
+              value: "636"
+            - name: PHOENIX_LDAP_TLS_MODE
+              value: "ldaps"
+            - name: PHOENIX_LDAP_TLS_VERIFY
+              value: "false"
+            - name: PHOENIX_LDAP_USER_SEARCH_BASE_DNS
+              value: '["ou=users,dc=example,dc=com"]'
+            - name: PHOENIX_LDAP_USER_SEARCH_FILTER
+              value: "(uid=%s)"
+            - name: PHOENIX_LDAP_ATTR_EMAIL
+              value: "mail"
+            - name: PHOENIX_LDAP_ATTR_DISPLAY_NAME
+              value: "displayName"
+            - name: PHOENIX_LDAP_ATTR_MEMBER_OF
+              value: "memberOf"
+            - name: PHOENIX_LDAP_ATTR_UNIQUE_ID
+              value: "entryUUID"
+            - name: PHOENIX_LDAP_GROUP_ROLE_MAPPINGS
+              value: '[{"group_dn":"cn=admins,ou=groups,dc=example,dc=com","role":"ADMIN"},{"group_dn":"cn=members,ou=groups,dc=example,dc=com","role":"MEMBER"},{"group_dn":"*","role":"VIEWER"}]'
+            - name: PHOENIX_LDAP_ALLOW_SIGN_UP
+              value: "true"
+            - name: PHOENIX_SQL_DATABASE_URL
+              value: "sqlite:///:memory:"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: phoenix-anonymous-ldaps
+spec:
+  selector:
+    app: phoenix-anonymous-ldaps
+  ports:
+    - port: 6006
+      targetPort: 6006
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: phoenix-anonymous-starttls
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: phoenix-anonymous-starttls
+  template:
+    metadata:
+      labels:
+        app: phoenix-anonymous-starttls
+    spec:
+      containers:
+        - name: phoenix
+          image: docker.io/library/devops-phoenix:local
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "phoenix.server.main", "serve"]
+          ports:
+            - containerPort: 6006
+          env:
+            - name: PHOENIX_PORT
+              value: "6006"
+            - name: PHOENIX_ENABLE_AUTH
+              value: "true"
+            - name: PHOENIX_DISABLE_BASIC_AUTH
+              value: "false"
+            - name: PHOENIX_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION
+              value: "true"
+            - name: PHOENIX_DISABLE_RATE_LIMIT
+              value: "true"
+            - name: PHOENIX_SECRET
+              value: "dev-secret-for-ldap-testing-only-12345678"
+            - name: PHOENIX_ADMIN_SECRET
+              value: "dev-admin-secret-for-ldap-testing-abc-0123456789"
+            - name: PHOENIX_LDAP_HOST
+              value: "ldap-anonymous-mitm-proxy"
+            - name: PHOENIX_LDAP_PORT
+              value: "3389"
+            - name: PHOENIX_LDAP_TLS_MODE
+              value: "starttls"
+            - name: PHOENIX_LDAP_TLS_VERIFY
+              value: "false"
+            - name: PHOENIX_LDAP_USER_SEARCH_BASE_DNS
+              value: '["ou=users,dc=example,dc=com"]'
+            - name: PHOENIX_LDAP_USER_SEARCH_FILTER
+              value: "(uid=%s)"
+            - name: PHOENIX_LDAP_ATTR_EMAIL
+              value: "mail"
+            - name: PHOENIX_LDAP_ATTR_DISPLAY_NAME
+              value: "displayName"
+            - name: PHOENIX_LDAP_ATTR_MEMBER_OF
+              value: "memberOf"
+            - name: PHOENIX_LDAP_GROUP_ROLE_MAPPINGS
+              value: '[{"group_dn":"cn=admins,ou=groups,dc=example,dc=com","role":"ADMIN"},{"group_dn":"cn=members,ou=groups,dc=example,dc=com","role":"MEMBER"},{"group_dn":"*","role":"VIEWER"}]'
+            - name: PHOENIX_LDAP_ALLOW_SIGN_UP
+              value: "true"
+            - name: PHOENIX_SQL_DATABASE_URL
+              value: "sqlite:///:memory:"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: phoenix-anonymous-starttls
+spec:
+  selector:
+    app: phoenix-anonymous-starttls
+  ports:
+    - port: 6006
+      targetPort: 6006
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: phoenix-posix
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: phoenix-posix
+  template:
+    metadata:
+      labels:
+        app: phoenix-posix
+    spec:
+      containers:
+        - name: phoenix
+          image: docker.io/library/devops-phoenix:local
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "phoenix.server.main", "serve"]
+          ports:
+            - containerPort: 6006
+          env:
+            - name: PHOENIX_PORT
+              value: "6006"
+            - name: PHOENIX_ENABLE_AUTH
+              value: "true"
+            - name: PHOENIX_DISABLE_BASIC_AUTH
+              value: "false"
+            - name: PHOENIX_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION
+              value: "true"
+            - name: PHOENIX_DISABLE_RATE_LIMIT
+              value: "true"
+            - name: PHOENIX_SECRET
+              value: "dev-secret-for-ldap-testing-only-12345678"
+            - name: PHOENIX_ADMIN_SECRET
+              value: "dev-admin-secret-for-ldap-testing-abc-0123456789"
+            - name: PHOENIX_LDAP_HOST
+              value: "ldap-posix"
+            - name: PHOENIX_LDAP_PORT
+              value: "389"
+            - name: PHOENIX_LDAP_TLS_MODE
+              value: "none"
+            - name: PHOENIX_LDAP_BIND_DN
+              value: "cn=readonly,dc=example,dc=com"
+            - name: PHOENIX_LDAP_BIND_PASSWORD
+              value: "readonly_password"
+            - name: PHOENIX_LDAP_USER_SEARCH_BASE_DNS
+              value: '["ou=users,dc=example,dc=com"]'
+            - name: PHOENIX_LDAP_USER_SEARCH_FILTER
+              value: "(uid=%s)"
+            - name: PHOENIX_LDAP_ATTR_EMAIL
+              value: "mail"
+            - name: PHOENIX_LDAP_ATTR_DISPLAY_NAME
+              value: "displayName"
+            - name: PHOENIX_LDAP_ATTR_MEMBER_OF
+              value: ""
+            - name: PHOENIX_LDAP_GROUP_SEARCH_BASE_DNS
+              value: '["ou=posix-groups,dc=example,dc=com"]'
+            - name: PHOENIX_LDAP_GROUP_SEARCH_FILTER
+              value: "(&(objectClass=posixGroup)(memberUid=%s))"
+            - name: PHOENIX_LDAP_GROUP_SEARCH_FILTER_USER_ATTR
+              value: "uid"
+            - name: PHOENIX_LDAP_GROUP_ROLE_MAPPINGS
+              value: '[{"group_dn":"cn=admins,ou=posix-groups,dc=example,dc=com","role":"ADMIN"},{"group_dn":"cn=members,ou=posix-groups,dc=example,dc=com","role":"MEMBER"},{"group_dn":"cn=viewers,ou=posix-groups,dc=example,dc=com","role":"VIEWER"},{"group_dn":"*","role":"VIEWER"}]'
+            - name: PHOENIX_LDAP_ALLOW_SIGN_UP
+              value: "true"
+            - name: PHOENIX_SQL_DATABASE_URL
+              value: "sqlite:///:memory:"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: phoenix-posix
+spec:
+  selector:
+    app: phoenix-posix
+  ports:
+    - port: 6006
+      targetPort: 6006
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana-ldap
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana-ldap
+  template:
+    metadata:
+      labels:
+        app: grafana-ldap
+    spec:
+      containers:
+        - name: grafana-ldap
+          image: grafana/grafana:11.4.0
+          ports:
+            - containerPort: 3000
+          env:
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              value: "admin"
+            - name: GF_AUTH_LDAP_ENABLED
+              value: "true"
+            - name: GF_AUTH_LDAP_CONFIG_FILE
+              value: "/etc/grafana/ldap.toml"
+            - name: GF_AUTH_LDAP_ALLOW_SIGN_UP
+              value: "true"
+            - name: GF_AUTH_DISABLE_LOGIN_FORM
+              value: "false"
+            - name: GF_SECURITY_SECRET_KEY
+              value: "grafana-secret-key-for-testing"
+          volumeMounts:
+            - name: ldap-toml
+              mountPath: /etc/grafana/ldap.toml
+              subPath: ldap-grafana.toml
+              readOnly: true
+      volumes:
+        - name: ldap-toml
+          configMap:
+            name: ldap-seeds
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-ldap
+spec:
+  selector:
+    app: grafana-ldap
+  ports:
+    - port: 3000
+      targetPort: 3000
+
+# ---------------------------------------------------------------------------
+# 6. Test runner Deployment (runs integration + TLS verification, keeps pod alive for log inspection)
+# ---------------------------------------------------------------------------
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ldap-test
+  labels:
+    app: ldap-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ldap-test
+  template:
+    metadata:
+      labels:
+        app: ldap-test
+    spec:
+      containers:
+        - name: ldap-test
+          image: python:3.13-slim
+          command:
+            - /bin/bash
+            - -c
+            - |
+              echo '⏳ Installing dependencies...'
+              apt-get update -qq && apt-get install -y -qq ldap-utils 2>&1 | grep -v 'debconf'
+              pip install --quiet requests ldap3
+              echo '⏳ Waiting for LDAP seed data to be loaded...'
+              for host in ldap ldap-no-email ldap-anonymous ldap-posix; do
+                for i in $(seq 1 40); do
+                  if ldapsearch -x -H "ldap://${host}:389" -b 'ou=users,dc=example,dc=com' '(uid=admin)' dn 2>/dev/null | grep -q 'uid=admin'; then
+                    break
+                  fi
+                  sleep 2
+                done
+              done
+              for i in $(seq 1 40); do
+                if python3 -c "import requests; r = requests.post('http://phoenix:6006/auth/ldap/login', json={'username': 'admin', 'password': 'password123'}, timeout=5); exit(0 if r.status_code == 204 else 1)" 2>/dev/null; then
+                  echo '✅ LDAP seed data is ready'
+                  break
+                fi
+                echo "Attempt $i/40: LDAP data not ready, waiting..."
+                sleep 3
+              done
+              echo '🧪 Running LDAP integration tests (includes POSIX mode)...'
+              python3 /scripts/test_ldap_integration.py
+              EXIT_CODE=$?
+              echo '🧪 Running comprehensive LDAP TLS security tests...'
+              python3 /scripts/test_ldap_tls.py
+              TLS_EXIT_CODE=$?
+              if [ $EXIT_CODE -eq 0 ]; then
+                echo '✅ All LDAP integration tests passed'
+              else
+                echo '❌ Some LDAP integration tests failed'
+              fi
+              if [ $TLS_EXIT_CODE -eq 0 ]; then
+                echo '✅ All TLS security tests passed'
+              else
+                echo '❌ TLS security tests failed - VULNERABILITIES DETECTED'
+              fi
+              echo 'Keeping container alive for debugging...'
+              tail -f /dev/null
+          env:
+            - name: PHOENIX_URL
+              value: "http://phoenix:6006"
+            - name: PHOENIX_STARTTLS_URL
+              value: "http://phoenix-starttls:6006"
+            - name: PHOENIX_LDAPS_URL
+              value: "http://phoenix:6006"
+            - name: PHOENIX_ANONYMOUS_LDAPS_URL
+              value: "http://phoenix-anonymous-ldaps:6006"
+            - name: PHOENIX_ANONYMOUS_STARTTLS_URL
+              value: "http://phoenix-anonymous-starttls:6006"
+            - name: PHOENIX_POSIX_URL
+              value: "http://phoenix-posix:6006"
+            - name: PHOENIX_ADMIN_SECRET
+              value: "dev-admin-secret-for-ldap-testing-abc-0123456789"
+            - name: GRAFANA_URL
+              value: "http://grafana-ldap:3000"
+            - name: LDAP_HOST
+              value: "ldap"
+            - name: LDAP_PORT
+              value: "389"
+            - name: MITM_API_URL
+              value: "http://ldap-mitm-proxy:8080"
+            - name: MITM_ANONYMOUS_API_URL
+              value: "http://ldap-anonymous-mitm-proxy:8080"
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+      volumes:
+        - name: scripts
+          configMap:
+            name: ldap-test-scripts

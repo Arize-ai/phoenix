@@ -2,10 +2,10 @@ import pytest
 
 from phoenix.db.types.experiment_config import OpenAIConnectionConfig
 from phoenix.db.types.model_provider import ModelProvider
-from phoenix.server.api.helpers.playground_clients import (
+from phoenix.server.api.helpers.chat_clients import (
     OPENAI_CHAT_COMPLETIONS_MODELS,
     OpenAIChatCompletionsClient,
-    get_playground_client,
+    get_chat_client,
 )
 from phoenix.server.api.input_types.ConnectionConfigInput import (
     ConnectionConfigInput,
@@ -76,7 +76,7 @@ async def test_explicit_chat_completions_without_base_url_selects_chat_completio
         ),
     )
     async with db() as session:
-        client = await get_playground_client(
+        client = await get_chat_client(
             model_provider=ModelProvider.OPENAI,
             model_name=OFF_LIST_MODEL,
             session=session,

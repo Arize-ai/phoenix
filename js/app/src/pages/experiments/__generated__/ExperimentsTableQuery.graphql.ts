@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3248f1e5706057c67402d4fd56c78365>>
+ * @generated SignedSource<<eb55a769a950acb2cfe691d6b4db4a2b>>
  * @lightSyntaxTransform
  */
 
@@ -166,7 +166,13 @@ v15 = {
 },
 v16 = [
   (v4/*:: as any*/)
-];
+],
+v17 = {
+  "kind": "InlineFragment",
+  "selections": (v16/*:: as any*/),
+  "type": "Node",
+  "abstractKey": "__isNode"
+};
 return {
   "fragment": {
     "argumentDefinitions": (v0/*:: as any*/),
@@ -315,6 +321,26 @@ return {
                             "args": null,
                             "concreteType": null,
                             "kind": "LinkedField",
+                            "name": "evaluator",
+                            "plural": false,
+                            "selections": [
+                              (v3/*:: as any*/),
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "kind",
+                                "storageKey": null
+                              },
+                              (v4/*:: as any*/)
+                            ],
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": null,
+                            "kind": "LinkedField",
                             "name": "outputConfigs",
                             "plural": true,
                             "selections": [
@@ -382,12 +408,7 @@ return {
                                 "type": "FreeformAnnotationConfig",
                                 "abstractKey": null
                               },
-                              {
-                                "kind": "InlineFragment",
-                                "selections": (v16/*:: as any*/),
-                                "type": "Node",
-                                "abstractKey": "__isNode"
-                              }
+                              (v17/*:: as any*/)
                             ],
                             "storageKey": null
                           },
@@ -631,6 +652,31 @@ return {
                                 "name": "status",
                                 "storageKey": null
                               },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": null,
+                                "kind": "LinkedField",
+                                "name": "taskConfig",
+                                "plural": false,
+                                "selections": [
+                                  (v3/*:: as any*/),
+                                  {
+                                    "kind": "InlineFragment",
+                                    "selections": (v16/*:: as any*/),
+                                    "type": "DecisionTaskConfig",
+                                    "abstractKey": null
+                                  },
+                                  {
+                                    "kind": "InlineFragment",
+                                    "selections": (v16/*:: as any*/),
+                                    "type": "PromptTaskConfig",
+                                    "abstractKey": null
+                                  },
+                                  (v17/*:: as any*/)
+                                ],
+                                "storageKey": null
+                              },
                               (v4/*:: as any*/)
                             ],
                             "storageKey": null
@@ -708,16 +754,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "50990fcdfa812a9a6865abab772a6eca",
+    "cacheID": "3c1f6b8755517af7850cfa6b7f81e648",
     "id": null,
     "metadata": {},
     "name": "ExperimentsTableQuery",
     "operationKind": "query",
-    "text": "query ExperimentsTableQuery(\n  $after: String = null\n  $first: Int = 100\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExperimentsTableFragment_2HEEH6\n    id\n  }\n}\n\nfragment ExperimentsTableFragment_2HEEH6 on Dataset {\n  id\n  experimentAnnotationSummaries {\n    annotationName\n    minScore\n    maxScore\n  }\n  baselineExperiment {\n    id\n    runCount\n    averageRunLatencyMs\n    errorRate\n    costSummary {\n      total {\n        tokens\n        cost\n      }\n    }\n    annotationSummaries {\n      annotationName\n      meanScore\n    }\n  }\n  datasetEvaluators(first: 100) {\n    edges {\n      node {\n        name\n        outputConfigs {\n          __typename\n          ... on CategoricalAnnotationConfig {\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on ContinuousAnnotationConfig {\n            name\n            optimizationDirection\n            lowerBound\n            upperBound\n          }\n          ... on FreeformAnnotationConfig {\n            name\n            optimizationDirection\n            threshold\n            lowerBound\n            upperBound\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n        id\n      }\n    }\n  }\n  experiments(first: $first, after: $after) {\n    edges {\n      experiment: node {\n        id\n        name\n        sequenceNumber\n        description\n        isBaseline\n        createdAt\n        metadata\n        errorRate\n        runCount\n        expectedRunCount\n        repetitions\n        averageRunLatencyMs\n        project {\n          id\n        }\n        datasetSplits {\n          edges {\n            node {\n              id\n              name\n              color\n            }\n          }\n        }\n        costSummary {\n          total {\n            tokens\n            cost\n          }\n          prompt {\n            tokens\n            cost\n          }\n          completion {\n            tokens\n            cost\n          }\n        }\n        annotationSummaries {\n          annotationName\n          meanScore\n          count\n          errorCount\n        }\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        job {\n          status\n          id\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ExperimentsTableQuery(\n  $after: String = null\n  $first: Int = 100\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ExperimentsTableFragment_2HEEH6\n    id\n  }\n}\n\nfragment ExperimentsTableFragment_2HEEH6 on Dataset {\n  id\n  experimentAnnotationSummaries {\n    annotationName\n    minScore\n    maxScore\n  }\n  baselineExperiment {\n    id\n    runCount\n    averageRunLatencyMs\n    errorRate\n    costSummary {\n      total {\n        tokens\n        cost\n      }\n    }\n    annotationSummaries {\n      annotationName\n      meanScore\n    }\n  }\n  datasetEvaluators(first: 100) {\n    edges {\n      node {\n        name\n        evaluator {\n          __typename\n          kind\n          id\n        }\n        outputConfigs {\n          __typename\n          ... on CategoricalAnnotationConfig {\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on ContinuousAnnotationConfig {\n            name\n            optimizationDirection\n            lowerBound\n            upperBound\n          }\n          ... on FreeformAnnotationConfig {\n            name\n            optimizationDirection\n            threshold\n            lowerBound\n            upperBound\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n        id\n      }\n    }\n  }\n  experiments(first: $first, after: $after) {\n    edges {\n      experiment: node {\n        id\n        name\n        sequenceNumber\n        description\n        isBaseline\n        createdAt\n        metadata\n        errorRate\n        runCount\n        expectedRunCount\n        repetitions\n        averageRunLatencyMs\n        project {\n          id\n        }\n        datasetSplits {\n          edges {\n            node {\n              id\n              name\n              color\n            }\n          }\n        }\n        costSummary {\n          total {\n            tokens\n            cost\n          }\n          prompt {\n            tokens\n            cost\n          }\n          completion {\n            tokens\n            cost\n          }\n        }\n        annotationSummaries {\n          annotationName\n          meanScore\n          count\n          errorCount\n        }\n        user {\n          username\n          profilePictureUrl\n          id\n        }\n        job {\n          status\n          taskConfig {\n            __typename\n            ... on DecisionTaskConfig {\n              id\n            }\n            ... on PromptTaskConfig {\n              id\n            }\n            ... on Node {\n              __isNode: __typename\n              id\n            }\n          }\n          id\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1f43803ba5c929080ce7453a214b11cf";
+(node as any).hash = "993043fa8b6c933d0cb942a0c4ae8710";
 
 export default node;

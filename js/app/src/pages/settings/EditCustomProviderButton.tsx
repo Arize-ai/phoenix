@@ -23,7 +23,6 @@ import {
   Loading,
   ViewportModal,
   ViewportModalOverlay,
-  View,
 } from "@phoenix/components";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -32,7 +31,6 @@ import type { EditCustomProviderButtonPatchMutation } from "./__generated__/Edit
 import type { EditCustomProviderButtonQuery } from "./__generated__/EditCustomProviderButtonQuery.graphql";
 import { ProviderForm, type ProviderFormData } from "./CustomProviderForm";
 import {
-  createDefaultFormData,
   transformConfigToFormValues,
   transformToPatchInput,
 } from "./customProviderFormUtils";
@@ -53,6 +51,14 @@ const ProviderQuery = graphql`
           id
           username
           profilePictureUrl
+        }
+        models {
+          chat {
+            names
+          }
+          decision {
+            names
+          }
         }
         config {
           ... on UnparsableConfig {
@@ -92,6 +98,15 @@ const ProviderQuery = graphql`
               apiKey
             }
             anthropicClientKwargs {
+              baseUrl
+              defaultHeaders
+            }
+          }
+          ... on TypeSafeCustomProviderConfig {
+            typesafeAuthenticationMethod {
+              apiKey
+            }
+            typesafeClientKwargs {
               baseUrl
               defaultHeaders
             }
@@ -153,10 +168,15 @@ function EditCustomProviderDialogContent({
         patchGenerativeModelCustomProvider(input: $input) {
           provider {
             id
+            # Keeps an open details drawer in sync with the saved settings
+            ...CustomProviderDetailsDrawer_provider
             name
             description
             sdk
             provider
+            modelTypes
+            modelNames
+            decisionModelNames: modelNames(modelType: DECISION)
             createdAt
             updatedAt
             user {
@@ -183,16 +203,7 @@ function EditCustomProviderDialogContent({
     (formData: ProviderFormData) => {
       if (!providerData) return;
 
-      // When config has a parse error, use default form values as the baseline
-      // so that transformToPatchInput will include all the new config fields
-      const originalValues = providerData.config?.parseError
-        ? {
-            ...createDefaultFormData(providerData.sdk),
-            name: providerData.name,
-            description: providerData.description || "",
-            provider: providerData.provider,
-          }
-        : transformConfigToFormValues(providerData);
+      const originalValues = transformConfigToFormValues(providerData);
       const input = transformToPatchInput(
         formData,
         providerData.id,
@@ -235,33 +246,28 @@ function EditCustomProviderDialogContent({
   }
 
   // Check if config has a parse error (corrupted/invalid config)
-  // In this case, show a blank form with default values for the SDK type
   const hasParseError = Boolean(providerData.config?.parseError);
-  const initialValues = hasParseError
-    ? {
-        ...createDefaultFormData(providerData.sdk),
-        name: providerData.name,
-        description: providerData.description || "",
-        provider: providerData.provider,
-      }
-    : transformConfigToFormValues(providerData);
+  const initialValues = transformConfigToFormValues(providerData);
 
   return (
-    <View padding="size-200">
+    <>
       {hasParseError && (
-        <View paddingBottom="size-200">
-          <Alert variant="warning">
-            This provider&apos;s configuration could not be parsed. Please enter
-            a new configuration below.
-            {providerData.config?.parseError && (
-              <div style={{ marginTop: 8, fontSize: "0.875em" }}>
-                Error: {providerData.config.parseError}
-              </div>
-            )}
-          </Alert>
-        </View>
+        <Alert variant="warning" banner>
+          This provider&apos;s configuration could not be parsed. Please enter a
+          new configuration below.
+          {providerData.config?.parseError && (
+            <div style={{ marginTop: 8, fontSize: "0.875em" }}>
+              Error: {providerData.config.parseError}
+            </div>
+          )}
+        </Alert>
       )}
-      {error && <Alert variant="danger">{error}</Alert>}
+      {error && (
+        <Alert variant="danger" banner>
+          {error}
+        </Alert>
+      )}
+      {/* The form's sections run edge to edge, so it brings its own padding. */}
       <ProviderForm
         onSubmit={handleSubmit}
         onCancel={handleCancel}
@@ -269,7 +275,7 @@ function EditCustomProviderDialogContent({
         isSubmitting={isCommitting}
         onDirtyChange={setShouldShowConfirmation}
       />
-    </View>
+    </>
   );
 }
 

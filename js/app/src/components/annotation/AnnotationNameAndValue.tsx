@@ -10,6 +10,7 @@ import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 import { AnnotationColorSwatch } from "./AnnotationColorSwatch";
 import { AnnotationScoreText } from "./AnnotationScoreText";
+import { isRefusedDecisionAnnotation } from "./decisionAnnotation";
 import type { Annotation, AnnotationDisplayPreference } from "./types";
 
 const textCSS = (maxWidth: CSSProperties["maxWidth"]) => css`
@@ -23,6 +24,22 @@ const textCSS = (maxWidth: CSSProperties["maxWidth"]) => css`
     overflow: hidden;
     text-overflow: ellipsis;
   }
+`;
+
+/**
+ * When the name gives way first: the name shrinks to an ellipsis and the
+ * value keeps its full width, so a long name never clips the score.
+ */
+const nameGivesWayCSS = css`
+  flex: 0 1 auto;
+  min-width: 0;
+  .text {
+    max-width: 100%;
+  }
+`;
+
+const valueKeepsWidthCSS = css`
+  flex: none;
 `;
 
 const valuePartsCSS = css`
@@ -64,6 +81,7 @@ const getAnnotationValueParts = (
     ? { text: annotation.label, fontFamily: "default" }
     : null;
 
+  const isRefused = isRefusedDecisionAnnotation(annotation);
   const withFallback = (
     parts: (AnnotationValuePart | null)[]
   ): AnnotationValuePart[] => {
@@ -72,7 +90,7 @@ const getAnnotationValueParts = (
     );
     return present.length > 0
       ? present
-      : [{ text: "n/a", fontFamily: "default" }];
+      : [{ text: isRefused ? "Refused" : "n/a", fontFamily: "default" }];
   };
 
   switch (displayPreference) {
@@ -105,6 +123,16 @@ interface AnnotationNameAndValueProps {
    */
   showColorSwatch?: boolean;
   /**
+   * Truncate the name before the value when space runs out, so the label and
+   * score always show in full. Off by default: both shrink together.
+   */
+  truncateNameFirst?: boolean;
+  /**
+   * The name to show in place of the annotation's own; null shows no name.
+   * The title tooltip keeps the annotation's full name either way.
+   */
+  displayName?: string | null;
+  /**
    * Fills the available width and pushes the value to its end, so the values
    * of stacked annotations line up in a column.
    * @default false
@@ -119,9 +147,12 @@ export function AnnotationNameAndValue({
   maxWidth = "9rem",
   optimizationValue,
   showColorSwatch = true,
+  truncateNameFirst = false,
+  displayName,
   isValueEndAligned = false,
 }: AnnotationNameAndValueProps) {
   const valueParts = getAnnotationValueParts(annotation, displayPreference);
+  const name = displayName === undefined ? annotation.name : displayName;
 
   return (
     <Flex
@@ -136,11 +167,20 @@ export function AnnotationNameAndValue({
       {showColorSwatch && (
         <AnnotationColorSwatch annotationName={annotation.name} />
       )}
-      <div css={css(textCSS(maxWidth), { minWidth })} title={annotation.name}>
-        <Text weight="heavy" size={size} color="inherit">
-          {annotation.name}
-        </Text>
-      </div>
+      {name ? (
+        <div
+          css={css(
+            textCSS(maxWidth),
+            { minWidth },
+            truncateNameFirst && nameGivesWayCSS
+          )}
+          title={annotation.name}
+        >
+          <Text weight="heavy" size={size} color="inherit">
+            {name}
+          </Text>
+        </div>
+      ) : null}
       {valueParts.length > 0 && (
         <div
           css={css(
@@ -148,10 +188,14 @@ export function AnnotationNameAndValue({
             css`
               margin-left: var(--global-dimension-100);
             `,
+            truncateNameFirst && valueKeepsWidthCSS,
             isValueEndAligned && valueEndAlignedCSS
           )}
         >
-          <AnnotationScoreText optimizationValue={optimizationValue}>
+          <AnnotationScoreText
+            optimizationValue={optimizationValue}
+            size={size}
+          >
             <span css={valuePartsCSS}>
               {valueParts.map((part, index) => (
                 <Fragment key={index}>

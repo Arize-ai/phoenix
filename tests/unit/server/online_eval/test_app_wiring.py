@@ -1,0 +1,150 @@
+"""End-to-end wiring test for the online-eval daemons: a writable app starts
+target-specific consumers, and a seeded project_evaluator + span flows producer tick →
+consumer cycle → span annotation with the work unit DONE.
+"""
+
+import asyncio
+from contextlib import AsyncExitStack
+
+import pytest
+from sqlalchemy import select
+
+from phoenix.config import ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY
+from phoenix.db import models
+from phoenix.server.app import create_app
+from phoenix.server.online_eval.consumer import (
+    CLAIM_BATCH_SIZE,
+    MAX_DB_CONCURRENCY,
+    EvaluationConsumer,
+)
+from phoenix.server.online_eval.span_producer import SpanEvaluationProducer
+from phoenix.server.online_eval.sweeping_producer import (
+    SessionEvaluationProducer,
+    TraceEvaluationProducer,
+)
+from phoenix.server.types import DbSessionFactory
+from tests.unit.conftest import (
+    TestBulkInserter,
+    patch_dml_event_handler,
+    patch_grpc_server,
+)
+
+from ..._helpers import _add_project, _add_span, _add_trace
+from .test_consumer import _patch_playground_client, _seed_llm_criteria, _StubLLMClient
+
+
+def _create_app(db: DbSessionFactory, *, read_only: bool = False):  # type: ignore[no-untyped-def]
+    return create_app(
+        db=db,
+        authentication_enabled=False,
+        serve_ui=False,
+        bulk_inserter_factory=TestBulkInserter,
+        read_only=read_only,
+    )
+
+
+async def test_online_eval_daemons_run_by_default(db: DbSessionFactory) -> None:
+    """Read-only mode is the only thing that keeps the daemons from starting, so an
+    app built with no online-eval environment at all still gets all six: a consumer
+    per target, both sweepers, and the producer.
+    """
+    app = _create_app(db)
+    assert isinstance(app.state.online_eval_span_producer, SpanEvaluationProducer)
+    assert isinstance(app.state.online_eval_consumer, EvaluationConsumer)
+    assert isinstance(app.state.online_eval_session_consumer, EvaluationConsumer)
+    assert isinstance(app.state.online_eval_trace_consumer, EvaluationConsumer)
+    assert isinstance(app.state.online_eval_session_producer, SessionEvaluationProducer)
+    assert isinstance(app.state.online_eval_trace_producer, TraceEvaluationProducer)
+
+
+async def test_online_eval_daemons_absent_in_read_only_mode(db: DbSessionFactory) -> None:
+    app = _create_app(db, read_only=True)
+    assert app.state.online_eval_span_producer is None
+    assert app.state.online_eval_consumer is None
+    assert app.state.online_eval_session_consumer is None
+    assert app.state.online_eval_trace_consumer is None
+    assert app.state.online_eval_session_producer is None
+    assert app.state.online_eval_trace_producer is None
+
+
+async def test_app_runs_seeded_criteria_end_to_end(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY, "4")
+    _patch_playground_client(monkeypatch, _StubLLMClient())
+
+    async with AsyncExitStack() as stack:
+        await stack.enter_async_context(patch_dml_event_handler())
+        await stack.enter_async_context(patch_grpc_server())
+        app = _create_app(db)
+        producer = app.state.online_eval_span_producer
+        consumer = app.state.online_eval_consumer
+        session_consumer = app.state.online_eval_session_consumer
+        trace_consumer = app.state.online_eval_trace_consumer
+        session_producer = app.state.online_eval_session_producer
+        trace_producer = app.state.online_eval_trace_producer
+        assert isinstance(producer, SpanEvaluationProducer)
+        assert isinstance(consumer, EvaluationConsumer)
+        assert isinstance(session_consumer, EvaluationConsumer)
+        assert isinstance(trace_consumer, EvaluationConsumer)
+        consumers = (consumer, session_consumer, trace_consumer)
+        assert len({id(target_consumer) for target_consumer in consumers}) == 3
+        assert session_consumer._evaluation_target == "SESSION"
+        assert trace_consumer._evaluation_target == "TRACE"
+        assert consumer._db_semaphore is not None
+        assert consumer._evaluator_semaphore._value == 4
+        assert consumer._db_semaphore._value == MAX_DB_CONCURRENCY
+        for target_consumer in consumers:
+            assert target_consumer._claim_batch_size == CLAIM_BATCH_SIZE
+            assert target_consumer._evaluator_semaphore is consumer._evaluator_semaphore
+            assert target_consumer._db_semaphore is consumer._db_semaphore
+            assert target_consumer._executor._db_semaphore is consumer._db_semaphore
+        assert isinstance(session_producer, SessionEvaluationProducer)
+        assert isinstance(trace_producer, TraceEvaluationProducer)
+        assert trace_producer._lease.name != session_producer._lease.name
+
+        async with db() as session:
+            project = await _add_project(session)
+            trace = await _add_trace(session, project)
+            span = await _add_span(
+                session,
+                trace,
+                attributes={"input": {"value": "hi"}, "output": {"value": "there"}},
+            )
+        _, project_evaluator_id = await _seed_llm_criteria(db, project.id)
+
+        # Start the cursor below the span so a scan window covers it.
+        async with db() as session:
+            session.add(models.EvalSpanCursor(id=1, produced_through_id=0))
+        # The app's producer waits out the visibility lag; one without it scans on the tick
+        # after the one that sees the span.
+        span_producer = SpanEvaluationProducer(db, visibility_lag_seconds=0)
+        await span_producer._tick()
+        await span_producer._tick()
+        async with db() as session:
+            unit = await session.scalar(
+                select(models.EvalWorkUnit).where(models.EvalWorkUnit.span_rowid == span.id)
+            )
+        assert unit is not None
+        assert unit.project_evaluator_id == project_evaluator_id
+
+        await consumer._cycle()
+
+        deadline = asyncio.get_running_loop().time() + 10
+        while True:
+            async with db() as session:
+                refreshed = await session.get(models.EvalWorkUnit, unit.id)
+                assert refreshed is not None
+                status = refreshed.status
+            if status == "DONE" or asyncio.get_running_loop().time() > deadline:
+                break
+            await asyncio.sleep(0.05)
+        assert status == "DONE"
+
+        async with db() as session:
+            annotation = await session.scalar(
+                select(models.SpanAnnotation).where(models.SpanAnnotation.span_rowid == span.id)
+            )
+        assert annotation is not None
+        assert annotation.label == "good"
+        assert annotation.source == "API"

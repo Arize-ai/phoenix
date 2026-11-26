@@ -131,7 +131,7 @@ async function resetPasswordAndReLogin({
   await resetPassword({ page, oldPassword, newPassword });
   await page.waitForURL("**/login?message=password_reset");
   await login({ page, baseURL, email, password: newPassword });
-  await page.waitForURL("**/projects");
+  await page.waitForURL(/\/projects(\?|$)/);
 }
 
 setup(
@@ -255,7 +255,7 @@ setup(
         email,
         password,
       });
-      await statePage.waitForURL("**/projects");
+      await statePage.waitForURL(/\/projects(\?|$)/);
       await context.storageState({ path: storageStatePath });
 
       await context.close();

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0de38bf1718cbd68820b96d488bc6ee5>>
+ * @generated SignedSource<<1834f62bdf79fc14cd795cd04a012324>>
  * @lightSyntaxTransform
  */
 
@@ -10,7 +10,6 @@
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type TraceAnnotationSummaryValueFragment$data = {
-  readonly id: string;
   readonly traceAnnotationSummary: {
     readonly count: number;
     readonly labelCount: number;
@@ -29,8 +28,6 @@ export type TraceAnnotationSummaryValueFragment$key = {
   readonly " $data"?: TraceAnnotationSummaryValueFragment$data;
   readonly " $fragmentSpreads": FragmentRefs<"TraceAnnotationSummaryValueFragment">;
 };
-
-import TraceAnnotationSummaryValueQuery_graphql from './TraceAnnotationSummaryValueQuery.graphql';
 
 const node: ReaderFragment = {
   "argumentDefinitions": [
@@ -51,19 +48,7 @@ const node: ReaderFragment = {
     }
   ],
   "kind": "Fragment",
-  "metadata": {
-    "refetch": {
-      "connection": null,
-      "fragmentPathInResult": [
-        "node"
-      ],
-      "operation": TraceAnnotationSummaryValueQuery_graphql,
-      "identifierInfo": {
-        "identifierField": "id",
-        "identifierQueryVariableName": "id"
-      }
-    }
-  },
+  "metadata": null,
   "name": "TraceAnnotationSummaryValueFragment",
   "selections": [
     {
@@ -174,19 +159,12 @@ const node: ReaderFragment = {
         }
       ],
       "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "id",
-      "storageKey": null
     }
   ],
   "type": "Project",
   "abstractKey": null
 };
 
-(node as any).hash = "524af87886ce036b991e89f39f701674";
+(node as any).hash = "41a133306f8172bb98837200cff5519b";
 
 export default node;

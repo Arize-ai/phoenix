@@ -1,9 +1,8 @@
-import { startTransition } from "react";
-import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
+import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
 import { useParams } from "react-router";
 
 import { useTimeRange } from "@phoenix/components/datetime";
-import { useRefetchOnStreamAdvance } from "@phoenix/hooks/useRefetchOnStreamAdvance";
+import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 
 import type { TraceAnnotationSummaryQuery } from "./__generated__/TraceAnnotationSummaryQuery.graphql";
 import type { TraceAnnotationSummaryValueFragment$key } from "./__generated__/TraceAnnotationSummaryValueFragment.graphql";
@@ -29,6 +28,7 @@ export function TraceAnnotationSummary({
 }: TraceAnnotationSummaryProps) {
   const { projectId } = useParams();
   const { timeRangeISOStrings } = useTimeRange();
+  const { throttledFetchKey } = useStreamState();
   const data = useLazyLoadQuery<TraceAnnotationSummaryQuery>(
     graphql`
       query TraceAnnotationSummaryQuery(
@@ -52,13 +52,13 @@ export function TraceAnnotationSummary({
       id: projectId as string,
       timeRange: timeRangeISOStrings,
       filterCondition: filterCondition || null,
-    }
+    },
+    { fetchKey: throttledFetchKey, fetchPolicy: "store-and-network" }
   );
   return (
     <Summary name={annotationName}>
       <TraceAnnotationSummaryValue
         annotationName={annotationName}
-        filterCondition={filterCondition || null}
         project={data.project}
       />
     </Summary>
@@ -67,17 +67,12 @@ export function TraceAnnotationSummary({
 
 function TraceAnnotationSummaryValue(props: {
   annotationName: string;
-  filterCondition: string | null;
   project: TraceAnnotationSummaryValueFragment$key;
 }) {
-  const { project, annotationName, filterCondition } = props;
-  const [data, refetch] = useRefetchableFragment<
-    TraceAnnotationSummaryQuery,
-    TraceAnnotationSummaryValueFragment$key
-  >(
+  const { project, annotationName } = props;
+  const data = useFragment<TraceAnnotationSummaryValueFragment$key>(
     graphql`
       fragment TraceAnnotationSummaryValueFragment on Project
-      @refetchable(queryName: "TraceAnnotationSummaryValueQuery")
       @argumentDefinitions(
         annotationName: { type: "String!" }
         timeRange: { type: "TimeRange!" }
@@ -104,12 +99,6 @@ function TraceAnnotationSummaryValue(props: {
     `,
     project
   );
-
-  useRefetchOnStreamAdvance(() => {
-    startTransition(() => {
-      refetch({ filterCondition }, { fetchPolicy: "store-and-network" });
-    });
-  });
 
   return (
     <AnnotationSummaryValueView

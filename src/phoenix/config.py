@@ -10,6 +10,7 @@ import tempfile
 from dataclasses import dataclass, field
 from datetime import timedelta
 from enum import Enum
+from math import isfinite
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -362,6 +363,16 @@ throughput.
 
 Defaults to 20000.
 """
+ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS = "PHOENIX_ONLINE_EVAL_RETENTION_SECONDS"
+"""
+How long finished online-eval span work units are kept before they are deleted.
+Defaults to 604800 (7 days).
+"""
+ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY = "PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY"
+"""
+Maximum online-eval work units a replica evaluates at once, across all consumers.
+Defaults to 50.
+"""
 ENV_LOGGING_MODE = "PHOENIX_LOGGING_MODE"
 """
 The logging mode (either 'default' or 'structured').
@@ -427,7 +438,7 @@ ENV_PHOENIX_ALLOWED_PROVIDERS = "PHOENIX_ALLOWED_PROVIDERS"
 Comma-separated list of provider names to show in the UI.
 Provider names should match GenerativeProviderKey enum names:
 OPENAI, ANTHROPIC, AZURE_OPENAI, GOOGLE, DEEPSEEK, XAI, OLLAMA,
-AWS, CEREBRAS, FIREWORKS, GROQ, MOONSHOT, MINIMAX, PERPLEXITY, TOGETHER, ZAI, META.
+AWS, CEREBRAS, FIREWORKS, GROQ, MOONSHOT, MINIMAX, PERPLEXITY, TOGETHER, ZAI, META, TYPESAFE.
 Case-insensitive. When unset, all providers are shown.
 Set to NONE to hide all providers.
 Example: PHOENIX_ALLOWED_PROVIDERS=OPENAI,ANTHROPIC
@@ -2215,10 +2226,11 @@ class LDAPConfig:
     Both modes handle DN changes. The only difference is email change handling.
     DN is NOT used for identity matching (DNs change too frequently).
 
-    Email as Required Attribute:
-    - Email MUST be present in LDAP for authentication to succeed
-    - Used for Phoenix's user email field (UI, notifications, audit logs)
-    - Provides human-readable identifier for operators
+    Email Attribute:
+    - When PHOENIX_LDAP_ATTR_EMAIL names an attribute, it MUST be present in LDAP
+      for authentication to succeed
+    - When PHOENIX_LDAP_ATTR_EMAIL is "null", users are stored without email and
+      identified by PHOENIX_LDAP_ATTR_UNIQUE_ID alone, which is then required
 
     Configuration Pattern
     ---------------------
@@ -3612,6 +3624,34 @@ def get_env_max_spans_queue_size() -> int:
             f"{max_size}. Value must be a positive integer."
         )
     return max_size
+
+
+def get_env_online_eval_retention_seconds() -> float:
+    """
+    Gets the value of the PHOENIX_ONLINE_EVAL_RETENTION_SECONDS environment variable.
+    """
+    seconds = _float_val(ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS, 604_800.0)
+    if not isfinite(seconds) or seconds <= 0:
+        raise ValueError(
+            f"Invalid value for environment variable "
+            f"{ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS}: "
+            f"{seconds}. Value must be a finite positive number."
+        )
+    return seconds
+
+
+def _online_eval_positive_int(name: str, default: int) -> int:
+    value = _int_val(name, default)
+    if value < 1:
+        raise ValueError(
+            f"Invalid value for environment variable {name}: "
+            f"{value}. Value must be a positive integer."
+        )
+    return value
+
+
+def get_env_online_eval_max_evaluator_concurrency() -> int:
+    return _online_eval_positive_int(ENV_PHOENIX_ONLINE_EVAL_MAX_EVALUATOR_CONCURRENCY, 50)
 
 
 def get_env_root_url() -> URL:

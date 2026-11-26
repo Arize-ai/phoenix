@@ -6,51 +6,78 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from difflib import get_close_matches
-from typing import TYPE_CHECKING, Annotated, Any, Literal, Optional, cast
+from typing import TYPE_CHECKING, Annotated, Any, Optional, cast
 
 import strawberry
 from aioitertools.itertools import islice
 from openinference.semconv.trace import SpanAttributes
 from pandas import DataFrame
-from sqlalchemy import ColumnElement, Select, case, desc, distinct, func, or_, select, true
+from sqlalchemy import (
+    ColumnElement,
+    Select,
+    case,
+    desc,
+    distinct,
+    func,
+    nulls_last,
+    or_,
+    select,
+    true,
+)
+from sqlalchemy import cast as sqlalchemy_cast
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.expression import UnaryExpression, tuple_
 from sqlalchemy.sql.functions import percentile_cont
 from sqlalchemy.sql.operators import custom_op
+from sqlalchemy.sql.sqltypes import String
 from strawberry import ID, UNSET, lazy
 from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.types import Info
 from typing_extensions import assert_never
 
-from phoenix.datetime_utils import get_timestamp_range, normalize_datetime, right_open_time_range
+from phoenix.datetime_utils import normalize_datetime, right_open_time_range
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect, date_trunc
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.session_aggregates import SESSION_ROWID, SPAN_ROWID, earliest_root_span_by_session
 from phoenix.db.trace_aggregates import (
     SPAN_ROWID as TRACE_SPAN_ROWID,
 )
 from phoenix.db.trace_aggregates import (
     TRACE_ROWID,
-    representative_root_span_by_trace,
+    representative_root_span_of_traces,
 )
+from phoenix.db.types.annotation_configs import as_output_configs
 from phoenix.server.api.annotation_metrics import build_entity_weighted_annotation_metrics_stmt
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.extensions import RequireForwardPaginationExtension
+from phoenix.server.api.input_types.ProjectEvaluatorFilter import ProjectEvaluatorFilter
 from phoenix.server.api.input_types.ProjectSessionSort import (
     ProjectSessionSort,
     ProjectSessionSortConfig,
 )
 from phoenix.server.api.input_types.SpanSort import SpanColumn, SpanSort, SpanSortConfig
-from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBinScale
+from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBucketSpec
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
 from phoenix.server.api.types.AnnotationNameCount import AnnotationNameCount
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
+from phoenix.server.api.types.EvaluationActivity import (
+    EVALUATION_ACTIVITY_RETENTION_NOTE,
+    EvaluationActivity,
+    resolve_evaluation_activity,
+)
+from phoenix.server.api.types.EvaluationQueue import ProjectEvaluationQueue
+from phoenix.server.api.types.Evaluator import EvaluationTarget, ProjectEvaluator
+from phoenix.server.api.types.EvaluatorComparison import (
+    EvaluatorComparisonCoverage,
+    ProjectEvaluatorComparison,
+    to_gql_comparison,
+)
 from phoenix.server.api.types.FilterVocabularyTerm import (
     FilterVocabularyTerm,
     session_filter_vocabulary_terms,
@@ -85,12 +112,23 @@ from phoenix.server.cost_tracking.token_types import (
     OUTPUT_TOKEN_TYPE,
     REASONING_TOKEN_TYPE,
 )
+from phoenix.server.evaluators.results.annotations import (
+    EVALUATOR_RESULT_LEVELS,
+    evaluator_annotation_rows,
+    latest_evaluator_annotations,
+    result_annotation,
+)
+from phoenix.server.evaluators.results.comparison import (
+    ComparisonAccumulator,
+    make_side_binning,
+)
+from phoenix.server.evaluators.runtime.base import result_annotation_names
+from phoenix.server.online_eval.tracing import PROJECT_EVALUATOR_ID_ATTRIBUTE_PATH
 from phoenix.server.session_filters import (
     SessionFilterConditionError,
     apply_session_filter_to_page,
-    compile_session_filter,
     get_filtered_session_rowids_subquery,
-    session_filter_errors,
+    validate_session_filter_condition,
 )
 from phoenix.server.trace_filters import (
     TraceFilterConditionError,
@@ -100,11 +138,16 @@ from phoenix.server.trace_filters import (
 )
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter, SpanFilterError
-from phoenix.trace.dsl.filter import is_root_span_predicate, root_span_scope
+from phoenix.trace.dsl.filter import (
+    is_root_span_predicate,
+    root_span_scope,
+    validate_span_filter_condition,
+)
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_PAGE_SIZE = 30
+_NEWEST_SPANS_LOOKS = (500, 5000)
 # The most traces of a project read in start time order for one page of its spans.
 _NEWEST_TRACES_WALK = 5000
 # A list of root spans over a time range shorter than this is read in span order.
@@ -303,6 +346,93 @@ def _trace_annotation_names_stmt(project_rowid: int) -> Select[*tuple[Any, ...]]
         select(distinct(models.TraceAnnotation.name))
         .join(models.Trace)
         .where(models.Trace.project_rowid == project_rowid)
+    )
+
+
+async def _newest_spans(
+    session: AsyncSession,
+    stmt: Select[*tuple[Any, ...]],
+    span_bounds: Sequence[ColumnElement[bool]],
+    project_rowid: int,
+    looks: Sequence[int],
+    limit: int,
+) -> Sequence[Any]:
+    """The first `limit` rows of `stmt`, a select of one project's span ids and start times,
+    newest first. Looks for them among the newest spans within `span_bounds`, which `stmt`
+    must also apply, as many spans at a time as `looks` says, going on to the next look
+    while the rows found so far promise a full page. Otherwise it runs `stmt` on its own for
+    the rest."""
+    rows: list[Any] = []
+    older: list[ColumnElement[bool]] = []
+    for looked, wider in zip(looks, (*looks[1:], 0)):
+        newest = (
+            select(models.Span.id, models.Span.start_time, models.Span.trace_rowid)
+            .where(*span_bounds, *older)
+            .order_by(models.Span.start_time.desc(), models.Span.id.desc())
+            .limit(looked)
+            .subquery()
+        )
+        # OFFSET 0 keeps PostgreSQL to this order whatever it estimates: a span, its project,
+        # then the filters. Joined directly, it has rescanned traces once per span.
+        in_project = (
+            select(models.Trace.id)
+            .where(models.Trace.id == newest.c.trace_rowid)
+            .where(models.Trace.project_rowid == project_rowid)
+            .offset(0)
+            .correlate(newest)
+            .lateral()
+        )
+        match = (
+            stmt.where(models.Span.id == newest.c.id)
+            .where(models.Trace.id == in_project.c.id)
+            .order_by(None)
+            .offset(0)
+            .correlate(newest, in_project)
+            .lateral()
+        )
+        rows.extend(
+            await session.execute(
+                select(*match.c)
+                .select_from(newest)
+                .join(in_project, true())
+                .join(match, true())
+                .order_by(newest.c.start_time.desc(), newest.c.id.desc())
+                .limit(limit - len(rows))
+            )
+        )
+        if len(rows) == limit:
+            return rows
+        if rows:
+            last_rowid, last_start_time = rows[-1]
+            older = [tuple_(models.Span.start_time, models.Span.id) < (last_start_time, last_rowid)]
+        if len(rows) * wider < limit * looked:
+            break
+    # NULLS LAST keeps PostgreSQL from walking every project's spans along ix_spans_start_time.
+    stmt = (
+        stmt.where(*older)
+        .order_by(None)
+        .order_by(nulls_last(models.Span.start_time.desc()), models.Span.id.desc())
+    )
+    # A server-side cursor keeps PostgreSQL from giving this statement parallel workers, whose
+    # shared memory adds to that of the request's other statements.
+    rows.extend([row async for row in await session.stream(stmt.limit(limit - len(rows)))])
+    return rows
+
+
+def _project_evaluator_span_scope(project_evaluator_id: GlobalID) -> ColumnElement[bool]:
+    """Match only the spans an evaluator execution stamped with its own identity.
+
+    The id is rebuilt from its row id so a differently encoded but equivalent
+    global id still matches what the evaluator wrote.
+    """
+    try:
+        rowid = from_global_id_with_expected_type(project_evaluator_id, ProjectEvaluator.__name__)
+    except ValueError:
+        raise BadRequest(f"Invalid project evaluator ID: {project_evaluator_id}")
+    return cast(
+        ColumnElement[bool],
+        models.Span.attributes[PROJECT_EVALUATOR_ID_ATTRIBUTE_PATH].as_string()
+        == str(GlobalID(ProjectEvaluator.__name__, str(rowid))),
     )
 
 
@@ -526,6 +656,69 @@ class Project(Node):
                 ),
             )
         return description
+
+    @strawberry.field(description="Number of evaluators attached to this project.")  # type: ignore
+    async def evaluator_count(
+        self,
+        info: Info[Context, None],
+    ) -> int:
+        stmt = select(func.count(models.ProjectEvaluator.id)).where(
+            models.ProjectEvaluator.project_id == self.id
+        )
+        async with info.context.db.read() as session:
+            return (await session.scalar(stmt)) or 0
+
+    @strawberry.field(  # type: ignore
+        description="This project's part of the online evaluation queue, shared by every project."
+    )
+    async def evaluation_queue(self, info: Info[Context, None]) -> ProjectEvaluationQueue:
+        queue = await info.context.data_loaders.project_evaluation_queue.load(self.id)
+        return ProjectEvaluationQueue(project_id=self.id, queue=queue)
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Evaluation activity of this project's evaluators, grouped by evaluator. "
+            + EVALUATION_ACTIVITY_RETENTION_NOTE
+        )
+    )
+    async def evaluation_activity(
+        self,
+        info: Info[Context, None],
+        time_range: TimeRange,
+        time_bin_config: Optional[TimeBinConfig] = UNSET,
+    ) -> EvaluationActivity:
+        return await resolve_evaluation_activity(
+            info,
+            project_id=self.id,
+            time_range=time_range,
+            time_bin_config=time_bin_config or None,
+        )
+
+    @strawberry.field
+    async def evaluators(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = DEFAULT_PAGE_SIZE,
+        last: Optional[int] = None,
+        after: Optional[str] = None,
+        before: Optional[str] = None,
+        filter: Optional[ProjectEvaluatorFilter] = UNSET,
+    ) -> Connection[ProjectEvaluator]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, CursorString) else None,
+            last=last,
+            before=before if isinstance(before, CursorString) else None,
+        )
+        stmt = (
+            select(models.ProjectEvaluator)
+            .where(models.ProjectEvaluator.project_id == self.id)
+            .order_by(
+                models.ProjectEvaluator.name,
+                models.ProjectEvaluator.id,
+            )
+        )
+        return await project_evaluator_connection(info, stmt, filter, args)
 
     @strawberry.field
     async def gradient_start_color(
@@ -799,20 +992,34 @@ class Project(Node):
         sort: Optional[SpanSort] = UNSET,
         filter_condition: Optional[str] = UNSET,
         trace_filter_condition: Optional[str] = UNSET,
+        project_evaluator_id: Annotated[
+            Optional[GlobalID],
+            strawberry.argument(
+                description=(
+                    "Restrict to spans produced by this project evaluator. Each evaluator "
+                    "traces into its own dedicated project, so this scope is only needed "
+                    "when querying a project that mixes spans from other sources."
+                )
+            ),
+        ] = UNSET,
     ) -> Connection[Span]:
+        evaluator_scope = (
+            _project_evaluator_span_scope(project_evaluator_id) if project_evaluator_id else None
+        )
         stmt: Select[*tuple[Any, ...]] = (
             select(models.Span.id)
             .select_from(models.Span)
             .join(models.Trace)
             .where(models.Trace.project_rowid == self.id)
         )
+        if evaluator_scope is not None:
+            stmt = stmt.where(evaluator_scope)
         span_bounds: list[ColumnElement[bool]] = []
         if time_range:
             if time_range.start:
                 span_bounds.append(time_range.start <= models.Span.start_time)
             if time_range.end:
                 span_bounds.append(models.Span.start_time < time_range.end)
-        stmt = stmt.where(*span_bounds)
         if trace_filter_condition:
             filtered_trace_rowids = get_filtered_trace_rowids_subquery(
                 trace_filter_condition=trace_filter_condition,
@@ -841,6 +1048,7 @@ class Project(Node):
             and filter_condition
             and is_root_span_predicate(filter_condition)
             and not trace_filter_condition
+            and evaluator_scope is None
             # A cursor continues in the order it was issued in. Without one, a short time range
             # is read in span order: a page it cannot fill would otherwise look for root spans
             # whose trace started before the range, among every span in the range or every
@@ -887,44 +1095,51 @@ class Project(Node):
                 sort_column = cursor.sort_column
                 compare = operator.lt if sort_config.dir is SortDir.desc else operator.gt
                 if sort_column.type is CursorSortColumnDataType.NULL:
-                    stmt = stmt.where(sort_config.orm_expression.is_(None))
-                    stmt = stmt.where(compare(models.Span.id, cursor.rowid))
+                    span_bounds.append(sort_config.orm_expression.is_(None))
+                    span_bounds.append(compare(models.Span.id, cursor.rowid))
                 else:
-                    stmt = stmt.where(
+                    span_bounds.append(
                         compare(
                             tuple_(sort_config.orm_expression, models.Span.id),
                             (sort_column.value, cursor.rowid),
                         )
                     )
             else:
-                stmt = stmt.where(models.Span.id > cursor.rowid)
-        stmt = stmt.order_by(cursor_rowid_column)
-        stmt = stmt.limit(
-            first + 1  # overfetch by one to determine whether there's a next page
-        )
-        cursors_and_nodes = []
+                span_bounds.append(models.Span.id > cursor.rowid)
+        stmt = stmt.where(*span_bounds).order_by(cursor_rowid_column)
+        rows: Sequence[Any]
         async with info.context.db.read() as session:
-            span_records = await session.stream(stmt)
-            async for span_record in islice(span_records, first):
-                span_rowid: int = span_record[0]
-                cursor = Cursor(rowid=span_rowid)
-                if sort_config:
-                    assert len(span_record) > 1
-                    cursor.sort_column = CursorSortColumn(
-                        type=sort_config.column_data_type,
-                        value=span_record[1],
-                    )
-                cursors_and_nodes.append((cursor, Span(id=span_rowid)))
-            has_next_page = True
-            try:
-                await span_records.__anext__()
-            except StopAsyncIteration:
-                has_next_page = False
-
+            # A trace filter is worked out for the whole time range by every statement it is in.
+            if (
+                sort
+                and sort.col is SpanColumn.startTime
+                and not sort.eval_result_key
+                and sort.dir is SortDir.desc
+                and not trace_filter_condition
+                and info.context.db.dialect is SupportedSQLDialect.POSTGRESQL
+            ):
+                # A root span is one in every trace, so a small look shows whether traces are
+                # small enough for the wide one to hold a page of them.
+                looks = (
+                    _NEWEST_SPANS_LOOKS
+                    if filter_condition and root_span_scope(filter_condition)
+                    else _NEWEST_SPANS_LOOKS[-1:]
+                )
+                rows = await _newest_spans(session, stmt, span_bounds, self.id, looks, first + 1)
+            else:
+                rows = [row async for row in await session.stream(stmt.limit(first + 1))]
+        cursors_and_nodes = []
+        for row in rows[:first]:
+            cursor = Cursor(rowid=row[0])
+            if sort_config:
+                cursor.sort_column = CursorSortColumn(
+                    type=sort_config.column_data_type, value=row[1]
+                )
+            cursors_and_nodes.append((cursor, Span(id=row[0])))
         return connection_from_cursors_and_nodes(
             cursors_and_nodes,
             has_previous_page=False,
-            has_next_page=has_next_page,
+            has_next_page=len(rows) > first,
         )
 
     @strawberry.field(
@@ -1481,10 +1696,7 @@ class Project(Node):
         # depend on the live annotation table -- besides costing a query per
         # keystroke. See the spec's Known Gaps.
         try:
-            span_filter = SpanFilter(condition=condition)
-            stmt = span_filter(select(models.Span))
-            str(stmt.compile(dialect=sqlite.dialect()))
-            str(stmt.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
+            validate_span_filter_condition(condition)
             return ValidationResult(is_valid=True, error_message=None)
         except SpanFilterError as e:
             # The DSL guarantees these messages are user-safe statements about
@@ -1535,11 +1747,7 @@ class Project(Node):
         as valid is one they will accept.
         """
         try:
-            with session_filter_errors():
-                session_filter = compile_session_filter(condition)
-                stmt = session_filter(select(models.ProjectSession))
-                str(stmt.compile(dialect=sqlite.dialect()))
-                str(stmt.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
+            validate_session_filter_condition(condition)
         except SessionFilterConditionError as e:
             return ValidationResult(is_valid=False, error_message=str(e))
         referenced_annotation_names = _referenced_subscript_names(
@@ -1737,8 +1945,8 @@ class Project(Node):
                 and scanned_bytes < _VOCABULARY_ATTRIBUTE_SCAN_BYTE_LIMIT
             ):
                 trace_rowids = recent_trace_rowids[chunk_start : chunk_start + chunk_size]
-                root_spans = representative_root_span_by_trace(
-                    keys=trace_rowids,
+                root_spans = representative_root_span_of_traces(
+                    trace_rowids,
                     project_rowids=[self.id],
                     start_time=time_range.start if time_range else None,
                     end_time=time_range.end if time_range else None,
@@ -1849,23 +2057,8 @@ class Project(Node):
             raise BadRequest("Start time is required")
 
         dialect = info.context.db.dialect
-        utc_offset_minutes = 0
-        field: Literal["minute", "hour", "day", "week", "month", "year"] = "hour"
-        if time_bin_config:
-            utc_offset_minutes = time_bin_config.utc_offset_minutes
-            if time_bin_config.scale is TimeBinScale.MINUTE:
-                field = "minute"
-            elif time_bin_config.scale is TimeBinScale.HOUR:
-                field = "hour"
-            elif time_bin_config.scale is TimeBinScale.DAY:
-                field = "day"
-            elif time_bin_config.scale is TimeBinScale.WEEK:
-                field = "week"
-            elif time_bin_config.scale is TimeBinScale.MONTH:
-                field = "month"
-            elif time_bin_config.scale is TimeBinScale.YEAR:
-                field = "year"
-        bucket = date_trunc(dialect, field, models.Span.start_time, utc_offset_minutes)
+        time_bins = TimeBucketSpec.from_config(time_bin_config)
+        bucket = time_bins.truncate(dialect, models.Span.start_time)
         stmt = (
             select(
                 bucket,
@@ -1913,12 +2106,7 @@ class Project(Node):
                 *([time_range.end] if time_range.end else [datetime.now(timezone.utc)]),
             ],
         )
-        for timestamp in get_timestamp_range(
-            start_time=min_time,
-            end_time=max_time,
-            stride=field,
-            utc_offset_minutes=utc_offset_minutes,
-        ):
+        for timestamp in time_bins.timestamps(min_time, max_time):
             if timestamp not in data:
                 data[timestamp] = SpanCountTimeSeriesDataPoint(timestamp=timestamp)
         return SpanCountTimeSeries(data=sorted(data.values(), key=lambda x: x.timestamp))
@@ -1934,23 +2122,8 @@ class Project(Node):
             raise BadRequest("Start time is required")
 
         dialect = info.context.db.dialect
-        utc_offset_minutes = 0
-        field: Literal["minute", "hour", "day", "week", "month", "year"] = "hour"
-        if time_bin_config:
-            utc_offset_minutes = time_bin_config.utc_offset_minutes
-            if time_bin_config.scale is TimeBinScale.MINUTE:
-                field = "minute"
-            elif time_bin_config.scale is TimeBinScale.HOUR:
-                field = "hour"
-            elif time_bin_config.scale is TimeBinScale.DAY:
-                field = "day"
-            elif time_bin_config.scale is TimeBinScale.WEEK:
-                field = "week"
-            elif time_bin_config.scale is TimeBinScale.MONTH:
-                field = "month"
-            elif time_bin_config.scale is TimeBinScale.YEAR:
-                field = "year"
-        bucket = date_trunc(dialect, field, models.Trace.start_time, utc_offset_minutes)
+        time_bins = TimeBucketSpec.from_config(time_bin_config)
+        bucket = time_bins.truncate(dialect, models.Trace.start_time)
         stmt = (
             select(bucket, func.count(models.Trace.id))
             .where(models.Trace.project_rowid == self.id)
@@ -1976,12 +2149,7 @@ class Project(Node):
                 *([time_range.end] if time_range.end else [datetime.now(timezone.utc)]),
             ],
         )
-        for timestamp in get_timestamp_range(
-            start_time=min_time,
-            end_time=max_time,
-            stride=field,
-            utc_offset_minutes=utc_offset_minutes,
-        ):
+        for timestamp in time_bins.timestamps(min_time, max_time):
             if timestamp not in data:
                 data[timestamp] = TimeSeriesDataPoint(timestamp=timestamp)
         return TraceCountTimeSeries(data=sorted(data.values(), key=lambda x: x.timestamp))
@@ -1997,23 +2165,8 @@ class Project(Node):
             raise BadRequest("Start time is required")
 
         dialect = info.context.db.dialect
-        utc_offset_minutes = 0
-        field: Literal["minute", "hour", "day", "week", "month", "year"] = "hour"
-        if time_bin_config:
-            utc_offset_minutes = time_bin_config.utc_offset_minutes
-            if time_bin_config.scale is TimeBinScale.MINUTE:
-                field = "minute"
-            elif time_bin_config.scale is TimeBinScale.HOUR:
-                field = "hour"
-            elif time_bin_config.scale is TimeBinScale.DAY:
-                field = "day"
-            elif time_bin_config.scale is TimeBinScale.WEEK:
-                field = "week"
-            elif time_bin_config.scale is TimeBinScale.MONTH:
-                field = "month"
-            elif time_bin_config.scale is TimeBinScale.YEAR:
-                field = "year"
-        bucket = date_trunc(dialect, field, models.Trace.start_time, utc_offset_minutes)
+        time_bins = TimeBucketSpec.from_config(time_bin_config)
+        bucket = time_bins.truncate(dialect, models.Trace.start_time)
         error_traces_stmt = (
             select(
                 models.Span.trace_rowid,
@@ -2071,12 +2224,7 @@ class Project(Node):
                 *([time_range.end] if time_range.end else [datetime.now(timezone.utc)]),
             ],
         )
-        for timestamp in get_timestamp_range(
-            start_time=min_time,
-            end_time=max_time,
-            stride=field,
-            utc_offset_minutes=utc_offset_minutes,
-        ):
+        for timestamp in time_bins.timestamps(min_time, max_time):
             if timestamp not in data:
                 data[timestamp] = TraceCountByStatusTimeSeriesDataPoint(
                     timestamp=timestamp,
@@ -2097,23 +2245,8 @@ class Project(Node):
             raise BadRequest("Start time is required")
 
         dialect = info.context.db.dialect
-        utc_offset_minutes = 0
-        field: Literal["minute", "hour", "day", "week", "month", "year"] = "hour"
-        if time_bin_config:
-            utc_offset_minutes = time_bin_config.utc_offset_minutes
-            if time_bin_config.scale is TimeBinScale.MINUTE:
-                field = "minute"
-            elif time_bin_config.scale is TimeBinScale.HOUR:
-                field = "hour"
-            elif time_bin_config.scale is TimeBinScale.DAY:
-                field = "day"
-            elif time_bin_config.scale is TimeBinScale.WEEK:
-                field = "week"
-            elif time_bin_config.scale is TimeBinScale.MONTH:
-                field = "month"
-            elif time_bin_config.scale is TimeBinScale.YEAR:
-                field = "year"
-        bucket = date_trunc(dialect, field, models.Trace.start_time, utc_offset_minutes)
+        time_bins = TimeBucketSpec.from_config(time_bin_config)
+        bucket = time_bins.truncate(dialect, models.Trace.start_time)
 
         stmt: Select[*tuple[Any, ...]] = select(bucket).where(models.Trace.project_rowid == self.id)
         if time_range.start:
@@ -2178,12 +2311,7 @@ class Project(Node):
                 *([time_range.end] if time_range.end else [datetime.now(timezone.utc)]),
             ],
         )
-        for timestamp in get_timestamp_range(
-            start_time=min_time,
-            end_time=max_time,
-            stride=field,
-            utc_offset_minutes=utc_offset_minutes,
-        ):
+        for timestamp in time_bins.timestamps(min_time, max_time):
             if timestamp not in data:
                 data[timestamp] = TraceLatencyMsPercentileTimeSeriesDataPoint(timestamp=timestamp)
         return TraceLatencyPercentileTimeSeries(
@@ -2201,23 +2329,8 @@ class Project(Node):
             raise BadRequest("Start time is required")
 
         dialect = info.context.db.dialect
-        utc_offset_minutes = 0
-        field: Literal["minute", "hour", "day", "week", "month", "year"] = "hour"
-        if time_bin_config:
-            utc_offset_minutes = time_bin_config.utc_offset_minutes
-            if time_bin_config.scale is TimeBinScale.MINUTE:
-                field = "minute"
-            elif time_bin_config.scale is TimeBinScale.HOUR:
-                field = "hour"
-            elif time_bin_config.scale is TimeBinScale.DAY:
-                field = "day"
-            elif time_bin_config.scale is TimeBinScale.WEEK:
-                field = "week"
-            elif time_bin_config.scale is TimeBinScale.MONTH:
-                field = "month"
-            elif time_bin_config.scale is TimeBinScale.YEAR:
-                field = "year"
-        bucket = date_trunc(dialect, field, models.Trace.start_time, utc_offset_minutes)
+        time_bins = TimeBucketSpec.from_config(time_bin_config)
+        bucket = time_bins.truncate(dialect, models.Trace.start_time)
         stmt = (
             select(
                 bucket,
@@ -2323,12 +2436,7 @@ class Project(Node):
                 *([time_range.end] if time_range.end else [datetime.now(timezone.utc)]),
             ],
         )
-        for timestamp in get_timestamp_range(
-            start_time=min_time,
-            end_time=max_time,
-            stride=field,
-            utc_offset_minutes=utc_offset_minutes,
-        ):
+        for timestamp in time_bins.timestamps(min_time, max_time):
             if timestamp not in data:
                 data[timestamp] = TraceTokenCountTimeSeriesDataPoint(timestamp=timestamp)
         return TraceTokenCountTimeSeries(data=sorted(data.values(), key=lambda x: x.timestamp))
@@ -2344,23 +2452,8 @@ class Project(Node):
             raise BadRequest("Start time is required")
 
         dialect = info.context.db.dialect
-        utc_offset_minutes = 0
-        field: Literal["minute", "hour", "day", "week", "month", "year"] = "hour"
-        if time_bin_config:
-            utc_offset_minutes = time_bin_config.utc_offset_minutes
-            if time_bin_config.scale is TimeBinScale.MINUTE:
-                field = "minute"
-            elif time_bin_config.scale is TimeBinScale.HOUR:
-                field = "hour"
-            elif time_bin_config.scale is TimeBinScale.DAY:
-                field = "day"
-            elif time_bin_config.scale is TimeBinScale.WEEK:
-                field = "week"
-            elif time_bin_config.scale is TimeBinScale.MONTH:
-                field = "month"
-            elif time_bin_config.scale is TimeBinScale.YEAR:
-                field = "year"
-        bucket = date_trunc(dialect, field, models.Trace.start_time, utc_offset_minutes)
+        time_bins = TimeBucketSpec.from_config(time_bin_config)
+        bucket = time_bins.truncate(dialect, models.Trace.start_time)
         stmt = (
             select(
                 bucket,
@@ -2406,12 +2499,7 @@ class Project(Node):
                 *([time_range.end] if time_range.end else [datetime.now(timezone.utc)]),
             ],
         )
-        for timestamp in get_timestamp_range(
-            start_time=min_time,
-            end_time=max_time,
-            stride=field,
-            utc_offset_minutes=utc_offset_minutes,
-        ):
+        for timestamp in time_bins.timestamps(min_time, max_time):
             if timestamp not in data:
                 data[timestamp] = TraceTokenCostTimeSeriesDataPoint(timestamp=timestamp)
         return TraceTokenCostTimeSeries(data=sorted(data.values(), key=lambda x: x.timestamp))
@@ -2423,10 +2511,8 @@ class Project(Node):
         time_range: TimeRange,
         time_bin_config: Optional[TimeBinConfig] = UNSET,
     ) -> "AnnotationScoreTimeSeries":
-        stride, utc_offset_minutes = _time_bin_stride(time_bin_config)
-        bucket = date_trunc(
-            info.context.db.dialect, stride, models.Trace.start_time, utc_offset_minutes
-        )
+        time_bins = TimeBucketSpec.from_config(time_bin_config)
+        bucket = time_bins.truncate(info.context.db.dialect, models.Trace.start_time)
         stmt = (
             select(
                 bucket,
@@ -2452,8 +2538,7 @@ class Project(Node):
             stmt=stmt,
             time_range=time_range,
             start_time_col=models.Trace.start_time,
-            stride=stride,
-            utc_offset_minutes=utc_offset_minutes,
+            time_bins=time_bins,
         )
 
     @strawberry.field
@@ -2463,10 +2548,8 @@ class Project(Node):
         time_range: TimeRange,
         time_bin_config: Optional[TimeBinConfig] = UNSET,
     ) -> "AnnotationScoreTimeSeries":
-        stride, utc_offset_minutes = _time_bin_stride(time_bin_config)
-        bucket = date_trunc(
-            info.context.db.dialect, stride, models.Trace.start_time, utc_offset_minutes
-        )
+        time_bins = TimeBucketSpec.from_config(time_bin_config)
+        bucket = time_bins.truncate(info.context.db.dialect, models.Trace.start_time)
         stmt = (
             select(
                 bucket,
@@ -2487,8 +2570,7 @@ class Project(Node):
             stmt=stmt,
             time_range=time_range,
             start_time_col=models.Trace.start_time,
-            stride=stride,
-            utc_offset_minutes=utc_offset_minutes,
+            time_bins=time_bins,
         )
 
     @strawberry.field
@@ -2498,13 +2580,11 @@ class Project(Node):
         time_range: TimeRange,
         time_bin_config: Optional[TimeBinConfig] = UNSET,
     ) -> "AnnotationScoreTimeSeries":
-        stride, utc_offset_minutes = _time_bin_stride(time_bin_config)
+        time_bins = TimeBucketSpec.from_config(time_bin_config)
         # Buckets by start_time (a session belongs to exactly one bucket), so unlike the
         # sessions connection's interval-overlap filter, a long-running session appears
         # only in the bucket where it started — the two surfaces intentionally differ.
-        bucket = date_trunc(
-            info.context.db.dialect, stride, models.ProjectSession.start_time, utc_offset_minutes
-        )
+        bucket = time_bins.truncate(info.context.db.dialect, models.ProjectSession.start_time)
         stmt = (
             select(
                 bucket,
@@ -2526,8 +2606,7 @@ class Project(Node):
             stmt=stmt,
             time_range=time_range,
             start_time_col=models.ProjectSession.start_time,
-            stride=stride,
-            utc_offset_minutes=utc_offset_minutes,
+            time_bins=time_bins,
         )
 
     @strawberry.field
@@ -2538,10 +2617,8 @@ class Project(Node):
         time_bin_config: Optional[TimeBinConfig] = UNSET,
         annotation_name: Optional[str] = UNSET,
     ) -> "AnnotationMetricsTimeSeries":
-        stride, utc_offset_minutes = _time_bin_stride(time_bin_config)
-        bucket = date_trunc(
-            info.context.db.dialect, stride, models.Trace.start_time, utc_offset_minutes
-        )
+        time_bins = TimeBucketSpec.from_config(time_bin_config)
+        bucket = time_bins.truncate(info.context.db.dialect, models.Trace.start_time)
         stmt: Select[*tuple[Any, ...]] = (
             select(
                 bucket.label("bucket"),
@@ -2575,8 +2652,7 @@ class Project(Node):
             stmt=stmt,
             time_range=time_range,
             start_time_col=models.Trace.start_time,
-            stride=stride,
-            utc_offset_minutes=utc_offset_minutes,
+            time_bins=time_bins,
         )
 
     @strawberry.field
@@ -2587,10 +2663,8 @@ class Project(Node):
         time_bin_config: Optional[TimeBinConfig] = UNSET,
         annotation_name: Optional[str] = UNSET,
     ) -> "AnnotationMetricsTimeSeries":
-        stride, utc_offset_minutes = _time_bin_stride(time_bin_config)
-        bucket = date_trunc(
-            info.context.db.dialect, stride, models.Trace.start_time, utc_offset_minutes
-        )
+        time_bins = TimeBucketSpec.from_config(time_bin_config)
+        bucket = time_bins.truncate(info.context.db.dialect, models.Trace.start_time)
         stmt: Select[*tuple[Any, ...]] = (
             select(
                 bucket.label("bucket"),
@@ -2619,8 +2693,7 @@ class Project(Node):
             stmt=stmt,
             time_range=time_range,
             start_time_col=models.Trace.start_time,
-            stride=stride,
-            utc_offset_minutes=utc_offset_minutes,
+            time_bins=time_bins,
         )
 
     @strawberry.field
@@ -2631,12 +2704,10 @@ class Project(Node):
         time_bin_config: Optional[TimeBinConfig] = UNSET,
         annotation_name: Optional[str] = UNSET,
     ) -> "AnnotationMetricsTimeSeries":
-        stride, utc_offset_minutes = _time_bin_stride(time_bin_config)
+        time_bins = TimeBucketSpec.from_config(time_bin_config)
         # Match `session_annotation_score_time_series` in this file: assign each
         # session to its start-time bucket instead of using interval overlap.
-        bucket = date_trunc(
-            info.context.db.dialect, stride, models.ProjectSession.start_time, utc_offset_minutes
-        )
+        bucket = time_bins.truncate(info.context.db.dialect, models.ProjectSession.start_time)
         stmt: Select[*tuple[Any, ...]] = (
             select(
                 bucket.label("bucket"),
@@ -2666,8 +2737,108 @@ class Project(Node):
             stmt=stmt,
             time_range=time_range,
             start_time_col=models.ProjectSession.start_time,
-            stride=stride,
-            utc_offset_minutes=utc_offset_minutes,
+            time_bins=time_bins,
+        )
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Compare two outputs of this project's evaluators over one shared population: "
+            "entities in the time range evaluated under both. Each side uses its evaluator's "
+            "primary output unless annotationNameA or annotationNameB names another of its "
+            "outputs, so both sides may be one evaluator. Returns coverage, a confusion matrix "
+            "over binned labels, and agreement statistics. Time filtering follows the "
+            "annotation metrics fields: spans and traces filter on trace start time, sessions "
+            "on session start time."
+        )
+    )
+    async def evaluator_comparison(
+        self,
+        info: Info[Context, None],
+        evaluator_a_id: GlobalID,
+        evaluator_b_id: GlobalID,
+        time_range: TimeRange,
+        threshold_a: Optional[float] = None,
+        threshold_b: Optional[float] = None,
+        annotation_name_a: Optional[str] = None,
+        annotation_name_b: Optional[str] = None,
+    ) -> ProjectEvaluatorComparison:
+        if time_range.start is None:
+            raise BadRequest("Start time is required")
+        try:
+            rowid_a = from_global_id_with_expected_type(evaluator_a_id, ProjectEvaluator.__name__)
+            rowid_b = from_global_id_with_expected_type(evaluator_b_id, ProjectEvaluator.__name__)
+        except ValueError:
+            raise BadRequest("Evaluator IDs must be ProjectEvaluator IDs")
+
+        record_a, record_b = await info.context.data_loaders.project_evaluator_by_id.load_many(
+            [rowid_a, rowid_b]
+        )
+        if record_a is None or record_a.project_id != self.id:
+            raise NotFound(f"ProjectEvaluator not found: {evaluator_a_id}")
+        if record_b is None or record_b.project_id != self.id:
+            raise NotFound(f"ProjectEvaluator not found: {evaluator_b_id}")
+        if record_a.evaluation_target != record_b.evaluation_target:
+            raise BadRequest(
+                "The selected evaluators do not share an evaluation target "
+                f"({record_a.evaluation_target} vs {record_b.evaluation_target})"
+            )
+        evaluation_target = record_a.evaluation_target
+
+        (
+            evaluator_orm_a,
+            evaluator_orm_b,
+        ) = await info.context.data_loaders.evaluator_by_id.load_many(
+            [record_a.evaluator_id, record_b.evaluator_id]
+        )
+        name_a, config_a = result_annotation(record_a, evaluator_orm_a, annotation_name_a)
+        name_b, config_b = result_annotation(record_b, evaluator_orm_b, annotation_name_b)
+        if name_a == name_b:
+            raise BadRequest(
+                "Select two different evaluators or outputs to compare"
+                if rowid_a == rowid_b
+                else "The selected evaluators write results under the same annotation name"
+            )
+
+        binning_a = make_side_binning(name_a, config_a, threshold_a)
+        binning_b = make_side_binning(name_b, config_b, threshold_b)
+
+        pairs_stmt, coverage_stmt, total_stmt = _evaluator_comparison_stmts(
+            project_rowid=self.id,
+            evaluation_target=evaluation_target,
+            name_a=name_a,
+            name_b=name_b,
+            time_range=time_range,
+        )
+
+        accumulator = ComparisonAccumulator(binning_a, binning_b)
+        evaluated_by_both = only_a = only_b = 0
+        async with info.context.db.read() as session:
+            total_in_range = await session.scalar(total_stmt) or 0
+            for has_a, has_b, entity_count in await session.execute(coverage_stmt):
+                if has_a and has_b:
+                    evaluated_by_both = entity_count
+                elif has_a:
+                    only_a = entity_count
+                else:
+                    only_b = entity_count
+            async for row in await session.stream(pairs_stmt):
+                accumulator.add(row.label_a, row.score_a, row.label_b, row.score_b)
+        result = accumulator.result()
+
+        return to_gql_comparison(
+            evaluation_target=EvaluationTarget(evaluation_target),
+            coverage=EvaluatorComparisonCoverage(
+                evaluated_by_both=evaluated_by_both,
+                only_a=only_a,
+                only_b=only_b,
+                total_in_range=total_in_range,
+            ),
+            result=result,
+            record_a=record_a,
+            record_b=record_b,
+            config_a=config_a,
+            config_b=config_b,
+            time_range=time_range,
         )
 
     @strawberry.field
@@ -2908,22 +3079,12 @@ class AnnotationMetricsTimeSeries:
     names: list[str]
 
 
-_TimeBinStride = Literal["minute", "hour", "day", "week", "month", "year"]
-
-
-def _time_bin_stride(time_bin_config: Optional[TimeBinConfig]) -> tuple[_TimeBinStride, int]:
-    if not time_bin_config:
-        return "hour", 0
-    return time_bin_config.scale.value, time_bin_config.utc_offset_minutes
-
-
 async def _annotation_score_time_series(
     db: DbSessionFactory,
     stmt: Select[*tuple[Any, ...]],
     time_range: TimeRange,
     start_time_col: InstrumentedAttribute[datetime],
-    stride: _TimeBinStride,
-    utc_offset_minutes: int,
+    time_bins: TimeBucketSpec,
 ) -> AnnotationScoreTimeSeries:
     """Execute a (bucket, name, average_score) statement and fill in empty time bins.
 
@@ -2932,8 +3093,7 @@ async def _annotation_score_time_series(
         stmt: A statement selecting (time bucket, annotation name, average score) rows.
         time_range: The requested time range; the start is required.
         start_time_col: The timestamp column the time range filters on.
-        stride: The time bin stride used to fill in empty bins.
-        utc_offset_minutes: The UTC offset applied when binning timestamps.
+        time_bins: The time binning used to bucket rows and fill in empty bins.
 
     Returns:
         The average annotation scores per time bin, keyed by annotation name.
@@ -2965,12 +3125,7 @@ async def _annotation_score_time_series(
         )
         for timestamp, scores_by_name in scores.items()
     }
-    for timestamp in get_timestamp_range(
-        start_time=min_time,
-        end_time=max_time,
-        stride=stride,
-        utc_offset_minutes=utc_offset_minutes,
-    ):
+    for timestamp in time_bins.timestamps(min_time, max_time):
         if timestamp not in data:
             data[timestamp] = AnnotationScoreTimeSeriesDataPoint(
                 timestamp=timestamp,
@@ -3002,8 +3157,7 @@ async def _annotation_metrics_time_series(
     stmt: Select[*tuple[Any, ...]],
     time_range: TimeRange,
     start_time_col: InstrumentedAttribute[datetime],
-    stride: _TimeBinStride,
-    utc_offset_minutes: int,
+    time_bins: TimeBucketSpec,
 ) -> AnnotationMetricsTimeSeries:
     """Build bounded, entity-weighted summaries and fill in empty time bins."""
     if time_range.start is None:
@@ -3054,12 +3208,7 @@ async def _annotation_metrics_time_series(
         )
         for timestamp, summaries in summaries_by_timestamp.items()
     }
-    for timestamp in get_timestamp_range(
-        start_time=min_time,
-        end_time=max_time,
-        stride=stride,
-        utc_offset_minutes=utc_offset_minutes,
-    ):
+    for timestamp in time_bins.timestamps(min_time, max_time):
         if timestamp not in data:
             data[timestamp] = AnnotationMetricsTimeSeriesDataPoint(
                 timestamp=timestamp,
@@ -3071,8 +3220,126 @@ async def _annotation_metrics_time_series(
     )
 
 
+def _evaluator_comparison_stmts(
+    project_rowid: int,
+    evaluation_target: str,
+    name_a: str,
+    name_b: str,
+    time_range: TimeRange,
+) -> tuple[Select[Any], Select[Any], Select[Any]]:
+    """Build the pair, coverage, and total-entity statements for one evaluation target.
+
+    The pair statement yields one row per entity annotated under both names in
+    range — (label_a, score_a, label_b, score_b) — deduplicating
+    multiple annotation identifiers per (entity, name) to the most recently
+    updated. Rows are selected by annotation name alone, whichever source
+    wrote them. The coverage statement counts entities grouped by which names
+    annotated them, and the total statement counts the traces or sessions in the
+    project and range: traces for span and trace targets, sessions for sessions.
+    """
+    level = EVALUATOR_RESULT_LEVELS.get(evaluation_target)
+    if level is None:
+        raise BadRequest(f"Unsupported evaluation target: {evaluation_target}")
+    assert time_range.start is not None
+
+    def annotation_rows(*columns: Any) -> Select[Any]:
+        return evaluator_annotation_rows(
+            *columns,
+            project_rowid=project_rowid,
+            evaluation_target=evaluation_target,
+            annotation_names=[name_a, name_b],
+            time_range=time_range,
+        )
+
+    # Span targets count the traces their spans belong to.
+    counted = models.Trace if level.joins_trace else level.entity
+    total = (
+        select(func.count(counted.id))
+        .where(level.project_col == project_rowid)
+        .where(time_range.start <= level.time_col)
+    )
+    if time_range.end:
+        total = total.where(level.time_col < time_range.end)
+
+    is_a_flag = case((level.annotation.name == name_a, 1), else_=0)
+    is_b_flag = case((level.annotation.name == name_b, 1), else_=0)
+    presence = (
+        annotation_rows(
+            level.entity_id.label("entity_id"),
+            func.max(is_a_flag).label("has_a"),
+            func.max(is_b_flag).label("has_b"),
+        )
+        .group_by(level.entity_id)
+        .subquery("comparison_presence")
+    )
+    coverage = select(
+        presence.c.has_a, presence.c.has_b, func.count().label("entity_count")
+    ).group_by(presence.c.has_a, presence.c.has_b)
+
+    latest = latest_evaluator_annotations(
+        project_rowid=project_rowid,
+        evaluation_target=evaluation_target,
+        annotation_names=[name_a, name_b],
+        time_range=time_range,
+    )
+    is_a = latest.c.name == name_a
+    pairs: Select[Any] = (
+        select(
+            func.max(case((is_a, latest.c.label))).label("label_a"),
+            func.max(case((is_a, latest.c.score))).label("score_a"),
+            func.max(case((~is_a, latest.c.label))).label("label_b"),
+            func.max(case((~is_a, latest.c.score))).label("score_b"),
+        )
+        .group_by(latest.c.entity_id)
+        .having(func.max(case((is_a, 1), else_=0)) == 1)
+        .having(func.max(case((~is_a, 1), else_=0)) == 1)
+    )
+    return pairs, coverage, total
+
+
 INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE.split(".")
+
+
+async def project_evaluator_connection(
+    info: Info[Context, None],
+    stmt: Select[models.ProjectEvaluator],
+    filter: Optional[ProjectEvaluatorFilter],
+    args: ConnectionArgs,
+) -> Connection[ProjectEvaluator]:
+    if filter and filter.col and filter.value and (value := filter.value.strip()):
+        column = getattr(models.ProjectEvaluator, filter.col.value)
+        # `name` is an Identifier-typed column; compare it as text so LIKE applies.
+        stmt = stmt.where(sqlalchemy_cast(column, String).ilike(f"%{value}%"))
+    annotation_names = filter.annotation_names if filter else None
+    if annotation_names:
+        # Project evaluator identifiers cannot contain dots.
+        candidate_names = {name.partition(".")[0] for name in annotation_names}
+        stmt = stmt.where(
+            sqlalchemy_cast(models.ProjectEvaluator.name, String).in_(candidate_names)
+        )
+    async with info.context.db.read() as session:
+        records = list(await session.scalars(stmt))
+    if annotation_names:
+        evaluators = await info.context.data_loaders.evaluator_by_id.load_many(
+            [record.evaluator_id for record in records]
+        )
+        requested_names = set(annotation_names)
+        records = [
+            record
+            for record, evaluator in zip(records, evaluators)
+            if evaluator is not None
+            and requested_names.intersection(
+                result_annotation_names(
+                    record.name.root,
+                    as_output_configs(getattr(evaluator, "output_configs", None)),
+                )
+            )
+        ]
+    return connection_from_list(
+        data=[ProjectEvaluator(id=record.id, db_record=record) for record in records],
+        args=args,
+    )
 
 
 def _as_datetime(value: Any) -> datetime:

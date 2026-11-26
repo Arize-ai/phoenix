@@ -2,12 +2,12 @@ import { css } from "@emotion/react";
 import { Suspense, useCallback, useState } from "react";
 
 import { Flex, Icon, Icons, Text } from "@phoenix/components";
-import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import {
   getInvocationFamilyForProvider,
   InvocationFamily,
-} from "@phoenix/pages/playground/invocationParameterSpecs";
-import { areRequiredInvocationParametersConfigured } from "@phoenix/pages/playground/playgroundUtils";
+} from "@phoenix/components/playground/invocationParameterSpecs";
+import { areRequiredInvocationParametersConfigured } from "@phoenix/components/playground/playgroundInstanceUtils";
+import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 import { CustomHeadersModelConfigFormField } from "./CustomHeadersModelConfigFormField";
 import { ExtraBodyModelConfigFormField } from "./ExtraBodyModelConfigFormField";

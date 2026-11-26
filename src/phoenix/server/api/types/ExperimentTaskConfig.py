@@ -1,14 +1,17 @@
 """
-GraphQL output types for ExperimentPromptTask.
+GraphQL output types for experiment task configurations.
 
-Converts the ORM model into typed GraphQL fields for frontend consumption
-(e.g., playground rehydration via ExperimentJob.taskConfig).
+Converts the ORM job rows (ExperimentPromptTask, ExperimentDecisionTask,
+ExperimentEvaluatorTask) into typed
+GraphQL fields for frontend consumption (e.g., playground rehydration via
+ExperimentJob.taskConfig).
 """
 
 from typing import TYPE_CHECKING, Annotated, Optional, Union, cast
 
 import strawberry
 from strawberry.relay import Node, NodeID
+from strawberry.scalars import JSON
 from strawberry.types import Info
 from typing_extensions import assert_never
 
@@ -17,17 +20,35 @@ from phoenix.db.models import PromptVersion as ORMPromptVersion
 from phoenix.server.api.context import Context
 
 if TYPE_CHECKING:
+    from phoenix.server.api.types.Decision import DecisionVersion
     from phoenix.server.api.types.GenerativeModelCustomProvider import (
         GenerativeModelCustomProvider,
     )
 from strawberry import Private
 
 from phoenix.db.types import experiment_config as config_types
+from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.prompts import (
     PromptTemplateFormat,
     PromptTemplateType,
 )
 from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
+from phoenix.server.api.types.DecisionDefinition import (
+    DecisionQuestion,
+    DecisionState,
+    to_gql_decision_question,
+    to_gql_decision_state,
+)
+from phoenix.server.api.types.Evaluator import (
+    BuiltInEvaluatorOutputConfig,
+    EvaluatorInputMapping,
+    EvaluatorKind,
+    _to_gql_output_config,
+)
+from phoenix.server.api.types.EvaluatorTaskDefinition import (
+    EvaluatorTaskDefinition,
+    to_gql_evaluator_task_definition,
+)
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.PromptInvocationParameters import (
     PromptInvocationParameters,
@@ -42,6 +63,7 @@ from phoenix.server.api.types.PromptVersionTemplate import (
     PromptTemplate,
     to_gql_template_from_orm,
 )
+from phoenix.server.decisions.rendering import decision_variables
 
 # =============================================================================
 # Connection Config (discriminated union — builtin providers only)
@@ -253,3 +275,138 @@ class PromptTaskConfig(Node):
             if provider is None:
                 return None
             return GenerativeModelCustomProvider(id=provider.id, db_record=provider)
+
+
+# =============================================================================
+# Evaluator Task Config (maps from ORM ExperimentEvaluatorTask)
+# =============================================================================
+
+
+@strawberry.type
+class EvaluatorTaskConfig(Node):
+    """The evaluator an EVALUATOR experiment ran as its task, frozen as it was drafted."""
+
+    id: NodeID[int]
+    name: Identifier
+    evaluator_kind: EvaluatorKind
+    input_mapping: EvaluatorInputMapping
+    output_configs: list[BuiltInEvaluatorOutputConfig]
+    definition: EvaluatorTaskDefinition = strawberry.field(
+        description="The evaluator as it was run: an inline LLM judge prompt, inline code, "
+        "or a stored evaluator's id. Use to rehydrate the playground.",
+    )
+
+    @classmethod
+    def from_orm(cls, obj: models.ExperimentEvaluatorTask) -> "EvaluatorTaskConfig":
+        return cls(
+            id=obj.id,
+            name=obj.name,
+            evaluator_kind=EvaluatorKind(obj.evaluator_kind),
+            input_mapping=EvaluatorInputMapping(
+                literal_mapping=JSON(obj.input_mapping.literal_mapping),
+                path_mapping=JSON(obj.input_mapping.path_mapping),
+            ),
+            output_configs=[
+                _to_gql_output_config(
+                    config,
+                    config.name,
+                    id_prefix="EvaluatorTaskConfig",
+                    evaluator_id=obj.id,
+                )
+                for config in obj.output_configs
+            ],
+            definition=to_gql_evaluator_task_definition(obj.definition, obj.id),
+        )
+
+
+# =============================================================================
+# Decision Task Config (maps from ORM ExperimentDecisionTask)
+# =============================================================================
+
+
+@strawberry.type
+class DecisionTaskConfig(Node):
+    """The decision a DECISION experiment ran over its dataset, copied when it was created.
+
+    The decision's counterpart of PromptTaskConfig: the definition, the model and its
+    connection, and where each example supplies what the definition needs.
+    """
+
+    id: NodeID[int]
+    model_provider: GenerativeProviderKey
+    model_name: str
+    base_url: Optional[str] = strawberry.field(
+        description="The endpoint a built-in provider was reached at, when not its default."
+    )
+    template_format: PromptTemplateFormat
+    state: DecisionState
+    questions: list[DecisionQuestion] = strawberry.field(
+        description="The fixed questions asked of every example."
+    )
+    variables: list[str] = strawberry.field(
+        description="The variables the state and questions use, in first-appearance order."
+    )
+    template_variables_path: str = strawberry.field(
+        description="Where each example's variables were read, as for a prompt task."
+    )
+    decision_version_id: Private[Optional[int]] = None
+    custom_provider_id: Private[Optional[int]] = None
+
+    @classmethod
+    def from_orm(cls, obj: models.ExperimentDecisionTask) -> "DecisionTaskConfig":
+        config = obj.config
+        return cls(
+            id=obj.id,
+            model_provider=GenerativeProviderKey.from_model_provider(obj.model_provider),
+            model_name=obj.model_name,
+            base_url=obj.base_url,
+            template_format=config.template_format,
+            state=to_gql_decision_state(config.state),
+            questions=[to_gql_decision_question(question) for question in config.questions],
+            variables=decision_variables(config.template_format, config.state, config.questions),
+            template_variables_path=config.template_variables_path,
+            decision_version_id=obj.decision_version_id,
+            custom_provider_id=obj.custom_provider_id,
+        )
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description="The saved version the definition was copied from, if it still exists.",
+    )
+    async def decision_version(
+        self, info: Info[Context, None]
+    ) -> Annotated["DecisionVersion", strawberry.lazy(".Decision")] | None:
+        if self.decision_version_id is None:
+            return None
+        from phoenix.server.api.types.Decision import DecisionVersion
+
+        async with info.context.db.read() as session:
+            version = await session.get(models.DecisionVersion, self.decision_version_id)
+        if version is None:
+            return None
+        return DecisionVersion(id=version.id, db_record=version)
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description="The custom provider this experiment ran on, if any.",
+    )
+    async def custom_provider(
+        self,
+    ) -> (
+        Annotated[
+            "GenerativeModelCustomProvider",
+            strawberry.lazy(".GenerativeModelCustomProvider"),
+        ]
+        | None
+    ):
+        if self.custom_provider_id is None:
+            return None
+        from phoenix.server.api.types.GenerativeModelCustomProvider import (
+            GenerativeModelCustomProvider,
+        )
+
+        return GenerativeModelCustomProvider(id=self.custom_provider_id)
+
+
+ExperimentTaskConfig = Annotated[
+    Union[PromptTaskConfig, DecisionTaskConfig, EvaluatorTaskConfig],
+    strawberry.union(name="ExperimentTaskConfig"),
+]

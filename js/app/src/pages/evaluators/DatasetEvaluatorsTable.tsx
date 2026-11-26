@@ -15,7 +15,7 @@ import {
 } from "react";
 import { graphql, readInlineData } from "react-relay";
 
-import { Flex, Icon, Icons, Link, Text } from "@phoenix/components";
+import { Flex, Icon, Icons, Link, LinkButton, Text } from "@phoenix/components";
 import {
   CompactEmptyState,
   EmptyState,
@@ -24,11 +24,16 @@ import {
 import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { DatasetLink } from "@phoenix/components/dataset/DatasetLink";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import { SandboxConfigLabel } from "@phoenix/components/sandbox/SandboxConfigLabel";
-import { TextCell } from "@phoenix/components/table";
-import { selectableTableCSS } from "@phoenix/components/table/styles";
+import { StopPropagation } from "@phoenix/components/StopPropagation";
+import { ACTIONS_COLUMN_ID, TextCell } from "@phoenix/components/table";
+import {
+  getCommonPinningStyles,
+  selectableTableCSS,
+} from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
 import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
@@ -45,6 +50,7 @@ import type {
   EvaluatorKind,
 } from "@phoenix/pages/evaluators/__generated__/DatasetEvaluatorsTable_row.graphql";
 import { useDatasetEvaluatorsFilterContext } from "@phoenix/pages/evaluators/DatasetEvaluatorsFilterProvider";
+import { DecisionCell } from "@phoenix/pages/evaluators/DecisionCell";
 import { PromptCell } from "@phoenix/pages/evaluators/PromptCell";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
@@ -112,27 +118,27 @@ const DatasetEvaluatorsEmpty = ({
   onSelectCodeEvaluator,
   hasActiveFilter,
 }: {
-  builtInEvaluators: DatasetEvaluatorsPage_builtInEvaluators$data;
+  builtInEvaluators?: DatasetEvaluatorsPage_builtInEvaluators$data;
   onSelectLLMEvaluatorTemplate?: (templateName: string) => void;
   onSelectCodeEvaluator?: (evaluatorId: string) => void;
   hasActiveFilter: boolean;
 }) => {
-  const codeEvaluators = builtInEvaluators.builtInEvaluators;
-  const llmEvaluatorTemplates =
-    builtInEvaluators.classificationEvaluatorConfigs;
-
-  // If there's an active filter, show a simple "no results" message
-  if (hasActiveFilter) {
+  if (hasActiveFilter || !builtInEvaluators) {
     return (
       <TableEmptyWrap>
         <CompactEmptyState
           icon={<Icon svg={<Icons.Scale />} />}
-          description="No evaluators"
-          isFiltered
+          description={
+            builtInEvaluators ? "No evaluators" : "No dataset evaluators"
+          }
+          isFiltered={hasActiveFilter}
         />
       </TableEmptyWrap>
     );
   }
+  const codeEvaluators = builtInEvaluators.builtInEvaluators;
+  const llmEvaluatorTemplates =
+    builtInEvaluators.classificationEvaluatorConfigs;
 
   // Otherwise, show the template selection grid
   return (
@@ -210,6 +216,10 @@ const readRow = (row: DatasetEvaluatorsTable_row$key) => {
           username
           profilePictureUrl
         }
+        dataset {
+          id
+          name
+        }
         evaluator {
           id
           name
@@ -225,6 +235,20 @@ const readRow = (row: DatasetEvaluatorsTable_row$key) => {
               name
             }
             promptVersion {
+              modelName
+              modelProvider
+            }
+          }
+          ... on DecisionEvaluator {
+            decisionVersionTag {
+              name
+            }
+            decisionVersion {
+              id
+              decisionId
+              decision {
+                name
+              }
               modelName
               modelProvider
             }
@@ -248,6 +272,24 @@ const readRow = (row: DatasetEvaluatorsTable_row$key) => {
 
 export type TableRow = ReturnType<typeof readRow>;
 
+// TODO: support opening a decision evaluator as a playground evaluator task.
+const canOpenInPlayground = (kind: EvaluatorKind) =>
+  kind !== "BUILTIN" && kind !== "DECISION";
+
+const datasetColumn: ColumnDef<TableRow> = {
+  id: "dataset",
+  header: "dataset",
+  accessorFn: (row) => row.dataset.name,
+  size: 180,
+  enableSorting: false,
+  cell: ({ row }) => (
+    <DatasetLink
+      name={row.original.dataset.name}
+      to={`/datasets/${row.original.dataset.id}`}
+    />
+  ),
+};
+
 type DatasetEvaluatorsTableProps = {
   /**
    * Relay fragment references for the evaluator rows to display in the table.
@@ -257,9 +299,10 @@ type DatasetEvaluatorsTableProps = {
    */
   rowReferences: DatasetEvaluatorsTable_row$key[];
   /**
-   * Built-in evaluators data to display in the empty state.
+   * Built-in evaluators to offer in the empty state. Without them the empty
+   * state is a plain message.
    */
-  builtInEvaluators: DatasetEvaluatorsPage_builtInEvaluators$data;
+  builtInEvaluators?: DatasetEvaluatorsPage_builtInEvaluators$data;
   isLoadingNext: boolean;
   hasNext: boolean;
   loadNext: (variables: {
@@ -271,7 +314,12 @@ type DatasetEvaluatorsTableProps = {
     filter?: DatasetEvaluatorFilter | null;
   }) => void;
   onRowClick?: (row: TableRow) => void;
-  datasetId: string;
+  /**
+   * The dataset every row belongs to. Without it, rows may come from any
+   * dataset: a dataset column shows each row's dataset and rows have no
+   * edit or delete menu.
+   */
+  datasetId?: string;
   /**
    * If provided, these connections will be updated when a row is edited or deleted.
    */
@@ -323,29 +371,37 @@ export const DatasetEvaluatorsTable = ({
   const tableData = useMemo(() => {
     return rowReferences.map(readRow);
   }, [rowReferences]);
+  // Across datasets the column holds only Playground buttons, so it is left
+  // out when no loaded row has one.
+  const hasActionsColumn =
+    datasetId != null ||
+    tableData.some((row) => canOpenInPlayground(row.evaluator.kind));
   const columns = useMemo(() => {
     const cols: ColumnDef<TableRow>[] = [
+      {
+        header: "kind",
+        accessorKey: "kind", // special case for sorting that's handled by the backend
+        accessorFn: (row) => row.evaluator.kind,
+        size: 80,
+        cell: ({ getValue }) => (
+          <EvaluatorKindToken kind={getValue() as EvaluatorKind} />
+        ),
+      },
       {
         header: "name",
         accessorKey: "name",
         size: 200,
         cell: ({ getValue, row }) => {
           return (
-            <Link to={`/datasets/${datasetId}/evaluators/${row.original.id}`}>
+            <Link
+              to={`/datasets/${row.original.dataset.id}/evaluators/${row.original.id}`}
+            >
               <Truncate maxWidth="100%">{getValue() as string}</Truncate>
             </Link>
           );
         },
       },
-      {
-        header: "kind",
-        accessorKey: "kind", // special case for sorting that's handled by the backend
-        accessorFn: (row) => row.evaluator.kind,
-        size: 60,
-        cell: ({ getValue }) => (
-          <EvaluatorKindToken kind={getValue() as EvaluatorKind} />
-        ),
-      },
+      ...(datasetId ? [] : [datasetColumn]),
       {
         header: "description",
         accessorKey: "description",
@@ -391,16 +447,26 @@ export const DatasetEvaluatorsTable = ({
         },
       },
       {
-        header: "prompt",
+        // Holds the LLM evaluator's prompt or the decision evaluator's decision.
+        header: "prompt / decision",
         accessorKey: "prompt",
         size: 180,
         enableSorting: false,
         cell: ({ row }) => (
-          <PromptCell
-            prompt={row.original.evaluator.prompt}
-            promptVersionTag={row.original.evaluator.promptVersionTag?.name}
-            wrapWidth={200}
-          />
+          <>
+            <PromptCell
+              prompt={row.original.evaluator.prompt}
+              promptVersionTag={row.original.evaluator.promptVersionTag?.name}
+              wrapWidth={200}
+            />
+            <DecisionCell
+              decisionVersion={row.original.evaluator.decisionVersion}
+              decisionVersionTag={
+                row.original.evaluator.decisionVersionTag?.name
+              }
+              wrapWidth={200}
+            />
+          </>
         ),
       },
       {
@@ -409,7 +475,9 @@ export const DatasetEvaluatorsTable = ({
         size: 180,
         enableSorting: false,
         cell: ({ row }) => {
-          const promptVersion = row.original.evaluator.promptVersion;
+          const promptVersion =
+            row.original.evaluator.promptVersion ??
+            row.original.evaluator.decisionVersion;
           if (!promptVersion) {
             return <Text color="text-700">—</Text>;
           }
@@ -456,24 +524,46 @@ export const DatasetEvaluatorsTable = ({
         cell: TimestampCell,
       },
     ];
-    if (datasetId) {
-      cols.push({
-        header: "",
-        id: "actions",
-        size: 50,
-        cell: ({ row }) => (
-          <DatasetEvaluatorActionMenu
-            datasetEvaluatorId={row.original.id}
-            datasetId={datasetId}
-            evaluatorKind={row.original.evaluator.kind}
-            evaluatorName={row.original.name}
-            updateConnectionIds={updateConnectionIds}
-          />
-        ),
-      });
+    if (!hasActionsColumn) {
+      return cols;
     }
+    // Pinned to the right edge like the prompts table's actions column.
+    cols.push({
+      header: "",
+      id: ACTIONS_COLUMN_ID,
+      size: datasetId ? 150 : 130,
+      enableSorting: false,
+      cell: ({ row }) => (
+        <Flex direction="row" gap="size-100" justifyContent="end" width="100%">
+          {canOpenInPlayground(row.original.evaluator.kind) ? (
+            <StopPropagation>
+              <LinkButton
+                leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
+                size="S"
+                aria-label="Open in playground"
+                to={`/playground?${new URLSearchParams({
+                  datasetId: row.original.dataset.id,
+                  datasetEvaluator0: row.original.id,
+                })}`}
+              >
+                Playground
+              </LinkButton>
+            </StopPropagation>
+          ) : null}
+          {datasetId ? (
+            <DatasetEvaluatorActionMenu
+              datasetEvaluatorId={row.original.id}
+              datasetId={datasetId}
+              evaluatorKind={row.original.evaluator.kind}
+              evaluatorName={row.original.name}
+              updateConnectionIds={updateConnectionIds}
+            />
+          ) : null}
+        </Flex>
+      ),
+    });
     return cols;
-  }, [datasetId, updateConnectionIds]);
+  }, [datasetId, hasActionsColumn, updateConnectionIds]);
 
   const table = useTable({
     features: appTableFeatures,
@@ -482,6 +572,7 @@ export const DatasetEvaluatorsTable = ({
     state: {
       sorting,
       columnSizing,
+      columnPinning: { start: [], end: [ACTIONS_COLUMN_ID] },
     },
     columnResizeMode: "onChange",
     onSortingChange: setSorting,
@@ -562,6 +653,7 @@ export const DatasetEvaluatorsTable = ({
                   colSpan={header.colSpan}
                   key={header.id}
                   style={{
+                    ...getCommonPinningStyles(header.column),
                     width: `calc(var(--header-${header.id}-size) * 1px)`,
                   }}
                 >
@@ -632,6 +724,7 @@ export const DatasetEvaluatorsTable = ({
                       <td
                         key={cell.id}
                         style={{
+                          ...getCommonPinningStyles(cell.column),
                           width: `calc(var(${colSizeVar}) * 1px)`,
                           maxWidth: `calc(var(${colSizeVar}) * 1px)`,
                           overflow: "hidden",

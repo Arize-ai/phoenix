@@ -1,0 +1,45 @@
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+resources:
+  - grafana.yaml
+
+patches:
+  - target:
+      kind: ConfigMap
+      name: traefik-dynamic-profiles
+    patch: |
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: traefik-dynamic-profiles
+      data:
+        grafana.yml: |
+          http:
+            middlewares:
+              prometheus-stripprefix:
+                stripPrefix:
+                  prefixes:
+                    - "/prometheus"
+            routers:
+              prometheus:
+                rule: "PathPrefix(`/prometheus`)"
+                entryPoints:
+                  - web
+                middlewares:
+                  - prometheus-stripprefix
+                service: prometheus
+              grafana:
+                rule: "PathPrefix(`/grafana`)"
+                entryPoints:
+                  - web
+                service: grafana
+            services:
+              prometheus:
+                loadBalancer:
+                  servers:
+                    - url: "http://prometheus:9090"
+              grafana:
+                loadBalancer:
+                  servers:
+                    - url: "http://grafana:3000"

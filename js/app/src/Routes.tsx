@@ -13,6 +13,7 @@ import {
   createDataRouterNavigationStateSource,
   registerRouterNavigationStateSource,
 } from "@phoenix/agent/tools/navigation/routerStateRegistry";
+import type { CopyFn } from "@phoenix/hooks/useMatchesWithCrumb";
 import type { DatasetEvaluatorDetailsLoaderData } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { datasetEvaluatorDetailsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { DatasetEvaluatorDetailsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorDetailsPage";
@@ -22,9 +23,48 @@ import {
   EVALUATOR_DETAILS_ROUTE_ID,
   EvaluatorTracePage,
 } from "@phoenix/pages/dataset/evaluators/EvaluatorTracePage";
-import { EvaluatorsPage } from "@phoenix/pages/evaluators/EvaluatorsPage";
-import { evaluatorsPageLoader } from "@phoenix/pages/evaluators/evaluatorsPageLoader";
+import {
+  decisionLoader,
+  type DecisionLoaderData,
+} from "@phoenix/pages/decisions/decisionLoader";
+import { DecisionPage } from "@phoenix/pages/decisions/DecisionPage";
+import { DecisionsPage } from "@phoenix/pages/decisions/DecisionsPage";
+import { AllEvaluatorsTab } from "@phoenix/pages/evaluators/all/AllEvaluatorsTab";
+import { DatasetEvaluatorsTab } from "@phoenix/pages/evaluators/dataset-evaluators/DatasetEvaluatorsTab";
+import { datasetEvaluatorsTabLoader } from "@phoenix/pages/evaluators/dataset-evaluators/datasetEvaluatorsTabLoader";
+import { EvaluatorsLayout } from "@phoenix/pages/evaluators/EvaluatorsLayout";
+import { ProjectEvaluatorsTab } from "@phoenix/pages/evaluators/project-evaluators/ProjectEvaluatorsTab";
+import type { ProjectEvaluatorCompareLoaderData } from "@phoenix/pages/project/evaluators/projectEvaluatorCompareLoader";
+import {
+  projectEvaluatorCompareLoader,
+  shouldRevalidateProjectEvaluatorCompare,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorCompareLoader";
+import { ProjectEvaluatorComparePage } from "@phoenix/pages/project/evaluators/ProjectEvaluatorComparePage";
+import {
+  PROJECT_EVALUATOR_COMPARE_ROUTE_ID,
+  ProjectEvaluatorCompareTargetPage,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorCompareTargetPage";
+import type { ProjectEvaluatorDetailsLoaderData } from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
+import {
+  PROJECT_EVALUATOR_CRUMB_FALLBACK,
+  projectEvaluatorDetailsLoader,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorDetailsLoader";
+import { ProjectEvaluatorDetailsPage } from "@phoenix/pages/project/evaluators/ProjectEvaluatorDetailsPage";
+import {
+  ProjectEvaluatorMetricsTab,
+  ProjectEvaluatorOverviewTab,
+  ProjectEvaluatorTracesTab,
+  ProjectEvaluatorVersionsTab,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorDetailsTabs";
+import { projectEvaluatorTabRouteId } from "@phoenix/pages/project/evaluators/projectEvaluatorPaths";
+import {
+  PROJECT_EVALUATOR_DETAILS_ROUTE_ID,
+  ProjectEvaluatorTracePage,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorTracePage";
+import { PromptsLayout } from "@phoenix/pages/prompts/PromptsLayout";
 import { RootLayout } from "@phoenix/pages/RootLayout";
+import { BuiltInProviderDetailsDrawer } from "@phoenix/pages/settings/BuiltInProviderDetailsDrawer";
+import { CustomProviderDetailsDrawer } from "@phoenix/pages/settings/CustomProviderDetailsDrawer";
 import { settingsPromptsPageLoader } from "@phoenix/pages/settings/prompts/settingsPromptsPageLoader";
 import { RetentionPolicyDetailsDrawer } from "@phoenix/pages/settings/RetentionPolicyDetailsDrawer";
 import { SettingsSecretsPage } from "@phoenix/pages/settings/secrets/SettingsSecretsPage";
@@ -56,8 +96,12 @@ import type {
   SpanPlaygroundPageLoaderData,
 } from "./pages";
 import {
+  AttachProjectEvaluatorPage,
   AuthenticatedRoot,
   authenticatedRootLoader,
+  CopyCodeProjectEvaluatorPage,
+  CopyDecisionProjectEvaluatorPage,
+  CopyLlmProjectEvaluatorPage,
   dashboardsLoader,
   DashboardsEmptyPage,
   DashboardsRoot,
@@ -67,6 +111,7 @@ import {
   DatasetsPage,
   datasetVersionsLoader,
   DatasetVersionsPage,
+  EditProjectEvaluatorPage,
   ErrorElement,
   ExamplePage,
   examplesLoader,
@@ -80,6 +125,10 @@ import {
   homeLoader,
   LoggedOutPage,
   LoginPage,
+  NewCodeProjectEvaluatorPage,
+  NewDecisionProjectEvaluatorPage,
+  NewLlmFromTemplateProjectEvaluatorPage,
+  NewLlmProjectEvaluatorPage,
   OAuth2ConsentPage,
   PlaygroundPage,
   playgroundPageLoader,
@@ -90,7 +139,11 @@ import {
   ProfileGenerativeAIPage,
   ProfilePage,
   ProfilePreferencesPage,
+  ProjectEvaluatorGalleryPage,
+  ProjectEvaluatorsPage,
+  projectEvaluatorsLoader,
   ProjectIndexPage,
+  PROJECT_CRUMB_FALLBACK,
   projectLoader,
   ProjectMetricsPage,
   ProjectPage,
@@ -210,6 +263,106 @@ const compareTracesRouteHandle = {
       "Compare two traces side by side, each with its own span tree and span details, to diff their trajectories. The compared traces are the repeated traceId search param (the GraphQL Trace.traceId OpenTelemetry trace ID, not Trace.id) in left-to-right order; each one's selected span is the repeated selectedSpanNodeId search param at the same position.",
   },
 };
+
+/**
+ * The evaluator creation slideovers. They nest under the evaluator list and,
+ * again, under the gallery modal route, so a slideover opened from the gallery
+ * dismisses back to the gallery (its parent route) while one opened from the
+ * list dismisses back to the list. Elements, not route objects, so the router
+ * flattens the fragment into whichever parent renders it.
+ */
+const projectEvaluatorCreationRoutes = (
+  <>
+    <Route
+      path="new/template/:templateName"
+      element={<NewLlmFromTemplateProjectEvaluatorPage />}
+      handle={{
+        agentRoute: {
+          label: "New Project Evaluator From Template",
+          description:
+            "Create a project LLM evaluator directly from the selected evaluator template.",
+        },
+      }}
+    />
+    <Route
+      path="new/llm"
+      element={<NewLlmProjectEvaluatorPage />}
+      handle={{
+        agentRoute: {
+          label: "New Project LLM Evaluator",
+          description:
+            "Author a new LLM-as-a-judge evaluator for a project from scratch.",
+        },
+      }}
+    />
+    <Route
+      path="new/code"
+      element={<NewCodeProjectEvaluatorPage />}
+      handle={{
+        agentRoute: {
+          label: "New Project Code Evaluator",
+          description:
+            "Author a new Python or TypeScript code evaluator for a project from scratch.",
+        },
+      }}
+    />
+    <Route
+      path="new/decision"
+      element={<NewDecisionProjectEvaluatorPage />}
+      handle={{
+        agentRoute: {
+          label: "New Project Decision Evaluator",
+          description:
+            "Author a new decision evaluator for a project, judged by a decision model that answers typed questions, from scratch or from a saved decision version.",
+        },
+      }}
+    />
+    <Route
+      path="new/copy-llm/:evaluatorId"
+      element={<CopyLlmProjectEvaluatorPage />}
+      handle={{
+        agentRoute: {
+          label: "Copy LLM Evaluator Into Project",
+          description:
+            "Create a project evaluator seeded from an existing LLM evaluator. The evaluatorId route param uses the GraphQL Evaluator.id Relay node ID of the evaluator being copied.",
+        },
+      }}
+    />
+    <Route
+      path="new/copy-code/:evaluatorId"
+      element={<CopyCodeProjectEvaluatorPage />}
+      handle={{
+        agentRoute: {
+          label: "Copy Code Evaluator Into Project",
+          description:
+            "Create a new, independent project code evaluator seeded from a copy of an existing code evaluator. The evaluatorId route param uses the GraphQL Evaluator.id Relay node ID of the evaluator being copied.",
+        },
+      }}
+    />
+    <Route
+      path="new/copy-decision/:evaluatorId"
+      element={<CopyDecisionProjectEvaluatorPage />}
+      handle={{
+        agentRoute: {
+          label: "Copy Decision Evaluator Into Project",
+          description:
+            "Create a new, independent project decision evaluator seeded from a copy of an existing decision evaluator's decision version and scoring. The evaluatorId route param uses the GraphQL Evaluator.id Relay node ID of the evaluator being copied.",
+        },
+      }}
+    />
+    <Route
+      path="new/attach/:evaluatorId"
+      element={<AttachProjectEvaluatorPage />}
+      handle={{
+        agentRoute: {
+          label: "Add Existing Code Evaluator To Project",
+          description:
+            "Add an existing code evaluator to a project as the same, shared evaluator, so edits to it apply everywhere it runs. The evaluatorId route param uses the GraphQL Evaluator.id Relay node ID of the evaluator being added.",
+        },
+      }}
+    />
+  </>
+);
 
 export const appRouteObjects = createRoutesFromElements(
   <Route path="/" errorElement={<ErrorElement />} element={<RootLayout />}>
@@ -403,24 +556,25 @@ export const appRouteObjects = createRoutesFromElements(
             loader={projectLoader}
             shouldRevalidate={revalidateOnProjectChange}
             handle={{
-              crumb: (data: ProjectLoaderData) => data?.project?.name,
+              crumb: (data: ProjectLoaderData) =>
+                data?.projectName ?? PROJECT_CRUMB_FALLBACK,
               agentRoute: {
                 label: "Project Overview",
                 description:
                   "Open a project's default overview, project home, and summary page.",
               },
-              copy: (data: ProjectLoaderData) => [
+              copy: (({ data, crumb }) => [
                 {
                   name: "Project Name",
-                  value: data?.project?.name,
-                  iconKey: "Text" as const,
+                  value: crumb,
+                  iconKey: "Text",
                 },
                 {
                   name: "Project ID",
-                  value: data?.project?.id,
-                  iconKey: "ID" as const,
+                  value: data.projectId,
+                  iconKey: "ID",
                 },
-              ],
+              ]) satisfies CopyFn<ProjectLoaderData>,
             }}
             element={<ProjectRoot />}
           >
@@ -529,6 +683,172 @@ export const appRouteObjects = createRoutesFromElements(
                   },
                 }}
               />
+              <Route
+                path="evaluators"
+                element={<ProjectEvaluatorsPage />}
+                loader={projectEvaluatorsLoader}
+                // Time range changes are search-param writes; the table
+                // refetches its own fragment for those, so re-running the
+                // loader would fetch the first page twice.
+                shouldRevalidate={revalidateOnPathChange}
+                handle={{
+                  agentRoute: {
+                    label: "Project Evaluators",
+                    description:
+                      "Browse templates, create, and manage project evaluators — online evals that automatically run against live spans.",
+                  },
+                }}
+              >
+                {projectEvaluatorCreationRoutes}
+                <Route
+                  path="gallery"
+                  element={<ProjectEvaluatorGalleryPage />}
+                  handle={{
+                    agentRoute: {
+                      label: "Project Evaluator Gallery",
+                      description:
+                        "Browse evaluator templates by category (grounding and retrieval, agents, response quality, safety, user experience) and existing custom evaluators, then create a project evaluator from one. Opens as a modal over the project evaluators list.",
+                    },
+                  }}
+                >
+                  {projectEvaluatorCreationRoutes}
+                </Route>
+              </Route>
+            </Route>
+            {/* The evaluator details page is a full page rather than a tab,
+                mirroring the dataset evaluator details route. The edit
+                slideover nests beneath it so it opens over the details view. */}
+            <Route
+              path="evaluators"
+              handle={{
+                crumb: () => "evaluators",
+                agentRoute: {
+                  label: "Project Evaluators",
+                  description:
+                    "Create and manage project evaluators — online evals that automatically run against live spans.",
+                },
+              }}
+            >
+              <Route
+                id={PROJECT_EVALUATOR_COMPARE_ROUTE_ID}
+                path="compare"
+                element={<ProjectEvaluatorComparePage />}
+                loader={projectEvaluatorCompareLoader}
+                shouldRevalidate={shouldRevalidateProjectEvaluatorCompare}
+                handle={{
+                  crumb: (data: ProjectEvaluatorCompareLoaderData) =>
+                    data?.evaluatorAName && data?.evaluatorBName
+                      ? `${data.evaluatorAName} vs ${data.evaluatorBName}`
+                      : "compare",
+                  agentRoute: {
+                    label: "Compare Project Evaluators",
+                    description:
+                      "Compare two project evaluators: shared-result agreement and label overlap, coverage, and score or label distributions including evaluator-only results. Filter matching spans, traces, or sessions by matrix cell and inspect their details. Repeated evaluatorId search params are ordered ProjectEvaluator Relay node IDs.",
+                  },
+                }}
+              >
+                <Route
+                  path=":targetId"
+                  element={<ProjectEvaluatorCompareTargetPage />}
+                  handle={{
+                    agentRoute: {
+                      label: "Evaluator Comparison Target Details",
+                      description:
+                        "Inspect a matching trace or session over an evaluator comparison. targetId is the trace ID for span and trace targets, or the ProjectSession Relay node ID for sessions.",
+                    },
+                  }}
+                />
+              </Route>
+              <Route
+                id={PROJECT_EVALUATOR_DETAILS_ROUTE_ID}
+                path=":projectEvaluatorId"
+                element={<ProjectEvaluatorDetailsPage />}
+                loader={projectEvaluatorDetailsLoader}
+                handle={{
+                  crumb: (data: ProjectEvaluatorDetailsLoaderData) =>
+                    data?.evaluatorDisplayName ??
+                    PROJECT_EVALUATOR_CRUMB_FALLBACK,
+                  agentRoute: {
+                    label: "Project Evaluator Details",
+                    description:
+                      "Inspect a project evaluator's configuration and scope policy — model, prompt template, or source code and sandbox for code evaluators, annotation output configs, input mapping, evaluation target, filter condition, sampling rate, enabled state, and whether tracing is on (the Advanced card) — a stats overview for the selected time range (evaluation run volume by status, scores and labels produced, LLM cost, last run and queue activity), its metrics over time (scores and labels produced, evaluation run volume, latency percentiles, and LLM cost), a code evaluator's version history with diffs, and the traces its own runs produced. The projectEvaluatorId route param uses the GraphQL ProjectEvaluator.id Relay node ID, not the underlying Evaluator.id.",
+                  },
+                }}
+              >
+                {/* Each tab is a nested route. The edit slideover nests
+                    under every tab, so it opens over the tab it was opened
+                    from and closing it returns there. */}
+                <Route
+                  id={projectEvaluatorTabRouteId("overview")}
+                  element={<ProjectEvaluatorOverviewTab />}
+                >
+                  <Route index element={null} />
+                  <Route
+                    path="edit"
+                    element={<EditProjectEvaluatorPage />}
+                    handle={{
+                      agentRoute: {
+                        label: "Edit Project Evaluator",
+                        description:
+                          "Edit a project evaluator's definition and scope, and its advanced settings such as turning tracing of each evaluation on or off to save storage. The projectEvaluatorId route param uses the GraphQL ProjectEvaluator.id Relay node ID, not the underlying Evaluator.id.",
+                      },
+                    }}
+                  />
+                </Route>
+                <Route
+                  id={projectEvaluatorTabRouteId("versions")}
+                  path="versions"
+                  element={<ProjectEvaluatorVersionsTab />}
+                  handle={{
+                    agentRoute: {
+                      label: "Project Evaluator Versions",
+                      description:
+                        "Browse a code project evaluator's version history and diff its source code between versions. Only code evaluators have versions. The projectEvaluatorId route param uses the GraphQL ProjectEvaluator.id Relay node ID, not the underlying Evaluator.id.",
+                    },
+                  }}
+                >
+                  <Route path="edit" element={<EditProjectEvaluatorPage />} />
+                </Route>
+                <Route
+                  id={projectEvaluatorTabRouteId("traces")}
+                  path="traces"
+                  element={<ProjectEvaluatorTracesTab />}
+                  handle={{
+                    agentRoute: {
+                      label: "Project Evaluator Traces",
+                      description:
+                        "Browse and filter the traces a project evaluator's own runs produced — each run's mapped inputs, model call or sandbox run, and parsed judgment. The projectEvaluatorId route param uses the GraphQL ProjectEvaluator.id Relay node ID, not the underlying Evaluator.id.",
+                    },
+                  }}
+                >
+                  <Route path="edit" element={<EditProjectEvaluatorPage />} />
+                  <Route
+                    path=":traceId"
+                    element={<ProjectEvaluatorTracePage />}
+                    handle={{
+                      agentRoute: {
+                        label: "Project Evaluator Trace",
+                        description:
+                          "Inspect one trace a project evaluator produced when it ran — its mapped inputs, model call or sandbox run, and parsed judgment. The traceId route param uses the GraphQL Trace.traceId OpenTelemetry trace ID, not Trace.id. Supports selecting a span with selectedSpanNodeId.",
+                      },
+                    }}
+                  />
+                </Route>
+                <Route
+                  id={projectEvaluatorTabRouteId("metrics")}
+                  path="metrics"
+                  element={<ProjectEvaluatorMetricsTab />}
+                  handle={{
+                    agentRoute: {
+                      label: "Project Evaluator Metrics",
+                      description:
+                        "Chart a project evaluator over the selected time range: the scores and labels it produced, evaluation run volume by status, latency percentiles, and LLM cost. The projectEvaluatorId route param uses the GraphQL ProjectEvaluator.id Relay node ID, not the underlying Evaluator.id.",
+                    },
+                  }}
+                >
+                  <Route path="edit" element={<EditProjectEvaluatorPage />} />
+                </Route>
+              </Route>
             </Route>
           </Route>
         </Route>
@@ -604,7 +924,7 @@ export const appRouteObjects = createRoutesFromElements(
                 description:
                   "View dataset experiments, experiment runs, and evaluation results.",
               },
-              copy: (data: DatasetLoaderData) => [
+              copy: ({ data }: { data: DatasetLoaderData }) => [
                 {
                   name: "Dataset Name",
                   value: data?.dataset?.name,
@@ -754,7 +1074,7 @@ export const appRouteObjects = createRoutesFromElements(
             agentRoute: {
               label: "Playground",
               description:
-                "Experiment in the prompt playground with prompts, models, variables, and prompt runs. Supports experimentId, datasetId, splitId, exampleId, promptId, promptVersionId, promptTagName, and selectedSpanNodeId query params.",
+                "Experiment with prompts, or compare LLM and code evaluators over a dataset; a page holds one kind of task, up to four side by side. Prompt tasks take the repeatable promptId, promptVersionId and promptTagName params, or experimentId to reopen an experiment. Evaluator tasks take evaluator0-evaluator3, datasetEvaluator0-datasetEvaluator3 or projectEvaluator0-projectEvaluator3 (the number is the task position) and taskKind=evaluator for a new draft. Decision models use state and Choice, Noul/Predicate, and Score questions. Both take datasetId, splitId, exampleId and selectedSpanNodeId.",
             },
             navigation: {
               section: "Pages",
@@ -772,7 +1092,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Playground",
                 description:
-                  "Experiment in the prompt playground with prompts, models, variables, and prompt runs. Supports experimentId, datasetId, splitId, exampleId, promptId, promptVersionId, promptTagName, and selectedSpanNodeId query params.",
+                  "Experiment with prompts, or compare LLM and code evaluators over a dataset; a page holds one kind of task, up to four side by side. Prompt tasks take the repeatable promptId, promptVersionId and promptTagName params, or experimentId to reopen an experiment. Evaluator tasks take evaluator0-evaluator3, datasetEvaluator0-datasetEvaluator3 or projectEvaluator0-projectEvaluator3 (the number is the task position) and taskKind=evaluator for a new draft. Decision models use state and Choice, Noul/Predicate, and Score questions. Both take datasetId, splitId, exampleId and selectedSpanNodeId.",
               },
             }}
           />
@@ -820,7 +1140,7 @@ export const appRouteObjects = createRoutesFromElements(
             agentRoute: {
               label: "Evaluators",
               description:
-                "Browse and manage evaluators, evals, and evaluation metrics.",
+                "Browse and manage evaluators, evals, and evaluation metrics, each on its own tab: project evaluators running online across projects, dataset evaluators across datasets, and both in one list.",
             },
             navigation: {
               section: "Pages",
@@ -832,16 +1152,44 @@ export const appRouteObjects = createRoutesFromElements(
         >
           <Route
             index
-            element={<EvaluatorsPage />}
-            loader={evaluatorsPageLoader}
-            handle={{
-              agentRoute: {
-                label: "Evaluators",
-                description:
-                  "Browse and manage evaluators, evals, and evaluation metrics.",
-              },
-            }}
+            element={<Navigate to="/evaluators/project-evaluators" replace />}
           />
+          <Route element={<EvaluatorsLayout />}>
+            <Route
+              path="project-evaluators"
+              element={<ProjectEvaluatorsTab />}
+              handle={{
+                agentRoute: {
+                  label: "Project Evaluators",
+                  description:
+                    "Every project evaluator running online across all projects: the shared evaluation queue, each evaluator's status, queued evaluations, lag, load, failure rate and cost, and clearing every project's queue.",
+                },
+              }}
+            />
+            <Route
+              path="dataset-evaluators"
+              element={<DatasetEvaluatorsTab />}
+              loader={datasetEvaluatorsTabLoader}
+              handle={{
+                agentRoute: {
+                  label: "Dataset Evaluators",
+                  description:
+                    "Every dataset evaluator across all datasets: its dataset, kind, prompt or decision, model, and last update. Search matches evaluator or dataset names.",
+                },
+              }}
+            />
+            <Route
+              path="all"
+              element={<AllEvaluatorsTab />}
+              handle={{
+                agentRoute: {
+                  label: "All Evaluators",
+                  description:
+                    "Every project evaluator and dataset evaluator in one list, newest first: the project or dataset each is attached to, its kind, and its status. Search matches evaluator, project, or dataset names.",
+                },
+              }}
+            />
+          </Route>
         </Route>
         <Route
           path="/prompts"
@@ -850,28 +1198,112 @@ export const appRouteObjects = createRoutesFromElements(
             agentRoute: {
               label: "Prompts",
               description:
-                "Browse the prompt registry, saved prompts, and prompt versions.",
+                "Browse the prompt registry: saved prompts and saved decisions, each on its own tab, with their versions, labels, and tags.",
             },
             navigation: {
               section: "Pages",
               label: "Prompts",
-              description: "Manage and version prompts",
-              icon: "MessageSquare",
+              description: "Manage and version prompts and decisions",
+              icon: "MessagesSquare",
             },
           }}
         >
+          <Route element={<PromptsLayout />}>
+            <Route
+              index
+              element={<PromptsPage />}
+              loader={promptsLoader}
+              handle={{
+                agentRoute: {
+                  label: "Prompts",
+                  description:
+                    "Browse the prompt registry, saved prompts, and prompt versions.",
+                },
+              }}
+            />
+            <Route
+              path="decisions"
+              element={<DecisionsPage />}
+              handle={{
+                agentRoute: {
+                  label: "Decisions",
+                  description:
+                    "Browse, search, and label saved decisions, their models, versions, and tags.",
+                },
+              }}
+            />
+          </Route>
           <Route
-            index
-            element={<PromptsPage />}
-            loader={promptsLoader}
+            path="decisions"
             handle={{
+              crumb: () => "Decisions",
               agentRoute: {
-                label: "Prompts",
+                label: "Decisions",
                 description:
-                  "Browse the prompt registry, saved prompts, and prompt versions.",
+                  "Saved decisions: typed functions, versioned and tagged, that apps fetch by tag.",
               },
             }}
-          />
+          >
+            <Route
+              path=":decisionId"
+              loader={decisionLoader}
+              shouldRevalidate={() => true}
+              handle={{
+                crumb: (data: DecisionLoaderData) =>
+                  data?.decision?.__typename === "Decision"
+                    ? data.decision.name
+                    : "Decision unknown",
+                copy: ({ data }: { data: DecisionLoaderData }) =>
+                  data?.decision?.__typename === "Decision"
+                    ? [
+                        {
+                          name: "Decision Name",
+                          value: data.decision.name,
+                          iconKey: "Text" as const,
+                        },
+                        {
+                          name: "Decision ID",
+                          value: data.decision.id,
+                          iconKey: "ID" as const,
+                        },
+                      ]
+                    : [],
+                agentRoute: {
+                  label: "Decision Details",
+                  description:
+                    "Inspect a saved decision, its state template, variables and questions, version history and tags, or open it in the playground.",
+                },
+              }}
+            >
+              <Route index element={<DecisionPage />} />
+              <Route
+                path="versions"
+                element={<DecisionPage />}
+                handle={{
+                  agentRoute: {
+                    label: "Decision Versions",
+                    description:
+                      "Browse decision versions and compare their definitions, questions, and model configuration.",
+                  },
+                }}
+              />
+              <Route
+                path="config"
+                element={<DecisionPage />}
+                handle={{
+                  agentRoute: {
+                    label: "Decision Configuration",
+                    description: "Manage saved decision version tags.",
+                  },
+                }}
+              />
+              <Route
+                path="versions/:versionId"
+                element={<DecisionPage />}
+                handle={{ crumb: () => "Version" }}
+              />
+            </Route>
+          </Route>
           <Route
             path=":promptId"
             loader={promptLoader}
@@ -888,7 +1320,7 @@ export const appRouteObjects = createRoutesFromElements(
                 description:
                   "View prompt details for a saved prompt, prompt versions, and prompt history.",
               },
-              copy: (data: PromptLoaderData) => {
+              copy: ({ data }: { data: PromptLoaderData }) => {
                 if (data?.prompt?.__typename === "Prompt") {
                   return [
                     {
@@ -1091,7 +1523,30 @@ export const appRouteObjects = createRoutesFromElements(
                   "Configure AI providers, custom providers, provider credentials, base URLs, default model, provider headers, and AI query (natural-language filter conditions using Browser AI or a model provider).",
               },
             }}
-          />
+          >
+            <Route
+              path="built-in/:providerKey"
+              element={<BuiltInProviderDetailsDrawer />}
+              handle={{
+                agentRoute: {
+                  label: "AI Provider Details",
+                  description:
+                    "View a built-in AI provider's model types, credential environment variables, whether server credentials are set, dependencies, and built-in models. The providerKey route param is the GenerativeProviderKey enum value, such as OPENAI or ANTHROPIC.",
+                },
+              }}
+            />
+            <Route
+              path="custom/:providerId"
+              element={<CustomProviderDetailsDrawer />}
+              handle={{
+                agentRoute: {
+                  label: "Custom Provider Details",
+                  description:
+                    "View a custom AI provider's configuration: provider string, SDK, base URL or endpoint, authentication, header names, model types and model names. The providerId route param is the GraphQL GenerativeModelCustomProvider.id Relay node ID.",
+                },
+              }}
+            />
+          </Route>
           <Route
             path="sandboxes"
             loader={settingsSandboxesPageLoader}
@@ -1114,7 +1569,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Models",
                 description:
-                  "Configure saved model settings including provider, model name patterns, start dates, and token pricing for LLM, decision, and embedding models.",
+                  "Manage model costs: the model name patterns, start dates, and per-token prices Phoenix uses to calculate LLM, decision, and embedding model costs. Search and filter built-in and custom model costs.",
               },
             }}
           />
@@ -1170,7 +1625,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Prompt Settings",
                 description:
-                  "Configure prompt labels, prompt settings, and saved prompt labeling options.",
+                  "Configure prompt labels, saved decision labels, and labeling options for prompts and decisions.",
               },
             }}
           />

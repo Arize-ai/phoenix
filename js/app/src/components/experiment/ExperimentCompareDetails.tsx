@@ -28,6 +28,8 @@ import {
   Popover,
   PopoverArrow,
   ProgressBar,
+  SegmentedControl,
+  SegmentedControlItem,
   SelectChevronUpDownIcon,
   Text,
   Tooltip,
@@ -45,7 +47,13 @@ import { AnnotationDetailsContent } from "@phoenix/components/annotation/Annotat
 import { JSONBlock } from "@phoenix/components/code";
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { DecisionAnswerList } from "@phoenix/components/decision/DecisionAnswerList";
+import type { NormalizedDecisionAnswer } from "@phoenix/components/decision/decisionAnswers";
 import { useExperimentColors } from "@phoenix/components/experiment";
+import {
+  getDecisionRunAnswers,
+  getDecisionTaskQuestions,
+} from "@phoenix/components/experiment/decisionRunOutput";
 import { ExperimentOutputContent } from "@phoenix/components/experiment/ExperimentOutputContent";
 import { ExperimentRunMetadataEmpty } from "@phoenix/components/experiment/ExperimentRunMetadataEmpty";
 import {
@@ -82,6 +90,8 @@ export type ExperimentCompareDetailsProps = {
 };
 
 type Annotation = ExperimentRun["annotations"]["edges"][number]["annotation"];
+
+type DecisionOutputView = "answers" | "json";
 
 const SIDEBAR_PANEL_DEFAULT_SIZE = 25;
 const SIDEBAR_PANEL_DEFAULT_SIZE_STRING = `${SIDEBAR_PANEL_DEFAULT_SIZE}%`;
@@ -136,6 +146,7 @@ export function ExperimentCompareDetails({
                   annotations {
                     edges {
                       annotation: node {
+                        ...decisionAnnotation_annotation @relay(mask: false)
                         id
                         name
                         label
@@ -161,6 +172,7 @@ export function ExperimentCompareDetails({
                   id
                   name
                   repetitions
+                  ...decisionRunOutput_experiment
                 }
               }
             }
@@ -173,6 +185,9 @@ export function ExperimentCompareDetails({
               edges {
                 node {
                   name
+                  evaluator {
+                    kind
+                  }
                   outputConfigs {
                     __typename
                     ... on CategoricalAnnotationConfig {
@@ -242,6 +257,17 @@ export function ExperimentCompareDetails({
     });
     return experimentsById;
   }, [experiments]);
+
+  const decisionQuestionsByExperimentId = useMemo(
+    () =>
+      new Map(
+        experiments?.map((edge) => [
+          edge.experiment.id,
+          getDecisionTaskQuestions(edge.experiment),
+        ])
+      ),
+    [experiments]
+  );
 
   const experimentRepetitionsByExperimentId = useMemo(() => {
     const experimentRepetitionsByExperimentId: Record<
@@ -330,6 +356,7 @@ export function ExperimentCompareDetails({
             baseExperimentId={baseExperimentId}
             compareExperimentIds={compareExperimentIds}
             experimentsById={experimentsById}
+            decisionQuestionsByExperimentId={decisionQuestionsByExperimentId}
             experimentRepetitionsByExperimentId={
               experimentRepetitionsByExperimentId
             }
@@ -885,10 +912,12 @@ const experimentItemCSS = css`
 
 function ExperimentItemHeader({
   children,
+  actions,
   onTraceClick,
   copyText,
 }: {
   children: React.ReactNode;
+  actions?: React.ReactNode;
   onTraceClick?: () => void;
   copyText?: string;
 }) {
@@ -902,7 +931,8 @@ function ExperimentItemHeader({
             padding-left: var(--global-dimension-size-100);
           `}
         >
-          <Flex direction="row" gap="size-100">
+          <Flex direction="row" gap="size-100" alignItems="center">
+            {actions}
             {onTraceClick && (
               <TooltipTrigger>
                 <IconButton
@@ -967,6 +997,52 @@ function ExperimentItemAnnotations({
   );
 }
 
+function DecisionOutputViewToggle({
+  outputView,
+  onOutputViewChange,
+}: {
+  outputView: DecisionOutputView;
+  onOutputViewChange: (outputView: DecisionOutputView) => void;
+}) {
+  return (
+    <SegmentedControl
+      aria-label="Output view"
+      size="S"
+      selectedKey={outputView}
+      onSelectionChange={(key) =>
+        onOutputViewChange(key === "json" ? "json" : "answers")
+      }
+    >
+      <SegmentedControlItem id="answers">Answers</SegmentedControlItem>
+      <SegmentedControlItem id="json">JSON</SegmentedControlItem>
+    </SegmentedControl>
+  );
+}
+
+/** A decision run's answers, or null for errored runs and other tasks. */
+function useDecisionRunAnswers({
+  experimentId,
+  experimentRun,
+}: {
+  experimentId: string;
+  experimentRun?: ExperimentRun;
+}) {
+  const { decisionQuestionsByExperimentId } =
+    useExperimentCompareDetailsContext();
+  const decisionQuestions =
+    decisionQuestionsByExperimentId.get(experimentId) ?? null;
+  return useMemo(
+    () =>
+      experimentRun?.error
+        ? null
+        : getDecisionRunAnswers({
+            questions: decisionQuestions,
+            output: experimentRun?.output,
+          }),
+    [decisionQuestions, experimentRun]
+  );
+}
+
 /**
  * Shows a single experiment's output and annotations
  */
@@ -995,6 +1071,12 @@ export function ExperimentItem({
     [experimentRepetition]
   );
 
+  const decisionAnswers = useDecisionRunAnswers({
+    experimentId: experimentRepetition.experimentId,
+    experimentRun: experimentRepetition.experimentRun,
+  });
+  const [outputView, setOutputView] = useState<DecisionOutputView>("answers");
+
   const traceId = experimentRepetition?.experimentRun?.trace?.traceId;
   const projectId = experimentRepetition?.experimentRun?.trace?.projectId;
   const hasTrace = traceId != null && projectId != null;
@@ -1014,6 +1096,14 @@ export function ExperimentItem({
         <ExperimentItemHeader
           onTraceClick={handleTraceClick}
           copyText={copyText}
+          actions={
+            decisionAnswers ? (
+              <DecisionOutputViewToggle
+                outputView={outputView}
+                onOutputViewChange={setOutputView}
+              />
+            ) : null
+          }
         >
           <span
             css={css`
@@ -1058,6 +1148,8 @@ export function ExperimentItem({
               ) : (
                 <FullSizeExperimentOutputContent
                   value={experimentRepetition.experimentRun.output}
+                  decisionAnswers={decisionAnswers}
+                  showRawOutput={outputView === "json"}
                 />
               )}
             </View>
@@ -1118,7 +1210,16 @@ function FullSizeJSONBlock({ value }: { value: string }) {
 /**
  * Wrapper to make ExperimentOutputContent fill available vertical and horizontal space
  */
-function FullSizeExperimentOutputContent({ value }: { value: unknown }) {
+function FullSizeExperimentOutputContent({
+  value,
+  decisionAnswers,
+  showRawOutput = false,
+}: {
+  value: unknown;
+  /** A decision run's answers, drawn instead of the raw output. */
+  decisionAnswers?: readonly NormalizedDecisionAnswer[] | null;
+  showRawOutput?: boolean;
+}) {
   return (
     <div
       css={css`
@@ -1134,7 +1235,11 @@ function FullSizeExperimentOutputContent({ value }: { value: unknown }) {
         }
       `}
     >
-      <ExperimentOutputContent value={value} />
+      {decisionAnswers && !showRawOutput ? (
+        <DecisionAnswerList answers={decisionAnswers} />
+      ) : (
+        <ExperimentOutputContent value={value} />
+      )}
     </div>
   );
 }

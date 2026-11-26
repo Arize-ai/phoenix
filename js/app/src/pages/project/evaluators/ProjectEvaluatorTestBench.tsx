@@ -1,0 +1,1007 @@
+import { css } from "@emotion/react";
+import type { ReactNode, TransitionStartFunction } from "react";
+import {
+  Activity,
+  createContext,
+  Fragment,
+  Suspense,
+  useContext,
+  useEffect,
+  useOptimistic,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+} from "react";
+import { Group, Panel } from "react-resizable-panels";
+import type { Disposable } from "relay-runtime";
+import invariant from "tiny-invariant";
+import { useShallow } from "zustand/react/shallow";
+
+import {
+  Alert,
+  Button,
+  EdgeFade,
+  Flex,
+  Heading,
+  Icon,
+  Icons,
+  ListBox,
+  Popover,
+  Select,
+  SelectItem,
+  SelectValue,
+  Skeleton,
+  Text,
+} from "@phoenix/components";
+import { SelectChevronUpDownIcon } from "@phoenix/components/core/icon";
+import type {
+  InlineCodeEvaluatorInput,
+  InlineDecisionEvaluatorInput,
+  InlineLLMEvaluatorInput,
+} from "@phoenix/components/evaluators/__generated__/useEvaluatorPreviewSubscription.graphql";
+import { withoutOptimizationDirections } from "@phoenix/components/evaluators/decision/decisionPolicyUtils";
+import { useEvaluatorInputVariables } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/useEvaluatorInputVariables";
+import {
+  EvaluatorPreviewOutputConfigsProvider,
+  useEvaluatorPreviewOutputConfigs,
+} from "@phoenix/components/evaluators/EvaluatorPreviewOutputConfigsContext";
+import {
+  EVALUATOR_PREVIEW_MAX_SUBJECTS,
+  useEvaluatorPreviewStream,
+} from "@phoenix/components/evaluators/useEvaluatorPreview";
+import {
+  buildOutputConfigsInput,
+  createLLMEvaluatorPayload,
+  getOutputConfigValidationErrors,
+} from "@phoenix/components/evaluators/utils";
+import { toGqlCredentials } from "@phoenix/components/playground/playgroundInstanceUtils";
+import {
+  GRIP_RESIZE_TARGET_MINIMUM_SIZE,
+  GripResizeHandle,
+} from "@phoenix/components/resize";
+import { TableSkeleton } from "@phoenix/components/table";
+import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
+import {
+  useEvaluatorStore,
+  useEvaluatorStoreInstance,
+} from "@phoenix/contexts/EvaluatorContext";
+import type { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
+import {
+  getRecordMappingDiagnostics,
+  useEvaluatorMappingSourceBoundToRow,
+} from "@phoenix/pages/project/evaluators/ProjectEvaluatorBindingPreview";
+import { formatEvaluationTargetPlural } from "@phoenix/pages/project/evaluators/projectEvaluatorFormat";
+import { ProjectEvaluatorRecordInspector } from "@phoenix/pages/project/evaluators/ProjectEvaluatorRecordInspector";
+import { ProjectEvaluatorRecordTable } from "@phoenix/pages/project/evaluators/ProjectEvaluatorRecordTable";
+import {
+  formatBulkTestLabel,
+  formatRecordedRunSummary,
+  getRecordedRunResultState,
+  isRecordedRunEntryRunnable,
+  type FinishedRecordedRun,
+  type RecordedRun,
+  type RecordedRunEntry,
+  type RecordedRunRow,
+  summarizeRecordedRuns,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorTestBenchTypes";
+import type {
+  ProjectEvaluatorRecordKind,
+  ProjectEvaluatorTarget,
+} from "@phoenix/pages/project/evaluators/projectEvaluatorTypes";
+import type { EvaluatorStore } from "@phoenix/store/evaluatorStore";
+import type {
+  CodeEvaluatorLanguage,
+  EvaluatorInputMapping,
+} from "@phoenix/types";
+
+export type ProjectEvaluatorInlineCode = {
+  language: CodeEvaluatorLanguage;
+  sourceCode: string;
+  sandboxConfigId: string | null;
+};
+
+export type ProjectEvaluatorDecisionPreview =
+  | { definition: Omit<InlineDecisionEvaluatorInput, "name"> }
+  | { blocker: string };
+
+/**
+ * Labels read inside the sentence "12 spans matched in the …", so they are
+ * lowercase phrases rather than titles.
+ */
+export const TIME_WINDOW_PRESETS = [
+  { id: "1h", label: "last hour", ms: 3_600_000 },
+  { id: "24h", label: "last 24 hours", ms: 86_400_000 },
+  { id: "7d", label: "last 7 days", ms: 7 * 86_400_000 },
+  { id: "30d", label: "last 30 days", ms: 30 * 86_400_000 },
+] as const;
+
+const isTimeWindowPresetId = (value: string): value is TimeWindowPresetId =>
+  TIME_WINDOW_PRESETS.some(({ id }) => id === value);
+
+export type TimeWindowPresetId = (typeof TIME_WINDOW_PRESETS)[number]["id"];
+
+/**
+ * `startIso` is computed once when the preset is chosen so re-renders do not
+ * shift the window and refire the queries.
+ */
+export type TimeWindow = {
+  presetId: TimeWindowPresetId;
+  startIso: string;
+};
+
+export function makeTimeWindow(presetId: TimeWindowPresetId): TimeWindow {
+  const preset = TIME_WINDOW_PRESETS.find(({ id }) => id === presetId);
+  invariant(preset, `unknown time window preset: ${presetId}`);
+  return {
+    presetId,
+    startIso: new Date(Date.now() - preset.ms).toISOString(),
+  };
+}
+
+type ProjectEvaluatorPreviewContextValue = {
+  /** The window the preview queries read. */
+  timeWindow: TimeWindow;
+  /** The window the picker shows: the new one while its records load. */
+  optimisticTimeWindow: TimeWindow;
+  setTimeWindow: (timeWindow: TimeWindow) => void;
+  /**
+   * True while a change to what the preview lists, a new window or filter,
+   * is loading. The bench keeps its header in place and shows its loading
+   * state below it.
+   */
+  isPending: boolean;
+  /** Marks a change to what the preview lists, so `isPending` follows it. */
+  startTransition: TransitionStartFunction;
+};
+
+const ProjectEvaluatorPreviewContext =
+  createContext<ProjectEvaluatorPreviewContextValue | null>(null);
+
+/**
+ * Lives above the form's Suspense boundary so its retries keep the window.
+ * Every change to what the preview lists goes through its one transition,
+ * so the form and the bench beside it agree on whether the records are
+ * loading.
+ */
+export function ProjectEvaluatorPreviewProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  const [timeWindow, setCommittedTimeWindow] = useState(() =>
+    makeTimeWindow("7d")
+  );
+  const [optimisticTimeWindow, setOptimisticTimeWindow] =
+    useOptimistic(timeWindow);
+  const [isPending, startTransition] = useTransition();
+  const setTimeWindow = (next: TimeWindow) => {
+    startTransition(() => {
+      setOptimisticTimeWindow(next);
+      setCommittedTimeWindow(next);
+    });
+  };
+  return (
+    <ProjectEvaluatorPreviewContext
+      value={{
+        timeWindow,
+        optimisticTimeWindow,
+        setTimeWindow,
+        isPending,
+        startTransition,
+      }}
+    >
+      {children}
+    </ProjectEvaluatorPreviewContext>
+  );
+}
+
+export function useProjectEvaluatorPreview() {
+  const value = useContext(ProjectEvaluatorPreviewContext);
+  invariant(
+    value,
+    "useProjectEvaluatorPreview must be used within ProjectEvaluatorPreviewProvider"
+  );
+  return value;
+}
+
+/** What the bench's header needs before and after the records load. */
+export type TestBenchHeaderProps = {
+  targetType: ProjectEvaluatorTarget;
+  /**
+   * The matched-count phrase, ending where the time window picker takes
+   * over: "12 spans matched in the". It loads and suspends on its own.
+   */
+  countLine: ReactNode;
+};
+
+/**
+ * The right pane of the project evaluator form: the records in scope, one
+ * per row, with a docked inspector for the focused one. It answers three
+ * questions before the evaluator is saved: what the scope catches, what the
+ * evaluator receives from each record, and what it returns.
+ *
+ * The focused row is also the mapping source, so the input mapping on the
+ * left is authored and diagnosed against a real context.
+ */
+export function ProjectEvaluatorTestBench({
+  rows,
+  recordKind,
+  hasMore,
+  isLoadingMore,
+  onLoadMore,
+  codeEvaluatorId,
+  inlineCode,
+  decision,
+  playgroundStore,
+  requiredVariables,
+  ...headerProps
+}: TestBenchHeaderProps & {
+  rows: RecordedRunRow[];
+  recordKind: ProjectEvaluatorRecordKind;
+  hasMore: boolean;
+  isLoadingMore: boolean;
+  onLoadMore: () => void;
+  codeEvaluatorId?: string;
+  inlineCode?: ProjectEvaluatorInlineCode;
+  decision?: ProjectEvaluatorDecisionPreview;
+  playgroundStore?: ReturnType<typeof usePlaygroundStore>;
+  requiredVariables?: string[];
+}) {
+  // `undefined` is no explicit choice yet (the newest row is focused); a key
+  // that has since left the list falls back the same way.
+  const [focusedKey, setFocusedKey] = useState<string | undefined>(undefined);
+  const { isPending } = useProjectEvaluatorPreview();
+  const focusedRow =
+    rows.find(({ key }) => key === focusedKey) ?? rows[0] ?? null;
+  const inputMapping = useEvaluatorStore(
+    (state) => state.evaluator.inputMapping
+  );
+  useEvaluatorMappingSourceBoundToRow({
+    recordKind,
+    rowKey: focusedRow?.key ?? null,
+    context: focusedRow?.context,
+  });
+  const {
+    runs,
+    runOnRows,
+    runError,
+    isRunnable,
+    runBlocker,
+    currentFingerprint,
+  } = useEvaluatorPreviewRuns({
+    codeEvaluatorId,
+    inlineCode,
+    decision,
+    playgroundStore,
+  });
+  const declaredVariables = useEvaluatorInputVariables();
+  const entries: RecordedRunEntry[] = rows.map((row) => {
+    const missingCount = getRecordMappingDiagnostics({
+      context: row.context,
+      inputMapping,
+      declaredVariables,
+      requiredVariables,
+    }).filter(({ status }) => status === "missing").length;
+    const run = runs[row.key];
+    return {
+      row,
+      missingCount,
+      run,
+      resultState: getRecordedRunResultState({
+        run,
+        missingCount,
+        isUnavailable: row.unavailableReason != null,
+        currentFingerprint,
+      }),
+    };
+  });
+  // The bulk test runs what a row's own button could: a record the server
+  // built no context for, or whose mapping binds nothing, is left out. One
+  // row at a time is a click on that row's own button.
+  const runnableEntries = entries.filter(isRecordedRunEntryRunnable);
+  const isRetest =
+    runnableEntries.length > 0 &&
+    runnableEntries.every(({ run }) => run != null);
+  const summary = summarizeRecordedRuns(entries);
+  const hasAnyRun = entries.some(({ run }) => run != null);
+  const focusedEntry =
+    entries.find(({ row }) => row.key === focusedRow?.key) ?? null;
+  // Results are named the way the bench names its preview runs, whatever
+  // kind of evaluator ran them; a form's provided output configs still apply.
+  const previewOutputConfigs = useEvaluatorPreviewOutputConfigs();
+  const previewEvaluatorName = useEvaluatorStore(selectPreviewEvaluatorName);
+  const bench = (
+    <div css={benchCSS} data-testid="project-evaluator-test-bench">
+      <TestBenchHeader
+        {...headerProps}
+        summaryParts={[
+          hasMore ? `showing the ${rows.length} most recent` : null,
+          hasAnyRun ? formatRecordedRunSummary(summary) : null,
+          "previews are not saved to the project",
+        ]}
+        blocker={runBlocker}
+        runError={runError}
+      >
+        <Button
+          size="S"
+          variant="primary"
+          leadingVisual={
+            <Icon svg={isRetest ? <Icons.Refresh /> : <Icons.Play />} />
+          }
+          isDisabled={isPending || !isRunnable || runnableEntries.length === 0}
+          onPress={() => runOnRows(runnableEntries.map(({ row }) => row))}
+        >
+          {formatBulkTestLabel({
+            runnableCount: runnableEntries.length,
+            totalCount: entries.length,
+            isRetest,
+          })}
+        </Button>
+      </TestBenchHeader>
+      {isPending ? (
+        <TestBenchLoadingBody targetType={headerProps.targetType} />
+      ) : null}
+      {/* Hidden rather than unmounted, so the split keeps its sizes and the
+          table its scroll position while the next records load. */}
+      <Activity mode={isPending ? "hidden" : "visible"}>
+        <Group
+          orientation="vertical"
+          className="test-bench__split"
+          resizeTargetMinimumSize={GRIP_RESIZE_TARGET_MINIMUM_SIZE}
+        >
+          <Panel
+            id="project-evaluator-records"
+            defaultSize="55%"
+            minSize={RECORDS_PANEL_MIN_SIZE}
+            className="test-bench__panel"
+          >
+            <ProjectEvaluatorRecordTable
+              entries={entries}
+              recordKind={recordKind}
+              focusedRowKey={focusedRow?.key ?? null}
+              onFocusRow={setFocusedKey}
+              isRunnable={isRunnable}
+              runBlocker={runBlocker}
+              onRunRow={(row) => runOnRows([row])}
+              hasMore={hasMore}
+              isLoadingMore={isLoadingMore}
+              onLoadMore={onLoadMore}
+            />
+          </Panel>
+          <GripResizeHandle />
+          <Panel
+            id="project-evaluator-inspector"
+            minSize={INSPECTOR_PANEL_MIN_SIZE}
+            className="test-bench__panel"
+          >
+            {focusedEntry ? (
+              <ProjectEvaluatorRecordInspector
+                entry={focusedEntry}
+                recordKind={recordKind}
+                inputMapping={inputMapping}
+                requiredVariables={requiredVariables}
+                isRunnable={isRunnable}
+                runBlocker={runBlocker}
+                onRun={() => runOnRows([focusedEntry.row])}
+              />
+            ) : null}
+          </Panel>
+        </Group>
+      </Activity>
+    </div>
+  );
+  return (
+    <EvaluatorPreviewOutputConfigsProvider
+      value={{ ...previewOutputConfigs, evaluatorName: previewEvaluatorName }}
+    >
+      {bench}
+    </EvaluatorPreviewOutputConfigsProvider>
+  );
+}
+
+/** The bench while its records load: the same header, and a disabled test button. */
+export function ProjectEvaluatorTestBenchFallback({
+  targetType,
+  ...headerProps
+}: TestBenchHeaderProps) {
+  return (
+    <div css={benchCSS}>
+      <TestBenchHeader
+        targetType={targetType}
+        {...headerProps}
+        summaryParts={[]}
+        blocker={null}
+      >
+        <Button
+          size="S"
+          variant="primary"
+          leadingVisual={<Icon svg={<Icons.Play />} />}
+          isDisabled
+        >
+          Test all
+        </Button>
+      </TestBenchHeader>
+      <TestBenchLoadingBody targetType={targetType} />
+    </div>
+  );
+}
+
+/** Stands in for the records and the inspector while they load. */
+function TestBenchLoadingBody({
+  targetType,
+}: {
+  targetType: ProjectEvaluatorTarget;
+}) {
+  return (
+    <div
+      className="test-bench__loading"
+      role="status"
+      aria-label={`Loading ${formatEvaluationTargetPlural(targetType)}`}
+    >
+      <div className="test-bench__loading-records">
+        <TableSkeleton rowCount="fill" aria-hidden />
+      </div>
+      <EdgeFade edge="bottom" className="test-bench__loading-inspector">
+        <Skeleton height="100%" borderRadius="medium" aria-hidden />
+      </EdgeFade>
+    </div>
+  );
+}
+
+/**
+ * The title row, then one line that says everything about the list: how many
+ * records the scope matches, over which window, how many are listed, how the
+ * tests stand, and that nothing here is saved. Anything that stops a test
+ * from starting sits on its own line, in the warning colour, because it is
+ * the one sentence the author has to act on.
+ */
+function TestBenchHeader({
+  targetType,
+  countLine,
+  summaryParts,
+  blocker,
+  runError,
+  children,
+}: TestBenchHeaderProps & {
+  summaryParts: readonly (string | null)[];
+  blocker: string | null;
+  /** Why the last test could not run at all; the same for every row. */
+  runError?: string | null;
+  children: ReactNode;
+}) {
+  const records = formatEvaluationTargetPlural(targetType);
+  const { optimisticTimeWindow, setTimeWindow, isPending } =
+    useProjectEvaluatorPreview();
+  const countingLine = <>Counting matching {records} in the</>;
+  return (
+    <div className="test-bench__header">
+      <Flex
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        gap="size-200"
+        wrap
+      >
+        <Heading level={2} weight="heavy">
+          {capitalize(records)} in scope
+        </Heading>
+        {children}
+      </Flex>
+      <Text size="S" color="text-500">
+        <span className="test-bench__summary">
+          {isPending ? (
+            countingLine
+          ) : (
+            <Suspense fallback={countingLine}>{countLine}</Suspense>
+          )}{" "}
+          <TimeWindowSelect
+            value={optimisticTimeWindow.presetId}
+            onChange={setTimeWindow}
+          />
+          {(isPending ? [] : summaryParts)
+            .filter((part) => part != null)
+            .map((part) => (
+              <Fragment key={part}> · {part}</Fragment>
+            ))}
+        </span>
+      </Text>
+      {blocker ? (
+        <div className="test-bench__blocker" role="status">
+          <Icon svg={<Icons.AlertTriangle />} color="warning" />
+          <Text size="S" color="warning">
+            {blocker}.
+          </Text>
+        </div>
+      ) : null}
+      {runError ? <Alert variant="danger">{runError}</Alert> : null}
+    </div>
+  );
+}
+
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+/**
+ * The preview window, as a word in the count sentence rather than a control
+ * beside the test button: it changes what the bench lists, never what the
+ * evaluator is saved with, and the project page behind the dialog already
+ * has a time picker that means something else.
+ */
+function TimeWindowSelect({
+  value,
+  onChange,
+}: {
+  value: TimeWindowPresetId;
+  onChange: (timeWindow: TimeWindow) => void;
+}) {
+  return (
+    <Select
+      aria-label="Preview window"
+      size="S"
+      css={inlineSelectCSS}
+      selectedKey={value}
+      onSelectionChange={(key) => {
+        if (typeof key === "string" && isTimeWindowPresetId(key)) {
+          onChange(makeTimeWindow(key));
+        }
+      }}
+    >
+      <Button variant="quiet" size="S">
+        <SelectValue />
+        <SelectChevronUpDownIcon />
+      </Button>
+      <Popover>
+        <ListBox>
+          {TIME_WINDOW_PRESETS.map((preset) => (
+            <SelectItem key={preset.id} id={preset.id} textValue={preset.label}>
+              {preset.label}
+            </SelectItem>
+          ))}
+        </ListBox>
+      </Popover>
+    </Select>
+  );
+}
+
+/**
+ * Floors in pixels for the split under the bench header: the table keeps its
+ * header and two rows, the inspector its header and the first input, however
+ * short the screen.
+ */
+const RECORDS_PANEL_MIN_SIZE = "160px";
+const INSPECTOR_PANEL_MIN_SIZE = "200px";
+
+const inlineSelectCSS = css`
+  display: inline-flex;
+  vertical-align: baseline;
+  width: auto;
+  // Sits inside a sentence of S text: no field chrome, no extra height.
+  button {
+    min-height: 0;
+    height: auto;
+    padding: 0 var(--global-dimension-size-25);
+    font-size: inherit;
+    line-height: inherit;
+    font-weight: 600;
+    color: var(--global-text-color-700);
+    text-decoration: underline dotted;
+    text-underline-offset: 3px;
+  }
+`;
+
+const benchCSS = css`
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  .test-bench__header {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--global-dimension-size-50);
+    padding: 0 var(--global-dimension-size-200) var(--global-dimension-size-100);
+  }
+  .test-bench__summary {
+    display: inline;
+    line-height: var(--global-line-height-m);
+  }
+  .test-bench__blocker {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--global-dimension-size-50);
+  }
+  .test-bench__split {
+    flex: 1 1 auto;
+    min-height: 0;
+    border-top: 1px solid var(--global-border-color-default);
+  }
+  .test-bench__panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    // The resizable panel scrolls if its content outgrows it; like the
+    // regions inside it, it neither bounces nor chains out to the dialog.
+    overscroll-behavior: none;
+  }
+  .test-bench__loading {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .test-bench__loading-records {
+    flex: 0 0 55%;
+    min-height: ${RECORDS_PANEL_MIN_SIZE};
+    display: flex;
+    flex-direction: column;
+  }
+  .test-bench__loading-inspector {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: var(--global-dimension-size-200);
+  }
+`;
+
+export type PreviewEvaluatorInput =
+  | { codeEvaluatorId: string }
+  | { inlineCodeEvaluator: InlineCodeEvaluatorInput }
+  | { inlineLlmEvaluator: InlineLLMEvaluatorInput }
+  | { inlineDecisionEvaluator: InlineDecisionEvaluatorInput };
+
+/**
+ * Stands in for the evaluator's name until the author types one. The name
+ * doubles as the annotation's, so a test needs some name, but an unnamed
+ * draft is not a reason to keep the author from seeing what it returns:
+ * the name is only checked when the evaluator is saved.
+ */
+export const UNTITLED_EVALUATOR_NAME = "untitled-evaluator";
+
+/** The name the bench runs a draft's previews, and names their results, under. */
+export function selectPreviewEvaluatorName(
+  state: Pick<EvaluatorStore, "evaluator">
+): string {
+  return state.evaluator.globalName.trim() || UNTITLED_EVALUATOR_NAME;
+}
+
+/** The definition with the stand-in name filled in wherever a name is blank. */
+function withPreviewName(
+  state: Pick<EvaluatorStore, "evaluator" | "outputConfigs">
+): { name: string; outputConfigs: EvaluatorStore["outputConfigs"] } {
+  const name = selectPreviewEvaluatorName(state);
+  return {
+    name,
+    outputConfigs: state.outputConfigs.map((config) =>
+      config.name.trim() ? config : { ...config, name }
+    ),
+  };
+}
+
+/**
+ * The evaluator the preview runs, built the same way at render time
+ * for the fingerprint and at click time for the request, so a run's
+ * fingerprint and the bench's current one can only differ when the
+ * definition did.
+ */
+function buildPreviewEvaluator({
+  codeEvaluatorId,
+  inlineCode,
+  decision,
+  playgroundStore,
+  state,
+}: {
+  codeEvaluatorId?: string;
+  inlineCode?: ProjectEvaluatorInlineCode;
+  decision?: ProjectEvaluatorDecisionPreview;
+  playgroundStore?: ReturnType<typeof usePlaygroundStore>;
+  state: Pick<EvaluatorStore, "evaluator" | "outputConfigs">;
+}): PreviewEvaluatorInput | null {
+  if (codeEvaluatorId) {
+    return { codeEvaluatorId };
+  }
+  const { name, outputConfigs } = withPreviewName(state);
+  if (decision) {
+    if ("definition" in decision) {
+      return { inlineDecisionEvaluator: { ...decision.definition, name } };
+    }
+    return null;
+  }
+  if (inlineCode) {
+    return {
+      inlineCodeEvaluator: {
+        name,
+        language: inlineCode.language,
+        sourceCode: inlineCode.sourceCode,
+        outputConfigs: buildOutputConfigsInput(outputConfigs),
+        sandboxConfigId: inlineCode.sandboxConfigId,
+        description: state.evaluator.description || null,
+      },
+    };
+  }
+  const instanceId = playgroundStore?.getState().instances[0]?.id;
+  if (playgroundStore == null || instanceId == null) {
+    return null;
+  }
+  const payload = createLLMEvaluatorPayload({
+    playgroundStore,
+    instanceId,
+    name,
+    description: state.evaluator.description,
+    outputConfigs,
+    inputMapping: state.evaluator.inputMapping,
+    includeExplanation: state.evaluator.includeExplanation,
+    datasetId: "",
+  });
+  return {
+    inlineLlmEvaluator: {
+      name: payload.name,
+      description: payload.description,
+      outputConfigs: payload.outputConfigs,
+      promptVersion: payload.promptVersion,
+    },
+  };
+}
+
+/**
+ * What a preview result was run against; a result goes stale when the
+ * bench's current fingerprint no longer matches its run's.
+ */
+export function fingerprintDefinition(
+  evaluator: PreviewEvaluatorInput | null,
+  inputMapping: EvaluatorInputMapping
+): string {
+  // A decision's optimization direction only says which answer is good, so
+  // a result stays current across a direction edit; the bench recolours it.
+  const decision =
+    evaluator != null && "inlineDecisionEvaluator" in evaluator
+      ? evaluator.inlineDecisionEvaluator
+      : null;
+  const fingerprinted = decision?.scoringPolicy
+    ? {
+        inlineDecisionEvaluator: {
+          ...decision,
+          scoringPolicy: withoutOptimizationDirections(decision.scoringPolicy),
+        },
+      }
+    : evaluator;
+  return JSON.stringify({ evaluator: fingerprinted, inputMapping });
+}
+
+/**
+ * The rows to send, one request's worth per batch. A record can be listed
+ * twice under one key (an in-progress trace with two root spans) and the
+ * server rejects a repeated key, so each key is sent once; and the server
+ * takes at most EVALUATOR_PREVIEW_MAX_SUBJECTS subjects per request.
+ */
+export function previewSubjectBatches<Row extends { key: string }>(
+  rows: readonly Row[]
+): Row[][] {
+  const unique = [...new Map(rows.map((row) => [row.key, row])).values()];
+  const batches: Row[][] = [];
+  for (
+    let start = 0;
+    start < unique.length;
+    start += EVALUATOR_PREVIEW_MAX_SUBJECTS
+  ) {
+    batches.push(unique.slice(start, start + EVALUATOR_PREVIEW_MAX_SUBJECTS));
+  }
+  return batches;
+}
+
+const subscribeToNothing = () => () => {};
+
+/** The preview runs, keyed by row; results survive a load-more. Exported for tests. */
+export function useEvaluatorPreviewRuns({
+  codeEvaluatorId,
+  inlineCode,
+  decision,
+  playgroundStore,
+}: {
+  codeEvaluatorId?: string;
+  inlineCode?: ProjectEvaluatorInlineCode;
+  decision?: ProjectEvaluatorDecisionPreview;
+  playgroundStore?: ReturnType<typeof usePlaygroundStore>;
+}) {
+  // The fingerprint reads the playground store at render, which the compiler
+  // cannot see through; left unmemoized, every render recomputes it from
+  // whatever the stores hold now.
+  "use no memo";
+  const evaluatorStore = useEvaluatorStoreInstance();
+  const credentials = useCredentialsContext((state) => state);
+  const [runs, setRuns] = useState<Record<string, RecordedRun>>({});
+  const [runError, setRunError] = useState<string | null>(null);
+  const startPreview = useEvaluatorPreviewStream();
+  // Closing the bench closes its streams, and the server stops their work.
+  const activePreviewsRef = useRef(new Set<Disposable>());
+  // The run that owns each row: the latest one started on it. A row tested
+  // again (or caught by a second Test all) while a stream is still running
+  // belongs to the newer run, and the older stream's results and errors for
+  // it are ignored.
+  const rowRunIdsRef = useRef(new Map<string, number>());
+  const nextRunIdRef = useRef(0);
+  useEffect(() => {
+    const activePreviews = activePreviewsRef.current;
+    return () => {
+      for (const preview of activePreviews) {
+        preview.dispose();
+      }
+      activePreviews.clear();
+    };
+  }, []);
+  // Subscribed so an edit to the prompt, model, mapping, or annotation config
+  // re-renders the bench and the fingerprint below moves with it.
+  const definitionState = useEvaluatorStore(
+    useShallow((state) => ({
+      evaluator: state.evaluator,
+      outputConfigs: state.outputConfigs,
+    }))
+  );
+  useSyncExternalStore(
+    playgroundStore?.subscribe ?? subscribeToNothing,
+    () => playgroundStore?.getState().instances
+  );
+  const currentFingerprint = fingerprintDefinition(
+    buildPreviewEvaluator({
+      codeEvaluatorId,
+      inlineCode,
+      decision,
+      playgroundStore,
+      state: definitionState,
+    }),
+    definitionState.evaluator.inputMapping
+  );
+  // Checked with the stand-in name in place: a blank name is not what stops
+  // a test, only a configuration that would fail on the server.
+  const outputConfigErrors =
+    codeEvaluatorId != null || inlineCode != null || decision != null
+      ? []
+      : getOutputConfigValidationErrors(
+          withPreviewName(definitionState).outputConfigs
+        );
+  const decisionBlocker =
+    decision != null && "blocker" in decision ? decision.blocker : null;
+  const isRunnable = outputConfigErrors.length === 0 && decisionBlocker == null;
+  const runBlocker = isRunnable
+    ? null
+    : (decisionBlocker ??
+      "Fix the evaluator's annotation configuration to test");
+
+  /** Tests one request's worth of rows, each key once, in one stream. */
+  const runOnBatch = (rows: readonly RecordedRunRow[]) => {
+    const state = evaluatorStore.getState();
+    const evaluator = buildPreviewEvaluator({
+      codeEvaluatorId,
+      inlineCode,
+      decision,
+      playgroundStore,
+      state,
+    });
+    invariant(evaluator, "a playground instance is required");
+    const fingerprint = fingerprintDefinition(
+      evaluator,
+      state.evaluator.inputMapping
+    );
+    const subjectContextByKey = new Map(
+      rows.map(({ key, context }) => [key, context])
+    );
+    const pendingKeys = new Set(subjectContextByKey.keys());
+    const runId = ++nextRunIdRef.current;
+    for (const rowKey of pendingKeys) {
+      rowRunIdsRef.current.set(rowKey, runId);
+    }
+    const ownsRow = (rowKey: string) =>
+      rowRunIdsRef.current.get(rowKey) === runId;
+    setRunError(null);
+    setRuns((current) => {
+      const next = { ...current };
+      for (const rowKey of pendingKeys) {
+        const previous = current[rowKey];
+        next[rowKey] = {
+          status: "running",
+          fingerprint,
+          previous:
+            previous?.status === "running" ? previous.previous : previous,
+        };
+      }
+      return next;
+    });
+    const settle = (rowKey: string, run: FinishedRecordedRun) => {
+      pendingKeys.delete(rowKey);
+      if (!ownsRow(rowKey)) {
+        return;
+      }
+      rowRunIdsRef.current.delete(rowKey);
+      setRuns((current) => ({ ...current, [rowKey]: run }));
+    };
+    let isFinished = false;
+    let preview: Disposable | null = null;
+    const finish = () => {
+      isFinished = true;
+      if (preview != null) {
+        activePreviewsRef.current.delete(preview);
+      }
+    };
+    preview = startPreview({
+      input: {
+        evaluator,
+        inputMapping: state.evaluator.inputMapping,
+        subjects: [...subjectContextByKey].map(([key, context]) => ({
+          key,
+          context,
+        })),
+        credentials: toGqlCredentials(credentials),
+      },
+      onSubjectResult(result) {
+        settle(
+          result.key,
+          result.error != null
+            ? { status: "error", fingerprint, message: result.error }
+            : { status: "done", fingerprint, results: [...result.results] }
+        );
+      },
+      onError(message) {
+        finish();
+        // Rows a newer run has taken over are that run's to report on.
+        const ownedKeys = [...pendingKeys].filter(ownsRow);
+        if (ownedKeys.length === 0) {
+          return;
+        }
+        for (const rowKey of ownedKeys) {
+          rowRunIdsRef.current.delete(rowKey);
+        }
+        // The definition could not run at all, so no row has a verdict
+        // from it: the error shows once, and the rows keep what they had.
+        setRunError(message);
+        setRuns((current) => {
+          const next = { ...current };
+          for (const rowKey of ownedKeys) {
+            const run = current[rowKey];
+            if (run?.status !== "running") {
+              continue;
+            }
+            if (run.previous) {
+              next[rowKey] = run.previous;
+            } else {
+              delete next[rowKey];
+            }
+          }
+          return next;
+        });
+      },
+      onCompleted() {
+        finish();
+        for (const rowKey of [...pendingKeys]) {
+          settle(rowKey, {
+            status: "error",
+            fingerprint,
+            message: "The preview returned no result for this record",
+          });
+        }
+      },
+    });
+    if (!isFinished) {
+      activePreviewsRef.current.add(preview);
+    }
+  };
+
+  /**
+   * Tests the rows in as few streams as the server's subject cap allows;
+   * each row fills in as its result arrives.
+   */
+  const runOnRows = (rows: readonly RecordedRunRow[]) => {
+    for (const batch of previewSubjectBatches(rows)) {
+      runOnBatch(batch);
+    }
+  };
+
+  return {
+    runs,
+    runOnRows,
+    runError,
+    isRunnable,
+    runBlocker,
+    currentFingerprint,
+  };
+}
