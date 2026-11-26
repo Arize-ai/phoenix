@@ -1,7 +1,7 @@
 from typing import Generic, NamedTuple, Optional, TypeVar
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import QueryableAttribute, aliased
+from sqlalchemy.orm import QueryableAttribute, aliased, load_only
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
@@ -64,9 +64,22 @@ class VersionAuthorsDataLoader(DataLoader[Key, Result], Generic[VersionTable]):
             .group_by(parent_id_column)
         ).subquery()
 
-        # Join the users in so the resolved User carries its record and needs no further query.
+        # Join the users in so the resolved User carries its record and needs no further query,
+        # restricting selected columns to public UI fields (excluding password hashes and secrets).
         latest_version = aliased(version_table)
         updated_by = aliased(models.User)
+        load_options = [
+            load_only(
+                updated_by.id,
+                updated_by.user_role_id,
+                updated_by.username,
+                updated_by.email,
+                updated_by.profile_picture_url,
+                updated_by.reset_password,
+                updated_by.auth_method,
+                updated_by.created_at,
+            )
+        ]
         stmt = (
             select(version_bounds.c.parent_id, updated_by)
             .join(latest_version, latest_version.id == version_bounds.c.latest_version_id)
@@ -75,11 +88,24 @@ class VersionAuthorsDataLoader(DataLoader[Key, Result], Generic[VersionTable]):
         if resolve_created_by:
             first_version = aliased(version_table)
             created_by = aliased(models.User)
+            load_options.append(
+                load_only(
+                    created_by.id,
+                    created_by.user_role_id,
+                    created_by.username,
+                    created_by.email,
+                    created_by.profile_picture_url,
+                    created_by.reset_password,
+                    created_by.auth_method,
+                    created_by.created_at,
+                )
+            )
             stmt = (
                 stmt.add_columns(created_by)
                 .join(first_version, first_version.id == version_bounds.c.first_version_id)
                 .outerjoin(created_by, created_by.id == first_version.user_id)
             )
+        stmt = stmt.options(*load_options)
 
         async with self._db.read() as session:
             results = {
