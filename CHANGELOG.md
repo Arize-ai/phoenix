@@ -1,5 +1,12 @@
 # Changelog
 
+## [22.1.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v22.1.0...arize-phoenix-v22.1.1) (2026-11-26)
+
+
+### Bug Fixes
+
+* **server:** end abandoned MCP requests with a 499 instead of a 500 ([#18263](https://github.com/Arize-ai/phoenix/issues/18263)) ([2676de0](https://github.com/Arize-ai/phoenix/commit/2676de0e37cf14b50c41061a9e2c0922c974eff8)), closes [#17926](https://github.com/Arize-ai/phoenix/issues/17926)
+
 ## [22.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v22.0.1...arize-phoenix-v22.1.0) (2026-11-26)
 
 
