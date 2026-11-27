@@ -97,9 +97,9 @@ export interface Criterion {
   /**
    * Each label mapped to its description, or `null` when the label has none,
    * e.g. `{ helpful: "the response solved the problem", not_helpful: null }`.
-   * Label descriptions are passed through to the backend (as a `oneOf`/`const`
-   * schema for language models, and as the choice descriptions for decision
-   * models).
+   * Label descriptions are passed through to the backend: listed in the label
+   * field's description for language models, and as the choice descriptions for
+   * decision models.
    */
   labels: Record<string, Description>;
   /**
@@ -107,8 +107,6 @@ export interface Criterion {
    * `{ helpful: 1, not_helpful: 0 }`.
    */
   scoreMap?: Record<string, number>;
-  /** Optional per-criterion optimization direction; falls back to the evaluator's. */
-  optimizationDirection?: OptimizationDirection;
 }
 
 /**

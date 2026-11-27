@@ -1,23 +1,15 @@
 /**
- * The LLM path's fault isolation: a criterion missing from the model's object
- * becomes an `error` failure for that criterion alone. `generateObject` is
- * mocked because the real one validates against the schema and would reject a
- * missing property for the whole call before this code runs.
+ * The LLM path's fault isolation runs against the real `generateObject`. Each
+ * criterion is a nullable property with a free-form `label`, so a criterion the
+ * model declines (null) or answers with an off-list label does not reject the
+ * whole call: the declined one becomes an `error` failure and the off-list one
+ * is returned verbatim, while siblings are unaffected.
  */
-import type * as AiModule from "ai";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MockLanguageModelV3 } from "ai/test";
+import { describe, expect, it } from "vitest";
 
 import { generateClassifications } from "../../src/llm/generateClassifications";
 import type { ClassificationCriterion } from "../../src/types/evals";
-
-const { generateObjectMock } = vi.hoisted(() => ({
-  generateObjectMock: vi.fn(),
-}));
-
-vi.mock("ai", async (importActual) => {
-  const actual = await importActual<typeof AiModule>();
-  return { ...actual, generateObject: generateObjectMock };
-});
 
 const CRITERIA: [ClassificationCriterion, ...ClassificationCriterion[]] = [
   {
@@ -32,22 +24,28 @@ const CRITERIA: [ClassificationCriterion, ...ClassificationCriterion[]] = [
   },
 ];
 
-beforeEach(() => {
-  generateObjectMock.mockReset();
-});
+/** A language model that answers with exactly the given object, as JSON. */
+function createMockModel(object: Record<string, unknown>) {
+  return new MockLanguageModelV3({
+    doGenerate: async () => ({
+      finishReason: { unified: "stop", raw: undefined },
+      usage: {
+        inputTokens: { total: 10, noCache: 10 },
+        outputTokens: { total: 10, text: 10 },
+      },
+      content: [{ type: "text", text: JSON.stringify(object) }],
+      warnings: [],
+    }),
+  });
+}
 
 describe("generateClassifications fault isolation", () => {
-  it("reports a criterion missing from the model object as an error failure, keeping its siblings", async () => {
-    generateObjectMock.mockResolvedValue({
-      object: {
-        sentiment: { label: "positive", explanation: "because positive" },
-        // No entry for "toxicity".
-      },
-    });
-
+  it("reports a criterion the model declines (null) as an error failure, keeping its siblings", async () => {
     const outcomes = await generateClassifications({
-      // The model only matters to isDecisionModel; a plain object is not one.
-      model: {} as never,
+      model: createMockModel({
+        sentiment: { label: "positive", explanation: "because positive" },
+        toxicity: null,
+      }),
       criteria: CRITERIA,
       prompt: "Classify this text.",
       telemetry: { isEnabled: false },
@@ -62,6 +60,31 @@ describe("generateClassifications fault isolation", () => {
       name: "toxicity",
       kind: "error",
       reason: expect.stringContaining("no answer for criterion 'toxicity'"),
+    });
+  });
+
+  it("returns an off-list label verbatim rather than failing the whole call, keeping its siblings", async () => {
+    const outcomes = await generateClassifications({
+      model: createMockModel({
+        sentiment: { label: "maybe", explanation: "unsure" },
+        toxicity: { label: "non_toxic", explanation: "clean" },
+      }),
+      criteria: CRITERIA,
+      prompt: "Classify this text.",
+      telemetry: { isEnabled: false },
+    });
+
+    // generateClassifications does not validate labels; it returns the label as
+    // given so the caller (createCriteriaClassifierFn) can isolate it.
+    expect(outcomes[0]).toEqual({
+      name: "sentiment",
+      label: "maybe",
+      explanation: "unsure",
+    });
+    expect(outcomes[1]).toEqual({
+      name: "toxicity",
+      label: "non_toxic",
+      explanation: "clean",
     });
   });
 });

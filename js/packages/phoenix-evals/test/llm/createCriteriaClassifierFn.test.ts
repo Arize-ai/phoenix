@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createClassificationEvaluator } from "../../src";
 import { createCriteriaClassifierFn } from "../../src/llm/createClassifierFn";
-import * as generateClassificationsModule from "../../src/llm/generateClassifications";
 import type { Criterion } from "../../src/types/evals";
 
 const CRITERIA: Criterion[] = [
@@ -22,24 +21,27 @@ const CRITERIA: Criterion[] = [
 ];
 
 function createMockModel(labelByCriterion: Record<string, string>) {
+  const object = Object.fromEntries(
+    Object.entries(labelByCriterion).map(([name, label]) => [
+      name,
+      { label, explanation: `because ${label}` },
+    ])
+  );
+  return createRawMockModel(object);
+}
+
+/** A model that answers with exactly the given object, as JSON. */
+function createRawMockModel(object: Record<string, unknown>) {
   return new MockLanguageModelV3({
-    doGenerate: async () => {
-      const object = Object.fromEntries(
-        Object.entries(labelByCriterion).map(([name, label]) => [
-          name,
-          { label, explanation: `because ${label}` },
-        ])
-      );
-      return {
-        finishReason: { unified: "stop", raw: undefined },
-        usage: {
-          inputTokens: { total: 10, noCache: 10 },
-          outputTokens: { total: 10, text: 10 },
-        },
-        content: [{ type: "text", text: JSON.stringify(object) }],
-        warnings: [],
-      };
-    },
+    doGenerate: async () => ({
+      finishReason: { unified: "stop", raw: undefined },
+      usage: {
+        inputTokens: { total: 10, noCache: 10 },
+        outputTokens: { total: 10, text: 10 },
+      },
+      content: [{ type: "text", text: JSON.stringify(object) }],
+      warnings: [],
+    }),
   });
 }
 
@@ -105,16 +107,9 @@ describe("createCriteriaClassifierFn", () => {
   });
 
   it("marks a criterion with an off-list label as an invalid_label failure, keeping its siblings", async () => {
-    vi.spyOn(
-      generateClassificationsModule,
-      "generateClassifications"
-    ).mockResolvedValue([
-      { name: "sentiment", label: "bogus", explanation: "" },
-      { name: "toxicity", label: "toxic", explanation: "because toxic" },
-    ]);
-
+    // The model answers "sentiment" with a label that is not in its labels.
     const classify = createCriteriaClassifierFn({
-      model: createMockModel({}),
+      model: createMockModel({ sentiment: "bogus", toxicity: "toxic" }),
       choices: CRITERIA,
       promptTemplate: "Classify: {{text}}",
       telemetry: { isEnabled: false },
@@ -141,21 +136,13 @@ describe("createCriteriaClassifierFn", () => {
     });
   });
 
-  it("passes a backend ClassificationFailure through as a scoreless result, keeping its siblings", async () => {
-    vi.spyOn(
-      generateClassificationsModule,
-      "generateClassifications"
-    ).mockResolvedValue([
-      {
-        name: "sentiment",
-        kind: "error",
-        reason: "The model returned no answer for criterion 'sentiment'.",
-      },
-      { name: "toxicity", label: "toxic", explanation: "because toxic" },
-    ]);
-
+  it("passes a declined criterion through as a scoreless failure, keeping its siblings", async () => {
+    // The model declines "sentiment" (null) but answers "toxicity".
     const classify = createCriteriaClassifierFn({
-      model: createMockModel({}),
+      model: createRawMockModel({
+        sentiment: null,
+        toxicity: { label: "toxic", explanation: "because toxic" },
+      }),
       choices: CRITERIA,
       promptTemplate: "Classify: {{text}}",
       telemetry: { isEnabled: false },
@@ -167,10 +154,12 @@ describe("createCriteriaClassifierFn", () => {
       name: "sentiment",
       metadata: {
         failureKind: "error",
-        failureReason:
-          "The model returned no answer for criterion 'sentiment'.",
+        failureReason: expect.stringContaining(
+          "no answer for criterion 'sentiment'"
+        ),
       },
     });
+    expect(results[0]!.score).toBeUndefined();
     expect(results[1]!.score).toBe(1);
   });
 

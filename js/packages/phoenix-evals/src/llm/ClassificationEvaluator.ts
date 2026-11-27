@@ -46,8 +46,9 @@ export class ClassificationEvaluator<RecordType extends Record<string, unknown>>
   readonly choices: ClassificationChoicesMap | Criterion[];
   /**
    * Set when `choices` is a label-to-score map; produces a single result.
+   * Undefined for a multi-criterion evaluator (use `evaluateCriteria`).
    */
-  private readonly _evaluatorFn?: EvaluatorFn<RecordType>;
+  readonly evaluatorFn?: EvaluatorFn<RecordType>;
   /**
    * Set when `choices` is a list of criteria; produces one result per criterion.
    */
@@ -63,18 +64,18 @@ export class ClassificationEvaluator<RecordType extends Record<string, unknown>>
         ...args,
       });
     } else {
-      this._evaluatorFn = createClassifierFn<RecordType>({
+      this.evaluatorFn = createClassifierFn<RecordType>({
         ...args,
       });
     }
   }
   evaluate = async (example: RecordType): Promise<EvaluationResult> => {
-    if (!this._evaluatorFn) {
+    if (!this.evaluatorFn) {
       throw new Error(
         "This classifier was created with a list of criteria; call evaluateCriteria() for one result per criterion."
       );
     }
-    return this._evaluatorFn(
+    return this.evaluatorFn(
       this.inputMapping
         ? remapObject<RecordType>(example, this.inputMapping)
         : example

@@ -167,12 +167,16 @@ const results = await evaluator.evaluateCriteria({
 A language model answers every criterion in one `generateObject` call and
 includes an explanation per criterion; a decision model answers them in one
 `experimental_decide` call and returns label probabilities instead of an
-explanation. Label descriptions, when given, are sent to the backend (as a
-`oneOf` schema for language models, and as the choice descriptions for decision
-models). `scoreMap` is optional — omit it for a bare-label classification whose
-result carries a label but no score. If a question can't be answered (a refusal,
-an off-list label, or a missing answer), that one criterion's result carries no
-score and reports the reason in `metadata`, while its siblings are unaffected.
+explanation. Label descriptions, when given, are sent to the backend (listed in
+the `label` field's description for language models, and as the choice
+descriptions for decision models). `scoreMap` is optional — omit it for a
+bare-label classification whose result carries a label but no score.
+
+Fault isolation (language models): if the model declines a criterion or answers
+it with an off-list label, only that criterion's result carries no score and
+reports the reason in `metadata`; its siblings are unaffected. A decision-model
+refusal is all-or-nothing — the provider refuses the whole `experimental_decide`
+call, so every criterion in the batch is reported as refused.
 
 ### Pre-Built Evaluators
 

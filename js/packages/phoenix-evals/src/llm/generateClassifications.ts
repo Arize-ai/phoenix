@@ -14,28 +14,18 @@ import type { WithPrompt } from "../types/prompts";
 import { isDecisionModel } from "../utils/isDecisionModel";
 
 /**
- * Build the schema for a criterion's label. Without descriptions this is a
- * plain `enum`, which providers accept under strict structured output. With
- * descriptions it is a union of described `const`s (a `oneOf`), so the model
- * sees what each label means.
+ * Render a criterion's labels as a human-readable list for the `label` field's
+ * description, so the model sees the allowed labels and what each one means.
+ * The labels are conveyed as text rather than as an enum/union so an off-list
+ * label is returned for the caller to isolate instead of failing the whole
+ * `generateObject` call (see {@link generateClassifications}).
  */
-function buildLabelSchema(labels: Record<string, Description>): z.ZodTypeAny {
-  const entries = Object.entries(labels);
-  const names = entries.map(([name]) => name) as [string, ...string[]];
-  const hasDescriptions = entries.some(
-    ([, description]) => description != null
-  );
-  if (!hasDescriptions || names.length < 2) {
-    return z.enum(names);
-  }
-  const literals: z.ZodTypeAny[] = entries.map(([name, description]) =>
-    description != null
-      ? z.literal(name).describe(description)
-      : z.literal(name)
-  );
-  return z.union(
-    literals as unknown as [z.ZodTypeAny, z.ZodTypeAny, ...z.ZodTypeAny[]]
-  );
+function formatAllowedLabels(labels: Record<string, Description>): string {
+  return Object.entries(labels)
+    .map(([name, description]) =>
+      description != null ? `- "${name}": ${description}` : `- "${name}"`
+    )
+    .join("\n");
 }
 
 export type ClassifyCriteriaArgs = WithLLM &
@@ -59,8 +49,12 @@ export type ClassifyCriteriaArgs = WithLLM &
  * multiple choice questions in one call; decision models cannot generate text,
  * so no explanation is returned in that case.
  *
- * Fault isolation: a criterion with no answer becomes a `ClassificationFailure`
- * for that criterion alone, so its siblings' answers are still returned.
+ * Fault isolation: each criterion is a nullable property whose `label` is a
+ * free-form string, so the model can decline a criterion (null) or return an
+ * off-list label without the single `generateObject` call being rejected. A
+ * declined criterion becomes an `error` failure for that criterion alone; an
+ * off-list label is returned verbatim for the caller to validate against the
+ * criterion's labels. Siblings are unaffected either way.
  */
 export async function generateClassifications(
   args: ClassifyCriteriaArgs
@@ -77,12 +71,18 @@ export async function generateClassifications(
         const inner = z.object({
           // The explanation precedes the label so the model reasons before committing.
           explanation: z.string(),
-          label: buildLabelSchema(criterion.labels),
+          label: z
+            .string()
+            .describe(
+              `Respond with exactly one of these labels:\n${formatAllowedLabels(criterion.labels)}`
+            ),
         });
-        return [
-          criterion.name,
-          criterion.instruction ? inner.describe(criterion.instruction) : inner,
-        ];
+        const described = criterion.instruction
+          ? inner.describe(criterion.instruction)
+          : inner;
+        // Nullable (not optional) keeps the key required for strict structured
+        // output providers while letting the model decline with null.
+        return [criterion.name, described.nullable()];
       })
     )
   );
@@ -102,7 +102,7 @@ export async function generateClassifications(
 
   return criteria.map((criterion) => {
     const answer = result.object[criterion.name];
-    if (!answer) {
+    if (answer == null) {
       return {
         name: criterion.name,
         kind: "error",
@@ -111,8 +111,7 @@ export async function generateClassifications(
     }
     return {
       name: criterion.name,
-      // The label schema is an enum/union of string literals, so this is a string.
-      label: answer.label as string,
+      label: answer.label,
       explanation: answer.explanation,
     };
   });

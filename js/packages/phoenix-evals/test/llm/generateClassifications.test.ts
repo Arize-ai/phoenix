@@ -101,7 +101,7 @@ describe("generateClassifications", () => {
     expect(responseFormat.schema.required).toEqual(["sentiment", "toxicity"]);
   });
 
-  it("emits an enum label schema when a criterion has no descriptions", async () => {
+  it("types the label as a free-form string and lists plain labels in its description", async () => {
     const { model, state } = createMockModel({
       sentiment: "positive",
       toxicity: "non_toxic",
@@ -115,11 +115,13 @@ describe("generateClassifications", () => {
     });
 
     const label = labelSchemaOf(state.lastResponseFormat, "sentiment");
-    expect(label.enum).toEqual(["positive", "negative"]);
-    expect(label.anyOf ?? label.oneOf).toBeUndefined();
+    expect(label.type).toBe("string");
+    expect(label.enum ?? label.anyOf ?? label.oneOf).toBeUndefined();
+    expect(label.description).toContain('"positive"');
+    expect(label.description).toContain('"negative"');
   });
 
-  it("emits a union of described consts when a criterion has label descriptions", async () => {
+  it("includes each label's description in the label field when descriptions are given", async () => {
     const described: [ClassificationCriterion, ...ClassificationCriterion[]] = [
       {
         name: "sentiment",
@@ -137,31 +139,37 @@ describe("generateClassifications", () => {
     });
 
     const label = labelSchemaOf(state.lastResponseFormat, "sentiment");
-    expect(label.enum).toBeUndefined();
-    const variants = label.anyOf ?? label.oneOf;
-    expect(variants?.map((variant) => variant.const)).toEqual([
-      "positive",
-      "negative",
-    ]);
-    expect(variants?.map((variant) => variant.description)).toEqual([
-      "clearly positive",
-      "clearly negative",
-    ]);
+    expect(label.type).toBe("string");
+    expect(label.description).toContain('"positive": clearly positive');
+    expect(label.description).toContain('"negative": clearly negative');
   });
 });
 
 interface LabelSchema {
+  type?: string;
+  description?: string;
   enum?: string[];
-  anyOf?: { const: string; description?: string }[];
-  oneOf?: { const: string; description?: string }[];
+  anyOf?: unknown[];
+  oneOf?: unknown[];
 }
 
-/** Pull one criterion's `label` sub-schema out of a captured JSON responseFormat. */
+interface ObjectSchema {
+  properties?: Record<string, LabelSchema>;
+  anyOf?: ObjectSchema[];
+}
+
+/**
+ * Pull one criterion's `label` sub-schema out of a captured JSON
+ * responseFormat, unwrapping the nullable wrapper when present (a nullable
+ * property becomes `{ anyOf: [ <object>, { type: "null" } ] }`).
+ */
 function labelSchemaOf(responseFormat: unknown, name: string): LabelSchema {
   const format = responseFormat as {
-    schema: {
-      properties: Record<string, { properties: Record<string, LabelSchema> }>;
-    };
+    schema: { properties: Record<string, ObjectSchema> };
   };
-  return format.schema.properties[name]!.properties.label!;
+  const property = format.schema.properties[name]!;
+  const objectSchema = property.properties
+    ? property
+    : (property.anyOf?.find((variant) => variant.properties) ?? property);
+  return objectSchema.properties!.label!;
 }

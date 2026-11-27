@@ -1,5 +1,8 @@
 import { REFUSAL_CLASSIFICATION_EVALUATOR_CONFIG } from "../__generated__/default_templates";
-import type { CreateClassificationEvaluatorArgs } from "../types/evals";
+import type {
+  ClassificationChoicesMap,
+  CreateClassificationEvaluatorArgs,
+} from "../types/evals";
 import type { ClassificationEvaluator } from "./ClassificationEvaluator";
 import { createClassificationEvaluator } from "./createClassificationEvaluator";
 
@@ -11,7 +14,9 @@ export interface RefusalEvaluatorArgs<
 > {
   optimizationDirection?: CreateClassificationEvaluatorArgs<RecordType>["optimizationDirection"];
   name?: CreateClassificationEvaluatorArgs<RecordType>["name"];
-  choices?: CreateClassificationEvaluatorArgs<RecordType>["choices"];
+  // Pre-built evaluators score a single label-to-score map; the multi-criterion
+  // form is not available on them, so `evaluate()` always returns one result.
+  choices?: ClassificationChoicesMap;
   promptTemplate?: CreateClassificationEvaluatorArgs<RecordType>["promptTemplate"];
 }
 
