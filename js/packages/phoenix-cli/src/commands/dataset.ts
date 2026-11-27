@@ -248,7 +248,7 @@ async function downloadDataset(
       break;
   }
 
-  if (response.error || response.data === undefined) {
+  if (response.error !== undefined) {
     const detail =
       typeof response.error === "string"
         ? response.error
@@ -256,7 +256,9 @@ async function downloadDataset(
     throw new Error(`Failed to export dataset: ${detail}`);
   }
 
-  return response.data as string;
+  // An empty dataset or version returns 200 with an empty body, which openapi-fetch
+  // reports as `data: undefined`. That is a successful empty export, not a failure.
+  return response.data ?? "";
 }
 
 /**
@@ -590,7 +592,9 @@ export function createDatasetListCommand(): Command {
  */
 export function createDatasetExportCommand(): Command {
   return new Command("export")
-    .description("Export a dataset's examples as CSV or JSONL")
+    .description(
+      "Export a dataset's examples in CSV, JSONL, OpenAI evals, or OpenAI fine-tuning format"
+    )
     .argument("<dataset-identifier>", "Dataset name or ID")
     .option("--endpoint <url>", "Phoenix API endpoint")
     .option("--api-key <key>", "Phoenix API key for authentication")

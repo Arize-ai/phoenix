@@ -378,6 +378,52 @@ describe("dataset export", () => {
     expect(stdout).toHaveBeenCalledWith(JSONL_BODY);
   });
 
+  it("routes --format openai-evals to the nested jsonl endpoint", async () => {
+    const captured = { count: 0 };
+    mock.server.use(
+      http.get("/v1/datasets/{id}/jsonl/openai_evals", ({ response }) => {
+        captured.count += 1;
+        return response(200).text(JSONL_BODY);
+      })
+    );
+    captureCliOutput();
+    const stdout = vi
+      .spyOn(process.stdout, "write")
+      .mockImplementation(() => true);
+
+    await createDatasetCommand().parseAsync(
+      ["export", DATASET_ID, "--format", "openai-evals", ...BASE_ARGS],
+      { from: "user" }
+    );
+
+    expect(captured.count).toBe(1);
+    expect(stdout).toHaveBeenCalledWith(JSONL_BODY);
+  });
+
+  it("treats an empty dataset (200 with an empty body) as a successful empty export", async () => {
+    // An empty dataset version returns 200 with no body; openapi-fetch reports
+    // that as data: undefined, which must not be mistaken for a failure.
+    mock.server.use(
+      http.get("/v1/datasets/{id}/jsonl", ({ response }) =>
+        response(200).text("")
+      )
+    );
+    const io = captureCliOutput();
+    const exitSpy = mockProcessExit();
+    const stdout = vi
+      .spyOn(process.stdout, "write")
+      .mockImplementation(() => true);
+
+    await createDatasetCommand().parseAsync(
+      ["export", DATASET_ID, ...BASE_ARGS],
+      { from: "user" }
+    );
+
+    expect(exitSpy).not.toHaveBeenCalled();
+    expect(stdout).toHaveBeenCalledWith("");
+    expect(io.stderr).not.toHaveBeenCalled();
+  });
+
   it("propagates --version as the version_id query param", async () => {
     const captured: { versionId?: string | null } = {};
     mock.server.use(
