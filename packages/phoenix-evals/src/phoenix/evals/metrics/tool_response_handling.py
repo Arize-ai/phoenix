@@ -17,9 +17,11 @@ class ToolResponseHandlingEvaluator(ClassificationEvaluator):
     error handling, data extraction, transformation, and safe information disclosure.
 
     Args:
-        llm (LLM): The LLM instance to use for the evaluation.
-        **kwargs: Additional invocation parameters forwarded to the LLM client
-            (e.g., ``temperature=0.0``, ``max_tokens=256``).
+        llm (Union[LLM, DecisionModel]): The LLM or decision model to use for the evaluation.
+        **kwargs: Additional invocation parameters forwarded to the judge. What is accepted
+            depends on the judge: an ``LLM`` accepts generation parameters (e.g.
+            ``temperature``, ``max_tokens``); a decision model accepts request options (e.g.
+            ``timeout``).
 
     Notes:
         - Evaluates whether an AI agent correctly processed the tool result to produce
@@ -27,21 +29,23 @@ class ToolResponseHandlingEvaluator(ClassificationEvaluator):
         - This metric evaluates what happens AFTER the tool returns, NOT whether the
           right tool was selected (tool_selection) or invoked correctly (tool_invocation).
         - Returns one `Score` with `label` (correct or incorrect), `score` (1.0 if correct,
-          0.0 if incorrect), and an `explanation` from the LLM judge.
-        - Requires an LLM that supports tool calling or structured output.
+          0.0 if incorrect), and, when an `LLM` judge is used, an `explanation`
+          (decision models return a label and probabilities, not an explanation).
+        - When backed by an `LLM`, requires one that supports tool calling or structured
+          output; decision models answer through a typed choices API, so this does not apply.
 
     Examples::
 
         from phoenix.evals.metrics.tool_response_handling import ToolResponseHandlingEvaluator
-        from phoenix.evals import LLM
+        from phoenix.evals import DecisionModel
 
-        llm = LLM(provider="openai", model="gpt-4o-mini")
+        llm = DecisionModel(provider="openai", model="gpt-6-luna")
 
         # Default usage
         tool_response_eval = ToolResponseHandlingEvaluator(llm=llm)
 
         # With custom invocation parameters
-        tool_response_eval = ToolResponseHandlingEvaluator(llm=llm, temperature=0.0)
+        tool_response_eval = ToolResponseHandlingEvaluator(llm=llm, timeout=30)
 
         # Example: Correct extraction from tool result
         eval_input = {

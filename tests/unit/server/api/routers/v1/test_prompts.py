@@ -247,6 +247,104 @@ class TestPrompts:
         response = await httpx_client.delete(url)
         assert response.status_code == 404
 
+    async def test_delete_prompt_conflict_when_used_by_llm_evaluator(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, _ = await self._insert_prompt_versions(db)
+        async with db() as session:
+            session.add(
+                models.LLMEvaluator(
+                    name=Identifier("correctness-eval"),
+                    prompt_id=prompt.id,
+                    output_configs=[],
+                )
+            )
+        url = f"v1/prompts/{quote_plus(prompt.name.root)}"
+        response = await httpx_client.delete(url)
+        assert response.status_code == 409
+        assert (
+            response.text
+            == "Cannot delete prompt because it is used by LLM evaluator 'correctness-eval'"
+        )
+        async with db() as session:
+            assert await session.scalar(select(models.Prompt).filter_by(id=prompt.id)) is not None
+
+    async def test_delete_prompt_conflict_when_used_by_multiple_llm_evaluators(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, _ = await self._insert_prompt_versions(db)
+        async with db() as session:
+            session.add_all(
+                [
+                    models.LLMEvaluator(
+                        name=Identifier("zeta-eval"),
+                        prompt_id=prompt.id,
+                        output_configs=[],
+                    ),
+                    models.LLMEvaluator(
+                        name=Identifier("alpha-eval"),
+                        prompt_id=prompt.id,
+                        output_configs=[],
+                    ),
+                ]
+            )
+        prompt_id = str(GlobalID(Prompt.__name__, str(prompt.id)))
+        url = f"v1/prompts/{quote_plus(prompt_id)}"
+        response = await httpx_client.delete(url)
+        assert response.status_code == 409
+        assert (
+            response.text
+            == "Cannot delete prompt because it is used by LLM evaluators: 'alpha-eval', 'zeta-eval'"
+        )
+        async with db() as session:
+            assert await session.scalar(select(models.Prompt).filter_by(id=prompt.id)) is not None
+
+    async def test_delete_prompt_conflict_on_integrity_error_race(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from phoenix.server.api.helpers.prompts.delete_helpers import (
+            get_prompt_referencing_llm_evaluator_names,
+        )
+
+        prompt, _ = await self._insert_prompt_versions(db)
+        async with db() as session:
+            session.add(
+                models.LLMEvaluator(
+                    name=Identifier("race-eval"),
+                    prompt_id=prompt.id,
+                    output_configs=[],
+                )
+            )
+
+        calls = 0
+
+        async def _simulate_race(*, session: Any, prompt_id: int) -> list[str]:
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                return []
+            return await get_prompt_referencing_llm_evaluator_names(
+                session=session, prompt_id=prompt_id
+            )
+
+        monkeypatch.setattr(
+            "phoenix.server.api.routers.v1.prompts.get_prompt_referencing_llm_evaluator_names",
+            _simulate_race,
+        )
+        response = await httpx_client.delete(f"v1/prompts/{quote_plus(prompt.name.root)}")
+        assert response.status_code == 409
+        assert (
+            response.text == "Cannot delete prompt because it is used by LLM evaluator 'race-eval'"
+        )
+        assert calls == 2
+
     async def test_patch_prompt_by_name(
         self,
         httpx_client: httpx2.AsyncClient,

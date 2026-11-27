@@ -147,8 +147,8 @@ class TestCredentialLifecycle:
     `dispose()` also closes the underlying `DefaultAzureCredential`. This is
     required for the Azure migration-engine path, which must close its
     credential on the migration event loop before `asyncio.run` tears the
-    loop down. See internal_docs/specs/postgres-cloud-auth-pooling.md,
-    section 'Event-loop affinity of azure.identity.aio credentials'.
+    loop down: `azure.identity.aio` credentials are bound to the event loop
+    that created them.
 
     These tests use a real `AsyncEngine` (not `MagicMock`) so that
     engine-shape regressions — e.g., instance-level assignment to a method

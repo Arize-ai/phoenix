@@ -30,7 +30,9 @@ type PhoenixPrompt = ToOpenAIParams<Variables>["prompt"];
 
 function getInvocationParameters(
   prompt: PhoenixPrompt
-): Partial<ChatCompletionCreateParams> {
+): Partial<ChatCompletionCreateParams> & {
+  extra_body?: Record<string, unknown>;
+} {
   const parameters = prompt.invocation_parameters;
   switch (parameters.type) {
     case "openai":
@@ -95,7 +97,8 @@ export const toOpenAI = <PromptVariables extends Variables = Variables>({
   variables,
 }: ToOpenAIParams<PromptVariables>): ChatCompletionCreateParams | null => {
   try {
-    const invocationParameters = getInvocationParameters(prompt);
+    const { extra_body: extraBody, ...invocationParameters } =
+      getInvocationParameters(prompt);
     // parts of the prompt that can be directly converted to OpenAI params
     const baseCompletionParams = {
       model: prompt.model_name,
@@ -147,6 +150,7 @@ export const toOpenAI = <PromptVariables extends Variables = Variables>({
       tools,
       tool_choice,
       response_format,
+      ...extraBody,
     } satisfies Partial<ChatCompletionCreateParams>;
 
     return completionParams;

@@ -1,9 +1,14 @@
+import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 
 import { Heading } from "@phoenix/components/core/content";
 import { Flex } from "@phoenix/components/core/layout";
 
 import { IDBadge } from "./IDBadge";
+
+const titleCSS = css`
+  flex: none;
+`;
 
 interface TitleWithIDProps {
   /**
@@ -18,8 +23,8 @@ interface TitleWithIDProps {
 
 export const TitleWithID = ({ title, id }: TitleWithIDProps) => {
   return (
-    <Flex direction="row" gap="size-100" alignItems="center">
-      <Heading>{title}</Heading>
+    <Flex direction="row" gap="size-100" alignItems="center" minWidth={0}>
+      <Heading css={titleCSS}>{title}</Heading>
       <IDBadge size="S" id={id} />
     </Flex>
   );

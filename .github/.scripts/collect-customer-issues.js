@@ -75,7 +75,8 @@ function filterPRs(issues, requiredLabels, cutoffDate) {
       const hasLabels = hasLabel(issue.labels, requiredLabels);
       const isRecent = new Date(issue.created_at) > cutoffDate;
       const isPR = !!issue.pull_request;
-      return hasLabels && isRecent && isPR;
+      const isDraft = Boolean(issue.draft);
+      return hasLabels && isRecent && isPR && !isDraft;
     })
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); // Sort by creation date, newest first
 }

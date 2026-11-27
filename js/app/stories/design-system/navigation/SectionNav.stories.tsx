@@ -39,7 +39,7 @@ const meta: Meta = {
   title: "Design System/Navigation/Section Nav",
   component: SectionNav,
   subcomponents: { SectionNavSection },
-  tags: ["updated", "unreviewed", "incomplete", "unused"],
+  tags: ["updated", "unreviewed", "incomplete"],
   parameters: {
     layout: "centered",
     controls: { disable: true },

@@ -54,7 +54,7 @@ examples:
             DSL FIELDS:
               - Root spans: `parent_id is None` matches spans with no parent pointer, and is the table's default. `parent_span is None` is the wider form that also matches orphans -- spans whose parent was never ingested -- and is what to use when the user asks about orphans.
               - String: `span_kind`, `name` (the span name, NOT span_name), `status_code`, `status_message`, `span_id`, `trace_id`, `parent_id`. Compare with `==`, `!=`, or membership via `in`.
-              - Numeric: `latency_ms`, `cumulative_token_count.{prompt,completion,total}`, `llm.token_count.{prompt,completion,total}`. Compare with `<`, `<=`, `>`, `>=`.
+              - Numeric: `latency_ms`, `llm.token_count.{prompt,completion,total}`. Compare with `<`, `<=`, `>`, `>=`.
               - Datetime: `start_time`, `end_time`.
               - Attribute access: `attributes['key.path']`, `input.value`, `output.value`, `metadata['key']`.
               - Annotations: `annotations['Name'].label`, `annotations['Name'].score`.

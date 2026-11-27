@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.10"
-# dependencies = ["pyyaml"]
+# dependencies = ["pyyaml", "tomli; python_version < '3.11'"]
 # ///
 """Check that every task in a Harbor job has a staged build context.
 
@@ -25,6 +25,14 @@ from typing import Any
 
 import yaml
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+from evals.harbor.scripts.fixture_inputs import (  # noqa: E402
+    STAGE_STATUS,
+    compute_environment_key,
+    compute_fixture_key,
+    hash_phoenix_sources,
+)
+
 # Globs relative to each task's environment/ directory.
 STAGED = (
     "Dockerfile",
@@ -37,18 +45,43 @@ CLI_ARCHIVE = Path("dist/phoenix-cli/phoenix-cli.tar.gz")
 CLIENT_WHEEL = "arize_phoenix_client-*.whl"
 
 
-def job_tasks(job: dict[str, Any]) -> list[Path]:
+def select_job_tasks(job: dict[str, Any]) -> list[Path]:
     tasks = [Path(task["path"]) for task in job.get("tasks") or [] if task.get("path")]
     for dataset in job.get("datasets") or []:
-        if not dataset.get("path"):
-            continue
+        if not dataset.get("path") or dataset.get("repo"):
+            raise ValueError("Staging requires local dataset paths in HARBOR_JOB")
         patterns = dataset.get("task_names")
-        for task in sorted(Path(dataset["path"]).iterdir()):
+        excluded = dataset.get("exclude_task_names") or []
+        selected = []
+        for task in Path(dataset["path"]).iterdir():
             if not (task / "task.toml").is_file():
                 continue
-            if not patterns or any(fnmatch(task.name, pattern) for pattern in patterns):
-                tasks.append(task)
+            if (
+                not patterns or any(fnmatch(task.name, pattern) for pattern in patterns)
+            ) and not any(fnmatch(task.name, pattern) for pattern in excluded):
+                selected.append(task)
+        tasks.extend(selected[: dataset.get("n_tasks")])
+    tasks = list(dict.fromkeys(task.resolve() for task in tasks))
+    if not tasks:
+        raise ValueError("The Harbor job selects no local tasks")
+    for task in tasks:
+        if not (task / "task.toml").is_file():
+            raise ValueError(f"{task}/task.toml is missing")
     return tasks
+
+
+def infer_dataset_name(job: dict[str, Any]) -> str:
+    datasets = job.get("datasets") or []
+    if len(datasets) != 1 or job.get("tasks"):
+        raise ValueError("Set HARBOR_DATASET for jobs without exactly one local dataset")
+    directory = Path(datasets[0]["path"]).resolve()
+    return directory.parent.name if directory.name == "tasks" else directory.name
+
+
+def requires_cli_archive(job: dict[str, Any], agents_replaced: bool = False) -> bool:
+    return not agents_replaced and any(
+        str(agent.get("import_path", "")).endswith("CliAgent") for agent in job.get("agents") or []
+    )
 
 
 def main() -> int:
@@ -56,19 +89,35 @@ def main() -> int:
     parser.add_argument("job", type=Path)
     parser.add_argument("--agents-replaced", action="store_true")
     parser.add_argument("--client-wheel-dir", type=Path)
+    parser.add_argument(
+        "--dataset-name", action="store_true", help="Print the Phoenix dataset name"
+    )
     args = parser.parse_args()
     job = yaml.safe_load(args.job.read_text()) or {}
 
     failures = []
-    for task in job_tasks(job):
+    try:
+        tasks = select_job_tasks(job)
+        if args.dataset_name:
+            print(infer_dataset_name(job))
+            return 0
+    except (ValueError, OSError) as error:
+        print(str(error), file=sys.stderr)
+        return 1
+    source_hash = hash_phoenix_sources()
+    for task in tasks:
         environment = task / "environment"
         missing = [part for part in STAGED if not any(environment.glob(part))]
+        try:
+            key = compute_environment_key(task, compute_fixture_key(task, source_hash))
+            status = environment / STAGE_STATUS
+            if not status.is_file() or status.read_text() != key:
+                failures.append(f"{task} has incomplete or outdated staging")
+        except (ValueError, OSError) as error:
+            failures.append(str(error))
         if missing:
             failures.append(f"{task}/environment/ is missing {', '.join(missing)}")
-    agents = job.get("agents") or []
-    needs_cli = not args.agents_replaced and any(
-        str(agent.get("import_path", "")).endswith("CliAgent") for agent in agents
-    )
+    needs_cli = requires_cli_archive(job, args.agents_replaced)
     if needs_cli and not CLI_ARCHIVE.is_file():
         failures.append(f"{CLI_ARCHIVE} is missing")
     if args.client_wheel_dir and not any(args.client_wheel_dir.glob(CLIENT_WHEEL)):
@@ -76,7 +125,7 @@ def main() -> int:
     if failures:
         print("\n".join(failures), file=sys.stderr)
         print(
-            "Run 'make harbor-stage' first; the trail-benchmark tasks need HF_TOKEN set for it.",
+            f"Run 'make harbor-stage HARBOR_JOB={args.job}' first. TRAIL needs HF_TOKEN.",
             file=sys.stderr,
         )
         return 1

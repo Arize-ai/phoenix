@@ -149,3 +149,9 @@ GET_SPANS_ORDER = ParameterRequirement(
     route="GET /v1/projects/{id}/spans",
     min_server_version=Version(20, 16, 0),
 )
+
+UPSERT_OR_DELETE_SECRETS = RouteRequirement(
+    method="PUT",
+    path="/v1/secrets",
+    min_server_version=Version(13, 21, 0),
+)

@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-client",
-  "version": "8.0.0",
+  "version": "8.0.4",
   "description": "A client for the Phoenix API",
   "keywords": [
     "arize",
@@ -65,6 +65,10 @@
       "import": "./dist/esm/users/index.js",
       "require": "./dist/src/users/index.js"
     },
+    "./models": {
+      "import": "./dist/esm/models/index.js",
+      "require": "./dist/src/models/index.js"
+    },
     "./traces": {
       "import": "./dist/esm/traces/index.js",
       "require": "./dist/src/traces/index.js"
@@ -119,7 +123,7 @@
     "typecheck": "tsc --noEmit && tsc -p examples/tsconfig.examples.json"
   },
   "dependencies": {
-    "@arizeai/openinference-semantic-conventions": "^2.15.0",
+    "@arizeai/openinference-semantic-conventions": "^2.17.0",
     "@arizeai/phoenix-config": "workspace:*",
     "@arizeai/phoenix-otel": "workspace:*",
     "async": "^3.2.6",
@@ -134,7 +138,7 @@
     "@arizeai/phoenix-evals": "workspace:*",
     "@arizeai/phoenix-testing": "workspace:*",
     "@opentelemetry/api": "^1.10.0",
-    "@opentelemetry/sdk-trace": "^3.1.0",
+    "@opentelemetry/sdk-trace": "^3.1.1",
     "@types/async": "^3.2.26",
     "@types/node": "^26.6.6",
     "ai": "^7.0.152",

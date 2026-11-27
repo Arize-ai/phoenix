@@ -1247,3 +1247,76 @@ class TestCostModelLookupMerge:
         )
         assert result is not None
         assert result.id == 1
+
+    def test_lookup_follows_model_type_through_merge(self) -> None:
+        llm_attributes = {"llm": {"model_name": "gpt-6-luna"}}
+        decision_attributes = _decision(model_name="gpt-6-luna")
+        start_time = datetime.now(timezone.utc)
+        lookup = CostModelLookup([_model(1, "DECISION"), _model(2, "LLM")])
+        result = lookup.find_model(start_time=start_time, attributes=llm_attributes)
+        assert result is not None and result.id == 2
+        result = lookup.find_model(start_time=start_time, attributes=decision_attributes)
+        assert result is not None and result.id == 1
+
+        lookup.merge([_model(2, "DECISION"), _model(1, "LLM")])
+        result = lookup.find_model(start_time=start_time, attributes=llm_attributes)
+        assert result is not None and result.id == 1
+        result = lookup.find_model(start_time=start_time, attributes=decision_attributes)
+        assert result is not None and result.id == 2
+
+
+def _model(
+    id: int,
+    type: models.GenerativeModelType,
+    name_pattern: str = "gpt-6-luna",
+    provider: Optional[str] = "openai",
+    is_built_in: bool = True,
+) -> models.GenerativeModel:
+    return models.GenerativeModel(
+        id=id,
+        name=f"model-{id}",
+        provider=provider,
+        name_pattern=re.compile(name_pattern),
+        is_built_in=is_built_in,
+        type=type,
+    )
+
+
+def _decision(**decision: Any) -> dict[str, Any]:
+    return {"openinference": {"span": {"kind": "DECISION"}}, "decision": decision}
+
+
+class TestCostModelLookupByType:
+    @pytest.mark.parametrize(
+        "generative_models,attributes,expected_model_id",
+        [
+            pytest.param(
+                [
+                    _model(1, "LLM"),
+                    _model(2, "LLM", is_built_in=False),
+                    _model(3, "EMBEDDING", is_built_in=False),
+                ],
+                _decision(model_name="gpt-6-luna"),
+                None,
+                id="decision_span_never_falls_back_to_other_types",
+            ),
+            pytest.param(
+                [
+                    _model(1, "DECISION", name_pattern="jev", provider="typesafe"),
+                    _model(2, "DECISION", name_pattern="jev", provider="vllm"),
+                ],
+                _decision(model_name="jev-1.13.0", provider="vllm", system="typesafe"),
+                2,
+                id="decision_provider_breaks_ties",
+            ),
+        ],
+    )
+    def test_find_model(
+        self,
+        generative_models: list[models.GenerativeModel],
+        attributes: Mapping[str, Any],
+        expected_model_id: Optional[int],
+    ) -> None:
+        lookup = CostModelLookup(generative_models)
+        result = lookup.find_model(start_time=datetime.now(timezone.utc), attributes=attributes)
+        assert (result.id if result else None) == expected_model_id

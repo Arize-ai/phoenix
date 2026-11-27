@@ -6,7 +6,7 @@
 # the one place Harbor applies to every container at creation, and it is job-wide, so
 # this condition is its own job rather than an agent entry in trail-benchmark-dev.yaml.
 datasets:
-  - path: evals/harbor/tasks/trail-benchmark-dev
+  - path: evals/harbor/datasets/trail-benchmark-dev/tasks
 agents:
   - name: phoenix-chat-agent
     import_path: evals.harbor.agents.phoenix_chat_agent:PhoenixChatAgent

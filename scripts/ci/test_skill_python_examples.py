@@ -92,18 +92,7 @@ _PYRIGHT_CONFIG = {
 
 # Examples that fail today, keyed by test ID. Each entry is a bug in the skill; fix the skill
 # and delete its entry. The tests are strict, so a fixed example fails until its entry goes.
-KNOWN_BROKEN = {
-    "skills/phoenix-evals/references/experiments-overview.md#0": (
-        "RanExperiment has no aggregate_scores"
-    ),
-    "skills/phoenix-evals/references/fundamentals.md#3": "RanExperiment has no aggregate_scores",
-    "skills/phoenix-evals/references/fundamentals-anti-patterns.md#0": (
-        "RanExperiment has no pass_rate"
-    ),
-    "skills/phoenix-evals/references/experiments-datasets-python.md#2": (
-        "datasets.get_dataset takes dataset=, not name="
-    ),
-}
+KNOWN_BROKEN: dict[str, str] = {}
 
 
 @dataclass(frozen=True)

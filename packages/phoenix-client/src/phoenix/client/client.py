@@ -8,6 +8,7 @@ from phoenix.client.resources.datasets import AsyncDatasets, Datasets
 from phoenix.client.resources.experiments import AsyncExperiments, Experiments
 from phoenix.client.resources.projects import AsyncProjects, Projects
 from phoenix.client.resources.prompts import AsyncPrompts, Prompts
+from phoenix.client.resources.secrets import AsyncSecrets, Secrets
 from phoenix.client.resources.sessions import AsyncSessions, Sessions
 from phoenix.client.resources.spans import AsyncSpans, Spans
 from phoenix.client.resources.traces import AsyncTraces, Traces
@@ -68,6 +69,7 @@ class Client:
         self._sessions = Sessions(value, self._spans, _guard=guard)
         self._datasets = Datasets(value, _guard=guard)
         self._experiments = Experiments(value, _guard=guard)
+        self._secrets = Secrets(value, _guard=guard)
 
     @property
     def prompts(self) -> Prompts:
@@ -132,6 +134,15 @@ class Client:
         """  # noqa: E501
         return self._experiments
 
+    @property
+    def secrets(self) -> Secrets:
+        """Returns an instance of the Secrets class for managing encrypted provider secrets.
+
+        Returns:
+            Secrets: An instance of the Secrets class.
+        """
+        return self._secrets
+
 
 class AsyncClient:
     def __init__(
@@ -184,6 +195,7 @@ class AsyncClient:
         self._sessions = AsyncSessions(value, self._spans, _guard=guard)
         self._datasets = AsyncDatasets(value, _guard=guard)
         self._experiments = AsyncExperiments(value, _guard=guard)
+        self._secrets = AsyncSecrets(value, _guard=guard)
 
     @property
     def prompts(self) -> AsyncPrompts:
@@ -248,6 +260,15 @@ class AsyncClient:
             AsyncExperiments: An instance of the AsyncExperiments class.
         """  # noqa: E501
         return self._experiments
+
+    @property
+    def secrets(self) -> AsyncSecrets:
+        """Returns an instance of the AsyncSecrets class for managing encrypted provider secrets.
+
+        Returns:
+            AsyncSecrets: An instance of the AsyncSecrets class.
+        """
+        return self._secrets
 
 
 def _update_headers(

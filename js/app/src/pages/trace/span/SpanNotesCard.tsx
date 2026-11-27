@@ -54,7 +54,7 @@ function SpanNotesCardContents({ spanNodeId }: { spanNodeId: string }) {
       {...defaultCardProps}
       {...cardProps}
       title="Notes"
-      titleExtra={<Counter variant="quiet">{noteCount}</Counter>}
+      titleExtra={<Counter variant="quiet" count={noteCount} />}
       defaultOpen={false}
       onCollapseChange={setIsCollapsed}
       extra={

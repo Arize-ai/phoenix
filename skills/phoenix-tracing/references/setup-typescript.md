@@ -43,6 +43,12 @@ export PHOENIX_COLLECTOR_ENDPOINT="http://localhost:6006"
 export PHOENIX_PROJECT="my-app"  # PHOENIX_PROJECT_NAME is a supported alias
 ```
 
+`register()` also accepts `sampler?: Sampler` (default
+`ParentBasedSampler({ root: AlwaysOnSampler })`) and `spanLimits?: SpanLimits`.
+Set sampling and limits there: OpenTelemetry JS 3 ignores `OTEL_TRACES_SAMPLER*`,
+`OTEL_SPAN_*`, `OTEL_ATTRIBUTE_*`, and `OTEL_BSP_*`, and `register()` warns once
+per variable that is set without the matching option. See `production-typescript.md`.
+
 `PHOENIX_PROJECT` is the canonical project-name variable and takes precedence;
 `PHOENIX_PROJECT_NAME` is a supported alias. If both are set to different
 values, `PHOENIX_PROJECT` wins and a one-time warning naming both is logged.
@@ -103,6 +109,32 @@ register({
 
 `ensureCollectorEndpoint()` normalizes a Phoenix base URL into the OTLP traces
 endpoint, so pass the same URL you would give `register({ url })`.
+
+The package root also exports `BatchSpanProcessor` and `SimpleSpanProcessor`.
+They take an options object — `new BatchSpanProcessor({ exporter })` — and throw a
+`TypeError` when given an exporter positionally. Batch tuning goes in the same
+object:
+
+```typescript
+import {
+  BatchSpanProcessor,
+  ensureCollectorEndpoint,
+  OTLPTraceExporter,
+  register,
+} from "@arizeai/phoenix-otel";
+
+register({
+  spanProcessors: [
+    new BatchSpanProcessor({
+      exporter: new OTLPTraceExporter({
+        url: ensureCollectorEndpoint("http://localhost:6006"),
+        headers: { authorization: `Bearer ${process.env.PHOENIX_API_KEY}` },
+      }),
+      scheduledDelayMillis: 1000,
+    }),
+  ],
+});
+```
 
 **The `/vercel` subpath has no CommonJS build** — `@arizeai/openinference-vercel`
 is ESM-only, which is why these re-exports are not on the package root. From CJS,

@@ -1,0 +1,18 @@
+{
+ "reference": "A trace is compliant when the agent's refund decision and amount match what the policy allows for the order, including the Acme Plus rules in the plus-members passage. The judge's policy_compliant labels reach at least 80% recall on each class, on the 40 unreviewed production traces and on the 40 new traces its nightly rerun scores.",
+ "project": "refund-decisions",
+ "min_recall": 0.8,
+ "min_coverage": 0.95,
+ "production_traces": {
+  "traces": 40,
+  "compliant": 24,
+  "noncompliant": 16,
+  "plus_rules": 7
+ },
+ "new_traces": {
+  "traces": 40,
+  "compliant": 24,
+  "noncompliant": 16,
+  "plus_rules": 18
+ }
+}

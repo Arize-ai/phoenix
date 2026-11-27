@@ -5,7 +5,7 @@ description: Definition and types of Evaluators. Score abstraction.
 
 At the core, an Evaluator is anything that returns a Score. Evaluators can be split into two broad categories:
 
-* LLM-based: evaluators that use an LLM to perform the judgement.
+* LLM-based: evaluators backed by a model that performs the judgement. The model can be a language model (`LLM`), which returns a label with an explanation, or a decision model (`DecisionModel`).
   * Examples: faithfulness, retrieval relevance
 * Code: evaluators that use a deterministic process or heuristic calculation.
   * Examples: exact match, BLEU, precision
@@ -19,8 +19,8 @@ At the core, an Evaluator is anything that returns a Score. Evaluators can be sp
 * Scores may also have some of the following properties:
   * score: numeric score
   * label: The categorical outcome (e.g., "good", "bad", or other label).
-  * explanation: A brief rationale or justification for the result.
-  * metadata: Arbitrary extra context such as model details, intermediate scores, or run info.
+  * explanation: A brief rationale or justification for the result. Present only when the evaluator is backed by a language model; decision models return a label and probabilities without an explanation.
+  * metadata: Arbitrary extra context such as model details, label probabilities and optional confidence (both for decision models), intermediate scores, or run info.
 
 ## Properties of Evaluators
 

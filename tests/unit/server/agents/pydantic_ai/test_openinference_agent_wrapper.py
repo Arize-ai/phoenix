@@ -22,13 +22,16 @@ from opentelemetry.trace import StatusCode
 from pydantic_ai import Agent
 from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.messages import (
+    CapabilityPartRendering,
     ModelMessage,
     ModelRequest,
     ModelResponse,
     NativeToolCallPart,
     NativeToolReturnPart,
+    OperatorSource,
     TextPart,
     ThinkingPart,
+    UnknownCapabilityPart,
     UserPromptPart,
 )
 from pydantic_ai.models import ModelRequestParameters, StreamedResponse
@@ -41,6 +44,7 @@ from phoenix.server.agents.pydantic_ai import (
     OpenInferenceCapabilityWrapper,
     OpenInferenceModelWrapper,
 )
+from phoenix.server.agents.pydantic_ai.openinference_agent_wrapper import _get_message_io_value
 
 
 @dataclass
@@ -289,6 +293,22 @@ async def test_iter_uses_explicit_span_name_override(
     spans = in_memory_span_exporter.get_finished_spans()
     agent_span = _get_agent_span(spans)
     assert agent_span.name == "pxi.iter.server"
+
+
+def test_capability_part_is_serialized_as_structured_turn_input() -> None:
+    capability_part = UnknownCapabilityPart(
+        kind="test.progress",
+        source=OperatorSource(),
+        content="Three steps done.",
+        rendering=CapabilityPartRendering(tag="progress"),
+    )
+    value, mime_type = _get_message_io_value(ModelRequest(parts=[capability_part]))
+
+    assert mime_type == OpenInferenceMimeTypeValues.JSON
+    [serialized_part] = json.loads(value)
+    assert serialized_part["part_kind"] == "capability"
+    assert serialized_part["kind"] == "test.progress"
+    assert serialized_part["content"] == "Three steps done."
 
 
 async def test_agent_span_filters_empty_thinking_for_single_text_output(

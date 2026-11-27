@@ -177,7 +177,12 @@ class Tracer(_TracerBase):
         # chat conversations can record the full message history on each LLM
         # span without attribute eviction.
         span_limits = SpanLimits(max_span_attributes=100_000)
-        provider = TracerProvider(resource=resource, span_limits=span_limits)
+        # OTel's default exit hook holds a provider and its buffered spans until process exit.
+        provider = TracerProvider(
+            resource=resource,
+            span_limits=span_limits,
+            shutdown_on_exit=False,
+        )
         self._self_resource = resource
         simple_processor = SimpleSpanProcessor(self._self_exporter)
         self._self_span_processors: list[SpanProcessor] = [simple_processor]

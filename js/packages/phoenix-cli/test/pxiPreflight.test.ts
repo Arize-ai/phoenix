@@ -324,17 +324,25 @@ describe("PXI model preflight", () => {
     ).rejects.toThrow("Invalid model for OpenAI (OPENAI): missing-model");
   });
 
-  it("returns available recommended models in the main app's curated order", () => {
+  it("returns only catalog models in the CLI's curated recommendation order", () => {
     const models = getRecommendedPxiModels({
       data: createPreflightData({
         playgroundModels: [
+          { providerKey: "GOOGLE", name: "gemini-4-carbon" },
           { providerKey: "GOOGLE", name: "gemini-3.7-flash" },
-          // Still offered by the server, but superseded: it must not come back
-          // as a recommendation just because it is installed.
+          { providerKey: "GOOGLE", name: "gemini-4-hydrogen" },
+          { providerKey: "GOOGLE", name: "gemini-3.1-pro-preview" },
+          { providerKey: "GOOGLE", name: "gemini-4-neon" },
           { providerKey: "GOOGLE", name: "gemini-3.5-flash" },
           { providerKey: "OPENAI", name: "unrecommended-model" },
           { providerKey: "OPENAI", name: "gpt-5.4" },
+          { providerKey: "OPENAI", name: "gpt-5.6-sol" },
+          { providerKey: "OPENAI", name: "gpt-6.1-terra" },
+          { providerKey: "OPENAI", name: "gpt-6.2-sol" },
+          { providerKey: "ANTHROPIC", name: "claude-fable-5" },
           { providerKey: "ANTHROPIC", name: "claude-fable-5-1" },
+          { providerKey: "ANTHROPIC", name: "claude-fable-5-2" },
+          { providerKey: "ANTHROPIC", name: "claude-opus-5-5" },
           { providerKey: "ANTHROPIC", name: "claude-opus-4-8" },
         ],
       }),
@@ -344,22 +352,32 @@ describe("PXI model preflight", () => {
       {
         providerType: "builtin",
         provider: "ANTHROPIC",
-        modelName: "claude-fable-5-1",
+        modelName: "claude-fable-5-2",
       },
       {
         providerType: "builtin",
         provider: "ANTHROPIC",
-        modelName: "claude-opus-4-8",
+        modelName: "claude-opus-5-5",
       },
       {
         providerType: "builtin",
         provider: "OPENAI",
-        modelName: "gpt-5.4",
+        modelName: "gpt-6.2-sol",
+      },
+      {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-6.1-terra",
       },
       {
         providerType: "builtin",
         provider: "GOOGLE",
-        modelName: "gemini-3.7-flash",
+        modelName: "gemini-4-carbon",
+      },
+      {
+        providerType: "builtin",
+        provider: "GOOGLE",
+        modelName: "gemini-4-neon",
       },
     ]);
   });

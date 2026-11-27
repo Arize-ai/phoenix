@@ -2,7 +2,7 @@
 # `-e docker -k 1` through HARBOR_ARGS, or create a reduced job file for a subset.
 # The plugin records all results in the regression Phoenix dataset.
 datasets:
-  - path: evals/harbor/tasks/regression
+  - path: evals/harbor/datasets/regression/tasks
 agents:
   - name: phoenix-chat-agent
     import_path: evals.harbor.agents.phoenix_chat_agent:PhoenixChatAgent

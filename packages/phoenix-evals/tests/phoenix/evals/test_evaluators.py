@@ -1,9 +1,10 @@
 # type: ignore
 import json
 import warnings
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock, patch
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -425,6 +426,17 @@ class TestClassificationEvaluator:
         assert evaluator.label_score_map == expected_score_map
         assert evaluator.include_explanation is True
 
+    @pytest.mark.parametrize("choices", [[], {}, None], ids=["empty-list", "empty-dict", "none"])
+    def test_classification_evaluator_rejects_empty_choices(self, choices):
+        """Invalid choices fail at construction, before any LLM call."""
+        with pytest.raises(ValueError, match=r"^Labels must be a non-empty list or dictionary\.$"):
+            ClassificationEvaluator(
+                name="test_evaluator",
+                llm=MockLLM(),
+                prompt_template="Test template with {input}",
+                choices=choices,
+            )
+
     @pytest.mark.parametrize(
         "choices,label",
         [
@@ -777,6 +789,34 @@ class TestCreateEvaluatorDecorator:
         assert score.label == "very good"
         assert score.explanation == "This is a comprehensive evaluation"
 
+    @pytest.mark.parametrize(
+        ("returned", "expected_score", "expected_label"),
+        [
+            pytest.param(np.int64(3), 3, None, id="np.int64"),
+            pytest.param(np.float32(0.25), 0.25, None, id="np.float32"),
+            pytest.param(np.bool_(True), 1.0, "True", id="np.bool_"),
+            pytest.param((np.float32(0.5), "good"), 0.5, "good", id="tuple with np.float32"),
+            pytest.param((np.int64(2), "fine"), 2, "fine", id="tuple with np.int64"),
+            pytest.param({"score": np.int64(2), "label": "ok"}, 2, "ok", id="dict with np.int64"),
+            pytest.param(Score(score=np.int64(2), label="ok"), 2, "ok", id="Score with np.int64"),
+        ],
+    )
+    def test_create_evaluator_with_numpy_scalar_return(
+        self, returned: Any, expected_score: float, expected_label: Optional[str]
+    ) -> None:
+        """NumPy scalars, as returned by NumPy and pandas code, are numbers and booleans."""
+
+        @create_evaluator(name="numpy_scalar_evaluator", kind="code")
+        def test_func(input_text: str) -> Any:
+            return returned
+
+        (score,) = test_func.evaluate({"input_text": "test"})
+
+        assert score.score == expected_score
+        assert type(score.score) in (int, float)
+        assert score.label == expected_label
+        json.dumps(score.to_dict())
+
     def test_create_evaluator_with_mixed_tuple_return(self):
         """Test create_evaluator with mixed tuple including nested dict."""
 
@@ -918,6 +958,17 @@ class TestFactoryFunctions:
         assert evaluator.name == "test_classifier"
         assert evaluator.labels == expected_labels
         assert evaluator.llm == llm
+
+    @pytest.mark.parametrize("choices", [[], {}, None], ids=["empty-list", "empty-dict", "none"])
+    def test_create_classifier_rejects_empty_choices(self, choices):
+        """The public factory shares the evaluator's early validation."""
+        with pytest.raises(ValueError, match=r"^Labels must be a non-empty list or dictionary\.$"):
+            create_classifier(
+                name="test_classifier",
+                prompt_template="Test template with {input}",
+                llm=MockLLM(),
+                choices=choices,
+            )
 
 
 class TestIntrospectionAndSchema:

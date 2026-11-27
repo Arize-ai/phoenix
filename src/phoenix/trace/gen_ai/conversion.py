@@ -190,7 +190,7 @@ def get_openinference_message_attributes(
         next_input_index += 1
 
     for index, out_msg in enumerate(
-        _validate_root_list(attributes.get(gen_ai.GEN_AI_OUTPUT_MESSAGES), OutputMessages)
+        _validate_output_messages(attributes.get(gen_ai.GEN_AI_OUTPUT_MESSAGES))
     ):
         oi_attributes.update(_flatten_message(out_msg, SpanAttributes.LLM_OUTPUT_MESSAGES, index))
 
@@ -621,6 +621,31 @@ def _validate_root_list(
         return []
     try:
         return model_cls.model_validate_json(value).root
+    except ValidationError:
+        return []
+
+
+def _validate_output_messages(value: Any) -> list[OutputMessage]:
+    """Output-message list that tolerates a missing per-message ``finish_reason``.
+
+    The pinned semconv models require ``finish_reason`` on each output message, but
+    newer semconv versions deprecate it in favor of ``gen_ai.response.finish_reasons``
+    and producers such as the Anthropic SDK omit it. Without this the whole list
+    fails validation and silently drops. A missing value is filled with ``""``,
+    which ``_flatten_message`` already skips."""
+    if not isinstance(value, (str, bytes, bytearray)):
+        return []
+    try:
+        items = json.loads(value)
+    except (TypeError, ValueError):
+        return []
+    if not isinstance(items, list):
+        return []
+    for item in items:
+        if isinstance(item, dict) and "finish_reason" not in item:
+            item["finish_reason"] = ""
+    try:
+        return OutputMessages.model_validate(items).root
     except ValidationError:
         return []
 

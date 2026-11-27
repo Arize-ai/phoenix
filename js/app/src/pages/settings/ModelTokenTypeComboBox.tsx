@@ -1,4 +1,5 @@
 import { ComboBox, ComboBoxItem, Flex } from "@phoenix/components";
+import type { GenerativeModelType } from "@phoenix/constants/generativeConstants";
 
 export type ModelTokenKind = "PROMPT" | "COMPLETION";
 
@@ -15,7 +16,7 @@ type CompletionTokenTypeOption = TokenTypeOption & {
   kind: "COMPLETION";
 };
 
-export const DEFAULT_TOKEN_PROMPT_OPTIONS = [
+const DEFAULT_TOKEN_PROMPT_OPTIONS = [
   {
     tokenType: "input",
     kind: "PROMPT",
@@ -34,7 +35,7 @@ export const DEFAULT_TOKEN_PROMPT_OPTIONS = [
   },
 ] satisfies PromptTokenTypeOption[];
 
-export const DEFAULT_TOKEN_COMPLETION_OPTIONS = [
+const DEFAULT_TOKEN_COMPLETION_OPTIONS = [
   {
     tokenType: "output",
     kind: "COMPLETION",
@@ -48,6 +49,41 @@ export const DEFAULT_TOKEN_COMPLETION_OPTIONS = [
     kind: "COMPLETION",
   },
 ] satisfies CompletionTokenTypeOption[];
+
+/**
+ * The token types each model type's spans report, suggested in the token type
+ * combobox. Custom token types can still be typed. Decision spans report input
+ * and output counts (and cache counts on legacy `llm.*` attributes); embedding
+ * spans report input tokens only, so embedding models have no completion side.
+ */
+export const TOKEN_TYPE_OPTIONS_BY_MODEL_TYPE: Readonly<
+  Record<
+    GenerativeModelType,
+    {
+      prompt: PromptTokenTypeOption[];
+      completion: CompletionTokenTypeOption[];
+    }
+  >
+> = {
+  LLM: {
+    prompt: DEFAULT_TOKEN_PROMPT_OPTIONS,
+    completion: DEFAULT_TOKEN_COMPLETION_OPTIONS,
+  },
+  DECISION: {
+    prompt: DEFAULT_TOKEN_PROMPT_OPTIONS.filter(
+      (option) => option.tokenType !== "audio"
+    ),
+    completion: DEFAULT_TOKEN_COMPLETION_OPTIONS.filter(
+      (option) => option.tokenType === "output"
+    ),
+  },
+  EMBEDDING: {
+    prompt: DEFAULT_TOKEN_PROMPT_OPTIONS.filter(
+      (option) => option.tokenType === "input"
+    ),
+    completion: [],
+  },
+};
 
 const KNOWN_TOKEN_TYPES = new Set<string>(
   [...DEFAULT_TOKEN_PROMPT_OPTIONS, ...DEFAULT_TOKEN_COMPLETION_OPTIONS].map(

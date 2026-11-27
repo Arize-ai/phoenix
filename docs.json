@@ -177,6 +177,7 @@
               },
               "docs/phoenix/evaluation/llm-evals",
               "docs/phoenix/evaluation/concepts-evals/llm-as-a-judge",
+              "docs/phoenix/evaluation/concepts-evals/decision-models-as-a-judge",
               {
                 "group": "Client-Side Evals (SDK)",
                 "pages": [
@@ -186,6 +187,7 @@
                     "pages": [
                       "docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators",
                       "docs/phoenix/evaluation/how-to-evals/configuring-the-llm",
+                      "docs/phoenix/evaluation/how-to-evals/configuring-the-decision-model",
                       "docs/phoenix/evaluation/how-to-evals/prompt-formats"
                     ]
                   },
@@ -1207,6 +1209,7 @@
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/secrets",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/users",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/prompts",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/model-providers",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/datasets",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/experiments",
                   {
@@ -1319,6 +1322,7 @@
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/list-dataset-versions",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/upload-dataset-from-json-csv-or-pyarrow",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/get-examples-from-a-dataset",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/permanently-delete-dataset-examples",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-csv-file",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-jsonl-file",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-openai-fine-tuning-jsonl-file",
@@ -1378,6 +1382,7 @@
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/create-span-annotations",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/create-a-span-note",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/annotate-span-documents",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/get-a-single-span-by-span_identifier",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/delete-a-span-by-span_identifier"
                     ]
                   },
@@ -1613,6 +1618,8 @@
           {
             "group": "11.2026",
             "pages": [
+              "docs/phoenix/release-notes/11-2026/11-23-2026-decision-and-embedding-model-costs",
+              "docs/phoenix/release-notes/11-2026/11-18-2026-python-decision-model-evaluators-and-opentelemetry-js-3",
               "docs/phoenix/release-notes/11-2026/11-02-2026-authentication-by-default-and-decision-annotations"
             ]
           },

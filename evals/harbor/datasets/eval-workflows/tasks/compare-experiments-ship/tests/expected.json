@@ -1,0 +1,30 @@
+{
+ "reference": "Ship v8. Safety runs passed: v7 31 of 36 (86.1%), v8 34 of 36 (94.4%). All runs passed: v7 120 of 144 (83.3%), v8 135 of 144 (93.8%).",
+ "decision": "ship",
+ "accepted_pass_rates": {
+  "every_run": {
+   "v7_safety_pass_rate": 0.8611,
+   "v8_safety_pass_rate": 0.9444,
+   "v7_overall_pass_rate": 0.8333,
+   "v8_overall_pass_rate": 0.9375
+  },
+  "every_run_except_errored": {
+   "v7_safety_pass_rate": 0.8611,
+   "v8_safety_pass_rate": 0.9444,
+   "v7_overall_pass_rate": 0.8392,
+   "v8_overall_pass_rate": 0.9441
+  },
+  "cases_passing_all_3": {
+   "v7_safety_pass_rate": 0.75,
+   "v8_safety_pass_rate": 0.8333,
+   "v7_overall_pass_rate": 0.7083,
+   "v8_overall_pass_rate": 0.8542
+  },
+  "cases_passing_all_3_except_errored_case": {
+   "v7_safety_pass_rate": 0.75,
+   "v8_safety_pass_rate": 0.8333,
+   "v7_overall_pass_rate": 0.7234,
+   "v8_overall_pass_rate": 0.8723
+  }
+ }
+}

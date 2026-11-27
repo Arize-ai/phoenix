@@ -13,7 +13,6 @@ import React, {
 } from "react";
 import type { PreloadedQuery } from "react-relay";
 import { graphql, usePaginationFragment, usePreloadedQuery } from "react-relay";
-import { useSearchParams } from "react-router";
 
 import {
   Empty,
@@ -30,7 +29,6 @@ import {
   ViewportModalOverlay,
 } from "@phoenix/components";
 import type { AnnotationConfig } from "@phoenix/components/annotation";
-import { PlainJSONBlock } from "@phoenix/components/code/PlainJSONBlock";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import {
   calculateAnnotationListHeight,
@@ -55,18 +53,21 @@ import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import type { ColumnDef, Table } from "@phoenix/components/table/tableFeatures";
 import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
-import { PrettyText } from "@phoenix/components/utility/PrettyText";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
-import { usePrettyText } from "@phoenix/hooks/usePrettyText";
+import { useStableSearchParams } from "@phoenix/hooks";
 import type { ComparedExperimentSelection } from "@phoenix/pages/dataset/metrics/types";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
-import { ExperimentCompareDetailsDialog } from "@phoenix/pages/experiment/ExperimentCompareDetailsDialog";
+import {
+  ExperimentCompareSlideover,
+  getExperimentExampleCount,
+  getCompareRowProps,
+  useExperimentCompareSlideoverState,
+} from "@phoenix/pages/experiment/compareSlideover";
 import { ExperimentComparePageQueriesCompareGridQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
-import { TraceDetailsDialog } from "@phoenix/pages/experiment/TraceDetailsDialog";
+import { ExperimentRunErrorContent } from "@phoenix/pages/experiment/ExperimentRunErrorContent";
 import type { SelectedTraceDetails } from "@phoenix/pages/experiment/TraceDetailsDrawer";
 import { TraceDetailsDrawer } from "@phoenix/pages/experiment/TraceDetailsDrawer";
 import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
-import { isWhitespaceOnlyReformat } from "@phoenix/utils/jsonUtils";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
 import type {
@@ -138,9 +139,9 @@ const actionMenuContainerCSS = css`
 const PAGE_SIZE = 50;
 export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const [dialog, setDialog] = useState<ReactNode>(null);
-  const [selectedExampleIndex, setSelectedExampleIndex] = useState<
-    number | null
-  >(null);
+  const { state: slideoverState, openExample } =
+    useExperimentCompareSlideoverState();
+  const selectedExampleId = slideoverState.selectedExampleId;
   const [selectedTraceDetails, setSelectedTraceDetails] =
     useState<SelectedTraceDetails | null>(null);
   const { datasetId, experimentSelection } = props;
@@ -151,18 +152,15 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
   const [filterCondition, setFilterCondition] = useState("");
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
-  const [, setSearchParams] = useSearchParams();
+  const [, updateSearchParams] = useStableSearchParams();
   const clearSelectedSpanSearchParam = useCallback(() => {
-    // Clear the URL search params for the span selection
-    setSearchParams(
-      (prev) => {
-        const newParams = new URLSearchParams(prev);
-        newParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
-        return newParams;
+    updateSearchParams({
+      update: (currentSearchParams) => {
+        currentSearchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+        return currentSearchParams;
       },
-      { replace: true }
-    );
-  }, [setSearchParams]);
+    });
+  }, [updateSearchParams]);
   const openTraceDetails = useCallback(
     (details: SelectedTraceDetails) => {
       // The drawer is non-modal, so a trace can be opened while another one
@@ -173,6 +171,16 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
       setSelectedTraceDetails(details);
     },
     [clearSelectedSpanSearchParam]
+  );
+  // The slideover and the trace drawer share a plane, where the one opened
+  // last is on top. Opening an example from the table closes the trace drawer
+  // so the slideover is never treated as covered while it is the one on top.
+  const openExampleFromTable = useCallback(
+    (exampleId: string) => {
+      setSelectedTraceDetails(null);
+      openExample({ exampleId });
+    },
+    [openExample]
   );
   const { baseExperimentColor, getExperimentColor } = useExperimentColors();
 
@@ -286,6 +294,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                     }
                     averageRunLatencyMs
                     runCount
+                    expectedRunCount
                     repetitions
                     annotationSummaries {
                       annotationName
@@ -372,9 +381,14 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     [data]
   );
 
-  const exampleIds = useMemo(() => {
-    return tableData.map((row) => row.id);
-  }, [tableData]);
+  const navigationItems = useMemo(
+    () =>
+      tableData.map((row) => ({
+        exampleId: row.id,
+        exampleExternalId: row.example.externalId,
+      })),
+    [tableData]
+  );
 
   // Calculate the max annotation count across all repeated run groups for consistent row heights
   const maxAnnotationCount = useMemo(() => {
@@ -533,14 +547,13 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
 
           return (
             <ExperimentRunOutputCell
-              rowIndex={row.index}
               experimentRepetitionCount={
                 experimentInfoById[experimentId]?.repetitions ?? 0
               }
               repeatedRunGroup={repeatedRunGroup}
               baseRepeatedRunGroup={baseRepeatedRunGroup}
               onOpenTraceDetails={openTraceDetails}
-              setSelectedExampleIndex={setSelectedExampleIndex}
+              onOpenExample={() => openExampleFromTable(row.original.id)}
               annotationSummaries={annotationSummaries}
               annotationConfigs={annotationConfigs}
               height={CELL_PRIMARY_CONTENT_HEIGHT}
@@ -558,6 +571,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     compareExperimentIds,
     experimentInfoById,
     getExperimentColor,
+    openExampleFromTable,
     openTraceDetails,
   ]);
 
@@ -565,6 +579,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     return [...baseColumns, ...experimentColumns];
   }, [baseColumns, experimentColumns]);
 
+  const loadNextPage = useCallback(() => {
+    loadNext(PAGE_SIZE);
+  }, [loadNext]);
   const table = useTable({
     features: appTableFeatures,
     columns: columns,
@@ -747,6 +764,8 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               <MemoizedTableBody
                 table={table}
                 tableContainerRef={tableContainerRef}
+                selectedRowId={selectedExampleId}
+                onRowClick={openExampleFromTable}
                 estimatedRowHeight={calculateEstimatedRowHeight(
                   maxAnnotationCount
                 )}
@@ -755,6 +774,8 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
               <TableBody
                 table={table}
                 tableContainerRef={tableContainerRef}
+                selectedRowId={selectedExampleId}
+                onRowClick={openExampleFromTable}
                 estimatedRowHeight={calculateEstimatedRowHeight(
                   maxAnnotationCount
                 )}
@@ -763,54 +784,27 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
           </table>
         </div>
       </Flex>
-      <ViewportModalOverlay
-        isOpen={selectedExampleIndex !== null}
-        onOpenChange={(isOpen) => {
-          if (!isOpen) {
-            setSelectedExampleIndex(null);
+      {baseExperiment != null ? (
+        <ExperimentCompareSlideover
+          datasetId={datasetId}
+          baseExperimentId={baseExperimentId}
+          compareExperimentIds={compareExperimentIds}
+          navigationItems={navigationItems}
+          totalItemCount={
+            filterCondition === ""
+              ? getExperimentExampleCount({
+                  expectedRunCount: baseExperiment.expectedRunCount,
+                  repetitions: baseExperiment.repetitions,
+                })
+              : null
           }
-        }}
-      >
-        <ViewportModal size="fullscreen">
-          {selectedExampleIndex !== null &&
-            exampleIds[selectedExampleIndex] &&
-            baseExperiment && (
-              <ExperimentCompareDetailsDialog
-                datasetId={datasetId}
-                datasetVersionId={baseExperiment.datasetVersion.id}
-                selectedExampleIndex={selectedExampleIndex}
-                selectedExampleId={tableData[selectedExampleIndex].example.id}
-                selectedExampleExternalId={
-                  tableData[selectedExampleIndex].example.externalId
-                }
-                baseExperimentId={baseExperimentId}
-                compareExperimentIds={compareExperimentIds}
-                exampleIds={exampleIds}
-                onExampleChange={(exampleIndex) => {
-                  if (
-                    exampleIndex === exampleIds.length - 1 &&
-                    !isLoadingNext &&
-                    hasNext
-                  ) {
-                    loadNext(PAGE_SIZE);
-                  }
-                  if (exampleIndex >= 0 && exampleIndex < exampleIds.length) {
-                    setSelectedExampleIndex(exampleIndex);
-                  }
-                }}
-                openTraceDialog={(traceId, projectId, title) => {
-                  setDialog(
-                    <TraceDetailsDialog
-                      traceId={traceId}
-                      projectId={projectId}
-                      title={title}
-                    />
-                  );
-                }}
-              />
-            )}
-        </ViewportModal>
-      </ViewportModalOverlay>
+          hasMoreItems={hasNext}
+          isLoadingMoreItems={isLoadingNext}
+          onLoadMoreItems={loadNextPage}
+          onOpenTrace={openTraceDetails}
+          isObscured={selectedTraceDetails !== null}
+        />
+      ) : null}
       <ViewportModalOverlay
         isOpen={!!dialog}
         onOpenChange={() => {
@@ -840,10 +834,16 @@ function TableBody<T extends RowData>({
   table,
   tableContainerRef,
   estimatedRowHeight,
+  selectedRowId,
+  onRowClick,
 }: {
   table: Table<T>;
   tableContainerRef: RefObject<HTMLDivElement | null>;
   estimatedRowHeight: number;
+  /** The row whose example is open in the compare slideover */
+  selectedRowId?: string | null;
+  /** Called with a row's ID when the row itself, not a control in it, is clicked */
+  onRowClick: (rowId: string) => void;
 }) {
   const rows = table.getRowModel().rows;
   // eslint-disable-next-line react/incompatible-library
@@ -863,10 +863,17 @@ function TableBody<T extends RowData>({
     <tbody>
       {virtualRows.map((virtualRow, index) => {
         const row = rows[virtualRow.index];
+        const compareRowProps = getCompareRowProps({
+          rowId: row.id,
+          selectedRowId,
+          onRowClick,
+        });
         return (
           <tr
             key={row.id}
+            {...compareRowProps}
             style={{
+              ...compareRowProps.style,
               height: `${virtualRow.size}px`,
               transform: `translateY(${
                 virtualRow.start - index * virtualRow.size
@@ -907,7 +914,9 @@ function TableBody<T extends RowData>({
 //special memoized wrapper for our table body that we will use during column resizing
 export const MemoizedTableBody = React.memo(
   TableBody,
-  (prev, next) => prev.table.options.data === next.table.options.data
+  (prev, next) =>
+    prev.table.options.data === next.table.options.data &&
+    prev.selectedRowId === next.selectedRowId
 ) as typeof TableBody;
 
 /**
@@ -987,36 +996,11 @@ export function ExperimentRunOutput(
 }
 
 function RunError({ error, height }: { error: string; height: number }) {
-  const { text, textType } = usePrettyText(error);
-  const preserveOriginalJSON =
-    textType === "json" && !isWhitespaceOnlyReformat(error, text);
-
   return (
     <Flex direction="column" height="100%">
       <ExpandableContent height={height}>
         <div css={outputContentCSS}>
-          <Flex direction="row" gap="size-100" alignItems="start">
-            <Icon
-              svg={<Icons.AlertCircle />}
-              color="danger"
-              role="img"
-              aria-label="Error"
-              css={css`
-                flex-shrink: 0;
-                /* Match the top padding of CodeMirror's first line. */
-                margin-top: ${textType === "json"
-                  ? "var(--global-dimension-size-50)"
-                  : "0"};
-              `}
-            />
-            <View flex="1" minWidth={0}>
-              {textType === "json" ? (
-                <PlainJSONBlock value={preserveOriginalJSON ? error : text} />
-              ) : (
-                <PrettyText>{error}</PrettyText>
-              )}
-            </View>
-          </Flex>
+          <ExperimentRunErrorContent error={error} />
         </div>
       </ExpandableContent>
     </Flex>
@@ -1028,8 +1012,7 @@ function ExperimentRunOutputCell({
   repeatedRunGroup,
   baseRepeatedRunGroup,
   onOpenTraceDetails,
-  rowIndex,
-  setSelectedExampleIndex,
+  onOpenExample,
   annotationSummaries,
   annotationConfigs,
   height,
@@ -1043,8 +1026,7 @@ function ExperimentRunOutputCell({
    */
   baseRepeatedRunGroup?: ExperimentRepeatedRunGroup | null;
   onOpenTraceDetails: (details: SelectedTraceDetails) => void;
-  rowIndex: number;
-  setSelectedExampleIndex: (index: number) => void;
+  onOpenExample: () => void;
   annotationSummaries: readonly AnnotationSummary[];
   annotationConfigs: readonly AnnotationConfig[];
   height: number;
@@ -1089,9 +1071,7 @@ function ExperimentRunOutputCell({
           className="expand-button"
           size="S"
           aria-label="View example run details"
-          onPress={() => {
-            setSelectedExampleIndex(rowIndex);
-          }}
+          onPress={onOpenExample}
         >
           <Icon svg={<Icons.Expand />} />
         </IconButton>

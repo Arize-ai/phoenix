@@ -258,6 +258,40 @@ px setup mcp --agent claude --header 'Authorization: Bearer ${PHOENIX_API_KEY}'
 | `--no-input` | Headless mode; requires `--agent` and defaults scope to global | — |
 | `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
 
+### `px setup doctor`
+
+Diagnose why `px` cannot work with your Phoenix server. Four checks run in order, each reporting pass, fail, or skip with a fix hint:
+
+1. **config** — the settings file parses, the `--profile` exists, and the endpoint is a valid URL
+2. **connectivity** — the server responds
+3. **version** — the server answers as Phoenix and reports its version
+4. **auth** — the server accepts the credentials, or allows anonymous access
+
+When config, connectivity, or version fails, the checks after it are skipped, so the first failure is the one to fix.
+
+```bash
+px setup doctor
+px setup doctor --profile staging
+px setup doctor --format raw
+```
+
+```
+✓ config        Using http://localhost:6006
+✗ connectivity  Could not reach http://localhost:6006: TypeError: fetch failed
+    fix: Start the Phoenix server, or point px at it with --endpoint or PHOENIX_ENDPOINT
+- version       Skipped: connectivity check failed
+- auth          Skipped: connectivity check failed
+```
+
+`--format json|raw` prints `{ "checks": [{ "name", "status", "message", "fix"? }] }`. The exit code reflects the first failure: `3` invalid config, `5` server unreachable or not Phoenix, `4` credentials missing or rejected, `1` anything else, and `0` when nothing failed.
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--endpoint <url>` | Phoenix API endpoint | Resolved config |
+| `--api-key <key>` | Phoenix API key | Resolved config |
+| `--profile <name>` | Profile to check | Active profile |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+
 ### `pxi`
 
 Launch **PXI** (Phoenix Intelligence), the AI engineering agent, as an interactive terminal chat against a running Phoenix server. It is the same server-side agent that powers the in-browser assistant, so models, skills, and permissions are configured on the server. Inside the chat, tool calls render with a per-tool icon, a status glyph, and a short command excerpt, and slash commands (`/help`, `/new`, `/temporary`, `/sessions`, `/model`, `/compact`, `/exit`) are handled locally. See [PXI](/docs/phoenix/pxi) for the full guide.
@@ -677,6 +711,37 @@ px dataset get query_response --format raw | jq '.examples[].input'
 | `--endpoint <url>` | Phoenix API endpoint | From env |
 | `--api-key <key>` | Phoenix API key | From env |
 | `--no-progress` | Disable progress indicators | — |
+
+### `px dataset-labels list|add|remove|replace --dataset <name-or-id>`
+
+Manage assignments of existing labels to datasets. These commands require Phoenix server 17.16.0 or later.
+Dataset identifiers can be names or GlobalIDs. Label identifiers must be GlobalIDs.
+
+Find label GlobalIDs with `GET /v1/dataset_labels`, or run this authenticated CLI query:
+
+```bash
+px api graphql '{ datasetLabels(first: 50) { edges { node { id name } } pageInfo { hasNextPage endCursor } } }'
+```
+
+Use the returned `node.id` values with `--label`. If `hasNextPage` is true, repeat the query with `after: "<endCursor>"`.
+
+```bash
+px dataset-labels list --dataset my-dataset
+px dataset-labels add --dataset my-dataset --label RGF0YXNldExhYmVsOjE=
+px dataset-labels remove --dataset my-dataset --label RGF0YXNldExhYmVsOjE=
+px dataset-labels replace --dataset my-dataset --label RGF0YXNldExhYmVsOjE= --label RGF0YXNldExhYmVsOjI=
+px dataset-labels replace --dataset my-dataset --clear
+px dataset-labels list --dataset my-dataset --format raw --no-progress | jq '.[].name'
+```
+
+Add and remove are idempotent. Removing an assignment preserves the global label and the dataset.
+Replace sets the complete assignment set. Use repeated `--label` flags or `--clear`; combining them is invalid.
+
+All commands accept `--format pretty|json|raw`, `--endpoint`, `--api-key`, and `--no-progress`.
+JSON/raw output returns a label array for list/replace and one label object for add.
+Remove returns an acknowledgment with `dataset_identifier` and `label_id` because its API response has no body.
+In pretty mode, list/add/replace display a label table, and remove displays a confirmation message.
+HTTP errors include the server's JSON or plain-text detail when available to identify invalid datasets or labels.
 
 ### `px experiment list --dataset <name-or-id>`
 
