@@ -38,6 +38,13 @@ def _rate_limit(message: str = "rate limited") -> LiteLLMRateLimitError:
     return LiteLLMRateLimitError(message=message, model="test-model", llm_provider="openai")
 
 
+def _make_text_response(content: str = "hello") -> MagicMock:
+    response = MagicMock()
+    response.choices = [MagicMock()]
+    response.choices[0].message.content = content
+    return response
+
+
 def _make_structured_output_response(label: str = "yes") -> MagicMock:
     response = MagicMock()
     response.choices = [MagicMock()]
@@ -60,13 +67,14 @@ def _make_adapter(
     provider: str = "openai",
     model: str = "gpt-4o",
     supported_params: list[str] | None = None,
+    client_kwargs: dict | None = None,
 ) -> tuple[LiteLLMAdapter, MagicMock, MagicMock]:
     """Build a LiteLLMAdapter with ``litellm.completion`` / ``acompletion`` and
     ``get_supported_openai_params`` patched.
 
     Returns (adapter, completion_mock, acompletion_mock).
     """
-    client = LiteLLMClient(provider=provider, model=model)
+    client = LiteLLMClient(provider=provider, model=model, **(client_kwargs or {}))
     adapter = LiteLLMAdapter(client, model)
 
     completion_mock = MagicMock()
@@ -395,3 +403,134 @@ class TestAsyncGenerateObjectFallback:
 
         assert acompletion_mock.call_count == 1
         assert adapter._preferred_method is None
+
+
+class TestClientConfigForwarding:
+    """Configuration captured by ``LiteLLMClient`` reaches every LiteLLM request."""
+
+    def test_generate_text_forwards_client_kwargs(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        adapter, completion_mock, _ = _make_adapter(
+            monkeypatch,
+            client_kwargs={"api_key": "sk-test", "base_url": "https://example.invalid"},
+        )
+        completion_mock.return_value = _make_text_response("hello")
+
+        assert adapter.generate_text("test prompt") == "hello"
+
+        call_kwargs = completion_mock.call_args.kwargs
+        assert call_kwargs["api_key"] == "sk-test"
+        assert call_kwargs["base_url"] == "https://example.invalid"
+        assert call_kwargs["model"] == "openai/gpt-4o"
+
+    def test_structured_output_forwards_client_kwargs(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        adapter, completion_mock, _ = _make_adapter(
+            monkeypatch, client_kwargs={"aws_region_name": "us-west-2"}
+        )
+        completion_mock.return_value = _make_structured_output_response()
+
+        adapter.generate_object("test prompt", SIMPLE_SCHEMA)
+
+        call_kwargs = completion_mock.call_args.kwargs
+        assert call_kwargs["aws_region_name"] == "us-west-2"
+        assert "response_format" in call_kwargs
+
+    def test_tool_calling_forwards_client_kwargs(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        adapter, completion_mock, _ = _make_adapter(
+            monkeypatch,
+            client_kwargs={"api_key": "sk-test"},
+            supported_params=["tools"],
+        )
+        completion_mock.return_value = _make_tool_calling_response()
+
+        adapter.generate_object(
+            "test prompt", SIMPLE_SCHEMA, method=ObjectGenerationMethod.TOOL_CALLING
+        )
+
+        call_kwargs = completion_mock.call_args.kwargs
+        assert call_kwargs["api_key"] == "sk-test"
+        assert "tools" in call_kwargs
+
+    def test_per_call_kwargs_override_client_kwargs(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        adapter, completion_mock, _ = _make_adapter(
+            monkeypatch, client_kwargs={"api_key": "sk-client"}
+        )
+        completion_mock.return_value = _make_text_response("hello")
+
+        adapter.generate_text("test prompt", api_key="sk-per-call")
+
+        call_kwargs = completion_mock.call_args.kwargs
+        assert call_kwargs["api_key"] == "sk-per-call"
+
+    def test_model_and_messages_cannot_be_stolen_by_client_kwargs(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        adapter, completion_mock, _ = _make_adapter(monkeypatch)
+        # Inject the conflicting keys the way a stale client object would carry
+        # them: after construction, not through the constructor.
+        adapter.client.config.update({"model": "other-model", "messages": []})
+        completion_mock.return_value = _make_text_response("hello")
+
+        adapter.generate_text("test prompt")
+
+        call_kwargs = completion_mock.call_args.kwargs
+        assert call_kwargs["model"] == "openai/gpt-4o"
+        assert call_kwargs["messages"] == [{"role": "user", "content": "test prompt"}]
+
+    def test_no_client_kwargs_leaves_request_unchanged(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        adapter, completion_mock, _ = _make_adapter(monkeypatch)
+        completion_mock.return_value = _make_text_response("hello")
+
+        adapter.generate_text("test prompt")
+
+        call_kwargs = completion_mock.call_args.kwargs
+        assert set(call_kwargs) == {"model", "messages"}
+
+    @pytest.mark.asyncio
+    async def test_async_generate_text_forwards_client_kwargs(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        adapter, _, acompletion_mock = _make_adapter(
+            monkeypatch, client_kwargs={"api_key": "sk-test"}
+        )
+        acompletion_mock.return_value = _make_text_response("hello")
+
+        assert await adapter.async_generate_text("test prompt") == "hello"
+
+        call_kwargs = acompletion_mock.call_args.kwargs
+        assert call_kwargs["api_key"] == "sk-test"
+
+    @pytest.mark.asyncio
+    async def test_async_structured_output_forwards_client_kwargs(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        adapter, _, acompletion_mock = _make_adapter(
+            monkeypatch, client_kwargs={"api_key": "sk-test"}
+        )
+        acompletion_mock.return_value = _make_structured_output_response()
+
+        await adapter.async_generate_object("test prompt", SIMPLE_SCHEMA)
+
+        call_kwargs = acompletion_mock.call_args.kwargs
+        assert call_kwargs["api_key"] == "sk-test"
+        assert "response_format" in call_kwargs
+
+    @pytest.mark.asyncio
+    async def test_async_tool_calling_forwards_client_kwargs(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        adapter, _, acompletion_mock = _make_adapter(
+            monkeypatch, client_kwargs={"api_key": "sk-test"}
+        )
+        acompletion_mock.return_value = _make_tool_calling_response()
+
+        await adapter.async_generate_object(
+            "test prompt", SIMPLE_SCHEMA, method=ObjectGenerationMethod.TOOL_CALLING
+        )
+
+        call_kwargs = acompletion_mock.call_args.kwargs
+        assert call_kwargs["api_key"] == "sk-test"
+        assert "tools" in call_kwargs

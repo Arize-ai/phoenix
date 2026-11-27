@@ -92,13 +92,30 @@ class LiteLLMAdapter(BaseLLMAdapter):
         except ImportError:
             raise ImportError("LiteLLM package not installed. Run: pip install litellm")
 
+    def _completion_kwargs(
+        self, *, messages: list[dict[str, Any]], **request_kwargs: Any
+    ) -> Dict[str, Any]:
+        """Build the keyword arguments for a LiteLLM request.
+
+        LiteLLM takes credentials and endpoints as call arguments rather than on a
+        client object, so the configuration collected by ``LiteLLMClient`` has to
+        ride along with every request. Per-call keyword arguments are applied last
+        so a caller can override what the client was constructed with.
+        """
+        merged: Dict[str, Any] = {**self.client.config, **request_kwargs}
+        # The model and the prompt belong to this call, never to the client
+        # configuration, so they are set last.
+        merged["model"] = self.client.model_string
+        merged["messages"] = messages
+        return merged
+
     def generate_text(self, prompt: PromptLike, **kwargs: Any) -> str:
         """Generate text using LiteLLM."""
         messages = self._build_messages(prompt)
 
         try:
             response = self._litellm.completion(  # pyright: ignore
-                model=self.client.model_string, messages=messages, **kwargs
+                **self._completion_kwargs(messages=messages, **kwargs)
             )
             content = response.choices[0].message.content  # pyright: ignore
             if content is None:
@@ -114,7 +131,7 @@ class LiteLLMAdapter(BaseLLMAdapter):
 
         try:
             response = await self._litellm.acompletion(  # pyright: ignore
-                model=self.client.model_string, messages=messages, **kwargs
+                **self._completion_kwargs(messages=messages, **kwargs)
             )
             content = response.choices[0].message.content  # pyright: ignore
             if content is None:
@@ -309,10 +326,11 @@ class LiteLLMAdapter(BaseLLMAdapter):
         }
         messages = self._build_messages(prompt)
         response = self._litellm.completion(  # pyright: ignore
-            model=self.client.model_string,
-            messages=messages,
-            response_format=response_format,
-            **kwargs,
+            **self._completion_kwargs(
+                messages=messages,
+                response_format=response_format,
+                **kwargs,
+            )
         )
         content = response.choices[0].message.content  # pyright: ignore
         if content is None:
@@ -330,11 +348,12 @@ class LiteLLMAdapter(BaseLLMAdapter):
         messages, tool_choice = self._tool_calling_messages_and_choice(prompt)
 
         response = self._litellm.completion(
-            model=self.client.model_string,
-            messages=messages,
-            tools=[tool_definition],
-            tool_choice=tool_choice,
-            **kwargs,
+            **self._completion_kwargs(
+                messages=messages,
+                tools=[tool_definition],
+                tool_choice=tool_choice,
+                **kwargs,
+            )
         )
 
         tool_calls = response.choices[0].message.tool_calls
@@ -367,10 +386,11 @@ class LiteLLMAdapter(BaseLLMAdapter):
         }
         messages = self._build_messages(prompt)
         response = await self._litellm.acompletion(  # pyright: ignore
-            model=self.client.model_string,
-            messages=messages,
-            response_format=response_format,
-            **kwargs,
+            **self._completion_kwargs(
+                messages=messages,
+                response_format=response_format,
+                **kwargs,
+            )
         )
         content = response.choices[0].message.content  # pyright: ignore
         if content is None:
@@ -388,11 +408,12 @@ class LiteLLMAdapter(BaseLLMAdapter):
         messages, tool_choice = self._tool_calling_messages_and_choice(prompt)
 
         response = await self._litellm.acompletion(
-            model=self.client.model_string,
-            messages=messages,
-            tools=[tool_definition],
-            tool_choice=tool_choice,
-            **kwargs,
+            **self._completion_kwargs(
+                messages=messages,
+                tools=[tool_definition],
+                tool_choice=tool_choice,
+                **kwargs,
+            )
         )
 
         tool_calls = response.choices[0].message.tool_calls
