@@ -682,16 +682,18 @@ class BlobTests(unittest.TestCase):
             self.blob[5:10] = b"a"
 
     def test_BlobConcatNotSupported(self):
-        with self.assertRaises(SystemError):
+        with self.assertRaises(TypeError):
             self.blob + self.blob
 
     def test_BlobRepeateNotSupported(self):
-        with self.assertRaises(SystemError):
+        with self.assertRaises(TypeError):
             self.blob * 5
 
     def test_BlobContainsNotSupported(self):
-        with self.assertRaises(SystemError):
+        with self.assertRaises(TypeError):
             b"aaaaa" in self.blob
+        with self.assertRaises(TypeError):
+            0 in self.blob
 
 @unittest.skipUnless(threading, 'This test requires threading.')
 class ThreadTests(unittest.TestCase):

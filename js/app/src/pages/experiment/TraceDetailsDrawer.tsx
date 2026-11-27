@@ -5,7 +5,6 @@ import {
   Drawer,
   Flex,
   LinkButton,
-  Loading,
   TitleWithID,
 } from "@phoenix/components";
 import {
@@ -19,7 +18,7 @@ import {
   DRAWER_DEFAULT_MIN_SIZE,
   useDefaultDrawerSize,
 } from "@phoenix/components/core/overlay";
-import { TraceDetails } from "@phoenix/pages/trace";
+import { TraceDetails, TraceDetailsSkeleton } from "@phoenix/pages/trace";
 
 /**
  * The trace a compare view has selected for inspection in the drawer.
@@ -75,12 +74,13 @@ export function TraceDetailsDrawer({
                 <LinkButton
                   size="S"
                   to={`/projects/${projectId}/traces/${encodeURIComponent(traceId)}`}
+                  target="_blank"
                 >
                   View Trace in Project
                 </LinkButton>
               </DialogTitleExtra>
             </DialogHeader>
-            <Suspense fallback={<Loading />}>
+            <Suspense fallback={<TraceDetailsSkeleton />}>
               <TraceDetails traceId={traceId} projectId={projectId} />
             </Suspense>
           </DialogContent>

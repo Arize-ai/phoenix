@@ -20,7 +20,7 @@ from openinference.semconv.trace import (
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.trace import StatusCode, Tracer
+from opentelemetry.trace import StatusCode
 from pydantic_ai.messages import (
     InstructionPart,
     ModelMessage,
@@ -61,13 +61,13 @@ def tracer_provider(in_memory_span_exporter: InMemorySpanExporter) -> TracerProv
 
 
 @pytest.fixture
-def tracer(tracer_provider: TracerProvider) -> Tracer:
+def tracer(tracer_provider: TracerProvider) -> OITracer:
     return OITracer(tracer_provider.get_tracer("test"), config=TraceConfig())
 
 
 @pytest.fixture
 def wrapped_model(
-    tracer: Tracer,
+    tracer: OITracer,
     anthropic_api_key: str,
 ) -> OpenInferenceModelWrapper:
     inner = AnthropicModel(MODEL_NAME, provider=AnthropicProvider())
@@ -75,7 +75,7 @@ def wrapped_model(
 
 
 @pytest.fixture
-def raising_model(tracer: Tracer) -> OpenInferenceModelWrapper:
+def raising_model(tracer: OITracer) -> OpenInferenceModelWrapper:
     """An OpenInferenceModelWrapper whose underlying model raises on request,
     used to exercise the wrapper's exception-handling path without hitting the
     network."""
@@ -104,7 +104,7 @@ def raising_model(tracer: Tracer) -> OpenInferenceModelWrapper:
 
 
 @pytest.fixture
-def native_tool_model(tracer: Tracer) -> OpenInferenceModelWrapper:
+def native_tool_model(tracer: OITracer) -> OpenInferenceModelWrapper:
     class _NativeToolModel(WrapperModel):
         async def request(
             self,
@@ -653,7 +653,7 @@ async def test_request_emits_tool_return_message_in_history(
 
 
 async def test_request_emits_system_message_from_instructions(
-    tracer: Tracer,
+    tracer: OITracer,
     in_memory_span_exporter: InMemorySpanExporter,
 ) -> None:
     wrapped = OpenInferenceModelWrapper(TestModel(), tracer=tracer)

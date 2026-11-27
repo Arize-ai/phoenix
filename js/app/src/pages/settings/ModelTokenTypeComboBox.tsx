@@ -1,4 +1,5 @@
 import { ComboBox, ComboBoxItem, Flex } from "@phoenix/components";
+import type { GenerativeModelType } from "@phoenix/constants/generativeConstants";
 
 export type ModelTokenKind = "PROMPT" | "COMPLETION";
 
@@ -15,7 +16,7 @@ type CompletionTokenTypeOption = TokenTypeOption & {
   kind: "COMPLETION";
 };
 
-export const DEFAULT_TOKEN_PROMPT_OPTIONS = [
+const DEFAULT_TOKEN_PROMPT_OPTIONS = [
   {
     tokenType: "input",
     kind: "PROMPT",
@@ -34,7 +35,7 @@ export const DEFAULT_TOKEN_PROMPT_OPTIONS = [
   },
 ] satisfies PromptTokenTypeOption[];
 
-export const DEFAULT_TOKEN_COMPLETION_OPTIONS = [
+const DEFAULT_TOKEN_COMPLETION_OPTIONS = [
   {
     tokenType: "output",
     kind: "COMPLETION",
@@ -48,6 +49,57 @@ export const DEFAULT_TOKEN_COMPLETION_OPTIONS = [
     kind: "COMPLETION",
   },
 ] satisfies CompletionTokenTypeOption[];
+
+/**
+ * The token types each model type's spans report, suggested in the token type
+ * combobox. Custom token types can still be typed. Decision spans report input
+ * and output counts (and cache counts on legacy `llm.*` attributes); embedding
+ * spans report input tokens only, so embedding models have no completion side.
+ */
+export const TOKEN_TYPE_OPTIONS_BY_MODEL_TYPE: Readonly<
+  Record<
+    GenerativeModelType,
+    {
+      prompt: PromptTokenTypeOption[];
+      completion: CompletionTokenTypeOption[];
+    }
+  >
+> = {
+  LLM: {
+    prompt: DEFAULT_TOKEN_PROMPT_OPTIONS,
+    completion: DEFAULT_TOKEN_COMPLETION_OPTIONS,
+  },
+  DECISION: {
+    prompt: DEFAULT_TOKEN_PROMPT_OPTIONS.filter(
+      (option) => option.tokenType !== "audio"
+    ),
+    completion: DEFAULT_TOKEN_COMPLETION_OPTIONS.filter(
+      (option) => option.tokenType === "output"
+    ),
+  },
+  EMBEDDING: {
+    prompt: DEFAULT_TOKEN_PROMPT_OPTIONS.filter(
+      (option) => option.tokenType === "input"
+    ),
+    completion: [],
+  },
+};
+
+const KNOWN_TOKEN_TYPES = new Set<string>(
+  [...DEFAULT_TOKEN_PROMPT_OPTIONS, ...DEFAULT_TOKEN_COMPLETION_OPTIONS].map(
+    (option) => option.tokenType
+  )
+);
+
+/**
+ * Trims a token type and snaps known token types to their lowercase form, as
+ * the server does, so that `Input` prices the `input` tokens spans report.
+ */
+export function normalizeTokenType(tokenType: string): string {
+  const trimmed = tokenType.trim();
+  const lowered = trimmed.toLowerCase();
+  return KNOWN_TOKEN_TYPES.has(lowered) ? lowered : trimmed;
+}
 
 export function ModelTokenTypeComboBox<
   Options extends TokenTypeOption[] = TokenTypeOption[],
@@ -68,7 +120,10 @@ export function ModelTokenTypeComboBox<
   invalid: boolean;
   isRequired?: boolean;
 }) {
-  const selectedOption = options.find((option) => option.tokenType === value);
+  const normalizedValue = normalizeTokenType(value ?? "");
+  const selectedOption = options.find(
+    (option) => option.tokenType === normalizedValue
+  );
   return (
     <ComboBox
       aria-label="Token type"
@@ -81,8 +136,7 @@ export function ModelTokenTypeComboBox<
           onChange(option.tokenType);
         }
       }}
-      onInputChange={(_value) => {
-        const value = _value.toLowerCase();
+      onInputChange={(value) => {
         if (value) {
           onChange(value);
         } else {

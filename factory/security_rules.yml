@@ -1,0 +1,34 @@
+rules:
+  - id: factory-execution
+    languages: [python]
+    paths:
+      include: ["**/*.py"]
+    message: Execution or unsafe deserialization needs admission review
+    severity: WARNING
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: exec(...)
+      - pattern: pickle.loads(...)
+      - pattern: pickle.load(...)
+      - pattern: yaml.load(...)
+      - pattern: os.system(...)
+      - pattern: subprocess.$METHOD(...)
+  - id: factory-secret-environment
+    languages: [generic]
+    message: Credential environment access outside configuration
+    severity: WARNING
+    paths:
+      exclude: ["**/config.py", "**/config/**", "**/config.ts"]
+    pattern-regex: '(?i)(?:os\.environ|os\.getenv|process\.env)[^\r\n]{0,120}(?:TOKEN|KEY|SECRET)'
+  - id: factory-bootstrap-network
+    languages: [generic]
+    message: Network access from tests or build setup
+    severity: WARNING
+    paths:
+      include: ["**/test*", "**/conftest.py", "**/Makefile", "**/setup.py"]
+    pattern-regex: '(?:requests\.|httpx\.|urllib\.|https?://|\bcurl\b|\bwget\b|\bfetch\s*\()'
+  - id: factory-curl-shell
+    languages: [generic]
+    message: Download piped to a shell
+    severity: WARNING
+    pattern-regex: '\b(?:curl|wget)\b[^\r\n]*\|\s*(?:sh|bash|zsh)\b'

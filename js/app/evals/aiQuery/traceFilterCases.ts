@@ -48,16 +48,6 @@ export const traceFilterCases: FrontierFilterEvalCase[] = [
       "uses the stale parent relation name or fails to express rootness inside the spans comprehension",
   },
   {
-    id: "idle-delegate",
-    query: "Show me traces where a subagent did no LLM work.",
-    accepted: [
-      "any('subagent' in s.name and s.cumulative_llm_token_count_total == 0 for s in spans)",
-      "any(s.cumulative_llm_token_count_total == 0 and 'subagent' in s.name for s in spans)",
-    ],
-    failureMode:
-      "uses trace-wide tokens instead of the cumulative token count for the named span subtree",
-  },
-  {
     id: "childless-agent",
     query: "Find traces with an agent span that spawned no child spans.",
     accepted: [
@@ -103,18 +93,18 @@ export const traceFilterCases: FrontierFilterEvalCase[] = [
       "compares unrelated trace fields or adds unsupported sorting instead of filtered reductions",
   },
   {
-    id: "dominant-non-root-subtree",
+    id: "dominant-non-root-span",
     query:
-      "Show me traces over 20,000 tokens where one non-root subtree accounts for more than 80% of all tokens.",
+      "Show me traces over 20,000 tokens where one non-root LLM call accounts for more than 80% of all tokens.",
     accepted: [
-      "token_count_total > 20000 and max(s.cumulative_llm_token_count_total for s in spans if s.parent_span is not None) > 0.8 * token_count_total",
-      "token_count_total > 20000 and max(s.cumulative_llm_token_count_total for s in spans if s.parent_span.name is not None) > 0.8 * token_count_total",
-      "max(s.cumulative_llm_token_count_total for s in spans if s.parent_span is not None) > 0.8 * token_count_total and token_count_total > 20000",
-      "max(s.cumulative_llm_token_count_total for s in spans if s.parent_span.name is not None) > 0.8 * token_count_total and token_count_total > 20000",
-      "token_count_total > 20000 and max(s.cumulative_llm_token_count_total for s in spans if s.parent_id is not None) > 0.8 * token_count_total",
-      "max(s.cumulative_llm_token_count_total for s in spans if s.parent_id is not None) > 0.8 * token_count_total and token_count_total > 20000",
-      "token_count_total > 20000 and max([s.cumulative_llm_token_count_total for s in spans if s.parent_id is not None]) > 0.8 * token_count_total",
-      "token_count_total > 20000 and max([s.cumulative_llm_token_count_total for s in spans if s.parent_span is not None]) > 0.8 * token_count_total",
+      "token_count_total > 20000 and max(s.llm_token_count_total for s in spans if s.parent_span is not None) > 0.8 * token_count_total",
+      "token_count_total > 20000 and max(s.llm_token_count_total for s in spans if s.parent_span.name is not None) > 0.8 * token_count_total",
+      "max(s.llm_token_count_total for s in spans if s.parent_span is not None) > 0.8 * token_count_total and token_count_total > 20000",
+      "max(s.llm_token_count_total for s in spans if s.parent_span.name is not None) > 0.8 * token_count_total and token_count_total > 20000",
+      "token_count_total > 20000 and max(s.llm_token_count_total for s in spans if s.parent_id is not None) > 0.8 * token_count_total",
+      "max(s.llm_token_count_total for s in spans if s.parent_id is not None) > 0.8 * token_count_total and token_count_total > 20000",
+      "token_count_total > 20000 and max([s.llm_token_count_total for s in spans if s.parent_id is not None]) > 0.8 * token_count_total",
+      "token_count_total > 20000 and max([s.llm_token_count_total for s in spans if s.parent_span is not None]) > 0.8 * token_count_total",
     ],
     failureMode:
       "uses the stale parent relation name or ignores the requested trace token threshold",

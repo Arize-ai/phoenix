@@ -1,6 +1,7 @@
-import type { Column } from "@tanstack/react-table";
+import type { RowData } from "@tanstack/react-table";
 import { graphql, useFragment } from "react-relay";
 
+import type { Column } from "@phoenix/components/table/tableFeatures";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import type { SessionColumnSelector_annotations$key } from "./__generated__/SessionColumnSelector_annotations.graphql";
@@ -10,21 +11,20 @@ import { TracingColumnSelector } from "./TracingColumnSelector";
 
 const UN_HIDABLE_COLUMN_IDS = ["sessionId"];
 
-type SessionColumnSelectorProps = {
+type SessionColumnSelectorProps<TData extends RowData> = {
   /**
    * All of the top-level columns of the session table, including visible
    * dynamic annotation columns.
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  columns: Column<any>[];
+  columns: Column<TData>[];
   query: SessionColumnSelector_annotations$key;
 };
 
 /** The column selector for the session table. */
-export function SessionColumnSelector({
+export function SessionColumnSelector<TData extends RowData>({
   columns,
   query,
-}: SessionColumnSelectorProps) {
+}: SessionColumnSelectorProps<TData>) {
   const data = useFragment<SessionColumnSelector_annotations$key>(
     graphql`
       fragment SessionColumnSelector_annotations on Project {

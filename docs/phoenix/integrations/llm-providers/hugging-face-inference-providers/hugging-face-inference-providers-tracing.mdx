@@ -1,0 +1,72 @@
+---
+title: "Hugging Face Inference Providers Tracing"
+description: "Phoenix provides auto-instrumentation for Hugging Face Inference Providers through the OpenAI Python library, since the Hugging Face router exposes an OpenAI-compatible API endpoint."
+---
+
+import RegisterTracerPython from "../../../../snippets/register-tracer-python.mdx";
+
+[Hugging Face Inference Providers](https://huggingface.co/docs/inference-providers/index) routes model calls across hosted providers through a unified API, including an OpenAI-compatible endpoint at `https://router.huggingface.co/v1`. Use the OpenAI Python client with your Hugging Face token and Phoenix captures requests through [`openinference-instrumentation-openai`](https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai).
+
+<Note>
+This page instruments the OpenAI-compatible Hugging Face router. It is separate from the [Hugging Face smolagents integration](/docs/phoenix/integrations/python/hugging-face-smolagents/smolagents-tracing), which instruments agent framework spans.
+</Note>
+
+## Install
+
+```bash
+pip install arize-phoenix-otel openinference-instrumentation-openai openai
+```
+
+## Setup
+
+Add a Hugging Face token with Inference Providers access, along with your Phoenix connection details, as environment variables:
+
+```bash
+export HF_TOKEN="<your-hugging-face-token>"
+export PHOENIX_COLLECTOR_ENDPOINT="<your-phoenix-collector-endpoint>"  # use http://localhost:6006 for local Phoenix
+export PHOENIX_API_KEY="<your-phoenix-api-key>"  # required for Phoenix Cloud or authenticated Phoenix
+```
+
+<RegisterTracerPython projectName="my-llm-app" />
+
+## Run Hugging Face Inference Providers
+
+```python
+import os
+import openai
+
+client = openai.OpenAI(
+    base_url="https://router.huggingface.co/v1",
+    api_key=os.environ["HF_TOKEN"],
+)
+
+response = client.chat.completions.create(
+    model="openai/gpt-oss-20b",
+    messages=[
+        {
+            "role": "user",
+            "content": "Give one reason to monitor model provider latency.",
+        },
+    ],
+)
+print(response.choices[0].message.content)
+```
+
+## Observe
+
+Now that you have tracing set up, all invocations of the OpenAI client pointed at Hugging Face Inference Providers will be streamed to your running Phoenix for observability and evaluation. Each request appears as a `ChatCompletion` LLM span with the prompt, response, model name, token usage, and latency.
+
+## Common Issues
+
+* **No traces in Phoenix**: Confirm `PHOENIX_COLLECTOR_ENDPOINT` (and `PHOENIX_API_KEY` if your Phoenix requires one) is set in the same shell that runs your app
+* **Hugging Face Inference Providers spans missing**: Call `register()` before you create the OpenAI client, and make sure `openinference-instrumentation-openai` is installed so `auto_instrument=True` picks it up
+* **`401` from Hugging Face**: Use a Hugging Face token with Inference Providers access, not your OpenAI key
+* **Model not found**: Replace the model with one available through Hugging Face Inference Providers. Some models require selecting a provider or accepting model terms before use
+* **Base URL**: Ensure you're using `https://router.huggingface.co/v1` as the base URL
+
+## Resources
+
+<Columns cols={2}>
+  <Card title="Hugging Face Inference Providers" href="https://huggingface.co/docs/inference-providers/index" icon="book" horizontal description="Inference Providers documentation"/>
+  <Card title="OpenInference OpenAI Instrumentation" href="https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai" icon="puzzle-piece" horizontal description="OpenAI instrumentation package"/>
+</Columns>

@@ -3,11 +3,40 @@ from typing import Any, Mapping, Optional
 
 import pytest
 from sqlalchemy import insert, select
+from sqlalchemy.exc import DBAPIError, EmulatedDBAPIException
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict, should_calculate_span_cost
+from phoenix.db.insertion.helpers import (
+    OnConflict,
+    get_sqlstate,
+    insert_on_conflict,
+    should_calculate_span_cost,
+)
 from phoenix.server.types import DbSessionFactory
+
+
+class TestGetSqlstate:
+    @pytest.mark.parametrize(
+        "field,code",
+        [
+            ("sqlstate", "40P01"),
+            ("pgcode", "40P01"),
+        ],
+    )
+    def test_reads_original_driver_code_without_copied_wrapper_fields(
+        self, field: str, code: str
+    ) -> None:
+        driver_error = Exception("driver error")
+        setattr(driver_error, field, code)
+        wrapper = EmulatedDBAPIException("SQLAlchemy wrapper", driver_error)
+        assert not hasattr(wrapper, "sqlstate") and not hasattr(wrapper, "pgcode")
+        error = DBAPIError("SELECT 1", {}, wrapper)
+        assert get_sqlstate(error) == code
+
+    def test_missing_original_driver_error_has_no_recognized_code(self) -> None:
+        error = DBAPIError("SELECT 1", {}, EmulatedDBAPIException("missing driver error"))
+        assert get_sqlstate(error) is None
 
 
 class Test_insert_on_conflict:
@@ -260,6 +289,30 @@ class TestShouldCalculateSpanCost:
                 },
                 True,
                 id="model_name_with_tab",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "DECISION"}},
+                    "decision": {"model_name": "jev-1.13.0"},
+                },
+                True,
+                id="decision_span_with_decision_model_name",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": "EMBEDDING"}},
+                    "embedding": {"model_name": "text-embedding-3-small"},
+                },
+                True,
+                id="embedding_span_with_embedding_model_name",
+            ),
+            pytest.param(
+                {
+                    "openinference": {"span": {"kind": ["LLM"]}},
+                    "llm": {"model_name": "gpt-4"},
+                },
+                False,
+                id="list_span_kind",
             ),
         ],
     )

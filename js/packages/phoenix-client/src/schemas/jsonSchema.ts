@@ -28,7 +28,7 @@ export const jsonSchemaZodSchema = z.looseObject({
     z.union([
       jsonSchemaPropertiesSchema,
       z
-        .object({ anyOf: z.array(jsonSchemaPropertiesSchema) })
+        .looseObject({ anyOf: z.array(jsonSchemaPropertiesSchema) })
         .describe("A list of possible parameter names to their definitions"),
     ])
   ),

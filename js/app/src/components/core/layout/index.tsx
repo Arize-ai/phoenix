@@ -1,4 +1,6 @@
 export * from "./Divider";
+export * from "./EdgeFade";
+export { edgeFadeCSS, type EdgeFadeEdge } from "./edgeFadeCSS";
 export {
   fadedDividerTopCSS,
   fadedDividerBottomCSS,

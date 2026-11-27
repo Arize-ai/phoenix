@@ -903,7 +903,7 @@ class TestOAuth2ClientRoleMapping:
         )
 
         claims = {"email": "user@example.com", "role": "Guest"}
-        with pytest.raises(PermissionError, match="Role 'Guest' is not mapped"):
+        with pytest.raises(PermissionError, match="Role claim value is not mapped"):
             client.extract_and_map_role(claims)
 
     def test_missing_role_claim_defaults_to_viewer(self) -> None:
@@ -1030,7 +1030,9 @@ class TestOAuth2ClientRoleMapping:
 
         with pytest.raises(
             PermissionError,
-            match="Access denied: Role 'SYSTEM' is not a valid Phoenix role.*Strict mode is enabled",
+            match=(
+                "Access denied: Role claim value is not a valid Phoenix role.*Strict mode is enabled"
+            ),
         ):
             client_strict.extract_and_map_role(claims_system)
 

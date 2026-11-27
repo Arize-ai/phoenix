@@ -15,6 +15,7 @@ Follow the two-phase approach below: first analyze, then implement.
 
 - **Phoenix Docs:** https://arize.com/docs/phoenix
 - **Full integration list:** https://arize.com/docs/phoenix/integrations
+- **Migrating historical Phoenix data to Arize AX?** Follow https://arize.com/docs/ax/cookbooks/migrate/migrate-from-phoenix and its `arize-phoenix-migration` skill. This is separate from setting up Phoenix tracing for new application data.
 
 ---
 
@@ -71,6 +72,7 @@ This is the **canonical list** of supported integrations. Use these tables to ma
 | Detection signal | Integration | Doc URL |
 |---|---|---|
 | `openai` | OpenAI | https://arize.com/docs/phoenix/integrations/llm-providers/openai |
+| `anthropic` or `@anthropic-ai/sdk` with Claude Managed Agents calls (`client.beta.agents`, `client.beta.sessions`) | Claude Managed Agents | https://arize.com/docs/phoenix/integrations/platforms/claude-managed-agents/claude-managed-agents-tracing |
 | `anthropic` | Anthropic | https://arize.com/docs/phoenix/integrations/llm-providers/anthropic |
 | `google.genai` or `@google/genai` | Google Gen AI | https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai |
 | `groq` | Groq | https://arize.com/docs/phoenix/integrations/llm-providers/groq |
@@ -122,6 +124,13 @@ This is the **canonical list** of supported integrations. Use these tables to ma
 | `langchain4j` (in `pom.xml` or `build.gradle`) | LangChain4j | https://arize.com/docs/phoenix/integrations/java/langchain4j |
 | `spring-ai` (in `pom.xml` or `build.gradle`) | Spring AI | https://arize.com/docs/phoenix/integrations/java/springai |
 | `arconia` or `spring-ai` (in `pom.xml` or `build.gradle`) | Arconia for Spring AI | https://arize.com/docs/phoenix/integrations/java/arconia |
+| `com.anthropic:anthropic-java` (in `pom.xml` or `build.gradle`) with Claude Managed Agents calls (`client.beta().agents()`, `client.beta().sessions()`) | Claude Managed Agents | https://arize.com/docs/phoenix/integrations/platforms/claude-managed-agents/claude-managed-agents-tracing |
+
+### Go
+
+| Detection signal | Integration | Doc URL |
+|---|---|---|
+| `github.com/anthropics/anthropic-sdk-go` in `go.mod` with Claude Managed Agents calls (`client.Beta.Agents`, `client.Beta.Sessions`) | Claude Managed Agents | https://arize.com/docs/phoenix/integrations/platforms/claude-managed-agents/claude-managed-agents-tracing |
 
 ### Platforms
 
@@ -129,6 +138,7 @@ These are UI-based platforms, not code libraries. They cannot be auto-detected f
 
 | Platform | Doc URL |
 |---|---|
+| Claude Managed Agents | https://arize.com/docs/phoenix/integrations/platforms/claude-managed-agents |
 | Dify | https://arize.com/docs/phoenix/integrations/platforms/dify |
 | Flowise | https://arize.com/docs/phoenix/integrations/platforms/flowise |
 | LangFlow | https://arize.com/docs/phoenix/integrations/platforms/langflow |

@@ -7,6 +7,7 @@ from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttribu
 from sqlalchemy import Insert
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import KeyedColumnElement
 from typing_extensions import TypeAlias, assert_never
@@ -14,6 +15,7 @@ from typing_extensions import TypeAlias, assert_never
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, truncate_name
 from phoenix.db.models import Base
+from phoenix.server.cost_tracking.helpers import get_model_name
 from phoenix.trace.attributes import get_attribute_value
 
 
@@ -29,6 +31,19 @@ DataManipulation: TypeAlias = Callable[[AsyncSession], Awaitable[Optional[DataMa
 class OnConflict(Enum):
     DO_NOTHING = auto()
     DO_UPDATE = auto()
+
+
+def get_sqlstate(error: DBAPIError) -> Optional[str]:
+    """Read a driver's SQLSTATE without parsing its error message."""
+    try:
+        driver_error = error.driver_exception
+    except ValueError:
+        # SQLAlchemy's emulated errors can be constructed without a driver error.
+        return None
+    for name in ("sqlstate", "pgcode"):
+        if isinstance(code := getattr(driver_error, name, None), str):
+            return code
+    return None
 
 
 def insert_on_conflict(
@@ -101,14 +116,25 @@ def as_kv(obj: models.Base) -> Iterator[tuple[str, Any]]:
         yield k, v
 
 
+_COST_SPAN_KINDS = frozenset(
+    (
+        OpenInferenceSpanKindValues.LLM.value,
+        OpenInferenceSpanKindValues.DECISION.value,
+        OpenInferenceSpanKindValues.EMBEDDING.value,
+    )
+)
+
+
 def should_calculate_span_cost(
     attributes: Optional[Mapping[str, Any]],
 ) -> bool:
-    return bool(
-        (span_kind := get_attribute_value(attributes, SpanAttributes.OPENINFERENCE_SPAN_KIND))
-        and isinstance(span_kind, str)
-        and span_kind == OpenInferenceSpanKindValues.LLM.value
-        and (llm_name := get_attribute_value(attributes, SpanAttributes.LLM_MODEL_NAME))
-        and isinstance(llm_name, str)
-        and llm_name.strip()
+    """
+    Whether the span is an LLM, DECISION or EMBEDDING span with a model name to price it by.
+    The name is read by `get_model_name`, as in the cost lookup.
+    """
+    span_kind = get_attribute_value(attributes, SpanAttributes.OPENINFERENCE_SPAN_KIND)
+    return (
+        isinstance(span_kind, str)
+        and span_kind in _COST_SPAN_KINDS
+        and bool(get_model_name(attributes))
     )

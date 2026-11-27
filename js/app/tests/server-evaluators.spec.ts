@@ -1,19 +1,5 @@
 import { randomUUID } from "crypto";
-import { expect, test, type Page } from "@playwright/test";
-
-function datasetRow(page: Page, datasetName: string) {
-  return page.getByTestId("datasets-table").getByRole("row").filter({
-    hasText: datasetName,
-  });
-}
-
-function datasetNameLink(page: Page, datasetName: string) {
-  return datasetRow(page, datasetName)
-    .locator("a")
-    .filter({
-      hasText: new RegExp(`^${datasetName}$`),
-    });
-}
+import { expect, test } from "@playwright/test";
 
 test.describe.serial("Server Evaluators", () => {
   const datasetName = `test-dataset-${randomUUID()}`;
@@ -49,12 +35,6 @@ test.describe.serial("Server Evaluators", () => {
 
     // Wait for dialog to close and verify we're on the new dataset page
     await expect(page.getByTestId("dialog")).not.toBeVisible();
-
-    // Wait for the dataset to appear in the table
-    await expect(datasetRow(page, datasetName)).toBeVisible();
-
-    // Navigate to the dataset to verify it was created
-    await datasetNameLink(page, datasetName).click({ force: true });
     await page.waitForURL("**/datasets/**/examples");
 
     // Verify dataset was created

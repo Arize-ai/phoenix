@@ -17,7 +17,7 @@ import contextlib
 from typing import AsyncIterator
 from unittest import mock
 
-import httpx
+import httpx2
 import pytest
 from asgi_lifespan import LifespanManager
 from pydantic import SecretStr
@@ -56,8 +56,8 @@ async def test_oauth2_register_consults_rate_limiter(
     db: DbSessionFactory,
 ) -> None:
     async with _auth_app(db) as app:
-        async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app=app, root_path=root_path),
+        async with httpx2.AsyncClient(
+            transport=httpx2.ASGITransport(app=app, root_path=root_path),
             base_url="http://test",
         ) as client:
             with mock.patch.object(

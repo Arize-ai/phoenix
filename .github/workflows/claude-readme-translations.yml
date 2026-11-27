@@ -25,6 +25,8 @@ concurrency:
 
 jobs:
   sync:
+    outputs:
+      pr: ${{ steps.publish.outputs.pr }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
@@ -32,6 +34,11 @@ jobs:
       # passed to the action below, and publishing is done by a later step with
       # a PAT.
       contents: read
+      # id-token: write lets the action exchange the GitHub OIDC token for a
+      # Claude API token (workload identity federation). It is job-wide, so
+      # every step can request OIDC tokens; passing github_token to the action
+      # is what stops it from minting a write-scoped Claude App token.
+      id-token: write
 
     steps:
       - name: Checkout repository
@@ -85,7 +92,10 @@ jobs:
         env:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          anthropic_federation_rule_id: fdrl_01FaSPpJwwwTkYQNr3nndkCN
+          anthropic_organization_id: 8a57e064-47c7-4a95-ac37-2283e8cf46d5
+          anthropic_service_account_id: svac_01Hn6a4CZgGZyobSwenfUf5b
+          anthropic_workspace_id: wrkspc_019uQCzw86YfY8Li79ZLtsom
           # Read-only workflow token: Claude never writes to GitHub here.
           github_token: ${{ github.token }}
           show_full_output: 'true'
@@ -126,6 +136,7 @@ jobs:
           claude_args: '--allowedTools Read,Write,Edit,Glob,Grep,Agent,"Bash(git diff:*)","Bash(git log:*)","Bash(git show:*)","Bash(git status:*)","Bash(python3 scripts/check_readme_translations.py:*)","Bash(ls:*)","Bash(wc:*)"'
 
       - name: Commit and open pull request
+        id: publish
         if: steps.diff.outputs.changed == 'true' && steps.claude.outcome == 'success'
         env:
           # Separate publishing token; the claude-code-action app token has
@@ -169,3 +180,24 @@ jobs:
           fi
           # Auto-merge once a reviewer approves and checks pass.
           gh pr merge "$BRANCH" --auto --squash || echo "::warning::Could not enable auto-merge on $BRANCH"
+          echo "pr=$BRANCH" >> "$GITHUB_OUTPUT"
+
+  approve:
+    needs: sync
+    if: needs.sync.outputs.pr != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout trusted approval action
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Approve pull request
+        uses: ./.github/actions/approve-automation-pr
+        with:
+          pr: ${{ needs.sync.outputs.pr }}
+          token: ${{ secrets.AUTOMATION_APPROVER_TOKEN }}

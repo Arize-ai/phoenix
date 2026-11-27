@@ -27,11 +27,10 @@ const searchButtonCSS = css`
   font-size: inherit;
 
   .keyboard-token {
-    // Match the trailing counter geometry (Navbar's .counter) so the ⌘K
-    // hint right-aligns with the numeric counts on sibling nav items: same
-    // trailing margin and same horizontal padding.
+    // Navbar's .counter trailing margin. The quiet token's own 1px border and
+    // inline padding already match Counter's, so the ⌘K hint right-aligns
+    // with the numeric counts on sibling nav items.
     margin-inline-end: var(--global-dimension-size-100);
-    padding-inline: var(--global-dimension-size-50);
   }
 `;
 

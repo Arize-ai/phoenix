@@ -13,7 +13,7 @@ version is the other input, and it is part of the cache file's name.
 
 The rewriter's functions are private to pytest and are looked up when called, not when this
 module is imported, so ``--doctest-modules`` can import it safely and a pytest release that
-moves one of them fails only the tox step that runs it, which tox ignores.
+moves one of them fails only the CI step that runs it, which CI ignores.
 
 Usage: ``python _warm_rewrite_cache.py <rootdir> <tests dir> [pytest args...]``
 The process count comes from ``WARM_REWRITE_CACHE_JOBS`` or the CPU count.

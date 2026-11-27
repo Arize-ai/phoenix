@@ -1,10 +1,4 @@
-import type { ColumnDef } from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
@@ -13,6 +7,8 @@ import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 
 import type { PromptVersionTagsConfigCard_data$key } from "./__generated__/PromptVersionTagsConfigCard_data.graphql";
 import { DeletePromptVersionTagButton } from "./DeletePromptVersionTagButton";
@@ -22,7 +18,6 @@ export function PromptVersionTagsConfigCard({
 }: {
   prompt: PromptVersionTagsConfigCard_data$key;
 }) {
-  "use no memo";
   const data = useFragment(
     graphql`
       fragment PromptVersionTagsConfigCard_data on Prompt {
@@ -37,6 +32,16 @@ export function PromptVersionTagsConfigCard({
     `,
     prompt
   );
+
+  const tableData = useMemo(() => {
+    return data.versionTags.map((tag) => ({
+      id: tag.id,
+      name: tag.name,
+      description: tag.description,
+      promptId: data.id,
+      promptVersionId: tag.promptVersionId,
+    }));
+  }, [data]);
 
   const columns = useMemo(
     (): ColumnDef<(typeof tableData)[number]>[] => [
@@ -90,22 +95,10 @@ export function PromptVersionTagsConfigCard({
     []
   );
 
-  const tableData = useMemo(() => {
-    return data.versionTags.map((tag) => ({
-      id: tag.id,
-      name: tag.name,
-      description: tag.description,
-      promptId: data.id,
-      promptVersionId: tag.promptVersionId,
-    }));
-  }, [data]);
-
-  // eslint-disable-next-line react/incompatible-library
-  const table = useReactTable<(typeof tableData)[number]>({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data: tableData,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
   });
 
   const rows = table.getRowModel().rows;

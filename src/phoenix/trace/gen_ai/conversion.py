@@ -54,6 +54,15 @@ _GEN_AI_REQUEST_STREAM = "gen_ai.request.stream"
 """Attribute: whether the GenAI request was made in streaming mode. Added in
 semconv v1.41; not yet exposed in opentelemetry-semantic-conventions."""
 
+_GEN_AI_USAGE_REASONING_OUTPUT_TOKENS = "gen_ai.usage.reasoning.output_tokens"
+"""Attribute: output tokens used for reasoning, included in output_tokens. Added in
+semconv v1.41; exposed in opentelemetry-semantic-conventions only from 0.63b0."""
+
+_GEN_AI_USAGE_CACHE_WRITE_INPUT_TOKENS = "gen_ai.usage.cache_write.input_tokens"
+"""Attribute: input tokens written to a provider-managed cache. The GenAI semconv
+renamed ``gen_ai.usage.cache_creation.input_tokens`` to this (semantic-conventions-genai
+#440); opentelemetry-util-genai emits it from 1.2b0. Not in any semconv release yet."""
+
 
 def get_openinference_attributes(
     attributes: Optional[Mapping[str, AttributeValue]],
@@ -132,7 +141,11 @@ def get_openinference_usage_attributes(
     input_tokens = _coerce_int(attributes.get(gen_ai.GEN_AI_USAGE_INPUT_TOKENS))
     output_tokens = _coerce_int(attributes.get(gen_ai.GEN_AI_USAGE_OUTPUT_TOKENS))
     cache_read = _coerce_int(attributes.get(gen_ai.GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS))
-    cache_write = _coerce_int(attributes.get(gen_ai.GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS))
+    cache_write = _coerce_int(attributes.get(_GEN_AI_USAGE_CACHE_WRITE_INPUT_TOKENS))
+    if cache_write is None:
+        # Producers on older semconv versions still emit the pre-rename key.
+        cache_write = _coerce_int(attributes.get(gen_ai.GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS))
+    reasoning = _coerce_int(attributes.get(_GEN_AI_USAGE_REASONING_OUTPUT_TOKENS))
 
     if input_tokens is not None:
         oi_attributes[SpanAttributes.LLM_TOKEN_COUNT_PROMPT] = input_tokens
@@ -144,6 +157,8 @@ def get_openinference_usage_attributes(
         oi_attributes[SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ] = cache_read
     if cache_write is not None:
         oi_attributes[SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE] = cache_write
+    if reasoning is not None:
+        oi_attributes[SpanAttributes.LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING] = reasoning
 
     return oi_attributes
 
@@ -177,9 +192,7 @@ def get_openinference_message_attributes(
         next_input_index += count
 
     next_output_index = 0
-    for out_msg in _validate_root_list(
-        attributes.get(gen_ai.GEN_AI_OUTPUT_MESSAGES), OutputMessages
-    ):
+    for out_msg in _validate_output_messages(attributes.get(gen_ai.GEN_AI_OUTPUT_MESSAGES)):
         msg_flat, count = _flatten_message(
             out_msg, SpanAttributes.LLM_OUTPUT_MESSAGES, next_output_index
         )
@@ -624,6 +637,31 @@ def _validate_root_list(
         return []
     try:
         return model_cls.model_validate_json(value).root
+    except ValidationError:
+        return []
+
+
+def _validate_output_messages(value: Any) -> list[OutputMessage]:
+    """Output-message list that tolerates a missing per-message ``finish_reason``.
+
+    The pinned semconv models require ``finish_reason`` on each output message, but
+    newer semconv versions deprecate it in favor of ``gen_ai.response.finish_reasons``
+    and producers such as the Anthropic SDK omit it. Without this the whole list
+    fails validation and silently drops. A missing value is filled with ``""``,
+    which ``_flatten_message`` already skips."""
+    if not isinstance(value, (str, bytes, bytearray)):
+        return []
+    try:
+        items = json.loads(value)
+    except (TypeError, ValueError):
+        return []
+    if not isinstance(items, list):
+        return []
+    for item in items:
+        if isinstance(item, dict) and "finish_reason" not in item:
+            item["finish_reason"] = ""
+    try:
+        return OutputMessages.model_validate(items).root
     except ValidationError:
         return []
 

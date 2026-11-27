@@ -1,16 +1,16 @@
-"""Pins the grammar documented in `internal_docs/specs/span-filter-dsl.md`.
+"""Pins the accepted and rejected span filter grammar.
 
 These are not behavioral tests -- `test_filter.py` covers behavior. They exist so
-the spec cannot drift from the code silently. Filter conditions are becoming
+the grammar cannot drift silently. Filter conditions are becoming
 persisted data, which makes the accepted grammar a compatibility surface: every
 stored row is an expression a future parser has to keep accepting with unchanged
 meaning.
 
 A failure here means one of two things, and the difference matters:
 
-- **Something was added.** Additions are backward compatible. Update the spec.
+- **Something was added.** Additions are backward compatible. Update this corpus.
 - **Something was restricted.** Previously-valid stored conditions will stop
-  parsing. Before persistence ships, that is a deliberate tightening the spec
+  parsing. Before persistence ships, that is a deliberate tightening this corpus
   must record; after, it is forbidden outright -- there is no grammar version
   to bump, by policy -- and the only sanctioned path is the compatibility
   policy's defined-divergence clause, for shapes already enumerated as
@@ -26,7 +26,7 @@ import pytest
 
 from phoenix.trace.dsl.filter import SpanFilter, root_span_scope
 
-# Every form the spec documents as accepted.
+# Every form the grammar accepts.
 ACCEPTED = [
     # expression forms
     "latency_ms > 100",
@@ -45,9 +45,6 @@ ACCEPTED = [
     "status_code == 'OK'",
     "status_message == 'x'",
     "latency_ms > 1",
-    "cumulative_llm_token_count_prompt > 1",
-    "cumulative_llm_token_count_completion > 1",
-    "cumulative_llm_token_count_total > 1",
     "start_time > '2024-01-01T00:00:00Z'",
     "end_time > '2024-01-01T00:00:00Z'",
     "llm.token_count.prompt > 1",
@@ -56,9 +53,6 @@ ACCEPTED = [
     # backward-compatibility aliases: removing any of these breaks stored rows
     "context.span_id == 'x'",
     "context.trace_id == 'x'",
-    "cumulative_token_count.prompt > 1",
-    "cumulative_token_count.completion > 1",
-    "cumulative_token_count.total > 1",
     # attribute access, all equivalent spellings
     "llm.model_name == 'gpt-4'",
     "attributes['llm']['model_name'] == 'gpt-4'",
@@ -144,7 +138,7 @@ ACCEPTED = [
     "annotations['q'].score > 0.5 and any(d.cost > 1 for d in cost_details)",
 ]
 
-# Every form the spec documents as rejected, with the reason it documents.
+# Every form the grammar rejects, with the reason it gives.
 REJECTED = [
     ("cost_details > 1", "can only be iterated"),
     ("any(d.nope > 1 for d in cost_details)", "invalid field `d.nope`"),
@@ -399,14 +393,56 @@ def test_field_vocabulary_is_exhaustive() -> None:
     It binds `attributes` and `events` because the compiled expression needs
     them, so reading the documented field list out of it would wrongly suggest
     `events` is a queryable column. A bare `events` is an attribute path like
-    any other unknown identifier.
+    any other unknown identifier, as are `cumulative_*` names.
     """
     import ast as _ast
 
-    from phoenix.trace.dsl.filter import _FilterTranslator
+    from phoenix.trace.dsl.filter import Projector, _FilterTranslator
 
     rendered = _ast.unparse(_FilterTranslator().visit(_ast.parse("events == 'x'", mode="eval")))
     assert "attributes[['events']]" in rendered
+
+    for cumulative_expr, expected_path in (
+        ("cumulative_error_count == 'x'", "attributes[['cumulative_error_count']]"),
+        (
+            "cumulative_llm_token_count_prompt == 'x'",
+            "attributes[['cumulative_llm_token_count_prompt']]",
+        ),
+        (
+            "cumulative_llm_token_count_completion == 'x'",
+            "attributes[['cumulative_llm_token_count_completion']]",
+        ),
+        (
+            "cumulative_llm_token_count_total == 'x'",
+            "attributes[['cumulative_llm_token_count_total']]",
+        ),
+        (
+            "cumulative_token_count.prompt == 'x'",
+            "attributes[['cumulative_token_count', 'prompt']]",
+        ),
+        (
+            "cumulative_token_count.completion == 'x'",
+            "attributes[['cumulative_token_count', 'completion']]",
+        ),
+        (
+            "cumulative_token_count.total == 'x'",
+            "attributes[['cumulative_token_count', 'total']]",
+        ),
+    ):
+        SpanFilter(cumulative_expr)
+        rendered_filter = _ast.unparse(
+            _FilterTranslator().visit(_ast.parse(cumulative_expr, mode="eval"))
+        )
+        assert expected_path in rendered_filter
+
+    assert (
+        _ast.unparse(Projector("cumulative_llm_token_count_total").translated)
+        == "attributes[['cumulative_llm_token_count_total']]"
+    )
+    assert (
+        _ast.unparse(Projector("cumulative_token_count.total").translated)
+        == "attributes[['cumulative_token_count', 'total']]"
+    )
 
 
 @pytest.mark.parametrize("condition,message", REJECTED)

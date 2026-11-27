@@ -104,6 +104,13 @@ describe("envFile", () => {
           PHOENIX_PROJECT: "proj",
         },
       ],
+      // Old Mac line endings are handled
+      [
+        "PHOENIX_API_KEY=abc\rPHOENIX_PROJECT=proj\r",
+        { PHOENIX_API_KEY: "abc", PHOENIX_PROJECT: "proj" },
+      ],
+      // A leading byte order mark is stripped
+      ["\uFEFFPHOENIX_API_KEY=abc", { PHOENIX_API_KEY: "abc" }],
       // Empty values are ignored
       ["PHOENIX_API_KEY=", {}],
       ["PHOENIX_API_KEY=''", {}],

@@ -183,6 +183,22 @@ describe("getExperimentEvaluators", () => {
       expect(mockFromPhoenixEvaluator).not.toHaveBeenCalled();
       expect(result).toEqual([evaluator1, evaluator2]);
     });
+
+    it.each(["LLM", "CODE", "HUMAN", "DECISION", "AGENT"] as const)(
+      "should accept %s annotator kind",
+      (kind) => {
+        const evaluator: Evaluator = {
+          name: `${kind.toLowerCase()}-evaluator`,
+          kind,
+          evaluate: vi.fn(),
+        };
+
+        const result = getExperimentEvaluators([evaluator]);
+
+        expect(mockFromPhoenixEvaluator).not.toHaveBeenCalled();
+        expect(result).toEqual([evaluator]);
+      }
+    );
   });
 
   describe("Mixed evaluator types", () => {
@@ -305,6 +321,18 @@ describe("getExperimentEvaluators", () => {
 
       expect(() => getExperimentEvaluators([invalidEvaluator3])).toThrow(
         `Unsupported evaluator: ${JSON.stringify(invalidEvaluator3)}`
+      );
+    });
+
+    it("should throw an error for an unrecognized evaluator kind", () => {
+      const invalidKindEvaluator = {
+        name: "test",
+        kind: "UNKNOWN",
+        evaluate: vi.fn(),
+      };
+
+      expect(() => getExperimentEvaluators([invalidKindEvaluator])).toThrow(
+        `Unsupported evaluator: ${JSON.stringify(invalidKindEvaluator)}`
       );
     });
 

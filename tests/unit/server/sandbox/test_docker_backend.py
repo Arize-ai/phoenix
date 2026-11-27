@@ -4,7 +4,7 @@ import base64
 import json
 from typing import Any
 
-import httpx
+import httpx2
 import pytest
 from pydantic import SecretStr
 
@@ -38,7 +38,7 @@ class _FakeDockerSandboxes:
         listed: list[dict[str, Any]] | None = None,
         exec_response: dict[str, Any] | None = None,
     ) -> None:
-        self.requests: list[httpx.Request] = []
+        self.requests: list[httpx2.Request] = []
         self.listed = listed or []
         self.exec_response = exec_response or {"exitCode": 0, "stdout": _b64("hello\n")}
 
@@ -51,20 +51,20 @@ class _FakeDockerSandboxes:
         )
         return json.loads(request.content)
 
-    def handler(self, request: httpx.Request) -> httpx.Response:
+    def handler(self, request: httpx2.Request) -> httpx2.Response:
         self.requests.append(request)
         path = request.url.path
         if request.url.host == "hub.docker.com":
             if path.endswith("/ListPolicies"):
-                return httpx.Response(200, json={"policies": []})
+                return httpx2.Response(200, json={"policies": []})
             if path.endswith("/CreatePolicy"):
-                return httpx.Response(200, json={"policy": {"id": "pol-deny"}})
-            return httpx.Response(200, json={"access_token": _ACCESS_TOKEN})
+                return httpx2.Response(200, json={"policy": {"id": "pol-deny"}})
+            return httpx2.Response(200, json={"access_token": _ACCESS_TOKEN})
         if request.url.host.endswith(".sandboxes.example"):
             if path == "/api/v1/files/content":
-                return httpx.Response(200, json={"info": {}})
+                return httpx2.Response(200, json={"info": {}})
             if path == "/api/v1/processes/exec":
-                return httpx.Response(200, json=self.exec_response)
+                return httpx2.Response(200, json=self.exec_response)
         routes = {
             ("GET", "/sandboxes/v1/sandboxes"): (200, {"sandboxes": self.listed}),
             ("POST", "/sandboxes/v1/sandboxes"): (202, _resource("sb-new", "creating")),
@@ -80,7 +80,7 @@ class _FakeDockerSandboxes:
             ("DELETE", "/sandboxes/v1/sandboxes/sb-new"): (204, None),
         }
         status, body = routes.get((request.method, path), (404, {"code": "notFound"}))
-        return httpx.Response(status, json=body) if body is not None else httpx.Response(status)
+        return httpx2.Response(status, json=body) if body is not None else httpx2.Response(status)
 
 
 def _backend(fake: _FakeDockerSandboxes, **kwargs: Any) -> DockerSandboxBackend:
@@ -88,7 +88,7 @@ def _backend(fake: _FakeDockerSandboxes, **kwargs: Any) -> DockerSandboxBackend:
         docker_id=SecretStr("docker-user"),
         pat=SecretStr("dckr_pat_secret"),
         language="PYTHON",
-        transport=httpx.MockTransport(fake.handler),
+        transport=httpx2.MockTransport(fake.handler),
         **kwargs,
     )
 

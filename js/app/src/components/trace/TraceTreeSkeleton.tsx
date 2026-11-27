@@ -17,14 +17,14 @@ import {
   SpanTreeEdgeConnector,
 } from "./TraceTreeEdges";
 import {
-  headingLineCSS,
+  COMPACT_BREAKPOINT,
+  LINE_GAP,
   nestingLevelStyle,
   spanControlsCSS,
-  spanNodeContentCSS,
-  spanNodeIconCSS,
   spanNodeWrapCSS,
   spanTimingCSS,
   traceTreeListCSS,
+  TREE_ICON_Z_INDEX,
 } from "./traceTreeStyles";
 
 const NestingLevelContext = createContext(0);
@@ -38,8 +38,44 @@ const containerCSS = css`
   container-type: inline-size;
 `;
 
-const listOverflowCSS = css`
+const skeletonListCSS = css`
   overflow: hidden;
+  --trace-tree-line-color: var(--global-skeleton-line-color);
+`;
+
+/**
+ * Where a row's icon, name and metrics will be, as one block that spans the
+ * title line and, when metrics are shown, the footer beneath it.
+ */
+const spanLabelSkeletonCSS = css`
+  flex: 1 1 0%;
+  min-width: 0;
+  /* Above the elbow that ends at the block's left edge */
+  position: relative;
+  z-index: ${TREE_ICON_Z_INDEX};
+  .skeleton {
+    max-width: 100%;
+    height: var(--trace-tree-heading-height);
+  }
+  &[data-show-metrics="true"] .skeleton {
+    height: calc(
+      var(--trace-tree-heading-height) + var(--global-dimension-size-25) +
+        var(--global-line-height-xs)
+    );
+  }
+  @container (width < ${COMPACT_BREAKPOINT}) {
+    &[data-show-metrics="true"] .skeleton {
+      height: var(--trace-tree-heading-height);
+    }
+  }
+`;
+
+const skeletonRowCSS = css`
+  /* The block runs below the title line, so the drop to the first child
+     starts under the block instead of under an icon */
+  & > .span-tree-drop {
+    top: calc(100% - var(--trace-tree-row-padding-y) + ${LINE_GAP}px);
+  }
 `;
 
 export interface TraceTreeSkeletonProps {
@@ -57,7 +93,7 @@ export function TraceTreeSkeleton({ children }: TraceTreeSkeletonProps) {
   return (
     <div css={containerCSS}>
       <ul
-        css={[traceTreeListCSS, listOverflowCSS]}
+        css={[traceTreeListCSS, skeletonListCSS]}
         data-testid="trace-tree-skeleton"
         aria-busy="true"
       >
@@ -69,10 +105,11 @@ export function TraceTreeSkeleton({ children }: TraceTreeSkeletonProps) {
 
 export interface TraceTreeNodeSkeletonProps {
   /**
-   * Width of the span-name placeholder. Pass a number (px) or CSS length.
-   * @default 180
+   * Width of the block that stands in for the span's icon, name and metrics.
+   * Pass a number (px) or CSS length.
+   * @default 210
    */
-  nameWidth?: number | string;
+  width?: number | string;
   /**
    * Nested `TraceTreeNodeSkeleton` children. Nesting level is threaded via
    * context so callers don't need to pass it explicitly.
@@ -81,7 +118,7 @@ export interface TraceTreeNodeSkeletonProps {
 }
 
 export function TraceTreeNodeSkeleton({
-  nameWidth = 180,
+  width = 210,
   children,
 }: TraceTreeNodeSkeletonProps) {
   const nestingLevel = useContext(NestingLevelContext);
@@ -92,7 +129,7 @@ export function TraceTreeNodeSkeleton({
     <Fragment>
       <SpanNodeRowSkeleton
         nestingLevel={nestingLevel}
-        nameWidth={nameWidth}
+        width={width}
         hasChildren={hasChildren}
       />
       {hasChildren ? (
@@ -127,11 +164,11 @@ export function TraceTreeNodeSkeleton({
 
 function SpanNodeRowSkeleton({
   nestingLevel,
-  nameWidth,
+  width,
   hasChildren,
 }: {
   nestingLevel: number;
-  nameWidth: number | string;
+  width: number | string;
   hasChildren: boolean;
 }) {
   const showMetricsInTraceTree = usePreferencesContext(
@@ -140,42 +177,24 @@ function SpanNodeRowSkeleton({
   return (
     <div
       className="span-node-wrap"
-      css={spanNodeWrapCSS}
+      css={[spanNodeWrapCSS, skeletonRowCSS]}
       style={nestingLevelStyle(nestingLevel)}
     >
       {nestingLevel > 0 ? <SpanTreeEdge /> : null}
       {hasChildren ? <SpanTreeDrop /> : null}
-      <div css={spanNodeIconCSS}>
-        <Skeleton width={20} height={20} borderRadius="S" animation="wave" />
-      </div>
-      <div css={spanNodeContentCSS}>
-        <div css={headingLineCSS}>
-          <Skeleton
-            width={nameWidth}
-            height={14}
-            borderRadius="S"
-            animation="wave"
-          />
-        </div>
-        {showMetricsInTraceTree ? (
-          <Skeleton
-            width={72}
-            height={10}
-            borderRadius="S"
-            animation="wave"
-            className="span-metrics"
-          />
-        ) : null}
+      <div
+        css={spanLabelSkeletonCSS}
+        data-show-metrics={showMetricsInTraceTree}
+      >
+        <Skeleton width={width} />
       </div>
       {showMetricsInTraceTree ? (
         <div css={spanTimingCSS} className="span-tree-timing">
-          <Skeleton width="100%" height={6} borderRadius={3} animation="wave" />
+          <Skeleton width="100%" height={6} />
         </div>
       ) : null}
       <div css={spanControlsCSS} className="span-controls">
-        {hasChildren ? (
-          <Skeleton width={20} height={20} borderRadius="S" animation="wave" />
-        ) : null}
+        {hasChildren ? <Skeleton width={20} height={20} /> : null}
       </div>
     </div>
   );
@@ -183,18 +202,18 @@ function SpanNodeRowSkeleton({
 
 function DefaultTraceTreeSkeletonBody() {
   return (
-    <TraceTreeNodeSkeleton nameWidth={200}>
-      <TraceTreeNodeSkeleton nameWidth={180}>
-        <TraceTreeNodeSkeleton nameWidth={160}>
-          <TraceTreeNodeSkeleton nameWidth={220} />
-          <TraceTreeNodeSkeleton nameWidth={200}>
-            <TraceTreeNodeSkeleton nameWidth={170} />
+    <TraceTreeNodeSkeleton width={230}>
+      <TraceTreeNodeSkeleton width={150}>
+        <TraceTreeNodeSkeleton width={240}>
+          <TraceTreeNodeSkeleton width={170} />
+          <TraceTreeNodeSkeleton width={260}>
+            <TraceTreeNodeSkeleton width={150} />
           </TraceTreeNodeSkeleton>
         </TraceTreeNodeSkeleton>
-        <TraceTreeNodeSkeleton nameWidth={140} />
+        <TraceTreeNodeSkeleton width={120} />
       </TraceTreeNodeSkeleton>
-      <TraceTreeNodeSkeleton nameWidth={180}>
-        <TraceTreeNodeSkeleton nameWidth={160} />
+      <TraceTreeNodeSkeleton width={230}>
+        <TraceTreeNodeSkeleton width={140} />
       </TraceTreeNodeSkeleton>
     </TraceTreeNodeSkeleton>
   );

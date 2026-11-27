@@ -19,7 +19,7 @@ Utility, testing, data-generation, and CI scripts that support Phoenix developme
 GitHub + PyPI usage analytics. See `analytics/README.md`. Requires `GITHUB_TOKEN`.
 
 ### `benchmarks/`
-- `hallucination_eval_benchmark.ipynb` — notebook benchmarking the hallucination evaluator.
+- `js/benchmarks/evals-benchmarks/` — TypeScript harness benchmarking the built-in evaluators against labeled cases.
 
 ### `ci/`
 Scripts run from CI workflows.
@@ -29,11 +29,10 @@ Scripts run from CI workflows.
 - `json-canonicalization-schema/` — fixtures/schema for canonicalization tests.
 
 ### `data/`
-Data wrangling and corpus building (LangChain / LlamaIndex / HaluEval / MS MARCO / WikiQA / Wiki Toxic).
+Data wrangling and corpus building (LangChain / LlamaIndex).
 - `build_langchain_vector_store.py`, `build_llama_index_*.py` — build vector stores over the Arize docs.
 - `convert_arize_docs_query_csv_to_jsonl.py`, `fetch_arize_documentation.py` — corpus prep.
 - `generate_traces.py` — emit synthetic LLM traces.
-- `wrangle_*.ipynb` — dataset preparation notebooks.
 
 ### `ddl/`
 - `generate_ddl_postgresql.py` — extract DDL from a PostgreSQL Phoenix DB into `src/phoenix/db/ddl/postgresql_schema.sql`, validated with `pglast`. PEP 723 script.

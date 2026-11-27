@@ -15,6 +15,7 @@ from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from tests.integration._mock_ldap_server import _LDAPServer
 
 from .._helpers import (
+    _admin_auth,
     _AppInfo,
     _delete_users,
     _httpx_client,
@@ -91,7 +92,7 @@ def _create_test_user(
 
 def _get_user_by_email(app: _AppInfo, email: str) -> Optional[_User]:
     """Get user by email from the user list."""
-    users = {u.profile.email: u for u in _list_users(app, app.admin_secret)}
+    users = {u.profile.email: u for u in _list_users(app, _admin_auth(app))}
     return users.get(email)
 
 
@@ -191,7 +192,7 @@ class TestLDAPAuthentication:
         viewer_user = _verify_user_created(_app, viewer)
 
         _delete_users(
-            _app, _app.admin_secret, users=[admin_user.gid, member_user.gid, viewer_user.gid]
+            _app, _admin_auth(_app), users=[admin_user.gid, member_user.gid, viewer_user.gid]
         )
 
     async def test_invalid_credentials_rejected(
@@ -245,7 +246,7 @@ class TestLDAPAuthentication:
         assert updated.role == UserRoleInput.ADMIN  # Role synced
         assert updated.profile.username == "Original Name"  # Username stable
 
-        _delete_users(_app, _app.admin_secret, users=[user.gid])
+        _delete_users(_app, _admin_auth(_app), users=[user.gid])
 
     async def test_injection_prevention(self, _app: _AppInfo, _ldap_server: _LDAPServer) -> None:
         """Test LDAP injection attempts are rejected."""
@@ -277,7 +278,7 @@ class TestLDAPAuthentication:
         _verify_ldap_login_success(status, access_token, refresh_token)
         user = _get_user_by_email(_app, email)
         assert user is not None
-        _delete_users(_app, _app.admin_secret, users=[user.gid])
+        _delete_users(_app, _admin_auth(_app), users=[user.gid])
 
     async def test_special_characters_in_password(
         self, _app: _AppInfo, _ldap_server: _LDAPServer
@@ -299,7 +300,7 @@ class TestLDAPAuthentication:
         _verify_ldap_login_success(status, access_token, refresh_token)
         user = _get_user_by_email(_app, email)
         assert user is not None
-        _delete_users(_app, _app.admin_secret, users=[user.gid])
+        _delete_users(_app, _admin_auth(_app), users=[user.gid])
 
     async def test_missing_email_rejected(self, _app: _AppInfo, _ldap_server: _LDAPServer) -> None:
         """Test login fails when LDAP user has no email."""
@@ -331,7 +332,7 @@ class TestLDAPAuthentication:
         user = _get_user_by_email(_app, email)
         assert user is not None
         assert user.profile.username == f"noname_{suffix}"  # Fallback to email prefix
-        _delete_users(_app, _app.admin_secret, users=[user.gid])
+        _delete_users(_app, _admin_auth(_app), users=[user.gid])
 
     async def test_multiple_groups_uses_first_match(
         self, _app: _AppInfo, _ldap_server: _LDAPServer
@@ -355,7 +356,7 @@ class TestLDAPAuthentication:
         user = _get_user_by_email(_app, email)
         assert user is not None
         assert user.role == UserRoleInput.ADMIN  # ADMIN mapping evaluated before MEMBER
-        _delete_users(_app, _app.admin_secret, users=[user.gid])
+        _delete_users(_app, _admin_auth(_app), users=[user.gid])
 
 
 class TestLDAPUserIdentificationStrategies:
@@ -407,7 +408,7 @@ class TestLDAPUserIdentificationStrategies:
         assert user_v2.gid != user_v1.gid, "Different user when email changes"
 
         # Cleanup both users
-        _delete_users(_app, _app.admin_secret, users=[user_v1.gid, user_v2.gid])
+        _delete_users(_app, _admin_auth(_app), users=[user_v1.gid, user_v2.gid])
 
     def test_email_change_preserves_identity_with_unique_id(
         self, _app_ldap_unique_id: _AppInfo, _ldap_server: _LDAPServer
@@ -424,7 +425,7 @@ class TestLDAPUserIdentificationStrategies:
         email_v2 = f"enterprise_v2_{suffix}@example.com"
 
         # Admin pre-provisions user (no unique_id in DB yet)
-        graphql_client = _httpx_client(app, app.admin_secret)
+        graphql_client = _httpx_client(app, _admin_auth(app))
 
         username = f"Pre-Provisioned {suffix}"
         response = graphql_client.post(
@@ -482,7 +483,7 @@ class TestLDAPUserIdentificationStrategies:
         assert _get_user_by_email(app, email_v1) is None
 
         # Cleanup
-        _delete_users(app, app.admin_secret, users=[user_v2.gid])
+        _delete_users(app, _admin_auth(app), users=[user_v2.gid])
 
 
 class TestLDAPGraphQLIntegration:
@@ -520,7 +521,7 @@ class TestLDAPGraphQLIntegration:
         }
         """
 
-        graphql_client = _httpx_client(_app, _app.admin_secret)
+        graphql_client = _httpx_client(_app, _admin_auth(_app))
         graphql_response = graphql_client.post(
             "/graphql",
             json={"query": graphql_query},
@@ -544,7 +545,7 @@ class TestLDAPGraphQLIntegration:
         # Cleanup
         user = _get_user_by_email(_app, test_user.email)
         if user:
-            _delete_users(_app, _app.admin_secret, users=[user.gid])
+            _delete_users(_app, _admin_auth(_app), users=[user.gid])
 
 
 class TestLDAPSecurityIsolation:
@@ -558,7 +559,7 @@ class TestLDAPSecurityIsolation:
         email = f"local_{suffix}@example.com"
 
         # Create LOCAL user
-        graphql_client = _httpx_client(_app, _app.admin_secret)
+        graphql_client = _httpx_client(_app, _admin_auth(_app))
         resp = graphql_client.post(
             "/graphql",
             json={
@@ -587,7 +588,7 @@ class TestLDAPSecurityIsolation:
 
         # LDAP login should fail (LOCAL user protected)
         assert _ldap_login(_app, f"local_{suffix}", "ldappass")[0] == 401
-        _delete_users(_app, _app.admin_secret, users=[local_user_id])
+        _delete_users(_app, _admin_auth(_app), users=[local_user_id])
 
     async def test_ldap_user_protected_from_password_login(
         self, _app: _AppInfo, _ldap_server: _LDAPServer
@@ -604,7 +605,7 @@ class TestLDAPSecurityIsolation:
 
         db_user = _get_user_by_email(_app, user.email)
         assert db_user is not None
-        _delete_users(_app, _app.admin_secret, users=[db_user.gid])
+        _delete_users(_app, _admin_auth(_app), users=[db_user.gid])
 
     async def test_oauth2_user_protected_from_ldap_login(
         self, _app: _AppInfo, _ldap_server: _LDAPServer
@@ -614,7 +615,7 @@ class TestLDAPSecurityIsolation:
         email = f"oauth_{suffix}@example.com"
 
         # Create OAuth2 user via REST API
-        client = _httpx_client(_app, _app.admin_secret)
+        client = _httpx_client(_app, _admin_auth(_app))
         resp = client.post(
             "/v1/users",
             json={
@@ -667,7 +668,7 @@ class TestLDAPConfiguration:
         email = f"john_{suffix}@example.com"
 
         # Admin creates user via GraphQL with wrong username
-        graphql_client = _httpx_client(_app_ldap_no_sign_up, _app_ldap_no_sign_up.admin_secret)
+        graphql_client = _httpx_client(_app_ldap_no_sign_up, _admin_auth(_app_ldap_no_sign_up))
         create_response = graphql_client.post(
             "/graphql",
             json={
@@ -711,7 +712,7 @@ class TestLDAPConfiguration:
         _verify_ldap_login_success(status, access_token, refresh_token)
 
         # Step 4: Verify username remains stable (not synced from LDAP)
-        users = _list_users(_app_ldap_no_sign_up, _app_ldap_no_sign_up.admin_secret)
+        users = _list_users(_app_ldap_no_sign_up, _admin_auth(_app_ldap_no_sign_up))
         updated_user = next((u for u in users if u.profile.email == email), None)
         assert updated_user is not None
         # Username stays stable from admin creation (prevents collisions on displayName changes)
@@ -725,7 +726,7 @@ class TestLDAPConfiguration:
         _verify_ldap_login_success(status, access_token, refresh_token)
 
         _delete_users(
-            _app_ldap_no_sign_up, _app_ldap_no_sign_up.admin_secret, users=[created_user_gid]
+            _app_ldap_no_sign_up, _admin_auth(_app_ldap_no_sign_up), users=[created_user_gid]
         )
 
 
@@ -764,7 +765,7 @@ class TestLDAPPosixGroupSearch:
         user = _get_user_by_email(_app_ldap_posix, email)
         assert user is not None
         assert user.role == UserRoleInput.ADMIN
-        _delete_users(_app_ldap_posix, _app_ldap_posix.admin_secret, users=[user.gid])
+        _delete_users(_app_ldap_posix, _admin_auth(_app_ldap_posix), users=[user.gid])
 
     def test_posix_wildcard_when_no_groups(
         self, _app_ldap_posix: _AppInfo, _ldap_server: _LDAPServer
@@ -788,7 +789,7 @@ class TestLDAPPosixGroupSearch:
         user = _get_user_by_email(_app_ldap_posix, email)
         assert user is not None
         assert user.role == UserRoleInput.VIEWER  # Wildcard
-        _delete_users(_app_ldap_posix, _app_ldap_posix.admin_secret, users=[user.gid])
+        _delete_users(_app_ldap_posix, _admin_auth(_app_ldap_posix), users=[user.gid])
 
     def test_posix_username_case_insensitive(
         self, _app_ldap_posix: _AppInfo, _ldap_server: _LDAPServer
@@ -813,7 +814,7 @@ class TestLDAPPosixGroupSearch:
         user = _get_user_by_email(_app_ldap_posix, email)
         assert user is not None
         assert user.role == UserRoleInput.ADMIN  # Should match despite case
-        _delete_users(_app_ldap_posix, _app_ldap_posix.admin_secret, users=[user.gid])
+        _delete_users(_app_ldap_posix, _admin_auth(_app_ldap_posix), users=[user.gid])
 
 
 class TestLDAPPosixMemberUidGroupSearch:
@@ -862,7 +863,7 @@ class TestLDAPPosixMemberUidGroupSearch:
             "This indicates GROUP_SEARCH_FILTER_USER_ATTR is not working correctly."
         )
         _delete_users(
-            _app_ldap_posix_memberuid, _app_ldap_posix_memberuid.admin_secret, users=[user.gid]
+            _app_ldap_posix_memberuid, _admin_auth(_app_ldap_posix_memberuid), users=[user.gid]
         )
 
     def test_memberuid_member_role(
@@ -889,7 +890,7 @@ class TestLDAPPosixMemberUidGroupSearch:
         assert user is not None
         assert user.role == UserRoleInput.MEMBER
         _delete_users(
-            _app_ldap_posix_memberuid, _app_ldap_posix_memberuid.admin_secret, users=[user.gid]
+            _app_ldap_posix_memberuid, _admin_auth(_app_ldap_posix_memberuid), users=[user.gid]
         )
 
     def test_memberuid_wildcard_when_no_groups(
@@ -916,7 +917,7 @@ class TestLDAPPosixMemberUidGroupSearch:
         assert user is not None
         assert user.role == UserRoleInput.VIEWER  # Wildcard
         _delete_users(
-            _app_ldap_posix_memberuid, _app_ldap_posix_memberuid.admin_secret, users=[user.gid]
+            _app_ldap_posix_memberuid, _admin_auth(_app_ldap_posix_memberuid), users=[user.gid]
         )
 
 
@@ -932,7 +933,7 @@ class TestLDAPNoEmailMode:
 
     def _get_user_with_username(self, app: _AppInfo, username: str) -> Optional[_User]:
         """Find user by checking for null email marker containing username hash."""
-        users = _list_users(app, app.admin_secret)
+        users = _list_users(app, _admin_auth(app))
         for user in users:
             if user.profile.username == username:
                 return user
@@ -965,7 +966,7 @@ class TestLDAPNoEmailMode:
         assert user.profile.email == "", "User should have null email on first login"
         assert user.role == UserRoleInput.ADMIN
 
-        _delete_users(_app_ldap_no_email, _app_ldap_no_email.admin_secret, users=[user.gid])
+        _delete_users(_app_ldap_no_email, _admin_auth(_app_ldap_no_email), users=[user.gid])
 
     def test_subsequent_login_finds_same_user(
         self, _app_ldap_no_email: _AppInfo, _ldap_server: _LDAPServer
@@ -1013,4 +1014,4 @@ class TestLDAPNoEmailMode:
         assert user2.role is UserRoleInput.ADMIN, "User should have ADMIN role on subsequent login"
         assert user2.gid == user1.gid, "Same user should be found on subsequent login"
 
-        _delete_users(_app_ldap_no_email, _app_ldap_no_email.admin_secret, users=[user1.gid])
+        _delete_users(_app_ldap_no_email, _admin_auth(_app_ldap_no_email), users=[user1.gid])

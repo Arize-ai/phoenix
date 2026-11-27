@@ -1,27 +1,12 @@
 import type { ValidateResult } from "react-hook-form";
 
-/**
- * Identifier character set: lowercase alphanumerics, dashes, and underscores.
- * The empty string matches so partial input is permitted while a user types.
- */
-export const allowedIdentifierCharactersRegex = /^[_a-z0-9-]*$/;
+import {
+  ALLOWED_IDENTIFIER_CHARACTERS_PATTERN,
+  IDENTIFIER_ERROR_MESSAGES,
+  LEADING_AND_TRAILING_ALPHANUMERIC_CHARACTERS_PATTERN,
+} from "@phoenix/constants";
 
-/**
- * Identifiers must begin and end with a lowercase alphanumeric character.
- * The empty string and single alphanumerics are permitted.
- */
-export const leadingAndTrailingAlphanumericCharactersRegex =
-  /^([a-z0-9](.*[a-z0-9])?)?$/;
-
-/**
- * Human-readable error messages surfaced by the identifier validators below.
- */
-export const IDENTIFIER_ERROR_MESSAGES = {
-  empty: "Cannot be empty",
-  allowedChars:
-    "Must have only lowercase alphanumeric characters, dashes, and underscores",
-  leadingTrailing: "Must start and end with lowercase alphanumeric characters",
-} as const;
+import { removeDiacritics } from "./textTransformUtils";
 
 /**
  * Checks that `value` is non-empty and only uses the allowed identifier
@@ -35,7 +20,7 @@ export function validateIdentifierAllowedChars(value: string): ValidateResult {
   if (!value || value.trim() === "") {
     return IDENTIFIER_ERROR_MESSAGES.empty;
   }
-  if (!allowedIdentifierCharactersRegex.test(value)) {
+  if (!ALLOWED_IDENTIFIER_CHARACTERS_PATTERN.test(value)) {
     return IDENTIFIER_ERROR_MESSAGES.allowedChars;
   }
   return true;
@@ -52,7 +37,7 @@ export function validateIdentifierAllowedChars(value: string): ValidateResult {
 export function validateIdentifierLeadingTrailing(
   value: string
 ): ValidateResult {
-  if (!leadingAndTrailingAlphanumericCharactersRegex.test(value)) {
+  if (!LEADING_AND_TRAILING_ALPHANUMERIC_CHARACTERS_PATTERN.test(value)) {
     return IDENTIFIER_ERROR_MESSAGES.leadingTrailing;
   }
   return true;
@@ -73,20 +58,45 @@ export function validateIdentifier(value: string): ValidateResult {
 }
 
 /**
- * Lowercases `value`, collapses whitespace runs into single dashes, and drops
- * any character outside the allowed identifier set. Leading and trailing
- * separators are preserved so the caller can keep typing (e.g. typing
- * "foo " should yield "foo-" without the dash being stripped mid-edit and
- * jumping the cursor).
+ * Collapses each run of whitespace in `value` into a single dash, leaving all
+ * other characters untouched so validation can still flag them.
+ *
+ * Use this as a controlled-input transformer when only spaces should be
+ * converted; to also lowercase and strip disallowed characters, use
+ * {@link transformIdentifierInput}.
+ */
+export function replaceWhitespaceWithDashes(value: string): string {
+  return value.replace(/\s+/g, "-");
+}
+
+/**
+ * Lowercases `value`, folds accented letters to their base letter, drops any
+ * character outside the allowed identifier set, and collapses whitespace runs
+ * into single dashes. Leading separators are
+ * discarded because they can never form a valid identifier. Trailing
+ * separators are preserved so the caller can keep typing (e.g. typing "foo "
+ * should yield "foo-" without the dash being stripped mid-edit and jumping
+ * the cursor).
  *
  * Use this as a controlled-input transformer; for one-shot conversion of an
  * arbitrary string into a final identifier, use {@link getIdentifier}.
  */
 export function transformIdentifierInput(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^_a-z0-9-]/g, "");
+  return replaceWhitespaceWithDashes(
+    removeDiacritics(value)
+      .toLowerCase()
+      .replace(/[^_a-z0-9\s-]/g, "")
+  ).replace(/^[_-]+/, "");
+}
+
+/**
+ * Removes leading and trailing dashes and underscores so an identifier starts
+ * and ends with a letter or digit. Apply it once the user stops editing (e.g.
+ * on blur); {@link transformIdentifierInput} keeps trailing separators while
+ * typing.
+ */
+export function trimIdentifierSeparators(value: string): string {
+  return value.replace(/^[_-]+|[_-]+$/g, "");
 }
 
 /**
@@ -99,5 +109,5 @@ export function transformIdentifierInput(value: string): string {
  * preserve cursor position, use {@link transformIdentifierInput}.
  */
 export function getIdentifier(value: string): string {
-  return transformIdentifierInput(value).replace(/^[_-]+|[_-]+$/g, "");
+  return trimIdentifierSeparators(transformIdentifierInput(value));
 }

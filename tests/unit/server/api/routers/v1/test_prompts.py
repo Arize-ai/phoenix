@@ -7,7 +7,7 @@ from secrets import token_hex
 from typing import Any, Optional, Union
 from urllib.parse import quote_plus
 
-import httpx
+import httpx2
 import pytest
 from deepdiff.diff import DeepDiff
 from faker import Faker
@@ -106,9 +106,31 @@ class TestPromptVersionData:
 
 
 class TestPrompts:
+    async def test_list_prompt_versions(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, prompt_versions = await self._insert_prompt_versions(db)
+        prompt_id = str(GlobalID(Prompt.__name__, str(prompt.id)))
+        for prompt_identifier in prompt_id, prompt.name.root:
+            url = f"v1/prompts/{quote_plus(prompt_identifier)}/versions"
+            cursor = None
+            for prompt_version in reversed(prompt_versions):
+                params = {"limit": "1"}
+                if cursor:
+                    params["cursor"] = cursor
+                response = await httpx_client.get(url, params=params)
+                assert response.is_success
+                body = response.json()
+                assert len(body["data"]) == 1
+                self._compare_prompt_version(body["data"][0], prompt_version)
+                cursor = body.get("next_cursor")
+            assert cursor is None
+
     async def test_get_latest_prompt_version(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         prompt, prompt_versions = await self._insert_prompt_versions(db)
@@ -122,7 +144,7 @@ class TestPrompts:
 
     async def test_get_prompt_version_by_prompt_version_id(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         prompt, prompt_versions = await self._insert_prompt_versions(db)
@@ -135,7 +157,7 @@ class TestPrompts:
 
     async def test_get_prompt_version_by_tag_name(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         prompt, prompt_versions = await self._insert_prompt_versions(db)
@@ -150,7 +172,7 @@ class TestPrompts:
 
     async def test_delete_prompt_version_tag(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         _, prompt_versions = await self._insert_prompt_versions(db)
@@ -163,7 +185,7 @@ class TestPrompts:
 
     async def test_delete_prompt_version_tag_not_found(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         _, prompt_versions = await self._insert_prompt_versions(db)
@@ -174,14 +196,14 @@ class TestPrompts:
 
     async def test_delete_prompt_version_tag_invalid_version_id(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         url = "v1/prompt_versions/invalid-id/tags/some-tag"
         assert (await httpx_client.delete(url)).status_code == 422
 
     async def test_delete_prompt_version_tag_invalid_tag_name(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         _, prompt_versions = await self._insert_prompt_versions(db)
@@ -194,7 +216,7 @@ class TestPrompts:
 
     async def test_delete_prompt_by_name(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         prompt, _ = await self._insert_prompt_versions(db)
@@ -206,7 +228,7 @@ class TestPrompts:
 
     async def test_delete_prompt_by_id(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         prompt, _ = await self._insert_prompt_versions(db)
@@ -219,15 +241,113 @@ class TestPrompts:
 
     async def test_delete_prompt_not_found(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         url = "v1/prompts/nonexistent-prompt-name"
         response = await httpx_client.delete(url)
         assert response.status_code == 404
 
+    async def test_delete_prompt_conflict_when_used_by_llm_evaluator(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, _ = await self._insert_prompt_versions(db)
+        async with db() as session:
+            session.add(
+                models.LLMEvaluator(
+                    name=Identifier("correctness-eval"),
+                    prompt_id=prompt.id,
+                    output_configs=[],
+                )
+            )
+        url = f"v1/prompts/{quote_plus(prompt.name.root)}"
+        response = await httpx_client.delete(url)
+        assert response.status_code == 409
+        assert (
+            response.text
+            == "Cannot delete prompt because it is used by LLM evaluator 'correctness-eval'"
+        )
+        async with db() as session:
+            assert await session.scalar(select(models.Prompt).filter_by(id=prompt.id)) is not None
+
+    async def test_delete_prompt_conflict_when_used_by_multiple_llm_evaluators(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        prompt, _ = await self._insert_prompt_versions(db)
+        async with db() as session:
+            session.add_all(
+                [
+                    models.LLMEvaluator(
+                        name=Identifier("zeta-eval"),
+                        prompt_id=prompt.id,
+                        output_configs=[],
+                    ),
+                    models.LLMEvaluator(
+                        name=Identifier("alpha-eval"),
+                        prompt_id=prompt.id,
+                        output_configs=[],
+                    ),
+                ]
+            )
+        prompt_id = str(GlobalID(Prompt.__name__, str(prompt.id)))
+        url = f"v1/prompts/{quote_plus(prompt_id)}"
+        response = await httpx_client.delete(url)
+        assert response.status_code == 409
+        assert (
+            response.text
+            == "Cannot delete prompt because it is used by LLM evaluators: 'alpha-eval', 'zeta-eval'"
+        )
+        async with db() as session:
+            assert await session.scalar(select(models.Prompt).filter_by(id=prompt.id)) is not None
+
+    async def test_delete_prompt_conflict_on_integrity_error_race(
+        self,
+        httpx_client: httpx2.AsyncClient,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from phoenix.server.api.helpers.prompts.delete_helpers import (
+            get_prompt_referencing_llm_evaluator_names,
+        )
+
+        prompt, _ = await self._insert_prompt_versions(db)
+        async with db() as session:
+            session.add(
+                models.LLMEvaluator(
+                    name=Identifier("race-eval"),
+                    prompt_id=prompt.id,
+                    output_configs=[],
+                )
+            )
+
+        calls = 0
+
+        async def _simulate_race(*, session: Any, prompt_id: int) -> list[str]:
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                return []
+            return await get_prompt_referencing_llm_evaluator_names(
+                session=session, prompt_id=prompt_id
+            )
+
+        monkeypatch.setattr(
+            "phoenix.server.api.routers.v1.prompts.get_prompt_referencing_llm_evaluator_names",
+            _simulate_race,
+        )
+        response = await httpx_client.delete(f"v1/prompts/{quote_plus(prompt.name.root)}")
+        assert response.status_code == 409
+        assert (
+            response.text == "Cannot delete prompt because it is used by LLM evaluator 'race-eval'"
+        )
+        assert calls == 2
+
     async def test_patch_prompt_by_name(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         prompt, _ = await self._insert_prompt_versions(db)
@@ -259,7 +379,7 @@ class TestPrompts:
 
     async def test_patch_prompt_by_id_can_clear_fields(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         prompt, _ = await self._insert_prompt_versions(db)
@@ -280,7 +400,7 @@ class TestPrompts:
 
     async def test_patch_prompt_rejects_null_metadata(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         prompt, _ = await self._insert_prompt_versions(db)
@@ -298,7 +418,7 @@ class TestPrompts:
 
     async def test_patch_prompt_omitted_fields_are_unchanged(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         prompt, _ = await self._insert_prompt_versions(db)
@@ -317,7 +437,7 @@ class TestPrompts:
 
     async def test_patch_prompt_rejects_empty_body(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         prompt, _ = await self._insert_prompt_versions(db)
@@ -329,7 +449,7 @@ class TestPrompts:
 
     async def test_patch_prompt_not_found(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         url = "v1/prompts/nonexistent-prompt-name"
 
@@ -339,7 +459,7 @@ class TestPrompts:
 
     async def test_patch_prompt_requires_body(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         prompt, _ = await self._insert_prompt_versions(db)
@@ -351,7 +471,7 @@ class TestPrompts:
 
     async def test_create_prompt_version_by_name(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         prompt, prompt_versions = await self._insert_prompt_versions(db)
@@ -379,7 +499,7 @@ class TestPrompts:
 
     async def test_create_prompt_version_by_id(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         prompt, prompt_versions = await self._insert_prompt_versions(db)
@@ -408,7 +528,7 @@ class TestPrompts:
 
     async def test_create_prompt_version_with_tags(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         prompt, prompt_versions = await self._insert_prompt_versions(db)
@@ -447,7 +567,7 @@ class TestPrompts:
 
     async def test_create_prompt_version_moves_tag_without_clearing_description(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         prompt, prompt_versions = await self._insert_prompt_versions(db)
@@ -485,7 +605,7 @@ class TestPrompts:
 
     async def test_create_prompt_version_rejects_mismatched_provider(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         prompt, prompt_versions = await self._insert_prompt_versions(db)
@@ -502,7 +622,7 @@ class TestPrompts:
 
     async def test_create_prompt_version_missing_prompt(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         _, prompt_versions = await self._insert_prompt_versions(db)
@@ -515,7 +635,7 @@ class TestPrompts:
 
     async def test_create_prompt_version_rejects_invalid_prompt_identifier(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         _, prompt_versions = await self._insert_prompt_versions(db)
@@ -526,7 +646,7 @@ class TestPrompts:
 
     async def test_create_prompt_version_rejects_non_chat_template(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         prompt, prompt_versions = await self._insert_prompt_versions(db)
@@ -543,7 +663,7 @@ class TestPrompts:
 
     async def test_create_prompt_version_rejects_invalid_tag_name(
         self,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
         db: DbSessionFactory,
     ) -> None:
         prompt, prompt_versions = await self._insert_prompt_versions(db)
@@ -567,7 +687,7 @@ class TestPrompts:
     async def test_invalid_identifier(
         self,
         name: str,
-        httpx_client: httpx.AsyncClient,
+        httpx_client: httpx2.AsyncClient,
     ) -> None:
         url = f"v1/prompts/{quote_plus(name)}/tags/production"
         assert (await httpx_client.get(url)).status_code == 422
@@ -584,6 +704,7 @@ class TestPrompts:
             GlobalID.from_id(data.pop("id")), PromptVersion.__name__
         )
         assert id_ == prompt_version.id
+        assert data.pop("created_at") == prompt_version.created_at.isoformat()
         assert data.pop("description") == (prompt_version.description or "")
         assert not DeepDiff(
             data.pop("invocation_parameters"),

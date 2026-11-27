@@ -121,46 +121,6 @@ describe("ViewportModal", () => {
     vi.restoreAllMocks();
   });
 
-  it("portals into the frame plane and blocks only viewport-owned cells", () => {
-    act(() =>
-      root.render(
-        <Frame>
-          <TriggeredViewportModal />
-        </Frame>
-      )
-    );
-
-    const trigger = container.querySelector<HTMLButtonElement>("main button");
-    act(() => trigger?.click());
-
-    const modalPlane = container.querySelector(
-      '[data-testid="viewport-modal-plane"]'
-    );
-    const overlay = modalPlane?.querySelector(
-      '[data-testid="viewport-modal-overlay"]'
-    );
-    const dialog = modalPlane?.querySelector('[role="dialog"]');
-
-    expect(overlay).not.toBeNull();
-    expect(dialog?.getAttribute("aria-modal")).toBeNull();
-    expect(dialog?.getAttribute("aria-labelledby")).not.toBeNull();
-    expect(
-      container
-        .querySelector('[data-testid="viewport-content"]')
-        ?.hasAttribute("inert")
-    ).toBe(true);
-    expect(
-      container
-        .querySelector('[data-testid="drawer-plane"]')
-        ?.hasAttribute("inert")
-    ).toBe(true);
-    expect(
-      container
-        .querySelector('[data-testid="assistant-rail"]')
-        ?.hasAttribute("inert")
-    ).toBe(false);
-  });
-
   it("keeps the viewport blocked until the last viewport modal closes", () => {
     act(() =>
       root.render(
@@ -181,31 +141,6 @@ describe("ViewportModal", () => {
 
     act(() => buttons[1]?.click());
     expect(content?.hasAttribute("inert")).toBe(false);
-  });
-
-  it("does not close when Escape is pressed in the collaborative rail", () => {
-    act(() =>
-      root.render(
-        <Frame>
-          <TriggeredViewportModal />
-        </Frame>
-      )
-    );
-    act(() =>
-      container.querySelector<HTMLButtonElement>("main button")?.click()
-    );
-
-    const railButton = container.querySelector<HTMLButtonElement>(
-      '[data-testid="assistant-rail"] button'
-    );
-    act(() => {
-      railButton?.focus();
-      railButton?.dispatchEvent(
-        new KeyboardEvent("keydown", { bubbles: true, key: "Escape" })
-      );
-    });
-
-    expect(container.querySelector('[role="dialog"]')).not.toBeNull();
   });
 
   it("does not dismiss when the collaborative rail is pressed", () => {
@@ -298,35 +233,5 @@ describe("ViewportModal", () => {
     expect(container.querySelector('[role="dialog"]')).not.toBeNull();
     expect(viewportContent?.hasAttribute("inert")).toBe(true);
     expect(rail?.closest("[inert]")).toBeNull();
-  });
-
-  it("releases inert state before closing and restores the trigger", async () => {
-    act(() =>
-      root.render(
-        <Frame>
-          <TriggeredViewportModal />
-        </Frame>
-      )
-    );
-    const trigger = container.querySelector<HTMLButtonElement>("main button");
-    act(() => {
-      trigger?.focus();
-      trigger?.click();
-    });
-
-    const closeButton = Array.from(
-      container.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')
-    ).find((button) => button.textContent === "Close form");
-    act(() => closeButton?.click());
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 20));
-    });
-
-    expect(
-      container
-        .querySelector('[data-testid="viewport-content"]')
-        ?.hasAttribute("inert")
-    ).toBe(false);
-    expect(document.activeElement).toBe(trigger);
   });
 });

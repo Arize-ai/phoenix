@@ -75,3 +75,31 @@ export const LABEL_ID_PARAM = "labelId";
 export const CREATE_CODE_EVALUATOR_PARAM = "createCodeEvaluator";
 
 export const CREATE_LLM_EVALUATOR_PARAM = "createLlmEvaluator";
+
+/**
+ * The dataset example open in the experiment compare slideover. Absent means
+ * the slideover is closed.
+ */
+export const SELECTED_EXAMPLE_ID_PARAM = "selectedExampleId";
+
+/**
+ * The compared experiment shown in the slideover's right lane. Absent, or no
+ * longer one of the compared experiments, falls back to the first of them.
+ */
+export const COMPARE_LANE_EXPERIMENT_ID_PARAM = "compareLaneExperimentId";
+
+/**
+ * The experiment compare slideover's mode, `details` or `traces`. Absent
+ * means `details`.
+ */
+export const EXPERIMENT_COMPARE_DETAILS_MODE_PARAM = "detailsMode";
+
+/**
+ * The 1-based repetition shown in the slideover's base lane. Absent means 1.
+ */
+export const BASE_LANE_REPETITION_PARAM = "baseRepetition";
+
+/**
+ * The 1-based repetition shown in the slideover's compare lane. Absent means 1.
+ */
+export const COMPARE_LANE_REPETITION_PARAM = "compareRepetition";

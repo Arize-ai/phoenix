@@ -1,5 +1,7 @@
+import gc
 import json
 import re
+import weakref
 from datetime import datetime, timezone
 from typing import Sequence
 
@@ -19,8 +21,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 from phoenix.db import models
+from phoenix.server.cost_tracking.span_cost_calculator import SpanCostCalculator
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
-from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import (
     Tracer,
@@ -97,10 +99,9 @@ class TestTracer:
     @pytest.fixture
     def span_cost_calculator(
         self,
-        db: DbSessionFactory,
         generative_model_store: GenerativeModelStore,
     ) -> SpanCostCalculator:
-        return SpanCostCalculator(db=db, model_store=generative_model_store)
+        return SpanCostCalculator(model_store=generative_model_store)
 
     @pytest.fixture
     def tracer(self, span_cost_calculator: SpanCostCalculator) -> Tracer:
@@ -446,6 +447,59 @@ class TestTracer:
         tracer.clear()
 
         assert len(tracer._self_exporter.get_finished_spans()) == 0
+
+    def test_dropped_tracer_and_its_spans_are_freed_without_shutdown(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        span_cost_calculator: SpanCostCalculator,
+    ) -> None:
+        monkeypatch.setenv("PHOENIX_AGENTS_COLLECTOR_ENDPOINT", "https://env-collector.example")
+        tracer = Tracer(span_cost_calculator=span_cost_calculator)
+        with tracer.start_as_current_span("evaluator"):
+            pass
+        provider = weakref.ref(tracer.tracer_provider)
+        span = weakref.ref(tracer._self_exporter.get_finished_spans()[0])
+
+        del tracer
+        gc.collect()
+
+        assert provider() is None
+        assert span() is None
+
+    def test_dropped_remote_tracer_and_its_spans_are_freed_once_flushed(
+        self, span_cost_calculator: SpanCostCalculator
+    ) -> None:
+        class FakeRemoteExporter(SpanExporter):
+            def export(self, spans: Sequence[object]) -> SpanExportResult:
+                return SpanExportResult.SUCCESS
+
+            def shutdown(self) -> None:
+                return None
+
+            def force_flush(self, timeout_millis: int = 30_000) -> bool:
+                return True
+
+        tracer = Tracer(
+            span_cost_calculator=span_cost_calculator,
+            enable_remote_export=True,
+            remote_collector_endpoint="https://collector.example",
+            remote_span_exporter_factory=lambda _: FakeRemoteExporter(),
+        )
+        with tracer.start_as_current_span("turn"):
+            pass
+        tracer.force_flush()
+        remote_processor = tracer._self_span_processors[-1]
+        provider = weakref.ref(tracer.tracer_provider)
+        span = weakref.ref(tracer._self_exporter.get_finished_spans()[0])
+
+        del tracer
+        gc.collect()
+
+        try:
+            assert provider() is None
+            assert span() is None
+        finally:
+            remote_processor.shutdown()
 
     def test_remote_exporter_uses_env_endpoint_only_when_enabled(
         self,
@@ -1095,8 +1149,123 @@ class TestTracer:
         assert returned_output_detail.cost is None  # no pricing model found
         assert returned_output_detail.cost_per_token is None  # no pricing model found
 
+    @pytest.mark.asyncio
+    async def test_save_db_traces_calculates_costs_for_decision_spans(
+        self,
+        db: DbSessionFactory,
+        project: models.Project,
+    ) -> None:
+        llm_model = models.GenerativeModel(
+            name="gpt-6-luna",
+            provider="openai",
+            name_pattern=re.compile("gpt-6-luna"),
+            is_built_in=True,
+            type="LLM",
+            token_prices=[
+                models.TokenPrice(token_type="input", is_prompt=True, base_rate=1.0 / 1_000_000),
+                models.TokenPrice(token_type="output", is_prompt=False, base_rate=5.0 / 1_000_000),
+            ],
+        )
+        decision_model = models.GenerativeModel(
+            name="gpt-6-luna-decisions",
+            provider="openai",
+            name_pattern=re.compile("gpt-6-luna"),
+            is_built_in=True,
+            type="DECISION",
+            token_prices=[
+                models.TokenPrice(token_type="input", is_prompt=True, base_rate=0.10 / 1_000_000),
+                models.TokenPrice(token_type="output", is_prompt=False, base_rate=0.0),
+            ],
+        )
+        async with db() as session:
+            session.add_all((llm_model, decision_model))
+        store = GenerativeModelStore(db=db)
+        await store._fetch_models()
+        tracer = Tracer(span_cost_calculator=SpanCostCalculator(model_store=store))
+
+        with tracer.start_as_current_span("root", attributes={OPENINFERENCE_SPAN_KIND: "CHAIN"}):
+            with tracer.start_as_current_span(
+                "priced_decision",
+                attributes={
+                    OPENINFERENCE_SPAN_KIND: "DECISION",
+                    DECISION_MODEL_NAME: "gpt-6-luna",
+                    DECISION_PROVIDER: "openai",
+                    DECISION_TOKEN_COUNT_INPUT: 1000,
+                    DECISION_TOKEN_COUNT_OUTPUT: 500,
+                },
+            ) as span:
+                span.set_status(Status(StatusCode.OK))
+            with tracer.start_as_current_span(
+                "same_name_llm",
+                attributes={
+                    OPENINFERENCE_SPAN_KIND: "LLM",
+                    LLM_MODEL_NAME: "gpt-6-luna",
+                    LLM_PROVIDER: "openai",
+                    LLM_TOKEN_COUNT_PROMPT: 1000,
+                    LLM_TOKEN_COUNT_COMPLETION: 500,
+                },
+            ) as span:
+                span.set_status(Status(StatusCode.OK))
+            with tracer.start_as_current_span(
+                "unmatched_decision",
+                attributes={
+                    OPENINFERENCE_SPAN_KIND: "DECISION",
+                    DECISION_MODEL_NAME: "jev-1.13.0",
+                    DECISION_PROVIDER: "typesafe",
+                    DECISION_TOKEN_COUNT_INPUT: 1000,
+                    DECISION_TOKEN_COUNT_OUTPUT: 500,
+                },
+            ) as span:
+                span.set_status(Status(StatusCode.OK))
+
+        async with db() as session:
+            session.add_all(tracer.get_db_traces(project_id=project.id))
+            await session.flush()
+            session.expunge_all()
+            spans_by_name = {
+                fetched.name: fetched
+                for fetched in (
+                    await session.scalars(
+                        select(models.Span).options(
+                            joinedload(models.Span.span_cost).joinedload(
+                                models.SpanCost.span_cost_details
+                            )
+                        )
+                    )
+                )
+                .unique()
+                .all()
+            }
+
+        priced_cost = spans_by_name["priced_decision"].span_cost
+        assert priced_cost is not None
+        assert priced_cost.model_id == decision_model.id
+        expected_decision_input_cost = 1000 * 0.10 / 1_000_000
+        assert (priced_cost.prompt_tokens, priced_cost.completion_tokens) == (1000, 500)
+        assert priced_cost.prompt_cost == pytest.approx(expected_decision_input_cost)
+        assert priced_cost.completion_cost == 0.0
+        assert {(d.token_type, d.is_prompt, d.tokens) for d in priced_cost.span_cost_details} == {
+            ("input", True, 1000),
+            ("output", False, 500),
+        }
+
+        llm_cost = spans_by_name["same_name_llm"].span_cost
+        assert llm_cost is not None
+        assert llm_cost.model_id == llm_model.id
+        assert llm_cost.total_cost == pytest.approx((1000 * 1.0 + 500 * 5.0) / 1_000_000)
+
+        unmatched_cost = spans_by_name["unmatched_decision"].span_cost
+        assert unmatched_cost is not None
+        assert unmatched_cost.model_id is None
+        assert (unmatched_cost.prompt_tokens, unmatched_cost.completion_tokens) == (1000, 500)
+        assert unmatched_cost.total_cost is None
+
 
 # span attributes
+DECISION_MODEL_NAME = SpanAttributes.DECISION_MODEL_NAME
+DECISION_PROVIDER = SpanAttributes.DECISION_PROVIDER
+DECISION_TOKEN_COUNT_INPUT = SpanAttributes.DECISION_TOKEN_COUNT_INPUT
+DECISION_TOKEN_COUNT_OUTPUT = SpanAttributes.DECISION_TOKEN_COUNT_OUTPUT
 LLM_MODEL_NAME = SpanAttributes.LLM_MODEL_NAME
 LLM_PROVIDER = SpanAttributes.LLM_PROVIDER
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION

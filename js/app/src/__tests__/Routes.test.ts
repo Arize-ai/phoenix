@@ -1,6 +1,9 @@
 import type { ShouldRevalidateFunctionArgs } from "react-router";
 
-import { revalidateOnProjectChange } from "@phoenix/Routes";
+import {
+  revalidateOnDatasetChange,
+  revalidateOnProjectChange,
+} from "@phoenix/Routes";
 
 function makeArgs({
   currentPath,
@@ -57,5 +60,52 @@ describe("revalidateOnProjectChange", () => {
     });
 
     expect(revalidateOnProjectChange(args)).toBe(true);
+  });
+});
+
+describe("revalidateOnDatasetChange", () => {
+  const compareUrl = "/datasets/dataset-1/compare?experimentId=a";
+
+  function makeDatasetArgs({
+    nextPath,
+    nextDatasetId = "dataset-1",
+    defaultShouldRevalidate = true,
+  }: {
+    nextPath: string;
+    nextDatasetId?: string;
+    defaultShouldRevalidate?: boolean;
+  }): ShouldRevalidateFunctionArgs {
+    return {
+      currentUrl: new URL(compareUrl, "https://example.com"),
+      currentParams: { datasetId: "dataset-1" },
+      nextUrl: new URL(nextPath, "https://example.com"),
+      nextParams: { datasetId: nextDatasetId },
+      defaultShouldRevalidate,
+    };
+  }
+
+  it("skips revalidation when only search params change", () => {
+    expect(
+      revalidateOnDatasetChange(
+        makeDatasetArgs({ nextPath: `${compareUrl}&selectedExampleId=ex-1` })
+      )
+    ).toBe(false);
+  });
+
+  it("revalidates when the dataset changes", () => {
+    expect(
+      revalidateOnDatasetChange(
+        makeDatasetArgs({
+          nextPath: "/datasets/dataset-2/compare",
+          nextDatasetId: "dataset-2",
+        })
+      )
+    ).toBe(true);
+  });
+
+  it("defers to the router for a same-URL revalidation", () => {
+    expect(
+      revalidateOnDatasetChange(makeDatasetArgs({ nextPath: compareUrl }))
+    ).toBe(true);
   });
 });

@@ -136,6 +136,33 @@ describe("buildModelTokenDetailChartData", () => {
       })]: 0.2,
     });
   });
+
+  it("adds the type to the names of models that share a name", () => {
+    const model = (name: string, modelType: "LLM" | "DECISION") => ({
+      name,
+      modelType,
+      costSummary: {
+        prompt: { tokens: 1 },
+        completion: { tokens: 0 },
+        total: { tokens: 1 },
+      },
+      costDetailSummaryEntries: [],
+    });
+    const { chartData } = buildModelTokenDetailChartData({
+      metric: "tokens",
+      models: [
+        model("gpt-6-luna", "LLM"),
+        model("gpt-6-luna", "DECISION"),
+        model("jev-latest", "DECISION"),
+      ],
+    });
+
+    expect(chartData.map((datum) => datum.model)).toEqual([
+      "gpt-6-luna (LLM)",
+      "gpt-6-luna (Decision)",
+      "jev-latest",
+    ]);
+  });
 });
 
 describe("getModelTokenDetailBarRadius", () => {

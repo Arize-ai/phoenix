@@ -1,10 +1,11 @@
-import type { ReactNode } from "react";
+import type { ErrorInfo, ReactNode } from "react";
 import { Component } from "react";
 
 import {
   isRedirectingToLogin,
   isRedirectingToLoginError,
 } from "@phoenix/authFetch";
+import { reportClientError } from "@phoenix/utils/reportClientError";
 
 import { BugReportErrorBoundaryFallback } from "./BugReportErrorBoundaryFallback";
 import type { ErrorBoundaryFallbackComponent } from "./types";
@@ -15,14 +16,25 @@ type ErrorBoundaryProps = {
    * @default BugReportErrorBoundaryFallback
    */
   fallback?: ErrorBoundaryFallbackComponent;
+  /**
+   * Clears a caught error when it changes, so the children render again
+   * without being remounted while there is no error.
+   */
+  resetKey?: string;
+};
+type ErrorBoundaryState = {
+  hasError: boolean;
+  error: unknown;
+  /** The reset key the error state belongs to */
+  resetKey: string | undefined;
 };
 export class ErrorBoundary extends Component<
   ErrorBoundaryProps,
-  { hasError: boolean; error: unknown }
+  ErrorBoundaryState
 > {
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, resetKey: props.resetKey };
   }
 
   static getDerivedStateFromError(error: unknown) {
@@ -30,9 +42,19 @@ export class ErrorBoundary extends Component<
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: unknown, errorInfo: unknown) {
+  static getDerivedStateFromProps(
+    props: ErrorBoundaryProps,
+    state: ErrorBoundaryState
+  ): ErrorBoundaryState | null {
+    return props.resetKey === state.resetKey
+      ? null
+      : { hasError: false, error: null, resetKey: props.resetKey };
+  }
+
+  componentDidCatch(error: unknown, errorInfo: ErrorInfo) {
     // eslint-disable-next-line no-console
     console.error("ErrorBoundary caught error:", error, errorInfo);
+    reportClientError({ error, componentStack: errorInfo.componentStack });
   }
 
   render() {
@@ -51,9 +73,12 @@ export class ErrorBoundary extends Component<
       const errorMessage: string | null =
         this.state.error instanceof Error ? this.state.error.message : null;
       return typeof this.props.fallback === "function" ? (
-        <this.props.fallback error={errorMessage} />
+        <this.props.fallback error={errorMessage} thrown={this.state.error} />
       ) : (
-        <BugReportErrorBoundaryFallback error={errorMessage} />
+        <BugReportErrorBoundaryFallback
+          error={errorMessage}
+          thrown={this.state.error}
+        />
       );
     }
 

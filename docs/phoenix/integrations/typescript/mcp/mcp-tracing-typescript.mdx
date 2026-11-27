@@ -12,7 +12,8 @@ The `@arizeai/openinference-instrumentation-mcp` instrumentor enables context pr
 ## Install
 
 ```bash
-npm install @arizeai/openinference-instrumentation-mcp @arizeai/phoenix-otel
+npm install @arizeai/openinference-instrumentation-mcp @arizeai/phoenix-otel \
+  @modelcontextprotocol/sdk @opentelemetry/api
 ```
 
 ## Setup
@@ -26,8 +27,9 @@ import { register } from "@arizeai/phoenix-otel";
 import { MCPInstrumentation } from "@arizeai/openinference-instrumentation-mcp";
 
 // Initialize Phoenix tracing
-const tracerProvider = register({
-  projectName: "mcp-app",
+export const tracerProvider = register({
+  projectName: process.env.PHOENIX_PROJECT_NAME || "mcp-app",
+  batch: false,
   // If Phoenix is running elsewhere:
   // url: "https://your-phoenix.example.com",
   // apiKey: process.env.PHOENIX_API_KEY,
@@ -42,10 +44,10 @@ instrumentation.enable();
 console.log("MCP instrumentation registered");
 ```
 
-## MCP Client Example
+## Run MCP Client
 
 ```typescript expandable
-import "./instrumentation.js";
+import { tracerProvider } from "./instrumentation.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
@@ -53,6 +55,7 @@ async function main() {
   const transport = new StdioClientTransport({
     command: "node",
     args: ["./server.js"],
+    env: { ...process.env },
   });
 
   const client = new Client({
@@ -74,15 +77,21 @@ async function main() {
   await client.close();
 }
 
-main();
+await main();
+await tracerProvider.forceFlush();
 ```
 
-## MCP Server Example
+## MCP Server
 
 ```typescript expandable
-import "./instrumentation.js";
+import { trace } from "@opentelemetry/api";
+import { tracerProvider } from "./instrumentation.js";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+} from "@modelcontextprotocol/sdk/types.js";
 
 const server = new Server({
   name: "example-server",
@@ -94,21 +103,26 @@ const server = new Server({
 });
 
 // Define a tool
-server.setRequestHandler("tools/call", async (request) => {
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
   if (request.params.name === "get_weather") {
     const location = request.params.arguments?.location;
-    return {
-      content: [{
-        type: "text",
-        text: `Weather in ${location}: Sunny, 72°F`,
-      }],
-    };
+    return trace.getTracer("mcp-server").startActiveSpan("get_weather", (span) => {
+      span.setAttribute("openinference.span.kind", "TOOL");
+      span.setAttribute("tool.name", "get_weather");
+      span.end();
+      return {
+        content: [{
+          type: "text",
+          text: `Weather in ${location}: Sunny, 72°F`,
+        }],
+      };
+    });
   }
   throw new Error(`Unknown tool: ${request.params.name}`);
 });
 
 // List available tools
-server.setRequestHandler("tools/list", async () => {
+server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [{
       name: "get_weather",
@@ -127,6 +141,7 @@ server.setRequestHandler("tools/list", async () => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
+  await tracerProvider.forceFlush();
 }
 
 main();

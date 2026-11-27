@@ -8,19 +8,13 @@ import {
 } from "react-resizable-panels";
 import type { To } from "react-router";
 
-import {
-  Flex,
-  LinkButton,
-  Loading,
-  TitleWithID,
-  View,
-} from "@phoenix/components";
+import { Flex, LinkButton, TitleWithID, View } from "@phoenix/components";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { HotkeysEnabledProvider } from "@phoenix/contexts";
 import type { TraceSelectionSlot } from "@phoenix/utils/traceSelectionUtils";
 
-import { TraceDetailsView } from "../TraceDetails";
+import { TraceDetailsSkeleton, TraceDetailsView } from "../TraceDetails";
 
 export type CompareTracesProps = {
   /** The Relay node ID of the project the traces belong to */
@@ -101,6 +95,7 @@ function CompareTracePane({
   onActivate: () => void;
   onSpanSelectionChange: (spanNodeId: string) => void;
 }) {
+  const layoutId = `compare-trace-${index}-layout`;
   return (
     <section
       data-testid="compare-trace-pane"
@@ -134,14 +129,14 @@ function CompareTracePane({
         </Flex>
       </View>
       <ErrorBoundary>
-        <Suspense fallback={<Loading />}>
+        <Suspense fallback={<TraceDetailsSkeleton layoutId={layoutId} />}>
           <HotkeysEnabledProvider isEnabled={isActive}>
             <TraceDetailsView
               traceId={traceId}
               projectId={projectId}
               selectedSpanNodeId={selectedSpanNodeId}
               onSpanSelectionChange={onSpanSelectionChange}
-              layoutId={`compare-trace-${index}-layout`}
+              layoutId={layoutId}
             />
           </HotkeysEnabledProvider>
         </Suspense>

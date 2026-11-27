@@ -35,6 +35,7 @@ from phoenix.trace.gen_ai.conversion import (
 # semconv attribute keys not yet exposed by the OTel Python package as constants;
 # pinned here only so tests stay readable.
 _GEN_AI_REQUEST_STREAM = "gen_ai.request.stream"
+_GEN_AI_USAGE_CACHE_WRITE_INPUT_TOKENS = "gen_ai.usage.cache_write.input_tokens"
 
 
 def _as_json(value: AttributeValue) -> Any:
@@ -114,6 +115,30 @@ def test_full_chat_span_round_trip() -> None:
         == "Hello!"
     )
     assert out[f"{SpanAttributes.LLM_OUTPUT_MESSAGES}.0.message.finish_reason"] == "stop"
+
+
+def test_chat_span_output_message_without_finish_reason_keeps_output_messages() -> None:
+    """The GenAI semconv deprecated the per-message ``finish_reason`` in favor of
+    ``gen_ai.response.finish_reasons``; an output message with only ``role`` and
+    ``parts`` must still convert to OI output messages."""
+    attrs: dict[str, AttributeValue] = {
+        gen_ai.GEN_AI_OPERATION_NAME: "chat",
+        gen_ai.GEN_AI_PROVIDER_NAME: "anthropic",
+        gen_ai.GEN_AI_REQUEST_MODEL: "claude-haiku-5-5",
+        gen_ai.GEN_AI_RESPONSE_FINISH_REASONS: ("end_turn",),
+        gen_ai.GEN_AI_INPUT_MESSAGES: json.dumps(
+            [{"role": "user", "parts": [{"type": "text", "content": "hi"}]}]
+        ),
+        gen_ai.GEN_AI_OUTPUT_MESSAGES: json.dumps(
+            [{"role": "assistant", "parts": [{"type": "text", "content": "hello"}]}]
+        ),
+    }
+    out = get_openinference_attributes(attrs)
+    base = f"{SpanAttributes.LLM_OUTPUT_MESSAGES}.0"
+    assert out[f"{base}.{MessageAttributes.MESSAGE_ROLE}"] == "assistant"
+    assert out[f"{base}.{MessageAttributes.MESSAGE_CONTENT}"] == "hello"
+    assert f"{base}.message.finish_reason" not in out
+    assert out[SpanAttributes.LLM_FINISH_REASON] == "end_turn"
 
 
 # ---------------------------------------------------------------------------
@@ -344,6 +369,32 @@ def test_usage_cache_token_counts() -> None:
     )
     assert out[SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ] == 50
     assert out[SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE] == 10
+
+
+def test_usage_cache_write_token_count_from_renamed_attribute() -> None:
+    out = get_openinference_usage_attributes({_GEN_AI_USAGE_CACHE_WRITE_INPUT_TOKENS: 10})
+    assert out[SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE] == 10
+
+
+def test_usage_cache_write_prefers_renamed_attribute() -> None:
+    out = get_openinference_usage_attributes(
+        {
+            _GEN_AI_USAGE_CACHE_WRITE_INPUT_TOKENS: 10,
+            gen_ai.GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS: 7,
+        }
+    )
+    assert out[SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE] == 10
+
+
+def test_usage_reasoning_token_count() -> None:
+    out = get_openinference_usage_attributes(
+        {
+            gen_ai.GEN_AI_USAGE_OUTPUT_TOKENS: 25,
+            gen_ai.GEN_AI_USAGE_REASONING_OUTPUT_TOKENS: 10,
+        }
+    )
+    assert out[SpanAttributes.LLM_TOKEN_COUNT_COMPLETION] == 25
+    assert out[SpanAttributes.LLM_TOKEN_COUNT_COMPLETION_DETAILS_REASONING] == 10
 
 
 @pytest.mark.parametrize("value,expected", [("100", 100), (100.0, 100), (True, None), ("x", None)])
@@ -734,15 +785,27 @@ def test_one_malformed_message_drops_the_whole_payload() -> None:
     assert out == {}
 
 
-def test_output_message_missing_finish_reason_is_dropped() -> None:
-    """OutputMessage.finish_reason is required by the spec; messages without it
-    fail validation and are skipped entirely (documented behavior change)."""
+def test_output_messages_with_and_without_finish_reason_are_all_kept() -> None:
+    """The per-message finish_reason is deprecated in the semconv; a message
+    without it must not drop the other messages in the list."""
     out = get_openinference_message_attributes(
         _output_messages(
-            [{"role": "assistant", "parts": [{"type": "text", "content": "incomplete"}]}]
+            [
+                {
+                    "role": "assistant",
+                    "parts": [{"type": "text", "content": "first"}],
+                    "finish_reason": "stop",
+                },
+                {"role": "assistant", "parts": [{"type": "text", "content": "second"}]},
+            ]
         )
     )
-    assert out == {}
+    prefix = SpanAttributes.LLM_OUTPUT_MESSAGES
+    assert out[f"{prefix}.0.{MessageAttributes.MESSAGE_CONTENT}"] == "first"
+    assert out[f"{prefix}.0.message.finish_reason"] == "stop"
+    assert out[f"{prefix}.1.{MessageAttributes.MESSAGE_ROLE}"] == "assistant"
+    assert out[f"{prefix}.1.{MessageAttributes.MESSAGE_CONTENT}"] == "second"
+    assert f"{prefix}.1.message.finish_reason" not in out
 
 
 def test_unparseable_messages_attribute_returns_empty() -> None:

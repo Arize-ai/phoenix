@@ -11,6 +11,7 @@ export * from "./LoadMoreRow";
 export * from "./TableColumnHeader";
 export * from "./TableEmpty";
 export * from "./TableEmptyWrap";
+export * from "./TableSkeleton";
 export * from "./CellTop";
 export * from "./LargeTextWrap";
 export * from "./JSONCell";

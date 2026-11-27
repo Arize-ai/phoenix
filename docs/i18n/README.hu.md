@@ -1,6 +1,9 @@
 <p align="center">
     <a target="_blank" href="https://phoenix.arize.com" style="background:none">
-        <img alt="phoenix banner" src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/socal/github-large-banner-phoenix-v2.jpg?raw=true" width="auto" height="auto"></img>
+        <picture>
+            <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Arize-ai/phoenix/main/assets/brand/arize-phoenix-banner-dark.svg">
+            <img alt="phoenix banner" src="https://raw.githubusercontent.com/Arize-ai/phoenix/main/assets/brand/arize-phoenix-banner-light.svg" width="100%">
+        </picture>
     </a>
     <br/>
     <br/>
@@ -9,9 +12,6 @@
     <br/>
     <a href="https://arize.com/docs/phoenix/">
         <img src="https://img.shields.io/static/v1?message=Docs&logo=data:image/png;base64,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&labelColor=grey&color=blue&logoColor=white&label=%20"/>
-    </a>
-    <a target="_blank" href="https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g">
-        <img src="https://img.shields.io/static/v1?message=Community&logo=slack&labelColor=grey&color=blue&logoColor=white&label=%20"/>
     </a>
      <a target="_blank" href="https://bsky.app/profile/arize-phoenix.bsky.social">
         <img src="https://img.shields.io/badge/-phoenix-blue.svg?color=blue&labelColor=gray&logo=bluesky">
@@ -37,14 +37,26 @@
     <a target="_blank" href="https://hub.docker.com/r/arizephoenix/phoenix-helm">
         <img src="https://img.shields.io/badge/Helm-blue?style=flat&logo=helm&labelColor=grey"/>
     </a>
-    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/remote-mcp">
+    <a target="_blank" href="https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server">
         <img src="https://badge.mcpx.dev?status=on" title="MCP Enabled"/>
     </a>
     <a href="cursor://anysphere.cursor-deeplink/mcp/install?name=phoenix&config=eyJ1cmwiOiJodHRwOi8vbG9jYWxob3N0OjYwMDYvbWNwIn0%3D"><img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Add Arize Phoenix MCP server to Cursor" height=20 /></a>
     <img referrerpolicy="no-referrer-when-downgrade" src="https://static.scarf.sh/a.png?x-pxid=8e8e8b34-7900-43fa-a38f-1f070bd48c64&page=README.hu.md" />
 </p>
 
-Az Arize Phoenix az Arize nyílt forráskódú AI-megfigyelhetőségi platformja, amelyet kísérletezésre, kiértékelésre és hibaelhárításra terveztek. Menedzselt éles munkafolyamatokhoz az Arize az [Arize AX](https://arize.com/products/ax/) platformot is kínálja. A Phoenix a következőket nyújtja:
+<p align="center">
+    <a target="_blank" href="https://github.com/Arize-ai/phoenix/stargazers">
+        <img alt="Star Arize Phoenix on GitHub" src="https://img.shields.io/github/stars/Arize-ai/phoenix?style=social&label=Star%20on%20GitHub" />
+    </a>
+</p>
+
+<p align="center">
+ <a href="https://www.star-history.com/arize-ai/phoenix">
+  <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /><img alt="Star History Rank" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=rank" /></picture> <picture><source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending&theme=dark" /><source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /><img alt="GitHub Trending Repository of the Day" src="https://api.star-history.com/badge?repo=Arize-ai/phoenix&type=trending" /></picture>
+ </a>
+</p>
+
+Az Arize Phoenix az Arize nyílt forráskódú AI-megfigyelhetőségi platformja, amelyet kísérletezésre, kiértékelésre és hibaelhárításra terveztek. Menedzselt éles munkafolyamatokhoz az Arize az [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-hu) platformot is kínálja. A Phoenix a következőket nyújtja:
 
 - [**_Tracing_**](https://arize.com/docs/phoenix/tracing/llm-traces) - Kövesse nyomon LLM-alkalmazása futását OpenTelemetry-alapú instrumentációval.
 - [**_Kiértékelés_**](https://arize.com/docs/phoenix/evaluation/llm-evals) - Használjon LLM-eket alkalmazása teljesítményének mérésére válasz- és visszakeresési evalokkal.
@@ -53,7 +65,7 @@ Az Arize Phoenix az Arize nyílt forráskódú AI-megfigyelhetőségi platformja
 - [**_Playground_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts)- Optimalizálja a promptokat, hasonlítsa össze a modelleket, állítsa be a paramétereket, és játssza újra a rögzített LLM-hívásokat.
 - [**_Promptkezelés_**](https://arize.com/docs/phoenix/prompt-engineering/overview-prompts/prompt-management)- Kezelje és tesztelje szisztematikusan a promptok változásait verziókezeléssel, címkézéssel és kísérletezéssel.
 - [**_PXI (Phoenix Intelligence)_**](https://arize.com/docs/phoenix/pxi) - A Phoenixbe épített AI-mérnöki ágens trace-ek hibakereséséhez, promptok iteratív fejlesztéséhez és a termékben való navigáláshoz.
-- [**_Távoli MCP-szerver_**](https://arize.com/docs/phoenix/integrations/remote-mcp) - Csatlakoztassa a Claude Code-ot, a Cursort és más MCP-klienseket közvetlenül Phoenix-példánya `/mcp` végpontjához, hogy trace-eket, adatkészleteket, kísérleteket és egyebeket kérdezzen le.
+- [**_Távoli MCP-szerver_**](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server) - Csatlakoztassa a Claude Code-ot, a Cursort és más MCP-klienseket közvetlenül Phoenix-példánya `/mcp` végpontjához, hogy trace-eket, adatkészleteket, kísérleteket és egyebeket kérdezzen le.
 
 <p align="center">
     <video src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/tracing_realtime.mp4" controls muted loop playsinline width="800"></video>
@@ -61,10 +73,10 @@ Az Arize Phoenix az Arize nyílt forráskódú AI-megfigyelhetőségi platformja
 
 A Phoenix gyártó- és nyelvfüggetlen, és beépített támogatást nyújt a népszerű keretrendszerekhez ([OpenAI Agents SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai-agents-sdk), [Claude Agent SDK](https://arize.com/docs/phoenix/integrations/python/claude-agent-sdk), [LangGraph](https://arize.com/docs/phoenix/tracing/integrations-tracing/langchain), [Vercel AI SDK](https://arize.com/docs/phoenix/tracing/integrations-tracing/vercel-ai-sdk), [Mastra](https://arize.com/docs/phoenix/integrations/typescript/mastra), [CrewAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/crewai), [LlamaIndex](https://arize.com/docs/phoenix/tracing/integrations-tracing/llamaindex), [DSPy](https://arize.com/docs/phoenix/tracing/integrations-tracing/dspy)) és LLM-szolgáltatókhoz ([OpenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/openai), [Anthropic](https://arize.com/docs/phoenix/tracing/integrations-tracing/anthropic), [Google GenAI](https://arize.com/docs/phoenix/tracing/integrations-tracing/google-genai), [Google ADK](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-adk-tracing), [AWS Bedrock](https://arize.com/docs/phoenix/tracing/integrations-tracing/bedrock), [OpenRouter](https://arize.com/docs/phoenix/integrations/python/openrouter), [LiteLLM](https://arize.com/docs/phoenix/tracing/integrations-tracing/litellm) és mások). Az automatikus instrumentációval kapcsolatos részletekért tekintse meg az [OpenInference](https://github.com/Arize-ai/openinference) projektet.
 
-A Phoenix gyakorlatilag bárhol futtatható, például a helyi gépén, konténeres telepítésben vagy a felhőben. Az egyes lehetőségek bemutatásáért lásd a [Környezetek](https://arize.com/docs/phoenix/environments) oldalt, vagy ugorjon egyenesen a [Tracing gyorsindítási útmutatóhoz](https://arize.com/docs/phoenix/get-started/get-started-tracing).
+A Phoenix gyakorlatilag bárhol futtatható, például a helyi gépén, konténeres telepítésben vagy a felhőben. Az egyes lehetőségek bemutatásáért lásd a [Környezetek](https://arize.com/docs/phoenix/self-hosting) oldalt, vagy ugorjon egyenesen a [Tracing gyorsindítási útmutatóhoz](https://arize.com/docs/phoenix/get-started/get-started-tracing).
 
 > [!NOTE]
-> A Phoenix nyílt forráskódú és saját üzemeltetésű. Menedzselt platformként az Arize az [Arize AX](https://arize.com/products/ax/) megoldást kínálja — ugyanaz az OpenTelemetry/OpenInference instrumentáció mindkettővel működik. Lásd a [teljes összehasonlítást](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
+> A Phoenix nyílt forráskódú és saját üzemeltetésű. Menedzselt platformként az Arize az [Arize AX](https://arize.com/products/ax/?utm_source=github&utm_medium=community&utm_campaign=px-to-ax&utm_content=readme-hu) megoldást kínálja — ugyanaz az OpenTelemetry/OpenInference instrumentáció mindkettővel működik. Lásd a [teljes összehasonlítást](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize).
 
 ## Tartalomjegyzék
 
@@ -144,7 +156,6 @@ Az `arize-phoenix` csomag a teljes Phoenix platformot tartalmazza. Ha azonban m�
 | [@arizeai/phoenix-otel](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-otel)     | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-otel)](https://www.npmjs.com/package/@arizeai/phoenix-otel) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                           | Könnyűsúlyú wrappert biztosít az OpenTelemetry primitívek köré, a Phoenixhez igazított alapértelmezésekkel                   |
 | [@arizeai/phoenix-client](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client) | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-client)](https://www.npmjs.com/package/@arizeai/phoenix-client) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                       | Kliens az Arize Phoenix API-hoz                                                                             |
 | [@arizeai/phoenix-evals](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-evals)   | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-evals)](https://www.npmjs.com/package/@arizeai/phoenix-evals) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize-ai.github.io/phoenix/)                                         | TypeScript kiértékelési könyvtár LLM-alkalmazásokhoz (alfa kiadás)                                           |
-| [@arizeai/phoenix-mcp](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-mcp)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-mcp)](https://www.npmjs.com/package/@arizeai/phoenix-mcp) [![Docs](https://img.shields.io/badge/docs-blue?logo=markdown&logoColor=white)](../../js/packages/phoenix-mcp/README.md)                                               | Önálló stdio MCP-szerver régebbi Phoenix-verziókhoz (karbantartási mód — felváltotta a Phoenixbe épített [távoli MCP-szerver](https://arize.com/docs/phoenix/integrations/remote-mcp)) |
 | [@arizeai/phoenix-cli](https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-cli)       | [![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-cli)](https://www.npmjs.com/package/@arizeai/phoenix-cli) [![Docs](https://img.shields.io/badge/docs-blue?logo=typescript&logoColor=white)](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli) | CLI trace-ek, adatkészletek és kísérletek lekéréséhez a Claude Code, a Cursor és más kódoló ágensek számára |
 
 ## Tracing integrációk
@@ -268,16 +279,16 @@ Futtassa a Phoenix [kódkiértékelőit](https://arize.com/docs/phoenix/evaluati
 A Phoenixet úgy tervezték, hogy emberek és AI kódoló ágensek egyaránt használhassák. Három felület teszi lehetővé, hogy az ágensek (Claude Code, Codex, Cursor és mások) az Ön trace-eivel, adatkészleteivel és kísérleteivel dolgozzanak:
 
 - **[CLI](https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli)** — az `npx @arizeai/phoenix-cli` lekéri a trace-eket, adatkészleteket és kísérleteket, valamint instrumentálja az alkalmazását (`setup`), így egy ágens a terminálból gyűjthet kontextust és cselekedhet annak alapján.
-- **[Skillek](https://docs.anthropic.com/en/docs/claude-code/skills)** — a [`.agents/skills/`](../../.agents/skills/) olyan munkafolyamatokat csomagol, amelyek megtanítják az ágenseknek a Phoenixszel végzett hibakeresést, kiértékelést és tracinget.
-- **[Távoli MCP-szerver](https://arize.com/docs/phoenix/integrations/remote-mcp)** — csatlakoztasson bármilyen MCP-klienst példánya `/mcp` végpontjához, hogy közvetlenül a Phoenixet kérdezze le.
+- **[Skillek](https://docs.anthropic.com/en/docs/claude-code/skills)** — a [`skills/`](../../skills/) olyan munkafolyamatokat csomagol, amelyek megtanítják az ágenseknek a Phoenixszel végzett hibakeresést, kiértékelést és tracinget.
+- **[Távoli MCP-szerver](https://arize.com/docs/phoenix/integrations/mcp#remote-mcp-server)** — csatlakoztasson bármilyen MCP-klienst példánya `/mcp` végpontjához, hogy közvetlenül a Phoenixet kérdezze le.
 
 A beállításhoz és a használathoz lásd a [kódoló ágensekről szóló dokumentációt](https://arize.com/docs/phoenix/integrations/developer-tools/coding-agents).
 
 | Skill                                              | Leírás                                                                                                                |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [phoenix-cli](../../.agents/skills/phoenix-cli/)         | LLM-alkalmazások hibakeresése a Phoenix CLI-vel — trace-ek lekérése, hibák elemzése, kísérletek áttekintése és lekérdezések a GraphQL API-n |
-| [phoenix-evals](../../.agents/skills/phoenix-evals/)     | Kiértékelők készítése és futtatása AI/LLM-alkalmazásokhoz a Phoenix segítségével                                                             |
-| [phoenix-tracing](../../.agents/skills/phoenix-tracing/) | OpenInference szemantikai konvenciók és instrumentáció LLM-alkalmazások tracingjéhez                                        |
+| [phoenix-cli](../../skills/phoenix-cli/)         | LLM-alkalmazások hibakeresése a Phoenix CLI-vel — trace-ek lekérése, hibák elemzése, kísérletek áttekintése és lekérdezések a GraphQL API-n |
+| [phoenix-evals](../../skills/phoenix-evals/)     | Kiértékelők készítése és futtatása AI/LLM-alkalmazásokhoz a Phoenix segítségével                                                             |
+| [phoenix-tracing](../../skills/phoenix-tracing/) | OpenInference szemantikai konvenciók és instrumentáció LLM-alkalmazások tracingjéhez                                        |
 
 ## Biztonság és adatvédelem
 
@@ -293,9 +304,7 @@ A telemetriát a következő környezeti változó beállításával kapcsolhatj
 
 Csatlakozzon közösségünkhöz, és kerüljön kapcsolatba több ezer AI-fejlesztővel.
 
-- 🌍 Csatlakozzon [Slack-közösségünkhöz](https://join.slack.com/t/arize-ai/shared_invite/zt-3r07iavnk-ammtATWSlF0pSrd1DsMW7g).
 - 📚 Olvassa el [dokumentációnkat](https://arize.com/docs/phoenix).
-- 💡 Tegyen fel kérdéseket és adjon visszajelzést a _#phoenix-support_ csatornán.
 - 🌟 Adjon egy csillagot nekünk a [GitHubon](https://github.com/Arize-ai/phoenix).
 - 🐞 Jelentse a hibákat a [GitHub Issues](https://github.com/Arize-ai/phoenix/issues) oldalon.
 - 𝕏 Kövessen minket az [𝕏](https://twitter.com/ArizePhoenix)-en.
@@ -314,3 +323,15 @@ Copyright 2025 Arize AI, Inc. Minden jog fenntartva.
 A kód egyes részeit egy vagy több amerikai egyesült államokbeli szabadalom védi. Lásd az [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE) fájlt.
 
 Ez a szoftver az Elastic License 2.0 (ELv2) feltételei szerint licencelt. Lásd a [LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE) fájlt.
+
+## Star History
+
+Phoenix is fully open source and built in the open. If it helps you, please [⭐ star the repo](https://github.com/Arize-ai/phoenix) to support the project.
+
+<a href="https://www.star-history.com/?repos=arize-ai%2Fphoenix&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=arize-ai/phoenix&type=date&legend=top-left" />
+ </picture>
+</a>

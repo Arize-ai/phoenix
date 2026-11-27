@@ -6,7 +6,6 @@ import {
   Flex,
   IDBadge,
   LinkButton,
-  Loading,
 } from "@phoenix/components";
 import {
   DialogContent,
@@ -14,7 +13,7 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
-import { TraceDetails } from "@phoenix/pages/trace";
+import { TraceDetails, TraceDetailsSkeleton } from "@phoenix/pages/trace";
 
 export function TraceDetailsDialog({
   traceId,
@@ -37,13 +36,14 @@ export function TraceDetailsDialog({
             <LinkButton
               size="S"
               to={`/projects/${projectId}/traces/${encodeURIComponent(traceId)}`}
+              target="_blank"
             >
               View Trace in Project
             </LinkButton>
             <DialogCloseButton />
           </DialogTitleExtra>
         </DialogHeader>
-        <Suspense fallback={<Loading />}>
+        <Suspense fallback={<TraceDetailsSkeleton />}>
           <TraceDetails traceId={traceId} projectId={projectId} />
         </Suspense>
       </DialogContent>

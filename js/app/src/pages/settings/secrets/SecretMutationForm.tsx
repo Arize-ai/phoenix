@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import {
@@ -13,13 +13,19 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
-import { SECRET_KEY_PATTERN } from "@phoenix/constants";
+import {
+  SECRET_KEY_DESCRIPTION,
+  SECRET_KEY_LEADING_AND_TRAILING_MESSAGE,
+  SECRET_KEY_LEADING_AND_TRAILING_PATTERN,
+  SECRET_KEY_PATTERN,
+} from "@phoenix/constants";
+import { TransformingInputController } from "@phoenix/hooks/useTransformingInput";
+import {
+  transformEnvironmentVariableInput,
+  trimEnvironmentVariableSeparators,
+} from "@phoenix/utils/environmentVariableUtils";
 
 import type { SecretFormParams } from "./types";
-
-function normalizeSecretKey(value: string) {
-  return value.toUpperCase().replace(/\s+/g, "_");
-}
 
 export function SecretMutationForm({
   title,
@@ -36,11 +42,10 @@ export function SecretMutationForm({
   isSubmitting: boolean;
   onSubmit: (params: SecretFormParams) => void;
 }) {
-  const keyInputRef = useRef<HTMLInputElement>(null);
   const {
     control,
     handleSubmit,
-    formState: { isDirty, isValid },
+    formState: { isDirty, isSubmitted },
   } = useForm<SecretFormParams>({
     defaultValues: {
       key: defaultKey,
@@ -48,6 +53,9 @@ export function SecretMutationForm({
     },
     mode: "onChange",
   });
+  // Errors wait until the key field loses focus or the form is submitted, so
+  // a trailing "_" typed between words does not flag the key mid-typing
+  const [isKeyFocused, setIsKeyFocused] = useState(false);
 
   return (
     <Form onSubmit={handleSubmit(onSubmit)}>
@@ -73,57 +81,56 @@ export function SecretMutationForm({
                   if (!SECRET_KEY_PATTERN.test(trimmedValue)) {
                     return "Use environment variable format: letters, numbers, and underscores only";
                   }
+                  if (
+                    !SECRET_KEY_LEADING_AND_TRAILING_PATTERN.test(trimmedValue)
+                  ) {
+                    return SECRET_KEY_LEADING_AND_TRAILING_MESSAGE;
+                  }
                   return true;
                 },
               }}
               render={({
                 field: { onChange, onBlur, value },
-                fieldState: { invalid, error },
+                fieldState: { error, isTouched },
               }) => {
-                const handleChange = (value: string) => {
-                  const input = keyInputRef.current;
-                  const selectionStart = input?.selectionStart ?? value.length;
-
-                  // Normalize live input to env-var style as the user types.
-                  const transformed = normalizeSecretKey(value);
-
-                  // Preserve the cursor after the transformed value is committed.
-                  const beforeCursor = value.slice(0, selectionStart);
-                  const newCursorPosition =
-                    normalizeSecretKey(beforeCursor).length;
-
-                  onChange(transformed);
-
-                  // Wait for React to commit the transformed input value before
-                  // restoring the cursor, or the selection update is lost.
-                  requestAnimationFrame(() => {
-                    input?.setSelectionRange(
-                      newCursorPosition,
-                      newCursorPosition
-                    );
-                  });
-                };
-
+                const displayedError =
+                  (isTouched && !isKeyFocused) || isSubmitted
+                    ? error
+                    : undefined;
                 return (
-                  <TextField
-                    isInvalid={invalid}
-                    onChange={handleChange}
-                    onBlur={onBlur}
+                  <TransformingInputController
                     value={value}
+                    onValueChange={onChange}
+                    transformValue={transformEnvironmentVariableInput}
+                    finalizeValue={trimEnvironmentVariableSeparators}
                   >
-                    <Label>Key</Label>
-                    <Input
-                      ref={keyInputRef}
-                      placeholder="e.g. OPENAI_API_KEY"
-                    />
-                    {error?.message ? (
-                      <FieldError>{error.message}</FieldError>
-                    ) : (
-                      <Text slot="description">
-                        Use the same format as an environment variable name.
-                      </Text>
+                    {(transformingInput) => (
+                      <TextField
+                        isInvalid={!!displayedError?.message}
+                        onChange={transformingInput.handleValueChange}
+                        onFocus={() => setIsKeyFocused(true)}
+                        onBlur={() => {
+                          setIsKeyFocused(false);
+                          transformingInput.handleBlur();
+                          onBlur();
+                        }}
+                        value={transformingInput.displayValue}
+                      >
+                        <Label>Key</Label>
+                        <Input
+                          {...transformingInput.inputProps}
+                          placeholder="e.g. OPENAI_API_KEY"
+                        />
+                        {displayedError?.message ? (
+                          <FieldError>{displayedError.message}</FieldError>
+                        ) : (
+                          <Text slot="description">
+                            {SECRET_KEY_DESCRIPTION}
+                          </Text>
+                        )}
+                      </TextField>
                     )}
-                  </TextField>
+                  </TransformingInputController>
                 );
               }}
             />
@@ -171,7 +178,7 @@ export function SecretMutationForm({
             type="submit"
             size="S"
             variant={isDirty ? "primary" : "default"}
-            isDisabled={!isValid || isSubmitting}
+            isDisabled={isSubmitting}
           >
             {submitLabel}
           </Button>

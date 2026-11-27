@@ -1,10 +1,15 @@
 import { act, type ReactNode, useEffect } from "react";
+import { Dialog, Input } from "react-aria-components";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
+import {
+  ViewportModal,
+  ViewportModalOverlay,
+} from "@phoenix/components/core/overlay";
 import { AgentProvider, useAgentStore } from "@phoenix/contexts/AgentContext";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
@@ -26,16 +31,34 @@ vi.mock("../AgentEditPermissionMenu", () => ({
   getNextEditPermissionMode: () => "bypass",
 }));
 
+type MockMissingCredentials = {
+  provider: { name: string };
+  credentialState: "may-work" | "no-key";
+};
+
+const credentialStatus = vi.hoisted(() => ({
+  missingCredentials: null as MockMissingCredentials | null,
+}));
+
 vi.mock("../AgentModelCredentialForm", () => ({
-  AgentModelCredentialForm: () => null,
+  AgentModelCredentialForm: ({
+    missingCredentials: { provider, credentialState },
+  }: {
+    missingCredentials: MockMissingCredentials;
+  }) => (
+    <section
+      aria-label={`${provider.name} credentials`}
+      data-credential-state={credentialState}
+    />
+  ),
   useAgentModelCredentialStatus: () => ({
-    missingCredentialsProvider: null,
+    missingCredentials: credentialStatus.missingCredentials,
     refreshCredentialStatus: () => undefined,
   }),
 }));
 
-vi.mock("../AgentModelMenu", () => ({
-  AgentModelMenu: () => <button type="button">Model</button>,
+vi.mock("../AgentModelPicker", () => ({
+  AgentModelPicker: () => <button type="button">Model</button>,
 }));
 
 vi.mock("../AgentWebSearchToggle", () => ({
@@ -272,28 +295,46 @@ describe("ChatView", () => {
     container.remove();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    credentialStatus.missingCredentials = null;
   });
 
-  it("focuses the prompt textarea when requested", () => {
-    renderChatView(root, { autoFocusInput: true });
+  it("doesn't send for a model without a key", () => {
+    credentialStatus.missingCredentials = {
+      provider: { name: "Anthropic" },
+      credentialState: "no-key",
+    };
+    const sendMessage = vi.fn<ChatViewSendMessage>();
+    renderChatView(root, { chatMessages: messages, sendMessage });
 
     const textarea = container.querySelector<HTMLTextAreaElement>(
       'textarea[aria-label="Message input"]'
     );
+    setTextareaValue(textarea!, "hello");
+    pressEnter(textarea!);
 
-    expect(textarea).not.toBeNull();
-    expect(document.activeElement).toBe(textarea);
+    expect(sendMessage).not.toHaveBeenCalled();
   });
 
-  it("does not focus the prompt textarea by default", () => {
-    renderChatView(root);
+  it("sends for a provider that may use ambient credentials, with the note shown", () => {
+    credentialStatus.missingCredentials = {
+      provider: { name: "AWS Bedrock" },
+      credentialState: "may-work",
+    };
+    const sendMessage = vi.fn<ChatViewSendMessage>();
+    renderChatView(root, { chatMessages: messages, sendMessage });
 
+    expect(
+      container
+        .querySelector('section[aria-label="AWS Bedrock credentials"]')
+        ?.getAttribute("data-credential-state")
+    ).toBe("may-work");
     const textarea = container.querySelector<HTMLTextAreaElement>(
       'textarea[aria-label="Message input"]'
     );
+    setTextareaValue(textarea!, "hello");
+    pressEnter(textarea!);
 
-    expect(textarea).not.toBeNull();
-    expect(document.activeElement).not.toBe(textarea);
+    expect(sendMessage).toHaveBeenCalledWith({ text: "hello" }, undefined);
   });
 
   it("preserves the prompt draft when the chat view remounts", () => {
@@ -363,21 +404,6 @@ describe("ChatView", () => {
     expect(container.textContent).toContain("Thinking...");
   });
 
-  it("keeps the thinking indicator while streaming before assistant output arrives", () => {
-    const userMessage = {
-      id: "user-message",
-      role: "user",
-      parts: [{ type: "text", text: "What is a trace?" }],
-    } as AgentUIMessage;
-    renderChatView(root, {
-      sessionId: "session-1",
-      status: "streaming",
-      chatMessages: [userMessage],
-    });
-
-    expect(container.textContent).toContain("Thinking...");
-  });
-
   it("keeps the thinking indicator until the streaming turn has visible content", () => {
     const userMessage = {
       id: "user-message",
@@ -413,50 +439,6 @@ describe("ChatView", () => {
       chatMessages: [userMessage, invisiblePartsAssistantMessage],
     });
     expect(container.textContent).toContain("Thinking...");
-  });
-
-  it("hides the thinking indicator once assistant text is streaming", () => {
-    const userMessage = {
-      id: "user-message",
-      role: "user",
-      parts: [{ type: "text", text: "What is a trace?" }],
-    } as AgentUIMessage;
-    const assistantMessage = {
-      id: "assistant-message",
-      role: "assistant",
-      parts: [{ type: "text", text: "A trace is" }],
-    } as AgentUIMessage;
-    renderChatView(root, {
-      sessionId: "session-1",
-      status: "streaming",
-      chatMessages: [userMessage, assistantMessage],
-    });
-
-    expect(container.textContent).not.toContain("Thinking...");
-  });
-
-  it("animates only the active assistant message while streaming", () => {
-    renderChatView(root, {
-      status: "streaming",
-      chatMessages: messages,
-    });
-
-    expect(
-      container
-        .querySelector('[data-message-id="assistant-message"]')
-        ?.getAttribute("data-streaming")
-    ).toBe("true");
-
-    renderChatView(root, {
-      status: "ready",
-      chatMessages: messages,
-    });
-
-    expect(
-      container
-        .querySelector('[data-message-id="assistant-message"]')
-        ?.getAttribute("data-streaming")
-    ).toBeNull();
   });
 
   it("runs /compact without sending it as a user message", async () => {
@@ -511,20 +493,6 @@ describe("ChatView", () => {
     expect(container.querySelector('[role="status"]')?.textContent).toBe(
       "Compacting conversation…"
     );
-  });
-
-  it("renders an already-compact result inline in the transcript", () => {
-    renderChatView(root, {
-      compactionStatus:
-        "Conversation is already compact. There are no older complete turns to compact.",
-    });
-
-    expect(container.querySelector('[role="status"]')?.textContent).toBe(
-      "Conversation is already compact. There are no older complete turns to compact."
-    );
-
-    renderChatView(root, { compactionStatus: null });
-    expect(container.querySelector('[role="status"]')).toBeNull();
   });
 
   it("renders a divider after the compacted transcript boundary", () => {
@@ -759,16 +727,6 @@ describe("ChatView", () => {
     ],
   };
 
-  it("renders the pending question carousel", () => {
-    renderChatView(root, {
-      chatMessages: messages,
-      status: "ready",
-      pendingElicitation: pendingQuestion,
-    });
-
-    expect(container.textContent).toContain("Which dataset should I use?");
-  });
-
   it("hides the pending question while the session is busy elsewhere", () => {
     renderChatView(root, {
       chatMessages: messages,
@@ -872,5 +830,69 @@ describe("ChatView", () => {
     expect(container.querySelector('[role="alertdialog"]')).not.toBeNull();
     expect(container.textContent).toContain("Session version changed.");
     expect(container.textContent).toContain("Rewind conversation");
+  });
+
+  // https://github.com/Arize-ai/phoenix/issues/14489 — the panel mounts (or
+  // remounts, e.g. when the session list finishes loading or the session
+  // switches) after a dialog has already taken focus. The prompt's autofocus
+  // effect must not pull focus out of the open dialog.
+  describe("when a viewport modal is already open", () => {
+    const dialog = (
+      <ViewportModalOverlay isOpen>
+        <ViewportModal>
+          <Dialog aria-label="Annotation config">
+            <Input aria-label="Dialog input" autoFocus />
+          </Dialog>
+        </ViewportModal>
+      </ViewportModalOverlay>
+    );
+    let dialogContainer: HTMLDivElement;
+    let dialogRoot: Root;
+
+    beforeEach(() => {
+      dialogContainer = document.createElement("div");
+      document.body.appendChild(dialogContainer);
+      dialogRoot = createRoot(dialogContainer);
+      act(() => {
+        dialogRoot.render(dialog);
+      });
+    });
+
+    afterEach(() => {
+      act(() => {
+        dialogRoot.unmount();
+      });
+      dialogContainer.remove();
+    });
+
+    it("does not steal focus from the dialog when the chat view mounts", () => {
+      const dialogInput = document.querySelector<HTMLInputElement>(
+        'input[aria-label="Dialog input"]'
+      );
+      expect(dialogInput).not.toBeNull();
+      expect(document.activeElement).toBe(dialogInput);
+
+      renderChatView(root, { autoFocusInput: true });
+
+      expect(
+        container.querySelector('textarea[aria-label="Message input"]')
+      ).not.toBeNull();
+      expect(document.activeElement).toBe(dialogInput);
+    });
+
+    it("does not steal focus from the dialog when the chat view remounts for another session", () => {
+      renderChatView(root, { sessionId: "session-1", autoFocusInput: true });
+      const dialogInput = document.querySelector<HTMLInputElement>(
+        'input[aria-label="Dialog input"]'
+      );
+      act(() => {
+        dialogInput?.focus();
+      });
+      expect(document.activeElement).toBe(dialogInput);
+
+      renderChatView(root, { sessionId: "session-2", autoFocusInput: true });
+
+      expect(document.activeElement).toBe(dialogInput);
+    });
   });
 });

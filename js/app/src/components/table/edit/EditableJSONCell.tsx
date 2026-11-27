@@ -1,5 +1,4 @@
 import { css } from "@emotion/react";
-import type { CellContext } from "@tanstack/react-table";
 import { useState } from "react";
 import { Button as AriaButton } from "react-aria-components";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -33,6 +32,7 @@ import { useDebouncedChange } from "@phoenix/hooks/useDebouncedChange";
 import { useModifierKey } from "@phoenix/hooks/useModifierKey";
 import { isPlainObject, safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
+import type { CellContext } from "../tableFeatures";
 import {
   formatJSONEditorValue,
   getJSONEditorInitialCursor,

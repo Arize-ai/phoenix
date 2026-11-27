@@ -46,9 +46,7 @@ export const PromptsLabelMenu = ({
         size="M"
         leadingVisual={<Icon svg={<Icons.PriceTags />} />}
         trailingVisual={
-          selectedLabelIds.length > 0 ? (
-            <Counter>{selectedLabelIds.length}</Counter>
-          ) : undefined
+          <Counter count={selectedLabelIds.length} showZero={false} />
         }
       >
         Labels

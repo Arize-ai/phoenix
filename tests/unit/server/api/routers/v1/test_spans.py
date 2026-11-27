@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from typing import Any, Callable, Optional
 from uuid import UUID
 
-import httpx
+import httpx2
 import pytest
 from faker import Faker
 from sqlalchemy import insert, select
@@ -22,7 +22,7 @@ from phoenix.server.types import DbSessionFactory
 @pytest.mark.parametrize("sync", [False, True])
 async def test_rest_span_annotation(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     project_with_a_single_trace_and_span: Any,
     sync: bool,
     fake: Faker,
@@ -62,8 +62,39 @@ async def test_rest_span_annotation(
     assert orm_annotation.metadata_ == dict()
 
 
+@pytest.mark.parametrize("annotator_kind", ["DECISION", "AGENT"])
+async def test_rest_span_annotation_with_new_annotator_kind(
+    httpx_client: httpx2.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
+    fake: Faker,
+    annotator_kind: str,
+) -> None:
+    name = fake.pystr()
+    request_body = {
+        "data": [
+            {
+                "span_id": "7e2f08cb43bbf521",
+                "name": name,
+                "annotator_kind": annotator_kind,
+                "result": {"label": "relevant"},
+            }
+        ]
+    }
+
+    response = await httpx_client.post("v1/span_annotations?sync=true", json=request_body)
+    assert response.status_code == 200
+
+    response = await httpx_client.get(
+        "v1/projects/project-name/span_annotations", params={"span_ids": ["7e2f08cb43bbf521"]}
+    )
+    assert response.status_code == 200
+    [annotation] = [a for a in response.json()["data"] if a["name"] == name]
+    assert annotation["annotator_kind"] == annotator_kind
+    assert annotation["result"]["label"] == "relevant"
+
+
 async def test_rest_span_annotation_rejects_note_name(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     project_with_a_single_trace_and_span: Any,
 ) -> None:
     request_body = {
@@ -89,7 +120,7 @@ async def test_rest_span_annotation_rejects_note_name(
 
 async def test_rest_create_span_note(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     project_with_a_single_trace_and_span: Any,
     fake: Faker,
 ) -> None:
@@ -133,7 +164,7 @@ async def test_rest_create_span_note(
 
 async def test_rest_create_span_note_not_found(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     project_with_a_single_trace_and_span: Any,
     fake: Faker,
 ) -> None:
@@ -152,7 +183,7 @@ async def test_rest_create_span_note_not_found(
 
 async def test_rest_create_multiple_span_notes(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     project_with_a_single_trace_and_span: Any,
     fake: Faker,
 ) -> None:
@@ -190,7 +221,7 @@ async def test_rest_create_multiple_span_notes(
 
 async def test_rest_create_span_note_with_identifier_upserts(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     project_with_a_single_trace_and_span: Any,
     fake: Faker,
 ) -> None:
@@ -299,7 +330,7 @@ async def span_hierarchy(
 
 
 async def test_delete_single_span_leave_descendants(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     span_hierarchy: dict[str, Any],
     db: DbSessionFactory,
 ) -> None:
@@ -348,7 +379,7 @@ async def test_delete_single_span_leave_descendants(
 
 
 async def test_delete_span_empty_trace_cleanup(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     db: DbSessionFactory,
     project_with_a_single_trace_and_span: None,
 ) -> None:
@@ -383,11 +414,11 @@ async def test_delete_span_empty_trace_cleanup(
 
 
 async def test_delete_span_with_global_id(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     span_hierarchy: dict[str, Any],
     db: DbSessionFactory,
 ) -> None:
-    """Test that deleting a span works with relay GlobalID identifier."""
+    """Test that deleting a span works with a Global ID identifier."""
     hierarchy = span_hierarchy
 
     # Use GlobalID instead of OpenTelemetry span_id
@@ -418,6 +449,80 @@ async def test_delete_span_with_global_id(
             select(models.Span).where(models.Span.id == hierarchy["grandchild"].id)
         )
         assert remaining_grandchild is not None
+
+
+async def test_get_span_with_global_id(
+    httpx_client: httpx2.AsyncClient,
+    span_hierarchy: dict[str, Any],
+) -> None:
+    """Test that a span can be fetched with a Global ID identifier."""
+    hierarchy = span_hierarchy
+    child1_global_id = str(GlobalID("Span", str(hierarchy["child1"].id)))
+
+    response = await httpx_client.get(f"v1/spans/{child1_global_id}")
+    assert response.status_code == 200
+    span = Span.model_validate(response.json()["data"])
+
+    assert span.id == child1_global_id
+    assert span.context.span_id == "child-1"
+    assert span.context.trace_id == hierarchy["trace"].trace_id
+    assert span.parent_id == "parent-span"
+
+
+async def test_get_span_with_otel_span_id(
+    httpx_client: httpx2.AsyncClient,
+    span_hierarchy: dict[str, Any],
+) -> None:
+    """Test that a span can be fetched with a raw OpenTelemetry span_id."""
+    hierarchy = span_hierarchy
+
+    response = await httpx_client.get("v1/spans/parent-span")
+    assert response.status_code == 200
+    span = Span.model_validate(response.json()["data"])
+
+    assert span.id == str(GlobalID("Span", str(hierarchy["parent"].id)))
+    assert span.context.span_id == "parent-span"
+    assert span.context.trace_id == hierarchy["trace"].trace_id
+    assert span.parent_id is None
+
+
+async def test_get_span_not_found(
+    httpx_client: httpx2.AsyncClient,
+    project_with_a_single_trace_and_span: None,
+) -> None:
+    """Test that fetching an unknown identifier returns 404."""
+    response = await httpx_client.get("v1/spans/non-existent-span")
+    assert response.status_code == 404
+    assert "not found" in response.text.lower()
+
+
+async def test_get_span_with_unknown_global_id_returns_404(
+    httpx_client: httpx2.AsyncClient,
+    project_with_a_single_trace_and_span: None,
+) -> None:
+    """Test that a well-formed Span GlobalID with no matching row returns 404."""
+    unknown_global_id = str(GlobalID("Span", "999999"))
+
+    response = await httpx_client.get(f"v1/spans/{unknown_global_id}")
+    assert response.status_code == 404
+    assert f"Span with Global ID '{unknown_global_id}' not found" in response.text
+
+
+async def test_get_span_matches_get_spans_element(
+    httpx_client: httpx2.AsyncClient,
+    span_search_test_data: None,
+) -> None:
+    """The single-span payload must be byte-identical to the getSpans list element."""
+    list_resp = await httpx_client.get("v1/projects/search-test/spans")
+    assert list_resp.is_success
+    list_elements = list_resp.json()["data"]
+    assert list_elements
+
+    for element in list_elements:
+        span = Span.model_validate(element)
+        get_resp = await httpx_client.get(f"v1/spans/{span.context.span_id}")
+        assert get_resp.status_code == 200
+        assert get_resp.json()["data"] == element
 
 
 @pytest.fixture
@@ -488,7 +593,7 @@ async def span_hierarchy_with_metrics(
 
 
 async def test_delete_span_cumulative_metrics_propagation(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     span_hierarchy_with_metrics: dict[str, Any],
     db: DbSessionFactory,
 ) -> None:
@@ -547,7 +652,7 @@ async def test_delete_span_cumulative_metrics_propagation(
 
 
 async def test_delete_span_no_metrics_propagation_when_no_parent(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     span_hierarchy_with_metrics: dict[str, Any],
     db: DbSessionFactory,
 ) -> None:
@@ -586,7 +691,7 @@ async def test_delete_span_no_metrics_propagation_when_no_parent(
 
 async def test_delete_span_not_found(
     db: DbSessionFactory,
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     project_with_a_single_trace_and_span: None,
 ) -> None:
     # Try to delete a non-existent span
@@ -765,7 +870,7 @@ async def project_with_nested_attributes(
 
 
 async def test_otlp_span_search_basic(
-    httpx_client: httpx.AsyncClient, span_search_test_data: None
+    httpx_client: httpx2.AsyncClient, span_search_test_data: None
 ) -> None:
     resp = await httpx_client.get("v1/projects/search-test/spans/otlpv1")
     assert resp.is_success
@@ -787,7 +892,7 @@ async def test_otlp_span_search_basic(
 
 
 async def test_otlp_span_search_time_slice(
-    httpx_client: httpx.AsyncClient, span_search_test_data: None
+    httpx_client: httpx2.AsyncClient, span_search_test_data: None
 ) -> None:
     start = "2021-01-01T00:01:00+00:00"
     end = "2021-01-01T00:03:00+00:00"
@@ -815,7 +920,7 @@ async def test_otlp_span_search_time_slice(
 
 
 async def test_otlp_span_search_pagination(
-    httpx_client: httpx.AsyncClient, span_search_test_data: None
+    httpx_client: httpx2.AsyncClient, span_search_test_data: None
 ) -> None:
     resp1 = await httpx_client.get(
         "v1/projects/search-test/spans/otlpv1",
@@ -853,7 +958,7 @@ async def test_otlp_span_search_pagination(
 
 
 async def test_otlp_span_attributes_conversion(
-    httpx_client: httpx.AsyncClient, project_with_a_single_trace_and_span: None
+    httpx_client: httpx2.AsyncClient, project_with_a_single_trace_and_span: None
 ) -> None:
     """Test that span attributes are properly converted to OTLP format."""
     resp = await httpx_client.get("v1/projects/project-name/spans/otlpv1")
@@ -883,7 +988,7 @@ async def test_otlp_span_attributes_conversion(
 
 
 async def test_otlp_span_events_conversion(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     project_with_a_single_trace_and_span_with_events: None,
 ) -> None:
     """Test that span events are properly converted to OTLP format."""
@@ -925,7 +1030,7 @@ async def test_otlp_span_events_conversion(
 
 
 async def test_otlp_attribute_flattening(
-    httpx_client: httpx.AsyncClient, project_with_nested_attributes: None
+    httpx_client: httpx2.AsyncClient, project_with_nested_attributes: None
 ) -> None:
     resp = await httpx_client.get("v1/projects/nested-attrs/spans/otlpv1")
     assert resp.is_success
@@ -971,7 +1076,7 @@ async def test_otlp_attribute_flattening(
 
 
 async def test_span_search_basic(
-    httpx_client: httpx.AsyncClient, span_search_test_data: None
+    httpx_client: httpx2.AsyncClient, span_search_test_data: None
 ) -> None:
     resp = await httpx_client.get("v1/projects/search-test/spans")
     assert resp.is_success
@@ -990,7 +1095,7 @@ async def test_span_search_basic(
 
 
 async def test_span_search_time_slice(
-    httpx_client: httpx.AsyncClient, span_search_test_data: None
+    httpx_client: httpx2.AsyncClient, span_search_test_data: None
 ) -> None:
     start = "2021-01-01T00:01:00+00:00"
     end = "2021-01-01T00:03:00+00:00"
@@ -1014,7 +1119,7 @@ async def test_span_search_time_slice(
 
 
 async def test_span_search_sort_direction(
-    httpx_client: httpx.AsyncClient, span_search_test_data: None
+    httpx_client: httpx2.AsyncClient, span_search_test_data: None
 ) -> None:
     resp_desc = await httpx_client.get("v1/projects/search-test/spans")
 
@@ -1024,7 +1129,7 @@ async def test_span_search_sort_direction(
 
 
 async def test_span_search_pagination(
-    httpx_client: httpx.AsyncClient, span_search_test_data: None
+    httpx_client: httpx2.AsyncClient, span_search_test_data: None
 ) -> None:
     resp1 = await httpx_client.get(
         "v1/projects/search-test/spans",
@@ -1097,7 +1202,7 @@ async def spans_inserted_out_of_start_time_order(db: DbSessionFactory) -> None:
 
 
 async def test_span_search_default_sort_is_insertion_order(
-    httpx_client: httpx.AsyncClient, spans_inserted_out_of_start_time_order: None
+    httpx_client: httpx2.AsyncClient, spans_inserted_out_of_start_time_order: None
 ) -> None:
     resp = await httpx_client.get("v1/projects/out-of-order/spans")
 
@@ -1106,7 +1211,7 @@ async def test_span_search_default_sort_is_insertion_order(
 
 
 async def test_span_search_sort_by_start_time_breaks_ties_by_id(
-    httpx_client: httpx.AsyncClient, spans_inserted_out_of_start_time_order: None
+    httpx_client: httpx2.AsyncClient, spans_inserted_out_of_start_time_order: None
 ) -> None:
     resp = await httpx_client.get("v1/projects/out-of-order/spans", params={"sort": "start_time"})
 
@@ -1115,7 +1220,7 @@ async def test_span_search_sort_by_start_time_breaks_ties_by_id(
 
 
 async def test_span_search_sort_by_start_time_paginates_across_ties(
-    httpx_client: httpx.AsyncClient, spans_inserted_out_of_start_time_order: None
+    httpx_client: httpx2.AsyncClient, spans_inserted_out_of_start_time_order: None
 ) -> None:
     names: list[str] = []
     cursor: Optional[str] = None
@@ -1135,7 +1240,7 @@ async def test_span_search_sort_by_start_time_paginates_across_ties(
 
 
 async def test_span_search_sort_by_start_time_limit_keeps_newest_spans(
-    httpx_client: httpx.AsyncClient, spans_inserted_out_of_start_time_order: None
+    httpx_client: httpx2.AsyncClient, spans_inserted_out_of_start_time_order: None
 ) -> None:
     resp = await httpx_client.get(
         "v1/projects/out-of-order/spans", params={"sort": "start_time", "limit": 2}
@@ -1146,7 +1251,7 @@ async def test_span_search_sort_by_start_time_limit_keeps_newest_spans(
 
 
 async def test_span_search_ascending_by_start_time(
-    httpx_client: httpx.AsyncClient, spans_inserted_out_of_start_time_order: None
+    httpx_client: httpx2.AsyncClient, spans_inserted_out_of_start_time_order: None
 ) -> None:
     resp = await httpx_client.get(
         "v1/projects/out-of-order/spans", params={"sort": "start_time", "order": "asc"}
@@ -1157,7 +1262,7 @@ async def test_span_search_ascending_by_start_time(
 
 
 async def test_span_search_ascending_by_id_paginates(
-    httpx_client: httpx.AsyncClient, spans_inserted_out_of_start_time_order: None
+    httpx_client: httpx2.AsyncClient, spans_inserted_out_of_start_time_order: None
 ) -> None:
     names: list[str] = []
     cursor: Optional[str] = None
@@ -1177,7 +1282,7 @@ async def test_span_search_ascending_by_id_paginates(
 
 
 async def test_span_search_ascending_by_start_time_paginates_across_ties(
-    httpx_client: httpx.AsyncClient, spans_inserted_out_of_start_time_order: None
+    httpx_client: httpx2.AsyncClient, spans_inserted_out_of_start_time_order: None
 ) -> None:
     names: list[str] = []
     cursor: Optional[str] = None
@@ -1197,7 +1302,7 @@ async def test_span_search_ascending_by_start_time_paginates_across_ties(
 
 
 async def test_span_search_rejects_cursor_from_a_different_sort(
-    httpx_client: httpx.AsyncClient, spans_inserted_out_of_start_time_order: None
+    httpx_client: httpx2.AsyncClient, spans_inserted_out_of_start_time_order: None
 ) -> None:
     first_page = await httpx_client.get("v1/projects/out-of-order/spans", params={"limit": 1})
     id_cursor = first_page.json()["next_cursor"]
@@ -1210,7 +1315,7 @@ async def test_span_search_rejects_cursor_from_a_different_sort(
 
 
 async def test_span_attributes_conversion(
-    httpx_client: httpx.AsyncClient, project_with_a_single_trace_and_span: None
+    httpx_client: httpx2.AsyncClient, project_with_a_single_trace_and_span: None
 ) -> None:
     resp = await httpx_client.get("v1/projects/project-name/spans")
     assert resp.is_success
@@ -1226,7 +1331,7 @@ async def test_span_attributes_conversion(
 
 
 async def test_span_events_conversion(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     project_with_a_single_trace_and_span_with_events: None,
 ) -> None:
     resp = await httpx_client.get("v1/projects/project-name/spans")
@@ -1248,7 +1353,7 @@ async def test_span_events_conversion(
 
 
 async def test_phoenix_attribute_flattening(
-    httpx_client: httpx.AsyncClient, project_with_nested_attributes: None
+    httpx_client: httpx2.AsyncClient, project_with_nested_attributes: None
 ) -> None:
     resp = await httpx_client.get("v1/projects/nested-attrs/spans")
     assert resp.is_success
@@ -1277,7 +1382,7 @@ async def test_phoenix_attribute_flattening(
 
 
 async def test_phoenix_openinference_span_kind_extraction(
-    httpx_client: httpx.AsyncClient, project_with_nested_attributes: None
+    httpx_client: httpx2.AsyncClient, project_with_nested_attributes: None
 ) -> None:
     resp = await httpx_client.get("v1/projects/nested-attrs/spans")
     assert resp.is_success
@@ -1343,7 +1448,7 @@ async def multi_trace_project(db: DbSessionFactory) -> None:
 
 
 async def test_span_search_filter_by_single_trace_id(
-    httpx_client: httpx.AsyncClient, multi_trace_project: None
+    httpx_client: httpx2.AsyncClient, multi_trace_project: None
 ) -> None:
     resp = await httpx_client.get(
         "v1/projects/multi-trace/spans",
@@ -1356,7 +1461,7 @@ async def test_span_search_filter_by_single_trace_id(
 
 
 async def test_span_search_filter_by_multiple_trace_ids(
-    httpx_client: httpx.AsyncClient, multi_trace_project: None
+    httpx_client: httpx2.AsyncClient, multi_trace_project: None
 ) -> None:
     resp = await httpx_client.get(
         "v1/projects/multi-trace/spans",
@@ -1368,7 +1473,7 @@ async def test_span_search_filter_by_multiple_trace_ids(
 
 
 async def test_span_search_filter_by_nonexistent_trace_id(
-    httpx_client: httpx.AsyncClient, multi_trace_project: None
+    httpx_client: httpx2.AsyncClient, multi_trace_project: None
 ) -> None:
     resp = await httpx_client.get(
         "v1/projects/multi-trace/spans",
@@ -1379,7 +1484,7 @@ async def test_span_search_filter_by_nonexistent_trace_id(
 
 
 async def test_otlp_span_search_filter_by_single_trace_id(
-    httpx_client: httpx.AsyncClient, multi_trace_project: None
+    httpx_client: httpx2.AsyncClient, multi_trace_project: None
 ) -> None:
     resp = await httpx_client.get(
         "v1/projects/multi-trace/spans/otlpv1",
@@ -1392,7 +1497,7 @@ async def test_otlp_span_search_filter_by_single_trace_id(
 
 
 async def test_otlp_span_search_filter_by_multiple_trace_ids(
-    httpx_client: httpx.AsyncClient, multi_trace_project: None
+    httpx_client: httpx2.AsyncClient, multi_trace_project: None
 ) -> None:
     resp = await httpx_client.get(
         "v1/projects/multi-trace/spans/otlpv1",
@@ -1404,7 +1509,7 @@ async def test_otlp_span_search_filter_by_multiple_trace_ids(
 
 
 async def test_span_search_filter_by_single_span_id(
-    httpx_client: httpx.AsyncClient, multi_trace_project: None
+    httpx_client: httpx2.AsyncClient, multi_trace_project: None
 ) -> None:
     resp = await httpx_client.get(
         "v1/projects/multi-trace/spans",
@@ -1417,7 +1522,7 @@ async def test_span_search_filter_by_single_span_id(
 
 
 async def test_span_search_filter_by_multiple_span_ids(
-    httpx_client: httpx.AsyncClient, multi_trace_project: None
+    httpx_client: httpx2.AsyncClient, multi_trace_project: None
 ) -> None:
     resp = await httpx_client.get(
         "v1/projects/multi-trace/spans",
@@ -1430,7 +1535,7 @@ async def test_span_search_filter_by_multiple_span_ids(
 
 
 async def test_span_search_filter_by_nonexistent_span_id(
-    httpx_client: httpx.AsyncClient, multi_trace_project: None
+    httpx_client: httpx2.AsyncClient, multi_trace_project: None
 ) -> None:
     resp = await httpx_client.get(
         "v1/projects/multi-trace/spans",
@@ -1441,7 +1546,7 @@ async def test_span_search_filter_by_nonexistent_span_id(
 
 
 async def test_otlp_span_search_filter_by_single_span_id(
-    httpx_client: httpx.AsyncClient, multi_trace_project: None
+    httpx_client: httpx2.AsyncClient, multi_trace_project: None
 ) -> None:
     resp = await httpx_client.get(
         "v1/projects/multi-trace/spans/otlpv1",
@@ -1454,7 +1559,7 @@ async def test_otlp_span_search_filter_by_single_span_id(
 
 
 async def test_otlp_span_search_filter_by_multiple_span_ids(
-    httpx_client: httpx.AsyncClient, multi_trace_project: None
+    httpx_client: httpx2.AsyncClient, multi_trace_project: None
 ) -> None:
     resp = await httpx_client.get(
         "v1/projects/multi-trace/spans/otlpv1",
@@ -1526,7 +1631,7 @@ async def project_with_parent_spans(db: DbSessionFactory) -> None:
 
 
 async def test_span_search_filter_by_parent_id_null(
-    httpx_client: httpx.AsyncClient, project_with_parent_spans: None
+    httpx_client: httpx2.AsyncClient, project_with_parent_spans: None
 ) -> None:
     """parent_id=null returns only root spans."""
     resp = await httpx_client.get(
@@ -1541,7 +1646,7 @@ async def test_span_search_filter_by_parent_id_null(
 
 
 async def test_span_search_filter_by_parent_id_specific(
-    httpx_client: httpx.AsyncClient, project_with_parent_spans: None
+    httpx_client: httpx2.AsyncClient, project_with_parent_spans: None
 ) -> None:
     """parent_id=<id> returns children of that span."""
     resp = await httpx_client.get(
@@ -1556,7 +1661,7 @@ async def test_span_search_filter_by_parent_id_specific(
 
 
 async def test_span_search_no_parent_id_filter(
-    httpx_client: httpx.AsyncClient, project_with_parent_spans: None
+    httpx_client: httpx2.AsyncClient, project_with_parent_spans: None
 ) -> None:
     """No parent_id param returns all spans."""
     resp = await httpx_client.get("v1/projects/parent-spans/spans")
@@ -1566,7 +1671,7 @@ async def test_span_search_no_parent_id_filter(
 
 
 async def test_otlp_span_search_filter_by_parent_id_null(
-    httpx_client: httpx.AsyncClient, project_with_parent_spans: None
+    httpx_client: httpx2.AsyncClient, project_with_parent_spans: None
 ) -> None:
     """parent_id=null returns only root spans (OTLP endpoint)."""
     resp = await httpx_client.get(
@@ -1581,7 +1686,7 @@ async def test_otlp_span_search_filter_by_parent_id_null(
 
 
 async def test_otlp_span_search_filter_by_parent_id_specific(
-    httpx_client: httpx.AsyncClient, project_with_parent_spans: None
+    httpx_client: httpx2.AsyncClient, project_with_parent_spans: None
 ) -> None:
     """parent_id=<id> returns children (OTLP endpoint)."""
     resp = await httpx_client.get(
@@ -1643,7 +1748,7 @@ async def project_with_varied_spans(db: DbSessionFactory) -> None:
 
 
 async def test_span_search_filter_by_name(
-    httpx_client: httpx.AsyncClient, project_with_varied_spans: None
+    httpx_client: httpx2.AsyncClient, project_with_varied_spans: None
 ) -> None:
     resp = await httpx_client.get(
         "v1/projects/varied-spans/spans",
@@ -1656,7 +1761,7 @@ async def test_span_search_filter_by_name(
 
 
 async def test_span_search_filter_by_multiple_span_kinds(
-    httpx_client: httpx.AsyncClient, project_with_varied_spans: None
+    httpx_client: httpx2.AsyncClient, project_with_varied_spans: None
 ) -> None:
     resp = await httpx_client.get(
         "v1/projects/varied-spans/spans",
@@ -1670,7 +1775,7 @@ async def test_span_search_filter_by_multiple_span_kinds(
 
 
 async def test_span_search_filter_by_status_code(
-    httpx_client: httpx.AsyncClient, project_with_varied_spans: None
+    httpx_client: httpx2.AsyncClient, project_with_varied_spans: None
 ) -> None:
     resp = await httpx_client.get(
         "v1/projects/varied-spans/spans",
@@ -1683,7 +1788,7 @@ async def test_span_search_filter_by_status_code(
 
 
 async def test_span_search_filter_combined(
-    httpx_client: httpx.AsyncClient, project_with_varied_spans: None
+    httpx_client: httpx2.AsyncClient, project_with_varied_spans: None
 ) -> None:
     """Combined filters: span_kind=LLM AND status_code=ERROR."""
     resp = await httpx_client.get(
@@ -1697,7 +1802,7 @@ async def test_span_search_filter_combined(
 
 
 async def test_span_search_invalid_span_kind_returns_422(
-    httpx_client: httpx.AsyncClient, project_with_varied_spans: None
+    httpx_client: httpx2.AsyncClient, project_with_varied_spans: None
 ) -> None:
     resp = await httpx_client.get(
         "v1/projects/varied-spans/spans",
@@ -1708,7 +1813,7 @@ async def test_span_search_invalid_span_kind_returns_422(
 
 
 async def test_span_search_invalid_status_code_returns_422(
-    httpx_client: httpx.AsyncClient, project_with_varied_spans: None
+    httpx_client: httpx2.AsyncClient, project_with_varied_spans: None
 ) -> None:
     resp = await httpx_client.get(
         "v1/projects/varied-spans/spans",
@@ -1719,7 +1824,7 @@ async def test_span_search_invalid_status_code_returns_422(
 
 
 async def test_span_search_case_insensitive_filters(
-    httpx_client: httpx.AsyncClient, project_with_varied_spans: None
+    httpx_client: httpx2.AsyncClient, project_with_varied_spans: None
 ) -> None:
     """Filters should be case-insensitive."""
     resp = await httpx_client.get(
@@ -1733,7 +1838,7 @@ async def test_span_search_case_insensitive_filters(
 
 
 async def test_otlp_span_search_filter_by_name(
-    httpx_client: httpx.AsyncClient, project_with_varied_spans: None
+    httpx_client: httpx2.AsyncClient, project_with_varied_spans: None
 ) -> None:
     resp = await httpx_client.get(
         "v1/projects/varied-spans/spans/otlpv1",
@@ -1746,7 +1851,7 @@ async def test_otlp_span_search_filter_by_name(
 
 
 async def test_otlp_span_search_filter_by_status_code(
-    httpx_client: httpx.AsyncClient, project_with_varied_spans: None
+    httpx_client: httpx2.AsyncClient, project_with_varied_spans: None
 ) -> None:
     resp = await httpx_client.get(
         "v1/projects/varied-spans/spans/otlpv1",
@@ -1839,7 +1944,7 @@ async def project_with_attributed_spans(db: DbSessionFactory) -> None:
 
 
 async def test_span_search_filter_by_attribute(
-    httpx_client: httpx.AsyncClient, project_with_attributed_spans: None
+    httpx_client: httpx2.AsyncClient, project_with_attributed_spans: None
 ) -> None:
     resp = await httpx_client.get(
         "v1/projects/attr-filter-test/spans",
@@ -1852,7 +1957,7 @@ async def test_span_search_filter_by_attribute(
 
 
 async def test_otlp_span_search_filter_by_attribute(
-    httpx_client: httpx.AsyncClient, project_with_attributed_spans: None
+    httpx_client: httpx2.AsyncClient, project_with_attributed_spans: None
 ) -> None:
     resp = await httpx_client.get(
         "v1/projects/attr-filter-test/spans/otlpv1",
@@ -1865,7 +1970,7 @@ async def test_otlp_span_search_filter_by_attribute(
 
 
 async def test_span_search_filter_by_multiple_attributes(
-    httpx_client: httpx.AsyncClient, project_with_attributed_spans: None
+    httpx_client: httpx2.AsyncClient, project_with_attributed_spans: None
 ) -> None:
     """Multiple attribute params are ANDed."""
     resp = await httpx_client.get(
@@ -1882,7 +1987,7 @@ async def test_span_search_filter_by_multiple_attributes(
 
 
 async def test_span_search_filter_by_attribute_malformed(
-    httpx_client: httpx.AsyncClient, project_with_attributed_spans: None
+    httpx_client: httpx2.AsyncClient, project_with_attributed_spans: None
 ) -> None:
     """Missing colon separator should return 422."""
     resp = await httpx_client.get(
@@ -1894,7 +1999,7 @@ async def test_span_search_filter_by_attribute_malformed(
 
 
 async def test_span_search_filter_by_attribute_empty_key(
-    httpx_client: httpx.AsyncClient, project_with_attributed_spans: None
+    httpx_client: httpx2.AsyncClient, project_with_attributed_spans: None
 ) -> None:
     """Empty key (leading colon) should return 422."""
     resp = await httpx_client.get(
@@ -1906,7 +2011,7 @@ async def test_span_search_filter_by_attribute_empty_key(
 
 
 async def test_span_search_filter_by_nested_attribute_path(
-    httpx_client: httpx.AsyncClient, project_with_attributed_spans: None
+    httpx_client: httpx2.AsyncClient, project_with_attributed_spans: None
 ) -> None:
     """Verify filtering with a deeply nested attribute path."""
     resp = await httpx_client.get(
@@ -1920,7 +2025,7 @@ async def test_span_search_filter_by_nested_attribute_path(
 
 
 async def test_span_search_filter_by_quoted_session_id_with_internal_colons(
-    httpx_client: httpx.AsyncClient, project_with_attributed_spans: None
+    httpx_client: httpx2.AsyncClient, project_with_attributed_spans: None
 ) -> None:
     """Quoted JSON string value with multiple internal colons matches stored string.
 
@@ -1940,7 +2045,7 @@ async def test_span_search_filter_by_quoted_session_id_with_internal_colons(
 
 
 async def test_span_search_filter_by_unquoted_session_id_with_internal_colons(
-    httpx_client: httpx.AsyncClient, project_with_attributed_spans: None
+    httpx_client: httpx2.AsyncClient, project_with_attributed_spans: None
 ) -> None:
     """Unquoted colon-bearing value falls back to raw string and still matches.
 
@@ -1959,7 +2064,7 @@ async def test_span_search_filter_by_unquoted_session_id_with_internal_colons(
 
 
 async def test_otlp_span_search_filter_by_attribute_empty_key(
-    httpx_client: httpx.AsyncClient, project_with_attributed_spans: None
+    httpx_client: httpx2.AsyncClient, project_with_attributed_spans: None
 ) -> None:
     """Empty key (leading colon) on OTLP endpoint should return 422."""
     resp = await httpx_client.get(
@@ -2033,7 +2138,7 @@ async def project_with_dispatch_pinning_spans(db: DbSessionFactory) -> None:
 
 
 async def test_attribute_bare_numeric_matches_stored_int_not_string(
-    httpx_client: httpx.AsyncClient, project_with_dispatch_pinning_spans: None
+    httpx_client: httpx2.AsyncClient, project_with_dispatch_pinning_spans: None
 ) -> None:
     """Bare `user.id:12345` dispatches as int and matches stored int 12345 only."""
     resp = await httpx_client.get(
@@ -2047,7 +2152,7 @@ async def test_attribute_bare_numeric_matches_stored_int_not_string(
 
 
 async def test_attribute_quoted_numeric_matches_stored_string_not_int(
-    httpx_client: httpx.AsyncClient, project_with_dispatch_pinning_spans: None
+    httpx_client: httpx2.AsyncClient, project_with_dispatch_pinning_spans: None
 ) -> None:
     """Quoted `user.id:"12345"` (forced-string escape hatch) matches stored string "12345" only."""
     resp = await httpx_client.get(
@@ -2061,7 +2166,7 @@ async def test_attribute_quoted_numeric_matches_stored_string_not_int(
 
 
 async def test_attribute_numeric_quoted_vs_unquoted_are_disjoint(
-    httpx_client: httpx.AsyncClient, project_with_dispatch_pinning_spans: None
+    httpx_client: httpx2.AsyncClient, project_with_dispatch_pinning_spans: None
 ) -> None:
     """Quoted and unquoted numeric filters have disjoint match sets (pin distinct behaviors)."""
     resp_bare = await httpx_client.get(
@@ -2082,7 +2187,7 @@ async def test_attribute_numeric_quoted_vs_unquoted_are_disjoint(
 
 
 async def test_attribute_bare_true_matches_stored_bool_true(
-    httpx_client: httpx.AsyncClient, project_with_dispatch_pinning_spans: None
+    httpx_client: httpx2.AsyncClient, project_with_dispatch_pinning_spans: None
 ) -> None:
     """Bare `flag:true` dispatches via .as_boolean() and always matches stored bool True.
 
@@ -2103,7 +2208,7 @@ async def test_attribute_bare_true_matches_stored_bool_true(
 
 
 async def test_attribute_quoted_true_matches_stored_string_true_only(
-    httpx_client: httpx.AsyncClient, project_with_dispatch_pinning_spans: None
+    httpx_client: httpx2.AsyncClient, project_with_dispatch_pinning_spans: None
 ) -> None:
     """Quoted `flag:"true"` dispatches as string and matches stored string "true" only.
 
@@ -2120,7 +2225,7 @@ async def test_attribute_quoted_true_matches_stored_string_true_only(
 
 
 async def test_attribute_bool_vs_bool_string_dispatch_pinned_per_dialect(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     project_with_dispatch_pinning_spans: None,
     dialect: str,
 ) -> None:
@@ -2200,7 +2305,7 @@ async def project_with_float_temperature_span(db: DbSessionFactory) -> None:
 
 
 async def test_attribute_bare_int_matches_stored_float_whole_number(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     project_with_float_temperature_span: None,
     dialect: str,
 ) -> None:
@@ -2276,7 +2381,7 @@ async def project_with_container_shaped_attributes(db: DbSessionFactory) -> None
 
 
 async def test_attribute_filter_into_list_valued_attribute_returns_zero_rows(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     project_with_container_shaped_attributes: None,
 ) -> None:
     """Filtering into a list-valued stored attribute returns 200 with 0 rows.
@@ -2296,7 +2401,7 @@ async def test_attribute_filter_into_list_valued_attribute_returns_zero_rows(
 
 
 async def test_attribute_filter_nested_object_path_matches(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     project_with_container_shaped_attributes: None,
 ) -> None:
     """Nested-object paths (no array indices) work on both sqlite and postgresql.
@@ -2369,7 +2474,7 @@ async def project_with_array_indexed_attributes(db: DbSessionFactory) -> None:
 
 
 async def test_attribute_filter_array_indexed_path_dialect_asymmetry(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     project_with_array_indexed_attributes: None,
     dialect: str,
 ) -> None:
@@ -2469,7 +2574,7 @@ async def project_with_oi_context_attributes(db: DbSessionFactory) -> None:
 
 
 async def test_oi_filter_by_user_id_string(
-    httpx_client: httpx.AsyncClient, project_with_oi_context_attributes: None
+    httpx_client: httpx2.AsyncClient, project_with_oi_context_attributes: None
 ) -> None:
     """user.id (string) filter returns exactly the matching span."""
     resp = await httpx_client.get(
@@ -2482,7 +2587,7 @@ async def test_oi_filter_by_user_id_string(
 
 
 async def test_oi_filter_by_metadata_nested_int(
-    httpx_client: httpx.AsyncClient, project_with_oi_context_attributes: None
+    httpx_client: httpx2.AsyncClient, project_with_oi_context_attributes: None
 ) -> None:
     """metadata.count (nested int) matches via type-aware integer dispatch."""
     resp = await httpx_client.get(
@@ -2495,7 +2600,7 @@ async def test_oi_filter_by_metadata_nested_int(
 
 
 async def test_oi_filter_by_metadata_nested_float(
-    httpx_client: httpx.AsyncClient, project_with_oi_context_attributes: None
+    httpx_client: httpx2.AsyncClient, project_with_oi_context_attributes: None
 ) -> None:
     """metadata.ratio (nested float) matches via type-aware float dispatch."""
     resp = await httpx_client.get(
@@ -2508,7 +2613,7 @@ async def test_oi_filter_by_metadata_nested_float(
 
 
 async def test_oi_filter_by_metadata_nested_bool(
-    httpx_client: httpx.AsyncClient, project_with_oi_context_attributes: None
+    httpx_client: httpx2.AsyncClient, project_with_oi_context_attributes: None
 ) -> None:
     """metadata.flag (nested bool) matches via type-aware boolean dispatch."""
     resp = await httpx_client.get(
@@ -2521,7 +2626,7 @@ async def test_oi_filter_by_metadata_nested_bool(
 
 
 async def test_oi_filter_by_tag_tags_list_returns_zero_rows(
-    httpx_client: httpx.AsyncClient, project_with_oi_context_attributes: None
+    httpx_client: httpx2.AsyncClient, project_with_oi_context_attributes: None
 ) -> None:
     """Filtering into a list-valued stored attribute silently returns no rows.
 
@@ -2562,7 +2667,7 @@ async def test_oi_filter_by_tag_tags_list_returns_zero_rows(
     ],
 )
 async def test_attribute_filter_returns_422(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     project_with_a_single_trace_and_span: None,
     case_name: str,
     attribute_value: str,
@@ -2581,7 +2686,7 @@ async def test_attribute_filter_returns_422(
 
 
 async def test_attribute_filter_dict_value_returns_422_on_otlp(
-    httpx_client: httpx.AsyncClient,
+    httpx_client: httpx2.AsyncClient,
     project_with_a_single_trace_and_span: None,
 ) -> None:
     """Parity: dict filter value also returns 422 on /spans/otlpv1.

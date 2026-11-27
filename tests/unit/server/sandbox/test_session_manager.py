@@ -721,12 +721,53 @@ async def test_manager_stop_awaits_pending_tasks_before_cancelling_sweeper() -> 
 
 
 @pytest.mark.asyncio
+async def test_manager_stop_cancels_sweeper_when_drain_is_cancelled() -> None:
+    """Cancelling ``stop`` during the drain must still stop the sweeper."""
+    close_entered = asyncio.Event()
+    release_close = asyncio.Event()
+
+    class _BlockingCloseBackend(_FakeBackend):
+        async def close_session(self, session_key: str) -> None:
+            close_entered.set()
+            await release_close.wait()
+            await super().close_session(session_key)
+
+    backend = _BlockingCloseBackend()
+    manager = SandboxSessionManager(
+        idle_ttl_seconds=60.0,
+        sweep_interval_seconds=60.0,
+        eviction_grace_seconds=60.0,
+    )
+
+    await manager.start()
+    (sweeper,) = manager._tasks
+    async with manager.acquire(backend, "k1"):
+        pass
+
+    manager.schedule_eviction("k1", backend)
+    await asyncio.wait_for(close_entered.wait(), timeout=1.0)
+    assert manager._pending_tasks is not None
+    pending_task = next(iter(manager._pending_tasks))
+
+    try:
+        with pytest.raises(asyncio.TimeoutError):
+            await asyncio.wait_for(manager.stop(), timeout=0.05)
+        assert sweeper.cancelled()
+        assert manager._tasks == []
+    finally:
+        release_close.set()
+        await asyncio.wait((pending_task,), timeout=1.0)
+    assert backend.close_calls == [_ck("k1")]
+
+
+@pytest.mark.asyncio
 async def test_manager_stop_does_not_cancel_slow_pending_eviction_past_grace() -> None:
     """A pending ``schedule_eviction`` task whose ``close_session`` runs
     longer than ``eviction_grace_seconds`` must NOT be cancelled by
     ``stop()`` — it must run to completion after ``stop()`` returns."""
     grace = 0.05
     close_entered = asyncio.Event()
+    release_close = asyncio.Event()
     cancelled_during_close = False
 
     class _SlowCloseBackend(SandboxBackend):
@@ -755,7 +796,8 @@ async def test_manager_stop_does_not_cancel_slow_pending_eviction_past_grace() -
             nonlocal cancelled_during_close
             close_entered.set()
             try:
-                await asyncio.sleep(grace * 2)
+                # Held until stop() returns, so the close outlives the grace window.
+                await release_close.wait()
             except asyncio.CancelledError:
                 cancelled_during_close = True
                 raise
@@ -784,22 +826,25 @@ async def test_manager_stop_does_not_cancel_slow_pending_eviction_past_grace() -
         pass
 
     manager.schedule_eviction("k1", backend)
-    await close_entered.wait()
+    await asyncio.wait_for(close_entered.wait(), timeout=1.0)
     assert manager._pending_tasks is not None
     pending_task = next(iter(manager._pending_tasks))
 
-    await manager.stop()
+    try:
+        await asyncio.wait_for(manager.stop(), timeout=1.0)
 
-    # stop() must have returned without cancelling the slow close_session.
-    assert not pending_task.done(), (
-        "slow pending eviction should still be running after stop() returns"
-    )
-    assert not cancelled_during_close
-    assert backend.close_calls == []
-
-    # The pending task is allowed to finish on its own; provider TTLs would
-    # otherwise reap the orphan in production.
-    await asyncio.wait_for(pending_task, timeout=grace * 10)
+        # stop() must have returned without cancelling the slow close_session.
+        assert not pending_task.done(), (
+            "slow pending eviction should still be running after stop() returns"
+        )
+        assert not cancelled_during_close
+        assert backend.close_calls == []
+    finally:
+        # The pending task is allowed to finish on its own; provider TTLs would
+        # otherwise reap the orphan in production.
+        release_close.set()
+        await asyncio.wait((pending_task,), timeout=1.0)
+    assert pending_task.done()
     assert backend.close_calls == [_ck("k1", "scpg")]
     assert not cancelled_during_close
 

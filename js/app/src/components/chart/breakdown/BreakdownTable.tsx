@@ -264,7 +264,7 @@ export function BreakdownTableSkeleton({
           <tr key={rowIndex}>
             <th scope="row" className="breakdown-table__segment">
               <span className="breakdown-table__segment-label">
-                <Skeleton width={8} height={8} borderRadius={2} />
+                <Skeleton width={8} height={8} borderRadius="xsmall" />
                 <TextSkeleton
                   size="S"
                   width={

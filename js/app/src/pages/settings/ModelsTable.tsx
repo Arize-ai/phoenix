@@ -1,12 +1,5 @@
 import { css } from "@emotion/react";
-import type { ColumnDef, SortingFn } from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useMemo, useRef } from "react";
 import { Focusable } from "react-aria";
@@ -33,9 +26,14 @@ import {
   getCommonPinningStyles,
   tableCSS,
 } from "@phoenix/components/table/styles";
+import type { ColumnDef, Row } from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
+import type { GenerativeModelType } from "@phoenix/constants/generativeConstants";
 import type {
   GenerativeModelKind,
+  GenerativeModelType as GraphQLGenerativeModelType,
   ModelsTable_generativeModels$data,
   ModelsTable_generativeModels$key,
 } from "@phoenix/pages/settings/__generated__/ModelsTable_generativeModels.graphql";
@@ -47,6 +45,17 @@ import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 import { CloneModelButton } from "./CloneModelButton";
 import { DeleteModelButton } from "./DeleteModelButton";
 
+// Compile-time check that GenerativeModelType in generativeConstants.ts matches the GraphQL schema.
+// This will cause a TypeScript error if the types diverge.
+type _AssertModelTypesMatch =
+  GraphQLGenerativeModelType extends GenerativeModelType
+    ? GenerativeModelType extends GraphQLGenerativeModelType
+      ? true
+      : "GenerativeModelType in generativeConstants.ts is missing values from GraphQL schema"
+    : "GraphQL schema has new model types not in generativeConstants.ts";
+const _assertModelTypesMatch: _AssertModelTypesMatch = true;
+void _assertModelTypesMatch; // Prevent unused variable warning
+
 // Initial estimate only — rows are measured once rendered. Roughly a 30px
 // size-S icon button + 2 * 8px cell padding + 1px row border.
 const ESTIMATED_ROW_HEIGHT = 47;
@@ -57,6 +66,7 @@ type ModelsTableGenerativeModel =
 type ModelsTableProps = {
   modelsRef: ModelsTable_generativeModels$key;
   kindFilter: "ALL" | GenerativeModelKind;
+  typeFilter: "ALL" | GenerativeModelType;
   search: string;
 };
 
@@ -103,10 +113,10 @@ function getRowCost(row: ModelsTableGenerativeModel, tokenType: string) {
  * @param columnId - the id of the column to sort by
  * @returns the difference between the costs of the two rows
  */
-const sortCostColumnFn: SortingFn<ModelsTableGenerativeModel> = (
-  rowA,
-  rowB,
-  columnId
+const sortCostColumnFn = (
+  rowA: Row<ModelsTableGenerativeModel>,
+  rowB: Row<ModelsTableGenerativeModel>,
+  columnId: string
 ) => {
   const costA = getRowCostNumber(rowA.original, columnId);
   const costB = getRowCostNumber(rowB.original, columnId);
@@ -119,9 +129,9 @@ const sortCostColumnFn: SortingFn<ModelsTableGenerativeModel> = (
 export function ModelsTable({
   modelsRef,
   kindFilter,
+  typeFilter,
   search,
 }: ModelsTableProps) {
-  "use no memo";
   const data = useFragment(
     graphql`
       fragment ModelsTable_generativeModels on Query
@@ -136,6 +146,7 @@ export function ModelsTable({
             generativeModel: node {
               id
               name
+              modelType
               provider
               namePattern
               providerKey
@@ -203,6 +214,17 @@ export function ModelsTable({
         },
       },
       {
+        header: "type",
+        id: "modelType",
+        accessorFn: (row) => row.modelType,
+        size: 100,
+        // The model type is the kind of span the model prices, so it is shown
+        // the way span kinds are
+        cell: ({ row }) => (
+          <SpanKindToken spanKind={row.original.modelType.toLowerCase()} />
+        ),
+      },
+      {
         header: "provider",
         accessorFn: (row) => row.provider ?? undefined,
         sortUndefined: "last",
@@ -268,7 +290,7 @@ export function ModelsTable({
         id: "input",
         accessorFn: (row) => getRowCost(row, "input"),
         meta: { textAlign: "right" },
-        sortingFn: sortCostColumnFn,
+        sortFn: sortCostColumnFn,
         sortUndefined: "last",
         cell: ({ row }) => {
           const inputCost = getRowCost(row.original, "input");
@@ -315,10 +337,13 @@ export function ModelsTable({
         id: "output",
         accessorFn: (row) => getRowCost(row, "output"),
         meta: { textAlign: "right" },
-        sortingFn: sortCostColumnFn,
+        sortFn: sortCostColumnFn,
         sortUndefined: "last",
         cell: ({ row }) => {
           const outputCost = getRowCost(row.original, "output");
+          const completionPrices = row.original.tokenPrices.filter(
+            (entry) => entry.kind === "COMPLETION"
+          );
           return (
             <Flex justifyContent="end" alignItems="center" gap="size-100">
               <span>{outputCost}</span>
@@ -332,24 +357,26 @@ export function ModelsTable({
                     Output Cost Breakdown
                   </Heading>
                   <View paddingTop="size-100">
-                    {row.original.tokenPrices
-                      ?.filter((entry) => entry.kind === "COMPLETION")
-                      .map((entry) => (
-                        <Flex
-                          key={entry.tokenType}
-                          direction="row"
-                          gap="size-100"
-                          justifyContent="space-between"
-                          width="100%"
-                        >
-                          <span>{entry.tokenType.toLocaleLowerCase()}</span>
-                          <span>
-                            {entry.costPerMillionTokens != null
-                              ? `${costFormatter(entry.costPerMillionTokens)} / 1M`
-                              : "--"}
-                          </span>
-                        </Flex>
-                      )) ?? null}
+                    {/* Embedding models are priced on input tokens only */}
+                    {completionPrices.length === 0 && (
+                      <span>No output token prices</span>
+                    )}
+                    {completionPrices.map((entry) => (
+                      <Flex
+                        key={entry.tokenType}
+                        direction="row"
+                        gap="size-100"
+                        justifyContent="space-between"
+                        width="100%"
+                      >
+                        <span>{entry.tokenType.toLocaleLowerCase()}</span>
+                        <span>
+                          {entry.costPerMillionTokens != null
+                            ? `${costFormatter(entry.costPerMillionTokens)} / 1M`
+                            : "--"}
+                        </span>
+                      </Flex>
+                    ))}
                   </View>
                 </RichTooltip>
               </TooltipTrigger>
@@ -379,6 +406,9 @@ export function ModelsTable({
         header: "last used at",
         accessorFn: (row) => filterableDateAccessorFn(row.lastUsedAt),
         sortUndefined: "last",
+        // most recently used first; TanStack's guess at a first direction
+        // depends on which rows come first
+        sortDescFirst: true,
         cell: TimestampCell,
       },
       {
@@ -439,11 +469,15 @@ export function ModelsTable({
         id: "kind",
         value: kindFilter === "ALL" ? "" : kindFilter,
       },
+      {
+        id: "modelType",
+        value: typeFilter === "ALL" ? "" : typeFilter,
+      },
     ];
-  }, [kindFilter]);
+  }, [kindFilter, typeFilter]);
 
-  // eslint-disable-next-line react/incompatible-library
-  const table = useReactTable({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data: tableData,
     defaultColumn: {
@@ -456,15 +490,12 @@ export function ModelsTable({
         provider: false,
       },
       columnPinning: {
-        left: ["name"],
-        right: ["actions"],
+        start: ["name"],
+        end: ["actions"],
       },
       globalFilter: search?.trim(),
       columnFilters,
     },
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
   });
 
   const rows = table.getRowModel().rows;

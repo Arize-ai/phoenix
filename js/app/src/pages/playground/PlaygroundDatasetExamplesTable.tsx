@@ -1,10 +1,6 @@
 import { css } from "@emotion/react";
-import type { ColumnDef, Table } from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import type { RowData } from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { throttle } from "lodash";
 import {
@@ -68,6 +64,8 @@ import type { AnnotationSummary } from "@phoenix/components/experiment/Experimen
 import { CellTop } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import type { ColumnDef, Table } from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { SpanTokenCosts } from "@phoenix/components/trace";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
@@ -573,7 +571,7 @@ const MemoizedExampleOutputCell = memo(function ExampleOutputCell({
 });
 
 // un-memoized normal table body component - see memoized version below
-function TableBody<T>({
+function TableBody<T extends RowData>({
   table,
   tableContainerRef,
   estimatedRowHeight,
@@ -582,7 +580,6 @@ function TableBody<T>({
   tableContainerRef: RefObject<HTMLDivElement | null>;
   estimatedRowHeight: number;
 }) {
-  "use no memo";
   const rows = table.getRowModel().rows;
   // eslint-disable-next-line react/incompatible-library
   const virtualizer = useVirtualizer({
@@ -837,6 +834,8 @@ export function PlaygroundDatasetExamplesTable({
   const flushPendingExperimentMetrics = useMemo(
     () =>
       throttle(
+        // the refs are read when the throttled flush runs, not during render
+        // eslint-disable-next-line react/refs
         () => {
           const annotations = pendingExperimentRunAnnotations.current;
           pendingExperimentRunAnnotations.current = [];
@@ -1083,6 +1082,8 @@ export function PlaygroundDatasetExamplesTable({
       return undefined;
     }
     const { instances } = playgroundStore.getState();
+    // clear the previous run's error as a new run starts
+    // eslint-disable-next-line react/set-state-in-effect
     setApiError(null);
     resetPendingExperimentMetrics();
     resetData();
@@ -1370,10 +1371,12 @@ export function PlaygroundDatasetExamplesTable({
       setSearchParams,
     ]
   );
-  const table = useReactTable<TableRow>({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data: tableData,
-    getCoreRowModel: getCoreRowModel(),
+    // rows keep the order they are given in
+    manualSorting: true,
     columnResizeMode: "onChange",
   });
   const rows = table.getRowModel().rows;
@@ -1401,27 +1404,15 @@ export function PlaygroundDatasetExamplesTable({
   /**
    * Instead of calling `column.getSize()` on every render for every header
    * and especially every data cell (very expensive),
-   * we will calculate all column sizes at once at the root table level in a useMemo
+   * we calculate all column sizes at once at the root table level
    * and pass the column sizes down as CSS variables to the <table> element.
-   * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
+   * @see https://tanstack.com/table/latest/docs/framework/react/examples/column-resizing-performant
    */
-  const columnSizeVars = useMemo(() => {
-    const headers = table.getFlatHeaders();
-    const colSizes: { [key: string]: number } = {};
-    for (let i = 0; i < headers.length; i++) {
-      const header = headers[i]!;
-      colSizes[`--header-${header.id}-size`] = header.getSize();
-      colSizes[`--col-${header.column.id}-size`] = header.column.getSize();
-    }
-    return colSizes;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    table.getState().columnSizingInfo,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    table.getState().columnSizing,
-    columns.length,
-  ]);
+  const columnSizeVars: { [key: string]: number } = {};
+  for (const header of table.getFlatHeaders()) {
+    columnSizeVars[`--header-${header.id}-size`] = header.getSize();
+    columnSizeVars[`--col-${header.column.id}-size`] = header.column.getSize();
+  }
 
   return (
     <InstanceVariablesProvider>
@@ -1485,7 +1476,7 @@ export function PlaygroundDatasetExamplesTable({
           </thead>
           {isEmpty ? (
             <TableEmpty />
-          ) : table.getState().columnSizingInfo.isResizingColumn ? (
+          ) : table.state.columnResizing.isResizingColumn ? (
             <MemoizedTableBody
               table={table}
               tableContainerRef={tableContainerRef}

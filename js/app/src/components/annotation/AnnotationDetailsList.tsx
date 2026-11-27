@@ -13,7 +13,7 @@ import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { hasAnnotationValue } from "./annotationUtils";
 import {
-  getPositiveOptimizationFromConfig,
+  getOptimizationValueFromConfig,
   type AnnotationOptimizationConfig,
 } from "./optimizationUtils";
 import type { Annotation, AnnotationTargetType } from "./types";
@@ -62,7 +62,7 @@ export function AnnotationDetailsList({
   if (annotationName == null) {
     return null;
   }
-  const meanPositiveOptimization = getPositiveOptimizationFromConfig({
+  const meanOptimizationValue = getOptimizationValueFromConfig({
     config: annotationConfig,
     score: meanScore,
   });
@@ -112,7 +112,7 @@ export function AnnotationDetailsList({
               <MeanScore
                 value={meanScore}
                 size="S"
-                positiveOptimization={meanPositiveOptimization}
+                optimizationValue={meanOptimizationValue}
               />
             </View>
           ) : null}
@@ -142,7 +142,7 @@ function AnnotationDetailsListItem({
   renderFilterActions?: (annotation: Annotation) => ReactNode;
 }) {
   // Detail rows color their own score rather than the group's mean.
-  const positiveOptimization = getPositiveOptimizationFromConfig({
+  const optimizationValue = getOptimizationValueFromConfig({
     config: annotationConfig,
     score: annotation.score,
   });
@@ -173,7 +173,7 @@ function AnnotationDetailsListItem({
                 <AnnotationScoreText
                   elementType="span"
                   fontFamily="mono"
-                  positiveOptimization={positiveOptimization}
+                  optimizationValue={optimizationValue}
                 >
                   {floatFormatter(annotation.score)}
                 </AnnotationScoreText>

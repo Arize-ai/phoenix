@@ -1,10 +1,4 @@
-import type { ColumnDef } from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 import invariant from "tiny-invariant";
@@ -13,18 +7,17 @@ import {
   Card,
   DocumentationHelp,
   Flex,
-  Icon,
-  Icons,
+  MarkerTrigger,
+  StatusIndicator,
   Text,
-  Tooltip,
-  TooltipTrigger,
-  TriggerWrap,
   View,
 } from "@phoenix/components";
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { tableCSS } from "@phoenix/components/table/styles";
+import type { ColumnDef } from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import {
@@ -128,7 +121,7 @@ function ProviderCell({
 }
 
 /**
- * Name cell component - shows warning icon if config has parse error
+ * Name cell component - shows a status if the config has a parse error
  */
 function NameCell({
   name,
@@ -142,21 +135,18 @@ function NameCell({
   }
 
   return (
-    <Flex direction="row" gap="size-50" alignItems="center">
+    <Flex direction="row" gap="size-100" alignItems="center">
       <span>{name}</span>
-      <TooltipTrigger>
-        <TriggerWrap>
-          <Icon
-            svg={<Icons.AlertTriangle />}
-            color="warning"
-            aria-label="Configuration error"
-          />
-        </TriggerWrap>
-        <Tooltip>
-          This provider&apos;s configuration could not be parsed. Use edit to
-          enter a new configuration.
-        </Tooltip>
-      </TooltipTrigger>
+      <MarkerTrigger
+        explanation={
+          <>
+            This provider&apos;s configuration could not be parsed. Use edit to
+            enter a new configuration.
+          </>
+        }
+      >
+        <StatusIndicator category="failed" label="Invalid configuration" />
+      </MarkerTrigger>
     </Flex>
   );
 }
@@ -308,12 +298,10 @@ export function CustomProvidersCard({
     return cols;
   }, [authenticationEnabled]);
 
-  // eslint-disable-next-line react/incompatible-library
-  const table = useReactTable<DataRow>({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data: tableData,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
   });
 
   const rows = table.getRowModel().rows;

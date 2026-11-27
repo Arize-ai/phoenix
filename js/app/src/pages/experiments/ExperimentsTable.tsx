@@ -1,10 +1,6 @@
 import { css } from "@emotion/react";
-import type { ColumnDef, Table } from "@tanstack/react-table";
-import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import type { RowData } from "@tanstack/react-table";
+import { flexRender, useTable } from "@tanstack/react-table";
 import type { ReactNode } from "react";
 import {
   memo,
@@ -38,12 +34,6 @@ import type { AnnotationConfig } from "@phoenix/components/annotation";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation";
 import { CopyToClipboardButton } from "@phoenix/components/core/copy/CopyToClipboardButton";
 import { DebouncedSearch } from "@phoenix/components/core/field/DebouncedSearch";
-import { ProgressCircle } from "@phoenix/components/core/progress";
-import {
-  RichTooltipActions,
-  RichTooltipDescription,
-  RichTooltipTitle,
-} from "@phoenix/components/core/tooltip";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import {
   BaselineExperimentBadge,
@@ -86,6 +76,8 @@ import {
   getCommonPinningStyles,
   TABLE_DATA_CELL_CLASS,
 } from "@phoenix/components/table/styles";
+import type { ColumnDef, Table } from "@phoenix/components/table/tableFeatures";
+import { appTableFeatures } from "@phoenix/components/table/tableFeatures";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
@@ -127,7 +119,7 @@ const RUNNING_EXPERIMENTS_POLL_INTERVAL_MS = 3000;
 
 const defaultColumnSettings = {
   minSize: 100,
-} satisfies Partial<ColumnDef<unknown>>;
+} satisfies Partial<ColumnDef<RowData>>;
 
 /**
  * Explains, for a column that shows a total, that its delta compares per-run
@@ -174,7 +166,6 @@ const TableBody = <T extends { id: string }>({
   isLoadingNext: boolean;
   dataset: ExperimentsTableFragment$data;
 }) => {
-  "use no memo";
   const navigate = useNavigate();
   return (
     <tbody>
@@ -546,7 +537,7 @@ export function ExperimentsTable({
             >
               <Truncate maxWidth="100%">{getValue() as string}</Truncate>
             </Link>
-            <ExperimentJobStatusIcon
+            <ExperimentJobStatusMarker
               status={jobStatus}
               experimentId={experimentId}
               datasetId={data.id}
@@ -874,7 +865,8 @@ export function ExperimentsTable({
     nonOrderableColumnIds: [CHECKBOX_COLUMN_ID, ACTIONS_COLUMN_ID],
   });
 
-  const table = useReactTable<TableRow>({
+  const table = useTable({
+    features: appTableFeatures,
     columns,
     data: tableData,
     state: {
@@ -884,15 +876,15 @@ export function ExperimentsTable({
       columnOrder: leafColumnOrder,
       columnPinning: {
         ...CHECKBOX_COLUMN_PINNING,
-        right: [ACTIONS_COLUMN_ID],
+        end: [ACTIONS_COLUMN_ID],
       },
     },
     defaultColumn: defaultColumnSettings,
     columnResizeMode: "onChange",
+    manualSorting: true,
     onRowSelectionChange: setRowSelection,
     onColumnSizingChange: setColumnSizing,
     onColumnVisibilityChange: setColumnVisibility,
-    getCoreRowModel: getCoreRowModel(),
     // Key rows by entity ID rather than by index so that row-hosted overlays
     // (action menus) and row selection stay bound to the row they were opened
     // on when a refetch re-orders the list.
@@ -924,28 +916,19 @@ export function ExperimentsTable({
     [hasNext, isLoadingNext, loadNext]
   );
 
-  const { columnSizingInfo, columnSizing: columnSizingState } =
-    table.getState();
-  const getFlatHeaders = table.getFlatHeaders;
+  const { columnResizing } = table.state;
 
   /**
    * Calculate all column sizes at once as CSS variables for performance
-   * @see https://tanstack.com/table/v8/docs/framework/react/examples/column-resizing-performant
+   * @see https://tanstack.com/table/latest/docs/framework/react/examples/column-resizing-performant
    */
-  const [columnSizeVars] = useMemo(() => {
-    const headers = getFlatHeaders();
-    const colSizes: { [key: string]: number } = {};
-    for (let i = 0; i < headers.length; i++) {
-      const header = headers[i]!;
-      colSizes[`--header-${makeSafeColumnId(header.id)}-size`] =
-        header.getSize();
-      colSizes[`--col-${makeSafeColumnId(header.column.id)}-size`] =
-        header.column.getSize();
-    }
-    return [colSizes];
-    // Disabled lint as per tanstack docs linked above
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getFlatHeaders, columnSizingInfo, columnSizingState]);
+  const columnSizeVars: { [key: string]: number } = {};
+  for (const header of table.getFlatHeaders()) {
+    columnSizeVars[`--header-${makeSafeColumnId(header.id)}-size`] =
+      header.getSize();
+    columnSizeVars[`--col-${makeSafeColumnId(header.column.id)}-size`] =
+      header.column.getSize();
+  }
 
   return (
     <div
@@ -1069,7 +1052,7 @@ export function ExperimentsTable({
                 </tr>
               ))}
             </thead>
-            {columnSizingInfo.isResizingColumn ? (
+            {columnResizing.isResizingColumn ? (
               <MemoizedTableBody
                 table={table}
                 hasNext={hasNext}
@@ -1103,7 +1086,7 @@ export function ExperimentsTable({
   );
 }
 
-function ExperimentJobStatusIcon({
+function ExperimentJobStatusMarker({
   status,
   experimentId,
   datasetId,
@@ -1112,39 +1095,16 @@ function ExperimentJobStatusIcon({
   experimentId: string;
   datasetId: string;
 }) {
-  if (status === "RUNNING") {
-    return (
-      <TooltipTrigger>
-        <TriggerWrap>
-          <ProgressCircle isIndeterminate size="S" aria-label="running" />
-        </TriggerWrap>
-        <RichTooltip>
-          <RichTooltipTitle>Experiment In Progress</RichTooltipTitle>
-          <RichTooltipDescription>
-            This experiment is currently running. The results may be incomplete
-          </RichTooltipDescription>
-        </RichTooltip>
-      </TooltipTrigger>
-    );
+  if (status === "RUNNING" || status === "STOPPED") {
+    return <ExperimentStatus status={status} isLabelHidden />;
   }
   if (status === "ERROR") {
     return (
-      <TooltipTrigger>
-        <TriggerWrap>
-          <Icon svg={<Icons.CloseCircle />} color="danger" aria-label="error" />
-        </TriggerWrap>
-        <RichTooltip>
-          <RichTooltipTitle>Experiment Error</RichTooltipTitle>
-          <RichTooltipDescription>
-            This experiment encountered an error during execution.
-          </RichTooltipDescription>
-          <RichTooltipActions>
-            <Link to={`/datasets/${datasetId}/experiments/${experimentId}`}>
-              View details
-            </Link>
-          </RichTooltipActions>
-        </RichTooltip>
-      </TooltipTrigger>
+      <ExperimentStatus
+        status={status}
+        isLabelHidden
+        detailsHref={`/datasets/${datasetId}/experiments/${experimentId}`}
+      />
     );
   }
   return null;

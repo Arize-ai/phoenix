@@ -6,12 +6,9 @@ import { PassThrough } from "stream";
 import { CommanderError } from "commander";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  type FetchViewerResult,
-  createAuthCommand,
-  formatAuthStatus,
-  obscureApiKey,
-} from "../src/commands/auth";
+import { obscureApiKey } from "../src/auth/apiKey";
+import type { FetchViewerResult } from "../src/auth/viewer";
+import { createAuthCommand, formatAuthStatus } from "../src/commands/auth";
 import { ExitCode } from "../src/exitCodes";
 import type { SettingsFile } from "../src/settings";
 import { mockProcessExit } from "./testUtils";
@@ -509,6 +506,56 @@ describe("px auth status/login/logout", () => {
         user: { auth_method: "ANONYMOUS" },
       });
       expect(userRequestCount).toBe(1);
+      expect(exitSpy).not.toHaveBeenCalled();
+    } finally {
+      await server?.close();
+    }
+  });
+
+  it("sends the profile headers when retrying stale OAuth credentials anonymously", async () => {
+    let server: Awaited<ReturnType<typeof withServer>> | undefined;
+    try {
+      server = await withServer((request, response) => {
+        if (request.url === "/oauth2/token") {
+          response.writeHead(405);
+          response.end();
+          return;
+        }
+        if (
+          request.url === "/v1/user" &&
+          request.headers["x-gate"] === "open"
+        ) {
+          response.writeHead(200, { "Content-Type": "application/json" });
+          response.end(JSON.stringify({ data: { auth_method: "ANONYMOUS" } }));
+          return;
+        }
+        response.writeHead(403);
+        response.end();
+      });
+      writeTempSettings(tmpDir, {
+        activeProfile: "local",
+        profiles: {
+          local: {
+            endpoint: server.url,
+            headers: { "x-gate": "open" },
+            oauthTokens: {
+              accessToken: "expired-access",
+              refreshToken: "expired-refresh",
+              expiresAt: "2000-01-01T00:00:00.000Z",
+              scope: "",
+            },
+          },
+        },
+      });
+      const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      const exitSpy = mockProcessExit();
+
+      await runAuthCommand(["status", "--format", "raw"]);
+
+      expect(JSON.parse(captured(stdoutSpy))).toMatchObject({
+        status: "anonymous",
+      });
       expect(exitSpy).not.toHaveBeenCalled();
     } finally {
       await server?.close();

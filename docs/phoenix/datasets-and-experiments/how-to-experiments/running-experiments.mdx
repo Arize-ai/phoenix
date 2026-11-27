@@ -321,6 +321,66 @@ experiment = client.experiments.evaluate_experiment(
 
 Sometimes we may want to do a quick sanity check on the task function or the evaluators before unleashing them on the full dataset. `run_experiment()` and `evaluate_experiment()` both are equipped with a `dry_run=` parameter for this purpose: it executes the task and evaluators on a small subset without sending data to the Phoenix server. Setting `dry_run=True` selects one sample from the dataset, and setting it to a number, e.g. `dry_run=3`, selects multiple. The sampling is also deterministic, so you can keep re-running it for debugging purposes.
 
+### Resume an Experiment
+
+Long experiments do not always finish in one go. A notebook crashes, a provider has an outage, or you hit Ctrl+C partway through, and you are left with an experiment where some runs are missing or errored. Rather than starting over, call `resume_experiment`: it finds the (example, repetition) pairs that have no successful run, executes the task for just those, and then applies any evaluators you pass to the runs that are still missing that evaluation. Runs that already succeeded are left exactly as they are.
+
+<Tabs>
+<Tab title="Python" icon="python">
+```python
+client.experiments.resume_experiment(
+    experiment_id="experiment-id",  # set your experiment ID here
+    task=task,
+    evaluators=[
+        # same evaluators you used in run_experiment
+    ],
+)
+```
+</Tab>
+<Tab title="TypeScript" icon="js">
+```typescript
+import { resumeExperiment } from "@arizeai/phoenix-client/experiments";
+
+await resumeExperiment({
+  experimentId: "experiment-id", // set your experiment ID here
+  task,
+  evaluators: [
+    // same evaluators you used in runExperiment
+  ],
+});
+```
+</Tab>
+</Tabs>
+
+When a resume replaces an errored run, the run keeps its ID, but any LLM or code evaluations attached to it are discarded, since they were scored against the failed output, and your evaluators score the run again on the new output. Human annotations on the run are kept. This behavior requires a Phoenix server of 20.21.3 or later.
+
+If every task finished but some evaluations are missing or failed, use `resume_evaluation` instead. It matches each evaluator to existing evaluations by name and runs it only on the runs that do not yet have a successful one, which makes it the cheapest way to add a new evaluator to a finished experiment or to retry after an evaluator outage. By contrast, `evaluate_experiment` scores every run again and overwrites any evaluation of the same name.
+
+<Tabs>
+<Tab title="Python" icon="python">
+```python
+client.experiments.resume_evaluation(
+    experiment_id="experiment-id",
+    evaluators={"no_error": no_error},  # runs only where "no_error" is missing
+)
+```
+</Tab>
+<Tab title="TypeScript" icon="js">
+```typescript
+import { resumeEvaluation } from "@arizeai/phoenix-client/experiments";
+
+await resumeEvaluation({
+  experimentId: "experiment-id",
+  evaluators, // each runs only where its evaluation is missing
+});
+```
+</Tab>
+</Tabs>
+
+<Note>
+Evaluators that return a list of results are not supported by `resume_experiment` or `resume_evaluation`. Resume cannot tell that such an evaluator has already run, so it would run again on every call. Each evaluator should return a single result whose name matches its key.
+</Note>
+
 ## Run Experiments in the UI
 
 Phoenix lets you run experiments directly from the UI using a dataset and prompt(s) in the Playground. The results are tracked as experiments attached to the dataset so you can compare runs over time.

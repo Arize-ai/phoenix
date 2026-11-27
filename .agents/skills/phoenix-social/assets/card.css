@@ -1,0 +1,49 @@
+/* Social card layer on top of the phoenix-explainer-video template. Link it after the template's
+   <style>: <link rel="stylesheet" href="card.css">. */
+
+/* ---------- Syntax colors, per look ---------- */
+#stage[data-look="dark"] {
+  --syn-keyword: #ff4f8b;
+  --syn-string: #3ddc84;
+  --syn-function: #c792ff;
+  --syn-name: #5ab0ff;
+  --syn-comment: #6e6e73;
+  --hl-bg: #082f5c;
+  --hl-bar: #3b9eff;
+}
+#stage[data-look="light"] {
+  --syn-keyword: #d1245f;
+  --syn-string: #12803c;
+  --syn-function: #7c3aed;
+  --syn-name: #1f6fd1;
+  --syn-comment: #8e8e93;
+  --hl-bg: #e7f0fd;
+  --hl-bar: #3b82f6;
+}
+
+/* Tokens inside .code. .p (punctuation, gray) comes from the template.
+   .k keyword or operator word, .s string, .f function or class being called, .n variable or flag,
+   .c comment. */
+.code .k { color: var(--syn-keyword); }
+.code .s { color: var(--syn-string); }
+.code .f { color: var(--syn-function); }
+.code .n { color: var(--syn-name); }
+.code .c { color: var(--syn-comment); }
+
+/* The line the post is about: put .hl on its .mask line. The band bleeds 40px past the content
+   edge on both sides, so its left bar sits outside the code instead of against the text. */
+.code .mask.hl {
+  background: var(--hl-bg);
+  box-shadow: inset 6px 0 0 var(--hl-bar);
+  margin: 0 -40px -0.12em;
+  padding-left: 40px;
+}
+
+/* ---------- Card layout ----------
+   Logo, headline, and artifact form one block with fixed spacing, centered on the card. Cards are
+   read at ~500px wide in a timeline, so the type is larger than in the explainer videos. */
+.scene.card { padding: 96px 128px; gap: 0; justify-content: center; }
+.card-brand { flex: none; height: 72px; width: auto; align-self: flex-start; }
+.card-body { flex: none; margin-top: 56px; display: flex; flex-direction: column; gap: 64px; }
+.scene.card .title { font-size: var(--title-size, 104px); max-width: none; }
+.scene.card .code { font-size: 50px; line-height: 1.5; }

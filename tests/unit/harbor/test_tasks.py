@@ -5,8 +5,12 @@ from typing import Any
 
 import pytest
 
-TASKS_DIR = Path(__file__).resolve().parents[3] / "evals" / "harbor" / "tasks"
-TASKS = sorted(path for path in (TASKS_DIR / "trail-benchmark-dev").iterdir() if path.is_dir())
+TASKS_DIR = Path(__file__).resolve().parents[3] / "evals" / "harbor" / "datasets"
+TASKS = sorted(
+    path
+    for path in (TASKS_DIR / "trail-benchmark-dev" / "tasks").iterdir()
+    if (path / "task.toml").is_file()
+)
 REFERENCE = TASKS[0]
 
 
@@ -52,4 +56,12 @@ def test_expected_answer_is_well_formed(task: Path) -> None:
     kinds = [key for key in ("exact", "reference") if key in spec]
     assert len(kinds) == 1, "expected.json needs exactly one of 'exact' or 'reference'"
     assert isinstance(spec[kinds[0]], str) and spec[kinds[0]].strip()
-    assert set(spec) <= {"exact", "reference", "notes", "source"}, "unknown keys"
+    assert set(spec) <= {
+        "exact",
+        "reference",
+        "notes",
+        "source",
+        "skills_expected",
+        "skills_unexpected",
+    }, "unknown keys"
+    assert spec.get("skills_unexpected") == "any_other", "a TRAIL question needs no workflow skill"
