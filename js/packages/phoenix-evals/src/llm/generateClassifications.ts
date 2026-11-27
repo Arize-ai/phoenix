@@ -5,12 +5,38 @@ import { decideClassifications } from "../decision/decideClassifications";
 import { getTelemetryOptions } from "../telemetry";
 import type {
   ClassificationCriterion,
+  Description,
   NamedClassificationOutcome,
   WithLLM,
 } from "../types/evals";
 import type { WithTelemetry } from "../types/otel";
 import type { WithPrompt } from "../types/prompts";
 import { isDecisionModel } from "../utils/isDecisionModel";
+
+/**
+ * Build the schema for a criterion's label. Without descriptions this is a
+ * plain `enum`, which providers accept under strict structured output. With
+ * descriptions it is a union of described `const`s (a `oneOf`), so the model
+ * sees what each label means.
+ */
+function buildLabelSchema(labels: Record<string, Description>): z.ZodTypeAny {
+  const entries = Object.entries(labels);
+  const names = entries.map(([name]) => name) as [string, ...string[]];
+  const hasDescriptions = entries.some(
+    ([, description]) => description != null
+  );
+  if (!hasDescriptions || names.length < 2) {
+    return z.enum(names);
+  }
+  const literals: z.ZodTypeAny[] = entries.map(([name, description]) =>
+    description != null
+      ? z.literal(name).describe(description)
+      : z.literal(name)
+  );
+  return z.union(
+    literals as unknown as [z.ZodTypeAny, z.ZodTypeAny, ...z.ZodTypeAny[]]
+  );
+}
 
 export type ClassifyCriteriaArgs = WithLLM &
   WithTelemetry &
@@ -47,16 +73,17 @@ export async function generateClassifications(
 
   const schema = z.object(
     Object.fromEntries(
-      criteria.map((criterion) => [
-        criterion.name,
-        z
-          .object({
-            // The explanation precedes the label so the model reasons before committing.
-            explanation: z.string(),
-            label: z.enum(criterion.labels),
-          })
-          .describe(criterion.instruction),
-      ])
+      criteria.map((criterion) => {
+        const inner = z.object({
+          // The explanation precedes the label so the model reasons before committing.
+          explanation: z.string(),
+          label: buildLabelSchema(criterion.labels),
+        });
+        return [
+          criterion.name,
+          criterion.instruction ? inner.describe(criterion.instruction) : inner,
+        ];
+      })
     )
   );
 
@@ -84,7 +111,8 @@ export async function generateClassifications(
     }
     return {
       name: criterion.name,
-      label: answer.label,
+      // The label schema is an enum/union of string literals, so this is a string.
+      label: answer.label as string,
       explanation: answer.explanation,
     };
   });

@@ -78,6 +78,11 @@ export interface ClassificationChoice {
 export type ClassificationChoicesMap = Record<string, number>;
 
 /**
+ * A label's description, or `null` when it has none.
+ */
+export type Description = string | null;
+
+/**
  * A single named classification question within a multi-criterion classifier.
  * Each criterion produces one {@link CriterionResult}.
  */
@@ -89,8 +94,19 @@ export interface Criterion {
    * backend as the per-question instruction. Must be non-empty.
    */
   instruction: string;
-  /** Mapping of each label to its numeric score, e.g. `{ helpful: 1, not_helpful: 0 }`. */
-  choices: ClassificationChoicesMap;
+  /**
+   * Each label mapped to its description, or `null` when the label has none,
+   * e.g. `{ helpful: "the response solved the problem", not_helpful: null }`.
+   * Label descriptions are passed through to the backend (as a `oneOf`/`const`
+   * schema for language models, and as the choice descriptions for decision
+   * models).
+   */
+  labels: Record<string, Description>;
+  /**
+   * Optional mapping of each label to its numeric score, e.g.
+   * `{ helpful: 1, not_helpful: 0 }`.
+   */
+  scoreMap?: Record<string, number>;
   /** Optional per-criterion optimization direction; falls back to the evaluator's. */
   optimizationDirection?: OptimizationDirection;
 }
@@ -105,14 +121,14 @@ export interface CriterionResult extends EvaluationResult {
 
 /**
  * The backend-level view of a criterion, sent to a classification backend
- * (language or decision model). Labels are derived from the criterion's
- * choices; scoring is left to the evaluator layer.
+ * (language or decision model). Carries the labels and their descriptions;
+ * scoring is left to the evaluator layer.
  */
 export interface ClassificationCriterion {
   /** Question name; keys the answer back to its {@link Criterion}. */
   name: string;
-  /** The labels to choose between. */
-  labels: [string, ...string[]];
+  /** Each label mapped to its description, or `null` when the label has none. */
+  labels: Record<string, Description>;
   /** The per-question instruction describing what to classify. */
   instruction: string;
 }

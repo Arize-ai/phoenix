@@ -49,14 +49,19 @@ function createTextQualityEvaluator(model: LanguageModel | DecisionModel) {
         name: "sentiment",
         instruction:
           "What is the overall sentiment of the text? Choose 'positive', 'negative', or 'neutral'.",
-        choices: { positive: 1, neutral: 0.5, negative: 0 },
+        labels: { positive: null, neutral: null, negative: null },
+        scoreMap: { positive: 1, neutral: 0.5, negative: 0 },
         optimizationDirection: "MAXIMIZE",
       },
       {
         name: "toxicity",
         instruction:
           "Is the text toxic (insulting, hateful, or harassing)? Choose 'toxic' or 'non_toxic'.",
-        choices: { toxic: 1, non_toxic: 0 },
+        labels: {
+          toxic: "insulting, hateful, or harassing",
+          non_toxic: "free of insults, hate, or harassment",
+        },
+        scoreMap: { toxic: 1, non_toxic: 0 },
         optimizationDirection: "MINIMIZE",
       },
     ],

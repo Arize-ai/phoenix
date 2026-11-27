@@ -10,12 +10,14 @@ const CRITERIA: Criterion[] = [
   {
     name: "sentiment",
     instruction: "Is the sentiment positive or negative?",
-    choices: { positive: 1, negative: 0 },
+    labels: { positive: null, negative: null },
+    scoreMap: { positive: 1, negative: 0 },
   },
   {
     name: "toxicity",
     instruction: "Is the text toxic?",
-    choices: { toxic: 1, non_toxic: 0 },
+    labels: { toxic: null, non_toxic: null },
+    scoreMap: { toxic: 1, non_toxic: 0 },
   },
 ];
 
@@ -69,6 +71,34 @@ describe("createCriteriaClassifierFn", () => {
         label: "toxic",
         score: 1,
         explanation: "because toxic",
+        metadata: undefined,
+      },
+    ]);
+  });
+
+  it("keeps the label but leaves the score undefined when a criterion has no scoreMap", async () => {
+    const classify = createCriteriaClassifierFn({
+      model: createMockModel({ topic: "billing" }),
+      choices: [
+        {
+          name: "topic",
+          instruction: "What is the topic?",
+          labels: { billing: null, shipping: null },
+          // No scoreMap: a bare-label classification.
+        },
+      ],
+      promptTemplate: "Classify: {{text}}",
+      telemetry: { isEnabled: false },
+    });
+
+    const results = await classify({ text: "whatever" });
+
+    expect(results).toEqual([
+      {
+        name: "topic",
+        label: "billing",
+        score: undefined,
+        explanation: "because billing",
         metadata: undefined,
       },
     ]);
@@ -159,7 +189,7 @@ describe("createCriteriaClassifierFn", () => {
     expect(() =>
       createCriteriaClassifierFn({
         model: createMockModel({}),
-        choices: [{ name: "sentiment", instruction: "", choices: { a: 1 } }],
+        choices: [{ name: "sentiment", instruction: "", labels: { a: null } }],
         promptTemplate: "Classify: {{text}}",
         telemetry: { isEnabled: false },
       })

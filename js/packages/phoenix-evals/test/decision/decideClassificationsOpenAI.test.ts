@@ -63,12 +63,14 @@ describe("multi-criterion classification with @ai-sdk/openai decision models", (
         {
           name: "sentiment",
           instruction: "Is the sentiment positive or negative?",
-          choices: { positive: 1, negative: 0 },
+          labels: { positive: null, negative: null },
+          scoreMap: { positive: 1, negative: 0 },
         },
         {
           name: "toxicity",
           instruction: "Is the text toxic?",
-          choices: { toxic: 1, non_toxic: 0 },
+          labels: { toxic: null, non_toxic: null },
+          scoreMap: { toxic: 1, non_toxic: 0 },
         },
       ],
     });

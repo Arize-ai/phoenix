@@ -22,12 +22,12 @@ vi.mock("ai", async (importActual) => {
 const CRITERIA: [ClassificationCriterion, ...ClassificationCriterion[]] = [
   {
     name: "sentiment",
-    labels: ["positive", "negative"],
+    labels: { positive: null, negative: null },
     instruction: "Is the sentiment positive or negative?",
   },
   {
     name: "toxicity",
-    labels: ["toxic", "non_toxic"],
+    labels: { toxic: null, non_toxic: null },
     instruction: "Is the text toxic?",
   },
 ];

@@ -124,8 +124,9 @@ See the complete example in [`examples/classifier_example.ts`](examples/classifi
 
 To answer several classification questions about the same input in one request,
 pass `choices` a list of criteria instead of a single label-to-score map. Each
-criterion has its own `name`, `instruction`, and `choices`, and produces its own
-result. Call `evaluateCriteria` to get one result per criterion.
+criterion has its own `name`, `instruction`, and `labels` (each label mapped to
+a description, or `null` for none), plus an optional `scoreMap`. Call
+`evaluateCriteria` to get one result per criterion.
 
 ```typescript
 import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
@@ -140,12 +141,18 @@ const evaluator = createClassificationEvaluator({
     {
       name: "helpfulness",
       instruction: "Is the response helpful to the user?",
-      choices: { helpful: 1, not_helpful: 0 },
+      // Describe a label to tell the model what it means; use null for none.
+      labels: {
+        helpful: "the response resolves the user's request",
+        not_helpful: "the response does not resolve it",
+      },
+      scoreMap: { helpful: 1, not_helpful: 0 },
     },
     {
       name: "tone",
       instruction: "Is the response's tone appropriate?",
-      choices: { appropriate: 1, inappropriate: 0 },
+      labels: { appropriate: null, inappropriate: null },
+      scoreMap: { appropriate: 1, inappropriate: 0 },
     },
   ],
 });
@@ -160,7 +167,12 @@ const results = await evaluator.evaluateCriteria({
 A language model answers every criterion in one `generateObject` call and
 includes an explanation per criterion; a decision model answers them in one
 `experimental_decide` call and returns label probabilities instead of an
-explanation.
+explanation. Label descriptions, when given, are sent to the backend (as a
+`oneOf` schema for language models, and as the choice descriptions for decision
+models). `scoreMap` is optional — omit it for a bare-label classification whose
+result carries a label but no score. If a question can't be answered (a refusal,
+an off-list label, or a missing answer), that one criterion's result carries no
+score and reports the reason in `metadata`, while its siblings are unaffected.
 
 ### Pre-Built Evaluators
 

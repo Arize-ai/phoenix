@@ -8,6 +8,7 @@ import { Experimental_DecisionRefusalError, experimental_decide } from "ai";
 import { getTelemetryOptions } from "../telemetry";
 import type {
   ClassificationCriterion,
+  Description,
   NamedClassificationOutcome,
 } from "../types/evals";
 import type { TelemetryConfig } from "../types/otel";
@@ -22,7 +23,7 @@ import { getDecisionConfidence } from "./getDecisionConfidence";
 interface ChoiceQuestion {
   type: "choice";
   instructions: string;
-  criteria: Record<string, null>;
+  criteria: Record<string, Description>;
 }
 
 /**
@@ -51,9 +52,7 @@ export async function decideClassifications(args: {
       {
         type: "choice",
         instructions: criterion.instruction,
-        criteria: Object.fromEntries(
-          criterion.labels.map((label) => [label, null])
-        ),
+        criteria: criterion.labels,
       } satisfies ChoiceQuestion,
     ])
   );

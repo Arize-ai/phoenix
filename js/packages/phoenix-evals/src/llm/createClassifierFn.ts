@@ -57,7 +57,8 @@ function choicesToLabels(
 /**
  * Validate a user-supplied list of criteria and convert each into the
  * backend-level {@link ClassificationCriterion}. Throws when a criterion has an
- * empty name or instruction, defines no choices, or when names are not unique.
+ * empty name or instruction, defines no labels, has a `scoreMap` label that is
+ * not among its labels, or when names are not unique.
  */
 function toClassificationCriteria(
   criteria: Criterion[]
@@ -75,6 +76,22 @@ function toClassificationCriteria(
         `Criterion '${criterion.name}' must have a non-empty instruction; it becomes the question asked about this criterion.`
       );
     }
+    const labels = Object.keys(criterion.labels);
+    if (labels.length < 1) {
+      throw new Error(
+        `Criterion '${criterion.name}' must define at least one label.`
+      );
+    }
+    if (criterion.scoreMap) {
+      const unknown = Object.keys(criterion.scoreMap).filter(
+        (label) => !(label in criterion.labels)
+      );
+      if (unknown.length > 0) {
+        throw new Error(
+          `Criterion '${criterion.name}' scoreMap has labels not in labels: ${unknown.join(", ")}.`
+        );
+      }
+    }
     if (seenNames.has(criterion.name)) {
       throw new Error(
         `Criterion names must be unique; duplicated: '${criterion.name}'. Each criterion's name keys its question and resulting result.`
@@ -83,7 +100,7 @@ function toClassificationCriteria(
     seenNames.add(criterion.name);
     return {
       name: criterion.name,
-      labels: choicesToLabels(criterion.choices),
+      labels: criterion.labels,
       instruction: criterion.instruction,
     };
   });
@@ -179,15 +196,17 @@ export function createCriteriaClassifierFn<
       if (isClassificationFailure(outcome)) {
         return toFailedCriterionResult(outcome);
       }
-      const score = criterion.choices[outcome.label];
-      if (score === undefined) {
+      if (!(outcome.label in criterion.labels)) {
         return toFailedCriterionResult({
           name: outcome.name,
           kind: "invalid_label",
-          reason: `Criterion '${criterion.name}' received invalid label '${outcome.label}'. Valid labels are: ${Object.keys(criterion.choices).join(", ")}.`,
+          reason: `Criterion '${criterion.name}' received invalid label '${outcome.label}'. Valid labels are: ${Object.keys(criterion.labels).join(", ")}.`,
           metadata: outcome.metadata,
         });
       }
+      // A valid label with no entry in scoreMap (or no scoreMap at all) keeps the
+      // label but has no score, mirroring the Python side's unscored labels.
+      const score = criterion.scoreMap?.[outcome.label];
       return {
         name: outcome.name,
         score,

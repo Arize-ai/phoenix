@@ -7,12 +7,12 @@ import type { ClassificationCriterion } from "../../src/types/evals";
 const CRITERIA: [ClassificationCriterion, ...ClassificationCriterion[]] = [
   {
     name: "sentiment",
-    labels: ["positive", "negative"],
+    labels: { positive: null, negative: null },
     instruction: "Is the sentiment positive or negative?",
   },
   {
     name: "toxicity",
-    labels: ["toxic", "non_toxic"],
+    labels: { toxic: null, non_toxic: null },
     instruction: "Is the text toxic?",
   },
 ];
@@ -100,4 +100,68 @@ describe("generateClassifications", () => {
     ]);
     expect(responseFormat.schema.required).toEqual(["sentiment", "toxicity"]);
   });
+
+  it("emits an enum label schema when a criterion has no descriptions", async () => {
+    const { model, state } = createMockModel({
+      sentiment: "positive",
+      toxicity: "non_toxic",
+    });
+
+    await generateClassifications({
+      model,
+      criteria: CRITERIA,
+      prompt: "Classify this text.",
+      telemetry: { isEnabled: false },
+    });
+
+    const label = labelSchemaOf(state.lastResponseFormat, "sentiment");
+    expect(label.enum).toEqual(["positive", "negative"]);
+    expect(label.anyOf ?? label.oneOf).toBeUndefined();
+  });
+
+  it("emits a union of described consts when a criterion has label descriptions", async () => {
+    const described: [ClassificationCriterion, ...ClassificationCriterion[]] = [
+      {
+        name: "sentiment",
+        instruction: "Classify the sentiment.",
+        labels: { positive: "clearly positive", negative: "clearly negative" },
+      },
+    ];
+    const { model, state } = createMockModel({ sentiment: "positive" });
+
+    await generateClassifications({
+      model,
+      criteria: described,
+      prompt: "Classify this text.",
+      telemetry: { isEnabled: false },
+    });
+
+    const label = labelSchemaOf(state.lastResponseFormat, "sentiment");
+    expect(label.enum).toBeUndefined();
+    const variants = label.anyOf ?? label.oneOf;
+    expect(variants?.map((variant) => variant.const)).toEqual([
+      "positive",
+      "negative",
+    ]);
+    expect(variants?.map((variant) => variant.description)).toEqual([
+      "clearly positive",
+      "clearly negative",
+    ]);
+  });
 });
+
+interface LabelSchema {
+  enum?: string[];
+  anyOf?: { const: string; description?: string }[];
+  oneOf?: { const: string; description?: string }[];
+}
+
+/** Pull one criterion's `label` sub-schema out of a captured JSON responseFormat. */
+function labelSchemaOf(responseFormat: unknown, name: string): LabelSchema {
+  const format = responseFormat as {
+    schema: {
+      properties: Record<string, { properties: Record<string, LabelSchema> }>;
+    };
+  };
+  return format.schema.properties[name]!.properties.label!;
+}
