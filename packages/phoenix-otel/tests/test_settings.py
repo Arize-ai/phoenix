@@ -344,6 +344,21 @@ class TestEnvFileDiscovery:
         # Quoted values are unwrapped
         ('PHOENIX_API_KEY="abc"', {"PHOENIX_API_KEY": "abc"}),
         ("PHOENIX_API_KEY='abc'", {"PHOENIX_API_KEY": "abc"}),
+        # Escaped characters in double-quoted values are unescaped
+        (
+            'PHOENIX_PROJECT_NAME="My App \\"v2\\" \\$HOME \\`id\\`"',
+            {"PHOENIX_PROJECT_NAME": 'My App "v2" $HOME `id`'},
+        ),
+        # Single-quoted values preserve backslashes literally
+        (
+            "PHOENIX_PROJECT_NAME='My App \\\"v2\\\" \\$HOME \\`id\\`'",
+            {"PHOENIX_PROJECT_NAME": 'My App \\"v2\\" \\$HOME \\`id\\`'},
+        ),
+        # Escaped backslashes are unescaped in double quotes
+        (
+            'PHOENIX_PROJECT_NAME="path\\\\to\\\\dir"',
+            {"PHOENIX_PROJECT_NAME": "path\\to\\dir"},
+        ),
         # Whitespace around key and value is stripped
         ("  PHOENIX_API_KEY = abc  ", {"PHOENIX_API_KEY": "abc"}),
         # Values may contain '='

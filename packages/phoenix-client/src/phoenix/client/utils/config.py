@@ -29,6 +29,7 @@ from phoenix.client.utils.parse_env_headers import parse_env_headers
 logger = logging.getLogger(__name__)
 
 _ENV_FILE_KEY_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_ENV_FILE_ESCAPED_CHAR = re.compile(r'\\([\\"$`])')
 # Matches envFileParser.ts in @arizeai/phoenix-config: its line breaks and JavaScript's trim().
 _ENV_FILE_LINE_BREAK = re.compile(r"\r\n|\r|\n")
 _ENV_FILE_TRIM_CHARS = "".join(
@@ -178,7 +179,10 @@ def _parse_env_file(text: str) -> dict[str, str]:
             continue
         value = value.strip(_ENV_FILE_TRIM_CHARS)
         if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
+            quote_char = value[0]
             value = value[1:-1]
+            if quote_char == '"':
+                value = _ENV_FILE_ESCAPED_CHAR.sub(r"\1", value)
         if value:
             values[key] = value
     return values

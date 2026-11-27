@@ -1,4 +1,5 @@
 const ENV_FILE_KEY_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const ENV_FILE_ESCAPED_CHAR_PATTERN = /\\([\\"$`])/g;
 
 /**
  * Name of the credential hand-off file discovered at (or above) the working
@@ -46,7 +47,11 @@ export function parseEnvFile(
       value[0] === value[value.length - 1] &&
       (value[0] === '"' || value[0] === "'");
     if (isQuoted) {
+      const quoteChar = value[0];
       value = value.slice(1, -1);
+      if (quoteChar === '"') {
+        value = value.replace(ENV_FILE_ESCAPED_CHAR_PATTERN, "$1");
+      }
     }
     if (value) {
       values[key] = value;
