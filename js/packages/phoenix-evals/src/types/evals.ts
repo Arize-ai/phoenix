@@ -78,6 +78,106 @@ export interface ClassificationChoice {
 export type ClassificationChoicesMap = Record<string, number>;
 
 /**
+ * A label's description, or `null` when it has none.
+ */
+export type Description = string | null;
+
+/**
+ * A single named classification question within a multi-criterion classifier.
+ * Each criterion produces one {@link CriterionResult}.
+ */
+export interface Criterion {
+  /** The criterion name; used as the result's `name` and as the backend question id. */
+  name: string;
+  /**
+   * Instructions for this criterion, the question asked about it. Sent to the
+   * backend as the per-question instruction. Must be non-empty.
+   */
+  instruction: string;
+  /**
+   * Each label mapped to its description, or `null` when the label has none,
+   * e.g. `{ helpful: "the response solved the problem", not_helpful: null }`.
+   * Label descriptions are passed through to the backend: listed in the label
+   * field's description for language models, and as the choice descriptions for
+   * decision models.
+   */
+  labels: Record<string, Description>;
+  /**
+   * Optional mapping of each label to its numeric score, e.g.
+   * `{ helpful: 1, not_helpful: 0 }`.
+   */
+  scoreMap?: Record<string, number>;
+}
+
+/**
+ * One criterion's result within a multi-criterion classification.
+ */
+export interface CriterionResult extends EvaluationResult {
+  /** The `name` of the {@link Criterion} this result answers. */
+  name: string;
+}
+
+/**
+ * The backend-level view of a criterion, sent to a classification backend
+ * (language or decision model). Carries the labels and their descriptions;
+ * scoring is left to the evaluator layer.
+ */
+export interface ClassificationCriterion {
+  /** Question name; keys the answer back to its {@link Criterion}. */
+  name: string;
+  /** Each label mapped to its description, or `null` when the label has none. */
+  labels: Record<string, Description>;
+  /** The per-question instruction describing what to classify. */
+  instruction: string;
+}
+
+/**
+ * One backend classification answer, tagged with the criterion name it answers.
+ */
+export interface NamedClassificationResult extends ClassificationResult {
+  name: string;
+}
+
+export type ClassificationFailureKind = "refusal" | "invalid_label" | "error";
+
+/**
+ * A single criterion that could not be classified. Returned in place of a
+ * {@link ClassificationResult} so that one failing criterion never discards the
+ * answers of its siblings (fault isolation).
+ */
+export interface ClassificationFailure {
+  kind: ClassificationFailureKind;
+  /** A human-readable reason, safe to surface to callers. */
+  reason: string;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * A {@link ClassificationFailure} tagged with the criterion name it belongs to.
+ */
+export interface NamedClassificationFailure extends ClassificationFailure {
+  name: string;
+}
+
+/**
+ * One backend outcome for a criterion: either an answer
+ * ({@link NamedClassificationResult}) or a failure
+ * ({@link NamedClassificationFailure}).
+ */
+export type NamedClassificationOutcome =
+  | NamedClassificationResult
+  | NamedClassificationFailure;
+
+/**
+ * True when a {@link NamedClassificationOutcome} is a failure rather than an answer.
+ */
+export function isClassificationFailure(
+  outcome: NamedClassificationOutcome
+): outcome is NamedClassificationFailure {
+  return "kind" in outcome;
+}
+
+/**
  * The arguments for creating a classification-based evaluator
  */
 export interface CreateClassifierArgs extends WithTelemetry {
@@ -86,10 +186,12 @@ export interface CreateClassifierArgs extends WithTelemetry {
    */
   model: LanguageModel | DecisionModel;
   /**
-   * The choices to classify the example into.
-   * e.g. { "correct": 1, "incorrect": 0 }
+   * The choices to classify the example into. Either a single label-to-score
+   * map (e.g. `{ "correct": 1, "incorrect": 0 }`) for a single-criterion
+   * classifier, or a list of {@link Criterion} for a multi-criterion
+   * classifier that produces one result per criterion.
    */
-  choices: ClassificationChoicesMap;
+  choices: ClassificationChoicesMap | Criterion[];
   /**
    * The prompt template to use for classification
    */

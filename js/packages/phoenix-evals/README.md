@@ -120,6 +120,64 @@ console.log(decisionResult);
 
 See the complete example in [`examples/classifier_example.ts`](examples/classifier_example.ts).
 
+### Classifying Multiple Criteria
+
+To answer several classification questions about the same input in one request,
+pass `choices` a list of criteria instead of a single label-to-score map. Each
+criterion has its own `name`, `instruction`, and `labels` (each label mapped to
+a description, or `null` for none), plus an optional `scoreMap`. Call
+`evaluateCriteria` to get one result per criterion.
+
+```typescript
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+import { openai } from "@ai-sdk/openai";
+
+const evaluator = createClassificationEvaluator({
+  name: "response-quality",
+  model: openai("gpt-6-luna"),
+  promptTemplate:
+    "Assess the response to the query:\n\n{{input}}\n\n{{output}}",
+  choices: [
+    {
+      name: "helpfulness",
+      instruction: "Is the response helpful to the user?",
+      // Describe a label to tell the model what it means; use null for none.
+      labels: {
+        helpful: "the response resolves the user's request",
+        not_helpful: "the response does not resolve it",
+      },
+      scoreMap: { helpful: 1, not_helpful: 0 },
+    },
+    {
+      name: "tone",
+      instruction: "Is the response's tone appropriate?",
+      labels: { appropriate: null, inappropriate: null },
+      scoreMap: { appropriate: 1, inappropriate: 0 },
+    },
+  ],
+});
+
+const results = await evaluator.evaluateCriteria({
+  input: "How do I reset my password?",
+  output: "Go to settings > reset.",
+});
+// results: [{ name: "helpfulness", label, score, ... }, { name: "tone", ... }]
+```
+
+A language model answers every criterion in one `generateObject` call and
+includes an explanation per criterion; a decision model answers them in one
+`experimental_decide` call and returns label probabilities instead of an
+explanation. Label descriptions, when given, are sent to the backend (listed in
+the `label` field's description for language models, and as the choice
+descriptions for decision models). `scoreMap` is optional — omit it for a
+bare-label classification whose result carries a label but no score.
+
+Fault isolation (language models): if the model declines a criterion or answers
+it with an off-list label, only that criterion's result carries no score and
+reports the reason in `metadata`; its siblings are unaffected. A decision-model
+refusal is all-or-nothing — the provider refuses the whole `experimental_decide`
+call, so every criterion in the batch is reported as refused.
+
 ### Pre-Built Evaluators
 
 The library includes several pre-built evaluators for common evaluation tasks. These evaluators come with optimized prompts and can be used directly with any AI SDK model.
