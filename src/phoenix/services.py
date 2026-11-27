@@ -1,6 +1,5 @@
 import logging
 import os
-import signal
 import subprocess
 import sys
 from collections.abc import Callable
@@ -83,8 +82,9 @@ class Service:
             if not file.name.isnumeric():
                 continue
             try:
-                os.kill(int(file.name), signal.SIGKILL)
-            except ProcessLookupError:
+                # psutil.Process.kill is cross-platform; signal.SIGKILL is undefined on Windows.
+                psutil.Process(int(file.name)).kill()
+            except psutil.NoSuchProcess:
                 pass
             file.unlink(missing_ok=True)
 
