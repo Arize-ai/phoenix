@@ -3,12 +3,12 @@
  * criterion as its own choice question in a single `experimental_decide` call,
  * so a decision model answers them all at once.
  */
-import { experimental_decide } from "ai";
+import { Experimental_DecisionRefusalError, experimental_decide } from "ai";
 
 import { getTelemetryOptions } from "../telemetry";
 import type {
   ClassificationCriterion,
-  NamedClassificationResult,
+  NamedClassificationOutcome,
 } from "../types/evals";
 import type { TelemetryConfig } from "../types/otel";
 import type { WithPrompt } from "../types/prompts";
@@ -33,14 +33,17 @@ interface ChoiceQuestion {
  * per-criterion label probabilities, the provider's confidence (when it
  * reports one) and the resolved model ID go in each result's metadata.
  *
- * A refusal throws the AI SDK's `Experimental_DecisionRefusalError`.
+ * Fault isolation: the AI SDK throws a single `Experimental_DecisionRefusalError`
+ * for the whole call when the model refuses, so a refusal is reported as a
+ * `refusal` failure for every criterion; a criterion the model simply leaves
+ * unanswered becomes an `error` failure for that criterion alone.
  */
 export async function decideClassifications(args: {
   model: DecisionModel;
   criteria: readonly ClassificationCriterion[];
   prompt: WithPrompt;
   telemetry?: TelemetryConfig;
-}): Promise<NamedClassificationResult[]> {
+}): Promise<NamedClassificationOutcome[]> {
   const { model, criteria, prompt, telemetry } = args;
   const questions: Record<string, ChoiceQuestion> = Object.fromEntries(
     criteria.map((criterion) => [
@@ -54,21 +57,35 @@ export async function decideClassifications(args: {
       } satisfies ChoiceQuestion,
     ])
   );
-  const result = await experimental_decide({
-    model,
-    state: promptToDecisionState(prompt),
-    questions,
-    telemetry: getTelemetryOptions({
-      functionId: "decideClassifications",
-      telemetry,
-    }),
-  });
+  let result;
+  try {
+    result = await experimental_decide({
+      model,
+      state: promptToDecisionState(prompt),
+      questions,
+      telemetry: getTelemetryOptions({
+        functionId: "decideClassifications",
+        telemetry,
+      }),
+    });
+  } catch (error) {
+    if (error instanceof Experimental_DecisionRefusalError) {
+      return criteria.map((criterion) => ({
+        name: criterion.name,
+        kind: "refusal",
+        reason: error.message,
+      }));
+    }
+    throw error;
+  }
   return criteria.map((criterion) => {
     const answer = result.answers[criterion.name];
     if (!answer) {
-      throw new Error(
-        `The decision model returned no answer for criterion '${criterion.name}'.`
-      );
+      return {
+        name: criterion.name,
+        kind: "error",
+        reason: `The decision model returned no answer for criterion '${criterion.name}'.`,
+      };
     }
     const confidence = getDecisionConfidence({
       providerMetadata: result.providerMetadata,

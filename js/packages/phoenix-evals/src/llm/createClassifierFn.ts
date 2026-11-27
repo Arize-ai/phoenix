@@ -2,12 +2,14 @@ import { formatTemplate } from "../template";
 import type {
   ClassificationChoicesMap,
   ClassificationCriterion,
+  ClassificationFailureKind,
   CreateClassifierArgs,
   Criterion,
   CriterionResult,
   EvaluationResult,
   EvaluatorFn,
 } from "../types/evals";
+import { isClassificationFailure } from "../types/evals";
 import { isCriteriaList } from "../utils/isCriteriaList";
 import { generateClassification } from "./generateClassification";
 import { generateClassifications } from "./generateClassifications";
@@ -19,6 +21,24 @@ import { generateClassifications } from "./generateClassifications";
 export type CriteriaEvaluatorFn<ExampleType extends Record<string, unknown>> = (
   example: ExampleType
 ) => Promise<CriterionResult[]>;
+
+/**
+ * Represent a failed criterion as a {@link CriterionResult} with no score or
+ * label (mirroring the Python side's `score=None`). The failure kind and reason
+ * are surfaced in `metadata`.
+ */
+function toFailedCriterionResult(args: {
+  name: string;
+  kind: ClassificationFailureKind;
+  reason: string;
+  metadata?: Record<string, unknown>;
+}): CriterionResult {
+  const { name, kind, reason, metadata } = args;
+  return {
+    name,
+    metadata: { ...metadata, failureKind: kind, failureReason: reason },
+  };
+}
 
 /**
  * Convert a mapping of choices to labels
@@ -149,25 +169,31 @@ export function createCriteriaClassifierFn<
       ...rest,
     });
 
-    return results.map((result) => {
-      const criterion = criteriaByName.get(result.name);
+    return results.map((outcome): CriterionResult => {
+      const criterion = criteriaByName.get(outcome.name);
       if (!criterion) {
         throw new Error(
-          `Received a result for unknown criterion '${result.name}'.`
+          `Received a result for unknown criterion '${outcome.name}'.`
         );
       }
-      const score = criterion.choices[result.label];
+      if (isClassificationFailure(outcome)) {
+        return toFailedCriterionResult(outcome);
+      }
+      const score = criterion.choices[outcome.label];
       if (score === undefined) {
-        throw new Error(
-          `Criterion '${criterion.name}' received invalid label '${result.label}'. Valid labels are: ${Object.keys(criterion.choices).join(", ")}.`
-        );
+        return toFailedCriterionResult({
+          name: outcome.name,
+          kind: "invalid_label",
+          reason: `Criterion '${criterion.name}' received invalid label '${outcome.label}'. Valid labels are: ${Object.keys(criterion.choices).join(", ")}.`,
+          metadata: outcome.metadata,
+        });
       }
       return {
-        name: result.name,
+        name: outcome.name,
         score,
-        label: result.label,
-        explanation: result.explanation,
-        metadata: result.metadata,
+        label: outcome.label,
+        explanation: outcome.explanation,
+        metadata: outcome.metadata,
       };
     });
   };

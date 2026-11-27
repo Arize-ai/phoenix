@@ -5,7 +5,7 @@ import { decideClassifications } from "../decision/decideClassifications";
 import { getTelemetryOptions } from "../telemetry";
 import type {
   ClassificationCriterion,
-  NamedClassificationResult,
+  NamedClassificationOutcome,
   WithLLM,
 } from "../types/evals";
 import type { WithTelemetry } from "../types/otel";
@@ -32,10 +32,13 @@ export type ClassifyCriteriaArgs = WithLLM &
  * decision model the criteria are routed through `experimental_decide` as
  * multiple choice questions in one call; decision models cannot generate text,
  * so no explanation is returned in that case.
+ *
+ * Fault isolation: a criterion with no answer becomes a `ClassificationFailure`
+ * for that criterion alone, so its siblings' answers are still returned.
  */
 export async function generateClassifications(
   args: ClassifyCriteriaArgs
-): Promise<NamedClassificationResult[]> {
+): Promise<NamedClassificationOutcome[]> {
   const { criteria, model, telemetry, ...prompt } = args;
 
   if (isDecisionModel(model)) {
@@ -73,9 +76,11 @@ export async function generateClassifications(
   return criteria.map((criterion) => {
     const answer = result.object[criterion.name];
     if (!answer) {
-      throw new Error(
-        `The model returned no answer for criterion '${criterion.name}'.`
-      );
+      return {
+        name: criterion.name,
+        kind: "error",
+        reason: `The model returned no answer for criterion '${criterion.name}'.`,
+      };
     }
     return {
       name: criterion.name,

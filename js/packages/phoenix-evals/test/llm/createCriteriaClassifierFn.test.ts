@@ -74,13 +74,13 @@ describe("createCriteriaClassifierFn", () => {
     ]);
   });
 
-  it("throws when the backend returns a label outside the criterion's choices", async () => {
+  it("marks a criterion with an off-list label as an invalid_label failure, keeping its siblings", async () => {
     vi.spyOn(
       generateClassificationsModule,
       "generateClassifications"
     ).mockResolvedValue([
       { name: "sentiment", label: "bogus", explanation: "" },
-      { name: "toxicity", label: "toxic", explanation: "" },
+      { name: "toxicity", label: "toxic", explanation: "because toxic" },
     ]);
 
     const classify = createCriteriaClassifierFn({
@@ -90,9 +90,58 @@ describe("createCriteriaClassifierFn", () => {
       telemetry: { isEnabled: false },
     });
 
-    await expect(classify({ text: "whatever" })).rejects.toThrow(
-      /invalid label 'bogus'/
-    );
+    const results = await classify({ text: "whatever" });
+
+    // The bad criterion has no score or label; the failure is surfaced in metadata.
+    expect(results[0]).toEqual({
+      name: "sentiment",
+      metadata: {
+        failureKind: "invalid_label",
+        failureReason: expect.stringContaining("invalid label 'bogus'"),
+      },
+    });
+    expect(results[0]!.score).toBeUndefined();
+    // The sibling is still scored.
+    expect(results[1]).toEqual({
+      name: "toxicity",
+      label: "toxic",
+      score: 1,
+      explanation: "because toxic",
+      metadata: undefined,
+    });
+  });
+
+  it("passes a backend ClassificationFailure through as a scoreless result, keeping its siblings", async () => {
+    vi.spyOn(
+      generateClassificationsModule,
+      "generateClassifications"
+    ).mockResolvedValue([
+      {
+        name: "sentiment",
+        kind: "error",
+        reason: "The model returned no answer for criterion 'sentiment'.",
+      },
+      { name: "toxicity", label: "toxic", explanation: "because toxic" },
+    ]);
+
+    const classify = createCriteriaClassifierFn({
+      model: createMockModel({}),
+      choices: CRITERIA,
+      promptTemplate: "Classify: {{text}}",
+      telemetry: { isEnabled: false },
+    });
+
+    const results = await classify({ text: "whatever" });
+
+    expect(results[0]).toEqual({
+      name: "sentiment",
+      metadata: {
+        failureKind: "error",
+        failureReason:
+          "The model returned no answer for criterion 'sentiment'.",
+      },
+    });
+    expect(results[1]!.score).toBe(1);
   });
 
   it("rejects duplicate criterion names at construction", () => {

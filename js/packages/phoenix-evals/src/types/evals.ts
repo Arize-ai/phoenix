@@ -124,6 +124,45 @@ export interface NamedClassificationResult extends ClassificationResult {
   name: string;
 }
 
+export type ClassificationFailureKind = "refusal" | "invalid_label" | "error";
+
+/**
+ * A single criterion that could not be classified. Returned in place of a
+ * {@link ClassificationResult} so that one failing criterion never discards the
+ * answers of its siblings (fault isolation).
+ */
+export interface ClassificationFailure {
+  kind: ClassificationFailureKind;
+  /** A human-readable reason, safe to surface to callers. */
+  reason: string;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * A {@link ClassificationFailure} tagged with the criterion name it belongs to.
+ */
+export interface NamedClassificationFailure extends ClassificationFailure {
+  name: string;
+}
+
+/**
+ * One backend outcome for a criterion: either an answer
+ * ({@link NamedClassificationResult}) or a failure
+ * ({@link NamedClassificationFailure}).
+ */
+export type NamedClassificationOutcome =
+  | NamedClassificationResult
+  | NamedClassificationFailure;
+
+/**
+ * True when a {@link NamedClassificationOutcome} is a failure rather than an answer.
+ */
+export function isClassificationFailure(
+  outcome: NamedClassificationOutcome
+): outcome is NamedClassificationFailure {
+  return "kind" in outcome;
+}
+
 /**
  * The arguments for creating a classification-based evaluator
  */
