@@ -18,6 +18,7 @@ _VALUE_FORMAT = r"[\x21\x23-\x2b\x2d-\x3a\x3c-\x5b\x5d-\x7e]*"
 _KEY_VALUE_FORMAT = rf"{_OWS}{_KEY_FORMAT}{_OWS}={_OWS}{_VALUE_FORMAT}{_OWS}"
 
 _HEADER_PATTERN = compile(_KEY_VALUE_FORMAT)
+_KEY_PATTERN = compile(_KEY_FORMAT)
 _DELIMITER_PATTERN = compile(r"[ \t]*,[ \t]*")
 
 
@@ -41,13 +42,15 @@ def parse_env_headers(s: Optional[str]) -> dict[str, str]:
             # Accept a value that is not URL encoded, such as "Authorization=Bearer <key>",
             # and never log the value, which is often a credential.
             name, sep, value = header.partition("=")
-            if not sep:
+            # Only the value is encoded; a name that is not a valid header name is dropped
+            # without logging it, since a malformed segment can hold part of a key.
+            if not sep or not _KEY_PATTERN.fullmatch(name.strip()):
                 logger.warning(
                     "Header format invalid! Header values in environment variables must be "
                     "URL encoded and in the form name=value."
                 )
                 continue
-            if not _HEADER_PATTERN.fullmatch(f"{quote(name)}={quote(value)}".strip()):
+            if not _HEADER_PATTERN.fullmatch(f"{name}={quote(value)}".strip()):
                 logger.warning(
                     "Header format invalid! Header values in environment variables must be "
                     "URL encoded and in the form name=value: %s: ****",
