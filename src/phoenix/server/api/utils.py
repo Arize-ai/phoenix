@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import delete, literal, select
+from sqlalchemy import delete, func, literal, select
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
@@ -41,9 +41,13 @@ async def delete_traces_and_orphan_sessions(
 
     The trace delete has no RETURNING clause on purpose: collecting the
     deleted rows' session ids buffers one row per deleted trace in the server
-    process (OOM on large PostgreSQL deletes, see #13906). Batches are keyed by
-    the unique ``id`` rather than by ``start_time`` so a full batch cannot be
-    revisited when many traces share a start time. The orphan sweep runs once,
+    process (OOM on large PostgreSQL deletes, see #13906). The set of traces
+    to delete is pinned before the first batch: the newest trace id at that
+    moment bounds every batch, so traces ingested after the clear started
+    survive even though the loop keeps selecting until the selection is empty
+    (#17961). Batches are keyed by the unique ``id`` rather than by
+    ``start_time`` so a full batch cannot be revisited when many traces share
+    a start time. The orphan sweep runs once,
     after the last batch, as a single set-based delete scoped to the project,
     so it cannot re-delete a session whose traces arrived between two batches.
     On PostgreSQL, candidate sessions are locked with FOR UPDATE SKIP LOCKED so
@@ -57,13 +61,28 @@ async def delete_traces_and_orphan_sessions(
         trace_filters.append(models.Trace.start_time >= start_time)
     if end_time is not None:
         trace_filters.append(models.Trace.start_time < end_time)
+
+    # Pin the traces the caller intended to clear. The loop below deletes
+    # batches until the selection is empty, so without this bound a trace
+    # ingested after the clear started would be caught by a later batch and
+    # deleted as well: on a busy project the reviewer saw 8,000 traces written
+    # after the click removed by this loop (#17961).
+    async with db() as session:
+        max_trace_rowid = await session.scalar(
+            select(func.max(models.Trace.id)).where(*trace_filters)
+        )
     deleted_trace_count = 0
-    while True:
+    last_trace_rowid = 0
+    while max_trace_rowid is not None:
         async with db() as session:
             trace_batch_ids = (
                 await session.scalars(
                     select(models.Trace.id)
-                    .where(*trace_filters)
+                    .where(
+                        *trace_filters,
+                        models.Trace.id <= max_trace_rowid,
+                        models.Trace.id > last_trace_rowid,
+                    )
                     .order_by(models.Trace.id)
                     .limit(_TRACE_DELETE_BATCH_SIZE)
                 )
@@ -74,6 +93,7 @@ async def delete_traces_and_orphan_sessions(
                 delete(models.Trace).where(models.Trace.id.in_(trace_batch_ids))
             )
             deleted_trace_count += result.rowcount  # type: ignore[attr-defined]
+            last_trace_rowid = trace_batch_ids[-1]
 
     orphan_session_ids = (
         select(models.ProjectSession.id)

@@ -1,6 +1,8 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from sqlalchemy import event, select
@@ -553,3 +555,74 @@ class TestProjectMutations:
             assert project.description is None
             assert project.gradient_start_color == "#5bdbff"
             assert project.gradient_end_color == "#1c76fc"
+
+    async def test_clear_project_does_not_delete_traces_that_arrive_while_clearing(
+        self,
+        db: DbSessionFactory,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Traces ingested after the clear started must survive it.
+
+        The batch loop selects until the selection is empty, so an unbounded
+        selection keeps picking up traces written after the clear was
+        requested: the reviewer measured 8,000 such traces deleted (#17961).
+        ``delete_traces_and_orphan_sessions`` pins the newest trace id before
+        it starts deleting, so a trace inserted after the snapshot must
+        survive.
+        """
+        monkeypatch.setattr(api_utils, "_TRACE_DELETE_BATCH_SIZE", 2)
+        base_start_time = datetime.now(timezone.utc)
+        async with db() as session:
+            project = models.Project(name=token_hex(8))
+            session.add(project)
+            await session.flush()
+            project_rowid = project.id
+            for trace_index in range(3):
+                session.add(
+                    models.Trace(
+                        project_rowid=project_rowid,
+                        trace_id=token_hex(16),
+                        start_time=base_start_time + timedelta(hours=trace_index),
+                        end_time=base_start_time + timedelta(hours=trace_index),
+                    )
+                )
+            await session.flush()
+
+        original_db = db
+        num_sessions_opened = 0
+        late_trace_id = token_hex(16)
+
+        @asynccontextmanager
+        async def db_with_late_trace() -> AsyncIterator[Any]:
+            nonlocal num_sessions_opened
+            num_sessions_opened += 1
+            if num_sessions_opened == 2:
+                # The snapshot used the first session; this is the first
+                # batch. A concurrent writer inserts a trace after the
+                # snapshot, so it is outside the set being cleared.
+                async with original_db() as session:
+                    session.add(
+                        models.Trace(
+                            project_rowid=project_rowid,
+                            trace_id=late_trace_id,
+                            start_time=base_start_time + timedelta(hours=1),
+                            end_time=base_start_time + timedelta(hours=1),
+                        )
+                    )
+                    await session.commit()
+            async with original_db() as session:
+                yield session
+
+        # The helper reads the dialect off the factory to pick its locking mode.
+        db_with_late_trace.dialect = original_db.dialect  # type: ignore[attr-defined]
+        deleted_trace_count = await api_utils.delete_traces_and_orphan_sessions(
+            cast(DbSessionFactory, db_with_late_trace), project_rowid
+        )
+        assert deleted_trace_count == 3, "delete exactly the traces present when the clear started"
+        async with db() as session:
+            surviving_trace = await session.scalar(
+                select(models.Trace).where(models.Trace.trace_id == late_trace_id)
+            )
+            assert surviving_trace is not None, (
+                "a trace ingested after the clear started must survive"
+            )
