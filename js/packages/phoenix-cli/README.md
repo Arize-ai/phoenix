@@ -566,19 +566,20 @@ of the same prompt already has the tag, it moves to this version.
 ```bash
 px prompt tag UHJvbXB0VmVyc2lvbjox --tag production --description "Current release"
 px prompt tag UHJvbXB0VmVyc2lvbjox --tag staging --format raw --no-progress
-# {"prompt_version_id":"UHJvbXB0VmVyc2lvbjox","name":"staging","description":null}
+# {"prompt_version_id":"UHJvbXB0VmVyc2lvbjox","name":"staging"}
 ```
 
-The description is replaced on every call, so **omitting `--description`
-clears an existing description** on the tag. Output echoes the applied tag;
-Phoenix returns no body, so it does not say whether the tag was created or moved.
+Omitting `--description` **keeps the tag's existing description**; an explicit
+`null` sent through the API clears it. Output echoes only what the caller sent,
+so the description field is absent when none was supplied. Phoenix returns no
+body, so the output does not say whether the tag was created or moved.
 Tag names use lowercase letters, digits, `-` and `_`, and must start and end
 with a letter or digit.
 
 | Option                 | Description                | Default  |
 | ---------------------- | -------------------------- | -------- |
 | `--tag <name>`         | Tag name (required)        | —        |
-| `--description <text>` | Tag description            | cleared  |
+| `--description <text>` | Tag description            | kept     |
 | `--format <format>`    | `pretty`, `json`, or `raw` | `pretty` |
 
 ---

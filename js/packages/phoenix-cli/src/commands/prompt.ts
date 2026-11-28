@@ -76,7 +76,7 @@ interface PromptTagOptions extends CommonOptions {
    */
   tag?: string;
   /**
-   * `--description <text>`: Description stored on the tag. Omitting it clears
+   * `--description <text>`: Description stored on the tag. Omitting it keeps
    * any existing description on the tag.
    *
    * @example "Currently deployed version"
@@ -422,8 +422,8 @@ async function promptTagHandler({
       noProgress: !options.progress,
     });
 
-    // The server upserts by (prompt, name) and overwrites the description, so
-    // omitting --description clears any description the tag had before.
+    // The server upserts by (prompt, name) and keeps the stored description
+    // when none is sent; an explicit null would clear it.
     await upsertPromptVersionTag({
       client,
       prompt: { versionId: promptVersionId },
@@ -434,7 +434,7 @@ async function promptTagHandler({
     const tag: AppliedPromptVersionTag = {
       prompt_version_id: promptVersionId,
       name: options.tag,
-      description: options.description ?? null,
+      description: options.description,
     };
     writeOutput({
       message: formatPromptVersionTagOutput({ tag, format: options.format }),
@@ -468,7 +468,7 @@ export function createPromptTagCommand(): Command {
     )
     .option(
       "--description <text>",
-      "Tag description (omitting it clears an existing description)"
+      "Tag description (omitting it keeps an existing description)"
     )
     .option("--endpoint <url>", "Phoenix API endpoint")
     .option("--api-key <key>", "Phoenix API key for authentication")
@@ -487,8 +487,7 @@ Examples:
   px prompt tag UHJvbXB0VmVyc2lvbjox --tag staging --format raw --no-progress
 
 If another version of the same prompt already has the tag, the tag moves to
-this version. The tag's description is replaced on every call: omitting
---description clears an existing description.`
+this version. Omitting --description keeps the tag's existing description.`
     )
     .action((promptVersionId: string, options: PromptTagOptions) =>
       promptTagHandler({ promptVersionId, options })

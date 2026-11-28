@@ -11,8 +11,8 @@ export interface AppliedPromptVersionTag {
   prompt_version_id: string;
   /** The prompt-scoped tag name. */
   name: string;
-  /** The tag's description; `null` when none was sent, which clears it. */
-  description: string | null;
+  /** The tag's description when one was sent; absent when the flag was omitted. */
+  description?: string | null;
 }
 
 export interface FormatPromptVersionTagOutputOptions {
@@ -32,10 +32,13 @@ export function formatPromptVersionTagOutput({
   if (format === "json") {
     return JSON.stringify(tag, null, 2);
   }
-  return [
+  const lines = [
     "Tag applied",
     `  Tag: ${tag.name}`,
     `  Prompt version: ${tag.prompt_version_id}`,
-    `  Description: ${tag.description ?? "(none)"}`,
-  ].join("\n");
+  ];
+  if (tag.description !== undefined) {
+    lines.push(`  Description: ${tag.description ?? "(none)"}`);
+  }
+  return lines.join("\n");
 }

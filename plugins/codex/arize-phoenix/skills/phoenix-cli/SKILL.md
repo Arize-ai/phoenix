@@ -409,9 +409,10 @@ Missing prompts exit nonzero. JSON/raw errors go to stderr as
 `{ error, code, hint? }`.
 
 `prompt tag` creates the tag, or moves it if another version of the prompt has it,
-and prints `{ prompt_version_id, name, description }` (no create/move flag; the
-server returns no body). Omitting `--description` clears the tag's existing
-description. Tag names: lowercase letters, digits, `-`, `_`.
+and prints `{ prompt_version_id, name }` plus `description` only when one was
+sent (no create/move flag; the server returns no body). Omitting `--description`
+keeps the tag's existing description. Tag names: lowercase letters, digits,
+`-`, `_`.
 
 ## Annotation Configs
 

@@ -42,8 +42,8 @@ interface TagRecord {
 
 /**
  * A minimal stand-in for the server's tag table on a single prompt: tag names
- * are unique, and a POST overwrites the version and description of an
- * existing name (the `ON CONFLICT (name, prompt_id) DO UPDATE` upsert).
+ * are unique, and a POST moves an existing name to the requested version. An
+ * omitted description preserves the stored value, matching the server contract.
  * Records every request body so tests can assert what the CLI sent.
  */
 function useTagStore() {
@@ -54,10 +54,16 @@ function useTagStore() {
     http.post(TAG_ROUTE, async ({ params, request, response }) => {
       const body = (await request.json()) as Record<string, unknown>;
       requests.push({ promptVersionId: params.prompt_version_id, body });
-      tags.set(String(body.name), {
+      const name = String(body.name);
+      const existing = tags.get(name);
+      tags.set(name, {
         promptVersionId: params.prompt_version_id,
         description:
-          typeof body.description === "string" ? body.description : null,
+          "description" in body
+            ? typeof body.description === "string"
+              ? body.description
+              : null
+            : (existing?.description ?? null),
       });
       return response(204).empty();
     })
@@ -151,11 +157,10 @@ describe("prompt tag", () => {
     expect(JSON.parse(String(io.stdout.mock.calls[1]?.[0]))).toEqual({
       prompt_version_id: "pv-2",
       name: "production",
-      description: null,
     });
   });
 
-  it("omits description from the request when --description is not passed, clearing an old one", async () => {
+  it("keeps an existing description when --description is not passed", async () => {
     useServerVersion();
     const store = useTagStore();
     const io = captureCliOutput();
@@ -173,10 +178,11 @@ describe("prompt tag", () => {
 
     expect(store.requests[1]?.body).toEqual({ name: "production" });
     expect("description" in (store.requests[1]?.body ?? {})).toBe(false);
-    expect(store.tags.get("production")?.description).toBeNull();
-    expect(JSON.parse(String(io.stdout.mock.calls[1]?.[0])).description).toBe(
-      null
-    );
+    expect(store.tags.get("production")?.description).toBe("old");
+    expect(JSON.parse(String(io.stdout.mock.calls[1]?.[0]))).toEqual({
+      prompt_version_id: "pv-1",
+      name: "production",
+    });
   });
 
   it("prints a readable summary in pretty output", async () => {
@@ -187,12 +193,7 @@ describe("prompt tag", () => {
     await runTag(["pv-1", "--tag", "staging"]);
 
     expect(stdoutText(io)).toBe(
-      [
-        "Tag applied",
-        "  Tag: staging",
-        "  Prompt version: pv-1",
-        "  Description: (none)",
-      ].join("\n")
+      ["Tag applied", "  Tag: staging", "  Prompt version: pv-1"].join("\n")
     );
   });
 
@@ -458,11 +459,10 @@ describe("prompt tag", () => {
     expect(JSON.parse(stdoutText(io))).toEqual({
       prompt_version_id: "pv-1",
       name: "production",
-      description: null,
     });
   });
 
-  it("is registered under prompt with examples and the clearing note in help", () => {
+  it("is registered under prompt with examples and the preservation note in help", () => {
     const promptCommand = createProgram().commands.find(
       (command) => command.name() === "prompt"
     );
@@ -485,9 +485,8 @@ describe("prompt tag", () => {
     expect(help).toContain(
       "px prompt tag UHJvbXB0VmVyc2lvbjox --tag production"
     );
-    expect(help).toContain(
-      "omitting\n--description clears an existing description"
-    );
+    expect(help).toContain("keeps the tag's existing description");
+    expect(help).not.toContain("clears an existing description");
   });
 });
 

@@ -13,7 +13,7 @@ export interface UpsertPromptVersionTagParams extends ClientFn {
   prompt: GetPromptByVersionSelector;
   /** The prompt-scoped tag name. */
   name: string;
-  /** An optional description for the tag. */
+  /** Description to apply: omit to keep an existing one, null to clear it. */
   description?: string | null;
 }
 
@@ -21,13 +21,14 @@ export interface UpsertPromptVersionTagParams extends ClientFn {
  * Create a prompt version tag or move an existing tag to another version.
  *
  * Tag names are unique within a prompt. If another version of the same prompt
- * already has `name`, the tag is moved to the selected version and its
- * description is updated.
+ * already has `name`, the tag is moved to the selected version. On a move, an
+ * omitted `description` keeps the stored description, `null` clears it, and a
+ * string replaces it.
  *
  * @param params - The prompt version tag to create or move.
  * @param params.prompt - The target prompt, selected by version ID.
  * @param params.name - The prompt-scoped tag name.
- * @param params.description - An optional description for the tag.
+ * @param params.description - Description to apply; omission keeps the existing value.
  * @returns A promise that resolves once the tag has been created or moved.
  * @throws {@link HttpError} when Phoenix rejects the request.
  *
