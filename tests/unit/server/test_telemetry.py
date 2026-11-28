@@ -867,7 +867,7 @@ class TestSqlAlchemyEngineTracing:
                 )
             exporter.clear()
             gc.collect()
-            registry_before = len(weakref.finalize._registry)
+            registry_before = len(weakref.finalize._registry)  # type: ignore[attr-defined]
 
             with (
                 tracer.start_as_current_span("stream-gc", kind=SpanKind.SERVER) as parent_span,
@@ -875,7 +875,7 @@ class TestSqlAlchemyEngineTracing:
             ):
                 async with engine.connect() as connection:
                     result = await connection.stream(text("SELECT val FROM stream_gc ORDER BY val"))
-                    ctx_ref = weakref.ref(result._real_result.context)
+                    ctx_ref = weakref.ref(result._real_result.context)  # type: ignore[attr-defined]
                     rows = await result.fetchall()
                     assert [r[0] for r in rows] == [0, 1, 2]
                     await result.close()
@@ -883,7 +883,7 @@ class TestSqlAlchemyEngineTracing:
 
             gc.collect()
             assert ctx_ref() is None
-            assert len(weakref.finalize._registry) <= registry_before
+            assert len(weakref.finalize._registry) <= registry_before  # type: ignore[attr-defined]
         finally:
             uninstrument()
             provider.shutdown()
