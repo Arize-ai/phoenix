@@ -1085,6 +1085,28 @@ def _extract_db_engine_attributes(
     return base_attributes, target
 
 
+class _TracedStreamCursorProxy:
+    """Thin proxy around a streamed DBAPI cursor that ends the DB span on ``close()``."""
+
+    __slots__ = ("_cursor", "_end_span", "__weakref__")
+
+    def __init__(self, cursor: Any, end_span: Callable[[], Any]) -> None:
+        self._cursor = cursor
+        self._end_span = end_span
+
+    def close(self) -> Any:
+        try:
+            return self._cursor.close()
+        finally:
+            self._end_span()
+
+    def __iter__(self) -> Any:
+        return iter(self._cursor)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._cursor, name)
+
+
 class _SqlAlchemyEngineTracer:
     """Per-engine SQLAlchemy cursor and error event listener."""
 
@@ -1105,6 +1127,9 @@ class _SqlAlchemyEngineTracer:
         self._in_flight_spans: weakref.WeakKeyDictionary[
             SAConnection, list[tuple[object, Span]]
         ] = weakref.WeakKeyDictionary()
+        self._streamed_spans: weakref.WeakKeyDictionary[object, tuple[Span, Callable[[], Any]]] = (
+            weakref.WeakKeyDictionary()
+        )
         self._listeners: list[tuple[str, Callable[..., Any]]] = [
             ("before_cursor_execute", _fail_open(self._before_cursor_execute)),
             ("after_cursor_execute", _fail_open(self._after_cursor_execute)),
@@ -1167,25 +1192,65 @@ class _SqlAlchemyEngineTracer:
         _, span = spans.pop()
         if not spans:
             self._in_flight_spans.pop(connection, None)
+        is_streamed = execution_context is not None and bool(
+            execution_context.execution_options.get("stream_results")
+            or getattr(execution_context, "_is_server_side", False)
+        )
+        if is_streamed and self._defer_span_end_until_cursor_close(
+            execution_context, cursor, tag, span
+        ):
+            return
         span.end()
+
+    def _defer_span_end_until_cursor_close(
+        self,
+        execution_context: ExecutionContext | None,
+        cursor: Any,
+        tag: object,
+        span: Span,
+    ) -> bool:
+        if execution_context is None or getattr(execution_context, "cursor", None) is not cursor:
+            return False
+        if not callable(getattr(cursor, "close", None)):
+            return False
+
+        # Use weakref.finalize directly on the proxy with span.end so neither
+        # the finalizer nor _streamed_spans holds a strong reference to
+        # execution_context or proxy. Calling finalize() from proxy.close() or
+        # _handle_error() ends the span at most once and immediately detaches
+        # the entry from weakref.finalize._registry.
+        proxy = _TracedStreamCursorProxy(cursor, lambda: None)
+        finalizer = weakref.finalize(proxy, span.end)
+        proxy._end_span = finalizer
+        try:
+            execution_context.cursor = proxy
+        except (AttributeError, TypeError):
+            finalizer.detach()
+            return False
+
+        try:
+            self._streamed_spans[tag] = (span, finalizer)
+        except TypeError:
+            pass
+        return True
 
     def _handle_error(self, exception_context: ExceptionContext) -> None:
         connection = exception_context.connection
-        if connection is None:
+        execution_context = exception_context.execution_context
+        span: Span | None = None
+        end_span: Callable[[], Any] | None = None
+        if connection is not None and execution_context is not None:
+            spans = self._in_flight_spans.get(connection)
+            if spans and spans[-1][0] is execution_context:
+                _, span = spans.pop()
+                if not spans:
+                    self._in_flight_spans.pop(connection, None)
+        if span is None and execution_context is not None:
+            streamed = self._streamed_spans.pop(execution_context, None)
+            if streamed is not None:
+                span, end_span = streamed
+        if span is None:
             return
-        spans = self._in_flight_spans.get(connection)
-        if not spans:
-            return
-        tag: object = (
-            exception_context.execution_context
-            if exception_context.execution_context is not None
-            else exception_context.cursor
-        )
-        if tag is None or spans[-1][0] is not tag:
-            return
-        _, span = spans.pop()
-        if not spans:
-            self._in_flight_spans.pop(connection, None)
         exception = exception_context.original_exception
         # SQLAlchemy catches ``BaseException`` in ``_exec_single_context`` and dispatches
         # ``handle_error`` for ``CancelledError`` too; leave cancelled spans ``UNSET``.
@@ -1194,7 +1259,10 @@ class _SqlAlchemyEngineTracer:
             if status_code is not None:
                 span.set_attribute(DB_RESPONSE_STATUS_CODE, status_code)
             record_span_exception(span, exception)
-        span.end()
+        if end_span is not None:
+            end_span()
+        else:
+            span.end()
 
     def uninstrument(self) -> None:
         for identifier, fn in self._listeners:
